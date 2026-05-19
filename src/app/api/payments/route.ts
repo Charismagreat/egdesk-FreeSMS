@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { queryTable, insertRows, deleteRows } from '../../../../egdesk-helpers';
+import { triggerAutomation } from '@/lib/automation-trigger';
 
 export async function GET() {
   try {
@@ -25,6 +26,17 @@ export async function POST(req: Request) {
       payment_date: data.paymentDate || new Date().toISOString().split('T')[0],
       status: data.status || '결제완료'
     }]);
+    
+    // Trigger automation in the background
+    triggerAutomation('payment_completed', { 
+      id, 
+      name: data.customerName, 
+      phone: data.customerPhone, // Assuming frontend passes phone
+      결제수단: data.paymentMethod || '카드결제',
+      결제금액: data.amount,
+      결제일시: data.paymentDate || new Date().toISOString().split('T')[0]
+    });
+
     return NextResponse.json({ success: true, id });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 export default function MainContentWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   
-  if (pathname === '/login') {
+  if (pathname === '/login' || pathname.startsWith('/store')) {
     return <>{children}</>;
   }
 

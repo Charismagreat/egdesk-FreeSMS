@@ -1,6 +1,5 @@
 import { Users, MessageSquare, CheckCircle, Clock, AlertTriangle } from "lucide-react";
 import { queryTable } from "@/../egdesk-helpers";
-import AiSettingsCard from "./AiSettingsCard";
 
 // Next.js 캐싱 비활성화 (항상 최신 데이터 유지)
 export const dynamic = 'force-dynamic';
@@ -44,8 +43,6 @@ export default async function Home() {
           연동 상태: <span className="text-green-500 font-semibold">정상 (Google 메시지)</span>
         </div>
       </div>
-
-      <AiSettingsCard />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">

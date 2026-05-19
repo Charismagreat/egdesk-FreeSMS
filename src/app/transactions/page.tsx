@@ -186,7 +186,7 @@ export default function TransactionsPage() {
               <th className="p-4">고객명</th>
               <th className="p-4">연락처</th>
               <th className="p-4">주문상품</th>
-              <th className="p-4">결제금액</th>
+              <th className="p-4 text-right">결제금액</th>
               <th className="p-4">관리</th>
             </tr>
           </thead>
@@ -200,7 +200,7 @@ export default function TransactionsPage() {
                 <td className="p-4 font-medium text-slate-800">{t.customerName}</td>
                 <td className="p-4 text-slate-600">{t.customerPhone}</td>
                 <td className="p-4 text-slate-800">{t.productName}</td>
-                <td className="p-4 text-slate-600">{t.amount}</td>
+                <td className="p-4 text-slate-600 text-right">{t.amount ? Number(String(t.amount).replace(/[^0-9]/g, '')).toLocaleString() : '-'}</td>
                 <td className="p-4">
                   <button onClick={() => deleteTransaction(t.id)} className="text-red-400 hover:text-red-600 p-1">
                     <Trash2 className="w-4 h-4" />

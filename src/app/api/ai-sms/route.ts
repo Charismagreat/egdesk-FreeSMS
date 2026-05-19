@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { queryTable } from '../../../../egdesk-helpers';
 
 export async function POST(req: Request) {
+  try {
     const { prompt, customers } = await req.json();
 
     // DB에서 API 키 조회
@@ -35,7 +36,7 @@ You MUST output your response in valid JSON format ONLY, exactly like this:
 `;
 
     // Fetch call to Google Gemini API
-    const response = await fetch(\`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=\${apiKey}\`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -69,8 +70,9 @@ You MUST output your response in valid JSON format ONLY, exactly like this:
       messageContent: resultJson.messageContent || ""
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('AI Error:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: (error as Error).message }, { status: 500 });
   }
+
 }

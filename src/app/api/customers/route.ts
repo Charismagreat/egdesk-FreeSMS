@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { queryTable, insertRows } from '@/../egdesk-helpers';
+import { triggerAutomation } from '@/lib/automation-trigger';
 
 export async function GET(request: Request) {
   try {
@@ -43,6 +44,9 @@ export async function POST(request: Request) {
       }
     ]);
     
+    // Trigger automation in the background
+    triggerAutomation('customer_registered', { id, name, phone });
+
     return NextResponse.json({ success: true, id });
   } catch (error: any) {
     console.error('Error adding customer:', error);

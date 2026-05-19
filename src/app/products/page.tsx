@@ -4,7 +4,7 @@ import { PackageSearch, Plus, Trash2, ExternalLink } from "lucide-react";
 
 export default function ProductsPage() {
   const [data, setData] = useState<any[]>([]);
-  const [form, setForm] = useState({ name: '', price: '', url: '', description: '', main_image_url: '', detail_image_url: '' });
+  const [form, setForm] = useState({ name: '', price: '', url: '', description: '', main_image_url: '', detail_image_url: '', category: '식사류', isPriceTbd: false, available_methods: ['매장에서', '가져가기', '배달', '배송'] });
 
   useEffect(() => { fetchData(); }, []);
   
@@ -21,12 +21,16 @@ export default function ProductsPage() {
     const res = await fetch('/api/products', { 
       method: 'POST', 
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form) 
+      body: JSON.stringify({
+        ...form,
+        price: form.isPriceTbd ? '상담후결정' : form.price,
+        available_methods: form.available_methods.join(',')
+      }) 
     });
     
     const json = await res.json();
     if (json.success) { 
-      setForm({ name: '', price: '', url: '', description: '', main_image_url: '', detail_image_url: '' }); 
+      setForm({ name: '', price: '', url: '', description: '', main_image_url: '', detail_image_url: '', category: '식사류', isPriceTbd: false, available_methods: ['매장에서', '가져가기', '배달', '배송'] }); 
       fetchData(); 
     } else {
       alert("등록 실패: " + json.error);
@@ -57,13 +61,20 @@ export default function ProductsPage() {
               onChange={e => setForm({...form, name: e.target.value})} 
               className="flex-[2] border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500" 
             />
-            <input 
-              type="text" 
-              placeholder="가격 (예: 850,000원)" 
-              value={form.price} 
-              onChange={e => setForm({...form, price: e.target.value})} 
-              className="flex-[1] border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500" 
-            />
+            <div className="flex-[1] flex items-center gap-2 border rounded-lg px-3 py-2">
+              <input 
+                type="text" 
+                placeholder="가격 (예: 850,000원)" 
+                value={form.price} 
+                onChange={e => setForm({...form, price: e.target.value})} 
+                disabled={form.isPriceTbd}
+                className="w-full outline-none disabled:bg-slate-50 disabled:text-slate-400" 
+              />
+              <label className="flex items-center space-x-1 whitespace-nowrap text-xs text-slate-600 font-medium cursor-pointer">
+                <input type="checkbox" checked={form.isPriceTbd} onChange={e => setForm({...form, isPriceTbd: e.target.checked, price: e.target.checked ? '' : form.price})} className="rounded text-pink-500 focus:ring-pink-500" />
+                <span>상담후결정</span>
+              </label>
+            </div>
             <input 
               type="text" 
               placeholder="쇼핑몰 URL (선택)" 
@@ -71,6 +82,18 @@ export default function ProductsPage() {
               onChange={e => setForm({...form, url: e.target.value})} 
               className="flex-[2] border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500" 
             />
+            <select 
+              value={form.category}
+              onChange={e => setForm({...form, category: e.target.value})}
+              className="flex-[1] border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500 bg-white"
+            >
+              <option value="일반상품">일반상품</option>
+              <option value="식사류">식사류</option>
+              <option value="안주류">안주류</option>
+              <option value="주류">주류</option>
+              <option value="음료">음료</option>
+              <option value="예약상품">예약상품</option>
+            </select>
           </div>
           <div className="flex flex-col md:flex-row gap-3">
             <input 
@@ -89,15 +112,36 @@ export default function ProductsPage() {
             />
             <input 
               type="text" 
-              placeholder="상세설명 이미지 (외부 URL)" 
+              placeholder="상세 이미지 URL" 
               value={form.detail_image_url} 
               onChange={e => setForm({...form, detail_image_url: e.target.value})} 
               className="flex-[1] border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500 text-sm" 
             />
-            <button type="submit" className="bg-pink-500 text-white px-6 py-2 rounded-lg hover:bg-pink-600 flex items-center justify-center whitespace-nowrap font-medium transition-colors">
-              <Plus className="w-4 h-4 mr-1"/> 등록
-            </button>
           </div>
+          
+          <div className="flex items-center gap-4 py-2">
+            <span className="text-sm font-bold text-slate-700">허용 수령 방식:</span>
+            {['매장에서', '가져가기', '배달', '배송'].map(method => (
+              <label key={method} className="flex items-center space-x-1 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={form.available_methods.includes(method)}
+                  onChange={(e) => {
+                    const newMethods = e.target.checked 
+                      ? [...form.available_methods, method] 
+                      : form.available_methods.filter(m => m !== method);
+                    setForm({...form, available_methods: newMethods});
+                  }}
+                  className="rounded text-pink-500 focus:ring-pink-500"
+                />
+                <span className="text-sm text-slate-600">{method}</span>
+              </label>
+            ))}
+          </div>
+
+          <button type="submit" className="w-full bg-slate-800 text-white font-bold py-3 rounded-lg hover:bg-slate-700 transition flex items-center justify-center">
+            <Plus className="w-4 h-4 mr-1"/> 등록
+          </button>
         </form>
       </div>
 
@@ -106,8 +150,9 @@ export default function ProductsPage() {
           <thead>
             <tr className="bg-slate-50 border-b border-slate-100 text-sm">
               <th className="p-4 font-semibold text-slate-600">대표 이미지</th>
+              <th className="p-4 font-semibold text-slate-600">분류</th>
               <th className="p-4 font-semibold text-slate-600 w-[20%]">상품정보</th>
-              <th className="p-4 font-semibold text-slate-600">가격</th>
+              <th className="p-4 font-semibold text-slate-600 text-right">가격</th>
               <th className="p-4 font-semibold text-slate-600">상세 설명 문구</th>
               <th className="p-4 font-semibold text-slate-600">상세설명 이미지</th>
               <th className="p-4 font-semibold text-slate-600">쇼핑몰 링크</th>
@@ -129,8 +174,9 @@ export default function ProductsPage() {
                       <div className="w-16 h-16 bg-slate-100 rounded-lg flex items-center justify-center text-xs text-slate-400">No Img</div>
                     )}
                   </td>
+                  <td className="p-4 text-sm font-semibold text-blue-600 bg-blue-50/50 rounded-lg text-center">{t.category || '일반상품'}</td>
                   <td className="p-4 font-medium text-slate-800">{t.name}</td>
-                  <td className="p-4 text-pink-600 font-semibold whitespace-nowrap">{t.price || '-'}</td>
+                  <td className="p-4 text-pink-600 font-semibold whitespace-nowrap text-right">{t.price ? Number(String(t.price).replace(/[^0-9]/g, '')).toLocaleString() : '-'}</td>
                   <td className="p-4 text-slate-500 text-xs">
                     <p className="truncate max-w-[150px]" title={t.description}>{t.description || '-'}</p>
                   </td>

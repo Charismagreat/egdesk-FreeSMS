@@ -14,9 +14,11 @@ export async function GET() {
       name: r.name,
       price: r.price,
       url: r.url,
+      category: r.category,
       description: r.description,
       main_image_url: r.main_image_url,
-      detail_image_url: r.detail_image_url
+      detail_image_url: r.detail_image_url,
+      available_methods: r.available_methods || '매장에서,가져가기,배달,배송'
     }));
 
     return NextResponse.json({ success: true, products });
@@ -29,7 +31,7 @@ export async function GET() {
 // POST /api/products : 새 상품 생성
 export async function POST(req: Request) {
   try {
-    const { id, name, price, url, description, main_image_url, detail_image_url } = await req.json();
+    const { id, name, price, url, category, description, main_image_url, detail_image_url, available_methods } = await req.json();
 
     if (!name) {
       return NextResponse.json({ success: false, error: 'Product name is required' }, { status: 400 });
@@ -42,9 +44,11 @@ export async function POST(req: Request) {
       name,
       price: price || '',
       url: url || '',
+      category: category || '일반상품',
       description: description || '',
       main_image_url: main_image_url || '',
-      detail_image_url: detail_image_url || ''
+      detail_image_url: detail_image_url || '',
+      available_methods: available_methods || '매장에서,가져가기,배달,배송'
     }]);
 
     return NextResponse.json({ success: true, id: newId });

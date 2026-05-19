@@ -73,7 +73,8 @@ export async function setupDatabase() {
       { name: 'description', type: 'TEXT' },
       { name: 'main_image_url', type: 'TEXT' },
       { name: 'detail_image_url', type: 'TEXT' },
-    ], { tableName: 'products', uniqueKeyColumns: ['id'] });
+      { name: 'available_methods', type: 'TEXT' },
+    ], { tableName: 'products', uniqueKeyColumns: ['id'], duplicateAction: 'update' });
     console.log('Table "products" created.');
   } catch (e: any) {
     console.error('Error creating products table:', e.message);
@@ -105,7 +106,7 @@ export async function setupDatabase() {
       { name: 'quantity', type: 'TEXT' },
       { name: 'order_date', type: 'TEXT' },
       { name: 'status', type: 'TEXT' },
-    ], { tableName: 'crm_orders', uniqueKeyColumns: ['id'] });
+    ], { tableName: 'crm_orders', uniqueKeyColumns: ['id'], duplicateAction: 'update' });
     console.log('Table "crm_orders" created.');
   } catch (e: any) {
     console.error('Error creating crm_orders table:', e.message);

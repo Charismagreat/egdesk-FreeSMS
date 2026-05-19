@@ -1,11 +1,25 @@
 import Link from 'next/link';
-import { Home, Users, MessageSquare, Settings, ShoppingCart, ClipboardList, CreditCard, CalendarDays, Truck, Send, PackageSearch, UserCog, LogOut } from 'lucide-react';
-import { headers } from 'next/headers';
+import { Home, Users, MessageSquare, Settings, ShoppingCart, ClipboardList, CreditCard, CalendarDays, Truck, Send, PackageSearch, UserCog, LogOut, Zap } from 'lucide-react';
+import { cookies } from 'next/headers';
+import { decodeJwt } from 'jose';
 
 export default async function Sidebar() {
-  const headersList = await headers();
-  const userName = decodeURIComponent(headersList.get('x-user-name') || '운영자');
-  const userRole = headersList.get('x-user-role') || 'SUB_OPERATOR';
+  const cookieStore = await cookies();
+  const token = cookieStore.get('auth_token')?.value;
+  
+  let userName = '운영자';
+  let userRole = 'SUB_OPERATOR';
+
+  if (token) {
+    try {
+      const payload = decodeJwt(token);
+      if (payload.name) userName = payload.name as string;
+      if (payload.role) userRole = payload.role as string;
+    } catch (e) {
+      console.error("Invalid token in Sidebar");
+    }
+  }
+
 
   return (
     <div className="w-64 bg-slate-900 text-white min-h-screen flex flex-col shadow-2xl">
@@ -27,6 +41,10 @@ export default async function Sidebar() {
         <Link href="/message-logs" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-all text-slate-300 hover:text-white">
           <Send className="w-5 h-5 text-purple-400" />
           <span>발송내역 모니터링</span>
+        </Link>
+        <Link href="/automation" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-all text-slate-300 hover:text-white">
+          <Zap className="w-5 h-5 text-yellow-400" />
+          <span>자동 발송 설정</span>
         </Link>
         <Link href="/customers" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-all text-slate-300 hover:text-white">
           <Users className="w-5 h-5 text-green-400" />

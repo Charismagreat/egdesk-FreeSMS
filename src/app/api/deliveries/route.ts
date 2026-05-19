@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { queryTable, insertRows, deleteRows } from '../../../../egdesk-helpers';
+import { triggerAutomation } from '@/lib/automation-trigger';
 
 export async function GET() {
   try {
@@ -26,6 +27,17 @@ export async function POST(req: Request) {
       tracking_number: data.trackingNumber || '',
       status: data.status || '상품준비중'
     }]);
+
+    // Trigger automation in the background
+    triggerAutomation('delivery_started', { 
+      id, 
+      name: data.customerName, 
+      phone: data.customerPhone,
+      배송지: data.address,
+      택배사: data.courier || '대한통운',
+      송장번호: data.trackingNumber || ''
+    });
+
     return NextResponse.json({ success: true, id });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

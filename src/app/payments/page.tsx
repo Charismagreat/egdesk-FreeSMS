@@ -40,11 +40,11 @@ export default function PaymentsPage() {
       </div>
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         <table className="w-full text-left border-collapse">
-          <thead><tr className="bg-slate-50 border-b border-slate-100 text-sm"><th className="p-4">결제일시</th><th className="p-4">고객명</th><th className="p-4">결제수단</th><th className="p-4">결제금액</th><th className="p-4">상태</th><th className="p-4">관리</th></tr></thead>
+          <thead><tr className="bg-slate-50 border-b border-slate-100 text-sm"><th className="p-4">결제일시</th><th className="p-4">고객명</th><th className="p-4">결제수단</th><th className="p-4 text-right">결제금액</th><th className="p-4">상태</th><th className="p-4">관리</th></tr></thead>
           <tbody>
             {data.map(t => (
               <tr key={t.id} className="border-b border-slate-50 hover:bg-slate-50">
-                <td className="p-4">{t.payment_date}</td><td className="p-4">{t.customer_name}</td><td className="p-4">{t.payment_method}</td><td className="p-4 font-bold text-emerald-600">{t.amount}</td><td className="p-4">{t.status}</td>
+                <td className="p-4">{t.payment_date}</td><td className="p-4">{t.customer_name}</td><td className="p-4">{t.payment_method}</td><td className="p-4 font-bold text-emerald-600 text-right">{t.amount ? Number(String(t.amount).replace(/[^0-9]/g, '')).toLocaleString() : '-'}</td><td className="p-4">{t.status}</td>
                 <td className="p-4"><button onClick={()=>deleteData(t.id)} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4"/></button></td>
               </tr>
             ))}

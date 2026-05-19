@@ -18,6 +18,12 @@ interface AdTemplate {
   optOut: string;
 }
 
+interface MessageTemplate {
+  id: number;
+  title: string;
+  content: string;
+}
+
 interface Product {
   id: string;
   name: string;
@@ -60,6 +66,10 @@ export default function SmsPage() {
   
   // Transaction States
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  
+  // Message Template States
+  const [messageTemplates, setMessageTemplates] = useState<MessageTemplate[]>([]);
+  const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
   
   // Sending States
   const [isSending, setIsSending] = useState(false);
@@ -110,7 +120,20 @@ export default function SmsPage() {
     fetchAdTemplates();
     fetchProducts();
     fetchTransactions();
+    fetchMessageTemplates();
   }, []);
+
+  const fetchMessageTemplates = async () => {
+    try {
+      const res = await fetch('/api/message-templates');
+      const json = await res.json();
+      if (json.success) {
+        setMessageTemplates(json.templates);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const fetchTransactions = async () => {
     try {
@@ -634,6 +657,31 @@ export default function SmsPage() {
               <span className="text-sm text-slate-500">{message.length} / 2000 자</span>
               <div className="flex space-x-2">
                 <button 
+                  onClick={async () => {
+                    const title = prompt("현재 작성된 메시지를 템플릿으로 저장합니다. 템플릿의 제목을 입력하세요:");
+                    if (!title) return;
+                    try {
+                      const res = await fetch('/api/message-templates', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ title, content: message })
+                      });
+                      const json = await res.json();
+                      if (json.success) {
+                        setMessageTemplates([...messageTemplates, json.template]);
+                        alert("템플릿이 저장되었습니다.");
+                      } else {
+                        alert("저장 실패: " + json.error);
+                      }
+                    } catch (e) {
+                      alert("템플릿 저장 중 오류가 발생했습니다.");
+                    }
+                  }}
+                  className="px-4 py-2 border border-blue-200 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors text-sm font-medium"
+                >
+                  + 템플릿으로 저장
+                </button>
+                <button 
                   onClick={() => setShowTestModal(true)}
                   disabled={isSending}
                   className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors text-sm font-medium"
@@ -753,13 +801,59 @@ export default function SmsPage() {
             )}
           </div>
           
-          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-            <h2 className="text-lg font-bold text-slate-800 mb-4">안심 템플릿 추천</h2>
-            <div className="space-y-3">
-              <button onClick={() => setMessage("안녕하세요 {이름}님, 방문해주셔서 감사합니다.")} className="w-full text-left p-3 border border-slate-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors">
-                <p className="font-semibold text-slate-800 text-sm">방문 감사 인사</p>
-                <p className="text-xs text-slate-500 truncate mt-1">스팸 키워드가 없는 안전한 기본 인사</p>
-              </button>
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 max-h-[500px] flex flex-col">
+            <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center justify-between">
+              내 템플릿 모음
+              <span className="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-1 rounded-full">{messageTemplates.length}개</span>
+            </h2>
+            <div className="space-y-3 overflow-y-auto flex-1 pr-2">
+              {messageTemplates.length === 0 ? (
+                <div className="text-sm text-slate-500 text-center py-8">
+                  저장된 템플릿이 없습니다.<br/>문자 작성 창에서 저장해보세요.
+                </div>
+              ) : (
+                messageTemplates.map(t => (
+                  <div key={t.id} className="group border border-slate-200 rounded-lg hover:border-blue-500 transition-colors bg-white overflow-hidden flex flex-col">
+                    <div className="flex justify-between items-center p-3 pb-2 border-b border-slate-50 bg-slate-50/50">
+                      <p className="font-semibold text-slate-800 text-sm truncate pr-2">{t.title}</p>
+                      <div className="flex space-x-1 shrink-0">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingTemplate(t);
+                          }}
+                          className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                          title="수정"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                        </button>
+                        <button 
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (!confirm("이 템플릿을 삭제하시겠습니까?")) return;
+                            try {
+                              await fetch(`/api/message-templates?id=${t.id}`, { method: 'DELETE' });
+                              setMessageTemplates(messageTemplates.filter(x => x.id !== t.id));
+                            } catch (e) {
+                              alert("삭제 중 오류가 발생했습니다.");
+                            }
+                          }}
+                          className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-100 rounded transition-colors"
+                          title="삭제"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setMessage(t.content)} 
+                      className="w-full text-left p-3 pt-2 hover:bg-blue-50 transition-colors"
+                    >
+                      <p className="text-xs text-slate-600 line-clamp-2">{t.content}</p>
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -791,6 +885,61 @@ export default function SmsPage() {
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-400"
               >
                 {isSending ? "발송 중..." : "테스트 전송"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Template Modal */}
+      {editingTemplate && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-[500px] shadow-xl">
+            <h3 className="text-lg font-bold text-slate-800 mb-4">템플릿 수정</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">제목</label>
+                <input 
+                  type="text" 
+                  value={editingTemplate.title}
+                  onChange={e => setEditingTemplate({...editingTemplate, title: e.target.value})}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">내용</label>
+                <textarea 
+                  value={editingTemplate.content}
+                  onChange={e => setEditingTemplate({...editingTemplate, content: e.target.value})}
+                  className="w-full h-32 border border-slate-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm resize-none"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end space-x-2 mt-6">
+              <button onClick={() => setEditingTemplate(null)} className="px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-100 text-sm">취소</button>
+              <button 
+                onClick={async () => {
+                  try {
+                    const res = await fetch('/api/message-templates', {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(editingTemplate)
+                    });
+                    const json = await res.json();
+                    if (json.success) {
+                      setMessageTemplates(messageTemplates.map(t => t.id === editingTemplate.id ? editingTemplate : t));
+                      setEditingTemplate(null);
+                      alert("수정되었습니다.");
+                    } else {
+                      alert("수정 실패: " + json.error);
+                    }
+                  } catch (e) {
+                    alert("수정 중 오류가 발생했습니다.");
+                  }
+                }} 
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+              >
+                저장하기
               </button>
             </div>
           </div>

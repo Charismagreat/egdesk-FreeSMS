@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { queryTable, insertRows, deleteRows } from '../../../../egdesk-helpers';
+import { queryTable, insertRows, deleteRows, updateRows } from '../../../../egdesk-helpers';
+import { triggerAutomation } from '@/lib/automation-trigger';
 
 export async function GET() {
   try {
@@ -16,17 +17,93 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const data = await req.json();
+    const { customerName, customerPhone, productName, quantity, totalPrice, deliveryMethod, shippingAddress, status, attachmentUrl, customerMemo } = data;
     const id = data.id || Date.now().toString();
     await insertRows('crm_orders', [{
       id,
-      customer_name: data.customerName,
-      customer_phone: data.customerPhone,
-      product_name: data.productName,
-      quantity: data.quantity || '1',
+      customer_name: customerName,
+      customer_phone: customerPhone,
+      product_name: productName,
+      quantity: quantity || '1',
+      total_price: totalPrice || '',
+      delivery_method: deliveryMethod || '택배배송',
+      shipping_address: shippingAddress || '',
+      tracking_number: '',
+      attachment_url: attachmentUrl || '',
+      customer_memo: customerMemo || '',
       order_date: data.orderDate || new Date().toISOString().split('T')[0],
-      status: data.status || '접수완료'
+      status: status || '결제대기'
     }]);
+
+    // Trigger automation in the background
+    triggerAutomation('order_created', { 
+      id, 
+      name: customerName, 
+      phone: customerPhone,
+      상품명: productName,
+      수량: quantity || '1',
+      결제금액: totalPrice || '',
+      주문일시: data.orderDate || new Date().toISOString().split('T')[0]
+    });
+
     return NextResponse.json({ success: true, id });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: Request) {
+  try {
+    const data = await req.json();
+    const { ids, updates } = data; // ids: string[], updates: { status?: string, tracking_number?: string }
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json({ success: false, error: '선택된 주문이 없습니다.' }, { status: 400 });
+    }
+
+    for (const id of ids) {
+      const orderRes = await queryTable('crm_orders', { filters: { id } });
+      const order = orderRes.rows?.[0];
+
+      if (order) {
+        await updateRows('crm_orders', updates, { filters: { id } });
+
+        // Automation Hooks based on new status
+        if (updates.status === '결제완료' && order.status !== '결제완료') {
+          triggerAutomation('payment_completed', {
+            id, name: order.customer_name, phone: order.customer_phone, 결제금액: order.total_price
+          });
+          // Also insert to crm_payments
+          await insertRows('crm_payments', [{
+            id: Date.now().toString() + Math.random().toString().slice(2, 6),
+            customer_name: order.customer_name,
+            payment_method: '카드결제',
+            amount: order.total_price || '0',
+            payment_date: new Date().toISOString().split('T')[0],
+            status: '결제완료'
+          }]);
+        }
+
+        if ((updates.status === '배송중' || updates.status === '배송시작') && order.status !== updates.status) {
+          triggerAutomation('delivery_started', {
+            id, name: order.customer_name, phone: order.customer_phone,
+            운송장번호: updates.tracking_number || order.tracking_number || ''
+          });
+          // Also insert to crm_deliveries
+          await insertRows('crm_deliveries', [{
+            id: Date.now().toString() + Math.random().toString().slice(2, 6),
+            customer_name: order.customer_name,
+            customer_phone: order.customer_phone,
+            address: order.shipping_address || '',
+            courier: '기본택배',
+            tracking_number: updates.tracking_number || order.tracking_number || '',
+            status: updates.status
+          }]);
+        }
+      }
+    }
+
+    return NextResponse.json({ success: true });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

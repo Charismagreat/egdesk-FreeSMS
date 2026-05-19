@@ -1,10 +1,24 @@
 import { NextResponse } from 'next/server';
 import { queryTable, insertRows, deleteRows } from '../../../../egdesk-helpers';
 import bcrypt from 'bcryptjs';
+import { cookies } from 'next/headers';
+import { decodeJwt } from 'jose';
+
+async function getRoleFromToken() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('auth_token')?.value;
+  if (!token) return 'SUB_OPERATOR';
+  try {
+    const payload = decodeJwt(token);
+    return payload.role as string || 'SUB_OPERATOR';
+  } catch (e) {
+    return 'SUB_OPERATOR';
+  }
+}
 
 export async function GET(req: Request) {
   try {
-    const role = req.headers.get('x-user-role');
+    const role = await getRoleFromToken();
     if (role !== 'SUPER_ADMIN') {
       return NextResponse.json({ success: false, error: '권한이 없습니다.' }, { status: 403 });
     }
@@ -18,7 +32,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const role = req.headers.get('x-user-role');
+    const role = await getRoleFromToken();
     if (role !== 'SUPER_ADMIN') {
       return NextResponse.json({ success: false, error: '권한이 없습니다.' }, { status: 403 });
     }
@@ -55,7 +69,7 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    const role = req.headers.get('x-user-role');
+    const role = await getRoleFromToken();
     if (role !== 'SUPER_ADMIN') {
       return NextResponse.json({ success: false, error: '권한이 없습니다.' }, { status: 403 });
     }
