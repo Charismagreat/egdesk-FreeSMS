@@ -9,6 +9,10 @@ interface Customer {
   phone: string;
   tags: string;
   created_at: string;
+  address?: string;
+  shipping_address?: string;
+  recipient_name?: string;
+  recipient_phone?: string;
 }
 
 export default function CustomersPage() {

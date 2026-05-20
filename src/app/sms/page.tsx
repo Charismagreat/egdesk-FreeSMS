@@ -428,7 +428,7 @@ export default function SmsPage() {
     }
   };
 
-  const generateFinalMessage = (baseMessage: string, customer: Customer, isAd: boolean, optOut: string, header: string, footer: string, product?: Product) => {
+  const generateFinalMessage = (baseMessage: string, customer: Customer, isAd: boolean, optOut: string, header: string, footer: string, product?: Product, assignedCouponCode?: string) => {
     let finalMsg = baseMessage.replace(/{이름}/g, customer.name).replace(/{연락처}/g, customer.phone);
     
     if (finalMsg.includes("{최근구매내역}")) {
@@ -437,6 +437,12 @@ export default function SmsPage() {
       // 최근순으로 정렬되어 있으므로 첫 번째 요소가 최신 구매내역
       const latestTx = customerTx.length > 0 ? customerTx[0].productName : (customer.tags || "상품"); // 1번 방식 병합: 내역이 없으면 tags(메모) 사용
       finalMsg = finalMsg.replace(/{최근구매내역}/g, latestTx);
+    }
+
+    if (assignedCouponCode) {
+      finalMsg = finalMsg.replace(/{쿠폰코드}/g, assignedCouponCode);
+    } else if (finalMsg.includes("{쿠폰코드}")) {
+      finalMsg = finalMsg.replace(/{쿠폰코드}/g, "COUPON-XXXX-XXXX");
     }
 
     if (product) {
@@ -467,7 +473,8 @@ export default function SmsPage() {
 
     const dummyCustomer = { id: 0, name: "홍길동", phone: testPhone, tags: "테스트" };
     const selectedProduct = products.find(p => p.id === selectedProductId);
-    const finalMsg = generateFinalMessage(message, dummyCustomer, isAd, optOutPhone, adHeader, adFooter, selectedProduct);
+    const testCouponCode = message.includes("{쿠폰코드}") ? "TEST-COUPON-1234" : undefined;
+    const finalMsg = generateFinalMessage(message, dummyCustomer, isAd, optOutPhone, adHeader, adFooter, selectedProduct, testCouponCode);
     
     setIsSending(true);
     try {
@@ -512,9 +519,34 @@ export default function SmsPage() {
       return;
     }
 
+    const totalTargets = targetMode === 'db' ? selectedIds.size : selectedExcelIds.size;
+    let activeCoupons: any[] = [];
+
+    // 메시지에 {쿠폰코드} 변수가 있을 경우 사전 체크
+    if (message.includes("{쿠폰코드}")) {
+      try {
+        const res = await fetch('/api/coupons');
+        const json = await res.json();
+        if (!json.success) throw new Error(json.error || "쿠폰 목록을 가져올 수 없습니다.");
+        
+        activeCoupons = (json.coupons || []).filter((c: any) => c.status === 'active');
+        
+        if (activeCoupons.length < totalTargets) {
+          alert(`사용 가능한 활성 쿠폰이 부족하여 발송을 취소합니다.\n\n필요한 쿠폰: ${totalTargets}장\n남은 활성 쿠폰: ${activeCoupons.length}장\n\n쿠폰 관리 페이지에서 쿠폰을 추가로 발급해 주세요.`);
+          return;
+        }
+
+        if (!confirm(`사용 가능한 활성 쿠폰이 확인되었습니다. (잔여: ${activeCoupons.length}장)\n발송 시 각 고객별로 쿠폰이 1장씩 자동 매핑되어 발송되며, 사용('used') 상태로 즉시 변경됩니다. 발송하시겠습니까?`)) {
+          return;
+        }
+      } catch (error: any) {
+        alert("쿠폰 정보를 확인하는 과정에서 오류가 발생했습니다: " + error.message);
+        return;
+      }
+    }
+
     setIsSending(true);
-    const totalSize = targetMode === 'db' ? selectedIds.size : selectedExcelIds.size;
-    setSendProgress({ current: 0, total: totalSize });
+    setSendProgress({ current: 0, total: totalTargets });
 
     const selectedCustomers = targetMode === 'db' 
       ? customers.filter(c => selectedIds.has(c.id))
@@ -523,10 +555,15 @@ export default function SmsPage() {
 
     for (let i = 0; i < selectedCustomers.length; i++) {
       const customer = selectedCustomers[i];
-      const finalMsg = generateFinalMessage(message, customer, isAd, optOutPhone, adHeader, adFooter, selectedProduct);
+      
+      // 해당 순서의 쿠폰 매핑
+      const assignedCoupon = message.includes("{쿠폰코드}") ? activeCoupons[i] : null;
+      const assignedCouponCode = assignedCoupon ? assignedCoupon.code : undefined;
+
+      const finalMsg = generateFinalMessage(message, customer, isAd, optOutPhone, adHeader, adFooter, selectedProduct, assignedCouponCode);
       
       try {
-        await fetch('/api/sms/send', {
+        const sendRes = await fetch('/api/sms/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -535,8 +572,22 @@ export default function SmsPage() {
             customerId: customer.id
           })
         });
+        
+        const sendJson = await sendRes.json();
+        
+        // 발송 성공 후 쿠폰 사용 상태 업데이트
+        if (sendJson.success && assignedCoupon) {
+          await fetch('/api/coupons', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: assignedCoupon.id,
+              status: 'used'
+            })
+          });
+        }
       } catch (e) {
-        console.error("Failed to send to", customer.name);
+        console.error("Failed to send to", customer.name, e);
       }
 
       setSendProgress({ current: i + 1, total: selectedCustomers.length });
@@ -629,6 +680,9 @@ export default function SmsPage() {
               <button onClick={() => insertVariable("{최근구매내역}")} className="px-3 py-1.5 bg-orange-50 border border-orange-200 text-orange-700 rounded text-xs hover:bg-orange-100 shadow-sm">
                 + {"{최근구매내역}"}
               </button>
+              <button onClick={() => insertVariable("{쿠폰코드}")} className="px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded text-xs hover:bg-emerald-100 shadow-sm">
+                + {"{쿠폰코드}"}
+              </button>
               
               <div className="w-px h-6 bg-slate-300 mx-2 self-center"></div>
               
@@ -718,11 +772,11 @@ export default function SmsPage() {
               onChange={(e) => setMessage(e.target.value)}
             />
 
-            {isAd && (
+            {message && (
               <div className="mt-2 p-4 bg-slate-50 border border-slate-200 rounded-xl">
                 <p className="text-sm font-bold text-slate-600 mb-2">실제 발송 미리보기:</p>
                 <div className="text-sm text-slate-700 whitespace-pre-wrap bg-white p-3 rounded border border-slate-200">
-                  {generateFinalMessage(message || '내용', { id: 0, name: "홍길동", phone: "010-1234-5678", tags: "" }, isAd, optOutPhone, adHeader, adFooter, products.find(p => p.id === selectedProductId))}
+                  {generateFinalMessage(message, { id: 0, name: "홍길동", phone: "010-1234-5678", tags: "" }, isAd, optOutPhone, adHeader, adFooter, products.find(p => p.id === selectedProductId))}
                 </div>
               </div>
             )}

@@ -19,26 +19,46 @@ export async function GET() {
 // POST /api/coupons : 새 쿠폰 발행
 export async function POST(req: Request) {
   try {
-    const { code, name, discount_type, discount_value, min_order_amount, status } = await req.json();
+    const { code, name, discount_type, discount_value, min_order_amount, status, count, prefix } = await req.json();
 
-    if (!code || !name || !discount_value) {
+    if (!name || !discount_value) {
       return NextResponse.json({ success: false, error: 'Required fields missing' }, { status: 400 });
     }
 
-    const id = Date.now().toString();
+    const numCount = Number(count) || 1;
+    const isBulk = numCount > 1;
 
-    await insertRows('coupons', [{
-      id,
-      code: code.toUpperCase().trim(),
-      name,
-      discount_type: discount_type || 'amount',
-      discount_value: Number(discount_value) || 0,
-      min_order_amount: Number(min_order_amount) || 0,
-      status: status || 'active',
-      created_at: new Date().toISOString()
-    }]);
+    if (!isBulk && !code) {
+      return NextResponse.json({ success: false, error: 'Coupon code is required for single issue' }, { status: 400 });
+    }
 
-    return NextResponse.json({ success: true, id });
+    const rows = [];
+    const timestamp = Date.now();
+
+    for (let i = 0; i < numCount; i++) {
+      let finalCode = '';
+      if (isBulk) {
+        const randomStr = Math.random().toString(36).substring(2, 8).toUpperCase();
+        finalCode = `${prefix ? prefix.toUpperCase() + '-' : ''}${randomStr}-${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
+      } else {
+        finalCode = code.toUpperCase().trim();
+      }
+
+      rows.push({
+        id: `${timestamp}-${i}`,
+        code: finalCode,
+        name,
+        discount_type: discount_type || 'amount',
+        discount_value: Number(discount_value) || 0,
+        min_order_amount: Number(min_order_amount) || 0,
+        status: status || 'active',
+        created_at: new Date().toISOString()
+      });
+    }
+
+    await insertRows('coupons', rows);
+
+    return NextResponse.json({ success: true, count: numCount });
   } catch (error: any) {
     console.error('Failed to create coupon:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -63,3 +83,26 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+// PUT /api/coupons : 쿠폰 정보 수정 (status 등)
+export async function PUT(req: Request) {
+  try {
+    const { id, code, status } = await req.json();
+
+    if (!id && !code) {
+      return NextResponse.json({ success: false, error: 'ID or Code is required' }, { status: 400 });
+    }
+
+    const filters: Record<string, string> = {};
+    if (id) filters.id = String(id);
+    if (code) filters.code = String(code);
+
+    await updateRows('coupons', { status: status || 'used' }, { filters });
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('Failed to update coupon:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+

@@ -6,7 +6,7 @@ import path from 'path';
 export async function GET() {
   try {
     await gmAutomation.init(true);
-    const p = gmAutomation.page!;
+    const p = (gmAutomation as any).page!;
     
     // Take screenshot
     const buf = await p.screenshot();

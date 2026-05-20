@@ -5,7 +5,7 @@ export async function GET() {
   try {
     await gmAutomation.init(true);
 
-    const storage = await gmAutomation.page!.evaluate(() => {
+    const storage = await (gmAutomation as any).page!.evaluate(() => {
       const result: Record<string, string> = {};
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
