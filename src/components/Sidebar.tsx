@@ -1,7 +1,27 @@
 import Link from 'next/link';
-import { Home, Users, MessageSquare, Settings, ShoppingCart, ClipboardList, CreditCard, CalendarDays, Truck, Send, PackageSearch, UserCog, LogOut, Zap } from 'lucide-react';
+import { Home, Users, MessageSquare, Settings, ShoppingCart, ClipboardList, CreditCard, CalendarDays, Truck, Send, PackageSearch, UserCog, LogOut, Zap, Ticket } from 'lucide-react';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
+
+// 커스텀 인스타그램 아이콘 SVG
+function InstagramIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      className={className}
+    >
+      <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+    </svg>
+  );
+}
 
 export default async function Sidebar() {
   const cookieStore = await cookies();
@@ -62,6 +82,10 @@ export default async function Sidebar() {
           <CreditCard className="w-5 h-5 text-emerald-400" />
           <span>결제내역 관리</span>
         </Link>
+        <Link href="/coupons" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-all text-slate-300 hover:text-white">
+          <Ticket className="w-5 h-5 text-rose-400" />
+          <span>쿠폰 관리</span>
+        </Link>
         <Link href="/reservations" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-all text-slate-300 hover:text-white">
           <CalendarDays className="w-5 h-5 text-indigo-400" />
           <span>예약 관리</span>
@@ -73,6 +97,10 @@ export default async function Sidebar() {
         <Link href="/products" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-all text-slate-300 hover:text-white">
           <PackageSearch className="w-5 h-5 text-pink-400" />
           <span>상품 DB 관리</span>
+        </Link>
+        <Link href="/instagram" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-all text-slate-300 hover:text-white">
+          <InstagramIcon className="w-5 h-5 text-[#ff007f]" />
+          <span>인스타 AI 마케팅</span>
         </Link>
       </nav>
       <div className="p-4 border-t border-slate-800 space-y-2">
