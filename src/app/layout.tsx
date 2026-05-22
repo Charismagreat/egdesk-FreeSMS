@@ -4,6 +4,7 @@ import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import SidebarWrapper from "@/components/SidebarWrapper";
 import MainContentWrapper from "@/components/MainContentWrapper";
+import EasyBot from "@/components/EasyBot";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -25,11 +26,12 @@ export default function RootLayout({
         <SidebarWrapper>
           <Sidebar />
         </SidebarWrapper>
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto min-w-0">
           <MainContentWrapper>
             {children}
           </MainContentWrapper>
         </main>
+        <EasyBot />
       </body>
     </html>
   );

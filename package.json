@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "naver:daemon": "node scripts/naver_rpa_daemon.js"
   },
   "dependencies": {
     "@types/bcryptjs": "^2.4.6",

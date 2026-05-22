@@ -9,5 +9,5 @@ export default function MainContentWrapper({ children }: { children: React.React
     return <>{children}</>;
   }
 
-  return <div className="p-8 min-h-full w-full">{children}</div>;
+  return <div className="p-8 min-h-full w-full overflow-x-hidden">{children}</div>;
 }

@@ -1,55 +1,7 @@
-import Link from 'next/link';
-import { Home, Users, MessageSquare, Settings, ShoppingCart, ClipboardList, CreditCard, CalendarDays, Truck, Send, PackageSearch, Package, UserCog, LogOut, Zap, Ticket, Landmark } from 'lucide-react';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
-
-// 커스텀 인스타그램 아이콘 SVG
-function InstagramIcon({ className = "w-5 h-5" }: { className?: string }) {
-  return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round" 
-      className={className}
-    >
-      <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
-      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
-    </svg>
-  );
-}
-
-// 커스텀 네이버 아이콘 SVG
-function NaverIcon({ className = "w-5 h-5" }: { className?: string }) {
-  return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      viewBox="0 0 24 24" 
-      fill="currentColor" 
-      className={className}
-    >
-      <path d="M16.2 3H21v18h-4.8l-7.4-11V21H4V3h4.8l7.4 11V3z"/>
-    </svg>
-  );
-}
-
-// 커스텀 유튜브 아이콘 SVG
-function YoutubeIcon({ className = "w-5 h-5" }: { className?: string }) {
-  return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      viewBox="0 0 24 24" 
-      fill="currentColor" 
-      className={className}
-    >
-      <path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.108C19.517 3.545 12 3.545 12 3.545s-7.516 0-9.387.51a3.003 3.003 0 0 0-2.11 2.108C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.108c1.871.51 9.387.51 9.387.51s7.517 0 9.387-.51a3.003 3.003 0 0 0 2.11-2.108C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-    </svg>
-  );
-}
+import { LogOut } from 'lucide-react';
+import SidebarMenu from './SidebarMenu';
 
 export default async function Sidebar() {
   const cookieStore = await cookies();
@@ -86,88 +38,9 @@ export default async function Sidebar() {
         </h1>
         <p className="text-sm text-slate-400 mt-1">평생 무료 문자 발송 시스템</p>
       </div>
-      <nav className="p-4 space-y-2 flex-1 overflow-y-auto no-scrollbar">
-        <Link href="/" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-all text-slate-300 hover:text-white">
-          <Home className="w-5 h-5 text-blue-400" />
-          <span>대시보드</span>
-        </Link>
-        <Link href="/sms" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-all text-slate-300 hover:text-white">
-          <MessageSquare className="w-5 h-5 text-purple-400" />
-          <span>무료 문자 발송</span>
-        </Link>
-        <Link href="/message-logs" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-all text-slate-300 hover:text-white">
-          <Send className="w-5 h-5 text-purple-400" />
-          <span>발송내역 모니터링</span>
-        </Link>
-        <Link href="/automation" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-all text-slate-300 hover:text-white">
-          <Zap className="w-5 h-5 text-yellow-400" />
-          <span>자동 발송 설정</span>
-        </Link>
-        <Link href="/customers" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-all text-slate-300 hover:text-white">
-          <Users className="w-5 h-5 text-green-400" />
-          <span>고객 관리</span>
-        </Link>
-        <Link href="/transactions" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-all text-slate-300 hover:text-white">
-          <ShoppingCart className="w-5 h-5 text-orange-400" />
-          <span>거래내역 관리</span>
-        </Link>
-        <Link href="/orders" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-all text-slate-300 hover:text-white">
-          <ClipboardList className="w-5 h-5 text-blue-400" />
-          <span>주문내역 관리</span>
-        </Link>
-        <Link href="/payments" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-all text-slate-300 hover:text-white">
-          <CreditCard className="w-5 h-5 text-emerald-400" />
-          <span>결제내역 관리</span>
-        </Link>
-        <Link href="/finance" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-all text-slate-300 hover:text-white">
-          <Landmark className="w-5 h-5 text-sky-400" />
-          <span>금융 정보 센터</span>
-        </Link>
-        <Link href="/coupons" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-all text-slate-300 hover:text-white">
-          <Ticket className="w-5 h-5 text-rose-400" />
-          <span>쿠폰 관리</span>
-        </Link>
-        <Link href="/reservations" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-all text-slate-300 hover:text-white">
-          <CalendarDays className="w-5 h-5 text-indigo-400" />
-          <span>예약 관리</span>
-        </Link>
-        <Link href="/deliveries" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-all text-slate-300 hover:text-white">
-          <Truck className="w-5 h-5 text-amber-400" />
-          <span>배송내역 관리</span>
-        </Link>
-        <Link href="/products" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-all text-slate-300 hover:text-white">
-          <PackageSearch className="w-5 h-5 text-pink-400" />
-          <span>상품 DB 관리</span>
-        </Link>
-        <Link href="/inventory" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-all text-slate-300 hover:text-white">
-          <Package className="w-5 h-5 text-cyan-400" />
-          <span>재고 관리 Hub</span>
-        </Link>
-        <Link href="/instagram" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-all text-slate-300 hover:text-white">
-          <InstagramIcon className="w-5 h-5 text-[#ff007f]" />
-          <span>인스타그램 AI 마케팅</span>
-        </Link>
-        <Link href="/naver-blog" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-all text-slate-300 hover:text-white">
-          <NaverIcon className="w-5 h-5 text-[#2db400]" />
-          <span>N-BLOG AI 포스팅</span>
-        </Link>
-        <Link href="/youtube-shorts" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-all text-slate-300 hover:text-white">
-          <YoutubeIcon className="w-5 h-5 text-[#FF0000]" />
-          <span>YOUTUBE 쇼츠 AI</span>
-        </Link>
-      </nav>
-      <div className="p-4 border-t border-slate-800 space-y-2">
-        {userRole === 'SUPER_ADMIN' && (
-          <Link href="/operators" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-all text-slate-300 hover:text-white">
-            <UserCog className="w-5 h-5 text-indigo-400" />
-            <span>운영자 관리</span>
-          </Link>
-        )}
-        <Link href="/settings" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-800 transition-all text-slate-300 hover:text-white">
-          <Settings className="w-5 h-5 text-slate-400" />
-          <span>시스템 설정</span>
-        </Link>
-      </div>
+      
+      <SidebarMenu userRole={userRole} />
+
       <div className="p-4 border-t border-slate-800 flex items-center justify-between">
         <div className="flex items-center space-x-2">
           <div className="w-8 h-8 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-sm">
