@@ -428,7 +428,6 @@ export default function FinancePage() {
                     <th className="pb-1.5 text-right font-bold">금월({summaryData.months[0]?.split("-")[1] || "5"}월)</th>
                     <th className="pb-1.5 text-right font-bold">전월({summaryData.months[1]?.split("-")[1] || "4"}월)</th>
                     <th className="pb-1.5 text-right font-bold">전전월({summaryData.months[2]?.split("-")[1] || "3"}월)</th>
-                    <th className="pb-1.5 text-right font-bold">올해 누계</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -443,12 +442,11 @@ export default function FinancePage() {
                       <td className="py-2 text-right font-bold text-slate-800">₩{card.m0?.toLocaleString()}</td>
                       <td className="py-2 text-right text-slate-500">₩{card.m1?.toLocaleString()}</td>
                       <td className="py-2 text-right text-slate-500">₩{card.m2?.toLocaleString()}</td>
-                      <td className="py-2 text-right font-extrabold text-amber-600">₩{card.yTotal?.toLocaleString()}</td>
                     </tr>
                   ))}
                   {summaryData.cardSummary.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="text-center py-10 text-slate-400 font-semibold">
+                      <td colSpan={4} className="text-center py-10 text-slate-400 font-semibold">
                         조회된 신용카드 거래가 없습니다.
                       </td>
                     </tr>
