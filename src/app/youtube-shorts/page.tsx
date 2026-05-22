@@ -339,7 +339,11 @@ export default function YoutubeShortsAiLab() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-800 p-8 font-sans">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-800 p-8 font-sans relative overflow-hidden">
+      {/* 백그라운드 레드 & 블랙 그라데이션 오로라 광채 효과 */}
+      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-red-100/20 blur-[150px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-slate-200/45 blur-[150px] pointer-events-none" />
+
       {/* 알림 토스트 (framer-motion 애니메이션) */}
       <AnimatePresence>
         {toast && (
@@ -361,54 +365,48 @@ export default function YoutubeShortsAiLab() {
         )}
       </AnimatePresence>
 
-      {/* --- 대헤더 배너 영역 --- */}
-      <div 
-        className="relative mb-8 rounded-3xl p-8 text-white overflow-hidden shadow-lg border border-red-200/30 shorts-banner-gradient bg-gradient-to-br from-red-600 via-rose-500 to-orange-500"
-        style={{ backgroundImage: 'linear-gradient(135deg, #dc2626 0%, #f43f5e 50%, #f97316 100%)' }}
-      >
-        {/* 장식용 잔상 서클 배경 */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none animate-pulse" />
-        <div className="absolute -bottom-10 left-1/3 w-64 h-64 bg-red-600/20 rounded-full blur-2xl pointer-events-none" />
-        
-        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-          <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/20 text-xs font-semibold uppercase tracking-wider backdrop-blur-md mb-3">
-              <YoutubeIcon className="w-4 h-4 text-white" />
-              <span>YOUTUBE SHORTS AI Lab</span>
+      {/* --- 대헤더 배너 영역 (인스타그램 스타일 & 레드/블랙 테마 슬림형 리뉴얼) --- */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between border-b border-slate-200 pb-6 mb-8 relative z-10">
+        <div>
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-gradient-to-tr from-slate-950 via-slate-900 to-red-600 rounded-xl shadow-[0_0_20px_rgba(220,38,38,0.25)] animate-pulse">
+              <YoutubeIcon className="w-7 h-7 text-white" />
             </div>
-            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">
-              유튜브 쇼츠 AI 제작 및 자동 관리 시스템
+            <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-950 via-slate-900 to-red-600 bg-clip-text text-transparent">
+              유튜브 쇼츠 AI 제작 및 자동 관리 <span className="text-xs font-semibold text-red-600 border border-red-200 px-2.5 py-0.5 rounded-full bg-red-50/80 ml-2 shadow-sm align-middle">YouTube Shorts AI Lab</span>
             </h1>
-            <p className="text-white/90 mt-2 max-w-2xl font-light">
-              텍스트 한 줄, 혹은 기존 네이버 블로그 글 주소만 입력하세요. AI가 1분 쇼츠 최적화 대본 생성부터 목업 시뮬레이터 확인, 그리고 자동 렌더링 유튜브 예약 업로드까지 원스톱으로 처리합니다.
-            </p>
           </div>
+          <p className="text-slate-500 mt-2.5 text-sm md:text-base font-medium">
+            텍스트 한 줄 또는 블로그 글 주소로 AI 대본을 만들고, 목업 시뮬레이터와 자동 렌더링 예약 업로드까지 원스톱으로 지원합니다.
+          </p>
+        </div>
 
-          <div className="flex gap-3">
-            {isYoutubeConnected ? (
-              <div className="flex flex-col items-end gap-1.5">
-                <span className="flex items-center gap-1.5 px-4 py-2 bg-white text-red-600 rounded-xl text-sm font-bold shadow-md">
-                  <Check className="w-4 h-4" />
-                  <span>공식 API 연동 완료</span>
-                </span>
-                <span className="text-xs text-white/80">{youtubeChannelName}</span>
-                <button 
-                  onClick={handleDisconnectYoutube}
-                  className="text-xs underline text-white/90 hover:text-white mt-1 transition-all"
-                >
-                  연동 해제하기
-                </button>
-              </div>
-            ) : (
+        {/* 연동 버튼 및 연동 상태 */}
+        <div className="mt-4 md:mt-0 flex items-center gap-3">
+          {isYoutubeConnected ? (
+            <div className="flex items-center gap-3 bg-white border border-slate-200/80 px-4 py-2.5 rounded-xl shadow-sm">
+              <span className="flex items-center gap-1.5 text-red-600 text-sm font-bold">
+                <Check className="w-4 h-4" />
+                <span>공식 API 연동 완료</span>
+              </span>
+              <span className="h-4 w-px bg-slate-200" />
+              <span className="text-sm text-slate-600 font-semibold">{youtubeChannelName}</span>
               <button 
-                onClick={() => setIsConnectionModalOpen(true)}
-                className="flex items-center gap-2 px-5 py-3 bg-white text-slate-800 rounded-2xl font-bold shadow-md hover:bg-slate-50 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+                onClick={handleDisconnectYoutube}
+                className="text-xs text-slate-400 hover:text-red-500 underline transition-all ml-1"
               >
-                <Settings className="w-4 h-4 text-red-500 animate-spin" style={{ animationDuration: '6s' }} />
-                <span>유튜브 공식 API 연동</span>
+                해제
               </button>
-            )}
-          </div>
+            </div>
+          ) : (
+            <button 
+              onClick={() => setIsConnectionModalOpen(true)}
+              className="flex items-center gap-2 px-4.5 py-2.5 bg-white border border-slate-200 text-slate-700 hover:text-slate-900 rounded-xl font-bold shadow-sm hover:bg-slate-50 transition-all hover:border-slate-300"
+            >
+              <Settings className="w-4 h-4 text-red-500 animate-spin" style={{ animationDuration: '6s' }} />
+              <span>유튜브 공식 API 연동</span>
+            </button>
+          )}
         </div>
       </div>
 

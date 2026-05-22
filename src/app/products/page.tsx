@@ -100,139 +100,171 @@ export default function ProductsPage() {
 
   return (
     <div className="space-y-6 pb-20">
-      <h1 className="text-3xl font-bold text-slate-800 flex items-center">
-        <PackageSearch className="w-8 h-8 mr-3 text-pink-500" /> 
-        쇼핑몰 연동 상품 DB
-      </h1>
       
-      <div className="sticky top-0 z-20 pt-8 pb-4 -mt-8 -mx-8 px-8 bg-slate-50/95 backdrop-blur-md">
-      <div className={`bg-white p-6 rounded-2xl shadow-md border ${editTargetId ? 'border-blue-300 ring-4 ring-blue-50' : 'border-slate-100'}`}>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold text-slate-700">{editTargetId ? '상품 수정' : '새 상품 등록'}</h2>
-          {editTargetId && (
-            <button onClick={cancelEdit} className="text-sm text-slate-500 hover:text-slate-800 flex items-center bg-slate-100 px-3 py-1 rounded-lg">
-              <X className="w-4 h-4 mr-1"/> 취소
-            </button>
-          )}
+      {/* 프리미엄 글래스모피즘 스티키 헤더 (타이틀 + 등록 폼의 유기적 통합) */}
+      <div className="sticky top-0 z-20 pt-6 pb-5 -mt-8 -mx-8 px-8 bg-slate-50/80 backdrop-blur-lg border-b border-slate-200/50 shadow-sm transition-all duration-300">
+        
+        {/* 사이드바 메뉴명과 100% 매칭되는 프리미엄 타이틀 영역 */}
+        <div className="flex items-center justify-between mb-5">
+          <h1 className="text-2xl font-bold flex items-center bg-gradient-to-r from-slate-900 via-slate-800 to-blue-900 bg-clip-text text-transparent">
+            <PackageSearch className="w-7 h-7 mr-2.5 text-blue-600 drop-shadow-[0_2px_8px_rgba(37,99,235,0.2)] animate-pulse" /> 
+            상품 DB 관리
+          </h1>
+          <div className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+            <span className="text-[11px] text-slate-400 font-semibold tracking-wider uppercase">EGDESK Product Hub</span>
+          </div>
         </div>
-        <form onSubmit={addData} className="flex flex-col gap-3">
-          <div className="flex flex-col md:flex-row gap-3">
-            <input 
-              type="text" 
-              placeholder="상품명 (예: 24년형 스마트 TV)" 
-              value={form.name} 
-              onChange={e => setForm({...form, name: e.target.value})} 
-              className="flex-[2] border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500" 
-            />
-            <div className="flex-[1] flex items-center gap-2 border rounded-lg px-3 py-2">
-              <input 
-                type="text" 
-                placeholder="가격 (예: 850,000원)" 
-                value={form.price} 
-                onChange={e => setForm({...form, price: e.target.value})} 
-                disabled={form.isPriceTbd}
-                className="w-full outline-none disabled:bg-slate-50 disabled:text-slate-400" 
-              />
-              <label className="flex items-center space-x-1 whitespace-nowrap text-xs text-slate-600 font-medium cursor-pointer">
-                <input type="checkbox" checked={form.isPriceTbd} onChange={e => setForm({...form, isPriceTbd: e.target.checked, price: e.target.checked ? '' : form.price})} className="rounded text-pink-500 focus:ring-pink-500" />
-                <span>상담후결정</span>
-              </label>
-            </div>
-            <select 
-              value={form.category}
-              onChange={e => setForm({...form, category: e.target.value})}
-              className="w-32 border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500 bg-white"
-            >
-              <option value="스토어용">스토어용</option>
-              <option value="테이블용">테이블용</option>
-              <option value="예약용">예약용</option>
-            </select>
-            <div className="flex-1">
-              <input 
-                type="text" 
-                list="category-options"
-                placeholder="카테고리 (예: 가전)" 
-                value={form.menu_category} 
-                onChange={e => setForm({...form, menu_category: e.target.value})} 
-                className="w-full border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500" 
-              />
-              <datalist id="category-options">
-                {existingCategories.map((cat, idx) => (
-                  <option key={idx} value={cat as string} />
-                ))}
-              </datalist>
-            </div>
-          </div>
-          <div className="flex flex-col gap-3">
-            <textarea 
-              placeholder="상세 설명 문구를 입력하세요 (엔터를 치면 줄바꿈이 됩니다)" 
-              value={form.description} 
-              onChange={e => setForm({...form, description: e.target.value})} 
-              className="w-full border rounded-lg px-3 py-3 outline-none focus:ring-2 focus:ring-pink-500 min-h-[100px] resize-y" 
-            />
-          </div>
-          <div className="flex flex-row gap-3 w-full">
-            <div className="flex-1 flex flex-col justify-center min-w-0">
-              <input 
-                type="text" 
-                placeholder="쇼핑몰 URL (선택)" 
-                value={form.url} 
-                onChange={e => setForm({...form, url: e.target.value})} 
-                className="w-full h-full border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500 min-h-[58px]" 
-              />
-            </div>
-            <label className="flex-1 border rounded-lg px-3 py-2 flex flex-col bg-white relative justify-center min-h-[58px] min-w-0 cursor-pointer hover:bg-slate-50 transition-colors group">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-semibold text-slate-700">대표이미지 <span className="text-[10px] font-normal text-slate-400 ml-0.5 hidden 2xl:inline">(600x600)</span></span>
-                {form.main_image_url && <span className="text-[10px] text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded">등록됨</span>}
-              </div>
-              <input 
-                type="file" 
-                accept="image/*"
-                onChange={e => handleFileUpload(e, 'main_image_url')}
-                className="w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-full file:border-0 file:font-semibold file:bg-pink-50 file:text-pink-700 group-hover:file:bg-pink-100 cursor-pointer" 
-              />
-            </label>
-            <label className="flex-1 border rounded-lg px-3 py-2 flex flex-col bg-white relative justify-center min-h-[58px] min-w-0 cursor-pointer hover:bg-slate-50 transition-colors group">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-sm font-semibold text-slate-700">상세이미지 <span className="text-[10px] font-normal text-slate-400 ml-0.5 hidden 2xl:inline">(가로 800px↑)</span></span>
-                {form.detail_image_url && <span className="text-[10px] text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded">등록됨</span>}
-              </div>
-              <input 
-                type="file" 
-                accept="image/*"
-                onChange={e => handleFileUpload(e, 'detail_image_url')}
-                className="w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded-full file:border-0 file:font-semibold file:bg-blue-50 file:text-blue-700 group-hover:file:bg-blue-100 cursor-pointer" 
-              />
-            </label>
-            <div className="flex-[1.2] border rounded-lg px-3 py-2 flex flex-col bg-white justify-center min-h-[58px] min-w-0">
-              <span className="text-sm font-semibold text-slate-700 mb-1">수령 방식</span>
-              <div className="flex items-center flex-wrap gap-x-2 gap-y-1">
-                {['매장에서', '가져가기', '배달', '배송'].map(method => (
-                  <label key={method} className="flex items-center space-x-1 cursor-pointer">
-                    <input 
-                      type="checkbox" 
-                      checked={form.available_methods.includes(method)}
-                      onChange={(e) => {
-                        const newMethods = e.target.checked 
-                          ? [...form.available_methods, method] 
-                          : form.available_methods.filter(m => m !== method);
-                        setForm({...form, available_methods: newMethods});
-                      }}
-                      className="rounded text-pink-500 focus:ring-pink-500 w-3 h-3"
-                    />
-                    <span className="text-xs text-slate-600 whitespace-nowrap">{method}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
 
-          <button type="submit" disabled={isUploading} className={`w-full text-white font-bold py-3 rounded-lg transition flex items-center justify-center ${isUploading ? 'bg-slate-400 cursor-not-allowed' : editTargetId ? 'bg-blue-600 hover:bg-blue-700' : 'bg-slate-800 hover:bg-slate-700'}`}>
-            {isUploading ? '이미지 업로드 중...' : editTargetId ? <><Pencil className="w-4 h-4 mr-1"/> 수정 완료</> : <><Plus className="w-4 h-4 mr-1"/> 등록</>}
-          </button>
-        </form>
-      </div>
+        {/* 새 상품 등록 / 수정 글래스 폼 카드 */}
+        <div className={`bg-white/90 p-5 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.02)] border backdrop-blur-sm transition-all duration-300 ${editTargetId ? 'border-blue-400 ring-4 ring-blue-500/5 shadow-blue-500/5' : 'border-slate-100'}`}>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+              <span className={`w-1.5 h-3.5 rounded ${editTargetId ? 'bg-blue-500' : 'bg-slate-700'}`}></span>
+              {editTargetId ? '상품 정보 수정' : '새 상품 등록'}
+            </h2>
+            {editTargetId && (
+              <button onClick={cancelEdit} className="text-xs text-slate-500 hover:text-slate-800 hover:bg-slate-200/80 flex items-center bg-slate-100 px-2.5 py-1 rounded-lg transition-all">
+                <X className="w-3.5 h-3.5 mr-1"/> 변경 취소
+              </button>
+            )}
+          </div>
+          
+          <form onSubmit={addData} className="flex flex-col gap-3">
+            <div className="flex flex-col md:flex-row gap-3">
+              <input 
+                type="text" 
+                placeholder="상품명 (예: 24년형 스마트 TV)" 
+                value={form.name} 
+                onChange={e => setForm({...form, name: e.target.value})} 
+                className="flex-[2] border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm font-medium" 
+              />
+              <div className="flex-[1] flex items-center gap-2 border border-slate-200 rounded-lg px-3 py-2 bg-white focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-all">
+                <input 
+                  type="text" 
+                  placeholder="가격 (예: 850,000원)" 
+                  value={form.price} 
+                  onChange={e => setForm({...form, price: e.target.value})} 
+                  disabled={form.isPriceTbd}
+                  className="w-full outline-none disabled:bg-slate-50 disabled:text-slate-400 text-sm font-medium" 
+                />
+                <label className="flex items-center space-x-1 whitespace-nowrap text-xs text-slate-600 font-semibold cursor-pointer">
+                  <input 
+                    type="checkbox" 
+                    checked={form.isPriceTbd} 
+                    onChange={e => setForm({...form, isPriceTbd: e.target.checked, price: e.target.checked ? '' : form.price})} 
+                    className="rounded text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 border-slate-300" 
+                  />
+                  <span>상담후결정</span>
+                </label>
+              </div>
+              <select 
+                value={form.category}
+                onChange={e => setForm({...form, category: e.target.value})}
+                className="w-32 border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 bg-white text-sm font-medium"
+              >
+                <option value="스토어용">스토어용</option>
+                <option value="테이블용">테이블용</option>
+                <option value="예약용">예약용</option>
+              </select>
+              <div className="flex-1">
+                <input 
+                  type="text" 
+                  list="category-options"
+                  placeholder="카테고리 (예: 가전)" 
+                  value={form.menu_category} 
+                  onChange={e => setForm({...form, menu_category: e.target.value})} 
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm font-medium" 
+                />
+                <datalist id="category-options">
+                  {existingCategories.map((cat, idx) => (
+                    <option key={idx} value={cat as string} />
+                  ))}
+                </datalist>
+              </div>
+            </div>
+            
+            <div className="flex flex-col gap-3">
+              <textarea 
+                placeholder="상세 설명 문구를 입력하세요 (엔터를 치면 줄바꿈이 됩니다)" 
+                value={form.description} 
+                onChange={e => setForm({...form, description: e.target.value})} 
+                className="w-full border border-slate-200 rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm min-h-[70px] max-h-[150px] resize-y font-medium" 
+              />
+            </div>
+            
+            <div className="flex flex-row gap-3 w-full">
+              <div className="flex-1 flex flex-col justify-center min-w-0">
+                <input 
+                  type="text" 
+                  placeholder="쇼핑몰 URL (선택)" 
+                  value={form.url} 
+                  onChange={e => setForm({...form, url: e.target.value})} 
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm min-h-[52px] font-medium" 
+                />
+              </div>
+              <label className="flex-1 border border-slate-200 rounded-lg px-3 py-2 flex flex-col bg-white relative justify-center min-h-[52px] min-w-0 cursor-pointer hover:bg-slate-50 hover:border-slate-350 transition-colors group">
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="text-xs font-bold text-slate-700">대표이미지 <span className="text-[9px] font-normal text-slate-400 ml-0.5 hidden 2xl:inline">(600x600)</span></span>
+                  {form.main_image_url && <span className="text-[9px] text-blue-600 font-bold bg-blue-50 px-1.5 py-0.2 rounded">등록완료</span>}
+                </div>
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={e => handleFileUpload(e, 'main_image_url')}
+                  className="w-full text-[11px] text-slate-500 file:mr-2 file:py-0.5 file:px-2 file:rounded-full file:border-0 file:font-bold file:bg-blue-50 file:text-blue-700 group-hover:file:bg-blue-100 cursor-pointer" 
+                />
+              </label>
+              <label className="flex-1 border border-slate-200 rounded-lg px-3 py-2 flex flex-col bg-white relative justify-center min-h-[52px] min-w-0 cursor-pointer hover:bg-slate-50 hover:border-slate-350 transition-colors group">
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="text-xs font-bold text-slate-700">상세이미지 <span className="text-[9px] font-normal text-slate-400 ml-0.5 hidden 2xl:inline">(가로 800px↑)</span></span>
+                  {form.detail_image_url && <span className="text-[9px] text-blue-600 font-bold bg-blue-50 px-1.5 py-0.2 rounded">등록완료</span>}
+                </div>
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={e => handleFileUpload(e, 'detail_image_url')}
+                  className="w-full text-[11px] text-slate-500 file:mr-2 file:py-0.5 file:px-2 file:rounded-full file:border-0 file:font-bold file:bg-blue-50 file:text-blue-700 group-hover:file:bg-blue-100 cursor-pointer" 
+                />
+              </label>
+              <div className="flex-[1.2] border border-slate-200 rounded-lg px-3 py-1 flex flex-col bg-white justify-center min-h-[52px] min-w-0">
+                <span className="text-xs font-bold text-slate-700 mb-0.5">수령 방식</span>
+                <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5">
+                  {['매장에서', '가져가기', '배달', '배송'].map(method => (
+                    <label key={method} className="flex items-center space-x-1 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={form.available_methods.includes(method)}
+                        onChange={(e) => {
+                          const newMethods = e.target.checked 
+                            ? [...form.available_methods, method] 
+                            : form.available_methods.filter(m => m !== method);
+                          setForm({...form, available_methods: newMethods});
+                        }}
+                        className="rounded text-blue-600 focus:ring-blue-500 w-3 h-3 border-slate-300"
+                      />
+                      <span className="text-[11px] font-semibold text-slate-600 whitespace-nowrap">{method}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <button 
+              type="submit" 
+              disabled={isUploading} 
+              className={`w-full text-white font-bold py-2.5 rounded-lg transition-all flex items-center justify-center shadow-md active:scale-[0.99] ${
+                isUploading 
+                  ? 'bg-slate-400 cursor-not-allowed shadow-none' 
+                  : editTargetId 
+                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-orange-500/10' 
+                    : 'bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-700 hover:to-sky-700 shadow-blue-500/10'
+              }`}
+            >
+              {isUploading ? '이미지 업로드 진행 중...' : editTargetId ? <><Pencil className="w-4 h-4 mr-1"/> 상품 정보 수정 완료</> : <><Plus className="w-4 h-4 mr-1"/> 새로운 상품 등록</>}
+            </button>
+          </form>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
@@ -285,14 +317,14 @@ export default function ProductsPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="p-4 text-pink-600 font-semibold whitespace-nowrap text-right">{t.price ? Number(String(t.price).replace(/[^0-9]/g, '')).toLocaleString() : '-'}</td>
+                  <td className="p-4 text-blue-600 font-semibold whitespace-nowrap text-right">{t.price ? Number(String(t.price).replace(/[^0-9]/g, '')).toLocaleString() : '-'}</td>
                   <td className="p-4 text-slate-500 text-xs">
                     <p className="truncate max-w-[200px]" title={t.description}>{t.description || '-'}</p>
                     {t.url && <a href={t.url} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline mt-1 block">링크</a>}
                   </td>
                   <td className="p-4 text-center">
                     <div className="flex items-center justify-center space-x-1">
-                      <button onClick={() => handleEditClick(t)} className="text-slate-400 hover:text-pink-600 transition-colors p-2 rounded-lg hover:bg-pink-50" title="수정">
+                      <button onClick={() => handleEditClick(t)} className="text-slate-400 hover:text-blue-600 transition-colors p-2 rounded-lg hover:bg-blue-50" title="수정">
                         <Pencil className="w-4 h-4"/>
                       </button>
                       <button onClick={() => deleteData(t.id)} className="text-slate-400 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50" title="삭제">
