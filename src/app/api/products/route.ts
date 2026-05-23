@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { queryTable, insertRows, deleteRows } from '../../../../egdesk-helpers';
+import { couponCache } from '@/lib/coupon-cache';
 
 // GET /api/products : 상품 목록 조회
 export async function GET() {
@@ -10,7 +11,7 @@ export async function GET() {
       orderDirection: 'DESC'
     });
     
-    const products = result.rows.map((r: any) => ({
+    const products = (result.rows || []).map((r: any) => ({
       id: r.id,
       name: r.name,
       price: r.price,
@@ -20,7 +21,8 @@ export async function GET() {
       description: r.description,
       main_image_url: r.main_image_url,
       detail_image_url: r.detail_image_url,
-      available_methods: r.available_methods || ''
+      available_methods: r.available_methods || '',
+      is_coupon_excludable: Number(r.is_coupon_excludable) || 0
     }));
 
     return NextResponse.json({ success: true, products });
@@ -33,7 +35,7 @@ export async function GET() {
 // POST /api/products : 새 상품 생성
 export async function POST(req: Request) {
   try {
-    const { id, name, price, url, category, menu_category, description, main_image_url, detail_image_url, available_methods } = await req.json();
+    const { id, name, price, url, category, menu_category, description, main_image_url, detail_image_url, available_methods, is_coupon_excludable } = await req.json();
 
     if (!name) {
       return NextResponse.json({ success: false, error: 'Product name is required' }, { status: 400 });
@@ -51,8 +53,12 @@ export async function POST(req: Request) {
       description: description || '',
       main_image_url: main_image_url || '',
       detail_image_url: detail_image_url || '',
-      available_methods: available_methods || ''
+      available_methods: available_methods || '',
+      is_coupon_excludable: Number(is_coupon_excludable) || 0
     }]);
+
+    // 상품 변조로 캐시 초기화
+    couponCache.clear();
 
     return NextResponse.json({ success: true, id: newId });
   } catch (error: any) {
@@ -64,9 +70,19 @@ export async function POST(req: Request) {
 // PUT /api/products : 상품 수정 (Hot Reload Trigger)
 export async function PUT(req: Request) {
   try {
-    const { id, name, price, url, category, menu_category, description, main_image_url, detail_image_url, available_methods } = await req.json();
+    const { id, name, price, url, category, menu_category, description, main_image_url, detail_image_url, available_methods, is_coupon_excludable } = await req.json();
 
     if (!id) return NextResponse.json({ success: false, error: 'Product ID is required' }, { status: 400 });
+
+    const { updateRows } = require('../../../../egdesk-helpers');
+
+    // [부분 갱신 지원] 단일 토글 상태 갱신 시
+    if (is_coupon_excludable !== undefined && !name) {
+      await updateRows('products', { is_coupon_excludable: Number(is_coupon_excludable) }, { filters: { id: id } });
+      couponCache.clear();
+      return NextResponse.json({ success: true, id });
+    }
+
     if (!name) return NextResponse.json({ success: false, error: 'Product name is required' }, { status: 400 });
 
     const updates = {
@@ -78,12 +94,14 @@ export async function PUT(req: Request) {
       description: description || '',
       main_image_url: main_image_url || '',
       detail_image_url: detail_image_url || '',
-      available_methods: Array.isArray(available_methods) ? available_methods.join(',') : (available_methods || '')
+      available_methods: Array.isArray(available_methods) ? available_methods.join(',') : (available_methods || ''),
+      is_coupon_excludable: Number(is_coupon_excludable) || 0
     };
 
-    // Use updateRows from egdesk-helpers
-    const { updateRows } = require('../../../../egdesk-helpers');
     await updateRows('products', updates, { filters: { id: id } });
+
+    // 캐시 무효화
+    couponCache.clear();
 
     return NextResponse.json({ success: true, id });
   } catch (error: any) {

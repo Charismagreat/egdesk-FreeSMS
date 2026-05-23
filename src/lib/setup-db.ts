@@ -75,6 +75,7 @@ export async function setupDatabase() {
     { name: 'available_methods', type: 'TEXT' },
     { name: 'category', type: 'TEXT' },
     { name: 'menu_category', type: 'TEXT' },
+    { name: 'is_coupon_excludable', type: 'INTEGER' }
   ], { tableName: 'products', uniqueKeyColumns: ['id'], duplicateAction: 'update' });
 
   // 6. Transactions Table
@@ -209,6 +210,31 @@ export async function setupDatabase() {
     { name: 'api_client_id', type: 'TEXT' },
     { name: 'api_client_secret', type: 'TEXT' }
   ], { tableName: 'naver_blog_marketing_settings', uniqueKeyColumns: ['id'] });
+
+  // 17. Coupons Table (쿠폰 관리)
+  await safeCreateTable('쿠폰 관리', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'code', type: 'TEXT', notNull: true },
+    { name: 'name', type: 'TEXT', notNull: true },
+    { name: 'discount_type', type: 'TEXT', notNull: true }, // 'amount' or 'percent'
+    { name: 'discount_value', type: 'INTEGER', notNull: true },
+    { name: 'min_order_amount', type: 'INTEGER', notNull: true },
+    { name: 'status', type: 'TEXT', notNull: true }, // 'active', 'used', 'expired' 등
+    { name: 'expires_at', type: 'TEXT' }, // 'YYYY-MM-DD' 형식 (nullable, 지정 안 하면 무제한)
+    { name: 'created_at', type: 'TEXT', notNull: true },
+  ], { tableName: 'coupons', uniqueKeyColumns: ['id'] });
+
+  // 18. Coupons Restrictions Table (쿠폰 상품/카테고리 제한 관리)
+  await safeCreateTable('쿠폰 제한 관리', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'coupon_id', type: 'TEXT', notNull: true },
+    { name: 'restriction_type', type: 'TEXT', notNull: true }, // 'INCLUDE' (허용), 'EXCLUDE' (제외)
+    { name: 'target_type', type: 'TEXT', notNull: true }, // 'PRODUCT' (상품), 'CATEGORY' (카테고리)
+    { name: 'target_value', type: 'TEXT', notNull: true }, // 제한 대상 값 (예: 상품 ID 또는 카테고리명)
+    { name: 'created_at', type: 'TEXT', notNull: true },
+  ], { tableName: 'crm_coupons_restrictions', uniqueKeyColumns: ['id'] });
+
+
 
     // ID 1의 기본 네이버 블로그 설정 존재 여부 확인 후 자동 주입
     try {

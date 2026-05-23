@@ -139,11 +139,22 @@ export default function TableOrderMenuPage() {
     setCouponError('');
     if (cartTotalAmount === 0) return;
     
+    const cartItems = Object.entries(cart).map(([id, qty]) => {
+      const p = products.find(prod => prod.id === id);
+      return {
+        product_id: id,
+        category: p?.category || '',
+        menu_category: p?.menu_category || '',
+        quantity: qty,
+        unit_price: p ? getNumericPrice(p.price) : 0
+      };
+    }).filter(item => item.unit_price > 0);
+
     try {
       const res = await fetch('/api/coupons/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: couponCode, orderAmount: cartTotalAmount })
+        body: JSON.stringify({ code: couponCode, orderAmount: cartTotalAmount, cart_items: cartItems })
       });
       const json = await res.json();
       

@@ -93,6 +93,29 @@ export default function ProductsPage() {
     const res = await fetch('/api/products?id=' + id, { method: 'DELETE' });
     if ((await res.json()).success) fetchData();
   };
+
+  const toggleCouponExclude = async (productId: string, currentValue: number) => {
+    const newValue = currentValue === 1 ? 0 : 1;
+    
+    // Optimistic UI update
+    setData(prev => prev.map(p => p.id === productId ? { ...p, is_coupon_excludable: newValue } : p));
+    
+    try {
+      const res = await fetch('/api/products', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: productId, is_coupon_excludable: newValue })
+      });
+      const json = await res.json();
+      if (!json.success) {
+        alert('쿠폰 적용 여부 변경에 실패했습니다: ' + json.error);
+        fetchData();
+      }
+    } catch (e) {
+      alert('네트워크 오류가 발생했습니다.');
+      fetchData();
+    }
+  };
   const existingCategories = Array.from(new Set(data.map(p => p.menu_category).filter(Boolean)));
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'main_image_url' | 'detail_image_url') => {
@@ -282,6 +305,7 @@ export default function ProductsPage() {
               <th className="p-4 font-semibold text-slate-600">카테고리</th>
               <th className="p-4 font-semibold text-slate-600 w-[20%]">상품정보</th>
               <th className="p-4 font-semibold text-slate-600 text-right">가격</th>
+              <th className="p-4 font-semibold text-slate-600">쿠폰 적용</th>
               <th className="p-4 font-semibold text-slate-600">상세 설명</th>
               <th className="p-4 font-semibold text-slate-600 text-center w-24">관리</th>
             </tr>
@@ -289,7 +313,7 @@ export default function ProductsPage() {
           <tbody className="divide-y divide-slate-100">
             {paginatedData.length === 0 ? (
               <tr>
-                <td colSpan={7} className="p-8 text-center text-slate-400">
+                <td colSpan={8} className="p-8 text-center text-slate-400">
                   {data.length === 0 ? "등록된 상품이 없습니다." : "검색 결과와 일치하는 상품이 없습니다."}
                 </td>
               </tr>
@@ -326,6 +350,29 @@ export default function ProductsPage() {
                     </div>
                   </td>
                   <td className="p-4 text-pink-600 font-semibold whitespace-nowrap text-right">{t.price ? Number(String(t.price).replace(/[^0-9]/g, '')).toLocaleString() : '-'}</td>
+                  <td className="p-4">
+                    <div className="flex items-center space-x-2">
+                      <button 
+                        type="button"
+                        onClick={() => toggleCouponExclude(t.id, t.is_coupon_excludable || 0)}
+                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none ${
+                          (t.is_coupon_excludable || 0) === 1 ? 'bg-slate-200' : 'bg-green-500 shadow-sm shadow-green-500/20'
+                        }`}
+                      >
+                        <span className="sr-only">쿠폰 허용 토글</span>
+                        <span 
+                          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                            (t.is_coupon_excludable || 0) === 1 ? 'translate-x-0' : 'translate-x-4'
+                          }`}
+                        />
+                      </button>
+                      <span className={`text-xs font-bold ${
+                        (t.is_coupon_excludable || 0) === 1 ? 'text-slate-450' : 'text-green-600'
+                      }`}>
+                        {(t.is_coupon_excludable || 0) === 1 ? '제외' : '허용'}
+                      </span>
+                    </div>
+                  </td>
                   <td className="p-4 text-slate-500 text-xs">
                     <p className="truncate max-w-[200px]" title={t.description}>{t.description || '-'}</p>
                     {t.url && <a href={t.url} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline mt-1 block">링크</a>}

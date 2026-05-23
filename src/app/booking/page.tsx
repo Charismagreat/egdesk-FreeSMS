@@ -124,11 +124,21 @@ export default function BookingPage() {
       return;
     }
     
+    const cartItems = [
+      {
+        product_id: selectedService.id,
+        category: selectedService.category || '',
+        menu_category: selectedService.menu_category || '',
+        quantity: 1,
+        unit_price: unitPrice
+      }
+    ];
+
     try {
       const res = await fetch('/api/coupons/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: couponCode, orderAmount: unitPrice })
+        body: JSON.stringify({ code: couponCode, orderAmount: unitPrice, cart_items: cartItems })
       });
       const json = await res.json();
       

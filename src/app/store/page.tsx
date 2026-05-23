@@ -256,12 +256,21 @@ export default function StorefrontPage() {
     }
     
     const orderAmount = unitPrice * form.quantity;
+    const cartItems = [
+      {
+        product_id: selectedProduct.id,
+        category: selectedProduct.category || '',
+        menu_category: selectedProduct.menu_category || '',
+        quantity: form.quantity,
+        unit_price: unitPrice
+      }
+    ];
     
     try {
       const res = await fetch('/api/coupons/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: couponCode, orderAmount })
+        body: JSON.stringify({ code: couponCode, orderAmount, cart_items: cartItems })
       });
       const json = await res.json();
       

@@ -12,9 +12,40 @@ export default function CouponsPage() {
     name: '', 
     discount_type: 'amount', 
     discount_value: '', 
-    min_order_amount: '' 
+    min_order_amount: '',
+    expires_at: ''
   });
   const [loading, setLoading] = useState(false);
+  const [restrictions, setRestrictions] = useState<any[]>([]);
+  const [currentRestriction, setCurrentRestriction] = useState({
+    restriction_type: 'EXCLUDE',
+    target_type: 'PRODUCT',
+    target_value: ''
+  });
+
+  const addRestriction = () => {
+    if (!currentRestriction.target_value.trim()) {
+      return alert('제한 대상 식별 값을 입력해 주세요. (예: 상품 ID 또는 카테고리명)');
+    }
+    
+    const isDup = restrictions.some(
+      r => r.restriction_type === currentRestriction.restriction_type &&
+           r.target_type === currentRestriction.target_type &&
+           r.target_value.trim().toUpperCase() === currentRestriction.target_value.trim().toUpperCase()
+    );
+    if (isDup) return alert('이미 추가된 제한 조건입니다.');
+    
+    setRestrictions([...restrictions, { 
+      restriction_type: currentRestriction.restriction_type,
+      target_type: currentRestriction.target_type,
+      target_value: currentRestriction.target_value.trim()
+    }]);
+    setCurrentRestriction({ ...currentRestriction, target_value: '' });
+  };
+
+  const removeRestriction = (index: number) => {
+    setRestrictions(restrictions.filter((_, i) => i !== index));
+  };
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -61,7 +92,8 @@ export default function CouponsPage() {
     setLoading(true);
     const payload = {
       ...form,
-      count: issueType === 'bulk' ? Number(form.count) : 1
+      count: issueType === 'bulk' ? Number(form.count) : 1,
+      restrictions
     };
 
     const res = await fetch('/api/coupons', { 
@@ -72,7 +104,8 @@ export default function CouponsPage() {
     
     const json = await res.json();
     if (json.success) { 
-      setForm({ ...form, code: '', prefix: '' }); 
+      setForm({ ...form, code: '', prefix: '', expires_at: '' }); 
+      setRestrictions([]);
       fetchData(); 
       if (issueType === 'bulk') alert(`${json.count}개의 쿠폰이 성공적으로 발행되었습니다!`);
     } else {
@@ -206,6 +239,91 @@ export default function CouponsPage() {
                 className="w-full border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-red-500" 
               />
             </div>
+            <div className="flex-[1]">
+              <label className="block text-xs font-bold text-slate-500 mb-1">유효기간 (지정하지 않을 시 무제한)</label>
+              <input 
+                type="date" 
+                value={form.expires_at} 
+                onChange={e => setForm({...form, expires_at: e.target.value})} 
+                className="w-full border rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-red-500 text-slate-700 bg-white" 
+              />
+            </div>
+          </div>
+          
+          {/* 쿠폰 적용 및 제한 대상 설정 (선택) */}
+          <div className="mt-4 pt-4 border-t border-slate-100 bg-slate-50/50 p-4 rounded-xl">
+            <h3 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-1.5">
+              <span>🛡️ 쿠폰 적용 및 제한 대상 설정 (선택)</span>
+            </h3>
+            
+            <div className="flex flex-col sm:flex-row gap-3 items-end">
+              <div className="w-full sm:w-1/4">
+                <label className="block text-[10px] font-bold text-slate-500 mb-1">적용 방식</label>
+                <select 
+                  value={currentRestriction.restriction_type}
+                  onChange={e => setCurrentRestriction({...currentRestriction, restriction_type: e.target.value})}
+                  className="w-full border rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-red-500 bg-white font-semibold cursor-pointer text-slate-700"
+                >
+                  <option value="EXCLUDE">할인 대상에서 제외 (Blacklist)</option>
+                  <option value="INCLUDE">할인 대상에만 허용 (Whitelist)</option>
+                </select>
+              </div>
+              <div className="w-full sm:w-1/4">
+                <label className="block text-[10px] font-bold text-slate-500 mb-1">제한 종류</label>
+                <select 
+                  value={currentRestriction.target_type}
+                  onChange={e => setCurrentRestriction({...currentRestriction, target_type: e.target.value})}
+                  className="w-full border rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-2 focus:ring-red-500 bg-white font-semibold cursor-pointer text-slate-700"
+                >
+                  <option value="PRODUCT">개별 상품 ID</option>
+                  <option value="CATEGORY">상품 카테고리명</option>
+                </select>
+              </div>
+              <div className="w-full sm:flex-1">
+                <label className="block text-[10px] font-bold text-slate-500 mb-1">대상 식별 값 (상품 ID 또는 카테고리명)</label>
+                <input 
+                  type="text"
+                  placeholder={currentRestriction.target_type === 'PRODUCT' ? "예: prod-123" : "예: 테이블용"}
+                  value={currentRestriction.target_value}
+                  onChange={e => setCurrentRestriction({...currentRestriction, target_value: e.target.value})}
+                  className="w-full border rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-red-500 bg-white"
+                />
+              </div>
+              <button 
+                type="button"
+                onClick={addRestriction}
+                className="w-full sm:w-auto bg-slate-700 hover:bg-slate-600 text-white font-bold px-5 py-2 rounded-lg text-xs transition-all cursor-pointer whitespace-nowrap h-8"
+              >
+                조건 추가
+              </button>
+            </div>
+            
+            {/* 추가된 제한 리스트 뱃지 */}
+            {restrictions.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {restrictions.map((res, index) => (
+                  <span 
+                    key={index} 
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all ${
+                      res.restriction_type === 'EXCLUDE' 
+                        ? 'bg-red-50 text-red-700 border-red-100' 
+                        : 'bg-indigo-50 text-indigo-700 border-indigo-100'
+                    }`}
+                  >
+                    <span>{res.restriction_type === 'EXCLUDE' ? '제외' : '허용'}</span>
+                    <span className="opacity-40">|</span>
+                    <span>{res.target_type === 'PRODUCT' ? '상품ID' : '카테고리'}: {res.target_value}</span>
+                    <button 
+                      type="button" 
+                      onClick={() => removeRestriction(index)}
+                      className="ml-1 text-slate-400 hover:text-slate-600 font-bold"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
           
           <button type="submit" disabled={loading} className="w-full bg-slate-800 text-white font-bold py-3 rounded-lg hover:bg-slate-700 transition flex items-center justify-center mt-2 disabled:bg-slate-400">
@@ -237,6 +355,8 @@ export default function CouponsPage() {
               <th className="p-4 font-semibold text-slate-600">쿠폰명</th>
               <th className="p-4 font-semibold text-slate-600">혜택 내역</th>
               <th className="p-4 font-semibold text-slate-600">최소주문금액</th>
+              <th className="p-4 font-semibold text-slate-600">유효기간</th>
+              <th className="p-4 font-semibold text-slate-600">제한 조건</th>
               <th className="p-4 font-semibold text-slate-600">발행일시</th>
               <th className="p-4 font-semibold text-slate-600 text-center w-24">관리</th>
             </tr>
@@ -244,36 +364,81 @@ export default function CouponsPage() {
           <tbody className="divide-y divide-slate-100">
             {paginatedData.length === 0 ? (
               <tr>
-                <td colSpan={7} className="p-8 text-center text-slate-400">
+                <td colSpan={9} className="p-8 text-center text-slate-400">
                   {data.length === 0 ? "발행된 쿠폰이 없습니다." : "검색 결과와 일치하는 쿠폰이 없습니다."}
                 </td>
               </tr>
             ) : (
-              paginatedData.map(t => (
-                <tr key={t.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="p-4">
-                    <span className={`px-2 py-1 rounded text-xs font-bold ${t.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>
-                      {t.status === 'active' ? '사용가능' : '종료됨'}
-                    </span>
-                  </td>
-                  <td className="p-4 font-mono font-bold text-slate-700">{t.code}</td>
-                  <td className="p-4 font-medium text-slate-800">{t.name}</td>
-                  <td className="p-4 text-red-600 font-bold whitespace-nowrap">
-                    {formatDiscount(t.discount_type, Number(t.discount_value))}
-                  </td>
-                  <td className="p-4 text-slate-500 text-sm">
-                    {Number(t.min_order_amount) > 0 ? `${Number(t.min_order_amount).toLocaleString()}원 이상` : '제한없음'}
-                  </td>
-                  <td className="p-4 text-slate-400 text-sm">
-                    {t.created_at ? new Date(t.created_at).toLocaleDateString() : '-'}
-                  </td>
-                  <td className="p-4 text-center">
-                    <button onClick={() => deleteData(t.id)} className="text-slate-300 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50">
-                      <Trash2 className="w-4 h-4"/>
-                    </button>
-                  </td>
-                </tr>
-              ))
+              (() => {
+                const todayStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().split('T')[0];
+                return paginatedData.map(t => {
+                  const isExpired = t.expires_at && todayStr > t.expires_at;
+                  const isInactive = isExpired || t.status !== 'active';
+
+                  return (
+                    <tr key={t.id} className={`hover:bg-slate-50 transition-colors ${isInactive ? 'opacity-60 bg-slate-50/50' : ''}`}>
+                      <td className="p-4">
+                        {isExpired ? (
+                          <span className="px-2 py-1 rounded text-xs font-bold bg-red-100 text-red-700">
+                            만료됨
+                          </span>
+                        ) : t.status === 'active' ? (
+                          <span className="px-2 py-1 rounded text-xs font-bold bg-green-100 text-green-700">
+                            사용가능
+                          </span>
+                        ) : (
+                          <span className="px-2 py-1 rounded text-xs font-bold bg-slate-100 text-slate-500">
+                            종료됨
+                          </span>
+                        )}
+                      </td>
+                      <td className={`p-4 font-mono font-bold text-slate-700 ${isInactive ? 'line-through text-slate-400' : ''}`}>{t.code}</td>
+                      <td className={`p-4 font-medium text-slate-800 ${isInactive ? 'line-through text-slate-400' : ''}`}>{t.name}</td>
+                      <td className={`p-4 text-red-600 font-bold whitespace-nowrap ${isInactive ? 'text-slate-400 line-through' : ''}`}>
+                        {formatDiscount(t.discount_type, Number(t.discount_value))}
+                      </td>
+                      <td className="p-4 text-slate-500 text-sm">
+                        {Number(t.min_order_amount) > 0 ? `${Number(t.min_order_amount).toLocaleString()}원 이상` : '제한없음'}
+                      </td>
+                      <td className="p-4 text-slate-500 text-sm">
+                        {t.expires_at ? (
+                          <span className={isExpired ? 'text-red-500 font-semibold' : ''}>
+                            {t.expires_at}
+                          </span>
+                        ) : '무제한'}
+                      </td>
+                      <td className="p-4 text-slate-500 text-xs">
+                        {t.restrictions && t.restrictions.length > 0 ? (
+                          <div className="flex flex-wrap gap-1 max-w-[200px]">
+                            {t.restrictions.map((r: any, idx: number) => (
+                              <span 
+                                key={idx}
+                                className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                  r.restriction_type === 'EXCLUDE'
+                                    ? 'bg-red-50 text-red-650 border border-red-100'
+                                    : 'bg-indigo-50 text-indigo-650 border border-indigo-100'
+                                }`}
+                              >
+                                {r.restriction_type === 'EXCLUDE' ? '제외' : '허용'}:{r.target_type === 'PRODUCT' ? '상품' : '카테고리'}({r.target_value})
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 font-medium">제한없음</span>
+                        )}
+                      </td>
+                      <td className="p-4 text-slate-400 text-sm">
+                        {t.created_at ? new Date(t.created_at).toLocaleDateString() : '-'}
+                      </td>
+                      <td className="p-4 text-center">
+                        <button onClick={() => deleteData(t.id)} className="text-slate-300 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50">
+                          <Trash2 className="w-4 h-4"/>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                });
+              })()
             )}
           </tbody>
         </table>
