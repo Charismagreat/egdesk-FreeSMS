@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { 
   Home, Users, MessageSquare, Settings, ShoppingCart, 
   ClipboardList, CreditCard, CalendarDays, Truck, Send, 
-  PackageSearch, Package, UserCog, Zap, Ticket, Landmark, Globe, Briefcase 
+  PackageSearch, Package, UserCog, Zap, Ticket, Landmark, Globe, Briefcase, HelpCircle 
 } from "lucide-react";
 
 // 커스텀 인스타그램 아이콘 SVG
@@ -131,6 +131,17 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
             <span>운영자 관리</span>
           </Link>
         )}
+        <Link
+          href="/help"
+          className={`flex items-center space-x-3 p-3 rounded-lg transition-all ${
+            isActive("/help")
+              ? "bg-blue-600 text-white font-semibold shadow-md shadow-blue-500/10 scale-[1.02]"
+              : "text-slate-300 hover:bg-slate-800 hover:text-white hover:scale-[1.01]"
+          }`}
+        >
+          <HelpCircle className={`w-5 h-5 shrink-0 ${isActive("/help") ? "text-white" : "text-amber-400"}`} />
+          <span>Q&A 헬프센터 💡</span>
+        </Link>
         <Link
           href="/settings"
           className={`flex items-center space-x-3 p-3 rounded-lg transition-all ${

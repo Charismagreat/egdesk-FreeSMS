@@ -363,7 +363,17 @@ export default function EasyBot() {
     };
     handleResize();
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+
+    // Q&A 헬프센터에서의 이지봇 호출 연동 리스너 추가
+    const handleOpenEasyBot = () => {
+      setIsOpen(true);
+    };
+    window.addEventListener('open-easybot', handleOpenEasyBot);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('open-easybot', handleOpenEasyBot);
+    };
   }, []);
 
   // 메시지가 추가될 때마다 로컬저장소에 저장 및 하단 스크롤

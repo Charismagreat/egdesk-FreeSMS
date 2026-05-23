@@ -93,11 +93,11 @@ If no database query is needed (e.g. general greeting, chit-chat, explaining bro
   "requiresManual": false
 }
 
-If the user is asking about how to use the system, menus, manuals, or guides:
+If the user is asking about how to use the system, menus, manuals, guides, or troubleshooting (such as resetting Naver blog session, setting point earning rates, coupon restrictions, multi-page checking, or point OTP security):
 {
   "requiresQuery": false,
   "sql": null,
-  "reason": "User is asking for system usage instructions.",
+  "reason": "User is asking for system usage instructions or troubleshooting guides.",
   "requiresManual": true
 }
 `;
