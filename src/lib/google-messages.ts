@@ -41,6 +41,20 @@ export class GoogleMessagesAutomation {
     if (!fs.existsSync(storageDir)) {
       fs.mkdirSync(storageDir, { recursive: true });
     }
+    if (!fs.existsSync(USER_DATA_DIR)) {
+      fs.mkdirSync(USER_DATA_DIR, { recursive: true });
+    }
+
+    // Windows 환경에서 비정상 종료 시 남아있는 프로필 Lock 파일 제거 시도
+    const lockFile = path.join(USER_DATA_DIR, 'SingletonLock');
+    if (fs.existsSync(lockFile)) {
+      try {
+        fs.unlinkSync(lockFile);
+        console.log('[GoogleMessages] 이전 세션의 SingletonLock 파일을 정리했습니다.');
+      } catch (e) {
+        console.log('[GoogleMessages] SingletonLock 파일 제거 실패 (프로세스가 아직 점유 중일 수 있습니다)');
+      }
+    }
 
     const launchOptions = { 
       headless: headless !== undefined ? headless : (this.currentHeadless ?? true),
