@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { queryTable, insertRows, deleteRows, updateRows } from '../../../../egdesk-helpers';
 import { triggerAutomation } from '@/lib/automation-trigger';
+import { PointService } from '@/lib/point-service';
 
 export async function GET() {
   try {
@@ -113,6 +114,32 @@ export async function PATCH(req: Request) {
             order_id: id // 원천 주문 ID 기록
           }]);
 
+          // 포인트 자동 적립 연동 (설정된 적립률 적용)
+          if (order.customer_phone && order.total_price) {
+            try {
+              const amt = Number(order.total_price);
+              
+              // system_settings에서 point_earning_rate 조회
+              const rateRes = await queryTable('system_settings', { filters: { key: 'point_earning_rate' } });
+              let rate = 1; // 기본값 1%
+              if (rateRes.rows && rateRes.rows.length > 0) {
+                const val = Number(rateRes.rows[0].value);
+                if (!isNaN(val)) rate = val;
+              }
+
+              const earnedPoints = Math.floor(amt * (rate / 100));
+              if (earnedPoints > 0) {
+                await PointService.earnPoints(
+                  order.customer_phone,
+                  earnedPoints,
+                  id,
+                  '주문 완료 자동 적립'
+                );
+              }
+            } catch (pointErr: any) {
+              console.error('주문 결제완료 포인트 적립 실패:', pointErr.message);
+            }
+          }
         }
 
         if ((updates.status === '배송중' || updates.status === '배송시작') && order.status !== updates.status) {

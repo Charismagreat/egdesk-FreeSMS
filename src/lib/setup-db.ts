@@ -34,6 +34,7 @@ export async function setupDatabase() {
     { name: 'shipping_address', type: 'TEXT' },
     { name: 'recipient_name', type: 'TEXT' },
     { name: 'recipient_phone', type: 'TEXT' },
+    { name: 'point_balance', type: 'INTEGER' }, // 적립금 잔액 컬럼 추가
     { name: 'created_at', type: 'TEXT' },
   ], { tableName: 'crm_customers', uniqueKeyColumns: ['id'] });
 
@@ -234,6 +235,19 @@ export async function setupDatabase() {
     { name: 'created_at', type: 'TEXT', notNull: true },
   ], { tableName: 'crm_coupons_restrictions', uniqueKeyColumns: ['id'] });
 
+  // 19. CRM Point History Table (적립금 내역 관리)
+  await safeCreateTable('적립금 내역', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'customer_id', type: 'INTEGER', notNull: true },
+    { name: 'transaction_type', type: 'TEXT', notNull: true }, // 'EARN'(적립), 'USE'(사용), 'CANCEL'(취소), 'ADMIN'(수동조정)
+    { name: 'amount', type: 'INTEGER', notNull: true },
+    { name: 'balance_after', type: 'INTEGER', notNull: true },
+    { name: 'description', type: 'TEXT' },
+    { name: 'related_entity_type', type: 'TEXT' }, // 'ORDER', 'PAYMENT', 'COUPON' 등
+    { name: 'related_entity_id', type: 'TEXT' },
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'crm_point_history', uniqueKeyColumns: ['id'] });
+
 
 
     // ID 1의 기본 네이버 블로그 설정 존재 여부 확인 후 자동 주입
@@ -297,6 +311,20 @@ export async function setupDatabase() {
     }
   } catch (e: any) {
     console.error('Error clearing instagram dummy posts:', e.message);
+  }
+
+  // 포인트 적립 비율 기본 설정 (point_earning_rate: '1') 자동 주입
+  try {
+    const rateCheck = await queryTable('system_settings', { filters: { key: 'point_earning_rate' } });
+    if (!rateCheck.rows || rateCheck.rows.length === 0) {
+      await insertRows('system_settings', [{
+        key: 'point_earning_rate',
+        value: '1'
+      }]);
+      console.log('Point earning rate seeded with default value: 1%');
+    }
+  } catch (e: any) {
+    console.error('Error seeding point earning rate setting:', e.message);
   }
 
   console.log('Database setup complete.');

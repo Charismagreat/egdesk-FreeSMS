@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { queryTable, insertRows, deleteRows } from '../../../../egdesk-helpers';
 import { triggerAutomation } from '@/lib/automation-trigger';
+import { PointService } from '@/lib/point-service';
 
 export async function GET() {
   try {
@@ -38,6 +39,33 @@ export async function POST(req: Request) {
       결제금액: data.amount,
       결제일시: data.paymentDate || new Date().toISOString().split('T')[0]
     });
+
+    // 포인트 자동 적립 연동 (설정된 적립률 적용)
+    if (data.customerPhone && data.amount) {
+      try {
+        const amt = Number(data.amount);
+        
+        // system_settings에서 point_earning_rate 조회
+        const rateRes = await queryTable('system_settings', { filters: { key: 'point_earning_rate' } });
+        let rate = 1; // 기본값 1%
+        if (rateRes.rows && rateRes.rows.length > 0) {
+          const val = Number(rateRes.rows[0].value);
+          if (!isNaN(val)) rate = val;
+        }
+
+        const earnedPoints = Math.floor(amt * (rate / 100));
+        if (earnedPoints > 0) {
+          await PointService.earnPoints(
+            data.customerPhone, 
+            earnedPoints, 
+            data.orderId || id, 
+            '결제 완료 자동 적립'
+          );
+        }
+      } catch (pointErr: any) {
+        console.error('결제 포인트 적립 처리 실패:', pointErr.message);
+      }
+    }
 
     return NextResponse.json({ success: true, id });
   } catch (error: any) {

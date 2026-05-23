@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Plus, MoreVertical, Filter, X, Calendar, DollarSign, Package, RefreshCw, Truck, AlertCircle, MapPin, User, Phone, Clipboard, ArrowRight, ShoppingBag } from "lucide-react";
+import { Search, Plus, MoreVertical, Filter, X, Calendar, DollarSign, Package, RefreshCw, Truck, AlertCircle, MapPin, User, Phone, Clipboard, ArrowRight, ShoppingBag, Coins } from "lucide-react";
 
 interface Customer {
   id: number;
@@ -13,6 +13,7 @@ interface Customer {
   shipping_address?: string;
   recipient_name?: string;
   recipient_phone?: string;
+  point_balance?: number; // 적립금 컬럼 추가
 }
 
 export default function CustomersPage() {
@@ -41,8 +42,15 @@ export default function CustomersPage() {
     };
   } | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-  const [activeHistoryTab, setActiveHistoryTab] = useState<'orders' | 'cancelled' | 'transactions' | 'deliveries'>('orders');
+  const [activeHistoryTab, setActiveHistoryTab] = useState<'orders' | 'cancelled' | 'transactions' | 'deliveries' | 'points'>('orders');
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+
+  // 포인트 시스템 전용 추가 상태
+  const [pointBalance, setPointBalance] = useState<number>(0);
+  const [pointHistory, setPointHistory] = useState<any[]>([]);
+  const [adjustAmount, setAdjustAmount] = useState<string>('');
+  const [adjustReason, setAdjustReason] = useState<string>('');
+  const [isAdjusting, setIsAdjusting] = useState(false);
 
   // Modal states
   const [showAddModal, setShowAddModal] = useState(false);
@@ -69,15 +77,24 @@ export default function CustomersPage() {
     fetchCustomers();
   }, []);
 
-  const fetchCustomerHistory = async (phone: string) => {
+  const fetchCustomerHistory = async (customer: Customer) => {
     setIsLoadingHistory(true);
     try {
-      const res = await fetch(`/api/customers/history?phone=${encodeURIComponent(phone)}`);
+      // 1. 기존 거래 이력 조회
+      const res = await fetch(`/api/customers/history?phone=${encodeURIComponent(customer.phone)}`);
       const json = await res.json();
       if (json.success) {
         setCustomerHistory(json.data);
       } else {
         alert("이력 조회 실패: " + json.error);
+      }
+
+      // 2. 포인트 잔액 및 이력 조회
+      const pointRes = await fetch(`/api/points?customerId=${customer.id}`);
+      const pointJson = await pointRes.json();
+      if (pointJson.success) {
+        setPointBalance(pointJson.balance);
+        setPointHistory(pointJson.history || []);
       }
     } catch (e) {
       console.error("이력 조회 에러:", e);
@@ -89,9 +106,65 @@ export default function CustomersPage() {
   const handleRowClick = (customer: Customer) => {
     setSelectedCustomer(customer);
     setCustomerHistory(null);
+    setPointHistory([]);
+    setPointBalance(0);
+    setAdjustAmount('');
+    setAdjustReason('');
     setActiveHistoryTab('orders');
     setShowHistoryModal(true);
-    fetchCustomerHistory(customer.phone);
+    fetchCustomerHistory(customer);
+  };
+
+  // 점주 포인트 수동 증감 핸들러
+  const handleAdjustPoints = async () => {
+    if (!selectedCustomer) return;
+    const amountNum = Number(adjustAmount);
+    
+    if (isNaN(amountNum) || amountNum === 0) {
+      alert("올바른 조정 금액을 입력해 주세요. (지급은 양수, 차감은 음수 입력)");
+      return;
+    }
+    
+    if (!adjustReason.trim()) {
+      alert("조정 사유를 입력해 주세요.");
+      return;
+    }
+    
+    setIsAdjusting(true);
+    try {
+      const res = await fetch('/api/points', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customerId: selectedCustomer.id,
+          amount: amountNum,
+          reason: adjustReason.trim()
+        })
+      });
+      const json = await res.json();
+      if (json.success) {
+        alert("포인트가 성공적으로 조정되었습니다.");
+        setAdjustAmount('');
+        setAdjustReason('');
+        setPointBalance(json.newBalance);
+        
+        // 이력 재조회
+        const pointRes = await fetch(`/api/points?customerId=${selectedCustomer.id}`);
+        const pointJson = await pointRes.json();
+        if (pointJson.success) {
+          setPointHistory(pointJson.history || []);
+        }
+        
+        // 전체 리스트 갱신
+        fetchCustomers();
+      } else {
+        alert("포인트 조정 실패: " + json.error);
+      }
+    } catch (err) {
+      alert("포인트 조정 요청 중 오류가 발생했습니다.");
+    } finally {
+      setIsAdjusting(false);
+    }
   };
 
   const handleAddCustomer = async () => {
@@ -242,6 +315,7 @@ export default function CustomersPage() {
                 <th className="p-4">주소</th>
                 <th className="p-4">배송지 정보</th>
                 <th className="p-4">그룹/태그</th>
+                <th className="p-4">적립금</th>
                 <th className="p-4">등록일</th>
                 <th className="p-4">관리</th>
               </tr>
@@ -293,6 +367,9 @@ export default function CustomersPage() {
                           {c.tags}
                         </span>
                       )}
+                    </td>
+                    <td className="p-4 font-bold text-indigo-650 font-mono">
+                      {(c.point_balance || 0).toLocaleString()}p
                     </td>
                     <td className="p-4 text-slate-500">
                       {new Date(c.created_at).toLocaleDateString()}
@@ -603,26 +680,27 @@ export default function CustomersPage() {
                       { id: 'cancelled', label: '취소/반품 내역', icon: RefreshCw, count: customerHistory.stats.cancelledOrders + customerHistory.stats.returnedOrders },
                       { id: 'transactions', label: '거래 내역', icon: DollarSign, count: customerHistory.transactions.length },
                       { id: 'deliveries', label: '배송 정보', icon: Truck, count: customerHistory.deliveries.length },
+                      { id: 'points', label: '적립금 내역', icon: Coins, count: pointHistory.length },
                     ].map((tab) => {
                       const Icon = tab.icon;
                       const isActive = activeHistoryTab === tab.id;
                       return (
                         <button
-                          key={tab.id}
-                          onClick={() => setActiveHistoryTab(tab.id as any)}
-                          className={`flex items-center space-x-2 pb-3.5 text-sm font-semibold transition-all border-b-2 whitespace-nowrap outline-none ${
-                            isActive
-                              ? 'border-indigo-600 text-indigo-600 scale-[1.02]'
-                              : 'border-transparent text-slate-500 hover:text-slate-800'
-                          }`}
+                           key={tab.id}
+                           onClick={() => setActiveHistoryTab(tab.id as any)}
+                           className={`flex items-center space-x-2 pb-3.5 text-sm font-semibold transition-all border-b-2 whitespace-nowrap outline-none ${
+                             isActive
+                               ? 'border-indigo-600 text-indigo-600 scale-[1.02]'
+                               : 'border-transparent text-slate-500 hover:text-slate-800'
+                           }`}
                         >
-                          <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-600' : 'text-slate-400'}`} />
-                          <span>{tab.label}</span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-bold transition-all ${
-                            isActive ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'
-                          }`}>
-                            {tab.count}
-                          </span>
+                           <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-600' : 'text-slate-400'}`} />
+                           <span>{tab.label}</span>
+                           <span className={`text-xs px-2 py-0.5 rounded-full font-bold transition-all ${
+                             isActive ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'
+                           }`}>
+                             {tab.count}
+                           </span>
                         </button>
                       );
                     })}
@@ -857,6 +935,131 @@ export default function CustomersPage() {
                             })}
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* 5. 적립금(포인트) 내역 탭 */}
+                    {activeHistoryTab === 'points' && (
+                      <div className="space-y-6">
+                        
+                        {/* 적립금 대시보드 요약 및 수동 충전 폼 */}
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 animate-fade-in">
+                          
+                          {/* 적립금 잔액 카드 */}
+                          <div className="md:col-span-5 bg-gradient-to-br from-indigo-600 via-indigo-700 to-indigo-900 text-white rounded-3xl p-6 shadow-md border border-indigo-600/30 flex flex-col justify-between relative overflow-hidden h-44">
+                            <div className="absolute top-0 right-0 p-3 opacity-15">
+                              <Coins className="w-28 h-28 text-white" />
+                            </div>
+                            <div className="relative z-10">
+                              <p className="text-xs text-indigo-200 font-bold uppercase tracking-wider">보유 적립 포인트</p>
+                              <h3 className="text-3xl font-black mt-2 font-mono">{pointBalance.toLocaleString()} <span className="text-lg font-bold">p</span></h3>
+                            </div>
+                            <div className="relative z-10 text-[10px] text-indigo-200 font-medium">
+                              이지데스크 무료 SMS 연계 포인트 실시간 연동 중
+                            </div>
+                          </div>
+
+                          {/* 포인트 수동 조정 폼 */}
+                          <div className="md:col-span-7 bg-slate-50 border border-slate-200 rounded-3xl p-5 shadow-inner space-y-4">
+                            <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center">
+                              <Coins className="w-4 h-4 mr-1.5 text-indigo-600 animate-bounce" />
+                              점주 전용 적립금 수동 지급 / 차감
+                            </h4>
+                            <div className="flex flex-col sm:flex-row gap-3">
+                              <div className="flex-1">
+                                <input 
+                                  type="number"
+                                  value={adjustAmount}
+                                  onChange={e => setAdjustAmount(e.target.value)}
+                                  placeholder="금액 입력 (예: 5000 또는 -2000)"
+                                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                                />
+                              </div>
+                              <div className="flex-[2]">
+                                <input 
+                                  type="text"
+                                  value={adjustReason}
+                                  onChange={e => setAdjustReason(e.target.value)}
+                                  placeholder="조정 사유를 상세하게 기록하세요..."
+                                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 outline-none font-semibold text-xs bg-white focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                                />
+                              </div>
+                            </div>
+                            <div className="flex justify-between items-center pt-1">
+                              <p className="text-[10px] text-slate-500 font-semibold leading-relaxed">
+                                * 지급 시 **양수(5000)**, 차감 시 **음수(-2000)**를 입력해 주세요. 모든 내역은 추적 보관됩니다.
+                              </p>
+                              <button
+                                onClick={handleAdjustPoints}
+                                disabled={isAdjusting}
+                                className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-xl font-bold text-xs shadow-md shadow-indigo-500/10 hover:opacity-95 disabled:bg-slate-400 disabled:shadow-none transition-all cursor-pointer border-0"
+                              >
+                                {isAdjusting ? '적용 중...' : '적용하기'}
+                              </button>
+                            </div>
+                          </div>
+
+                        </div>
+
+                        {/* 적립금 상세 타임라인 */}
+                        <div className="space-y-4">
+                          <h4 className="text-xs font-black text-slate-800 tracking-wider">포인트 적립 및 사용 이력 타임라인</h4>
+                          
+                          {pointHistory.length === 0 ? (
+                            <div className="py-16 text-center bg-slate-50/50 border border-dashed border-slate-200 rounded-2xl flex flex-col items-center">
+                              <Coins className="w-12 h-12 text-slate-300 mb-3" />
+                              <p className="font-semibold text-slate-500">포인트 이용 내역이 아직 존재하지 않습니다.</p>
+                            </div>
+                          ) : (
+                            <div className="border border-slate-200/80 rounded-2xl overflow-hidden shadow-xs">
+                              <table className="w-full text-left text-sm border-collapse">
+                                <thead className="bg-slate-50/80 text-slate-600 font-semibold border-b border-slate-200/80">
+                                  <tr>
+                                    <th className="p-4">일시</th>
+                                    <th className="p-4">유형</th>
+                                    <th className="p-4">변동 포인트</th>
+                                    <th className="p-4">변동 후 잔액</th>
+                                    <th className="p-4">내용/사유</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 bg-white text-xs">
+                                  {pointHistory.map((history: any) => {
+                                    const isEarn = history.transaction_type === 'EARN';
+                                    const isUse = history.transaction_type === 'USE';
+                                    const isAmtPositive = history.amount > 0;
+                                    
+                                    return (
+                                      <tr key={history.id} className="hover:bg-slate-50/60 transition-colors">
+                                        <td className="p-4 text-slate-500 font-mono">
+                                          {new Date(history.created_at).toLocaleString()}
+                                        </td>
+                                        <td className="p-4">
+                                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                                            isEarn
+                                              ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
+                                              : isUse
+                                              ? 'bg-rose-50 border-rose-100 text-rose-700'
+                                              : 'bg-indigo-50 border-indigo-100 text-indigo-700'
+                                          }`}>
+                                            {isEarn ? '구매적립' : isUse ? '결제사용' : '점주조정'}
+                                          </span>
+                                        </td>
+                                        <td className={`p-4 font-bold font-mono ${isAmtPositive ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                          {isAmtPositive ? `+${history.amount.toLocaleString()}` : `${history.amount.toLocaleString()}`} p
+                                        </td>
+                                        <td className="p-4 font-semibold text-slate-700 font-mono">
+                                          {Number(history.balance_after || 0).toLocaleString()} p
+                                        </td>
+                                        <td className="p-4 text-slate-600 font-medium">{history.description || '-'}</td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+
                       </div>
                     )}
 

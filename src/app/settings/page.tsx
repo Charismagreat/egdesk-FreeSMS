@@ -2,6 +2,7 @@
 
 import { Settings } from "lucide-react";
 import AiSettingsCard from "../AiSettingsCard";
+import PointSettingsCard from "../PointSettingsCard";
 
 export default function SettingsPage() {
   return (
@@ -16,12 +17,7 @@ export default function SettingsPage() {
 
       <div className="space-y-6">
         <AiSettingsCard />
-        
-        {/* 추가적인 시스템 설정 UI가 필요한 경우 여기에 배치 */}
-        <div className="bg-white border border-slate-200 p-6 rounded-2xl shadow-sm">
-          <h3 className="text-lg font-bold text-slate-800 border-b pb-4 mb-4">일반 설정</h3>
-          <p className="text-slate-500 text-sm">현재 설정 가능한 추가 항목이 없습니다. (준비 중)</p>
-        </div>
+        <PointSettingsCard />
       </div>
     </div>
   );
