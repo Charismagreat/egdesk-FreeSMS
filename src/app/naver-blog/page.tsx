@@ -147,6 +147,7 @@ export default function NaverBlogMarketingPortal() {
 
   // 애니메이션용 마그네틱 이펙트 상태
   const [flyingKeyword, setFlyingKeyword] = useState<{ text: string; x: number; y: number } | null>(null);
+  const [isGeneratingKeywords, setIsGeneratingKeywords] = useState(false);
   const keywordInputRef = useRef<HTMLInputElement>(null);
 
   // 실시간 시스템 시간 상태
@@ -170,10 +171,10 @@ export default function NaverBlogMarketingPortal() {
     return () => clearInterval(interval);
   }, []);
 
-  // 선택된 상품이 변경될 때마다 자동 속성 매핑 키워드 시뮬레이션 가동
+  // 선택된 상품이 변경될 때마다 자동 속성 매핑 키워드 AI 가동
   useEffect(() => {
     if (selectedProduct) {
-      simulateSpecToKeywords(selectedProduct);
+      generateKeywordsWithAI(selectedProduct);
     }
   }, [selectedProduct]);
 
@@ -312,39 +313,9 @@ export default function NaverBlogMarketingPortal() {
       const res = await fetch('/api/products');
       const data = await res.json();
       if (data.success && data.products) {
-        // 임시 속성 데이터 보강 (브랜드, 스펙 사양)
-        const enrichedProducts = data.products.map((prod: any) => {
-          let brand = '자체브랜드';
-          let specs = '가성비 패키지';
-          const name = prod.name.toLowerCase();
-
-          if (name.includes('lg') || name.includes('엘지')) {
-            brand = 'LG 전자';
-            specs = '스마트 듀얼 인버터 / 2등급 에너지 효율';
-          } else if (name.includes('삼성') || name.includes('samsung')) {
-            brand = '삼성전자';
-            specs = '무풍 쿨링 패널 / 1등급 초절전';
-          } else if (name.includes('다이슨')) {
-            brand = 'Dyson';
-            specs = '디지털 모터 V12 / 헤파 필터레이션';
-          } else if (name.includes('커피') || name.includes('원두')) {
-            brand = '에티오피아 예가체프';
-            specs = '스페셜티 아라비카 / 미디엄 로스팅';
-          } else if (name.includes('화장품') || name.includes('피부') || name.includes('세럼')) {
-            brand = '더마 코스메틱';
-            specs = '병풀추출물 84% 함유 / 저자극 비건 인증';
-          }
-
-          return {
-            ...prod,
-            brand,
-            specs
-          };
-        });
-
-        setProducts(enrichedProducts);
-        if (enrichedProducts.length > 0) {
-          setSelectedProduct(enrichedProducts[0]);
+        setProducts(data.products);
+        if (data.products.length > 0) {
+          setSelectedProduct(data.products[0]);
         }
       }
     } catch (err) {
@@ -352,60 +323,31 @@ export default function NaverBlogMarketingPortal() {
     }
   };
 
-  // 상품 기반 AI 키워드 시뮬레이션 생성 (4대 기능의 1, 2, 3번 구현)
-  const simulateSpecToKeywords = (product: Product) => {
-    const brand = product.brand || '자체제작';
-    const name = product.name;
-    const cleanName = name.replace(/\[.*?\]/g, '').trim();
-    
-    // 1. 상품 자동 속성 매핑 추천 (Spec-to-Keyword)
-    const specKeywords: KeywordItem[] = [
-      { keyword: `${brand} ${cleanName.split(' ')[0]}`, competition: 'HIGH', volume: '45,200', reason: '브랜드 대표 메인 키워드로 트래픽은 크나 상위권 경쟁 치열' },
-      { keyword: `${cleanName.split(' ')[0]} 추천`, competition: 'MEDIUM', volume: '12,800', reason: '실구매 전환율이 매우 높은 핵심 추천 세그먼트' },
-      { keyword: `가성비 ${cleanName.split(' ')[0]}`, competition: 'LOW', volume: '4,500', reason: '경쟁률이 극도로 낮아 신규 포스팅 노출에 매우 유력' },
-      { keyword: `${cleanName.split(' ')[0]} 성능비교`, competition: 'MEDIUM', volume: '6,100', reason: '스펙 비교글을 찾는 정보 탐색형 트래픽 풍부' },
-    ];
-
-    // 3. 핵심 구매 페르소나별 분할 제안
-    // 🤱 육아/가정 페르소나
-    const familyKeywords: KeywordItem[] = [
-      { keyword: `아기있는집 ${cleanName.split(' ')[0]}`, competition: 'LOW', volume: '3,800', reason: '안전성과 위생을 우선시하는 부모 대상 롱테일 키워드' },
-      { keyword: `가정용 ${cleanName.split(' ')[0]} 추천`, competition: 'MEDIUM', volume: '8,400', reason: '가족 단위 거실 사용 목적의 유입율 우수' },
-      { keyword: `안심가전 ${brand}`, competition: 'LOW', volume: '1,200', reason: '가족 건강/웰빙 키워드로 신뢰감 있는 리뷰 최적화' },
-      { keyword: `혼수가전 리스트 ${cleanName.split(' ')[0]}`, competition: 'HIGH', volume: '19,500', reason: '신혼부부의 대형 지출 전환율이 매우 높은 핵심 키워드' }
-    ];
-
-    // 🧑‍💻 자취/1인가구 페르소나
-    const singleKeywords: KeywordItem[] = [
-      { keyword: `원룸 ${cleanName.split(' ')[0]} 추천`, competition: 'LOW', volume: '5,200', reason: '자취생들의 좁은 공간 활용성과 가성비 니즈 공략 1순위' },
-      { keyword: `자취방 꿀템 ${cleanName.split(' ')[0]}`, competition: 'LOW', volume: '2,900', reason: '유행에 민감하고 실용성을 찾는 2030 맞춤 키워드' },
-      { keyword: `1인가구 가성비 가전`, competition: 'MEDIUM', volume: '7,100', reason: '최저가 및 실속 스펙을 집중 서치하는 타겟층' },
-      { keyword: `소형 ${cleanName.split(' ')[0]} 후기`, competition: 'LOW', volume: '1,800', reason: '콤팩트한 규격을 선호하는 맞춤형 세부 키워드' }
-    ];
-
-    // 🧹 반려동물 페르소나
-    const petKeywords: KeywordItem[] = [
-      { keyword: `강아지 ${cleanName.split(' ')[0]} 안전`, competition: 'LOW', volume: '1,900', reason: '반려견의 24시간 생활 건강 및 소음 민감성 케어 공략' },
-      { keyword: `고양이 펫가전 추천`, competition: 'LOW', volume: '2,400', reason: '반려묘 이중털, 날림 예방 등 특화 유입 강력' },
-      { keyword: `반려동물 스마트가전 ${brand}`, competition: 'LOW', volume: '950', reason: '댕냥이 집사들 사이의 입소문 마케팅에 매우 유리' },
-      { keyword: `강아지 더위탈출 템`, competition: 'MEDIUM', volume: '4,100', reason: '여름 시즌성 펫케어 트래픽 집중' }
-    ];
-
-    // 🏢 사무실/오피스 페르소나
-    const officeKeywords: KeywordItem[] = [
-      { keyword: `사무실용 ${cleanName.split(' ')[0]}`, competition: 'MEDIUM', volume: '5,800', reason: '업무 집중도 향상 및 대용량/고장 없는 내구성 선호 타겟' },
-      { keyword: `회의실 ${cleanName.split(' ')[0]} 추천`, competition: 'LOW', volume: '1,500', reason: '공용 공간 인테리어와 정숙한 소음 사양 서치 키워드' },
-      { keyword: `회사 탕비실 꿀템`, competition: 'LOW', volume: '1,100', reason: '복지 및 가성비 높은 세련된 사무환경 오브제 니즈' },
-      { keyword: `업무효율 가전 추천`, competition: 'MEDIUM', volume: '3,200', reason: '업무 피로 경감 및 직장인 공감 마케팅 연동' }
-    ];
-
-    setGeneratedKeywords({
-      specKeywords,
-      familyKeywords,
-      singleKeywords,
-      petKeywords,
-      officeKeywords
-    });
+  // 상품 기반 AI 키워드 실시간 자동 생성 (실제 AI 연동 및 로컬 폴백 지원)
+  const generateKeywordsWithAI = async (product: Product) => {
+    setIsGeneratingKeywords(true);
+    try {
+      const res = await fetch('/api/naver-blog/generate-keywords', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: product.name,
+          brand: product.brand,
+          description: product.description
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.keywords) {
+        setGeneratedKeywords(data.keywords);
+      } else {
+        throw new Error(data.error || '키워드 생성에 실패했습니다.');
+      }
+    } catch (err: any) {
+      console.error('AI 키워드 추출 에러:', err);
+      showToast(`AI 키워드 추출 실패: ${err.message || '서버 오류'}`, 'error');
+    } finally {
+      setIsGeneratingKeywords(false);
+    }
   };
 
   // 4. 마그네틱 원클릭 주입 시스템 (One-Click Injection - 마이크로 모션 이펙트 구현)
@@ -1590,35 +1532,44 @@ export default function NaverBlogMarketingPortal() {
               
               {selectedProduct && (
                 <span className="text-[10px] font-extrabold text-emerald-600 bg-emerald-50 border border-emerald-150 px-2.5 py-1 rounded-xl shadow-3xs align-self-start sm:align-self-auto">
-                  ⚡ '{selectedProduct.name.substring(0, 10)}...' 기반 AI 로드 완료
+                  {isGeneratingKeywords ? "⚡ AI 분석 진행 중..." : `⚡ '${selectedProduct.name.substring(0, 10)}...' 기반 AI 로드 완료`}
                 </span>
               )}
             </div>
 
             {/* 📊 1. 상품 자동 속성 매핑 추천 (Spec-to-Keyword) */}
-            {selectedProduct ? (
+            {isGeneratingKeywords ? (
+              <div className="flex flex-col items-center justify-center py-10 bg-slate-50/50 rounded-2xl border border-slate-150 shadow-xs space-y-3">
+                <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-xs font-bold text-slate-500">AI가 상품의 속성을 정밀 분석 중입니다...</p>
+              </div>
+            ) : selectedProduct ? (
               <div className="space-y-3.5 bg-slate-50/50 p-5 rounded-2xl border border-slate-150 shadow-xs">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs px-2.5 py-1 rounded-xl bg-emerald-500 text-white font-extrabold shadow-sm">
+                  <span className="text-xs px-2.5 py-1 rounded-xl bg-emerald-505 text-white font-extrabold shadow-sm bg-emerald-500">
                     속성 자동 매핑 분석
                   </span>
                   <span className="text-[10px] text-slate-500 font-semibold">AI가 상품의 사양과 브랜드를 분석해 대표 키워드를 추출했습니다.</span>
                 </div>
 
                 <div className="flex flex-wrap gap-2.5">
-                  {generatedKeywords.specKeywords.map((item, idx) => (
-                    <button
-                      key={idx}
-                      onClick={(e) => handleKeywordInject(item.keyword, e)}
-                      className="group flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white border border-slate-200/80 hover:border-emerald-500/50 hover:bg-emerald-50/20 hover:shadow-sm transition-all text-left active:scale-95 cursor-pointer shadow-3xs"
-                    >
-                      <div>
-                        <div className="text-[11px] font-black text-slate-800 group-hover:text-emerald-700 transition-colors">#{item.keyword}</div>
-                        <div className="text-[9px] text-slate-400 mt-0.5 font-bold">조회수: {item.volume}</div>
-                      </div>
-                      {getCompetitionBadge(item.competition)}
-                    </button>
-                  ))}
+                  {generatedKeywords.specKeywords && generatedKeywords.specKeywords.length > 0 ? (
+                    generatedKeywords.specKeywords.map((item, idx) => (
+                      <button
+                        key={idx}
+                        onClick={(e) => handleKeywordInject(item.keyword, e)}
+                        className="group flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white border border-slate-200/80 hover:border-emerald-500/50 hover:bg-emerald-50/20 hover:shadow-sm transition-all text-left active:scale-95 cursor-pointer shadow-3xs"
+                      >
+                        <div>
+                          <div className="text-[11px] font-black text-slate-800 group-hover:text-emerald-700 transition-colors">#{item.keyword}</div>
+                          <div className="text-[9px] text-slate-400 mt-0.5 font-bold">조회수: {item.volume}</div>
+                        </div>
+                        {getCompetitionBadge(item.competition)}
+                      </button>
+                    ))
+                  ) : (
+                    <div className="text-xs text-slate-450 font-bold py-2">생성된 메인 속성 키워드가 없습니다.</div>
+                  )}
                 </div>
               </div>
             ) : (
@@ -1690,15 +1641,32 @@ export default function NaverBlogMarketingPortal() {
               <div className="p-5 bg-slate-50/50 border border-slate-150 rounded-2xl min-h-36 shadow-xs">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {(() => {
-                    let targetList = generatedKeywords.familyKeywords;
-                    if (activePersona === 'single') targetList = generatedKeywords.singleKeywords;
-                    if (activePersona === 'pet') targetList = generatedKeywords.petKeywords;
-                    if (activePersona === 'office') targetList = generatedKeywords.officeKeywords;
+                    if (isGeneratingKeywords) {
+                      return (
+                        <div className="col-span-2 flex flex-col items-center justify-center py-8 space-y-3">
+                          <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                          <p className="text-xs font-bold text-slate-500">AI가 타겟 구매 페르소나별 최적 키워드를 정밀하게 도출하는 중입니다...</p>
+                        </div>
+                      );
+                    }
+
+                    let targetList = generatedKeywords.familyKeywords || [];
+                    if (activePersona === 'single') targetList = generatedKeywords.singleKeywords || [];
+                    if (activePersona === 'pet') targetList = generatedKeywords.petKeywords || [];
+                    if (activePersona === 'office') targetList = generatedKeywords.officeKeywords || [];
 
                     if (!selectedProduct) {
                       return (
                         <div className="col-span-2 text-center py-8 text-xs text-slate-400 font-bold">
                           상품을 먼저 1단계에서 선택하셔야 페르소나별 정밀 키워드가 추출됩니다. 👥
+                        </div>
+                      );
+                    }
+
+                    if (targetList.length === 0) {
+                      return (
+                        <div className="col-span-2 text-center py-8 text-xs text-slate-400 font-bold">
+                          분석된 페르소나 키워드가 없습니다.
                         </div>
                       );
                     }
