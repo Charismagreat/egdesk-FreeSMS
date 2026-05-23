@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Sparkles, X, Send, RotateCcw, Bot, Terminal, ShieldAlert, Maximize2, Minimize2 } from 'lucide-react';
+import { MessageSquare, Sparkles, X, Send, RotateCcw, Bot, Terminal, ShieldAlert, Maximize2, Minimize2, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface Message {
@@ -328,6 +328,12 @@ export default function EasyBot() {
   const [inputVal, setInputVal] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  
+  // 음성 대화 관련 상태
+  const [isListening, setIsListening] = useState(false);
+  const [isTtsEnabled, setIsTtsEnabled] = useState(true);
+  const recognitionRef = useRef<any>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -406,22 +412,86 @@ export default function EasyBot() {
     }
   }, [inputVal]);
 
-  // Enter 키 전송 및 Shift+Enter 줄바꿈 조작
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault(); // 기본 개행 방지
+      e.preventDefault();
       if (inputVal.trim() && !isLoading) {
-        handleSend(e as unknown as React.FormEvent);
+        handleSend(e);
       }
     }
   };
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputVal.trim() || isLoading) return;
+  // 마크다운 특수문자 및 코드를 음성 출력에 맞게 정제하는 필터
+  const cleanTextForSpeech = (text: string) => {
+    return text
+      .replace(/```[\s\S]*?```/g, " 코드 조각이 생략되었습니다. ") // 코드 블록 제거
+      .replace(/\|.*\|/g, " 표 데이터가 표기되었습니다. ") // 테이블 제거
+      .replace(/[*_#`~>]/g, "") // 마크다운 제거
+      .replace(/\n/g, " ") // 줄바꿈을 공백으로
+      .trim();
+  };
 
-    const userPrompt = inputVal.trim();
-    setInputVal('');
+  const speakText = (text: string) => {
+    if (!('speechSynthesis' in window) || !isTtsEnabled) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(cleanTextForSpeech(text));
+    utterance.lang = 'ko-KR';
+    utterance.rate = 1.1; // 살짝 빠르게 설정
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const startListening = () => {
+    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+      alert("현재 브라우저는 음성 인식을 지원하지 않습니다. 크롬 또는 엣지를 사용해 주세요.");
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+    
+    recognition.lang = 'ko-KR';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      window.speechSynthesis.cancel(); // 내 말을 시작하면 봇의 말하기 중단
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setInputVal(transcript);
+      // 사장님 요청: 음성 인식 종료 시 자동으로 질문을 전송
+      handleSend(undefined, transcript);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("음성 인식 에러:", event.error);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    }
+  };
+
+  const handleSend = async (e?: React.FormEvent | React.KeyboardEvent, overrideText?: string) => {
+    if (e) e.preventDefault();
+    
+    const textToSend = overrideText || inputVal;
+    if (!textToSend.trim() || isLoading) return;
+
+    if (!overrideText) setInputVal('');
     setIsLoading(true);
 
     const timeString = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
@@ -429,7 +499,7 @@ export default function EasyBot() {
     // 1. 사용자 메시지 즉시 화면에 주입
     const userMessage: Message = {
       role: 'user',
-      content: inputVal.trim(), // 안전하게 직접 할당
+      content: textToSend.trim(),
       timestamp: timeString
     };
 
@@ -479,6 +549,7 @@ export default function EasyBot() {
           sqlError: data.sqlError
         };
         setMessages(prev => [...prev, botMessage]);
+        speakText(data.answer); // TTS 재생
       } else {
         const botErrorMessage: Message = {
           role: 'bot',
@@ -486,6 +557,7 @@ export default function EasyBot() {
           timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
         };
         setMessages(prev => [...prev, botErrorMessage]);
+        speakText(`오류가 발생했습니다. ${data.error}`);
       }
     } catch (error: any) {
       console.error('이지봇 응답 에러:', error);
@@ -495,6 +567,7 @@ export default function EasyBot() {
         timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
       };
       setMessages(prev => [...prev, botErrorMessage]);
+      speakText('서버 연결에 실패했습니다. 네트워크 상태를 확인해 주세요.');
     } finally {
       setIsLoading(false);
     }
@@ -608,6 +681,18 @@ export default function EasyBot() {
 
               {/* 우측 아이콘 버튼 영역 여백 확보 */}
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setIsTtsEnabled(!isTtsEnabled);
+                    if (isTtsEnabled) window.speechSynthesis.cancel();
+                  }}
+                  className={`p-2.5 rounded-xl transition-colors flex items-center justify-center ${
+                    isTtsEnabled ? 'bg-violet-100 text-violet-600' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-700'
+                  }`}
+                  title={isTtsEnabled ? "음성 안내 끄기" : "음성 안내 켜기"}
+                >
+                  {isTtsEnabled ? <Volume2 size={17} /> : <VolumeX size={17} />}
+                </button>
                 {!isMobile && (
                   <button
                     onClick={() => setIsWide(!isWide)}
@@ -725,11 +810,11 @@ export default function EasyBot() {
 
             {/* 입력 폼 하단 영역 (CSS 빌드 캐시 버그 차단을 위해 100% 안전한 인라인 스타일 Flex 레이아웃 적용) */}
             <form 
-              onSubmit={handleSend} 
+              onSubmit={(e) => handleSend(e)} 
               className="shrink-0 border-t border-slate-100/70"
               style={{
                 background: '#fafafb',
-                padding: '12px 20px 24px 20px', // px-5 pt-3 pb-6에 정확히 매칭 (상단 12px, 좌우 20px, 하단 24px 여유 확보)
+                padding: '12px 20px 24px 20px', 
                 display: 'flex',
                 alignItems: 'flex-end',
                 gap: '12px',
@@ -738,15 +823,27 @@ export default function EasyBot() {
               }}
             >
               <div 
-                className="bg-white border border-slate-200 rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.02)] focus-within:border-violet-400 focus-within:ring-1 focus-within:ring-violet-400 transition-all"
+                className={`bg-white border rounded-2xl shadow-[0_2px_8px_rgba(0,0,0,0.02)] transition-all ${
+                  isListening ? 'border-pink-500 ring-2 ring-pink-200' : 'border-slate-200 focus-within:border-violet-400 focus-within:ring-1 focus-within:ring-violet-400'
+                }`}
                 style={{
                   display: 'flex',
                   alignItems: 'flex-end',
                   flex: 1,
-                  padding: '10px 16px', // px-4 py-2.5에 매칭
+                  padding: '10px 16px', 
                   boxSizing: 'border-box'
                 }}
               >
+                <button
+                  type="button"
+                  onClick={isListening ? stopListening : startListening}
+                  className={`shrink-0 mr-2 p-1.5 rounded-full transition-colors flex items-center justify-center ${
+                    isListening ? 'text-pink-500 bg-pink-50 animate-pulse' : 'text-slate-400 hover:bg-slate-100'
+                  }`}
+                  title={isListening ? "음성 인식 중지" : "마이크 켜고 말하기"}
+                >
+                  {isListening ? <Mic size={18} /> : <MicOff size={18} />}
+                </button>
                 <textarea
                   ref={textareaRef}
                   value={inputVal}
