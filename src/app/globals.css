@@ -73,4 +73,37 @@ body {
 }
 
 
+/* 이지봇 위젯 글로벌 반응형 스타일 */
+.easybot-widget {
+  /* 기본 상태 */
+  bottom: 96px;
+  right: 24px;
+  width: 480px;
+  min-width: 360px;
+  max-width: calc(100vw - 300px);
+  height: calc(100vh - 130px);
+  max-height: 680px;
+  border-radius: 28px;
+  /* 애니메이션 트랜지션 (React transition 덮어쓰기 안전) */
+  transition: width 0.3s ease, height 0.3s ease, border-radius 0.3s ease;
+}
 
+/* 와이드(확대) 모드 */
+.easybot-widget.is-wide {
+  width: 800px;
+  min-width: auto;
+}
+
+/* 모바일 화면 (가로 해상도 640px 이하) - 100% 꽉 채우기 */
+@media (max-width: 640px) {
+  .easybot-widget {
+    bottom: 0;
+    right: 0;
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+    height: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+  }
+}

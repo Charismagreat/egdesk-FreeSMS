@@ -552,13 +552,27 @@ export default function EasyBot() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 35, scale: 0.95 }}
             transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-            className={`fixed z-50 flex flex-col overflow-hidden bg-white/95 border border-slate-200/90 shadow-[0_25px_60px_rgba(0,0,0,0.12)] backdrop-blur-xl transition-all duration-300 ${
+            className="fixed z-50 flex flex-col overflow-hidden bg-white/95 border border-slate-200/90 shadow-[0_25px_60px_rgba(0,0,0,0.12)] backdrop-blur-xl transition-all duration-300"
+            style={
               isMobile
-                ? 'bottom-0 right-0 w-full h-full rounded-none'
-                : isWide
-                  ? 'bottom-24 right-6 w-[820px] min-w-[480px] max-w-[95vw] h-[680px] min-h-[500px] max-h-[85vh] rounded-[28px]'
-                  : 'bottom-24 right-6 w-[480px] min-w-[360px] max-w-[90vw] h-[680px] min-h-[500px] max-h-[85vh] rounded-[28px]'
-            }`}
+                ? { 
+                    bottom: 0, 
+                    right: 0, 
+                    width: '100%', 
+                    height: '100%',
+                    borderRadius: '0px'
+                  }
+                : {
+                    bottom: '96px', 
+                    right: '24px',  
+                    width: isWide ? '800px' : '400px',
+                    minWidth: '360px',
+                    maxWidth: 'calc(100vw - 280px)', // 왼쪽 사이드바 침범 절대 금지
+                    height: isWide ? 'calc(100vh - 120px)' : '580px',
+                    maxHeight: isWide ? '900px' : '70vh',
+                    borderRadius: '28px'
+                  }
+            }
           >
             {/* 위젯 헤더 (패딩을 px-6 py-5로 크게 늘려 넉넉한 여백 확보) */}
             <div className="flex items-center justify-between border-b border-slate-100/80 bg-white/90 px-6 py-5 shrink-0">
@@ -621,7 +635,7 @@ export default function EasyBot() {
             </div>
 
             {/* 메시지 보드 영역 (패딩 p-5 및 space-y-6으로 메시지 간격 시원하게 배치) */}
-            <div className="flex-1 overflow-y-auto p-5 pb-6 space-y-6 bg-[#fafafb] custom-scrollbar pt-6">
+            <div className="flex-1 min-h-0 overflow-y-auto p-5 pb-6 space-y-6 bg-[#fafafb] custom-scrollbar pt-6">
               {messages.map((msg, index) => (
                 <div key={index} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   {msg.role === 'bot' && (

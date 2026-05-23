@@ -59,14 +59,9 @@ export default function AiSettingsCard() {
   };
 
   return (
-    <div className="bg-gradient-to-br from-indigo-50/90 to-blue-50/90 p-7 rounded-2xl shadow-[0_4px_20px_rgba(99,102,241,0.06)] border border-indigo-100 mt-6 relative overflow-hidden">
-      {/* 백그라운드 물결 광채 데코 */}
-      <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-        <Bot className="w-40 h-40 text-indigo-650" />
-      </div>
-      
+    <div className="bg-gradient-to-br from-indigo-50 to-blue-50/80 p-6 md:p-8 rounded-2xl shadow-sm border border-indigo-100 mt-6 relative overflow-hidden">
       <div className="relative z-10 flex flex-col gap-6">
-        {/* 1단: 헤더 영역 (가로폭 100% 확보하여 텍스트 깨짐 원천 방지) */}
+        {/* 1단: 헤더 영역 */}
         <div className="border-b border-indigo-100/60 pb-4">
           <h2 className="text-lg font-extrabold text-indigo-950 flex items-center gap-2">
             <Bot className="w-5.5 h-5.5 text-indigo-600 animate-pulse" /> 
@@ -77,45 +72,45 @@ export default function AiSettingsCard() {
           </p>
         </div>
         
-        {/* 2단: 설정 입력 폼 영역 (충분한 넓이 확보 및 반응형 정렬) */}
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-end gap-4 w-full">
-          {/* API Key 입력 */}
-          <div className="flex-1 min-w-[260px]">
-            <label className="block text-[11px] font-bold text-indigo-800 mb-1.5 tracking-wider uppercase">Google AI API Key</label>
-            <div className="relative w-full">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+        {/* 2단: 설정 입력 폼 영역 (절대 깨지지 않는 Flex 래퍼 그룹화 방식) */}
+        <div className="flex flex-col md:flex-row items-end gap-4 w-full">
+          {/* API Key 입력 (비율 5) */}
+          <div className="flex-[5] min-w-0 w-full">
+            <label className="block text-[11px] font-bold text-indigo-800 mb-1.5 tracking-wider uppercase whitespace-nowrap">Google AI API Key</label>
+            <div className="flex items-center border border-indigo-200 rounded-xl bg-white/90 overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 shadow-sm transition-all w-full">
+              <div className="pl-4 pr-3 flex items-center justify-center shrink-0">
                 <KeyRound className="h-4 w-4 text-indigo-400" />
               </div>
               <input
                 type="password"
-                placeholder="구글 API Key를 입력하세요 (AIzaSy...)"
+                placeholder="구글 API Key 입력 (AIzaSy...)"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-xs bg-white/90 font-medium shadow-sm transition-all placeholder-indigo-300"
+                className="w-full py-2.5 outline-none text-xs font-medium placeholder-indigo-300 bg-transparent"
                 title="Google AI API Key"
               />
             </div>
           </div>
 
-          {/* 모델 선택 select */}
-          <div className="w-full lg:w-72">
-            <label className="block text-[11px] font-bold text-indigo-800 mb-1.5 tracking-wider uppercase">Active Gemini Model</label>
-            <div className="relative w-full">
-              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+          {/* 모델 선택 select (비율 4) */}
+          <div className="flex-[4] min-w-0 w-full">
+            <label className="block text-[11px] font-bold text-indigo-800 mb-1.5 tracking-wider uppercase whitespace-nowrap">Active Gemini Model</label>
+            <div className="flex items-center border border-indigo-200 rounded-xl bg-white/90 overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 shadow-sm transition-all w-full">
+              <div className="pl-4 pr-3 flex items-center justify-center shrink-0 pointer-events-none">
                 <Cpu className="h-4 w-4 text-indigo-400" />
               </div>
               <select
                 value={aiModel}
                 onChange={(e) => setAiModel(e.target.value)}
-                className="w-full pl-10 pr-10 py-2.5 border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-xs bg-white/90 font-bold text-indigo-950 cursor-pointer appearance-none shadow-sm transition-all"
+                className="flex-1 w-full py-2.5 outline-none text-xs font-bold text-indigo-950 cursor-pointer appearance-none bg-transparent text-ellipsis"
                 title="Gemini AI 모델 선택"
               >
-                <option value="gemini-3.5-flash">Gemini 3.5 Flash (초고속/최우수 추천)</option>
-                <option value="gemini-2.0-flash">Gemini 2.0 Flash (안정적 고속)</option>
-                <option value="gemini-1.5-flash-latest">Gemini 1.5 Flash (최신 패치)</option>
-                <option value="gemini-1.5-pro">Gemini 1.5 Pro (심층 분석 특화)</option>
+                <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+                <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                <option value="gemini-1.5-flash-latest">Gemini 1.5 Flash</option>
+                <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
               </select>
-              <div className="absolute inset-y-0 right-0 flex items-center pr-3.5 pointer-events-none">
+              <div className="pr-4 pl-3 flex items-center justify-center shrink-0 pointer-events-none">
                 <svg className="h-4 w-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                 </svg>
@@ -123,14 +118,14 @@ export default function AiSettingsCard() {
             </div>
           </div>
 
-          {/* 저장 버튼 */}
-          <div className="shrink-0 w-full lg:w-auto">
+          {/* 저장 버튼 (비율 2) */}
+          <div className="flex-[2] shrink-0 w-full md:w-auto">
             <button
               onClick={handleSave}
-              className="flex items-center justify-center gap-2 px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-xl text-xs font-bold transition-all w-full lg:w-auto shadow-md hover:shadow-lg active:scale-95 duration-150 transform"
+              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-xl text-xs font-bold transition-all w-full shadow-md hover:shadow-lg active:scale-95 duration-150 transform whitespace-nowrap"
             >
               {isSaved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-              {isSaved ? "설정 저장완료" : "설정 저장하기"}
+              {isSaved ? "저장완료" : "설정 저장하기"}
             </button>
           </div>
         </div>

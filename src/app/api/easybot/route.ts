@@ -90,7 +90,7 @@ If no database query is needed (e.g. general greeting, chit-chat, explaining bro
 }
 `;
 
-    const step1Response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${selectedModel}:generateContent?key=${apiKey}`, {
+    const step1Response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -172,7 +172,7 @@ ${JSON.stringify(localStorageContext, null, 2)}
 - 쿼리 에러 내용: ${sqlError || '에러 없음'}
 `;
 
-    const step2Response = await fetch(`https://generativelanguage.googleapis.com/v1/models/${selectedModel}:generateContent?key=${apiKey}`, {
+    const step2Response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
