@@ -23,7 +23,7 @@ const CATEGORIES = [
   { id: "coupon", label: "쿠폰 & 주문/예약 📦", icon: Ticket, color: "text-rose-400" }
 ];
 
-// 전반적인 플랫폼 핵심 FAQ 데이터셋 (AI 자율 경영 파트너 Q&A 2건 완벽 통합)
+// FAQ 데이터베이스
 const FAQ_DATABASE: FAQItem[] = [
   // 1. 문자발송 & 자동화
   {
@@ -44,7 +44,7 @@ const FAQ_DATABASE: FAQItem[] = [
     question: "특정 행동이 발생했을 때 문자가 자동 발송되게 하려면 어떻게 설정하나요?",
     answer: "[자동 발송 설정] 메뉴에서 원하시는 상황(예: 신규 고객 등록, 예약 완료, 결제 완료, 포인트 적립 등)을 'On'으로 켠 뒤, 사전에 작성해 두신 메시지 '템플릿'을 매핑해 두시면 됩니다. 이벤트가 발생할 때 시스템이 실시간으로 고객 연락처를 자동 추출하여 즉시 백그라운드에서 안내 문자를 발송합니다."
   },
-  // 2. 마케팅 & RPA (AI 자율 경영 파트너 신규 고품격 FAQ 2건 전면 기입)
+  // 2. 마케팅 & RPA
   {
     id: "rpa-1",
     category: "rpa",
@@ -165,49 +165,52 @@ export default function FAQHelpCenterPage() {
   const filteredFaqs = getFilteredFAQ();
 
   return (
-    <div className="w-full flex-1 min-w-0 flex flex-col space-y-8 animate-fade-in relative">
+    <div className="w-full min-h-screen bg-slate-50 p-4 md:p-8 flex flex-col space-y-8 animate-fade-in relative">
       
       {/* 럭셔리 네온 광원 데코레이션 */}
       <div className="absolute top-0 right-20 w-72 h-72 bg-amber-500/5 rounded-full blur-3xl -z-10"></div>
       <div className="absolute bottom-20 left-10 w-72 h-72 bg-indigo-500/5 rounded-full blur-3xl -z-10"></div>
 
-      {/* 헤더 섹션: 세로 찌그러짐을 방지하는 확고한 w-full 및 flex-1 min-w-0 구조 */}
-      <div className="w-full flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 bg-white border border-slate-100 p-6 md:p-8 rounded-3xl shadow-sm">
-        <div className="flex-1 min-w-0 space-y-2">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-amber-500/10 text-amber-600 rounded-xl">
-              <HelpCircle className="w-6 h-6 shrink-0" />
+      {/* 헤더 섹션: w-full 및 flex-col lg:flex-row 분리를 확실한 Block 정렬로 보강 */}
+      <div className="w-full bg-white border border-slate-100 p-6 md:p-8 rounded-3xl shadow-sm">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 w-full">
+          {/* 타이틀 영역: flex-grow와 확실한 최소 너비를 보장하여 수축 버그 원천 격파 */}
+          <div className="w-full lg:flex-1 lg:min-w-[60%] space-y-2">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-amber-500/10 text-amber-600 rounded-xl">
+                <HelpCircle className="w-6 h-6 shrink-0" />
+              </div>
+              <span className="text-[11px] font-extrabold tracking-wider bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full uppercase">Help Center</span>
             </div>
-            <span className="text-[11px] font-extrabold tracking-wider bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full uppercase">Help Center</span>
+            <h1 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight block">
+              Q&A 통합 헬프센터 💡
+            </h1>
+            <p className="text-slate-400 text-sm font-medium leading-relaxed block">
+              이지데스크의 AI 자율 마케팅(Autonomous Copilot), 무료 문자, 단골 포인트 등 핵심 기능들의 명쾌한 가이드를 만나보세요.
+            </p>
           </div>
-          <h1 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">
-            Q&A 통합 헬프센터 💡
-          </h1>
-          <p className="text-slate-400 text-sm font-medium leading-relaxed">
-            이지데스크의 AI 자율 마케팅(Autonomous Copilot), 무료 문자, 단골 포인트 등 핵심 기능들의 명쾌한 가이드를 만나보세요.
-          </p>
-        </div>
-        
-        {/* 실시간 검색창 */}
-        <div className="relative w-full lg:w-96 shrink-0 shadow-sm rounded-2xl overflow-hidden">
-          <Search className="absolute left-4 top-3.5 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="필요한 기능을 바로 검색해 보세요..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none text-sm text-slate-700 font-medium transition-all"
-          />
+          
+          {/* 실시간 검색창: 고정 폭 보장 및 반응형 확장 */}
+          <div className="relative w-full lg:w-96 shrink-0 shadow-sm rounded-2xl overflow-hidden border border-slate-200 focus-within:border-amber-500 focus-within:ring-1 focus-within:ring-amber-500 transition-all">
+            <Search className="absolute left-4 top-3.5 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="필요한 기능을 바로 검색해 보세요..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-11 pr-4 py-3.5 bg-white border-0 outline-none text-sm text-slate-700 font-medium"
+            />
+          </div>
         </div>
       </div>
 
-      {/* 메인 2단 스플릿 레이아웃: w-full 및 grow 속성 부여 */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 w-full flex-1">
+      {/* 메인 2단 스플릿 레이아웃: Grid Layout의 전체 width와 간격을 안전하게 묶음 */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 w-full">
         
-        {/* 1단: 좌측 카테고리 탭 내비게이션 (폭이 찌그러지지 않도록 단단히 고정) */}
-        <div className="lg:col-span-1 space-y-2.5 h-fit">
-          <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-3 mb-3 block">카테고리 필터</h4>
-          <div className="flex flex-row lg:flex-col gap-2 overflow-x-auto pb-2 lg:pb-0 no-scrollbar">
+        {/* 1단: 좌측 카테고리 탭 내비게이션 */}
+        <div className="lg:col-span-1 space-y-3 h-fit w-full">
+          <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-3 mb-2 block">카테고리 필터</h4>
+          <div className="flex flex-row lg:flex-col gap-2.5 overflow-x-auto pb-2 lg:pb-0 no-scrollbar w-full">
             {CATEGORIES.map(cat => {
               const Icon = cat.icon;
               const isSelected = activeCategory === cat.id;
@@ -216,7 +219,7 @@ export default function FAQHelpCenterPage() {
                 <button
                   key={cat.id}
                   onClick={() => { setActiveCategory(cat.id); }}
-                  className={`flex items-center gap-3 p-3.5 rounded-2xl border text-xs font-extrabold transition-all text-left whitespace-nowrap lg:whitespace-normal shrink-0 lg:shrink-1 ${
+                  className={`flex items-center gap-3 p-4 rounded-2xl border text-xs font-extrabold transition-all text-left whitespace-nowrap lg:whitespace-normal shrink-0 lg:shrink-1 w-full ${
                     isSelected 
                       ? "bg-slate-900 text-white shadow-lg shadow-slate-900/10 scale-[1.02] border-slate-900" 
                       : "bg-white text-slate-600 hover:bg-slate-50 border-slate-100 hover:border-slate-200"
@@ -231,7 +234,7 @@ export default function FAQHelpCenterPage() {
         </div>
 
         {/* 2단: 우측 FAQ 본문 아코디언 목록 */}
-        <div className="lg:col-span-3 space-y-5 flex-1 min-w-0">
+        <div className="lg:col-span-3 space-y-5 w-full">
           <div className="flex justify-between items-center px-1">
             <span className="text-xs font-bold text-slate-400">
               총 <b>{filteredFaqs.length}건</b>의 자주 묻는 질문이 있습니다.
@@ -239,20 +242,20 @@ export default function FAQHelpCenterPage() {
           </div>
 
           {filteredFaqs.length === 0 ? (
-            <div className="bg-white border border-slate-100 rounded-3xl p-12 text-center py-24 shadow-sm">
+            <div className="bg-white border border-slate-100 rounded-3xl p-12 text-center py-24 shadow-sm w-full">
               <HelpCircle className="w-12 h-12 text-slate-300 mx-auto mb-4 animate-pulse" />
               <h3 className="text-base font-black text-slate-800 mb-1">일치하는 가이드를 찾을 수 없습니다.</h3>
               <p className="text-xs text-slate-400">검색어를 줄이거나 카테고리 필터를 변경해 보세요.</p>
             </div>
           ) : (
-            <div className="space-y-3.5">
+            <div className="space-y-4 w-full">
               {filteredFaqs.map(faq => {
                 const isOpen = openIds.has(faq.id);
                 
                 return (
                   <div 
                     key={faq.id} 
-                    className={`bg-white border rounded-2xl overflow-hidden transition-all duration-300 shadow-sm ${
+                    className={`bg-white border rounded-2xl overflow-hidden transition-all duration-300 shadow-sm w-full ${
                       isOpen ? "border-amber-400/80 ring-2 ring-amber-400/5" : "border-slate-100 hover:border-slate-200 hover:shadow-md"
                     }`}
                   >
@@ -282,30 +285,32 @@ export default function FAQHelpCenterPage() {
             </div>
           )}
 
-          {/* 이지봇 AI 헬프 배너 브릿지 (더욱 영롱하고 와이드하게 펼쳐지는 Glassmorphism) */}
-          <div className="bg-gradient-to-r from-amber-500/5 via-orange-500/5 to-indigo-500/5 border border-slate-100 p-6 md:p-8 rounded-3xl mt-8 flex flex-col lg:flex-row items-center justify-between gap-6 shadow-sm w-full">
-            <div className="flex items-center gap-4 flex-1 min-w-0">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 flex items-center justify-center text-slate-900 shadow-xl shadow-orange-500/10 shrink-0 animate-bounce">
-                <Bot className="w-7 h-7 text-slate-900" />
+          {/* 이지봇 AI 헬프 배너 브릿지 (오동작 방지를 위해 flex-col과 w-full을 철저하게 분리배치) */}
+          <div className="bg-gradient-to-r from-amber-500/5 via-orange-500/5 to-indigo-500/5 border border-slate-100 p-6 md:p-8 rounded-3xl mt-8 shadow-sm w-full">
+            <div className="flex flex-col lg:flex-row items-center justify-between gap-6 w-full">
+              <div className="flex items-center gap-4 w-full lg:flex-1">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 flex items-center justify-center text-slate-900 shadow-xl shadow-orange-500/10 shrink-0 animate-bounce">
+                  <Bot className="w-7 h-7 text-slate-900" />
+                </div>
+                <div className="w-full lg:flex-1 space-y-1">
+                  <h4 className="text-sm md:text-base font-black text-slate-800 flex items-center gap-2">
+                    원하는 답변을 찾기 어려우신가요?
+                    <span className="bg-amber-400 text-slate-900 font-extrabold text-[9px] px-2 py-0.5 rounded flex items-center gap-0.5"><Sparkles className="w-2.5 h-2.5"/>AI</span>
+                  </h4>
+                  <p className="text-xs md:text-sm text-slate-500 font-semibold leading-relaxed">
+                    이지봇 인공지능 비서에게 음성이나 채팅으로 대화하여 복잡한 질문에 대한 해답을 즉석에서 추천받으세요!
+                  </p>
+                </div>
               </div>
-              <div className="flex-1 min-w-0 space-y-1">
-                <h4 className="text-sm md:text-base font-black text-slate-800 flex items-center gap-2">
-                  원하는 답변을 찾기 어려우신가요?
-                  <span className="bg-amber-400 text-slate-900 font-extrabold text-[9px] px-2 py-0.5 rounded flex items-center gap-0.5"><Sparkles className="w-2.5 h-2.5"/>AI</span>
-                </h4>
-                <p className="text-xs md:text-sm text-slate-500 font-semibold leading-relaxed">
-                  이지봇 인공지능 비서에게 음성이나 채팅으로 대화하여 복잡한 질문에 대한 해답을 즉석에서 추천받으세요!
-                </p>
-              </div>
+              
+              <button
+                onClick={triggerEasyBot}
+                className="px-6 py-3.5 bg-slate-950 hover:bg-slate-800 text-white font-extrabold rounded-2xl text-xs md:text-sm transition-all border-0 shadow-lg shadow-slate-950/10 shrink-0 cursor-pointer flex items-center gap-2 active:scale-95 w-full lg:w-auto text-center justify-center"
+              >
+                <Bot className="w-4 h-4 text-amber-400" />
+                이지봇 AI 비서 호출하기
+              </button>
             </div>
-            
-            <button
-              onClick={triggerEasyBot}
-              className="px-6 py-3.5 bg-slate-950 hover:bg-slate-800 text-white font-extrabold rounded-2xl text-xs md:text-sm transition-all border-0 shadow-lg shadow-slate-950/10 shrink-0 cursor-pointer flex items-center gap-2 active:scale-95"
-            >
-              <Bot className="w-4 h-4 text-amber-400" />
-              이지봇 AI 비서 호출하기
-            </button>
           </div>
 
         </div>
