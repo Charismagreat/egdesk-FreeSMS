@@ -1,4 +1,5 @@
 import { queryTable, insertRows, updateRows } from '../../egdesk-helpers';
+import { triggerAutomation } from './automation-trigger';
 
 /**
  * 고객의 포인트 정보를 조회하거나 생성 및 변경을 처리하는 비즈니스 엔진 서비스
@@ -76,11 +77,21 @@ export class PointService {
       amount: amount,
       balance_after: newBalance,
       description: orderId ? `${description} (주문: ${orderId})` : description,
-      related_entity_type: orderId ? 'ORDER' : '',
-      related_entity_id: orderId || '',
-      created_at: now
     }]);
-    
+
+    // 자동화 발송 트리거 연동 (포인트 적립 안내)
+    try {
+      triggerAutomation('point_earned', {
+        id: String(customer.id),
+        name: customer.name || '단골적립회원',
+        phone: customer.phone,
+        적립포인트: amount,
+        잔여포인트: newBalance
+      });
+    } catch (autoErr: any) {
+      console.error('[PointService] Failed to trigger point_earned automation:', autoErr.message);
+    }
+
     return newBalance;
   }
 
@@ -136,7 +147,20 @@ export class PointService {
       related_entity_id: orderId || '',
       created_at: now
     }]);
-    
+
+    // 자동화 발송 트리거 연동 (포인트 차감 안내)
+    try {
+      triggerAutomation('point_redeemed', {
+        id: String(customer.id),
+        name: customer.name || '단골회원',
+        phone: customer.phone || formattedPhone || phone,
+        차감포인트: amount,
+        잔여포인트: newBalance
+      });
+    } catch (autoErr: any) {
+      console.error('[PointService] Failed to trigger point_redeemed automation:', autoErr.message);
+    }
+
     return newBalance;
   }
 

@@ -33,6 +33,20 @@ export async function triggerAutomation(eventId: string, payload: { name: string
     messageContent = messageContent.replace(/{고객명}/g, payload.name || '');
     messageContent = messageContent.replace(/{연락처}/g, payload.phone || '');
     
+    // 명시적인 포인트 관련 럭셔리 변수 치환 보강
+    if (payload.적립포인트 !== undefined) {
+      const formatted = Number(payload.적립포인트).toLocaleString();
+      messageContent = messageContent.replace(/{적립포인트}/g, formatted);
+    }
+    if (payload.차감포인트 !== undefined) {
+      const formatted = Number(payload.차감포인트).toLocaleString();
+      messageContent = messageContent.replace(/{차감포인트}/g, formatted);
+    }
+    if (payload.잔여포인트 !== undefined) {
+      const formatted = Number(payload.잔여포인트).toLocaleString();
+      messageContent = messageContent.replace(/{잔여포인트}/g, formatted);
+    }
+
     // Optional: Add more variables dynamically based on payload keys
     for (const key of Object.keys(payload)) {
       const regex = new RegExp(`{${key}}`, 'g');
