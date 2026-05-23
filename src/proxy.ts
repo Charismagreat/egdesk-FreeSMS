@@ -143,6 +143,28 @@ export async function proxy(request: NextRequest) {
     }
   }
 
+  // --- 관리자 인증 제어 로직 ---
+  const token = request.cookies.get('auth_token')?.value;
+
+  // 퍼블릭 경로나 내부 시스템 경로는 통과
+  if (
+    pathname === '/login' ||
+    pathname.startsWith('/store') ||
+    pathname.startsWith('/table-order') ||
+    pathname.startsWith('/booking') ||
+    pathname.startsWith('/m') ||
+    pathname.startsWith('/api') ||
+    pathname.startsWith('/_next') ||
+    pathname.includes('favicon.ico')
+  ) {
+    return NextResponse.next();
+  }
+
+  // 그 외 관리자 페이지 접근 시 토큰 없으면 로그인 리다이렉트
+  if (!token) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
   // Continue to next proxy or route
   return NextResponse.next();
 }
