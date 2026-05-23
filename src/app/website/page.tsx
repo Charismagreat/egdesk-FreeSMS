@@ -587,7 +587,7 @@ export default function WebsiteBuilderPage() {
               <span className="text-pink-600 border border-pink-200 bg-pink-50/80 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">Premium Autopilot</span>
             </div>
             <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-pink-600 bg-clip-text text-transparent">
-              홈페이지 & AI 빌더 센터
+              홈페이지 빌더 AI
             </h1>
             <p className="text-slate-500 text-sm mt-1 font-medium">
               인공지능 비서와의 대화와 고품격 테마를 통해 예약·주문 폼이 결합된 하이브리드 홈페이지를 1분 만에 완성하세요.

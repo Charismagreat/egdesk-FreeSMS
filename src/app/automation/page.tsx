@@ -100,7 +100,7 @@ export default function AutomationPage() {
         <div>
           <h1 className="text-3xl font-bold text-slate-800 flex items-center">
             <Zap className="w-8 h-8 text-yellow-500 mr-3" />
-            다목적 자동 발송 설정
+            자동 발송 설정
           </h1>
           <p className="text-slate-500 mt-2">이벤트가 발생할 때마다 백그라운드에서 지정된 템플릿 문자를 자동으로 발송합니다.</p>
         </div>

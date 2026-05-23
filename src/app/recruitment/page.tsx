@@ -407,7 +407,7 @@ export default function RecruitmentDashboardPage() {
                 WebkitTextFillColor: 'transparent',
               }}
             >
-              AI 채용 매니저 & 인텔리전트 센터
+              채용 매니저 AI
             </h1>
             <p className="text-slate-800 text-xs mt-1.5 font-bold leading-relaxed">
               인스타그램 마케팅의 감각적 비주얼과 직관적인 소통 구조를 녹여낸 스마트 채용 대시보드입니다. 사장님 탭과 구직자 모바일 탭이 실시간 티키타카로 동기화됩니다.

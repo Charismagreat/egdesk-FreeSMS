@@ -595,7 +595,7 @@ export default function InventoryPage() {
               </span>
             </div>
             <h1 className="text-3xl font-extrabold tracking-tight md:text-4xl bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-indigo-200">
-              전문 지능형 재고 관리 Hub
+              재고 관리
             </h1>
             <p className="text-slate-400 mt-2 text-sm md:text-base max-w-2xl leading-relaxed">
               자재(원부자재)와 제품(완제품)의 이원화 물리 스키마를 완벽히 통제하며, 영수증 비전 스캔 분석 및 실시간 자연어 음성 출고 명령이 결합된 독창적인 AI 재고 솔루션입니다.

@@ -95,7 +95,7 @@ export default function CouponsPage() {
     <div className="space-y-6 pb-20">
       <h1 className="text-3xl font-bold text-slate-800 flex items-center">
         <Ticket className="w-8 h-8 mr-3 text-red-500" /> 
-        할인 쿠폰 관리
+        쿠폰 관리
       </h1>
       
       {/* 새 쿠폰 발행 */}

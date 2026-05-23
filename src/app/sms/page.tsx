@@ -667,7 +667,7 @@ export default function SmsPage() {
 
   return (
     <div className="space-y-6 pb-20">
-      <h1 className="text-3xl font-bold text-slate-800">문자 발송 (Anti-Spam)</h1>
+      <h1 className="text-3xl font-bold text-slate-800">무료 문자 발송 AI</h1>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">

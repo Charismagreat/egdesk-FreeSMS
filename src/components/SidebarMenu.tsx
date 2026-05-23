@@ -74,8 +74,8 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
 
   const menuItems = [
     { href: "/", label: "대시보드", icon: Home, color: "text-blue-400" },
-    { href: "/sms", label: "무료 문자 발송", icon: MessageSquare, color: "text-purple-400" },
-    { href: "/message-logs", label: "발송내역 모니터링", icon: Send, color: "text-purple-400" },
+    { href: "/sms", label: "무료 문자 발송 AI", icon: MessageSquare, color: "text-purple-400" },
+    { href: "/message-logs", label: "발송 내역 조회", icon: Send, color: "text-purple-400" },
     { href: "/automation", label: "자동 발송 설정", icon: Zap, color: "text-yellow-400" },
     { href: "/customers", label: "고객 관리", icon: Users, color: "text-green-400" },
     { href: "/transactions", label: "거래내역 관리", icon: ShoppingCart, color: "text-orange-400" },
@@ -86,11 +86,11 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
     { href: "/reservations", label: "예약 관리", icon: CalendarDays, color: "text-indigo-400" },
     { href: "/deliveries", label: "배송내역 관리", icon: Truck, color: "text-amber-400" },
     { href: "/products", label: "상품 DB 관리", icon: PackageSearch, color: "text-blue-400" },
-    { href: "/inventory", label: "재고 관리 Hub", icon: Package, color: "text-cyan-400" },
-    { href: "/website", label: "홈페이지 & AI 빌더", icon: Globe, color: "text-sky-400" },
-    { href: "/recruitment", label: "AI 채용 매니저", icon: Briefcase, color: "text-rose-400" },
-    { href: "/instagram", label: "인스타그램 AI 마케팅", icon: InstagramIcon, color: "text-[#ff007f]" },
-    { href: "/naver-blog", label: "N-BLOG AI 포스팅", icon: NaverIcon, color: "text-[#2db400]" },
+    { href: "/inventory", label: "재고 관리", icon: Package, color: "text-cyan-400" },
+    { href: "/website", label: "홈페이지 빌더 AI", icon: Globe, color: "text-sky-400" },
+    { href: "/recruitment", label: "채용 매니저 AI", icon: Briefcase, color: "text-rose-400" },
+    { href: "/instagram", label: "인스타그램 마케팅 AI", icon: InstagramIcon, color: "text-[#ff007f]" },
+    { href: "/naver-blog", label: "N-BLOG 포스팅 AI", icon: NaverIcon, color: "text-[#2db400]" },
     { href: "/youtube-shorts", label: "YOUTUBE 쇼츠 AI", icon: YoutubeIcon, color: "text-[#FF0000]" },
   ];
 

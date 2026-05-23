@@ -402,7 +402,7 @@ export default function YoutubeShortsAiLab() {
               <YoutubeIcon className="w-7 h-7 text-white" />
             </div>
             <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-950 via-slate-900 to-red-600 bg-clip-text text-transparent">
-              유튜브 쇼츠 AI 제작 및 자동 관리 <span className="text-xs font-semibold text-red-600 border border-red-200 px-2.5 py-0.5 rounded-full bg-red-50/80 ml-2 shadow-sm align-middle">YouTube Shorts AI Lab</span>
+              YOUTUBE 쇼츠 AI <span className="text-xs font-semibold text-red-600 border border-red-200 px-2.5 py-0.5 rounded-full bg-red-50/80 ml-2 shadow-sm align-middle">YouTube Shorts AI Lab</span>
             </h1>
           </div>
           <p className="text-slate-500 mt-2.5 text-sm md:text-base font-medium">

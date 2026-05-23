@@ -38,7 +38,7 @@ export default function MessageLogsPage() {
   return (
     <div className="space-y-6 pb-20">
       <h1 className="text-3xl font-bold text-slate-800 flex items-center">
-        <Send className="w-8 h-8 mr-3 text-purple-500" /> 전체 발송 내역 모니터링
+        <Send className="w-8 h-8 mr-3 text-purple-500" /> 발송 내역 조회
       </h1>
       
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">

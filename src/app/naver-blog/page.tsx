@@ -832,7 +832,7 @@ export default function NaverBlogMarketingPortal() {
               <NaverIcon className="w-7 h-7 text-white" />
             </div>
             <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-600 bg-clip-text text-transparent">
-              네이버 블로그 AI 포스팅 스튜디오 <span className="text-[10px] font-bold text-emerald-600 border border-emerald-200/60 px-2.5 py-0.5 rounded-full bg-emerald-50/80 ml-2 shadow-xs align-middle">Premium Autopilot</span>
+              N-BLOG 포스팅 AI <span className="text-[10px] font-bold text-emerald-600 border border-emerald-200/60 px-2.5 py-0.5 rounded-full bg-emerald-50/80 ml-2 shadow-xs align-middle">Premium Autopilot</span>
             </h1>
           </div>
           <p className="text-slate-500 mt-3 text-sm md:text-base font-medium">

@@ -646,7 +646,7 @@ export default function InstagramMarketingPortal() {
               <InstagramIcon className="w-7 h-7 text-white" />
             </div>
             <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-pink-600 bg-clip-text text-transparent">
-              인스타 마케팅 포털 <span className="text-xs font-semibold text-pink-600 border border-pink-200 px-2.5 py-0.5 rounded-full bg-pink-50/80 ml-2 shadow-sm align-middle">Premium Autopilot</span>
+              인스타그램 마케팅 AI <span className="text-xs font-semibold text-pink-600 border border-pink-200 px-2.5 py-0.5 rounded-full bg-pink-50/80 ml-2 shadow-sm align-middle">Premium Autopilot</span>
             </h1>
           </div>
           <p className="text-slate-500 mt-2.5 text-sm md:text-base font-medium">
