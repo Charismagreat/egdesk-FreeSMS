@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Send, Smartphone, ScanLine, FileText, CheckCircle, AlertTriangle, X, Bot, Sparkles, Upload, Download } from "lucide-react";
+import { Send, Smartphone, ScanLine, FileText, CheckCircle, AlertTriangle, X, Bot, Sparkles, Upload, Download, Search } from "lucide-react";
 import * as XLSX from "xlsx";
 
 interface Customer {
@@ -122,6 +122,61 @@ export default function SmsPage() {
     }
   };
 
+  // DB 연동 고객 검색 및 페이지네이션 상태
+  const [dbSearchQuery, setDbSearchQuery] = useState('');
+  const [dbCurrentPage, setDbCurrentPage] = useState(1);
+  const [dbItemsPerPage, setDbItemsPerPage] = useState(10);
+
+  // 엑셀 업로드 고객 검색 및 페이지네이션 상태
+  const [excelSearchQuery, setExcelSearchQuery] = useState('');
+  const [excelCurrentPage, setExcelCurrentPage] = useState(1);
+  const [excelItemsPerPage, setExcelItemsPerPage] = useState(10);
+
+  // 검색어 입력 시 페이지 번호 초기화
+  useEffect(() => {
+    setDbCurrentPage(1);
+  }, [dbSearchQuery]);
+
+  useEffect(() => {
+    setExcelCurrentPage(1);
+  }, [excelSearchQuery]);
+
+  // 발송 대상 모드 변경 시 페이지 번호 초기화
+  useEffect(() => {
+    setDbCurrentPage(1);
+    setExcelCurrentPage(1);
+  }, [targetMode]);
+
+  // DB 연동 고객 필터링 및 슬라이싱 파생 변수 연산
+  const filteredDbCustomers = customers.filter(c => {
+    const query = dbSearchQuery.toLowerCase().trim();
+    if (!query) return true;
+    const nameMatch = c.name?.toLowerCase().includes(query) || false;
+    const phoneMatch = c.phone?.toLowerCase().includes(query) || false;
+    const tagMatch = c.tags?.toLowerCase().includes(query) || false;
+    return nameMatch || phoneMatch || tagMatch;
+  });
+
+  const totalDbPages = Math.ceil(filteredDbCustomers.length / dbItemsPerPage);
+  const startDbIndex = (dbCurrentPage - 1) * dbItemsPerPage;
+  const endDbIndex = startDbIndex + dbItemsPerPage;
+  const paginatedDbCustomers = filteredDbCustomers.slice(startDbIndex, endDbIndex);
+
+  // 엑셀 업로드 고객 필터링 및 슬라이싱 파생 변수 연산
+  const filteredExcelCustomers = excelCustomers.filter(c => {
+    const query = excelSearchQuery.toLowerCase().trim();
+    if (!query) return true;
+    const nameMatch = c.name?.toLowerCase().includes(query) || false;
+    const phoneMatch = c.phone?.toLowerCase().includes(query) || false;
+    const tagMatch = c.tags?.toLowerCase().includes(query) || false;
+    return nameMatch || phoneMatch || tagMatch;
+  });
+
+  const totalExcelPages = Math.ceil(filteredExcelCustomers.length / excelItemsPerPage);
+  const startExcelIndex = (excelCurrentPage - 1) * excelItemsPerPage;
+  const endExcelIndex = startExcelIndex + excelItemsPerPage;
+  const paginatedExcelCustomers = filteredExcelCustomers.slice(startExcelIndex, endExcelIndex);
+
   useEffect(() => {
     fetchCustomers();
     checkConnectionStatus();
@@ -231,11 +286,19 @@ export default function SmsPage() {
 
   const toggleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (targetMode === 'db') {
-      if (e.target.checked) setSelectedIds(new Set(customers.map(c => c.id)));
-      else setSelectedIds(new Set());
+      const newSet = new Set(selectedIds);
+      paginatedDbCustomers.forEach(c => {
+        if (e.target.checked) newSet.add(c.id);
+        else newSet.delete(c.id);
+      });
+      setSelectedIds(newSet);
     } else {
-      if (e.target.checked) setSelectedExcelIds(new Set(excelCustomers.map(c => c.id)));
-      else setSelectedExcelIds(new Set());
+      const newSet = new Set(selectedExcelIds);
+      paginatedExcelCustomers.forEach(c => {
+        if (e.target.checked) newSet.add(c.id);
+        else newSet.delete(c.id);
+      });
+      setSelectedExcelIds(newSet);
     }
   };
 
@@ -868,9 +931,22 @@ export default function SmsPage() {
             
             {targetMode === 'db' ? (
               <>
-                <div className="flex justify-end mb-2">
-                  <button onClick={fetchCustomers} className="text-sm text-blue-600 hover:underline">새로고침</button>
+                <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 mb-4">
+                  <div className="relative flex-1 max-w-xs">
+                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                    <input 
+                      type="text"
+                      placeholder="이름, 연락처, 태그로 검색..."
+                      value={dbSearchQuery}
+                      onChange={e => setDbSearchQuery(e.target.value)}
+                      className="pl-9 pr-4 py-2 w-full text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between sm:justify-end gap-2">
+                    <button onClick={fetchCustomers} className="text-sm text-blue-600 hover:underline">새로고침</button>
+                  </div>
                 </div>
+
                 <div className="border border-slate-200 rounded-xl overflow-hidden h-64 overflow-y-auto">
                   <table className="w-full text-left text-sm relative">
                     <thead className="bg-slate-50 text-slate-600 sticky top-0 shadow-sm z-10">
@@ -879,7 +955,7 @@ export default function SmsPage() {
                           <input 
                             type="checkbox" 
                             className="rounded text-blue-600" 
-                            checked={customers.length > 0 && selectedIds.size === customers.length}
+                            checked={paginatedDbCustomers.length > 0 && paginatedDbCustomers.every(c => selectedIds.has(c.id))}
                             onChange={toggleSelectAll}
                           />
                         </th>
@@ -889,14 +965,14 @@ export default function SmsPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {customers.length === 0 ? (
+                      {paginatedDbCustomers.length === 0 ? (
                         <tr>
                           <td colSpan={4} className="p-8 text-center text-slate-500">
-                            등록된 고객이 없습니다. 고객 관리 메뉴에서 등록해주세요.
+                            {dbSearchQuery ? "검색 결과와 일치하는 고객이 없습니다." : "등록된 고객이 없습니다. 고객 관리 메뉴에서 등록해주세요."}
                           </td>
                         </tr>
                       ) : (
-                        customers.map(c => (
+                        paginatedDbCustomers.map(c => (
                           <tr key={c.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => toggleSelect(c.id)}>
                             <td className="p-4" onClick={(e) => e.stopPropagation()}>
                               <input 
@@ -917,8 +993,71 @@ export default function SmsPage() {
                     </tbody>
                   </table>
                 </div>
-                <div className="mt-3 text-sm text-slate-500">
-                  총 {customers.length}명 중 {selectedIds.size}명 선택됨
+
+                <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-slate-500 font-semibold">페이지당 표시:</span>
+                    <select 
+                      value={dbItemsPerPage} 
+                      onChange={e => {
+                        setDbItemsPerPage(Number(e.target.value));
+                        setDbCurrentPage(1);
+                      }} 
+                      className="border rounded-lg px-2.5 py-1.5 text-xs outline-none bg-white font-bold cursor-pointer text-slate-700 focus:border-blue-500"
+                    >
+                      <option value={5}>5명씩 보기</option>
+                      <option value={10}>10명씩 보기</option>
+                      <option value={20}>20명씩 보기</option>
+                      <option value={50}>50명씩 보기</option>
+                    </select>
+                    <span className="text-xs text-slate-400 font-semibold ml-2">
+                      {filteredDbCustomers.length === 0 
+                        ? "전체 0명 표시" 
+                        : `전체 ${filteredDbCustomers.length}명 중 ${startDbIndex + 1}-${Math.min(endDbIndex, filteredDbCustomers.length)}명 표시`}
+                    </span>
+                    <span className="text-xs text-blue-600 font-semibold ml-2">
+                      ({selectedIds.size}명 선택됨)
+                    </span>
+                  </div>
+                  
+                  <div className="flex space-x-1">
+                    <button 
+                      disabled={dbCurrentPage === 1 || totalDbPages <= 1}
+                      onClick={() => setDbCurrentPage(prev => Math.max(1, prev - 1))}
+                      className="px-3 py-1.5 border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50 text-xs font-bold text-slate-655 cursor-pointer disabled:cursor-not-allowed transition-all animate-none"
+                    >
+                      이전
+                    </button>
+                    {totalDbPages <= 1 ? (
+                      <button 
+                        disabled
+                        className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white shadow-sm border border-blue-600 disabled:opacity-50 cursor-not-allowed"
+                      >
+                        1
+                      </button>
+                    ) : (
+                      Array.from({ length: totalDbPages }, (_, i) => i + 1).map(page => (
+                        <button 
+                          key={page}
+                          onClick={() => setDbCurrentPage(page)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                            dbCurrentPage === page 
+                              ? 'bg-blue-600 text-white shadow-sm border border-blue-600' 
+                              : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 cursor-pointer'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ))
+                    )}
+                    <button 
+                      disabled={dbCurrentPage === totalDbPages || totalDbPages <= 1}
+                      onClick={() => setDbCurrentPage(prev => Math.min(totalDbPages, prev + 1))}
+                      className="px-3 py-1.5 border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50 text-xs font-bold text-slate-655 cursor-pointer disabled:cursor-not-allowed transition-all animate-none"
+                    >
+                      다음
+                    </button>
+                  </div>
                 </div>
               </>
             ) : (
@@ -952,6 +1091,20 @@ export default function SmsPage() {
                   </div>
                 </div>
 
+                {/* 엑셀 검색창 */}
+                <div className="flex justify-between items-center gap-3 mb-4">
+                  <div className="relative flex-1 max-w-xs">
+                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                    <input 
+                      type="text"
+                      placeholder="이름, 연락처, 태그로 검색..."
+                      value={excelSearchQuery}
+                      onChange={e => setExcelSearchQuery(e.target.value)}
+                      className="pl-9 pr-4 py-2 w-full text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
                 <div className="border border-slate-200 rounded-xl overflow-hidden h-64 overflow-y-auto">
                   <table className="w-full text-left text-sm relative">
                     <thead className="bg-slate-50 text-slate-600 sticky top-0 shadow-sm z-10">
@@ -960,7 +1113,7 @@ export default function SmsPage() {
                           <input 
                             type="checkbox" 
                             className="rounded text-blue-600" 
-                            checked={excelCustomers.length > 0 && selectedExcelIds.size === excelCustomers.length}
+                            checked={paginatedExcelCustomers.length > 0 && paginatedExcelCustomers.every(c => selectedExcelIds.has(c.id))}
                             onChange={toggleSelectAll}
                           />
                         </th>
@@ -970,19 +1123,23 @@ export default function SmsPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {excelCustomers.length === 0 ? (
+                      {paginatedExcelCustomers.length === 0 ? (
                         <tr>
                           <td colSpan={4} className="p-12 text-center text-slate-500">
                             <div className="flex flex-col items-center justify-center space-y-3">
                               <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center">
                                 <FileText className="w-6 h-6 text-slate-400" />
                               </div>
-                              <p>업로드된 고객 명단이 없습니다.<br/>우측 상단의 <strong>[엑셀 파일 첨부]</strong> 버튼을 눌러 파일을 등록해주세요.</p>
+                              <p>
+                                {excelSearchQuery 
+                                  ? "검색 결과와 일치하는 고객이 없습니다." 
+                                  : <>업로드된 고객 명단이 없습니다.<br/>우측 상단의 <strong>[엑셀 파일 첨부]</strong> 버튼을 눌러 파일을 등록해주세요.</>}
+                              </p>
                             </div>
                           </td>
                         </tr>
                       ) : (
-                        excelCustomers.map(c => (
+                        paginatedExcelCustomers.map(c => (
                           <tr key={c.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => toggleSelect(c.id)}>
                             <td className="p-4" onClick={(e) => e.stopPropagation()}>
                               <input 
@@ -1003,17 +1160,83 @@ export default function SmsPage() {
                     </tbody>
                   </table>
                 </div>
-                <div className="mt-3 flex justify-between items-center text-sm text-slate-500">
-                  <span>총 {excelCustomers.length}명 중 {selectedExcelIds.size}명 선택됨</span>
-                  {selectedExcelIds.size > 0 && (
-                    <button 
-                      onClick={handleDeleteSelectedExcel}
-                      className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg border border-red-100 hover:bg-red-100 transition-colors flex items-center"
+
+                <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-slate-500 font-semibold">페이지당 표시:</span>
+                    <select 
+                      value={excelItemsPerPage} 
+                      onChange={e => {
+                        setExcelItemsPerPage(Number(e.target.value));
+                        setExcelCurrentPage(1);
+                      }} 
+                      className="border rounded-lg px-2.5 py-1.5 text-xs outline-none bg-white font-bold cursor-pointer text-slate-700 focus:border-blue-500"
                     >
-                      <X className="w-3.5 h-3.5 mr-1" />
-                      선택 삭제
-                    </button>
-                  )}
+                      <option value={5}>5명씩 보기</option>
+                      <option value={10}>10명씩 보기</option>
+                      <option value={20}>20명씩 보기</option>
+                      <option value={50}>50명씩 보기</option>
+                    </select>
+                    <span className="text-xs text-slate-400 font-semibold ml-2">
+                      {filteredExcelCustomers.length === 0 
+                        ? "전체 0명 표시" 
+                        : `전체 ${filteredExcelCustomers.length}명 중 ${startExcelIndex + 1}-${Math.min(endExcelIndex, filteredExcelCustomers.length)}명 표시`}
+                    </span>
+                    <span className="text-xs text-blue-600 font-semibold ml-2">
+                      ({selectedExcelIds.size}명 선택됨)
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    {selectedExcelIds.size > 0 && (
+                      <button 
+                        onClick={handleDeleteSelectedExcel}
+                        className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-xs font-bold text-red-600 rounded-lg border border-red-100 transition-colors flex items-center shadow-2xs mr-2 cursor-pointer"
+                      >
+                        <X className="w-3.5 h-3.5 mr-1" />
+                        선택 삭제
+                      </button>
+                    )}
+
+                    <div className="flex space-x-1">
+                      <button 
+                        disabled={excelCurrentPage === 1 || totalExcelPages <= 1}
+                        onClick={() => setExcelCurrentPage(prev => Math.max(1, prev - 1))}
+                        className="px-3 py-1.5 border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50 text-xs font-bold text-slate-655 cursor-pointer disabled:cursor-not-allowed transition-all animate-none"
+                      >
+                        이전
+                      </button>
+                      {totalExcelPages <= 1 ? (
+                        <button 
+                          disabled
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white shadow-sm border border-blue-600 disabled:opacity-50 cursor-not-allowed"
+                        >
+                          1
+                        </button>
+                      ) : (
+                        Array.from({ length: totalExcelPages }, (_, i) => i + 1).map(page => (
+                          <button 
+                            key={page}
+                            onClick={() => setExcelCurrentPage(page)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                              excelCurrentPage === page 
+                                ? 'bg-blue-600 text-white shadow-sm border border-blue-600' 
+                                : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 cursor-pointer'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        ))
+                      )}
+                      <button 
+                        disabled={excelCurrentPage === totalExcelPages || totalExcelPages <= 1}
+                        onClick={() => setExcelCurrentPage(prev => Math.min(totalExcelPages, prev + 1))}
+                        className="px-3 py-1.5 border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50 text-xs font-bold text-slate-655 cursor-pointer disabled:cursor-not-allowed transition-all animate-none"
+                      >
+                        다음
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </>
             )}
