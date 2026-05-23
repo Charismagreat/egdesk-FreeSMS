@@ -1,6 +1,7 @@
 import { Users, MessageSquare, CheckCircle, Clock, AlertTriangle } from "lucide-react";
 import { queryTable } from "@/../egdesk-helpers";
 import MobileHubWidget from "@/components/MobileHubWidget";
+import AiCopilotWidget from "@/components/AiCopilotWidget";
 
 
 // Next.js 캐싱 비활성화 (항상 최신 데이터 유지)
@@ -45,6 +46,9 @@ export default async function Home() {
           연동 상태: <span className="text-green-500 font-semibold">정상 (Google 메시지)</span>
         </div>
       </div>
+
+      {/* AI 자율 마케팅 파트너 어시스턴트 위젯 */}
+      <AiCopilotWidget />
 
       {/* 모바일 채널 제어 센터 */}
       <MobileHubWidget />
