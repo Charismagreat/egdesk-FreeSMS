@@ -165,17 +165,18 @@ export default function FAQHelpCenterPage() {
   const filteredFaqs = getFilteredFAQ();
 
   return (
-    <div className="w-full min-h-screen bg-slate-50 p-4 md:p-8 flex flex-col space-y-8 animate-fade-in relative">
+    // 💡 수축 버그 원천 해결책: 최상위에서 'flex flex-col'을 과감히 제거하여 표준 블록 레이아웃(Block Layout)으로 선언!
+    <div className="w-full min-h-screen bg-slate-50 p-4 md:p-8 space-y-8 animate-fade-in relative block">
       
       {/* 럭셔리 네온 광원 데코레이션 */}
       <div className="absolute top-0 right-20 w-72 h-72 bg-amber-500/5 rounded-full blur-3xl -z-10"></div>
       <div className="absolute bottom-20 left-10 w-72 h-72 bg-indigo-500/5 rounded-full blur-3xl -z-10"></div>
 
-      {/* 헤더 섹션: w-full 및 flex-col lg:flex-row 분리를 확실한 Block 정렬로 보강 */}
-      <div className="w-full bg-white border border-slate-100 p-6 md:p-8 rounded-3xl shadow-sm">
+      {/* 헤더 섹션: w-full 및 block 선언으로 가용한 가로 폭 100%를 무조건 강제 확보! */}
+      <div className="w-full bg-white border border-slate-100 p-6 md:p-8 rounded-3xl shadow-sm block">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 w-full">
-          {/* 타이틀 영역: flex-grow와 확실한 최소 너비를 보장하여 수축 버그 원천 격파 */}
-          <div className="w-full lg:flex-1 lg:min-w-[60%] space-y-2">
+          {/* 타이틀 영역: 가로 100% 점유 유도 */}
+          <div className="w-full lg:flex-1 space-y-2">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-amber-500/10 text-amber-600 rounded-xl">
                 <HelpCircle className="w-6 h-6 shrink-0" />
@@ -205,10 +206,10 @@ export default function FAQHelpCenterPage() {
       </div>
 
       {/* 메인 2단 스플릿 레이아웃: Grid Layout의 전체 width와 간격을 안전하게 묶음 */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 w-full">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 w-full block">
         
         {/* 1단: 좌측 카테고리 탭 내비게이션 */}
-        <div className="lg:col-span-1 space-y-3 h-fit w-full">
+        <div className="lg:col-span-1 space-y-3 h-fit w-full block">
           <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-3 mb-2 block">카테고리 필터</h4>
           <div className="flex flex-row lg:flex-col gap-2.5 overflow-x-auto pb-2 lg:pb-0 no-scrollbar w-full">
             {CATEGORIES.map(cat => {
@@ -234,7 +235,7 @@ export default function FAQHelpCenterPage() {
         </div>
 
         {/* 2단: 우측 FAQ 본문 아코디언 목록 */}
-        <div className="lg:col-span-3 space-y-5 w-full">
+        <div className="lg:col-span-3 space-y-5 w-full block">
           <div className="flex justify-between items-center px-1">
             <span className="text-xs font-bold text-slate-400">
               총 <b>{filteredFaqs.length}건</b>의 자주 묻는 질문이 있습니다.
@@ -248,7 +249,7 @@ export default function FAQHelpCenterPage() {
               <p className="text-xs text-slate-400">검색어를 줄이거나 카테고리 필터를 변경해 보세요.</p>
             </div>
           ) : (
-            <div className="space-y-4 w-full">
+            <div className="space-y-4 w-full block">
               {filteredFaqs.map(faq => {
                 const isOpen = openIds.has(faq.id);
                 
@@ -285,8 +286,8 @@ export default function FAQHelpCenterPage() {
             </div>
           )}
 
-          {/* 이지봇 AI 헬프 배너 브릿지 (오동작 방지를 위해 flex-col과 w-full을 철저하게 분리배치) */}
-          <div className="bg-gradient-to-r from-amber-500/5 via-orange-500/5 to-indigo-500/5 border border-slate-100 p-6 md:p-8 rounded-3xl mt-8 shadow-sm w-full">
+          {/* 이지봇 AI 헬프 배너 브릿지 (완벽한 w-full block 선언) */}
+          <div className="bg-gradient-to-r from-amber-500/5 via-orange-500/5 to-indigo-500/5 border border-slate-100 p-6 md:p-8 rounded-3xl mt-8 shadow-sm w-full block">
             <div className="flex flex-col lg:flex-row items-center justify-between gap-6 w-full">
               <div className="flex items-center gap-4 w-full lg:flex-1">
                 <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 flex items-center justify-center text-slate-900 shadow-xl shadow-orange-500/10 shrink-0 animate-bounce">
