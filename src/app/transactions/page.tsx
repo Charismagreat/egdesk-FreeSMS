@@ -207,7 +207,7 @@ export default function TransactionsPage() {
             <button 
               onClick={sendOrderSms}
               disabled={isSending}
-              className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center justify-center text-white w-full sm:w-auto shrink-0 ${isSending ? 'bg-slate-400' : 'bg-orange-650 hover:bg-orange-700'}`}
+              className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center justify-center text-white w-full sm:w-auto shrink-0 ${isSending ? 'bg-slate-400' : 'bg-orange-600 hover:bg-orange-700'}`}
             >
               <Send className="w-4 h-4 mr-2" />
               {isSending ? '발송 중...' : '선택 주문 자동 안내문자 발송'}
