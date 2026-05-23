@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { listTables, deleteTable, insertRows } from '../../../../egdesk-helpers';
 import { setupDatabase } from '@/lib/setup-db';

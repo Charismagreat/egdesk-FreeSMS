@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { gmAutomation } from '@/lib/google-messages';
 import fs from 'fs';
