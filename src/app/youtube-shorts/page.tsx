@@ -6,7 +6,8 @@ import {
   Sparkles, Settings, Calendar, Play, Pause, Download, Upload, Clock, 
   TrendingUp, Layers, Link2, FileText, Check, CheckCircle, RefreshCw, 
   AlertCircle, Trash2, Eye, Share2, FileDown, Music, Heart, MessageSquare, 
-  Smile, Plus, Info, Volume2, ShieldAlert
+  Smile, Plus, Info, Volume2, ShieldAlert, Search, ChevronLeft, ChevronsLeft,
+  ChevronRight, ChevronsRight
 } from 'lucide-react';
 
 // 커스텀 유튜브 아이콘 SVG 컴포넌트
@@ -118,6 +119,16 @@ export default function YoutubeShortsAiLab() {
   // 토스트 메시지
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
 
+  // 쇼츠 예약 발행 히스토리 검색 및 페이지네이션 상태
+  const [shortsSearchQuery, setShortsSearchQuery] = useState('');
+  const [shortsCurrentPage, setShortsCurrentPage] = useState(1);
+  const [shortsItemsPerPage, setShortsItemsPerPage] = useState(10);
+
+  // 검색어 변경 시 페이지 번호 초기화
+  useEffect(() => {
+    setShortsCurrentPage(1);
+  }, [shortsSearchQuery]);
+
   // 쇼츠 생성 이력 샘플 데이터
   const [shortsHistoryList, setShortsHistoryList] = useState<ShortsHistory[]>([
     {
@@ -157,6 +168,24 @@ export default function YoutubeShortsAiLab() {
       thumbnail: "https://images.unsplash.com/photo-1504280390367-361c6d9f38f4?w=200&auto=format&fit=crop&q=60"
     }
   ]);
+
+  // 쇼츠 히스토리 실시간 필터링
+  const filteredShorts = shortsHistoryList.filter(item => {
+    const query = shortsSearchQuery.toLowerCase().trim();
+    if (!query) return true;
+    
+    const titleMatch = item.title?.toLowerCase().includes(query) || false;
+    const idMatch = item.id?.toLowerCase().includes(query) || false;
+    const sourceTypeMatch = item.sourceType?.toLowerCase().includes(query) || false;
+    
+    return titleMatch || idMatch || sourceTypeMatch;
+  });
+
+  // 쇼츠 히스토리 페이지네이션 슬라이싱
+  const totalPages = Math.ceil(filteredShorts.length / shortsItemsPerPage);
+  const startIndex = (shortsCurrentPage - 1) * shortsItemsPerPage;
+  const endIndex = startIndex + shortsItemsPerPage;
+  const paginatedShorts = filteredShorts.slice(startIndex, endIndex);
 
   // --- 토스트 노출 유틸 ---
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
@@ -805,7 +834,7 @@ export default function YoutubeShortsAiLab() {
 
       {/* --- 하단: 예약 및 발행 완료 쇼츠 타임라인 히스토리 리스트 --- */}
       <div className="mt-12 bg-white rounded-3xl shadow-sm border border-slate-100 p-6">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           <div>
             <h2 className="text-xl font-bold text-slate-900 flex flex-wrap items-center gap-2">
               <YoutubeIcon className="w-5 h-5 text-red-600" />
@@ -820,8 +849,30 @@ export default function YoutubeShortsAiLab() {
             </p>
           </div>
           
-          <div className="text-xs text-slate-400 font-medium">
-            총 <span className="text-red-500 font-bold">{shortsHistoryList.length}</span>개 비디오 관리 중
+          <div className="text-xs text-slate-400 font-medium self-end md:self-auto">
+            총 <span className="text-red-500 font-bold">{filteredShorts.length}</span>개 비디오 관리 중
+          </div>
+        </div>
+
+        {/* 실시간 필터 및 검색 컨트롤러 */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-slate-50/50 p-4 rounded-2xl border border-slate-150/80 mb-6">
+          <div className="relative flex-1">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="쇼츠 비디오 제목, ID, 혹은 생성 모드로 실시간 검색..."
+              value={shortsSearchQuery}
+              onChange={(e) => setShortsSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-10 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 bg-white placeholder-slate-400 font-bold transition-all text-slate-800"
+            />
+            {shortsSearchQuery && (
+              <button
+                onClick={() => setShortsSearchQuery('')}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-200/60 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center text-[10px] font-black transition-all"
+              >
+                ✕
+              </button>
+            )}
           </div>
         </div>
 
@@ -839,7 +890,14 @@ export default function YoutubeShortsAiLab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {shortsHistoryList.map((history) => (
+              {paginatedShorts.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center text-xs text-slate-405 font-bold">
+                    검색 결과와 일치하는 쇼츠 예약 발행 내역이 없습니다. 🔍
+                  </td>
+                </tr>
+              ) : (
+                paginatedShorts.map((history) => (
                 <tr key={history.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="py-4 px-4">
                     <div className="flex items-center gap-3">
@@ -917,10 +975,94 @@ export default function YoutubeShortsAiLab() {
                     </button>
                   </td>
                 </tr>
-              ))}
+              ))
+              )}
             </tbody>
           </table>
         </div>
+
+        {/* 페이지네이션 하단 컨트롤바 */}
+        <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/50 rounded-2xl mt-4 text-slate-700">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500 font-semibold">페이지당 표시:</span>
+            <select 
+              value={shortsItemsPerPage} 
+              onChange={e => {
+                setShortsItemsPerPage(Number(e.target.value));
+                setShortsCurrentPage(1);
+              }} 
+              className="border rounded-lg px-2.5 py-1.5 text-xs outline-none bg-white font-bold cursor-pointer text-slate-700 focus:border-red-500"
+            >
+              <option value={10}>10개씩 보기</option>
+              <option value={20}>20개씩 보기</option>
+              <option value={50}>50개씩 보기</option>
+              <option value={100}>100개씩 보기</option>
+            </select>
+            <span className="text-xs text-slate-400 font-semibold ml-2">
+              {filteredShorts.length === 0 
+                ? "전체 0개 표시" 
+                : `전체 ${filteredShorts.length}개 중 ${startIndex + 1}-${Math.min(endIndex, filteredShorts.length)}개 표시`}
+            </span>
+          </div>
+          
+          <div className="flex items-center gap-1">
+            <button 
+              onClick={() => setShortsCurrentPage(1)}
+              disabled={shortsCurrentPage === 1 || totalPages <= 1}
+              className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-all shadow-3xs cursor-pointer"
+            >
+              <ChevronsLeft className="w-3.5 h-3.5" />
+            </button>
+            <button 
+              onClick={() => setShortsCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={shortsCurrentPage === 1 || totalPages <= 1}
+              className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-all shadow-3xs cursor-pointer"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            
+            {totalPages <= 1 ? (
+              <button 
+                disabled 
+                className="w-8 h-8 rounded-xl text-xs font-bold bg-red-600 border border-red-650 text-white font-extrabold shadow-sm disabled:opacity-50 cursor-not-allowed"
+              >
+                1
+              </button>
+            ) : (
+              Array.from({ length: totalPages }, (_, idx) => idx + 1)
+                .filter(p => p >= shortsCurrentPage - 2 && p <= shortsCurrentPage + 2)
+                .map(p => (
+                  <button 
+                    key={p}
+                    onClick={() => setShortsCurrentPage(p)}
+                    className={`w-8 h-8 rounded-xl text-xs font-bold transition-all shadow-3xs cursor-pointer ${
+                      shortsCurrentPage === p 
+                        ? 'bg-red-600 border border-red-650 text-white font-extrabold shadow-sm' 
+                        : 'border border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))
+            )}
+
+            <button 
+              onClick={() => setShortsCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={shortsCurrentPage === totalPages || totalPages <= 1}
+              className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-all shadow-3xs cursor-pointer"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+            <button 
+              onClick={() => setShortsCurrentPage(totalPages)}
+              disabled={shortsCurrentPage === totalPages || totalPages <= 1}
+              className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-all shadow-3xs cursor-pointer"
+            >
+              <ChevronsRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
       </div>
 
       {/* --- MODAL: 유튜브 채널 공식 API 세팅창 --- */}

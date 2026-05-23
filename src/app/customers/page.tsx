@@ -18,6 +18,14 @@ interface Customer {
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // 검색어 입력 시 페이지 번호 초기화
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
   
   // History Modal states
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -152,6 +160,21 @@ export default function CustomersPage() {
     }
   };
 
+  const filteredCustomers = customers.filter(c => {
+    const query = searchQuery.toLowerCase();
+    return (
+      c.name.toLowerCase().includes(query) ||
+      c.phone.toLowerCase().includes(query) ||
+      (c.tags && c.tags.toLowerCase().includes(query))
+    );
+  });
+
+  // 페이지네이션 슬라이싱 로직
+  const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedCustomers = filteredCustomers.slice(startIndex, endIndex);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -196,11 +219,13 @@ export default function CustomersPage() {
             <input
               type="text"
               placeholder="이름, 연락처, 태그로 검색..."
-              className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-semibold text-xs"
             />
           </div>
           <div className="flex space-x-2">
-            <button className="px-4 py-2 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors flex items-center">
+            <button className="px-4 py-2 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors flex items-center text-xs font-semibold">
               <Filter className="w-4 h-4 mr-2" />
               필터
             </button>
@@ -209,7 +234,7 @@ export default function CustomersPage() {
 
         <div className="border border-slate-200 rounded-xl overflow-hidden">
           <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-slate-600">
+            <thead className="bg-slate-50 text-slate-600 font-semibold">
               <tr>
                 <th className="p-4 w-12"><input type="checkbox" className="rounded text-blue-600" /></th>
                 <th className="p-4">이름</th>
@@ -221,21 +246,21 @@ export default function CustomersPage() {
                 <th className="p-4">관리</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 text-xs">
               {isLoading ? (
                 <tr>
                   <td colSpan={8} className="p-8 text-center text-slate-500">
                     로딩 중...
                   </td>
                 </tr>
-              ) : customers.length === 0 ? (
+              ) : paginatedCustomers.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="p-8 text-center text-slate-500">
-                    등록된 고객이 없습니다. 우측 상단의 '신규 등록' 버튼을 눌러 고객을 추가하세요.
+                    {customers.length === 0 ? "등록된 고객이 없습니다. 우측 상단의 '신규 등록' 버튼을 눌러 고객을 추가하세요." : "검색 조건과 일치하는 고객이 없습니다."}
                   </td>
                 </tr>
               ) : (
-                customers.map((c) => (
+                paginatedCustomers.map((c) => (
                   <tr 
                     key={c.id} 
                     className="hover:bg-slate-50 cursor-pointer transition-colors"
@@ -245,7 +270,7 @@ export default function CustomersPage() {
                       <input type="checkbox" className="rounded text-blue-600" />
                     </td>
                     <td className="p-4 font-medium text-slate-800 flex items-center">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center font-bold mr-3 shadow-sm">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center font-bold mr-3 shadow-sm text-xs">
                         {c.name.charAt(0)}
                       </div>
                       {c.name}
@@ -264,7 +289,7 @@ export default function CustomersPage() {
                     </td>
                     <td className="p-4">
                       {c.tags && (
-                        <span className="bg-gradient-to-r from-blue-50 to-indigo-50 text-indigo-700 border border-indigo-100 px-2.5 py-1 rounded-full text-xs font-semibold shadow-2xs">
+                        <span className="bg-gradient-to-r from-blue-50 to-indigo-50 text-indigo-700 border border-indigo-100 px-2.5 py-1 rounded-full text-[10px] font-bold shadow-2xs">
                           {c.tags}
                         </span>
                       )}
@@ -275,7 +300,7 @@ export default function CustomersPage() {
                     <td className="p-4" onClick={(e) => e.stopPropagation()}>
                       <button 
                         onClick={() => handleRowClick(c)}
-                        className="px-3 py-1.5 bg-slate-50 hover:bg-indigo-50 border border-slate-200 text-slate-600 hover:text-indigo-600 rounded-lg text-xs font-semibold transition-all shadow-2xs"
+                        className="px-3 py-1.5 bg-slate-50 hover:bg-indigo-50 border border-slate-200 text-slate-600 hover:text-indigo-600 rounded-lg text-[10px] font-bold transition-all shadow-2xs"
                       >
                         이력 조회
                       </button>
@@ -286,13 +311,67 @@ export default function CustomersPage() {
             </tbody>
           </table>
         </div>
-        {!isLoading && customers.length > 0 && (
-          <div className="mt-4 flex justify-between items-center text-sm text-slate-500">
-            <span>총 {customers.length}명</span>
+        {!isLoading && (
+          <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500 font-semibold">페이지당 표시:</span>
+              <select 
+                value={itemsPerPage} 
+                onChange={e => {
+                  setItemsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }} 
+                className="border rounded-lg px-2.5 py-1.5 text-xs outline-none bg-white font-bold cursor-pointer text-slate-700 focus:border-blue-500"
+              >
+                <option value={10}>10명씩 보기</option>
+                <option value={20}>20명씩 보기</option>
+                <option value={50}>50명씩 보기</option>
+                <option value={100}>100명씩 보기</option>
+              </select>
+              <span className="text-xs text-slate-400 font-semibold ml-2">
+                {filteredCustomers.length === 0 
+                  ? "전체 0명 표시" 
+                  : `전체 ${filteredCustomers.length}명 중 ${startIndex + 1}-${Math.min(endIndex, filteredCustomers.length)}명 표시`}
+              </span>
+            </div>
+            
             <div className="flex space-x-1">
-              <button className="px-3 py-1 border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50">이전</button>
-              <button className="px-3 py-1 border border-blue-600 bg-blue-600 text-white rounded">1</button>
-              <button className="px-3 py-1 border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50">다음</button>
+              <button 
+                disabled={currentPage === 1 || totalPages <= 1}
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                className="px-3 py-1.5 border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50 text-xs font-bold text-slate-655 cursor-pointer disabled:cursor-not-allowed transition-all animate-none"
+              >
+                이전
+              </button>
+              {totalPages <= 1 ? (
+                <button 
+                  disabled
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white shadow-sm border border-blue-600 disabled:opacity-50 cursor-not-allowed"
+                >
+                  1
+                </button>
+              ) : (
+                Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <button 
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      currentPage === page 
+                        ? 'bg-blue-600 text-white shadow-sm border border-blue-600' 
+                        : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 cursor-pointer'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))
+              )}
+              <button 
+                disabled={currentPage === totalPages || totalPages <= 1}
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                className="px-3 py-1.5 border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50 text-xs font-bold text-slate-655 cursor-pointer disabled:cursor-not-allowed transition-all animate-none"
+              >
+                다음
+              </button>
             </div>
           </div>
         )}

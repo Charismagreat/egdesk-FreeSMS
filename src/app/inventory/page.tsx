@@ -60,6 +60,13 @@ export default function InventoryPage() {
   const [activeTab, setActiveTab] = useState<'material' | 'product'>('material');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // 검색어 또는 탭 변경 시 페이지 번호 초기화
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, activeTab]);
 
   // 모달 상태
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
@@ -568,6 +575,12 @@ export default function InventoryPage() {
       );
     });
 
+  // 페이지네이션 슬라이싱 로직
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedItems = filteredItems.slice(startIndex, endIndex);
+
   return (
     <div className="flex-1 bg-[#F8FAFC] min-h-screen text-slate-800 font-sans pb-16">
       
@@ -997,7 +1010,7 @@ export default function InventoryPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs">
-                  {filteredItems.map((item) => {
+                  {paginatedItems.map((item) => {
                     const isAlert = item.stock <= item.safeStock;
                     return (
                       <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
@@ -1081,6 +1094,78 @@ export default function InventoryPage() {
                   })}
                 </tbody>
               </table>
+            )}
+
+            {/* 페이지네이션 하단 컨트롤바 */}
+            {!loading && (
+              <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/50 rounded-2xl mt-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500 font-semibold">페이지당 표시:</span>
+                  <select 
+                    value={itemsPerPage} 
+                    onChange={e => {
+                      setItemsPerPage(Number(e.target.value));
+                      setCurrentPage(1);
+                    }} 
+                    className={`border rounded-lg px-2.5 py-1.5 text-xs outline-none bg-white font-bold cursor-pointer text-slate-700 transition-all ${
+                      activeTab === 'material' ? 'focus:border-indigo-500' : 'focus:border-emerald-550'
+                    }`}
+                  >
+                    <option value={10}>10개씩 보기</option>
+                    <option value={20}>20개씩 보기</option>
+                    <option value={50}>50개씩 보기</option>
+                    <option value={100}>100개씩 보기</option>
+                  </select>
+                  <span className="text-xs text-slate-400 font-semibold ml-2">
+                    {filteredItems.length === 0 
+                      ? "전체 0건 표시" 
+                      : `전체 ${filteredItems.length}건 중 ${startIndex + 1}-${Math.min(endIndex, filteredItems.length)}건 표시`}
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-1">
+                  <button 
+                    disabled={currentPage === 1 || totalPages <= 1} 
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    className="px-3 py-1.5 rounded-lg border bg-white hover:bg-slate-50 disabled:opacity-50 text-xs font-bold text-slate-650 cursor-pointer disabled:cursor-not-allowed transition-all"
+                  >
+                    이전
+                  </button>
+                  {totalPages <= 1 ? (
+                    <button 
+                      disabled 
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold text-white shadow-sm disabled:opacity-50 cursor-not-allowed ${
+                        activeTab === 'material' ? 'bg-indigo-600' : 'bg-emerald-600'
+                      }`}
+                    >
+                      1
+                    </button>
+                  ) : (
+                    Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                      <button 
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                          currentPage === page 
+                            ? activeTab === 'material'
+                              ? 'bg-indigo-600 text-white shadow-sm'
+                              : 'bg-emerald-600 text-white shadow-sm'
+                            : 'border bg-white text-slate-600 hover:bg-slate-50 cursor-pointer'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))
+                  )}
+                  <button 
+                    disabled={currentPage === totalPages || totalPages <= 1} 
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    className="px-3 py-1.5 rounded-lg border bg-white hover:bg-slate-50 disabled:opacity-50 text-xs font-bold text-slate-650 cursor-pointer disabled:cursor-not-allowed transition-all"
+                  >
+                    다음
+                  </button>
+                </div>
+              </div>
             )}
           </div>
 

@@ -7,7 +7,7 @@ import {
   Layers, Image as ImageIcon, Send, Sliders, ToggleLeft, ToggleRight,
   TrendingUp, Users, CheckCircle, RefreshCw, Upload, Eye, FileText,
   AlertTriangle, Check, BookOpen, AlertCircle, ShoppingBag, Search, Plus, Trash2, Globe,
-  X, Copy, Terminal, ChevronRight, Info
+  X, Copy, Terminal, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Info
 } from 'lucide-react';
 
 // 커스텀 네이버 아이콘 SVG 컴포넌트
@@ -85,6 +85,34 @@ export default function NaverBlogMarketingPortal() {
   });
 
   const [posts, setPosts] = useState<NaverPost[]>([]);
+  const [blogSearchQuery, setBlogSearchQuery] = useState('');
+  const [blogCurrentPage, setBlogCurrentPage] = useState(1);
+  const [blogItemsPerPage, setBlogItemsPerPage] = useState(10);
+
+  // 검색어 입력 시 페이지 번호 초기화
+  useEffect(() => {
+    setBlogCurrentPage(1);
+  }, [blogSearchQuery]);
+
+  // 네이버 블로그 포스팅 실시간 필터링 (제목, 키워드, 상품명)
+  const filteredPosts = posts.filter(post => {
+    const query = blogSearchQuery.toLowerCase().trim();
+    if (!query) return true;
+    
+    const titleMatch = post.title?.toLowerCase().includes(query) || false;
+    const keywordMatch = post.target_keywords?.toLowerCase().includes(query) || false;
+    const productNameMatch = post.product?.name?.toLowerCase().includes(query) || false;
+    
+    return titleMatch || keywordMatch || productNameMatch;
+  });
+
+  // 네이버 블로그 포스팅 페이지네이션 슬라이싱
+  const totalBlogPages = Math.ceil(filteredPosts.length / blogItemsPerPage);
+  const paginatedPosts = filteredPosts.slice(
+    (blogCurrentPage - 1) * blogItemsPerPage,
+    blogCurrentPage * blogItemsPerPage
+  );
+
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   
@@ -2060,7 +2088,7 @@ export default function NaverBlogMarketingPortal() {
 
       {/* [5] 하단: 예약 및 예약 발행 완료된 타임라인 이력 관리 리스트 */}
       <div className="mt-12 p-6 lg:p-8 rounded-3xl bg-white/70 backdrop-blur-xl border border-slate-200/60 shadow-sm space-y-6 relative z-10">
-        <div className="flex items-center justify-between border-b border-slate-150 pb-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-150 pb-4 gap-4">
           <div className="flex items-center gap-2.5">
             <span className="p-2 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 shadow-3xs">
               <Layers className="w-5 h-5" />
@@ -2074,12 +2102,54 @@ export default function NaverBlogMarketingPortal() {
               </p>
             </div>
           </div>
-          <button 
-            onClick={fetchPosts}
-            className="p-2.5 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-500 hover:text-slate-700 transition-all active:scale-95 cursor-pointer shadow-3xs"
-          >
-            <RefreshCw className="w-4.5 h-4.5" />
-          </button>
+          
+          <div className="flex items-center gap-2 self-end md:self-auto">
+            <button 
+              onClick={fetchPosts}
+              className="p-2.5 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-500 hover:text-slate-700 transition-all active:scale-95 cursor-pointer shadow-3xs"
+              title="새로고침"
+            >
+              <RefreshCw className="w-4.5 h-4.5" />
+            </button>
+          </div>
+        </div>
+
+        {/* 실시간 필터 및 표시 설정 컨트롤러 */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-slate-50/50 p-4 rounded-2xl border border-slate-150/80">
+          <div className="relative flex-1">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="포스팅 제목, 타겟 키워드, 혹은 대상 상품명으로 실시간 검색..."
+              value={blogSearchQuery}
+              onChange={(e) => setBlogSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-10 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 bg-white placeholder-slate-400 font-bold transition-all text-slate-800"
+            />
+            {blogSearchQuery && (
+              <button
+                onClick={() => setBlogSearchQuery('')}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-200/60 hover:bg-slate-200 text-slate-500 hover:text-slate-700 flex items-center justify-center text-[10px] font-black transition-all"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[10px] text-slate-500 font-bold">표시 개수:</span>
+            <select
+              value={blogItemsPerPage}
+              onChange={(e) => {
+                setBlogItemsPerPage(Number(e.target.value));
+                setBlogCurrentPage(1);
+              }}
+              className="p-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-500 bg-white font-bold text-slate-700 cursor-pointer shadow-3xs"
+            >
+              <option value={5}>5개씩 보기</option>
+              <option value={10}>10개씩 보기</option>
+              <option value={20}>20개씩 보기</option>
+              <option value={50}>50개씩 보기</option>
+            </select>
+          </div>
         </div>
 
         <div className="overflow-x-auto rounded-2xl border border-slate-200/60 shadow-inner">
@@ -2096,7 +2166,7 @@ export default function NaverBlogMarketingPortal() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-750 bg-white/95">
-              {posts.map((post) => (
+              {paginatedPosts.map((post) => (
                 <tr 
                   key={post.id}
                   onClick={() => setSelectedPostForPreview(post)}
@@ -2213,8 +2283,81 @@ export default function NaverBlogMarketingPortal() {
                   </td>
                 </tr>
               )}
+
+              {posts.length > 0 && filteredPosts.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-xs text-slate-450 font-extrabold bg-slate-50/20">
+                    검색 결과와 매칭되는 네이버 블로그 예약 포스팅 내역이 없습니다. 🔍
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
+        </div>
+
+        {/* 에메랄드 테마의 페이지네이션 네비게이터 */}
+        <div className="flex items-center justify-between border-t border-slate-150 pt-5 mt-2">
+          <div className="text-[10px] text-slate-450 font-bold">
+            {filteredPosts.length === 0 
+              ? "전체 0건 표시" 
+              : `총 ${filteredPosts.length}개 중 ${(blogCurrentPage - 1) * blogItemsPerPage + 1}-${Math.min(blogCurrentPage * blogItemsPerPage, filteredPosts.length)}개 표시 중`}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setBlogCurrentPage(1)}
+              disabled={blogCurrentPage === 1 || totalBlogPages <= 1}
+              className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-all shadow-3xs cursor-pointer"
+            >
+              <ChevronsLeft className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setBlogCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={blogCurrentPage === 1 || totalBlogPages <= 1}
+              className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-all shadow-3xs cursor-pointer"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+            
+            {totalBlogPages <= 1 ? (
+              <button
+                disabled
+                className="w-8 h-8 rounded-xl text-xs font-bold transition-all shadow-3xs bg-emerald-500 border border-emerald-500 text-white font-extrabold shadow-sm disabled:opacity-50 cursor-not-allowed"
+              >
+                1
+              </button>
+            ) : (
+              Array.from({ length: totalBlogPages }, (_, idx) => idx + 1)
+                .filter(p => p >= blogCurrentPage - 2 && p <= blogCurrentPage + 2)
+                .map(p => (
+                  <button
+                    key={p}
+                    onClick={() => setBlogCurrentPage(p)}
+                    className={`w-8 h-8 rounded-xl text-xs font-bold transition-all shadow-3xs cursor-pointer ${
+                      blogCurrentPage === p
+                        ? 'bg-emerald-500 border border-emerald-500 text-white font-extrabold shadow-sm'
+                        : 'border border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))
+            )}
+
+            <button
+              onClick={() => setBlogCurrentPage(prev => Math.min(prev + 1, totalBlogPages))}
+              disabled={blogCurrentPage === totalBlogPages || totalBlogPages <= 1}
+              className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-all shadow-3xs cursor-pointer"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setBlogCurrentPage(totalBlogPages)}
+              disabled={blogCurrentPage === totalBlogPages || totalBlogPages <= 1}
+              className="p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-all shadow-3xs cursor-pointer"
+            >
+              <ChevronsRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
 
