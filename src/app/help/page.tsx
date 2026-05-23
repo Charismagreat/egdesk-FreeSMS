@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { 
   HelpCircle, Search, ChevronDown, MessageSquare, 
-  Bot, Sparkles, BookOpen, Ticket, Coins, Zap, CalendarDays 
+  Bot, Sparkles, BookOpen, Ticket, Coins, Zap
 } from "lucide-react";
 
 // FAQ 데이터 아이템 구조 정의
@@ -16,14 +16,14 @@ interface FAQItem {
 
 // 5대 핵심 카테고리 정의
 const CATEGORIES = [
-  { id: "all", label: "전체 FAQ", icon: BookOpen, color: "text-slate-500" },
-  { id: "sms", label: "문자발송 & 자동화 💬", icon: MessageSquare, color: "text-purple-500" },
-  { id: "rpa", label: "마케팅 & RPA 🤖", icon: Bot, color: "text-emerald-500" },
-  { id: "point", label: "단골적립 & 보안 🪙", icon: Coins, color: "text-amber-500" },
-  { id: "coupon", label: "쿠폰 & 주문/예약 📦", icon: Ticket, color: "text-rose-500" }
+  { id: "all", label: "전체 FAQ", icon: BookOpen, color: "text-slate-400" },
+  { id: "sms", label: "무료문자 & 자동발송 💬", icon: MessageSquare, color: "text-indigo-400" },
+  { id: "rpa", label: "AI 마케팅 & RPA 🤖", icon: Bot, color: "text-purple-400" },
+  { id: "point", label: "단골적립 & 보안 🪙", icon: Coins, color: "text-amber-400" },
+  { id: "coupon", label: "쿠폰 & 주문/예약 📦", icon: Ticket, color: "text-rose-400" }
 ];
 
-// 전반적인 플랫폼 핵심 FAQ 데이터셋
+// 전반적인 플랫폼 핵심 FAQ 데이터셋 (AI 자율 경영 파트너 Q&A 2건 완벽 통합)
 const FAQ_DATABASE: FAQItem[] = [
   // 1. 문자발송 & 자동화
   {
@@ -44,7 +44,7 @@ const FAQ_DATABASE: FAQItem[] = [
     question: "특정 행동이 발생했을 때 문자가 자동 발송되게 하려면 어떻게 설정하나요?",
     answer: "[자동 발송 설정] 메뉴에서 원하시는 상황(예: 신규 고객 등록, 예약 완료, 결제 완료, 포인트 적립 등)을 'On'으로 켠 뒤, 사전에 작성해 두신 메시지 '템플릿'을 매핑해 두시면 됩니다. 이벤트가 발생할 때 시스템이 실시간으로 고객 연락처를 자동 추출하여 즉시 백그라운드에서 안내 문자를 발송합니다."
   },
-  // 2. 마케팅 & RPA
+  // 2. 마케팅 & RPA (AI 자율 경영 파트너 신규 고품격 FAQ 2건 전면 기입)
   {
     id: "rpa-1",
     category: "rpa",
@@ -61,13 +61,13 @@ const FAQ_DATABASE: FAQItem[] = [
     id: "rpa-3",
     category: "rpa",
     question: "이지데스크의 AI 자율 마케팅 파트너(Autonomous Copilot)는 어떻게 사용하나요?",
-    answer: "대시보드 최상단에 마운트된 Glassmorphism 카드를 통해 이용하실 수 있습니다. AI가 매일 아침 매장의 실시간 CRM 데이터를 분석하여 이탈 우려 단골, VIP 고객, 신규 가입 고객 통계를 냅니다. 여기에 오늘의 날씨를 클릭 시뮬레이션하시면, 날씨와 매장의 인기 메뉴 정보를 조합하여 초개인화된 맞춤 감성 문자 시나리오와 옴니채널 마케팅 원고를 즉석에서 자동 설계해 냅니다."
+    answer: "대시보드 최상단에 마운트된 Glassmorphism 카드를 통해 즉시 만나보실 수 있습니다. AI가 매일 아침 매장의 실시간 CRM 데이터를 분석하여 이탈 우려 단골, VIP 고객, 신규 가입 고객 통계를 냅니다. 여기에 오늘의 날씨를 클릭 시뮬레이션하시면, 날씨와 매장의 인기 메뉴 정보를 조합하여 초개인화된 맞춤 감성 문자 시나리오와 3대 옴니채널(블로그, 인스타, 유튜브 쇼츠) 마케팅 원고를 즉석에서 자동 설계해 냅니다."
   },
   {
     id: "rpa-4",
     category: "rpa",
     question: "원클릭 승인 시 고객 발송 및 SNS 예약은 실제로 연동되어 처리되나요?",
-    answer: "네, 맞습니다! AI가 제안한 오늘의 성장 플랜 카드를 확인하신 후 [AI 성장 플랜 승인 및 가동] 버튼을 누르시면, 타겟 고객군에 맞춘 초개인화된 문자가 이지데스크의 0원 문자 발송 엔진(message_logs 적재)을 통해 즉시 발송되며, 동시에 네이버 블로그 원고 및 인스타그램 포스팅 예약 데이터가 SCHEDULED 상태로 실시간 자동 연동 적재되어 배포 대기 상태로 들어갑니다."
+    answer: "네, 완벽히 오토파일럿 처리됩니다! AI가 제안한 오늘의 성장 플랜 카드를 확인하신 후 [AI 성장 플랜 승인 및 가동] 버튼을 누르시면, 타겟 고객군에 맞춘 초개인화된 문자가 이지데스크의 0원 문자 발송 엔진(message_logs 적재)을 통해 즉시 발송되며, 동시에 네이버 블로그 원고 및 인스타그램 포스팅 예약 데이터가 SCHEDULED 상태로 실시간 자동 연동 적재되어 즉각 퍼블리싱 스케줄러에 등록됩니다."
   },
   // 3. 단골적립 & 보안
   {
@@ -127,21 +127,17 @@ export default function FAQHelpCenterPage() {
   // 실시간 검색어 및 초성 보정 검색 엔진 필터링
   const getFilteredFAQ = () => {
     return FAQ_DATABASE.filter(faq => {
-      // 1. 카테고리 필터
       if (activeCategory !== "all" && faq.category !== activeCategory) {
         return false;
       }
       
-      // 2. 검색어 필터
       if (!searchQuery.trim()) return true;
       
       const query = searchQuery.toLowerCase().trim();
       const question = faq.question.toLowerCase();
       const answer = faq.answer.toLowerCase();
 
-      // 초성 변환 매칭 간소화 제공 (자음 검색 대응)
       const matchesConsonants = (str: string, q: string) => {
-        // 간단한 핵심 자음 자가 매칭
         if (q === "ㅇㅌㅍ" && str.includes("otp")) return true;
         if (q === "ㅁㅈ" && (str.includes("문자") || str.includes("메시지"))) return true;
         if (q === "ㅂㄹㄱ" && str.includes("블로그")) return true;
@@ -159,7 +155,6 @@ export default function FAQHelpCenterPage() {
     });
   };
 
-  // 이지봇 인공지능 오버레이 강제 기동용 커스텀 이벤트 디스패치
   const triggerEasyBot = () => {
     if (typeof window !== "undefined") {
       const event = new CustomEvent("open-easybot");
@@ -170,99 +165,113 @@ export default function FAQHelpCenterPage() {
   const filteredFaqs = getFilteredFAQ();
 
   return (
-    <div className="p-8 w-full max-w-none">
-      {/* 헤더 섹션 */}
-      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4 w-full">
-        <div className="flex-1 min-w-0">
-          <h1 className="text-3xl font-bold text-slate-800 flex items-center">
-            <HelpCircle className="w-8 h-8 text-amber-500 mr-3 shrink-0" />
+    <div className="w-full flex-1 min-w-0 flex flex-col space-y-8 animate-fade-in relative">
+      
+      {/* 럭셔리 네온 광원 데코레이션 */}
+      <div className="absolute top-0 right-20 w-72 h-72 bg-amber-500/5 rounded-full blur-3xl -z-10"></div>
+      <div className="absolute bottom-20 left-10 w-72 h-72 bg-indigo-500/5 rounded-full blur-3xl -z-10"></div>
+
+      {/* 헤더 섹션: 세로 찌그러짐을 방지하는 확고한 w-full 및 flex-1 min-w-0 구조 */}
+      <div className="w-full flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 bg-white border border-slate-100 p-6 md:p-8 rounded-3xl shadow-sm">
+        <div className="flex-1 min-w-0 space-y-2">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-amber-500/10 text-amber-600 rounded-xl">
+              <HelpCircle className="w-6 h-6 shrink-0" />
+            </div>
+            <span className="text-[11px] font-extrabold tracking-wider bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full uppercase">Help Center</span>
+          </div>
+          <h1 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">
             Q&A 통합 헬프센터 💡
           </h1>
-          <p className="text-slate-500 mt-2">이지데스크 무료 문자, 자동화, 마케팅, 포인트 등 19대 핵심 기능 사용 요령을 한눈에 찾아보세요.</p>
+          <p className="text-slate-400 text-sm font-medium leading-relaxed">
+            이지데스크의 AI 자율 마케팅(Autonomous Copilot), 무료 문자, 단골 포인트 등 핵심 기능들의 명쾌한 가이드를 만나보세요.
+          </p>
         </div>
         
         {/* 실시간 검색창 */}
-        <div className="relative w-full md:w-80 shrink-0">
-          <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
+        <div className="relative w-full lg:w-96 shrink-0 shadow-sm rounded-2xl overflow-hidden">
+          <Search className="absolute left-4 top-3.5 w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder="자주 묻는 질문 실시간 검색..."
+            placeholder="필요한 기능을 바로 검색해 보세요..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent text-sm shadow-sm transition-all"
+            className="w-full pl-11 pr-4 py-3 bg-white border border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none text-sm text-slate-700 font-medium transition-all"
           />
         </div>
       </div>
 
-      {/* 2단 메인 레이아웃 (Split layout) */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      {/* 메인 2단 스플릿 레이아웃: w-full 및 grow 속성 부여 */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 w-full flex-1">
         
-        {/* 좌측 카테고리 탭 내비게이션 */}
-        <div className="lg:col-span-1 space-y-2">
-          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider px-3 mb-2">카테고리 분류</h4>
-          {CATEGORIES.map(cat => {
-            const Icon = cat.icon;
-            const isSelected = activeCategory === cat.id;
-            
-            return (
-              <button
-                key={cat.id}
-                onClick={() => { setActiveCategory(cat.id); }}
-                className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border text-xs font-bold transition-all text-left border-slate-200/50 ${
-                  isSelected 
-                    ? "bg-slate-900 text-white shadow-md shadow-slate-900/10 scale-[1.02] border-slate-900" 
-                    : "bg-white text-slate-600 hover:bg-slate-50 hover:scale-[1.01]"
-                }`}
-              >
-                <Icon className={`w-4 h-4 shrink-0 ${isSelected ? "text-amber-400" : cat.color}`} />
-                <span>{cat.label}</span>
-              </button>
-            );
-          })}
+        {/* 1단: 좌측 카테고리 탭 내비게이션 (폭이 찌그러지지 않도록 단단히 고정) */}
+        <div className="lg:col-span-1 space-y-2.5 h-fit">
+          <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-3 mb-3 block">카테고리 필터</h4>
+          <div className="flex flex-row lg:flex-col gap-2 overflow-x-auto pb-2 lg:pb-0 no-scrollbar">
+            {CATEGORIES.map(cat => {
+              const Icon = cat.icon;
+              const isSelected = activeCategory === cat.id;
+              
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => { setActiveCategory(cat.id); }}
+                  className={`flex items-center gap-3 p-3.5 rounded-2xl border text-xs font-extrabold transition-all text-left whitespace-nowrap lg:whitespace-normal shrink-0 lg:shrink-1 ${
+                    isSelected 
+                      ? "bg-slate-900 text-white shadow-lg shadow-slate-900/10 scale-[1.02] border-slate-900" 
+                      : "bg-white text-slate-600 hover:bg-slate-50 border-slate-100 hover:border-slate-200"
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 shrink-0 transition-colors ${isSelected ? "text-amber-400" : cat.color}`} />
+                  <span>{cat.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* 우측 본문 FAQ 아코디언 리스트 */}
-        <div className="lg:col-span-3 space-y-4">
-          <div className="flex justify-between items-center px-2 mb-2">
+        {/* 2단: 우측 FAQ 본문 아코디언 목록 */}
+        <div className="lg:col-span-3 space-y-5 flex-1 min-w-0">
+          <div className="flex justify-between items-center px-1">
             <span className="text-xs font-bold text-slate-400">
-              검색 결과: 총 {filteredFaqs.length}건의 자주 묻는 질문
+              총 <b>{filteredFaqs.length}건</b>의 자주 묻는 질문이 있습니다.
             </span>
           </div>
 
           {filteredFaqs.length === 0 ? (
-            <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center py-20">
+            <div className="bg-white border border-slate-100 rounded-3xl p-12 text-center py-24 shadow-sm">
               <HelpCircle className="w-12 h-12 text-slate-300 mx-auto mb-4 animate-pulse" />
-              <h3 className="text-base font-bold text-slate-800 mb-1">일치하는 Q&A 정보를 찾을 수 없습니다.</h3>
-              <p className="text-xs text-slate-400">검색어를 간결하게 변경하거나 다른 검색어로 다시 입력해 주세요.</p>
+              <h3 className="text-base font-black text-slate-800 mb-1">일치하는 가이드를 찾을 수 없습니다.</h3>
+              <p className="text-xs text-slate-400">검색어를 줄이거나 카테고리 필터를 변경해 보세요.</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3.5">
               {filteredFaqs.map(faq => {
                 const isOpen = openIds.has(faq.id);
                 
                 return (
                   <div 
                     key={faq.id} 
-                    className={`bg-white border rounded-2xl overflow-hidden transition-all duration-200 shadow-sm ${
-                      isOpen ? "border-amber-400/70 ring-1 ring-amber-100/50" : "border-slate-200/60 hover:border-slate-300"
+                    className={`bg-white border rounded-2xl overflow-hidden transition-all duration-300 shadow-sm ${
+                      isOpen ? "border-amber-400/80 ring-2 ring-amber-400/5" : "border-slate-100 hover:border-slate-200 hover:shadow-md"
                     }`}
                   >
-                    {/* 질문 영역 */}
+                    {/* 질문 클릭 영역 */}
                     <button
                       onClick={() => toggleAccordion(faq.id)}
-                      className="w-full flex items-center justify-between p-5 text-left font-bold text-slate-800 text-sm gap-4 transition-colors cursor-pointer select-none bg-slate-50/20 hover:bg-slate-50/50"
+                      className="w-full flex items-center justify-between p-5 text-left font-black text-slate-800 text-sm md:text-base gap-4 transition-colors cursor-pointer select-none bg-slate-50/10 hover:bg-slate-50/40"
                     >
                       <div className="flex items-center gap-3">
-                        <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0 shadow-sm shadow-amber-400/20"></span>
+                        <span className={`w-2.5 h-2.5 rounded-full shrink-0 transition-transform ${isOpen ? "bg-amber-400 scale-125 shadow-lg shadow-amber-400/40" : "bg-slate-300"}`}></span>
                         <span>{faq.question}</span>
                       </div>
-                      <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180 text-amber-500" : ""}`} />
+                      <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-300 ${isOpen ? "rotate-180 text-amber-500" : ""}`} />
                     </button>
 
-                    {/* 답변 영역 */}
+                    {/* 답변 열림 영역 */}
                     {isOpen && (
-                      <div className="p-5 border-t border-slate-100 bg-slate-50/10 text-xs text-slate-600 leading-relaxed font-medium animate-slide-down">
-                        <div className="bg-white p-4.5 rounded-xl border border-slate-100/50 text-slate-700 shadow-inner">
+                      <div className="p-5 border-t border-slate-50 bg-slate-50/20 text-xs md:text-sm text-slate-600 leading-relaxed font-medium animate-scale-up">
+                        <div className="bg-white p-5 rounded-2xl border border-slate-100/50 text-slate-700 shadow-inner leading-relaxed">
                           {faq.answer}
                         </div>
                       </div>
@@ -273,24 +282,26 @@ export default function FAQHelpCenterPage() {
             </div>
           )}
 
-          {/* 이지봇 AI 헬프 배너 브릿지 (Glassmorphism & Subtle pulse) */}
-          <div className="bg-gradient-to-r from-amber-400/10 via-orange-400/10 to-blue-500/10 border border-slate-200 p-6 rounded-3xl mt-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm w-full">
+          {/* 이지봇 AI 헬프 배너 브릿지 (더욱 영롱하고 와이드하게 펼쳐지는 Glassmorphism) */}
+          <div className="bg-gradient-to-r from-amber-500/5 via-orange-500/5 to-indigo-500/5 border border-slate-100 p-6 md:p-8 rounded-3xl mt-8 flex flex-col lg:flex-row items-center justify-between gap-6 shadow-sm w-full">
             <div className="flex items-center gap-4 flex-1 min-w-0">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 flex items-center justify-center text-slate-900 shadow-lg shadow-orange-500/10 shrink-0 animate-bounce">
-                <Bot className="w-6 h-6 text-slate-900" />
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 flex items-center justify-center text-slate-900 shadow-xl shadow-orange-500/10 shrink-0 animate-bounce">
+                <Bot className="w-7 h-7 text-slate-900" />
               </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-black text-slate-800 mb-1 flex items-center gap-1.5">
+              <div className="flex-1 min-w-0 space-y-1">
+                <h4 className="text-sm md:text-base font-black text-slate-800 flex items-center gap-2">
                   원하는 답변을 찾기 어려우신가요?
-                  <span className="bg-amber-400 text-slate-900 font-extrabold text-[9px] px-1.5 py-0.5 rounded flex items-center gap-0.5"><Sparkles className="w-2.5 h-2.5"/>AI</span>
+                  <span className="bg-amber-400 text-slate-900 font-extrabold text-[9px] px-2 py-0.5 rounded flex items-center gap-0.5"><Sparkles className="w-2.5 h-2.5"/>AI</span>
                 </h4>
-                <p className="text-xs text-slate-500 font-medium">이지봇 인공지능 매장 비서에게 목소리나 채팅으로 필요한 질문을 던져 즉시 해답을 얻으세요!</p>
+                <p className="text-xs md:text-sm text-slate-500 font-semibold leading-relaxed">
+                  이지봇 인공지능 비서에게 음성이나 채팅으로 대화하여 복잡한 질문에 대한 해답을 즉석에서 추천받으세요!
+                </p>
               </div>
             </div>
             
             <button
               onClick={triggerEasyBot}
-              className="px-5 py-3 bg-slate-950 text-white font-bold rounded-xl text-xs hover:bg-slate-800 active:scale-95 transition-all border-0 shadow-md shadow-slate-950/20 shrink-0 cursor-pointer flex items-center gap-1.5"
+              className="px-6 py-3.5 bg-slate-950 hover:bg-slate-800 text-white font-extrabold rounded-2xl text-xs md:text-sm transition-all border-0 shadow-lg shadow-slate-950/10 shrink-0 cursor-pointer flex items-center gap-2 active:scale-95"
             >
               <Bot className="w-4 h-4 text-amber-400" />
               이지봇 AI 비서 호출하기
