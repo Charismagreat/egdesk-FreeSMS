@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { queryTable, executeSQL, listTables } from '../../../../egdesk-helpers';
+import fs from 'fs';
+import path from 'path';
 
 // SELECT 쿼리만 통과시키고 데이터 파괴적인 쿼리는 원천 차단하는 유효성 검사 함수
 function isSafeSelectQuery(sql: string): boolean {
@@ -79,14 +81,24 @@ Your response must be in valid JSON format ONLY:
 {
   "requiresQuery": true,
   "sql": "SELECT COUNT(*) as total_customers FROM customers",
-  "reason": "To count the number of registered customers in the database."
+  "reason": "To count the number of registered customers in the database.",
+  "requiresManual": false
 }
 
 If no database query is needed (e.g. general greeting, chit-chat, explaining browser state):
 {
   "requiresQuery": false,
   "sql": null,
-  "reason": "General conversation or browser context only."
+  "reason": "General conversation or browser context only.",
+  "requiresManual": false
+}
+
+If the user is asking about how to use the system, menus, manuals, or guides:
+{
+  "requiresQuery": false,
+  "sql": null,
+  "reason": "User is asking for system usage instructions.",
+  "requiresManual": true
 }
 `;
 
@@ -117,7 +129,7 @@ If no database query is needed (e.g. general greeting, chit-chat, explaining bro
     const step1Data = await step1Response.json();
     const step1Text = step1Data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
     
-    let sqlPlan = { requiresQuery: false, sql: null as string | null, reason: "" };
+    let sqlPlan = { requiresQuery: false, sql: null as string | null, reason: "", requiresManual: false };
     try {
       sqlPlan = JSON.parse(step1Text);
     } catch (e) {
@@ -146,6 +158,17 @@ If no database query is needed (e.g. general greeting, chit-chat, explaining bro
       }
     }
 
+    // 매뉴얼 지식 베이스 읽기 (RAG)
+    let manualContext = "";
+    if (sqlPlan.requiresManual) {
+      try {
+        const manualPath = path.join(process.cwd(), 'src', 'docs', 'egdesk-manual.md');
+        manualContext = fs.readFileSync(manualPath, 'utf8');
+      } catch (err) {
+        console.error('매뉴얼 파일 읽기 실패:', err);
+      }
+    }
+
     // 5. STEP 2: 최종 대답 합성 (질문 + 로컬저장소 컨텍스트 + SQL 결과)
     const step2SystemPrompt = `
 당신은 이지데스크(EGDESK) 프로젝트의 지능형 관리자 비서 "이지봇"(EasyBot)입니다.
@@ -154,6 +177,7 @@ If no database query is needed (e.g. general greeting, chit-chat, explaining bro
 당신은 다음 리소스를 모두 활용하여 질문에 답할 수 있습니다:
 1. 사용자 브라우저의 로컬 저장소(LocalStorage) 상태 스냅샷: 사용자의 현재 UI 상태, 토큰, 발송 대기 메시지 등이 들어있습니다.
 2. 서버 SQLite 데이터베이스 조회 결과: 테이블 스키마나 쿼리를 직접 수행해 추출해 낸 최신 비즈니스 데이터입니다.
+3. 시스템 공식 매뉴얼: 사용법 및 가이드 안내가 필요할 때 지식 베이스로 사용합니다.
 
 답변 작성 규칙:
 - 반드시 한국어로 대답해 주세요. (gemini_added_memories 규칙 필수 준수)
@@ -162,6 +186,7 @@ If no database query is needed (e.g. general greeting, chit-chat, explaining bro
 - 만약 SQL 쿼리가 실패했거나 오류가 있었다면, 관리자가 원인을 파악할 수 있도록 SQL 오류 메시지를 보여주며 원인 진단을 도와주세요.
 - 챗봇 자체에서 데이터를 임의로 수정/삭제(UPDATE/DELETE)할 수 없음을 인지하되, SELECT를 통한 깊이 있는 데이터 분석 및 인사이트 제공에 집중해 주세요.
 
+${manualContext ? `\n============================\n[공식 시스템 매뉴얼 지식 베이스 (RAG)]\n${manualContext}\n\n-> 지시사항: 사용자가 시스템 사용법, 메뉴 구조, 가이드라인 등을 묻고 있습니다. 지어내지 말고, 위 매뉴얼 내용에 기반하여 가장 정확하고 친절하게 대답해 주세요.\n============================\n` : ''}
 [LocalStorage 상태 스냅샷]:
 ${JSON.stringify(localStorageContext, null, 2)}
 
