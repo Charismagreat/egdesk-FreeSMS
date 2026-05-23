@@ -172,8 +172,8 @@ export default function FAQHelpCenterPage() {
   return (
     <div className="p-8 w-full max-w-none">
       {/* 헤더 섹션 */}
-      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
+      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4 w-full">
+        <div className="flex-1 min-w-0">
           <h1 className="text-3xl font-bold text-slate-800 flex items-center">
             <HelpCircle className="w-8 h-8 text-amber-500 mr-3 shrink-0" />
             Q&A 통합 헬프센터 💡
@@ -274,12 +274,12 @@ export default function FAQHelpCenterPage() {
           )}
 
           {/* 이지봇 AI 헬프 배너 브릿지 (Glassmorphism & Subtle pulse) */}
-          <div className="bg-gradient-to-r from-amber-400/10 via-orange-400/10 to-blue-500/10 border border-slate-200 p-6 rounded-3xl mt-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
-            <div className="flex items-center gap-4.5">
+          <div className="bg-gradient-to-r from-amber-400/10 via-orange-400/10 to-blue-500/10 border border-slate-200 p-6 rounded-3xl mt-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm w-full">
+            <div className="flex items-center gap-4 flex-1 min-w-0">
               <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 flex items-center justify-center text-slate-900 shadow-lg shadow-orange-500/10 shrink-0 animate-bounce">
                 <Bot className="w-6 h-6 text-slate-900" />
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <h4 className="text-sm font-black text-slate-800 mb-1 flex items-center gap-1.5">
                   원하는 답변을 찾기 어려우신가요?
                   <span className="bg-amber-400 text-slate-900 font-extrabold text-[9px] px-1.5 py-0.5 rounded flex items-center gap-0.5"><Sparkles className="w-2.5 h-2.5"/>AI</span>
