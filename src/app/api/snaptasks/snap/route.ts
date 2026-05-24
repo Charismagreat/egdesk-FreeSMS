@@ -119,6 +119,12 @@ Format your output in valid JSON ONLY (No markdown block, no code fence, strictl
       "email": "String (계산서 이메일)",
       "address": "String (사업장 주소, 지도 링크가 있다면 그 주소로 채움)"
     },
+    "contact": {
+      "name": "String (명함 인물의 성함, 필수)",
+      "position": "String (부서 및 직급, 예: 영업부 부장, 구매팀 대리)",
+      "phone": "String (담당자 휴대폰/연락처)",
+      "email": "String (담당자 개인 이메일)"
+    },
     "estimate": {
       "items": [
         { "product_name": "String (품목명)", "quantity": Integer, "unit_price": Integer }
@@ -126,7 +132,7 @@ Format your output in valid JSON ONLY (No markdown block, no code fence, strictl
     }
   }
 }
-If no fields are found for partner or estimate, leave them as null in the JSON.
+If no fields are found for partner, contact or estimate, leave them as null in the JSON.
 `;
 
     let aiResultJson: any = {
@@ -181,22 +187,52 @@ If no fields are found for partner or estimate, leave them as null in the JSON.
       // 오디오 녹취 판독 포함하여 입력된 텍스트/파일명 맥락에 맞춰 기가 막히게 분기!
       const normText = (content_text + ' ' + filename).toLowerCase();
       
-      if (fileType === 'IMAGE' && (normText.includes('card') || normText.includes('name') || normText.includes('business'))) {
-        // 명함 사진 스냅 시 -> B2B 거래처 자동 등록 시뮬레이션
-        aiResultJson = {
-          analysis_summary: "명함 스냅 사진을 AI 해독하여 신규 B2B 구매처 (주)미래푸드 및 박정우 대표 정보를 마이닝하고 즉각적인 신규 가입을 결정했습니다.",
-          action_taken: "B2B_PARTNER_REGISTER",
-          extracted_data: {
-            partner: {
-              company_name: "(주)미래푸드 유통",
-              business_number: "120-88-99001",
-              representative: "박정우",
-              phone: "010-9988-1122",
-              email: "ceo@miraefood.co.kr",
-              address: "경기도 성남시 분당구 삼평동 621 (네이버 지도 공유 위치)"
+      if (fileType === 'IMAGE' && (normText.includes('card') || normText.includes('name') || normText.includes('business') || normText.includes('명함'))) {
+        if (normText.includes('이순신') || normText.includes('물류')) {
+          // 기존 거래처에 새로운 담당자 등록하는 시나리오용 모사
+          aiResultJson = {
+            analysis_summary: "명함 스냅 사진을 AI 해독하여 기존 B2B 거래처인 (주)미래푸드 유통의 신규 실무진 이순신 부장(물류팀) 정보를 마이닝하고 추가 등록을 결정했습니다.",
+            action_taken: "B2B_PARTNER_REGISTER",
+            extracted_data: {
+              partner: {
+                company_name: "(주)미래푸드 유통",
+                business_number: "120-88-99001",
+                representative: "박정우",
+                phone: "010-9988-1122",
+                email: "ceo@miraefood.co.kr",
+                address: "경기도 성남시 분당구 삼평동 621"
+              },
+              contact: {
+                name: "이순신",
+                position: "물류팀 부장",
+                phone: "010-3344-5566",
+                email: "sslee@miraefood.co.kr"
+              }
             }
-          }
-        };
+          };
+        } else {
+          // 최초 등록용 명함 사진 스냅 시 -> B2B 거래처 자동 등록 시뮬레이션
+          aiResultJson = {
+            analysis_summary: "명함 스냅 사진을 AI 해독하여 신규 B2B 구매처 (주)미래푸드 유통 및 박정우 대표 정보를 마이닝하고 즉각적인 신규 가입을 결정했습니다.",
+            action_taken: "B2B_PARTNER_REGISTER",
+            extracted_data: {
+              partner: {
+                company_name: "(주)미래푸드 유통",
+                business_number: "120-88-99001",
+                representative: "박정우",
+                phone: "010-9988-1122",
+                email: "ceo@miraefood.co.kr",
+                address: "경기도 성남시 분당구 삼평동 621 (네이버 지도 공유 위치)"
+              },
+              contact: {
+                name: "박정우",
+                position: "대표이사",
+                phone: "010-9988-1122",
+                email: "ceo@miraefood.co.kr"
+              }
+            }
+          };
+        }
       } else if (fileType === 'AUDIO' || normText.includes('상담') || normText.includes('녹취') || normText.includes('미팅') || normText.includes('audio') || normText.includes('mp3') || normText.includes('m4a')) {
         // 음성 녹취 스냅 시 -> AI 오디오 판독 및 견적서 자동 기안 시뮬레이션
         aiResultJson = {
@@ -231,6 +267,7 @@ If no fields are found for partner or estimate, leave them as null in the JSON.
 
     if (aiResultJson.action_taken === 'B2B_PARTNER_REGISTER' && aiResultJson.extracted_data?.partner) {
       const pt = aiResultJson.extracted_data.partner;
+      const ct = aiResultJson.extracted_data.contact;
       const partnerId = `PT-${Date.now()}`;
       
       // 이미 같은 상호명이 있는지 2차 스캔
@@ -238,7 +275,10 @@ If no fields are found for partner or estimate, leave them as null in the JSON.
       const ptRows = (checkPt && (checkPt as any).rows) ? (checkPt as any).rows : (Array.isArray(checkPt) ? checkPt : []);
       
       let finalPartnerId = partnerId;
+      let isNewPartner = false;
+
       if (ptRows.length === 0) {
+        isNewPartner = true;
         // 1. 거래처 신규 자동 가입
         await insertRows('crm_partners', [{
           id: partnerId,
@@ -247,9 +287,9 @@ If no fields are found for partner or estimate, leave them as null in the JSON.
           business_number: pt.business_number || '000-00-00000',
           representative: pt.representative || '대표자',
           phone: pt.phone || '010-0000-0000',
-          manager_name: pt.representative || '실무자',
-          manager_phone: pt.phone || '010-0000-0000',
-          email: pt.email || 'tax@partner.com',
+          manager_name: ct?.name || pt.representative || '실무자',
+          manager_phone: ct?.phone || pt.phone || '010-0000-0000',
+          email: ct?.email || pt.email || 'tax@partner.com',
           address: pt.address || '소재지 주소',
           vip_level: 'NORMAL',
           credit_limit: 0,
@@ -264,17 +304,57 @@ If no fields are found for partner or estimate, leave them as null in the JSON.
           address: pt.address || '소재지 주소',
           representative: pt.representative || '대표자',
           phone: pt.phone || '010-0000-0000',
-          updated_at: nowStr
+          manager_name: ct?.name || pt.representative || '실무자',
+          manager_phone: ct?.phone || pt.phone || '010-0000-0000',
+          email: ct?.email || pt.email || 'tax@partner.com',
+          business_license_url: savedFileUrl || undefined
         }, { filters: { id: finalPartnerId } });
       }
 
-      // 2. 스냅태스크 마스터에 B2B 파트너 외래키 매핑!
+      // 2. 명함첩 담당자 등록 (crm_partner_contacts)
+      let contactName = ct?.name || pt.representative || '대표담당자';
+      let contactPhone = ct?.phone || pt.phone || '';
+      let contactEmail = ct?.email || pt.email || '';
+      let contactPosition = ct?.position || '담당자';
+
+      // 동일 연락처/이름을 가진 담당자가 이미 명함첩에 등록되어 있는지 중복 검증
+      const checkCt = await executeSQL(`SELECT id FROM crm_partner_contacts WHERE partner_id = '${finalPartnerId}' AND name = '${contactName}' LIMIT 1`) || [];
+      const ctRows = (checkCt && (checkCt as any).rows) ? (checkCt as any).rows : (Array.isArray(checkCt) ? checkCt : []);
+
+      if (ctRows.length === 0) {
+        await insertRows('crm_partner_contacts', [{
+          id: Date.now(),
+          partner_id: finalPartnerId,
+          name: contactName,
+          position: contactPosition,
+          phone: contactPhone,
+          email: contactEmail,
+          card_image_url: savedFileUrl || null,
+          is_primary: isNewPartner ? 1 : 0, // 신규 파트너이면 대표 담당자(1)로 등록, 기존이면 일반 실무자(0)
+          created_at: nowStr
+        }]);
+        actionLogDesc = isNewPartner 
+          ? `[B2B 신규 거래처 등록 및 대표담당자 자동 지정 완료] 상호명: ${pt.company_name} / 대표담당자: ${contactName} (${contactPosition})`
+          : `[B2B 기존 거래처에 새로운 담당자 명함첩 등록 완료] 상호명: ${pt.company_name} / 추가된 담당자: ${contactName} (${contactPosition})`;
+      } else {
+        // 이미 존재한다면 해당 담당자의 명함 이미지 및 연락처를 최신 정보로 업데이트
+        const existingContactId = ctRows[0].id;
+        await updateRows('crm_partner_contacts', {
+          position: contactPosition,
+          phone: contactPhone,
+          email: contactEmail,
+          card_image_url: savedFileUrl || undefined,
+          created_at: nowStr
+        }, { filters: { id: existingContactId } });
+        actionLogDesc = `[B2B 거래처 담당자 연락처 최신 업데이트 완수] 상호명: ${pt.company_name} / 담당자: ${contactName} (${contactPosition})`;
+      }
+
+      // 3. 스냅태스크 마스터에 B2B 파트너 외래키 매핑!
       await updateRows('crm_snaptasks', {
         partner_id: finalPartnerId,
         updated_at: nowStr
       }, { filters: { id: taskId } });
 
-      actionLogDesc = `[B2B 거래처 자동 가입 완수] 상호명: ${pt.company_name} / 대표: ${pt.representative || '미상'}`;
       await insertRows('crm_snaptask_actions', [{
         id: Date.now() + 1,
         task_id: taskId,

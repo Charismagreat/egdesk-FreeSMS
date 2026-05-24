@@ -360,6 +360,12 @@ export default function MobileSnapTasksPage() {
                             <p className="text-[11px] text-slate-350 leading-relaxed font-bold pl-0.5">
                               {aiAnalysisObj.analysis_summary}
                             </p>
+                            {aiAnalysisObj.extracted_data?.contact && (
+                              <div className="mt-2.5 pt-2 border-t border-indigo-500/10 flex items-center gap-2 text-[10px] text-indigo-300 font-bold animate-fade-in">
+                                <User className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                                <span>[담당자 등록 완수] {aiAnalysisObj.extracted_data.contact.name} {aiAnalysisObj.extracted_data.contact.position ? `(${aiAnalysisObj.extracted_data.contact.position})` : ''}</span>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

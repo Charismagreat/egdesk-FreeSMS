@@ -346,6 +346,19 @@ export async function setupDatabase() {
     { name: 'created_at', type: 'TEXT', notNull: true }
   ], { tableName: 'crm_snaptask_actions', uniqueKeyColumns: ['id'] });
 
+  // 28. CRM Partner Contacts Table (B2B 담당자 명함첩 대장)
+  await safeCreateTable('거래처 담당자 명함첩', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'partner_id', type: 'TEXT', notNull: true },         // crm_partners 외래키
+    { name: 'name', type: 'TEXT', notNull: true },
+    { name: 'position', type: 'TEXT' },
+    { name: 'phone', type: 'TEXT' },
+    { name: 'email', type: 'TEXT' },
+    { name: 'card_image_url', type: 'TEXT' },
+    { name: 'is_primary', type: 'INTEGER', defaultValue: 0 },   // 1: 주대표 실무자, 0: 일반 실무자
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'crm_partner_contacts', uniqueKeyColumns: ['id'] });
+
 
 
     // ID 1의 기본 네이버 블로그 설정 존재 여부 확인 후 자동 주입

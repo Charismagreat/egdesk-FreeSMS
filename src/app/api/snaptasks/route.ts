@@ -32,11 +32,31 @@ export async function GET(req: Request) {
       const actionsRes = await executeSQL(actionsQuery) || [];
       const actions = (actionsRes && (actionsRes as any).rows) ? (actionsRes as any).rows : (Array.isArray(actionsRes) ? actionsRes : []);
 
+      // 연동된 B2B 파트너 및 다중 담당자 명함첩 조회
+      let partner = null;
+      let partnerContacts: any[] = [];
+      if (task.partner_id) {
+        try {
+          const partnerRes = await queryTable('crm_partners', { filters: { id: task.partner_id } });
+          if (partnerRes.rows && partnerRes.rows.length > 0) {
+            partner = partnerRes.rows[0];
+          }
+
+          const contactsQuery = `SELECT * FROM crm_partner_contacts WHERE partner_id = '${task.partner_id}' ORDER BY is_primary DESC, name ASC`;
+          const contactsRes = await executeSQL(contactsQuery) || [];
+          partnerContacts = (contactsRes && (contactsRes as any).rows) ? (contactsRes as any).rows : (Array.isArray(contactsRes) ? contactsRes : []);
+        } catch (e) {
+          console.error('Failed to fetch partner or contacts details:', e);
+        }
+      }
+
       return NextResponse.json({
         success: true,
         task,
         items,
-        actions
+        actions,
+        partner,
+        partnerContacts
       });
     }
 
