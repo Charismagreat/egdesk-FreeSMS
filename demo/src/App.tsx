@@ -1,7 +1,50 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
-  Home, HelpCircle, Handshake, Sparkles, Zap, Plus, Trash2, Camera, Mic, Info, Save
+  Home, HelpCircle, Handshake, Sparkles, Zap, Plus, Trash2, Camera, Mic, Info, Save,
+  Phone, Smartphone, Search, X, Star
 } from "lucide-react";
+
+// Mock B2C 스마트 스토어용 상품 데이터
+const MOCK_STORE_PRODUCTS = [
+  { id: "sp-1", name: "이지 시그니처 블렌드 원두 200g", price: 18000, description: "브라질 스페셜티와 콜롬비아 수프리모를 최적 비율로 혼합하여 다크 초콜릿의 묵직한 바디감과 고소함이 조화로운 대표 원두입니다.", available_methods: "배송,가져가기", main_image_url: "" },
+  { id: "sp-2", name: "콜드브루 산뜻 블렌드 500ml", price: 12000, description: "12시간 동안 한 방울씩 정성껏 저온 추출하여 떫은 맛이 전혀 없고 꽃 향기와 산뜻한 아로마가 가득한 시그니처 커피 원액입니다.", available_methods: "배송,가져가기", main_image_url: "" },
+  { id: "sp-3", name: "프랑스 고메 버터 수제 스콘", price: 4500, description: "프랑스 AOP 천연 고메 버터를 활용하여 매일 아침 오븐에서 갓 구워낸, 겉은 바삭하고 속은 촉촉함의 정석인 프리미엄 스콘입니다.", available_methods: "가져가기,매장에서", main_image_url: "" },
+  { id: "sp-4", name: "이지데스크 3중 진공 텀블러", price: 24000, description: "3중 진공 스테인리스 단열 기술로 최대 24시간 보냉, 12시간 보온 효과를 발휘하는 한정판 프리미엄 이지 텀블러입니다.", available_methods: "배송,가져가기", main_image_url: "" }
+];
+
+// Mock 테이블 오더용 메뉴 데이터
+const MOCK_TABLE_MENU = [
+  { id: "tm-1", name: "아이스 아메리카노", price: 4500, category: "커피", description: "에티오피아 예가체프 싱글 오리진 에스프레소에 시원한 얼음을 더해 산뜻한 산미가 일품인 커피." },
+  { id: "tm-2", name: "따뜻한 카페라떼", price: 5000, category: "커피", description: "풍부한 크레마의 에스프레소와 매일우유의 신선한 스팀 밀크가 만나 부드럽고 달콤한 클래식 라떼." },
+  { id: "tm-3", name: "바스크 치즈 케이크", price: 6500, category: "디저트", description: "고온에서 그을리듯 구워내어 스모키한 향과 크림치즈의 깊은 풍미가 부드럽게 사르르 녹는 스페인 전통 치즈케이크." },
+  { id: "tm-4", name: "벨기에 초코 크루아상", price: 4500, category: "디저트", description: "프랑스 고메 버터 크루아상에 진한 벨기에 다크 초콜릿을 가득 입혀 바삭하고 달콤한 페이스트리." },
+  { id: "tm-5", name: "제주 유기농 말차 에이드", price: 5500, category: "논커피", description: "제주 다원에서 재배한 최고급 유기농 말차 가루와 달콤한 천연 탄산수가 만나 청량하고 깔끔한 에이드." },
+  { id: "tm-6", name: "자몽 허니 블랙티", price: 5800, category: "논커피", description: "세계 3대 홍차인 실론 티베이스에 상큼하고 달콤한 100% 생자몽 과육 슬라이스와 꿀을 믹스한 고급 블렌드 티." }
+];
+
+// Mock 실시간 모바일 예약 서비스 코스 데이터
+const MOCK_BOOKING_SERVICES = [
+  { id: "bs-1", name: "[R&D 스페셜] 프리미엄 커피 시음 테이스팅 코스", price: 35000, description: "이지데스크 수석 로스터와 바리스타가 엄선한 4종 파인 스페셜티 싱글오리진을 원두별 추출 가이드와 함께 즐기는 60분 프라이빗 코스." },
+  { id: "bs-2", name: "[원데이 클래스] 라떼아트 베이직 마스터 클래스", price: 50000, description: "벨벳 밀크 폼 형성 원리부터 하트, 튤립 패턴 디자인까지 바리스타 실무 스킬을 1:1로 밀착 마스터하는 90분 체험 교육 과정." },
+  { id: "bs-3", name: "본사 프라이빗 미팅 룸 2시간 대여 (최대 6인)", price: 20000, description: "방음 시설 완비, 대형 4K UHD 모니터 및 빔프로젝터, 화이트보드가 완비되어 모임 및 세미나에 최적화된 아늑한 대관 룸." }
+];
+
+// Mock B2B 스마트 견적 자재 품목
+const MOCK_ESTIMATE_PRODUCTS = [
+  { id: "ep-1", name: "과테말라 안티구아 원두 10kg (B2B)", price: 180000, description: "B2B 도매용 스페셜티 벌크 생두 로스팅 포장 원두로 일정한 풍미와 가성비가 훌륭한 카페 납품 전용 품목입니다." },
+  { id: "ep-2", name: "친환경 생분해 종이컵 13온스 (1000개입)", price: 45000, description: "옥수수 전분에서 추출한 친환경 PLA 코팅을 사용하여 180일 내 자연 생분해되는 테이크아웃 친환경 컵." },
+  { id: "ep-3", name: "크라프트 4구 종이 캐리어 (500개입)", price: 35000, description: "도톰한 수입 크라프트 재질로 제작되어 내구성이 뛰어난 B2B 카페 포장 필수 자재 캐리어입니다." },
+  { id: "ep-4", name: "그룹헤드 오일 세척 파우더 클리너 1kg", price: 28000, description: "에스프레소 커피 머신 전용 무독성 세척 분말로 찌든 에스프레소 오일과 찌꺼기를 원스톱으로 깨끗하게 용해하는 정품 파우더." }
+];
+
+// Mock CRM 일반 단골 고객 초기 시드 데이터
+const INITIAL_CUSTOMERS = [
+  { id: "cust-1", name: "김태희", phone: "010-1234-5678", visits: 12, lastVisit: "2일 전", status: "VIP단골", points: 8500 },
+  { id: "cust-2", name: "이병헌", phone: "010-9876-5432", visits: 1, lastVisit: "5일 전", status: "최근가입", points: 1000 },
+  { id: "cust-3", name: "전지현", phone: "010-5555-1234", visits: 4, lastVisit: "31일 전", status: "이탈우려", points: 3400 },
+  { id: "cust-4", name: "송강호", phone: "010-4444-8888", visits: 24, lastVisit: "오늘", status: "VIP단골", points: 21000 },
+  { id: "cust-5", name: "유재석", phone: "010-3333-7777", visits: 2, lastVisit: "4일 전", status: "최근가입", points: 1500 }
+];
 
 // Mock B2B 거래처 초기 시드 데이터
 const INITIAL_PARTNERS = [
@@ -60,7 +103,29 @@ export default function App() {
   const [contacts, setContacts] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [automationRules, setAutomationRules] = useState<Record<string, any>>({});
-  
+  const [customers, setCustomers] = useState<any[]>([]);
+
+  // 가상 모바일 채널 시뮬레이션 상태
+  const [mobileActiveView, setMobileActiveView] = useState<string>("store");
+  const [mobileSearchTerms, setMobileSearchTerms] = useState<Record<string, string>>({
+    store: "",
+    table: "",
+    booking: "",
+    capture: "",
+    estimate: ""
+  });
+  const [tableActiveCategory, setTableActiveCategory] = useState<string>("전체");
+
+  // 모바일 주문/예약/캡처 폼 제어 상태
+  const [selectedStoreProduct, setSelectedStoreProduct] = useState<any>(null);
+  const [storeOrderForm, setStoreOrderForm] = useState({ name: "", phone: "", quantity: 1, method: "배송", address: "", memo: "" });
+  const [isCaptureModalOpen, setIsCaptureModalOpen] = useState<boolean>(false);
+  const [captureForm, setCaptureForm] = useState({ name: "", phone: "", product: "이지 시그니처 블렌드 원두 200g", quantity: 1, memo: "" });
+  const [selectedBookingService, setSelectedBookingService] = useState<any>(null);
+  const [bookingForm, setBookingForm] = useState({ name: "", phone: "", date: "2026-05-25", time: "14:00" });
+  const [estimateQuantities, setEstimateQuantities] = useState<Record<string, number>>({ "ep-1": 1, "ep-2": 0, "ep-3": 0, "ep-4": 0 });
+  const [estimateForm, setEstimateForm] = useState({ company: "골든커피", name: "최아름", email: "ar.choi@goldencoffee.com" });
+
   // 가상 AI 트리거 및 로딩 상태
   const [isAiScanning, setIsAiScanning] = useState<boolean>(false);
   const [selectedWeather, setSelectedWeather] = useState<string>("sunny");
@@ -86,6 +151,7 @@ export default function App() {
       const storedContacts = localStorage.getItem("easydesk_demo_contacts");
       const storedRules = localStorage.getItem("easydesk_demo_rules");
       const storedTasks = localStorage.getItem("easydesk_demo_tasks");
+      const storedCustomers = localStorage.getItem("easydesk_demo_customers");
 
       if (storedPartners) {
         setPartners(JSON.parse(storedPartners));
@@ -99,6 +165,13 @@ export default function App() {
       } else {
         localStorage.setItem("easydesk_demo_contacts", JSON.stringify(INITIAL_CONTACTS));
         setContacts(INITIAL_CONTACTS);
+      }
+
+      if (storedCustomers) {
+        setCustomers(JSON.parse(storedCustomers));
+      } else {
+        localStorage.setItem("easydesk_demo_customers", JSON.stringify(INITIAL_CUSTOMERS));
+        setCustomers(INITIAL_CUSTOMERS);
       }
 
       if (storedRules) {
@@ -137,6 +210,11 @@ export default function App() {
   const saveContacts = (newContacts: any[]) => {
     setContacts(newContacts);
     localStorage.setItem("easydesk_demo_contacts", JSON.stringify(newContacts));
+  };
+
+  const saveCustomers = (newCustomers: any[]) => {
+    setCustomers(newCustomers);
+    localStorage.setItem("easydesk_demo_customers", JSON.stringify(newCustomers));
   };
 
   const saveRules = (newRules: Record<string, any>) => {
@@ -306,6 +384,558 @@ export default function App() {
     }, 2000);
   };
 
+  // ==================== [NEW] 가상 모바일 뷰 5종 렌더링 헬퍼 함수 ====================
+  
+  // 1. Store 모바일 뷰 렌더링
+  const renderStoreView = () => {
+    const storeSearch = mobileSearchTerms.store || "";
+    const filteredStore = MOCK_STORE_PRODUCTS.filter(p => 
+      p.name.toLowerCase().includes(storeSearch.toLowerCase()) || 
+      p.description.toLowerCase().includes(storeSearch.toLowerCase())
+    );
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: "1rem", color: "white" }}>
+        {/* 스토어 헤더 */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "0.5rem" }}>
+          <h4 style={{ fontSize: "0.9rem", fontWeight: 900, display: "flex", alignItems: "center", gap: "0.25rem" }}>🛒 이지 스토어</h4>
+          <span style={{ fontSize: "0.6rem", color: "var(--primary)" }}>B2C 주문 채널</span>
+        </div>
+
+        {/* 상품 검색창 */}
+        <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "0.4rem 0.6rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+          <Search className="w-3.5 h-3.5 text-slate-400" />
+          <input 
+            type="text" 
+            placeholder="상품명 또는 설명 검색..." 
+            value={mobileSearchTerms.store}
+            onChange={e => setMobileSearchTerms({...mobileSearchTerms, store: e.target.value})}
+            style={{ background: "none", border: "none", color: "white", fontSize: "0.7rem", outline: "none", flex: 1 }}
+          />
+          {mobileSearchTerms.store && (
+            <button onClick={() => setMobileSearchTerms({...mobileSearchTerms, store: ""})} style={{ background: "none", border: "none", color: "var(--text-sub)", cursor: "pointer" }}>
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* 상품 리스트 */}
+        <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "0.75rem", paddingRight: "2px" }}>
+          {filteredStore.map(p => (
+            <div key={p.id} onClick={() => { setSelectedStoreProduct(p); setStoreOrderForm({ name: "", phone: "", quantity: 1, method: "배송", address: "", memo: "" }); }} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-color)", borderRadius: "14px", padding: "0.75rem", display: "flex", flexDirection: "column", gap: "0.4rem", cursor: "pointer" }} className="hover:bg-slate-800/40">
+              <h5 style={{ fontSize: "0.8rem", fontWeight: 800 }}>{p.name}</h5>
+              <p style={{ fontSize: "0.65rem", color: "var(--text-muted)", lineClamp: 2, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", textOverflow: "ellipsis", lineHeight: 1.4 }}>{p.description}</p>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.2rem" }}>
+                <span style={{ fontSize: "0.75rem", fontWeight: 900, color: "var(--primary)" }}>₩ {p.price.toLocaleString()}</span>
+                <span style={{ fontSize: "0.55rem", color: "var(--text-sub)" }}>{p.available_methods}</span>
+              </div>
+            </div>
+          ))}
+          {filteredStore.length === 0 && (
+            <div style={{ textAlign: "center", padding: "2rem 0", color: "var(--text-sub)", fontSize: "0.7rem" }}>
+              <Search className="w-8 h-8 mx-auto mb-2 text-slate-600 animate-bounce" />
+              일치하는 상품이 없습니다.<br />다른 키워드로 검색해 보세요.
+            </div>
+          )}
+        </div>
+
+        {/* 스토어 모의 주문 모달 (기기 화면 내부 오버레이) */}
+        {selectedStoreProduct && (
+          <div style={{ position: "absolute", inset: 0, background: "rgba(10,15,30,0.98)", zIndex: 100, padding: "1.25rem 1rem", display: "flex", flexDirection: "column", gap: "0.75rem", overflowY: "auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "0.5rem" }}>
+              <span style={{ fontSize: "0.75rem", fontWeight: 800, color: "var(--primary)" }}>주문 및 적립 신청</span>
+              <button onClick={() => setSelectedStoreProduct(null)} style={{ background: "none", border: "none", color: "white", cursor: "pointer" }}><X className="w-4 h-4" /></button>
+            </div>
+            <div style={{ fontSize: "0.75rem", fontWeight: 800 }}>{selectedStoreProduct.name}</div>
+            <div style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>단가: ₩ {selectedStoreProduct.price.toLocaleString()}</div>
+            
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (!storeOrderForm.name || !storeOrderForm.phone) return alert("주문자 이름과 연락처는 필수입니다.");
+              const total = selectedStoreProduct.price * storeOrderForm.quantity;
+              
+              setAuditLogs(prev => [
+                { id: Date.now(), type: "system", text: `[가상 B2C 주문] 손님 '${storeOrderForm.name}'님이 '${selectedStoreProduct.name}' ${storeOrderForm.quantity}개 주문 완료 (총액: ₩${total.toLocaleString()}). 결제대기 적재 완료.`, time: "방금 전" },
+                ...prev
+              ]);
+              alert(`🎉 [가상 주문 접수 성공]\n데모용 주문이 접수되었습니다! PC 대시보드 감사 실행록에 실시간 반영되었습니다.`);
+              setSelectedStoreProduct(null);
+            }} style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+              <input type="text" placeholder="주문자 이름" value={storeOrderForm.name} onChange={e=>setStoreOrderForm({...storeOrderForm, name:e.target.value})} className="input-field" style={{ fontSize: "0.7rem", padding: "0.5rem" }} required />
+              <input type="text" placeholder="휴대폰 연락처" value={storeOrderForm.phone} onChange={e=>setStoreOrderForm({...storeOrderForm, phone:e.target.value})} className="input-field" style={{ fontSize: "0.7rem", padding: "0.5rem" }} required />
+              
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "0.7rem" }}>
+                <span>수량</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <button type="button" onClick={()=>setStoreOrderForm({...storeOrderForm, quantity: Math.max(1, storeOrderForm.quantity-1)})} style={{ background: "rgba(255,255,255,0.05)", border: "none", color: "white", padding: "0.2rem 0.5rem", borderRadius: "4px" }}>-</button>
+                  <span>{storeOrderForm.quantity}</span>
+                  <button type="button" onClick={()=>setStoreOrderForm({...storeOrderForm, quantity: storeOrderForm.quantity+1})} style={{ background: "rgba(255,255,255,0.05)", border: "none", color: "white", padding: "0.2rem 0.5rem", borderRadius: "4px" }}>+</button>
+                </div>
+              </div>
+
+              <select value={storeOrderForm.method} onChange={e=>setStoreOrderForm({...storeOrderForm, method:e.target.value})} className="input-field" style={{ fontSize: "0.7rem", padding: "0.5rem", background: "#0b0f19" }}>
+                <option value="배송">택배 배송 수령</option>
+                <option value="가져가기">매장 테이크아웃</option>
+                <option value="매장에서">매장 테이블 시식</option>
+              </select>
+
+              {storeOrderForm.method === "배송" && (
+                <input type="text" placeholder="배송지 상세 주소" value={storeOrderForm.address} onChange={e=>setStoreOrderForm({...storeOrderForm, address:e.target.value})} className="input-field" style={{ fontSize: "0.7rem", padding: "0.5rem" }} required />
+              )}
+
+              <input type="text" placeholder="요청 사항 메모" value={storeOrderForm.memo} onChange={e=>setStoreOrderForm({...storeOrderForm, memo:e.target.value})} className="input-field" style={{ fontSize: "0.7rem", padding: "0.5rem" }} />
+
+              <button type="submit" className="btn-neon" style={{ fontSize: "0.75rem", padding: "0.6rem", marginTop: "0.4rem" }}>가상 주문 제출하기</button>
+            </form>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // 2. Table Order 모바일 뷰 렌더링
+  const renderTableView = () => {
+    const tableSearch = mobileSearchTerms.table || "";
+    const filteredTable = MOCK_TABLE_MENU.filter(p => {
+      const matchesCategory = tableActiveCategory === "전체" || p.category === tableActiveCategory;
+      const matchesSearch = p.name.toLowerCase().includes(tableSearch.toLowerCase()) || p.description.toLowerCase().includes(tableSearch.toLowerCase());
+      return matchesCategory && matchesSearch;
+    });
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: "0.75rem", color: "white" }}>
+        {/* 테이블 오더 헤더 */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "0.5rem" }}>
+          <h4 style={{ fontSize: "0.9rem", fontWeight: 900, display: "flex", alignItems: "center", gap: "0.25rem" }}>🍽️ [테이블 3번] 오더</h4>
+          <span style={{ fontSize: "0.6rem", color: "var(--emerald)" }}>매장 스마트 오더</span>
+        </div>
+
+        {/* 메뉴 검색창 */}
+        <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "0.4rem 0.6rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+          <Search className="w-3.5 h-3.5 text-slate-400" />
+          <input 
+            type="text" 
+            placeholder="메뉴명 검색..." 
+            value={mobileSearchTerms.table}
+            onChange={e => setMobileSearchTerms({...mobileSearchTerms, table: e.target.value})}
+            style={{ background: "none", border: "none", color: "white", fontSize: "0.7rem", outline: "none", flex: 1 }}
+          />
+          {mobileSearchTerms.table && (
+            <button onClick={() => setMobileSearchTerms({...mobileSearchTerms, table: ""})} style={{ background: "none", border: "none", color: "var(--text-sub)", cursor: "pointer" }}>
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* 카테고리 수평 탭 */}
+        <div style={{ display: "flex", gap: "0.3rem", overflowX: "auto", paddingBottom: "0.2rem", flexShrink: 0 }}>
+          {["전체", "커피", "디저트", "논커피"].map(cat => (
+            <button 
+              key={cat} 
+              onClick={() => setTableActiveCategory(cat)}
+              style={{ 
+                padding: "0.3rem 0.6rem", 
+                borderRadius: "8px", 
+                border: "none", 
+                background: tableActiveCategory === cat ? "var(--primary)" : "rgba(255,255,255,0.05)", 
+                color: "white", 
+                fontSize: "0.65rem", 
+                fontWeight: 700, 
+                cursor: "pointer",
+                whiteSpace: "nowrap"
+              }}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+
+        {/* 메뉴 리스트 */}
+        <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+          {filteredTable.map(m => (
+            <div key={m.id} onClick={() => {
+              if (confirm(`'${m.name}' 메뉴를 즉시 가상 주문 신청하시겠습니까?`)) {
+                setAuditLogs(prev => [
+                  { id: Date.now(), type: "system", text: `[매장 오더] 3번 테이블에서 '${m.name}' 1개 비대면 주문 완료. 주방 관제에 즉각 전송됨.`, time: "방금 전" },
+                  ...prev
+                ]);
+                alert("🛎️ [테이블 오더 전송 완료]\n주방 어드민 관제판으로 가상 오더가 즉각 전송되었습니다!");
+              }
+            }} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "0.6rem", display: "flex", flexDirection: "column", gap: "0.25rem", cursor: "pointer" }} className="hover:bg-slate-800/40">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: "0.75rem", fontWeight: 800 }}>{m.name}</span>
+                <span style={{ fontSize: "0.7rem", fontWeight: 900, color: "var(--emerald)" }}>₩ {m.price.toLocaleString()}</span>
+              </div>
+              <p style={{ fontSize: "0.6rem", color: "var(--text-muted)", lineHeight: 1.3 }}>{m.description}</p>
+            </div>
+          ))}
+          {filteredTable.length === 0 && (
+            <div style={{ textAlign: "center", padding: "2rem 0", color: "var(--text-sub)", fontSize: "0.7rem" }}>
+              <Search className="w-8 h-8 mx-auto mb-2 text-slate-600 animate-bounce" />
+              일치하는 메뉴가 없습니다.
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  // 3. Booking 모바일 뷰 렌더링
+  const renderBookingView = () => {
+    const bookingSearch = mobileSearchTerms.booking || "";
+    const filteredBooking = MOCK_BOOKING_SERVICES.filter(p => 
+      p.name.toLowerCase().includes(bookingSearch.toLowerCase()) || 
+      p.description.toLowerCase().includes(bookingSearch.toLowerCase())
+    );
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: "0.75rem", color: "white" }}>
+        {/* 예약 헤더 */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "0.5rem" }}>
+          <h4 style={{ fontSize: "0.9rem", fontWeight: 900, display: "flex", alignItems: "center", gap: "0.25rem" }}>📅 이지 모바일 예약</h4>
+          <span style={{ fontSize: "0.6rem", color: "var(--amber)" }}>B2C 실시간 예약</span>
+        </div>
+
+        {/* 예약 서비스 검색창 */}
+        <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "0.4rem 0.6rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+          <Search className="w-3.5 h-3.5 text-slate-400" />
+          <input 
+            type="text" 
+            placeholder="예약 품목/코스 검색..." 
+            value={mobileSearchTerms.booking}
+            onChange={e => setMobileSearchTerms({...mobileSearchTerms, booking: e.target.value})}
+            style={{ background: "none", border: "none", color: "white", fontSize: "0.7rem", outline: "none", flex: 1 }}
+          />
+          {mobileSearchTerms.booking && (
+            <button onClick={() => setMobileSearchTerms({...mobileSearchTerms, booking: ""})} style={{ background: "none", border: "none", color: "var(--text-sub)", cursor: "pointer" }}>
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* 예약 서비스 목록 */}
+        <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+          {filteredBooking.map(b => (
+            <div key={b.id} onClick={() => { setSelectedBookingService(b); setBookingForm({ name: "", phone: "", date: "2026-05-25", time: "14:00" }); }} style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "0.65rem", display: "flex", flexDirection: "column", gap: "0.3rem", cursor: "pointer" }} className="hover:bg-slate-800/40">
+              <h5 style={{ fontSize: "0.75rem", fontWeight: 800 }}>{b.name}</h5>
+              <p style={{ fontSize: "0.6rem", color: "var(--text-muted)", lineClamp: 2, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", lineHeight: 1.3 }}>{b.description}</p>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "0.1rem" }}>
+                <span style={{ fontSize: "0.7rem", fontWeight: 900, color: "var(--amber)" }}>₩ {b.price.toLocaleString()}</span>
+                <span style={{ fontSize: "0.55rem", background: "rgba(255,255,255,0.05)", padding: "0.1rem 0.3rem", borderRadius: "4px" }}>예약하기</span>
+              </div>
+            </div>
+          ))}
+          {filteredBooking.length === 0 && (
+            <div style={{ textAlign: "center", padding: "2rem 0", color: "var(--text-sub)", fontSize: "0.7rem" }}>
+              <Search className="w-8 h-8 mx-auto mb-2 text-slate-600 animate-bounce" />
+              일치하는 예약 품목이 없습니다.
+            </div>
+          )}
+        </div>
+
+        {/* 예약 신청 내부 오버레이 모달 */}
+        {selectedBookingService && (
+          <div style={{ position: "absolute", inset: 0, background: "rgba(10,15,30,0.98)", zIndex: 100, padding: "1.25rem 1rem", display: "flex", flexDirection: "column", gap: "0.75rem", overflowY: "auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "0.5rem" }}>
+              <span style={{ fontSize: "0.75rem", fontWeight: 800, color: "var(--amber)" }}>실시간 모바일 예약 신청</span>
+              <button onClick={() => setSelectedBookingService(null)} style={{ background: "none", border: "none", color: "white", cursor: "pointer" }}><X className="w-4 h-4" /></button>
+            </div>
+            <div style={{ fontSize: "0.75rem", fontWeight: 800 }}>{selectedBookingService.name}</div>
+            
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (!bookingForm.name || !bookingForm.phone) return alert("예약자명과 연락처를 작성해 주세요.");
+              
+              setAuditLogs(prev => [
+                { id: Date.now(), type: "system", text: `[가상 예약 접수] 예약자 '${bookingForm.name}'님이 '${selectedBookingService.name}'를 ${bookingForm.date} ${bookingForm.time}에 모의 예약 신청했습니다.`, time: "방금 전" },
+                ...prev
+              ]);
+              alert("🗓️ [가상 예약 신청 성공]\n가상 예약이 무사히 접수되었습니다! PC 대시보드 감사 실행록에 반영되었습니다.");
+              setSelectedBookingService(null);
+            }} style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+              <input type="text" placeholder="예약자 성함" value={bookingForm.name} onChange={e=>setBookingForm({...bookingForm, name:e.target.value})} className="input-field" style={{ fontSize: "0.7rem", padding: "0.5rem" }} required />
+              <input type="text" placeholder="연락처 번호" value={bookingForm.phone} onChange={e=>setBookingForm({...bookingForm, phone:e.target.value})} className="input-field" style={{ fontSize: "0.7rem", padding: "0.5rem" }} required />
+              
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+                <label style={{ fontSize: "0.6rem", color: "var(--text-muted)" }}>예약 희망 날짜</label>
+                <input type="date" value={bookingForm.date} onChange={e=>setBookingForm({...bookingForm, date:e.target.value})} className="input-field" style={{ fontSize: "0.7rem", padding: "0.5rem", color: "white" }} required />
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+                <label style={{ fontSize: "0.6rem", color: "var(--text-muted)" }}>예약 희망 시간</label>
+                <input type="time" value={bookingForm.time} onChange={e=>setBookingForm({...bookingForm, time:e.target.value})} className="input-field" style={{ fontSize: "0.7rem", padding: "0.5rem", color: "white" }} required />
+              </div>
+
+              <button type="submit" className="btn-neon btn-emerald" style={{ fontSize: "0.75rem", padding: "0.6rem", marginTop: "0.4rem" }}>가상 예약 제출</button>
+            </form>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // 4. Order Capture 모바일 뷰 렌더링 (단골 검색 및 Auto-fill 연동)
+  const renderCaptureView = () => {
+    const custSearch = mobileSearchTerms.capture || "";
+    const filteredCusts = customers.filter(c => 
+      c.name.toLowerCase().includes(custSearch.toLowerCase()) || 
+      c.phone.replace(/[^0-9]/g, "").includes(custSearch.replace(/[^0-9]/g, ""))
+    );
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: "0.75rem", color: "white" }}>
+        {/* 현장 캡처 헤더 */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "0.5rem" }}>
+          <h4 style={{ fontSize: "0.9rem", fontWeight: 900, display: "flex", alignItems: "center", gap: "0.25rem" }}>📸 현장 주문 캡처</h4>
+          <span style={{ fontSize: "0.6rem", color: "var(--primary)" }}>CRM 연계 주문 캡처</span>
+        </div>
+
+        {/* 수동 주문 작성 폼 */}
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          if (!captureForm.name || !captureForm.phone) return alert("고객 이름과 연락처는 필수입니다.");
+          
+          setAuditLogs(prev => [
+            { id: Date.now(), type: "system", text: `[현장 주문 캡처] 사장님: 단골 손님 '${captureForm.name}'님의 현장 현금/포인트 주문 ('${captureForm.product}' ${captureForm.quantity}개) 즉석 기안 완수.`, time: "방금 전" },
+            ...prev
+          ]);
+
+          // 가상 포인트 적립 및 방문 횟수 증가 연동
+          const matchedCust = customers.find(c => c.name === captureForm.name || c.phone.replace(/[^0-9]/g, "") === captureForm.phone.replace(/[^0-9]/g, ""));
+          if (matchedCust) {
+            const updated = customers.map(c => {
+              if (c.id === matchedCust.id) {
+                return { ...c, visits: c.visits + 1, points: c.points + 500 }; // 500p 가상 적립
+              }
+              return c;
+            });
+            saveCustomers(updated);
+          }
+
+          alert("🎉 [가상 주문 캡처 완료]\n현장 주문이 CRM 단골 관리 데이터와 링킹 적재 완료되었습니다! (해당 단골 고객에게 500p가 가상 적립되었습니다.)");
+          setCaptureForm({ name: "", phone: "", product: "이지 시그니처 블렌드 원두 200g", quantity: 1, memo: "" });
+        }} style={{ display: "flex", flexDirection: "column", gap: "0.6rem", flex: 1, overflowY: "auto" }}>
+          
+          {/* 고객명 + 단골검색 돋보기 버튼 */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+            <label style={{ fontSize: "0.65rem", color: "var(--text-muted)", fontWeight: 700 }}>고객명 *</label>
+            <div style={{ display: "flex", gap: "0.35rem" }}>
+              <input type="text" placeholder="홍길동" value={captureForm.name} onChange={e=>setCaptureForm({...captureForm, name:e.target.value})} className="input-field" style={{ fontSize: "0.7rem", padding: "0.5rem", flex: 1 }} required />
+              <button 
+                type="button" 
+                onClick={() => { setIsCaptureModalOpen(true); setMobileSearchTerms({...mobileSearchTerms, capture: ""}); }} 
+                style={{ background: "var(--primary)", border: "none", color: "white", padding: "0.5rem", borderRadius: "10px", display: "flex", alignItems: "center", justifyItems: "center", cursor: "pointer" }}
+                title="단골고객 검색"
+              >
+                <Search className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+            <label style={{ fontSize: "0.65rem", color: "var(--text-muted)", fontWeight: 700 }}>연락처 *</label>
+            <input type="text" placeholder="010-1234-5678" value={captureForm.phone} onChange={e=>setCaptureForm({...captureForm, phone:e.target.value})} className="input-field" style={{ fontSize: "0.7rem", padding: "0.5rem" }} required />
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+            <label style={{ fontSize: "0.65rem", color: "var(--text-muted)", fontWeight: 700 }}>현장 접수 상품</label>
+            <select value={captureForm.product} onChange={e=>setCaptureForm({...captureForm, product:e.target.value})} className="input-field" style={{ fontSize: "0.7rem", padding: "0.5rem", background: "#0b0f19" }}>
+              <option value="이지 시그니처 블렌드 원두 200g">이지 시그니처 블렌드 원두 200g</option>
+              <option value="콜드브루 산뜻 블렌드 500ml">콜드브루 산뜻 블렌드 500ml</option>
+              <option value="프랑스 고메 버터 수제 스콘">프랑스 고메 버터 수제 스콘</option>
+              <option value="이지데스크 3중 진공 텀블러">이지데스크 3중 진공 텀블러</option>
+            </select>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+            <label style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>주문 수량</label>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", width: "100px" }}>
+              <button type="button" onClick={()=>setCaptureForm({...captureForm, quantity: Math.max(1, captureForm.quantity-1)})} style={{ background: "rgba(255,255,255,0.05)", border: "none", color: "white", padding: "0.2rem 0.4rem", borderRadius: "4px" }}>-</button>
+              <span style={{ fontSize: "0.7rem" }}>{captureForm.quantity}</span>
+              <button type="button" onClick={()=>setCaptureForm({...captureForm, quantity: captureForm.quantity+1})} style={{ background: "rgba(255,255,255,0.05)", border: "none", color: "white", padding: "0.2rem 0.4rem", borderRadius: "4px" }}>+</button>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+            <label style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>주문 비고 메모</label>
+            <textarea placeholder="사장님 수동 비고란" value={captureForm.memo} onChange={e=>setCaptureForm({...captureForm, memo:e.target.value})} className="input-field" style={{ fontSize: "0.7rem", padding: "0.5rem", resize: "none", height: "45px" }} />
+          </div>
+
+          <button type="submit" className="btn-neon" style={{ fontSize: "0.75rem", padding: "0.6rem", marginTop: "0.25rem", width: "100%" }}>현장 주문 캡처 제출</button>
+        </form>
+
+        {/* 단골 고객 조회 팝업 모달 (기기 오버레이) */}
+        {isCaptureModalOpen && (
+          <div style={{ position: "absolute", inset: 0, background: "rgba(10,15,30,0.98)", zIndex: 100, padding: "1.25rem 1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "0.4rem" }}>
+              <span style={{ fontSize: "0.75rem", fontWeight: 800, color: "white" }}>👥 CRM 단골 고객 조회</span>
+              <button onClick={() => setIsCaptureModalOpen(false)} style={{ background: "none", border: "none", color: "white", cursor: "pointer" }}><X className="w-4 h-4" /></button>
+            </div>
+
+            {/* 실시간 단골 고객 검색창 */}
+            <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-color)", borderRadius: "10px", padding: "0.4rem 0.5rem", display: "flex", alignItems: "center", gap: "0.35rem" }}>
+              <Search className="w-3.5 h-3.5 text-slate-400" />
+              <input 
+                type="text" 
+                placeholder="이름 또는 연락처 검색..." 
+                value={mobileSearchTerms.capture}
+                onChange={e => setMobileSearchTerms({...mobileSearchTerms, capture: e.target.value})}
+                style={{ background: "none", border: "none", color: "white", fontSize: "0.68rem", outline: "none", flex: 1 }}
+              />
+              {mobileSearchTerms.capture && (
+                <button onClick={() => setMobileSearchTerms({...mobileSearchTerms, capture: ""})} style={{ background: "none", border: "none", color: "var(--text-sub)", cursor: "pointer" }}>✕</button>
+              )}
+            </div>
+
+            {/* 필터링된 단골 고객 리스트 */}
+            <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+              {filteredCusts.map(c => (
+                <div 
+                  key={c.id} 
+                  onClick={() => {
+                    setCaptureForm({ ...captureForm, name: c.name, phone: c.phone });
+                    setIsCaptureModalOpen(false);
+                  }}
+                  style={{ 
+                    background: "rgba(255,255,255,0.02)", 
+                    border: "1px solid rgba(255,255,255,0.05)", 
+                    borderRadius: "10px", 
+                    padding: "0.5rem 0.75rem", 
+                    display: "flex", 
+                    justifyContent: "space-between", 
+                    alignItems: "center", 
+                    cursor: "pointer" 
+                  }}
+                  className="hover:bg-indigo-600/10 hover:border-indigo-500/30"
+                >
+                  <div>
+                    <span style={{ fontSize: "0.75rem", fontWeight: 800 }}>{c.name}</span>
+                    <p style={{ fontSize: "0.6rem", color: "var(--text-sub)", fontFamily: "monospace", marginTop: "0.1rem" }}>{c.phone}</p>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "0.15rem" }}>
+                    <span className="badge badge-emerald" style={{ fontSize: "0.5rem", padding: "0.05rem 0.25rem" }}>{c.status}</span>
+                    <span style={{ fontSize: "0.55rem", color: "var(--amber)" }}>{c.points.toLocaleString()}p</span>
+                  </div>
+                </div>
+              ))}
+              {filteredCusts.length === 0 && (
+                <div style={{ textAlign: "center", padding: "2rem 0", color: "var(--text-sub)", fontSize: "0.65rem" }}>
+                  검색된 단골 고객이 없습니다.
+                </div>
+              )}
+            </div>
+            
+            <div style={{ fontSize: "0.58rem", color: "var(--text-sub)", background: "rgba(255,255,255,0.01)", padding: "0.4rem", borderRadius: "6px" }}>
+              💡 <b>테스트 팁:</b> 검색창에 '김' 또는 '송', 혹은 '5678' 등을 타이핑해 보세요. 터치 즉시 폼 필드에 100% <b>자동완성(Auto-fill)</b> 됩니다!
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // 5. B2B 스마트 견적 요청 모바일 뷰 렌더링
+  const renderEstimateView = () => {
+    const estimateSearch = mobileSearchTerms.estimate || "";
+    const filteredEstimate = MOCK_ESTIMATE_PRODUCTS.filter(p => 
+      p.name.toLowerCase().includes(estimateSearch.toLowerCase()) || 
+      p.description.toLowerCase().includes(estimateSearch.toLowerCase())
+    );
+
+    // 견적 예상 합계 연산
+    let estimatedTotal = 0;
+    MOCK_ESTIMATE_PRODUCTS.forEach(p => {
+      const qty = estimateQuantities[p.id] || 0;
+      estimatedTotal += p.price * qty;
+    });
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", gap: "0.6rem", color: "white" }}>
+        {/* 견적 헤더 */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "0.4rem" }}>
+          <h4 style={{ fontSize: "0.9rem", fontWeight: 900, display: "flex", alignItems: "center", gap: "0.25rem" }}>📄 B2B 스마트 견적</h4>
+          <span style={{ fontSize: "0.6rem", color: "var(--primary)" }}>SCM 바이어 채널</span>
+        </div>
+
+        {/* 바이어 폼 필드 */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", background: "rgba(0,0,0,0.2)", padding: "0.5rem", borderRadius: "10px", border: "1px solid var(--border-color)" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.3rem" }}>
+            <input type="text" placeholder="회사명 (예: 골든커피)" value={estimateForm.company} onChange={e=>setEstimateForm({...estimateForm, company:e.target.value})} className="input-field" style={{ fontSize: "0.65rem", padding: "0.4rem" }} />
+            <input type="text" placeholder="담당자 성함" value={estimateForm.name} onChange={e=>setEstimateForm({...estimateForm, name:e.target.value})} className="input-field" style={{ fontSize: "0.65rem", padding: "0.4rem" }} />
+          </div>
+          <input type="email" placeholder="세금계산서 수령 이메일" value={estimateForm.email} onChange={e=>setEstimateForm({...estimateForm, email:e.target.value})} className="input-field" style={{ fontSize: "0.65rem", padding: "0.4rem" }} />
+        </div>
+
+        {/* B2B 상품 검색창 */}
+        <div style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-color)", borderRadius: "10px", padding: "0.35rem 0.5rem", display: "flex", alignItems: "center", gap: "0.35rem" }}>
+          <Search className="w-3.5 h-3.5 text-slate-400" />
+          <input 
+            type="text" 
+            placeholder="자재/품명 검색..." 
+            value={mobileSearchTerms.estimate}
+            onChange={e => setMobileSearchTerms({...mobileSearchTerms, estimate: e.target.value})}
+            style={{ background: "none", border: "none", color: "white", fontSize: "0.68rem", outline: "none", flex: 1 }}
+          />
+          {mobileSearchTerms.estimate && (
+            <button onClick={() => setMobileSearchTerms({...mobileSearchTerms, estimate: ""})} style={{ background: "none", border: "none", color: "var(--text-sub)", cursor: "pointer" }}>✕</button>
+          )}
+        </div>
+
+        {/* B2B 자재 상품 대장 리스트 */}
+        <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "0.45rem" }}>
+          {filteredEstimate.map(ep => {
+            const qty = estimateQuantities[ep.id] || 0;
+            return (
+              <div key={ep.id} style={{ background: "rgba(255,255,255,0.01)", border: "1px solid var(--border-color)", borderRadius: "10px", padding: "0.5rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ flex: 1, paddingRight: "0.5rem" }}>
+                  <h6 style={{ fontSize: "0.7rem", fontWeight: 800 }}>{ep.name}</h6>
+                  <span style={{ fontSize: "0.65rem", fontWeight: 700, color: "var(--primary)", display: "block", marginTop: "0.15rem" }}>₩ {ep.price.toLocaleString()} <span style={{ fontSize: "0.55rem", color: "var(--text-sub)", fontWeight: 500 }}>(도매단가)</span></span>
+                </div>
+                {/* 수량 조절기 */}
+                <div style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                  <button type="button" onClick={() => setEstimateQuantities({...estimateQuantities, [ep.id]: Math.max(0, qty - 1)})} style={{ background: "rgba(255,255,255,0.05)", border: "none", color: "white", width: "18px", height: "18px", borderRadius: "4px", fontSize: "0.6rem", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>-</button>
+                  <span style={{ fontSize: "0.65rem", fontWeight: 700, width: "14px", textAlign: "center" }}>{qty}</span>
+                  <button type="button" onClick={() => setEstimateQuantities({...estimateQuantities, [ep.id]: qty + 1})} style={{ background: "rgba(255,255,255,0.05)", border: "none", color: "white", width: "18px", height: "18px", borderRadius: "4px", fontSize: "0.6rem", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>+</button>
+                </div>
+              </div>
+            );
+          })}
+          {filteredEstimate.length === 0 && (
+            <div style={{ textAlign: "center", padding: "1.5rem 0", color: "var(--text-sub)", fontSize: "0.65rem" }}>
+              일치하는 품목이 없습니다.
+            </div>
+          )}
+        </div>
+
+        {/* 하단 예상 총액 및 제출 */}
+        <div style={{ borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "0.4rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.72rem", fontWeight: 800, marginBottom: "0.4rem" }}>
+            <span>예상 견적가 총액</span>
+            <span style={{ color: "var(--amber)", fontSize: "0.78rem" }}>₩ {estimatedTotal.toLocaleString()}</span>
+          </div>
+          <button 
+            type="button"
+            onClick={() => {
+              if (!estimateForm.company || !estimateForm.name) return alert("바이어 회사명과 담당자명을 입력해 주세요.");
+              if (estimatedTotal === 0) return alert("최소 1개 이상의 자재 수량을 선택해 주세요.");
+
+              setAuditLogs(prev => [
+                { id: Date.now(), type: "system", text: `[B2B SCM 견적접수] 바이어 '${estimateForm.company}' (${estimateForm.name} 담당) ➔ ₩${estimatedTotal.toLocaleString()} 상당의 스마트 견적 요청 접수 완료. 자동 알림 대기 중.`, time: "방금 전" },
+                ...prev
+              ]);
+              alert("🎉 [가상 견적 요청 전송 성공]\n바이어 전용 스마트 견적이 전사 SCM ERP 파이프라인에 안전하게 임시 적재 완료되었습니다!");
+              setEstimateQuantities({ "ep-1": 1, "ep-2": 0, "ep-3": 0, "ep-4": 0 });
+            }}
+            className="btn-neon" 
+            style={{ width: "100%", fontSize: "0.7rem", padding: "0.5rem" }}
+          >
+            모바일 견적 제안 요청
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="app-container">
       {/* 럭셔리 네온 광원 데코 */}
@@ -330,6 +960,9 @@ export default function App() {
           </div>
           <div className={`menu-item ${activeTab === "automation" ? "active" : ""}`} onClick={() => setActiveTab("automation")}>
             <Zap className="w-4.5 h-4.5" /> 자동 발송 설정
+          </div>
+          <div className={`menu-item ${activeTab === "mobile" ? "active" : ""}`} onClick={() => setActiveTab("mobile")}>
+            <Smartphone className="w-4.5 h-4.5" /> 스마트 모바일 채널
           </div>
           <div className={`menu-item ${activeTab === "help" ? "active" : ""}`} onClick={() => setActiveTab("help")}>
             <HelpCircle className="w-4.5 h-4.5" /> Q&A 헬프센터
@@ -784,6 +1417,103 @@ export default function App() {
                     </p>
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================== TAB 6: 스마트 모바일 채널 ==================== */}
+        {activeTab === "mobile" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
+            <div className="header-wrapper">
+              <h1 className="header-title" style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <Phone className="w-7 h-7 text-indigo-500 animate-pulse" />
+                스마트 모바일 채널
+              </h1>
+              <p className="header-desc">
+                이지데스크가 제공하는 5대 모바일 비즈니스 채널을 가상 스마트폰 시뮬레이터로 완벽 체험해 보세요. 모든 실시간 검색 및 단골 매핑 기능은 100% 동일 정합성으로 동작합니다.
+              </p>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "2rem", alignItems: "start" }}>
+              {/* 좌측: 모바일 채널 제어 패널 */}
+              <div className="glass-card" style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+                <h3 style={{ fontSize: "1.1rem", fontWeight: 800, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <Star className="w-5 h-5 text-indigo-400" />
+                  모바일 채널 선택 및 시나리오 가이드
+                </h3>
+                <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", lineHeight: 1.5 }}>
+                  사장님이 Next.js 본체에 적용하신 최신 검색 바 디자인과 현장 주문 캡처의 CRM 단골 자동완성(Auto-fill) 기능을 우측 스마트폰 디바이스에서 직접 타이핑하고 터치하여 시뮬레이션할 수 있습니다.
+                </p>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                  {[
+                    { id: "store", title: "📱 1. B2C 스마트 주문 스토어", desc: "B2C 일반 소비자가 링크를 타고 들어와 상품을 검색하고 무통장/적립금 결제 주문을 신청하는 스토어 화면입니다. (상품 검색 테스트 가능)", target: "B2C 일반 손님" },
+                    { id: "table", title: "🍽️ 2. 매장 테이블 오더", desc: "매장 내 테이블 QR을 스캔하여 앉은 자리에서 직접 메뉴를 검색하고 비대면 주문하는 현장 오더 채널입니다. (카테고리 탭 + 메뉴 검색 교차 필터링)", target: "매장 내 방문 손님" },
+                    { id: "booking", title: "📅 3. 실시간 모바일 예약", desc: "미용실, 스파, 카페 체험 코스 등 예약을 기반으로 작동하는 샵 전용 스마트 실시간 모바일 예약 창입니다. (예약 시술/품목 검색)", target: "방문 예약 손님" },
+                    { id: "capture", title: "📸 5. 현장 주문 캡처 (CRM)", desc: "영업 현장이나 카운터에서 사장님이 주문을 즉석 캡처할 때, 단골 고객 데이터베이스에서 돋보기 검색을 통해 클릭 한 번으로 인적 사항을 오토필하는 모듈입니다.", target: "매장 카운터 / 영업 현장" },
+                    { id: "estimate", title: "📄 6. B2B 스마트 견적 요청", desc: "B2B 신규/기존 바이어가 모바일 화면에서 상품 대장을 검색하고 필요한 도매 수량을 지정해 대규모 견적 협의를 요청하는 SCM 서식입니다.", target: "B2B 도소매 바이어" }
+                  ].map((ch) => (
+                    <div 
+                      key={ch.id} 
+                      onClick={() => setMobileActiveView(ch.id)}
+                      style={{ 
+                        padding: "1rem 1.25rem", 
+                        background: mobileActiveView === ch.id ? "rgba(79, 70, 229, 0.08)" : "rgba(255,255,255,0.01)", 
+                        border: mobileActiveView === ch.id ? "1px solid var(--primary-glow)" : "1px solid var(--border-color)", 
+                        borderRadius: "18px", 
+                        cursor: "pointer",
+                        transition: "all 0.2s"
+                      }}
+                      className="hover:scale-[1.01]"
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <h4 style={{ fontSize: "0.85rem", fontWeight: 800, color: mobileActiveView === ch.id ? "white" : "var(--text-muted)" }}>{ch.title}</h4>
+                        <span className="badge badge-primary" style={{ fontSize: "0.6rem" }}>{ch.target}</span>
+                      </div>
+                      <p style={{ fontSize: "0.75rem", color: "var(--text-sub)", marginTop: "0.4rem", lineHeight: 1.4 }}>{ch.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 우측: 럭셔리 스마트폰 디바이스 프레임 */}
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <div 
+                  className="phone-simulator" 
+                  style={{ 
+                    width: "340px", 
+                    height: "640px", 
+                    border: "8px solid #1e293b", 
+                    borderRadius: "44px", 
+                    backgroundColor: "#080c14", 
+                    boxShadow: "0 25px 60px rgba(0,0,0,0.5), 0 0 30px rgba(79, 70, 229, 0.15)",
+                    position: "relative",
+                    overflow: "hidden",
+                    display: "flex",
+                    flexDirection: "column"
+                  }}
+                >
+                  {/* 상단 스피커 및 카메라 노치 */}
+                  <div style={{ width: "110px", height: "18px", backgroundColor: "#1e293b", borderRadius: "0 0 12px 12px", position: "absolute", top: "0", left: "50%", transform: "translateX(-50%)", zIndex: "50", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div style={{ width: "35px", height: "3px", backgroundColor: "#475569", borderRadius: "2px", marginRight: "6px" }}></div>
+                    <div style={{ width: "6px", height: "6px", backgroundColor: "#000", borderRadius: "50%" }}></div>
+                  </div>
+
+                  {/* 모바일 화면 바디 */}
+                  <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", padding: "1.5rem 1rem 1rem 1rem", marginTop: "10px" }}>
+                    {mobileActiveView === "store" && renderStoreView()}
+                    {mobileActiveView === "table" && renderTableView()}
+                    {mobileActiveView === "booking" && renderBookingView()}
+                    {mobileActiveView === "capture" && renderCaptureView()}
+                    {mobileActiveView === "estimate" && renderEstimateView()}
+                  </div>
+
+                  {/* 하단 홈 바 */}
+                  <div style={{ height: "14px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, zIndex: "50", background: "#080c14" }}>
+                    <div style={{ width: "100px", height: "4px", backgroundColor: "#475569", borderRadius: "2px" }}></div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
