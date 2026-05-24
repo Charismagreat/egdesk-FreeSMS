@@ -16,7 +16,8 @@ import {
   Check, 
   X,
   ChevronRight,
-  Info
+  Info,
+  Handshake
 } from "lucide-react";
 
 interface MobileChannel {
@@ -92,6 +93,16 @@ export default function MobileHubWidget() {
       themeColor: "from-amber-600 to-orange-600 bg-amber-50 text-amber-600 border-amber-100",
       badge: "매장 스태프/직원 전용",
       smsTemplate: "[이지데스크] 현장 주문 캡처 웹 링크입니다. 로그인 후 영수증 촬영 및 수기 오더 전송을 진행해주세요. "
+    },
+    {
+      id: "estimate-request",
+      name: "B2B 스마트 견적 요청",
+      description: "바이어가 모바일에서 자재 수량을 입력하고 사업자 중복 조회 및 AI OCR 스캔 온보딩을 거쳐 신규 가입하는 B2B 바이어 채널",
+      path: "/m/estimate-request",
+      icon: Handshake,
+      themeColor: "from-cyan-600 to-teal-600 bg-cyan-50 text-cyan-600 border-cyan-100",
+      badge: "B2B 바이어/구매처 전용",
+      smsTemplate: "[이지데스크] B2B 거래처 견적 요청 링크입니다. 사업자번호 입력과 사업자등록증 첨부 시 AI가 정보를 자동 완성해 드립니다. "
     }
   ];
 
@@ -212,13 +223,13 @@ export default function MobileHubWidget() {
               스마트 매장 모바일 채널 제어 센터
             </h2>
             <p className="text-slate-400 text-sm mt-1">
-              온·오프라인 단골 고객을 모으는 5대 대고객 접점 모바일 채널을 이곳에서 실시간으로 배포하고 홍보하세요.
+              온·오프라인 단골 고객을 모으는 6대 대고객 접점 모바일 채널을 이곳에서 실시간으로 배포하고 홍보하세요.
             </p>
           </div>
         </div>
 
-        {/* 5대 채널 목록 */}
-        <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+        {/* 6대 채널 목록 */}
+        <div className="grid grid-cols-1 xl:grid-cols-6 gap-6">
           {channels.map((channel) => {
             const Icon = channel.icon;
             const isCopied = copiedId === channel.id;
