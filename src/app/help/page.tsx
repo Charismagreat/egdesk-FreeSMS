@@ -21,7 +21,7 @@ const CATEGORIES = [
   { id: "rpa", label: "AI 자율 마케팅 & RPA 🤖", icon: Bot, color: "text-purple-400" },
   { id: "point", label: "단골적립 & 보안 🪙", icon: Coins, color: "text-amber-400" },
   { id: "coupon", label: "쿠폰 & 주문/예약 📦", icon: Ticket, color: "text-rose-400" },
-  { id: "order", label: "견적/발주/재고 SCM 🔄", icon: Zap, color: "text-cyan-400" }
+  { id: "order", label: "견적/발주/수주 AI", icon: Zap, color: "text-cyan-400" }
 ];
 
 // FAQ 데이터베이스 (AI 자율 경영 파트너 Q&A 완전 실장)
@@ -108,7 +108,7 @@ const FAQ_DATABASE: FAQItem[] = [
     question: "테이블오더 주문이나 예약 등록 시 배송 대장 또는 금융과 자동으로 묶이나요?",
     answer: "네, 완벽히 오프라인 연동됩니다. 테이블오더 주문 시 배송 방식을 '택배배송'으로 기입하면 즉시 [배송내역 관리] 대장에 상품 준비중 정보가 자동 신설되며, 카드/포인트 결제 완수 시 즉각 [결제내역] 및 [거래내역] 대장에 매출이 동기화 기록되어 종합 매출과 잔고가 실시간 정산됩니다."
   },
-  // 5. 견적/발주/재고 SCM ERP 가이드 (신규 추가 🔄)
+  // 5. 견적/발주/수주 AI 가이드 (신규 추가 🔄)
   {
     id: "order-1",
     category: "order",
