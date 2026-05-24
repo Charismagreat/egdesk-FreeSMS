@@ -21,7 +21,10 @@ const EVENTS = [
   { id: 'order_created', label: '주문 접수 시', desc: '새로운 상품 주문이 접수되었을 때 발송됩니다.' },
   { id: 'delivery_started', label: '배송 시작 시', desc: '주문 상품의 배송이 시작되었을 때 발송됩니다.' },
   { id: 'point_earned', label: '포인트 적립 완료 시 🪙', desc: '고객의 단골 포인트가 신규 적립되었을 때 발송됩니다.' },
-  { id: 'point_redeemed', label: '포인트 사용/차감 시 🔒', desc: '결제 시 고객의 포인트가 차감 사용되었을 때 발송됩니다.' }
+  { id: 'point_redeemed', label: '포인트 사용/차감 시 🔒', desc: '결제 시 고객의 포인트가 차감 사용되었을 때 발송됩니다.' },
+  { id: 'b2b_partner_registered', label: 'B2B 신규 거래처 온보딩 시 🤝', desc: '모바일 견적 요청 또는 명함 스냅을 통해 B2B 신규 파트너로 자동 가입되었을 때 발송됩니다.' },
+  { id: 'estimate_received', label: 'B2B 견적 요청 접수 시 🪐', desc: '바이어로부터 새로운 모바일 스마트 견적 요청이 접수되었을 때 접수 확인 문자가 발송됩니다.' },
+  { id: 'sales_order_confirmed', label: 'B2B 수주 확정 시 📦', desc: '바이어의 계약 최종 승인에 따라 수주 확정서 및 배송 안내 문자가 발송됩니다.' }
 ];
 
 export default function AutomationPage() {
@@ -124,9 +127,10 @@ export default function AutomationPage() {
             각 이벤트가 발생할 때 자동으로 고객의 전화번호를 추출하여 문자를 쏩니다.
           </p>
           <div className="bg-white/80 p-3.5 rounded-xl border border-blue-100 text-xs text-slate-700 space-y-1 mt-1 font-semibold">
-            <p className="font-extrabold text-blue-900 mb-1 flex items-center">💡 템플릿 내 사용 가능한 포인트/쿠폰 예약어 변수</p>
+            <p className="font-extrabold text-blue-900 mb-1 flex items-center">💡 템플릿 내 사용 가능한 예약어 변수</p>
             <p>• <strong>포인트 변수</strong>: <code>{"{적립포인트}"}</code> (새로 적립된 액수), <code>{"{차감포인트}"}</code> (결제 시 사용된 액수), <code>{"{잔여포인트}"}</code> (사용 후 남은 최종 잔액)</p>
             <p>• <strong>쿠폰 변수 (수동/단체 문자용)</strong>: <code>{"{쿠폰코드}"}</code> (자동 맵핑되어 전송되는 난수 쿠폰 코드)</p>
+            <p>• <strong>B2B / SCM 특화 변수</strong>: <code>{"{상호명}"}</code> (거래처 회사명), <code>{"{담당자명}"}</code> (B2B 담당자 성함), <code>{"{금액}"}</code> (견적/수주 총합계금액), <code>{"{수주번호}"}</code> (확정 수주 고유코드)</p>
             <p>• <strong>기본 변수</strong>: <code>{"{이름}"}</code> (고객 성명), <code>{"{연락처}"}</code> (고객 번호)</p>
           </div>
           <p className="text-[11px] text-blue-600 font-bold">* 주의: 연결할 템플릿은 사전에 <b>[무료 문자 발송 AI]</b> 메뉴의 메시지 작성 칸에서 <b>[+ 템플릿으로 저장]</b>을 미리 클릭하여 등록해 두셔야 아래 목록에 나타납니다.</p>
