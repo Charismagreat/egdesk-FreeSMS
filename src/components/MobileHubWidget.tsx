@@ -226,12 +226,8 @@ export default function MobileHubWidget() {
       <div className="relative z-10">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-6 mb-8 border-b border-slate-800">
           <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="bg-blue-500/20 text-blue-400 text-xs font-semibold px-3 py-1 rounded-full border border-blue-500/30">사장님 전용</span>
-              <span className="bg-rose-500/20 text-rose-400 text-xs font-semibold px-3 py-1 rounded-full border border-rose-500/30">스마트 매장 툴</span>
-            </div>
             <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight bg-clip-text bg-gradient-to-r from-white via-slate-100 to-slate-400 text-transparent">
-              스마트 매장 모바일 채널 제어 센터
+              스마트 모바일 채널
             </h2>
             <p className="text-slate-400 text-sm mt-1">
               온·오프라인 비즈니스 성장과 현장 협업을 가동하는 7대 모바일 채널을 이곳에서 실시간으로 배포하고 통제하세요.
