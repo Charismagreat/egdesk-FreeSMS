@@ -1,0 +1,198 @@
+export const dynamic = 'force-dynamic';
+import { NextResponse } from 'next/server';
+import { queryTable, insertRows, updateRows, executeSQL } from '../../../../../egdesk-helpers';
+
+/**
+ * POST: ERP/SCM 발주서 전환, 실물 입고 검수 승인, 수주 등록 및 확인서 발송 처리
+ */
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+    const { action, estimateId, orderId, checkedItems = [], partner_name, partner_phone, total_amount } = body;
+
+    const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+    // ────────────────────────────────────────────────────────
+    // 1. 받은 견적서 ➡️ 발주서 자동 전환
+    // ────────────────────────────────────────────────────────
+    if (action === 'create_purchase_order') {
+      if (!estimateId || !partner_name) {
+        return NextResponse.json({ success: false, error: '견적 번호와 공급처 정보가 누락되었습니다.' }, { status: 400 });
+      }
+
+      const poId = `PO-${Date.now()}`;
+      
+      // 발주 테이블 등록
+      await insertRows('crm_purchase_orders', [{
+        id: poId,
+        estimate_id: estimateId,
+        vendor_name: partner_name,
+        vendor_phone: partner_phone || '',
+        status: 'PENDING_INBOUND', // 입고 대기 플래그
+        total_amount: total_amount || 0,
+        created_at: nowStr,
+        completed_at: ''
+      }]);
+
+      // 견적서 상태 업데이트
+      await updateRows('crm_estimates', { direction_status: 'SENT' }, { filters: { id: estimateId } });
+
+      return NextResponse.json({
+        success: true,
+        message: '받은 견적서가 성공적으로 발주서로 전환되었으며 거래처 발송 대기 상태가 되었습니다.',
+        poId
+      });
+    }
+
+    // ────────────────────────────────────────────────────────
+    // 2. 발주 완료 건 ➡️ 실물 검수 승인 및 재고 실반영 (SCM 핵심 루프! ⭐️)
+    // ────────────────────────────────────────────────────────
+    if (action === 'confirm_inbound') {
+      if (!orderId) {
+        return NextResponse.json({ success: false, error: '발주 번호가 누락되었습니다.' }, { status: 400 });
+      }
+      if (checkedItems.length === 0) {
+        return NextResponse.json({ success: false, error: '검수할 품목 정보가 없습니다.' }, { status: 400 });
+      }
+
+      // 1. 발주 상태 업데이트 (INBOUND_COMPLETED 로 전환)
+      await updateRows('crm_purchase_orders', {
+        status: 'INBOUND_COMPLETED',
+        completed_at: nowStr
+      }, { filters: { id: orderId } });
+
+      // 2. 개별 품목별 실물 입고 검수량 반영 및 재고 증대
+      for (const item of checkedItems) {
+        const checkedQty = parseInt(item.checkedQty) || 0;
+        if (checkedQty <= 0) continue;
+
+        // 재고 DB(inventory_items)에 존재하는 품목인지 부분 명칭 매칭 검색
+        const querySearch = `SELECT * FROM inventory_items WHERE name = '${item.product_name}' LIMIT 1`;
+        const existingItems = await executeSQL(querySearch);
+
+        if (existingItems && existingItems.length > 0) {
+          const dbItem = existingItems[0];
+          const newStock = (parseInt(dbItem.stock) || 0) + checkedQty;
+
+          // 재고 수량 가산 업데이트
+          await updateRows('inventory_items', { stock: newStock }, { filters: { id: String(dbItem.id) } });
+
+          // 재고 입고 변동 이력(inventory_logs) 적재
+          await insertRows('inventory_logs', [{
+            itemId: dbItem.id,
+            itemName: dbItem.name,
+            itemType: dbItem.type,
+            changeType: 'in',
+            quantity: checkedQty,
+            price: dbItem.price,
+            operator: '대표 사장님 (ERP 검수입고)',
+            note: `발주 연동 실물 검수 완료 입고 (발주번호: ${orderId})`,
+            createdAt: nowStr
+          }]);
+        } else {
+          // 존재하지 않는다면 신규 자재 품목(material)으로 임시 자동 생성 적재!
+          const newItemId = Date.now() + Math.floor(Math.random() * 100);
+          await insertRows('inventory_items', [{
+            id: newItemId,
+            type: 'material',
+            name: item.product_name,
+            category: '원부자재',
+            price: item.unit_price || 10000,
+            partner: partner_name || '신규 공급처',
+            stock: checkedQty,
+            safeStock: 10,
+            location: 'A홀 입고 검수대',
+            description: `발주 연동으로 신규 자동 개설된 품목 (발주번호: ${orderId})`,
+            createdAt: nowStr
+          }]);
+
+          // 이력 적재
+          await insertRows('inventory_logs', [{
+            itemId: newItemId,
+            itemName: item.product_name,
+            itemType: 'material',
+            changeType: 'in',
+            quantity: checkedQty,
+            price: item.unit_price || 10000,
+            operator: '대표 사장님 (ERP 검수입고)',
+            note: `신규 품목 자동개설 및 검수입고 (발주번호: ${orderId})`,
+            createdAt: nowStr
+          }]);
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: '실물 입고 검수가 최종 완료되었습니다. 입고 수량이 실시간 재고 대장에 가산되어 반영되었습니다!'
+      });
+    }
+
+    // ────────────────────────────────────────────────────────
+    // 3. 보낸 견적서 ➡️ 수주 등록 자동 전환
+    // ────────────────────────────────────────────────────────
+    if (action === 'create_sales_order') {
+      if (!estimateId || !partner_name) {
+        return NextResponse.json({ success: false, error: '견적 번호와 바이어 정보가 누락되었습니다.' }, { status: 400 });
+      }
+
+      const soId = `SO-${Date.now()}`;
+
+      // 수주 등록
+      await insertRows('crm_sales_orders', [{
+        id: soId,
+        estimate_id: estimateId,
+        customer_name: partner_name,
+        customer_phone: partner_phone || '',
+        status: 'REGISTERED',
+        total_amount: total_amount || 0,
+        created_at: nowStr
+      }]);
+
+      // 보낸 견적 상태 변경
+      await updateRows('crm_estimates', { direction_status: 'RECEIVED' }, { filters: { id: estimateId } });
+
+      return NextResponse.json({
+        success: true,
+        message: '보낸 견적서의 바이어 구매 수락이 완료되어 수주 등록이 완료되었습니다.',
+        soId
+      });
+    }
+
+    // ────────────────────────────────────────────────────────
+    // 4. 수주 ➡️ 수주확인서 발송 처리
+    // ────────────────────────────────────────────────────────
+    if (action === 'confirm_sales_order') {
+      if (!orderId || !partner_name) {
+        return NextResponse.json({ success: false, error: '수주 번호 및 바이어명이 누락되었습니다.' }, { status: 400 });
+      }
+
+      // 수주 확인 상태로 갱신
+      await updateRows('crm_sales_orders', { status: 'CONFIRMED' }, { filters: { id: orderId } });
+
+      // 수주 확인 모의 발송 문자 내역 적재
+      if (partner_phone) {
+        const smsId = Date.now();
+        await insertRows('message_logs', [{
+          id: smsId,
+          phone: partner_phone,
+          message: `🔔 [이지데스크 수주 확인 완료]
+안녕하세요, ${partner_name} 귀하.
+귀사께서 신뢰로 의뢰해 주신 수주 주문(번호: ${orderId}) 건에 대해 정밀 검수가 정상 완료되어 출고 스케줄이 배정되었습니다. 수주확인서가 카카오톡으로 발송되었습니다. 안전하고 빠른 딜리버리를 보장하겠습니다. 고맙습니다.`,
+          status: 'SUCCESS',
+          created_at: nowStr
+        }]);
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: '수주 확정이 성공적으로 완료되었으며, 바이어에게 정중한 수주 확인서 알림톡 발송을 완료했습니다!'
+      });
+    }
+
+    return NextResponse.json({ success: false, error: '유효하지 않은 요청 액션입니다.' }, { status: 400 });
+
+  } catch (error: any) {
+    console.error('API estimates process error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}

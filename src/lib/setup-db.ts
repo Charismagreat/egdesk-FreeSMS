@@ -76,7 +76,8 @@ export async function setupDatabase() {
     { name: 'available_methods', type: 'TEXT' },
     { name: 'category', type: 'TEXT' },
     { name: 'menu_category', type: 'TEXT' },
-    { name: 'is_coupon_excludable', type: 'INTEGER' }
+    { name: 'is_coupon_excludable', type: 'INTEGER' },
+    { name: 'is_estimate_price', type: 'INTEGER', defaultValue: 0 }
   ], { tableName: 'products', uniqueKeyColumns: ['id'], duplicateAction: 'update' });
 
   // 6. Transactions Table
@@ -247,6 +248,53 @@ export async function setupDatabase() {
     { name: 'related_entity_id', type: 'TEXT' },
     { name: 'created_at', type: 'TEXT', notNull: true }
   ], { tableName: 'crm_point_history', uniqueKeyColumns: ['id'] });
+
+  // 20. CRM Estimates Table (견적 관리)
+  await safeCreateTable('견적서 관리', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'type', type: 'TEXT', notNull: true },               // 'INBOUND' or 'OUTBOUND'
+    { name: 'direction_status', type: 'TEXT' },                 // 'REQUESTED', 'DRAFT', 'SENT', 'RECEIVED'
+    { name: 'partner_name', type: 'TEXT', notNull: true },
+    { name: 'partner_phone', type: 'TEXT' },
+    { name: 'total_amount', type: 'INTEGER' },
+    { name: 'file_url', type: 'TEXT' },
+    { name: 'ai_parsed', type: 'INTEGER', defaultValue: 0 },
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'crm_estimates', uniqueKeyColumns: ['id'] });
+
+  // 21. CRM Estimate Items Table (견적 품목 관리)
+  await safeCreateTable('견적서 품목 상세', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'estimate_id', type: 'TEXT', notNull: true },
+    { name: 'product_id', type: 'TEXT' },
+    { name: 'product_name', type: 'TEXT', notNull: true },
+    { name: 'quantity', type: 'INTEGER', notNull: true },
+    { name: 'unit_price', type: 'INTEGER', notNull: true },
+    { name: 'amount', type: 'INTEGER', notNull: true }
+  ], { tableName: 'crm_estimate_items', uniqueKeyColumns: ['id'] });
+
+  // 22. CRM Purchase Orders Table (발주 관리)
+  await safeCreateTable('발주서 관리', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'estimate_id', type: 'TEXT' },
+    { name: 'vendor_name', type: 'TEXT', notNull: true },
+    { name: 'vendor_phone', type: 'TEXT' },
+    { name: 'status', type: 'TEXT', notNull: true },             // 'PENDING_INBOUND', 'INBOUND_COMPLETED'
+    { name: 'total_amount', type: 'INTEGER' },
+    { name: 'created_at', type: 'TEXT', notNull: true },
+    { name: 'completed_at', type: 'TEXT' }
+  ], { tableName: 'crm_purchase_orders', uniqueKeyColumns: ['id'] });
+
+  // 23. CRM Sales Orders Table (수주 관리)
+  await safeCreateTable('수주서 관리', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'estimate_id', type: 'TEXT' },
+    { name: 'customer_name', type: 'TEXT', notNull: true },
+    { name: 'customer_phone', type: 'TEXT' },
+    { name: 'status', type: 'TEXT', notNull: true },             // 'REGISTERED', 'CONFIRMED'
+    { name: 'total_amount', type: 'INTEGER' },
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'crm_sales_orders', uniqueKeyColumns: ['id'] });
 
 
 
