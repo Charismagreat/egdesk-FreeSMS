@@ -68,7 +68,7 @@ export async function GET(req: Request) {
       SELECT t.*, p.company_name as partner_company_name 
       FROM crm_snaptasks t
       LEFT JOIN crm_partners p ON t.partner_id = p.id
-      ORDER BY t.updated_at DESC
+      ORDER BY t.id DESC
     `;
     const listRes = await executeSQL(listQuery) || [];
     const tasks = (listRes && (listRes as any).rows) ? (listRes as any).rows : (Array.isArray(listRes) ? listRes : []);
