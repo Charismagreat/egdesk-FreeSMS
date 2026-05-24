@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Sparkles, Check, ChevronRight, Phone, User, ShoppingBag, Plus, Minus } from "lucide-react";
+import { Sparkles, Check, ChevronRight, Phone, User, ShoppingBag, Plus, Minus, Search, X } from "lucide-react";
 
 interface Product {
   id: string;
@@ -15,6 +15,9 @@ interface Product {
 export default function MobileEstimateRequestPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // 실시간 검색어 상태
+  const [searchTerm, setSearchTerm] = useState("");
   
   // 장바구니 형태 수량 관리
   const [quantities, setQuantities] = useState<Record<string, number>>({});
@@ -320,6 +323,11 @@ export default function MobileEstimateRequestPage() {
     );
   }
 
+  const filteredProducts = products.filter((p: any) => 
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (p.description && p.description.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
   return (
     <div className="min-h-screen bg-slate-50 pb-12 overflow-x-hidden">
       
@@ -343,15 +351,45 @@ export default function MobileEstimateRequestPage() {
         
         {/* 1. 상품 선택 영역 */}
         <div className="space-y-3">
-          <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block px-1">견적 요청 품목 선택</span>
+          <div className="flex justify-between items-center px-1">
+            <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest block">견적 요청 품목 선택</span>
+          </div>
+
+          {/* 스마트 실시간 B2B 자재 검색창 */}
+          {products.length > 0 && (
+            <div className="relative w-full flex items-center bg-white border border-slate-200 rounded-2xl px-3.5 py-2.5 shadow-sm focus-within:border-indigo-500 transition-colors">
+              <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
+              <input 
+                type="text"
+                placeholder="자재/상품 이름 또는 설명 검색..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-full bg-transparent outline-none text-xs font-semibold text-slate-800 placeholder-slate-400"
+              />
+              {searchTerm && (
+                <button 
+                  type="button"
+                  onClick={() => setSearchTerm("")}
+                  className="p-1 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 shrink-0 ml-1 transition-colors border-0"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          )}
           
           {products.length === 0 ? (
             <div className="bg-white border border-slate-100 rounded-2xl p-8 text-center text-slate-400 font-semibold text-sm">
               현재 견적 전용으로 등록된 상품 품목이 없습니다.
             </div>
+          ) : filteredProducts.length === 0 ? (
+            <div className="bg-white border border-slate-100 rounded-2xl p-8 text-center text-slate-400 font-semibold text-sm">
+              <Search className="w-12 h-12 mx-auto text-slate-350 mb-3 animate-bounce" />
+              <p className="text-slate-500 text-xs">일치하는 자재 품목이 없습니다.</p>
+            </div>
           ) : (
             <div className="space-y-3">
-              {products.map(p => {
+              {filteredProducts.map(p => {
                 const qty = quantities[p.id] || 0;
                 
                 return (

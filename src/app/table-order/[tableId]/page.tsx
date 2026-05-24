@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ShoppingCart, Check, ChevronLeft, Minus, Plus, X, Coins } from "lucide-react";
+import { ShoppingCart, Check, ChevronLeft, Minus, Plus, X, Coins, Search } from "lucide-react";
 
 export default function TableOrderMenuPage() {
   const { tableId } = useParams();
@@ -10,6 +10,10 @@ export default function TableOrderMenuPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("전체");
+  
+  // 실시간 검색어 상태
+  const [searchTerm, setSearchTerm] = useState("");
+
   const [cart, setCart] = useState<{[key: string]: number}>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
@@ -92,9 +96,13 @@ export default function TableOrderMenuPage() {
 
   const categories = ['전체', ...Array.from(new Set(products.map(p => p.menu_category).filter(Boolean)))];
 
-  const filteredProducts = activeCategory === "전체" 
+  const filteredProducts = (activeCategory === "전체" 
     ? products 
-    : products.filter(p => p.menu_category === activeCategory);
+    : products.filter(p => p.menu_category === activeCategory)
+  ).filter(p => 
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (p.description && p.description.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   const cartItemsCount = Object.values(cart).reduce((a, b) => a + b, 0);
   const cartTotalAmount = Object.entries(cart).reduce((total, [id, qty]) => {
@@ -389,8 +397,30 @@ export default function TableOrderMenuPage() {
           <h1 className="text-xl font-black text-slate-800">테이블 {tableId}번</h1>
           <div className="w-10"></div>
         </div>
+        {/* 실시간 메뉴 검색창 */}
+        <div className="px-4 pb-3">
+          <div className="relative flex items-center bg-slate-100 border border-slate-200/60 rounded-xl px-3 py-2 flex-row focus-within:border-orange-500/60 focus-within:bg-white transition-all">
+            <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
+            <input 
+              type="text"
+              placeholder="메뉴 이름 또는 설명 검색..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="w-full bg-transparent outline-none text-xs font-semibold text-slate-800 placeholder-slate-400"
+            />
+            {searchTerm && (
+              <button 
+                type="button"
+                onClick={() => setSearchTerm("")}
+                className="p-0.5 bg-slate-200 hover:bg-slate-350 rounded-full text-slate-500 shrink-0 ml-1 transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
         {/* Dynamic Categories */}
-        <div className="flex overflow-x-auto px-4 py-2 space-x-2 scrollbar-hide">
+        <div className="flex overflow-x-auto px-4 pb-3 space-x-2 scrollbar-hide">
           {categories.map((cat: any) => (
             <button
               key={cat}

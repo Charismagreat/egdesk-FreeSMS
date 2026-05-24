@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { Camera, Image as ImageIcon, Send, ArrowLeft, Loader2, CheckCircle } from "lucide-react";
+import { Camera, Image as ImageIcon, Send, ArrowLeft, Loader2, CheckCircle, Search, User, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function MobileOrderCapture() {
@@ -15,6 +15,11 @@ export default function MobileOrderCapture() {
   const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+
+  // CRM 단골 고객 실시간 매핑 상태
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState("");
 
   const [form, setForm] = useState({
     customerName: '',
@@ -41,6 +46,24 @@ export default function MobileOrderCapture() {
     };
     checkAuth();
   }, [router]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchCustomers();
+    }
+  }, [isAuthenticated]);
+
+  const fetchCustomers = async () => {
+    try {
+      const res = await fetch('/api/customers');
+      const data = await res.json();
+      if (data.success) {
+        setCustomers(data.customers || []);
+      }
+    } catch (e) {
+      console.error("고객 목록 조회 실패:", e);
+    }
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -208,7 +231,17 @@ export default function MobileOrderCapture() {
             {/* Input Form */}
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 space-y-4">
               <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">고객명 *</label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-sm font-bold text-slate-700">고객명 *</label>
+                  <button
+                    type="button"
+                    onClick={() => { setIsCustomerModalOpen(true); setCustomerSearchTerm(""); }}
+                    className="text-[11px] bg-blue-50 text-blue-600 hover:bg-blue-100 font-extrabold px-2.5 py-1.5 rounded-lg flex items-center gap-1 border border-blue-200/60 transition-colors"
+                  >
+                    <Search className="w-3 h-3 text-blue-500 shrink-0" />
+                    <span>단골 검색</span>
+                  </button>
+                </div>
                 <input 
                   type="text" 
                   required
@@ -274,6 +307,97 @@ export default function MobileOrderCapture() {
           </form>
         )}
       </div>
+
+      {/* CRM 단골 고객 실시간 조회 모달 */}
+      {isCustomerModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl relative overflow-hidden flex flex-col max-h-[80vh] border border-slate-100 animate-scale-up">
+            
+            {/* 모달 헤더 */}
+            <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="text-sm font-black text-slate-800 flex items-center gap-1.5">
+                <User className="w-4 h-4 text-blue-500" />
+                <span>단골 고객 실시간 매핑</span>
+              </h3>
+              <button 
+                type="button" 
+                onClick={() => setIsCustomerModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 border-0 bg-transparent cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* 모달 검색바 */}
+            <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+              <div className="relative flex items-center bg-white border border-slate-200 rounded-xl px-3 py-2 flex-row focus-within:border-blue-500 transition-colors">
+                <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
+                <input 
+                  type="text"
+                  placeholder="고객 이름 또는 휴대폰 번호 검색..."
+                  value={customerSearchTerm}
+                  onChange={e => setCustomerSearchTerm(e.target.value)}
+                  className="w-full bg-transparent outline-none text-xs font-semibold text-slate-800 placeholder-slate-400"
+                />
+                {customerSearchTerm && (
+                  <button 
+                    type="button"
+                    onClick={() => setCustomerSearchTerm("")}
+                    className="p-0.5 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 shrink-0 ml-1 transition-colors border-0"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* 고객 리스트 바디 */}
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+              {(() => {
+                const filteredCustomers = customers.filter((c: any) => 
+                  c.name.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
+                  c.phone.replace(/[^0-9]/g, '').includes(customerSearchTerm.replace(/[^0-9]/g, ''))
+                );
+                
+                if (filteredCustomers.length === 0) {
+                  return (
+                    <div className="text-center py-10 text-xs text-slate-400 font-bold">
+                      일치하는 단골 고객이 없습니다.
+                    </div>
+                  );
+                }
+                
+                return filteredCustomers.map((c: any) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => {
+                      setForm({
+                        ...form,
+                        customerName: c.name,
+                        customerPhone: c.phone
+                      });
+                      setIsCustomerModalOpen(false);
+                    }}
+                    className="w-full text-left p-3.5 hover:bg-blue-50/50 rounded-xl flex items-center justify-between border-0 bg-transparent cursor-pointer transition-colors group"
+                  >
+                    <div className="space-y-0.5">
+                      <span className="font-bold text-xs text-slate-800 group-hover:text-blue-600 transition-colors">{c.name}</span>
+                      <span className="text-[10px] text-slate-400 font-mono block">{c.phone}</span>
+                    </div>
+                    {c.tags && (
+                      <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-medium">
+                        {c.tags.split(',')[0]}
+                      </span>
+                    )}
+                  </button>
+                ));
+              })()}
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }

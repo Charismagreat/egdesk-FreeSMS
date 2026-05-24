@@ -1,10 +1,11 @@
 "use client";
 import { useState, useEffect } from "react";
-import { CalendarDays, Clock, MapPin, X, Check } from "lucide-react";
+import { CalendarDays, Clock, MapPin, X, Check, Search } from "lucide-react";
 import Image from "next/image";
 
 export default function BookingPage() {
   const [products, setProducts] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
 
   // Modal State
@@ -153,6 +154,11 @@ export default function BookingPage() {
     }
   };
 
+  const filteredProducts = products.filter((p: any) => 
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (p.description && p.description.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
   return (
     <div className="w-full bg-[#FAFAFA] min-h-screen">
       {/* Hero Section */}
@@ -169,6 +175,29 @@ export default function BookingPage() {
 
       {/* Service List Section */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        {/* 스마트 실시간 예약 코스 검색창 */}
+        {!loading && products.length > 0 && (
+          <div className="relative w-full max-w-md mx-auto mb-12 flex items-center bg-white border border-gray-200 rounded-3xl px-4 py-3 shadow-sm focus-within:border-slate-800 transition-colors">
+            <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
+            <input 
+              type="text"
+              placeholder="예약 서비스/코스 이름 또는 설명 검색..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="w-full bg-transparent outline-none text-xs font-semibold text-slate-855 placeholder-slate-400"
+            />
+            {searchTerm && (
+              <button 
+                type="button"
+                onClick={() => setSearchTerm("")}
+                className="p-1 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 shrink-0 ml-1 transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        )}
+
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[1, 2, 3].map(i => (
@@ -181,9 +210,15 @@ export default function BookingPage() {
             <h3 className="text-xl font-semibold text-slate-600 mb-2">등록된 예약 서비스가 없습니다.</h3>
             <p className="text-slate-400">관리자 페이지에서 예약상품을 등록해주세요.</p>
           </div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="bg-white p-20 rounded-3xl shadow-sm text-center border border-gray-100">
+            <Search className="w-16 h-16 mx-auto text-slate-300 mb-4 animate-bounce" />
+            <h3 className="text-xl font-semibold text-slate-600 mb-2">일치하는 예약 코스가 없습니다.</h3>
+            <p className="text-slate-400">다른 키워드로 검색해 보세요.</p>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {products.map((product) => (
+            {filteredProducts.map((product) => (
               <div key={product.id} className="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-gray-100 group flex flex-col h-full cursor-pointer" onClick={() => openModal(product)}>
                 <div className="relative w-full h-64 bg-gray-50 overflow-hidden">
                   {product.main_image_url ? (
