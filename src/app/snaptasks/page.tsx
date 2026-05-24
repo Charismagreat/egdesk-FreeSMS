@@ -246,7 +246,7 @@ export default function SnapTasksDashboard() {
         <a 
           href="/m/snaptasks" 
           target="_blank"
-          className="px-5 py-3 bg-gradient-to-r from-indigo-600 to-purple-650 hover:from-indigo-500 hover:to-purple-550 text-white text-xs font-black rounded-xl flex items-center gap-1.5 shadow-md shadow-indigo-600/10"
+          className="px-5 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-black rounded-xl flex items-center gap-1.5 shadow-md shadow-indigo-600/10"
         >
           <Activity className="w-4 h-4 text-cyan-300 animate-pulse" />
           현장 실무자 모바일 웹뷰 열기
