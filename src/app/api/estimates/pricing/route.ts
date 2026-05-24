@@ -8,7 +8,7 @@ import { queryTable } from '../../../../../egdesk-helpers';
  */
 export async function POST(req: Request) {
   try {
-    const { partner_name, items = [] } = await req.json();
+    const { partner_name, partner_id, items = [] } = await req.json();
 
     if (!partner_name) {
       return NextResponse.json({ success: false, error: '고객/바이어 정보는 필수입니다.' }, { status: 400 });
@@ -26,12 +26,22 @@ export async function POST(req: Request) {
       console.error('Failed to get api key, using high-fidelity dynamic pricing fallback');
     }
 
-    // 2. 동적 가격 룰 기반 로컬 연산 (할인율 기본 공식 작동)
-    // - 수량이 10개 이상: 5% 할인
-    // - 수량이 50개 이상: 10% 할인
-    // - 수량이 100개 이상: 15% 할인
-    // - 고객명이 'VIP'나 단골인 경우 추가 5% 우대
-    const isVip = partner_name.includes('VIP') || partner_name.includes('유재석') || partner_name.includes('이순신');
+    // 2. B2B 거래처 등급 실시간 DB 마이닝 (SCM 등급 연동 ⭐️)
+    let isVip = false;
+    if (partner_id) {
+      try {
+        const ptRes = await queryTable('crm_partners', { filters: { id: partner_id } });
+        if (ptRes.rows && ptRes.rows.length > 0) {
+          isVip = ptRes.rows[0].vip_level === 'VIP';
+        }
+      } catch (e) {
+        console.error('B2B 거래처 등급 조회 실패 폴백 가동:', e);
+      }
+    }
+    // 수동 VIP 키워드 매칭 폴백 유지
+    if (!isVip && partner_name) {
+      isVip = partner_name.includes('VIP') || partner_name.includes('유재석') || partner_name.includes('이순신');
+    }
     const calculatedItems = items.map((item: any) => {
       const qty = parseInt(item.quantity) || 0;
       const basePrice = parseFloat(item.unit_price) || 10000;

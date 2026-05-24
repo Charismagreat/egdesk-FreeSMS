@@ -45,7 +45,15 @@ export async function POST(req: Request) {
       partner_phone, 
       items = [],                 // [{ product_id, product_name, quantity, unit_price }]
       file_url = '',
-      ai_parsed = 0
+      ai_parsed = 0,
+      business_license_url = '',  // 신규 첫 견적 시 첨부된 사업자등록증 URL
+
+      // B2B 신규 거래처 자동 가입용 추가 필드
+      is_new_partner = false,
+      business_number = '',
+      representative = '',
+      email = '',
+      address = ''
     } = body;
 
     if (!partner_name) {
@@ -53,6 +61,42 @@ export async function POST(req: Request) {
     }
     if (items.length === 0) {
       return NextResponse.json({ success: false, error: '최소 1개 이상의 견적 품목이 필요합니다.' }, { status: 400 });
+    }
+
+    // 💡 모바일 신규 B2B 거래처 자동 스마트 온보딩 가입 처리
+    if (type === 'INBOUND' && is_new_partner) {
+      let existingPartner = null;
+      if (business_number) {
+        const checkQuery = `SELECT * FROM crm_partners WHERE business_number = '${business_number}' LIMIT 1`;
+        const checkRes = await executeSQL(checkQuery) || [];
+        const rows = (checkRes && (checkRes as any).rows) ? (checkRes as any).rows : (Array.isArray(checkRes) ? checkRes : []);
+        if (rows.length > 0) {
+          existingPartner = rows[0];
+        }
+      }
+
+      if (!existingPartner) {
+        const partnerId = `PT-${Date.now()}`;
+        const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+        await insertRows('crm_partners', [{
+          id: partnerId,
+          type: 'BUYER', // 모바일에서 견적을 요청해온 구매처는 B2B 바이어(BUYER)로 등록
+          company_name: partner_name,
+          business_number: business_number,
+          representative: representative,
+          phone: partner_phone,
+          manager_name: partner_name + ' 담당자',
+          manager_phone: partner_phone,
+          email: email,
+          address: address,
+          vip_level: 'NORMAL',
+          credit_limit: 0,
+          business_license_url: business_license_url,
+          memo: '모바일 스마트 온보딩 채널을 통해 첫 견적 요청과 함께 자동 신규 가입되었습니다.',
+          created_at: nowStr
+        }]);
+        console.log(`B2B Partner auto-onboarded: ${partner_name} (${partnerId})`);
+      }
     }
 
     // 1. 총 합계 금액 산정
@@ -85,6 +129,7 @@ export async function POST(req: Request) {
       partner_phone,
       total_amount,
       file_url,
+      business_license_url, // 첨부된 사업자등록증 URL 매핑
       ai_parsed,
       created_at: nowStr
     }]);

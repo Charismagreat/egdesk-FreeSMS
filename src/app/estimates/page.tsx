@@ -49,6 +49,17 @@ export default function EstimatesDashboard() {
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
   const [salesOrders, setSalesOrders] = useState<SalesOrder[]>([]);
 
+  // 거래처 파트너 리스트 상태
+  interface Partner {
+    id: string;
+    type: 'VENDOR' | 'BUYER';
+    company_name: string;
+    vip_level: string;
+    phone: string;
+  }
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [selectedPartnerId, setSelectedPartnerId] = useState("direct");
+
   // 신규 수동/OCR 입력 모달 상태 (받은 견적서 등록)
   const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
   const [ocrFilename, setOcrFilename] = useState("");
@@ -127,6 +138,20 @@ export default function EstimatesDashboard() {
         setSalesOrders([
           { id: "SO-171569901", estimate_id: "EST-171569900", customer_name: "유재석 (단골VIP)", customer_phone: "010-7777-7777", status: "REGISTERED", total_amount: 320000, created_at: "2026-05-24 11:00:00" }
         ]);
+      }
+
+      // 4. 거래처 목록 패치
+      let ptData = null;
+      try {
+        const ptRes = await fetch("/api/partners").catch(() => null);
+        if (ptRes && ptRes.ok) {
+          ptData = await ptRes.json();
+        }
+      } catch (err) {
+        console.error("거래처 목록 파싱 에러:", err);
+      }
+      if (ptData && ptData.success) {
+        setPartners(ptData.partners || []);
       }
     } catch (e) {
       console.error("데이터 조회 실패", e);
@@ -286,14 +311,15 @@ export default function EstimatesDashboard() {
     }
     setPricingLoading(true);
     try {
-      const res = await fetch("/api/estimates/pricing", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          partner_name: writePartner,
-          items: writeItems
-        })
-      });
+        const res = await fetch("/api/estimates/pricing", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            partner_name: writePartner,
+            partner_id: selectedPartnerId === "direct" ? "" : selectedPartnerId,
+            items: writeItems
+          })
+        });
       const data = await res.json();
       if (data.success) {
         setPricingResult(data);
@@ -317,6 +343,7 @@ export default function EstimatesDashboard() {
           direction_status: "SENT",
           partner_name: writePartner,
           partner_phone: writePhone,
+          partner_id: selectedPartnerId === "direct" ? "" : selectedPartnerId,
           items: pricingResult.calculatedItems,
           memo: pricingResult.aiLetter
         })
@@ -887,27 +914,60 @@ export default function EstimatesDashboard() {
 
             <div className="space-y-5 flex-1 overflow-y-auto pr-1">
               
-              {/* 바이어 정보 입력 */}
-              <div className="grid grid-cols-2 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+              {/* B2B 바이어 선택 및 정보 입력 */}
+              <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
                 <div>
-                  <label className="text-[10px] text-slate-400 font-bold block mb-1">바이어 성함/상호명</label>
-                  <input 
-                    type="text" 
-                    placeholder="예: 유재석 (단골VIP)"
-                    value={writePartner}
-                    onChange={e => setWritePartner(e.target.value)}
+                  <label className="text-[10px] text-slate-400 font-bold block mb-1">B2B 거래처 바이어 선택 🤝</label>
+                  <select
+                    value={selectedPartnerId}
+                    onChange={e => {
+                      const ptId = e.target.value;
+                      setSelectedPartnerId(ptId);
+                      if (ptId === "direct") {
+                        setWritePartner("");
+                        setWritePhone("");
+                      } else {
+                        const target = partners.find(p => p.id === ptId);
+                        if (target) {
+                          setWritePartner(target.company_name);
+                          setWritePhone(target.phone || "");
+                        }
+                      }
+                    }}
                     className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold"
-                  />
+                  >
+                    <option value="direct">직접 입력 (신규 바이어)</option>
+                    {partners.filter(p => p.type === 'BUYER').map(pt => (
+                      <option key={pt.id} value={pt.id}>{pt.company_name} ({pt.vip_level})</option>
+                    ))}
+                  </select>
                 </div>
-                <div>
-                  <label className="text-[10px] text-slate-400 font-bold block mb-1">수신처 연락처</label>
-                  <input 
-                    type="text" 
-                    placeholder="010-7777-7777"
-                    value={writePhone}
-                    onChange={e => setWritePhone(e.target.value)}
-                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold"
-                  />
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] text-slate-400 font-bold block mb-1">바이어 성함/상호명 *</label>
+                    <input 
+                      type="text" 
+                      placeholder="예: 유재석 (단골VIP)"
+                      value={writePartner}
+                      onChange={e => setWritePartner(e.target.value)}
+                      disabled={selectedPartnerId !== "direct"}
+                      className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold disabled:bg-slate-100/70 disabled:text-slate-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-400 font-bold block mb-1">수신처 연락처 *</label>
+                    <input 
+                      type="text" 
+                      placeholder="010-7777-7777"
+                      value={writePhone}
+                      onChange={e => setWritePhone(e.target.value)}
+                      disabled={selectedPartnerId !== "direct"}
+                      className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold disabled:bg-slate-100/70 disabled:text-slate-500"
+                      required
+                    />
+                  </div>
                 </div>
               </div>
 

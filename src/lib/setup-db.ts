@@ -258,6 +258,7 @@ export async function setupDatabase() {
     { name: 'partner_phone', type: 'TEXT' },
     { name: 'total_amount', type: 'INTEGER' },
     { name: 'file_url', type: 'TEXT' },
+    { name: 'business_license_url', type: 'TEXT' },             // 첫 견적 요청 시 사업자등록증 첨부 파일 경로
     { name: 'ai_parsed', type: 'INTEGER', defaultValue: 0 },
     { name: 'created_at', type: 'TEXT', notNull: true }
   ], { tableName: 'crm_estimates', uniqueKeyColumns: ['id'] });
@@ -295,6 +296,25 @@ export async function setupDatabase() {
     { name: 'total_amount', type: 'INTEGER' },
     { name: 'created_at', type: 'TEXT', notNull: true }
   ], { tableName: 'crm_sales_orders', uniqueKeyColumns: ['id'] });
+
+  // 24. CRM Partners Table (B2B 거래처 관리)
+  await safeCreateTable('거래처 관리', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'type', type: 'TEXT', notNull: true },               // 'VENDOR' or 'BUYER'
+    { name: 'company_name', type: 'TEXT', notNull: true },
+    { name: 'business_number', type: 'TEXT' },
+    { name: 'representative', type: 'TEXT' },
+    { name: 'phone', type: 'TEXT' },
+    { name: 'manager_name', type: 'TEXT' },
+    { name: 'manager_phone', type: 'TEXT' },
+    { name: 'email', type: 'TEXT' },
+    { name: 'address', type: 'TEXT' },
+    { name: 'vip_level', type: 'TEXT', defaultValue: 'NORMAL' }, // 'NORMAL', 'VIP'
+    { name: 'credit_limit', type: 'INTEGER', defaultValue: 0 },
+    { name: 'business_license_url', type: 'TEXT' },             // 파트너의 공식 사업자등록증 첨부 파일 경로
+    { name: 'memo', type: 'TEXT' },
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'crm_partners', uniqueKeyColumns: ['id'] });
 
 
 
