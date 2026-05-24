@@ -232,7 +232,7 @@ export default function MobileSnapTasksPage() {
         </button>
       </div>
 
-      {/* 1. 영업사원 활성 스냅 태스크 수평 스크롤바 */}
+      {/* 1. 부서별 활성 스냅 태스크 수평 스크롤바 */}
       <div className="bg-slate-900/30 border-b border-slate-900 py-3.5 px-4 overflow-x-auto flex gap-3 scrollbar-none shrink-0 z-10">
         {loading ? (
           <span className="text-xs text-slate-500 font-bold py-1">스냅 태스크 동기화 중...</span>
@@ -275,7 +275,7 @@ export default function MobileSnapTasksPage() {
             {detailLoading && timeline.length === 0 ? (
               <p className="text-center py-12 text-xs text-slate-500 font-bold">과거 미팅 기록 마이닝 중...</p>
             ) : timeline.length === 0 ? (
-              <p className="text-center py-12 text-xs text-slate-500 font-bold">등록된 스냅 자료가 없습니다. 아래 컨트롤러로 영업 기록을 스냅해 주세요.</p>
+              <p className="text-center py-12 text-xs text-slate-500 font-bold">등록된 스냅 자료가 없습니다. 아래 컨트롤러로 현장/업무 기록을 스냅해 주세요.</p>
             ) : (
               <div className="space-y-6">
                 {timeline.map((item) => {
@@ -496,7 +496,7 @@ export default function MobileSnapTasksPage() {
 
             <h3 className="text-base font-extrabold text-white flex items-center gap-1.5">
               <Building2 className="w-5 h-5 text-indigo-400" />
-              <span>새로운 영업 파이프라인 생성</span>
+              <span>새로운 비즈니스 협업 태스크 생성</span>
             </h3>
 
             <div className="space-y-1">

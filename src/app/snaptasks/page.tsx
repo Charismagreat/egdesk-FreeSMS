@@ -148,7 +148,7 @@ export default function SnapTasksDashboard() {
             <span>AI 스냅태스크 관제 센터 🪐</span>
           </h1>
           <p className="text-slate-500 mt-2 text-sm">
-            영업 및 현장에서 올라온 사진, PDF, 녹취 오디오 등 비정형 스냅 데이터를 바탕으로 AI가 자율 의사결정을 수행하는 관제 대시보드입니다.
+            R&D, 마케팅, 품질관리, 영업 등 전사적 현장에서 스냅한 비정형 데이터를 바탕으로 AI가 자율적으로 ERP 및 업무 연동을 처리하는 통합 관제 대시보드입니다.
           </p>
         </div>
 
@@ -159,14 +159,14 @@ export default function SnapTasksDashboard() {
           className="px-5 py-3 bg-gradient-to-r from-indigo-600 to-purple-650 hover:from-indigo-500 hover:to-purple-550 text-white text-xs font-black rounded-xl flex items-center gap-1.5 shadow-md shadow-indigo-600/10"
         >
           <Activity className="w-4 h-4 text-cyan-300 animate-pulse" />
-          현장 영업사원 모바일 웹뷰 열기
+          현장 실무자 모바일 웹뷰 열기
         </a>
       </div>
 
-      {/* 실시간 SCM 영업 지표 요약 */}
+      {/* 실시간 전사적 협업 태스크 지표 요약 */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm space-y-1">
-          <span className="text-[10px] font-bold text-slate-400 uppercase block">관리 중인 총 영업 파이프라인</span>
+          <span className="text-[10px] font-bold text-slate-400 uppercase block">관리 중인 총 협업 태스크</span>
           <span className="text-2xl font-black text-slate-800 block">{tasks.length}개</span>
           <span className="text-[10px] text-indigo-500 block mt-1">활성 진행: {activeTasks.length} / 완료: {completedTasks.length}</span>
         </div>
@@ -178,9 +178,9 @@ export default function SnapTasksDashboard() {
         </div>
 
         <div className="bg-gradient-to-br from-emerald-50/40 to-emerald-100/10 border border-slate-100 p-5 rounded-2xl shadow-sm space-y-1">
-          <span className="text-[10px] font-bold text-emerald-600 uppercase block">최종 영업 성사 / 수주 승격</span>
+          <span className="text-[10px] font-bold text-emerald-600 uppercase block">최종 목표 달성 / 태스크 완료</span>
           <span className="text-2xl font-black text-emerald-600 block">{completedTasks.length}건</span>
-          <span className="text-[10px] text-emerald-400 block mt-1">ERP 수주 및 배송 스케줄링 완수</span>
+          <span className="text-[10px] text-emerald-400 block mt-1">업무 목표 달성 및 최종 완료 처리 완수</span>
         </div>
 
         <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm space-y-1">
@@ -198,7 +198,7 @@ export default function SnapTasksDashboard() {
           <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
             <span className="text-xs font-black text-slate-700 uppercase tracking-widest flex items-center gap-1.5">
               <Play className="w-4 h-4 text-indigo-500 fill-indigo-500" />
-              진행 중인 영업 파이프라인
+              진행 중인 협업 태스크
             </span>
             <span className="bg-indigo-100 text-indigo-700 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full">
               {activeTasks.length}
@@ -207,7 +207,7 @@ export default function SnapTasksDashboard() {
 
           <div className="space-y-3 flex-1 overflow-y-auto pr-1">
             {activeTasks.length === 0 ? (
-              <p className="text-center py-12 text-xs text-slate-400 font-bold">진행 중인 활성 영업이 없습니다.</p>
+              <p className="text-center py-12 text-xs text-slate-400 font-bold">진행 중인 활성 태스크가 없습니다.</p>
             ) : (
               activeTasks.map(t => renderKanbanCard(t))
             )}
@@ -219,7 +219,7 @@ export default function SnapTasksDashboard() {
           <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
             <span className="text-xs font-black text-emerald-700 uppercase tracking-widest flex items-center gap-1.5">
               <CheckCircle2 className="w-4 h-4 text-emerald-500 fill-emerald-500" />
-              최종 수주/계약 성사 건
+              최종 목표 달성 건
             </span>
             <span className="bg-emerald-100 text-emerald-700 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full">
               {completedTasks.length}
@@ -240,7 +240,7 @@ export default function SnapTasksDashboard() {
           <div className="flex items-center justify-between border-b border-slate-200/60 pb-3">
             <span className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
               <Archive className="w-4 h-4 text-slate-400 fill-slate-400" />
-              과거 영업이력 보관함
+              과거 태스크 이력 보관함
             </span>
             <span className="bg-slate-200 text-slate-650 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full">
               {archivedTasks.length}
@@ -484,7 +484,7 @@ export default function SnapTasksDashboard() {
                   onClick={() => handleUpdateStatus(selectedTask, 'COMPLETED')}
                   className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-md transition-colors"
                 >
-                  수주/계약 성사 승인 완료 (COMPLETED)
+                  목표 달성 및 태스크 완료 승인 (COMPLETED)
                 </button>
               )}
 

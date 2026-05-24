@@ -250,7 +250,7 @@ If no fields are found for partner, contact or estimate, leave them as null in t
       } else if (normText.includes('계약') || normText.includes('승인') || normText.includes('서명') || normText.includes('sign') || normText.includes('contract')) {
         // 계약 서명 스냅 시 -> 수주 계약 자동 확정 시뮬레이션
         aiResultJson = {
-          analysis_summary: "바이어 최종 서명이 담긴 합의 스냅본을 확인하여, 해당 영업 거래 파이프라인의 최종 수주 계약(sales_order) 확정을 자동 조치했습니다.",
+          analysis_summary: "바이어 최종 서명이 담긴 합의 스냅본을 확인하여, 해당 태스크 파이프라인의 최종 수주 계약(sales_order) 확정을 자동 조치했습니다.",
           action_taken: "SALES_ORDER_CONFIRM"
         };
       }
