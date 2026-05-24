@@ -107,7 +107,7 @@ export default function MobileSnapTasksPage() {
     }
   };
 
-  // 신규 영업 스냅방 생성
+  // 신규 스냅 태스크 생성
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
@@ -122,11 +122,11 @@ export default function MobileSnapTasksPage() {
       if (data.success) {
         setNewTaskTitle("");
         setIsNewTaskOpen(false);
-        alert("자율주행 스냅태스크 영업방이 개설되었습니다!");
+        alert("자율주행 스냅태스크가 생성되었습니다!");
         fetchTasks();
       }
     } catch (err) {
-      alert("방 생성 오류가 발생했습니다.");
+      alert("태스크 생성 오류가 발생했습니다.");
     }
   };
 
@@ -228,16 +228,16 @@ export default function MobileSnapTasksPage() {
           className="p-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-indigo-400 transition-colors flex items-center gap-1 border border-slate-700/60 text-xs font-bold"
         >
           <Plus className="w-3.5 h-3.5" />
-          새 영업방
+          새 태스크
         </button>
       </div>
 
-      {/* 1. 영업사원 활성 영업 스냅방 수평 스크롤바 */}
+      {/* 1. 영업사원 활성 스냅 태스크 수평 스크롤바 */}
       <div className="bg-slate-900/30 border-b border-slate-900 py-3.5 px-4 overflow-x-auto flex gap-3 scrollbar-none shrink-0 z-10">
         {loading ? (
-          <span className="text-xs text-slate-500 font-bold py-1">스냅 태스크방 동기화 중...</span>
+          <span className="text-xs text-slate-500 font-bold py-1">스냅 태스크 동기화 중...</span>
         ) : tasks.length === 0 ? (
-          <span className="text-xs text-slate-400 font-bold py-1">개설된 영업방이 없습니다. 새 영업방을 열어주세요.</span>
+          <span className="text-xs text-slate-400 font-bold py-1">생성된 태스크가 없습니다. 새 태스크를 열어주세요.</span>
         ) : (
           tasks.map(t => (
             <button
@@ -377,7 +377,7 @@ export default function MobileSnapTasksPage() {
             )}
           </>
         ) : (
-          <p className="text-center py-20 text-xs text-slate-500 font-bold">오른쪽 상단 [새 영업방] 버튼을 눌러 첫 영업 태스크를 열어주세요.</p>
+          <p className="text-center py-20 text-xs text-slate-500 font-bold">오른쪽 상단 [새 태스크] 버튼을 눌러 첫 태스크를 열어주세요.</p>
         )}
       </div>
 
@@ -500,7 +500,7 @@ export default function MobileSnapTasksPage() {
             </h3>
 
             <div className="space-y-1">
-              <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block pl-0.5">영업 태스크 방 제목 *</label>
+              <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block pl-0.5">태스크 제목 *</label>
               <input 
                 type="text"
                 placeholder="예: 미래푸드 유통 원두 제안 건"
@@ -523,7 +523,7 @@ export default function MobileSnapTasksPage() {
                 type="submit"
                 className="flex-1 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-2xl text-xs font-black shadow-lg shadow-indigo-600/10"
               >
-                개설 완료
+                생성 완료
               </button>
             </div>
           </form>

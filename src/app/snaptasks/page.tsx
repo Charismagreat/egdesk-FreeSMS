@@ -502,7 +502,7 @@ export default function SnapTasksDashboard() {
                   onClick={() => handleUpdateStatus(selectedTask, 'ACTIVE')}
                   className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-xl transition-colors"
                 >
-                  활성 진행 영업방 복구 (ACTIVE)
+                  활성 진행 태스크 복구 (ACTIVE)
                 </button>
               )}
             </div>

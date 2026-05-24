@@ -112,7 +112,7 @@ export async function POST(req: Request) {
     await insertRows('crm_snaptask_items', [{
       id: Date.now(),
       task_id: taskId,
-      content_text: `[시스템] '${title}' 스냅태스크 방이 성공적으로 개설되었습니다. 🪐\n여기에 파트너 명함 사진, 녹취 파일, 지도 주소, 상담 메모를 언제든지 스냅하여 던져 주시면 AI 자율 경영 파트너가 즉각 분석을 개시합니다.`,
+      content_text: `[시스템] '${title}' 스냅태스크가 성공적으로 생성되었습니다. 🪐\n여기에 파트너 명함 사진, 녹취 파일, 지도 주소, 상담 메모를 언제든지 스냅하여 던져 주시면 AI 자율 경영 파트너가 즉각 분석을 개시합니다.`,
       file_url: null,
       file_type: 'TEXT',
       ai_analysis: JSON.stringify({ message: "Task initialized" }),
