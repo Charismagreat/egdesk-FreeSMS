@@ -405,7 +405,7 @@ export default function EstimatesDashboard() {
         <div>
           <h1 className="text-3xl font-black text-slate-800 tracking-tight flex items-center gap-2.5">
             <ArrowRightLeft className="w-8 h-8 text-indigo-600" />
-            <span>AI 견적 & SCM 통합 ERP</span>
+            <span>견적/발주/수주 AI</span>
           </h1>
           <p className="text-slate-500 mt-2 text-sm">
             견적서 요청 분석부터 발주 전환, 실물 입고 검수 및 실시간 재고 반영까지 단 하나의 보드에서 오토파일럿 제어합니다.

@@ -87,7 +87,7 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
     { href: "/reservations", label: "예약 관리", icon: CalendarDays, color: "text-indigo-400" },
     { href: "/deliveries", label: "배송내역 관리", icon: Truck, color: "text-amber-400" },
     { href: "/products", label: "상품 DB 관리", icon: PackageSearch, color: "text-blue-400" },
-    { href: "/estimates", label: "견적/발주/수주 ERP 🔄", icon: ArrowRightLeft, color: "text-indigo-400" },
+    { href: "/estimates", label: "견적/발주/수주 AI", icon: ArrowRightLeft, color: "text-indigo-400" },
     { href: "/inventory", label: "재고 관리", icon: Package, color: "text-cyan-400" },
     { href: "/website", label: "홈페이지 빌더 AI", icon: Globe, color: "text-sky-400" },
     { href: "/recruitment", label: "채용 매니저 AI", icon: Briefcase, color: "text-rose-400" },
