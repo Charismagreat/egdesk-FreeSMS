@@ -228,8 +228,8 @@ export default function MobileHubWidget() {
           </div>
         </div>
 
-        {/* 6대 채널 목록 */}
-        <div className="grid grid-cols-1 xl:grid-cols-6 gap-6">
+        {/* 6대 B2B/B2C 채널 목록 - 가로 와이드 콤팩트 리스트 레이아웃 */}
+        <div className="grid grid-cols-1 gap-4.5">
           {channels.map((channel) => {
             const Icon = channel.icon;
             const isCopied = copiedId === channel.id;
@@ -238,58 +238,58 @@ export default function MobileHubWidget() {
             return (
               <div 
                 key={channel.id} 
-                className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 flex flex-col justify-between hover:bg-slate-800/80 hover:border-slate-600 transition-all duration-300 group shadow-sm hover:shadow-lg"
+                className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-slate-800/80 hover:border-slate-650 transition-all duration-300 group shadow-sm hover:shadow-md animate-fade-in"
               >
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className={`p-3 rounded-xl bg-gradient-to-br ${channel.themeColor.split(' ').slice(0, 2).join(' ')} text-white shadow-md group-hover:scale-105 transition-transform`}>
-                      <Icon className="w-5 h-5" />
-                    </div>
-                    <span className="text-[10px] font-bold bg-slate-700/50 text-slate-300 px-2 py-1 rounded-md border border-slate-700">
-                      {channel.badge}
-                    </span>
+                {/* 왼쪽 영역: 아이콘 + 텍스트 정보 */}
+                <div className="flex gap-4.5 items-start flex-1 min-w-0">
+                  <div className={`p-4 rounded-2xl bg-gradient-to-br ${channel.themeColor.split(' ').slice(0, 2).join(' ')} text-white shadow-lg shrink-0 group-hover:scale-105 transition-transform`}>
+                    <Icon className="w-5 h-5" />
                   </div>
-
-                  <h3 className="text-base font-bold text-white mb-2 tracking-tight group-hover:text-blue-400 transition-colors">
-                    {channel.name}
-                  </h3>
-                  <p className="text-slate-400 text-xs leading-relaxed line-clamp-3 mb-6">
-                    {channel.description}
-                  </p>
+                  <div className="space-y-1.5 flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-base font-extrabold text-white tracking-tight group-hover:text-blue-400 transition-colors">
+                        {channel.name}
+                      </h3>
+                      <span className="text-[9px] font-black bg-slate-700/50 text-slate-300 px-2 py-0.5 rounded border border-slate-700 uppercase tracking-wider">
+                        {channel.badge}
+                      </span>
+                    </div>
+                    <p className="text-slate-400 text-xs leading-relaxed max-w-2xl font-medium">
+                      {channel.description}
+                    </p>
+                  </div>
                 </div>
 
-                {/* 제어 버튼 영역 */}
-                <div className="space-y-2 mt-auto pt-4 border-t border-slate-800/60">
-                  <div className="grid grid-cols-2 gap-2">
-                    <button 
-                      onClick={() => handleCopyLink(channel.id, channel.path)}
-                      className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-                        isCopied 
-                          ? "bg-green-600 text-white" 
-                          : "bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700"
-                      }`}
-                      title="모바일 링크 복사"
-                    >
-                      {isCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                      {isCopied ? "복사완료" : "링크 복사"}
-                    </button>
+                {/* 오른쪽 영역: 사장님이 제안하신 3대 액션 버튼 정렬 */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0 w-full md:w-auto pt-4 md:pt-0 border-t md:border-t-0 border-slate-800/60">
+                  <button 
+                    onClick={() => handleCopyLink(channel.id, channel.path)}
+                    className={`flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl text-xs font-black transition-all ${
+                      isCopied 
+                        ? "bg-green-600 text-white" 
+                        : "bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700/80"
+                    }`}
+                    title="모바일 링크 복사"
+                  >
+                    {isCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{isCopied ? "복사완료" : "링크 복사"}</span>
+                  </button>
 
-                    <button 
-                      onClick={() => setActiveQrChannel(channel)}
-                      className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700 transition-all"
-                      title="실시간 QR코드 생성"
-                    >
-                      <QrCode className="w-3.5 h-3.5" />
-                      QR 보기
-                    </button>
-                  </div>
+                  <button 
+                    onClick={() => setActiveQrChannel(channel)}
+                    className="flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl text-xs font-black bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700/80 transition-all"
+                    title="실시간 QR코드 생성"
+                  >
+                    <QrCode className="w-3.5 h-3.5" />
+                    <span>QR 보기</span>
+                  </button>
 
                   <a 
                     href={`/sms?message=${encodeURIComponent(channel.smsTemplate + fullUrl)}`}
-                    className="flex items-center justify-center gap-1.5 w-full py-2 px-3 rounded-xl text-xs font-bold bg-blue-600/90 text-white hover:bg-blue-600 transition-all"
+                    className="flex items-center justify-center gap-1.5 py-2.5 px-4.5 rounded-xl text-xs font-black bg-blue-600 text-white hover:bg-blue-500 shadow-md shadow-blue-600/10 transition-all"
                   >
                     <MessageSquare className="w-3.5 h-3.5" />
-                    고객에게 발송 (SMS)
+                    <span>고객에게 발송 (SMS)</span>
                   </a>
                 </div>
               </div>
