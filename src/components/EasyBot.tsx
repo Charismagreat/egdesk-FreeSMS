@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, Sparkles, X, Send, RotateCcw, Bot, Terminal, ShieldAlert, Maximize2, Minimize2, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { usePathname } from 'next/navigation';
 
 interface Message {
   role: 'user' | 'bot';
@@ -322,6 +323,15 @@ function UserMarkdown({ content }: { content: string }) {
 }
 
 export default function EasyBot() {
+  const pathname = usePathname();
+
+  // 고객용 모바일/접점 페이지에서는 사장님용 AI 비서인 이지봇을 숨김 🛡️
+  const isCustomerPage = 
+    pathname.startsWith('/m/') || 
+    pathname.startsWith('/store') || 
+    pathname.startsWith('/table-order') || 
+    pathname.startsWith('/booking');
+
   const [isOpen, setIsOpen] = useState(false);
   const [isWide, setIsWide] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -336,6 +346,10 @@ export default function EasyBot() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  if (isCustomerPage) {
+    return null;
+  }
 
   const STORAGE_KEY = 'egdesk_easybot_chat_history';
 
