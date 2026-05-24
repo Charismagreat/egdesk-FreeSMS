@@ -357,8 +357,34 @@ export async function setupDatabase() {
     { name: 'card_image_url', type: 'TEXT' },
     { name: 'is_primary', type: 'INTEGER', defaultValue: 0 },   // 1: 주대표 실무자, 0: 일반 실무자
     { name: 'created_at', type: 'TEXT', notNull: true }
-  ], { tableName: 'crm_partner_contacts', uniqueKeyColumns: ['id'] });
+  ], { tableName: 'crm_partner_contacts', uniqueKeyColumns: ['id'] });  // 29. Inventory Items Table (재고 품목 대장)
+  await safeCreateTable('재고 품목', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'type', type: 'TEXT', notNull: true },
+    { name: 'name', type: 'TEXT', notNull: true },
+    { name: 'category', type: 'TEXT', notNull: true },
+    { name: 'price', type: 'REAL', notNull: true },
+    { name: 'partner', type: 'TEXT' },
+    { name: 'stock', type: 'INTEGER', notNull: true },
+    { name: 'safeStock', type: 'INTEGER', notNull: true },
+    { name: 'location', type: 'TEXT' },
+    { name: 'description', type: 'TEXT' },
+    { name: 'createdAt', type: 'TEXT', notNull: true }
+  ], { tableName: 'inventory_items', uniqueKeyColumns: ['id'] });
 
+  // 30. Inventory Logs Table (재고 변동 이력 감사록)
+  await safeCreateTable('재고 변동 이력', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'itemId', type: 'INTEGER', notNull: true },
+    { name: 'itemName', type: 'TEXT', notNull: true },
+    { name: 'itemType', type: 'TEXT', notNull: true },
+    { name: 'changeType', type: 'TEXT', notNull: true },
+    { name: 'quantity', type: 'INTEGER', notNull: true },
+    { name: 'price', type: 'REAL', notNull: true },
+    { name: 'operator', type: 'TEXT', notNull: true },
+    { name: 'note', type: 'TEXT' },
+    { name: 'createdAt', type: 'TEXT', notNull: true }
+  ], { tableName: 'inventory_logs', uniqueKeyColumns: ['id'] });
 
 
     // ID 1의 기본 네이버 블로그 설정 존재 여부 확인 후 자동 주입
