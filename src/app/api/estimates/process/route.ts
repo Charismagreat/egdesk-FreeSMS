@@ -3,6 +3,39 @@ import { NextResponse } from 'next/server';
 import { queryTable, insertRows, updateRows, executeSQL } from '../../../../../egdesk-helpers';
 
 /**
+ * GET: 발주 대장 및 수주 대장 목록 조회
+ */
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const action = searchParams.get('action');
+
+    if (action === 'po_list') {
+      const res = await queryTable('crm_purchase_orders', {});
+      const rows = res.rows || [];
+      const sorted = [...rows].sort((a: any, b: any) => {
+        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+      });
+      return NextResponse.json({ success: true, purchaseOrders: sorted });
+    }
+
+    if (action === 'so_list') {
+      const res = await queryTable('crm_sales_orders', {});
+      const rows = res.rows || [];
+      const sorted = [...rows].sort((a: any, b: any) => {
+        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+      });
+      return NextResponse.json({ success: true, salesOrders: sorted });
+    }
+
+    return NextResponse.json({ success: false, error: '유효하지 않은 요청 액션입니다.' }, { status: 400 });
+  } catch (error: any) {
+    console.error('API estimates process GET error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+/**
  * POST: ERP/SCM 발주서 전환, 실물 입고 검수 승인, 수주 등록 및 확인서 발송 처리
  */
 export async function POST(req: Request) {

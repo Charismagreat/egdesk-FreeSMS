@@ -91,8 +91,16 @@ export default function EstimatesDashboard() {
       if (estData.success) setEstimates(estData.estimates || []);
 
       // 2. 발주서 목록 패치
-      const poRes = await fetch("/api/estimates/process?action=po_list").catch(() => null);
-      const poData = poRes ? await poRes.json() : null;
+      let poData = null;
+      try {
+        const poRes = await fetch("/api/estimates/process?action=po_list").catch(() => null);
+        if (poRes && poRes.ok) {
+          poData = await poRes.json();
+        }
+      } catch (err) {
+        console.error("발주서 목록 파싱 에러:", err);
+      }
+      
       // 발주서 목록이 없을 경우 모의 데이터로 안정 맵핑
       if (poData && poData.success) {
         setPurchaseOrders(poData.purchaseOrders || []);
@@ -103,8 +111,16 @@ export default function EstimatesDashboard() {
       }
 
       // 3. 수주서 목록 패치
-      const soRes = await fetch("/api/estimates/process?action=so_list").catch(() => null);
-      const soData = soRes ? await soRes.json() : null;
+      let soData = null;
+      try {
+        const soRes = await fetch("/api/estimates/process?action=so_list").catch(() => null);
+        if (soRes && soRes.ok) {
+          soData = await soRes.json();
+        }
+      } catch (err) {
+        console.error("수주서 목록 파싱 에러:", err);
+      }
+
       if (soData && soData.success) {
         setSalesOrders(soData.salesOrders || []);
       } else {
