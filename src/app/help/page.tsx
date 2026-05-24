@@ -239,7 +239,7 @@ export default function FAQHelpCenterPage() {
           </div>
           
           <h1 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight leading-tight block">
-            Q&A 통합 헬프센터 💡
+            Q&A 헬프센터
           </h1>
           
           <p className="text-slate-400 text-sm md:text-base font-medium leading-relaxed max-w-3xl block">

@@ -235,7 +235,7 @@ export default function SnapTasksDashboard() {
         <div>
           <h1 className="text-3xl font-black text-slate-800 tracking-tight flex items-center gap-2.5">
             <Sparkles className="w-8 h-8 text-indigo-500 animate-spin" style={{ animationDuration: '4s' }} />
-            <span>AI 스냅태스크 관제 센터 🪐</span>
+            <span>AI 스냅태스크</span>
           </h1>
           <p className="text-slate-500 mt-2 text-sm">
             R&D, 마케팅, 품질관리, 영업 등 전사적 현장에서 스냅한 비정형 데이터를 바탕으로 AI가 자율적으로 ERP 및 업무 연동을 처리하는 통합 관제 대시보드입니다.
