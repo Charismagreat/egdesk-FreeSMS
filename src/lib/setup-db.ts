@@ -316,6 +316,36 @@ export async function setupDatabase() {
     { name: 'created_at', type: 'TEXT', notNull: true }
   ], { tableName: 'crm_partners', uniqueKeyColumns: ['id'] });
 
+  // 25. CRM SnapTasks Table (스냅태스크 관리)
+  await safeCreateTable('스냅태스크 관리', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'title', type: 'TEXT', notNull: true },
+    { name: 'status', type: 'TEXT', defaultValue: 'ACTIVE' },   // 'ACTIVE', 'COMPLETED', 'ARCHIVED'
+    { name: 'partner_id', type: 'TEXT' },
+    { name: 'created_at', type: 'TEXT', notNull: true },
+    { name: 'updated_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'crm_snaptasks', uniqueKeyColumns: ['id'] });
+
+  // 26. CRM SnapTask Items Table (스냅태스크 타임라인 상세)
+  await safeCreateTable('스냅태스크 상세 내역', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'task_id', type: 'TEXT', notNull: true },
+    { name: 'content_text', type: 'TEXT' },
+    { name: 'file_url', type: 'TEXT' },
+    { name: 'file_type', type: 'TEXT', notNull: true },         // 'IMAGE', 'PDF', 'AUDIO', 'LINK', 'TEXT'
+    { name: 'ai_analysis', type: 'TEXT' },                      // AI 분석 정형 JSON 스트링
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'crm_snaptask_items', uniqueKeyColumns: ['id'] });
+
+  // 27. CRM SnapTask Actions Table (자율 액션 히스토리 감사록)
+  await safeCreateTable('스냅태스크 AI 액션 감사록', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'task_id', type: 'TEXT', notNull: true },
+    { name: 'action_type', type: 'TEXT', notNull: true },       // 'PARTNER_REGISTER', 'ESTIMATE_DRAFT', 'ORDER_CONFIRM', 'SMS_SENT'
+    { name: 'description', type: 'TEXT', notNull: true },
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'crm_snaptask_actions', uniqueKeyColumns: ['id'] });
+
 
 
     // ID 1의 기본 네이버 블로그 설정 존재 여부 확인 후 자동 주입

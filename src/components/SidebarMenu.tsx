@@ -7,7 +7,7 @@ import {
   Home, Users, MessageSquare, Settings, ShoppingCart, 
   ClipboardList, CreditCard, CalendarDays, Truck, Send, 
   PackageSearch, Package, UserCog, Zap, Ticket, Landmark, Globe, Briefcase, HelpCircle,
-  ArrowRightLeft, Handshake
+  ArrowRightLeft, Handshake, Sparkles
 } from "lucide-react";
 
 // 커스텀 인스타그램 아이콘 SVG
@@ -89,6 +89,7 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
     { href: "/deliveries", label: "배송내역 관리", icon: Truck, color: "text-amber-400" },
     { href: "/products", label: "상품 DB 관리", icon: PackageSearch, color: "text-blue-400" },
     { href: "/estimates", label: "견적/발주/수주 AI", icon: ArrowRightLeft, color: "text-indigo-400" },
+    { href: "/snaptasks", label: "AI 스냅태스크 🪐", icon: Sparkles, color: "text-indigo-450" },
     { href: "/inventory", label: "재고 관리", icon: Package, color: "text-cyan-400" },
     { href: "/website", label: "홈페이지 빌더 AI", icon: Globe, color: "text-sky-400" },
     { href: "/recruitment", label: "채용 매니저 AI", icon: Briefcase, color: "text-rose-400" },
