@@ -79,7 +79,7 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
     { href: "/message-logs", label: "발송 내역 조회", icon: Send, color: "text-purple-400" },
     { href: "/automation", label: "자동 발송 설정", icon: Zap, color: "text-yellow-400" },
     { href: "/customers", label: "고객 관리", icon: Users, color: "text-green-400" },
-    { href: "/partners", label: "거래처 관리 AI 🤝", icon: Handshake, color: "text-emerald-400" },
+    { href: "/partners", label: "거래처 관리 AI", icon: Handshake, color: "text-emerald-400" },
     { href: "/transactions", label: "거래내역 관리", icon: ShoppingCart, color: "text-orange-400" },
     { href: "/orders", label: "주문내역 관리", icon: ClipboardList, color: "text-blue-400" },
     { href: "/payments", label: "결제내역 관리", icon: CreditCard, color: "text-emerald-400" },
@@ -89,7 +89,7 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
     { href: "/deliveries", label: "배송내역 관리", icon: Truck, color: "text-amber-400" },
     { href: "/products", label: "상품 DB 관리", icon: PackageSearch, color: "text-blue-400" },
     { href: "/estimates", label: "견적/발주/수주 AI", icon: ArrowRightLeft, color: "text-indigo-400" },
-    { href: "/snaptasks", label: "AI 스냅태스크 🪐", icon: Sparkles, color: "text-indigo-450" },
+    { href: "/snaptasks", label: "AI 스냅태스크", icon: Sparkles, color: "text-indigo-450" },
     { href: "/inventory", label: "재고 관리", icon: Package, color: "text-cyan-400" },
     { href: "/website", label: "홈페이지 빌더 AI", icon: Globe, color: "text-sky-400" },
     { href: "/recruitment", label: "채용 매니저 AI", icon: Briefcase, color: "text-rose-400" },
@@ -144,7 +144,7 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
           }`}
         >
           <HelpCircle className={`w-5 h-5 shrink-0 ${isActive("/help") ? "text-white" : "text-amber-400"}`} />
-          <span>Q&A 헬프센터 💡</span>
+          <span>Q&A 헬프센터</span>
         </Link>
         <Link
           href="/settings"
