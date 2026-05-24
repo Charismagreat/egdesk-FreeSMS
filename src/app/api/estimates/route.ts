@@ -22,7 +22,7 @@ export async function GET(req: Request) {
     // 💡 SQL Query 헬퍼를 활용하여 견적가 플래그가 켜진 상품만 확실히 색출!
     const query = `SELECT * FROM products WHERE is_estimate_price = 1`;
     const result = await executeSQL(query);
-    const estimateProducts = result || [];
+    const estimateProducts = (result && result.rows) ? result.rows : (Array.isArray(result) ? result : []);
 
     return NextResponse.json({ success: true, products: estimateProducts });
   } catch (error: any) {

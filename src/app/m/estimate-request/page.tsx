@@ -35,11 +35,16 @@ export default function MobileEstimateRequestPage() {
       const res = await fetch("/api/estimates");
       const data = await res.json();
       if (data.success) {
-        setProducts(data.products || []);
+        const rawProducts = data.products;
+        const resolvedProducts = (rawProducts && rawProducts.rows) 
+          ? rawProducts.rows 
+          : (Array.isArray(rawProducts) ? rawProducts : []);
+
+        setProducts(resolvedProducts);
         
         // 초기 수량은 모두 0으로 세팅
         const initialQtys: Record<string, number> = {};
-        (data.products || []).forEach((p: Product) => {
+        resolvedProducts.forEach((p: Product) => {
           initialQtys[p.id] = 0;
         });
         setQuantities(initialQtys);
