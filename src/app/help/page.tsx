@@ -20,7 +20,8 @@ const CATEGORIES = [
   { id: "sms", label: "무료문자 & 자동화 💬", icon: MessageSquare, color: "text-indigo-400" },
   { id: "rpa", label: "AI 자율 마케팅 & RPA 🤖", icon: Bot, color: "text-purple-400" },
   { id: "point", label: "단골적립 & 보안 🪙", icon: Coins, color: "text-amber-400" },
-  { id: "coupon", label: "쿠폰 & 주문/예약 📦", icon: Ticket, color: "text-rose-400" }
+  { id: "coupon", label: "쿠폰 & 주문/예약 📦", icon: Ticket, color: "text-rose-400" },
+  { id: "order", label: "견적/발주/재고 SCM 🔄", icon: Zap, color: "text-cyan-400" }
 ];
 
 // FAQ 데이터베이스 (AI 자율 경영 파트너 Q&A 완전 실장)
@@ -106,6 +107,25 @@ const FAQ_DATABASE: FAQItem[] = [
     category: "coupon",
     question: "테이블오더 주문이나 예약 등록 시 배송 대장 또는 금융과 자동으로 묶이나요?",
     answer: "네, 완벽히 오프라인 연동됩니다. 테이블오더 주문 시 배송 방식을 '택배배송'으로 기입하면 즉시 [배송내역 관리] 대장에 상품 준비중 정보가 자동 신설되며, 카드/포인트 결제 완수 시 즉각 [결제내역] 및 [거래내역] 대장에 매출이 동기화 기록되어 종합 매출과 잔고가 실시간 정산됩니다."
+  },
+  // 5. 견적/발주/재고 SCM ERP 가이드 (신규 추가 🔄)
+  {
+    id: "order-1",
+    category: "order",
+    question: "받은 견적 이미지 파일의 AI OCR 분석 기능은 어떻게 작동하나요?",
+    answer: "사장님이 거래처 등 공급사로부터 전달받은 종이/사진 견적서 이미지를 대시보드에 업로드하시면, 내장된 고정밀 Gemini Vision AI가 이미지 속 단가, 수량, 품목명, 공급사 상호명, 연락처를 단 3초 만에 해독 및 파싱하여 관리자 등록 폼에 타이핑 효과로 쏙 채워넣어 줍니다. 수동 입력의 고단함을 덜어주는 최고의 AI 비서 기능입니다."
+  },
+  {
+    id: "order-2",
+    category: "order",
+    question: "실물확인 뒤 최종 승인 후 재고 반영(SCM) 절차는 어떻게 수행되나요?",
+    answer: "등록된 받은 견적서를 '발주서 전환' 하시면 정식 발주서 생성과 동시에 입고 대기(PENDING_INBOUND) 플래그 상태가 됩니다. 이후 물류 창고에 자재 실물이 도착했을 때, 사장님이 직접 실물을 체크해보고 최종 확인된 실검수 수량(checkedQty)을 입력한 뒤 승인 처리를 합니다. 승인 즉시 실제 재고 대장(inventory_items)에 검수 수량만큼 가산되고 재고 연동 이력(inventory_logs)에 변동 이력이 투명하게 완벽 실시간 기록됩니다."
+  },
+  {
+    id: "order-3",
+    category: "order",
+    question: "상품 DB 연동을 통한 AI 동적 견적 가격 책정 및 수주 알림톡은 무엇인가요?",
+    answer: "상품 DB 중 '견적가 전용' 플래그를 켠 품목들에 대해, 바이어의 거래처 등급(VIP 단골)과 대량 구매 요청 수량(Volume)을 복합적으로 인지해 최적의 볼륨 할인 단가를 AI가 자동으로 추천 계산해 줍니다. 이 제안가와 함께 격식 있고 정중하게 품격 있는 비즈니스 제안 편지글(AI Proposal Letter)을 바이어 맞춤형으로 작성해주며, 견적 수락 후 수주 최종 승인 시 바이어에게 정중한 수주 확인서가 카카오톡 알림톡 문자로 즉각 자동 전송됩니다."
   }
 ];
 
