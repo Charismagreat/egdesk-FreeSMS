@@ -241,7 +241,7 @@ export default function MobileHubWidget() {
                 className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-slate-800/80 hover:border-slate-650 transition-all duration-300 group shadow-sm hover:shadow-md animate-fade-in"
               >
                 {/* 왼쪽 영역: 아이콘 + 텍스트 정보 */}
-                <div className="flex gap-4.5 items-start flex-1 min-w-0">
+                <div className="flex gap-6 items-start flex-1 min-w-0">
                   <div className={`p-4 rounded-2xl bg-gradient-to-br ${channel.themeColor.split(' ').slice(0, 2).join(' ')} text-white shadow-lg shrink-0 group-hover:scale-105 transition-transform`}>
                     <Icon className="w-5 h-5" />
                   </div>
