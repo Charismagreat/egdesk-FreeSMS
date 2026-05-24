@@ -17,7 +17,8 @@ import {
   X,
   ChevronRight,
   Info,
-  Handshake
+  Handshake,
+  Sparkles
 } from "lucide-react";
 
 interface MobileChannel {
@@ -103,6 +104,16 @@ export default function MobileHubWidget() {
       themeColor: "from-cyan-600 to-teal-600 bg-cyan-50 text-cyan-600 border-cyan-100",
       badge: "B2B 바이어/구매처 전용",
       smsTemplate: "[이지데스크] B2B 거래처 견적 요청 링크입니다. 사업자번호 입력과 사업자등록증 첨부 시 AI가 정보를 자동 완성해 드립니다. "
+    },
+    {
+      id: "snaptasks",
+      name: "현장/업무 스마트 스냅",
+      description: "연구개발, 품질관리, 마케팅 및 영업 현장에서 촬영한 사진, 녹취 파일, 주소 링크 및 메모를 스냅하여 AI가 즉각 분석하고 전사 협업 태스크로 연동 처리하는 실무진 채널",
+      path: "/m/snaptasks",
+      icon: Sparkles,
+      themeColor: "from-indigo-600 to-violet-600 bg-indigo-50 text-indigo-600 border-indigo-100",
+      badge: "현장 실무자/R&D/마케팅 전용",
+      smsTemplate: "[이지데스크] 현장/업무 스냅태스크 모바일 전송 채널입니다. 아래 링크에서 바로 실시간 텍스트 메모 및 미디어(사진/녹취/문서) 스냅 전송을 시작하세요! "
     }
   ];
 
@@ -223,7 +234,7 @@ export default function MobileHubWidget() {
               스마트 매장 모바일 채널 제어 센터
             </h2>
             <p className="text-slate-400 text-sm mt-1">
-              온·오프라인 단골 고객을 모으는 6대 대고객 접점 모바일 채널을 이곳에서 실시간으로 배포하고 홍보하세요.
+              온·오프라인 비즈니스 성장과 현장 협업을 가동하는 7대 모바일 채널을 이곳에서 실시간으로 배포하고 통제하세요.
             </p>
           </div>
         </div>
