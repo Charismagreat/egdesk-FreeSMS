@@ -48,6 +48,95 @@ export default function SnapTasksDashboard() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
+  // PC 즉석 스냅 전송용 상태
+  const [contentText, setContentText] = useState("");
+  const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [attachedFileType, setAttachedFileType] = useState<'IMAGE' | 'PDF' | 'AUDIO' | 'LINK' | 'TEXT'>('TEXT');
+  const [attachedFileBase64, setAttachedFileBase64] = useState("");
+  const [snapping, setSnapping] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const resetSnapForm = () => {
+    setContentText("");
+    setAttachedFile(null);
+    setAttachedFileType('TEXT');
+    setAttachedFileBase64("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'IMAGE' | 'PDF' | 'AUDIO') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 20 * 1024 * 1024) {
+      alert("최대 20MB 이하의 미디어 파일만 수령 가능합니다.");
+      return;
+    }
+
+    setAttachedFile(file);
+    setAttachedFileType(type);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAttachedFileBase64(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // PC 대시보드 즉석 AI 자율주행 스냅 전송 기동!
+  const handleSnapSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedTask) return;
+    if (!contentText.trim() && !attachedFile) {
+      alert("전송할 업무 메모 텍스트나 사진/파일을 첨부해 주세요.");
+      return;
+    }
+
+    setSnapping(true);
+
+    try {
+      const body = {
+        taskId: selectedTask.id,
+        content_text: contentText,
+        fileBase64: attachedFileBase64,
+        filename: attachedFile ? attachedFile.name : "",
+        fileType: attachedFile ? attachedFileType : "TEXT",
+        mimeType: attachedFile ? attachedFile.type : "text/plain"
+      };
+
+      const res = await fetch("/api/snaptasks/snap", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        resetSnapForm();
+        
+        // 상세 정보 실시간 리로드
+        const timelineRes = await fetch(`/api/snaptasks?action=timeline&task_id=${selectedTask.id}`);
+        const timelineData = await timelineRes.json();
+        if (timelineData.success) {
+          setTimeline(timelineData.timeline || []);
+          setActions(timelineData.actions || []);
+          setPartner(timelineData.partner || null);
+          setPartnerContacts(timelineData.partnerContacts || []);
+        }
+
+        if (data.action_logged) {
+          alert(`스냅 완료!\n[AI 자율 조치]: ${data.action_logged}`);
+        }
+      } else {
+        alert("AI 스냅 실패: " + data.error);
+      }
+    } catch (err) {
+      alert("네트워크 스냅 통신 중 에러가 발생했습니다.");
+    } finally {
+      setSnapping(false);
+    }
+  };
+
   useEffect(() => {
     fetchTasks();
   }, []);
@@ -74,6 +163,7 @@ export default function SnapTasksDashboard() {
     setDetailLoading(true);
     setPartner(null);
     setPartnerContacts([]);
+    resetSnapForm();
     try {
       const res = await fetch(`/api/snaptasks?action=timeline&task_id=${task.id}`);
       const data = await res.json();
@@ -466,6 +556,115 @@ export default function SnapTasksDashboard() {
                     })
                   )}
                 </div>
+
+                {/* PC 즉석 AI 스냅 입력 위젯 */}
+                {selectedTask && (
+                  <div className="mt-4 border-t border-slate-100 pt-4 bg-white shrink-0">
+                    <form onSubmit={handleSnapSubmit} className="space-y-3">
+                      
+                      {/* 파일 첨부 미리보기 */}
+                      {attachedFile && (
+                        <div className="bg-slate-50 border border-indigo-500/10 p-2 rounded-xl flex items-center justify-between text-xs font-semibold animate-scale-up">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="bg-indigo-600 text-white text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-wider">
+                              {attachedFileType}
+                            </span>
+                            <span className="text-slate-700 truncate text-[11px] font-bold">{attachedFile.name}</span>
+                          </div>
+                          <button 
+                            type="button" 
+                            onClick={() => {
+                              setAttachedFile(null);
+                              setAttachedFileBase64("");
+                              if (fileInputRef.current) fileInputRef.current.value = "";
+                            }} 
+                            className="p-1 bg-slate-200 hover:bg-slate-300 rounded-full text-slate-505 transition-colors"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="flex items-end gap-2.5">
+                        
+                        {/* 텍스트 입력창 & 첨부 버튼 트레이 */}
+                        <div className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl p-3 focus-within:border-indigo-500 focus-within:bg-white transition-all flex flex-col">
+                          <textarea 
+                            value={contentText}
+                            onChange={e => setContentText(e.target.value)}
+                            placeholder={attachedFile ? "이 첨부파일에 대한 AI 자율 분석 및 조치 지시 요약 메모를 입력하세요..." : "현장 업무 상담 메모 기입, 주소 링크 입력 또는 AI에게 자율 지시를 내려보세요..."}
+                            className="w-full bg-transparent outline-none resize-none text-xs font-semibold text-slate-750 placeholder-slate-400 h-12 scrollbar-none"
+                            onKeyDown={(e) => {
+                              // Ctrl+Enter 시 즉석 전송 편리 기능
+                              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                                handleSnapSubmit(e);
+                              }
+                            }}
+                          />
+                          
+                          {/* 파일 첨부 퀵 버튼 */}
+                          <div className="flex gap-4 pt-2 border-t border-slate-100 mt-2 text-slate-500 select-none">
+                            <input 
+                              type="file" 
+                              id="pcSnapImage" 
+                              ref={fileInputRef} 
+                              accept="image/*" 
+                              onChange={e => handleFileChange(e, 'IMAGE')}
+                              className="hidden" 
+                            />
+                            <label htmlFor="pcSnapImage" className="hover:text-indigo-600 cursor-pointer flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider shrink-0 transition-colors">
+                              <Camera className="w-3.5 h-3.5" />
+                              <span>이미지 첨부</span>
+                            </label>
+
+                            <input 
+                              type="file" 
+                              id="pcSnapAudio" 
+                              accept="audio/*" 
+                              onChange={e => handleFileChange(e, 'AUDIO')}
+                              className="hidden" 
+                            />
+                            <label htmlFor="pcSnapAudio" className="hover:text-indigo-600 cursor-pointer flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider shrink-0 transition-colors">
+                              <Volume2 className="w-3.5 h-3.5" />
+                              <span>음성/녹취</span>
+                            </label>
+
+                            <input 
+                              type="file" 
+                              id="pcSnapPdf" 
+                              accept="application/pdf" 
+                              onChange={e => handleFileChange(e, 'PDF')}
+                              className="hidden" 
+                            />
+                            <label htmlFor="pcSnapPdf" className="hover:text-indigo-600 cursor-pointer flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wider shrink-0 transition-colors">
+                              <FileText className="w-3.5 h-3.5" />
+                              <span>문서 PDF</span>
+                            </label>
+
+                            <span className="text-[9px] text-slate-400 font-medium ml-auto self-center select-none font-mono">
+                              Ctrl + Enter 로 즉석 전송
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* 전송 단추 */}
+                        <button
+                          type="submit"
+                          disabled={snapping || (!contentText.trim() && !attachedFile)}
+                          className="p-4 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-extrabold text-xs shadow-md hover:from-indigo-500 hover:to-purple-550 transition-all shrink-0 disabled:opacity-40"
+                        >
+                          {snapping ? (
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          ) : (
+                            <Plus className="w-4 h-4 text-white" />
+                          )}
+                        </button>
+
+                      </div>
+
+                    </form>
+                  </div>
+                )}
               </div>
 
             </div>
