@@ -95,6 +95,7 @@ export default function SmsPage() {
   // Test Send States
   const [showTestModal, setShowTestModal] = useState(false);
   const [testPhone, setTestPhone] = useState("");
+  const [testDeviceId, setTestDeviceId] = useState("default");
 
   // AI States
   const [aiPrompt, setAiPrompt] = useState("");
@@ -744,7 +745,7 @@ export default function SmsPage() {
           phoneNumber: testPhone,
           message: finalMsg,
           customerId: null,
-          deviceId: selectedDeviceId
+          deviceId: testDeviceId
         })
       });
       const json = await res.json();
@@ -1081,7 +1082,10 @@ export default function SmsPage() {
                   + 템플릿으로 저장
                 </button>
                 <button 
-                  onClick={() => setShowTestModal(true)}
+                  onClick={() => {
+                    setTestDeviceId(selectedDeviceId);
+                    setShowTestModal(true);
+                  }}
                   disabled={isSending}
                   className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors text-sm font-medium"
                 >
@@ -1645,13 +1649,34 @@ export default function SmsPage() {
               </button>
             </div>
             <p className="text-sm text-slate-500 mb-4">입력하신 번호로 1건의 문자가 즉시 발송됩니다. (변수는 '홍길동'으로 치환됨)</p>
-            <input 
-              type="text" 
-              placeholder="휴대전화 번호 (예: 01012345678)" 
-              value={testPhone}
-              onChange={e => setTestPhone(e.target.value)}
-              className="w-full border border-slate-200 rounded-xl px-4 py-3 mb-4 focus:ring-2 focus:ring-blue-500 outline-none"
-            />
+            
+            <div className="space-y-4 mb-4">
+              <div>
+                <label className="block text-[11px] font-extrabold text-slate-500 mb-1">발신 기기 선택</label>
+                <select
+                  value={testDeviceId}
+                  onChange={e => setTestDeviceId(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs outline-none bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500 font-bold text-slate-700 cursor-pointer transition-all"
+                >
+                  {smsDevices.map(d => (
+                    <option key={d.phoneNumber} value={d.phoneNumber}>
+                      {d.name} ({d.phoneNumber === 'default' ? '기본 기기' : d.phoneNumber})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-[11px] font-extrabold text-slate-500 mb-1">수신 휴대전화 번호</label>
+                <input 
+                  type="text" 
+                  placeholder="휴대전화 번호 (예: 01012345678)" 
+                  value={testPhone}
+                  onChange={e => setTestPhone(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none text-xs font-semibold"
+                />
+              </div>
+            </div>
             <div className="flex justify-end space-x-2">
               <button onClick={() => setShowTestModal(false)} className="px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-100">취소</button>
               <button 
