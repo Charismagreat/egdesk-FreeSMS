@@ -35,6 +35,18 @@ export default function MessageLogsPage() {
   const endIndex = startIndex + itemsPerPage;
   const paginatedData = filteredData.slice(startIndex, endIndex);
 
+  // 발신 기기 메타데이터 파싱 헬퍼
+  const parseSenderDevice = (msg: string) => {
+    if (!msg) return { cleanMessage: '', deviceId: '기본 기기' };
+    const match = msg.match(/\[sender_device:\s*([^\]]+)\]/);
+    if (match) {
+      const deviceId = match[1];
+      const cleanMessage = msg.replace(/\n?\[sender_device:\s*[^\]]+\]/, '');
+      return { cleanMessage, deviceId };
+    }
+    return { cleanMessage: msg, deviceId: '기본 기기' };
+  };
+
   return (
     <div className="space-y-6 pb-20">
       <h1 className="text-3xl font-bold text-slate-800 flex items-center">
@@ -59,33 +71,47 @@ export default function MessageLogsPage() {
           <thead>
             <tr className="bg-slate-50 border-b border-slate-100 text-sm">
               <th className="p-4">발송일시</th>
+              <th className="p-4">발신번호</th>
               <th className="p-4">수신번호</th>
               <th className="p-4 w-1/2">발송내용</th>
               <th className="p-4 text-center">상태</th>
             </tr>
           </thead>
           <tbody>
-            {paginatedData.map(t => (
-              <tr key={t.id} className="border-b border-slate-50 hover:bg-slate-50">
-                <td className="p-4 text-sm text-slate-500">{t.created_at}</td>
-                <td className="p-4 font-medium text-slate-700">{t.phone}</td>
-                <td className="p-4 text-xs text-slate-600 whitespace-pre-wrap">{t.message}</td>
-                <td className="p-4 text-center">
-                  {t.status === 'SUCCESS' ? (
-                    <span className="inline-flex items-center px-2 py-1 bg-green-50 text-green-700 text-xs rounded-full">
-                      <CheckCircle className="w-3 h-3 mr-1"/>성공
+            {paginatedData.map(t => {
+              const { cleanMessage, deviceId } = parseSenderDevice(t.message);
+              const displaySender = deviceId === 'default' ? '기본 기기' : deviceId;
+              return (
+                <tr key={t.id} className="border-b border-slate-50 hover:bg-slate-50">
+                  <td className="p-4 text-sm text-slate-500">{t.created_at}</td>
+                  <td className="p-4">
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-extrabold border ${
+                      deviceId === 'default' 
+                        ? 'bg-slate-50 text-slate-600 border-slate-200' 
+                        : 'bg-indigo-50 text-indigo-600 border-indigo-100'
+                    }`}>
+                      {displaySender}
                     </span>
-                  ) : (
-                    <span className="inline-flex items-center px-2 py-1 bg-red-50 text-red-700 text-xs rounded-full">
-                      <AlertTriangle className="w-3 h-3 mr-1"/>실패
-                    </span>
-                  )}
-                </td>
-              </tr>
-            ))}
+                  </td>
+                  <td className="p-4 font-medium text-slate-700">{t.phone}</td>
+                  <td className="p-4 text-xs text-slate-600 whitespace-pre-wrap">{cleanMessage}</td>
+                  <td className="p-4 text-center">
+                    {t.status === 'SUCCESS' ? (
+                      <span className="inline-flex items-center px-2 py-1 bg-green-50 text-green-700 text-xs rounded-full">
+                        <CheckCircle className="w-3 h-3 mr-1"/>성공
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2 py-1 bg-red-50 text-red-700 text-xs rounded-full">
+                        <AlertTriangle className="w-3 h-3 mr-1"/>실패
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
             {paginatedData.length === 0 && (
               <tr>
-                <td colSpan={4} className="p-8 text-center text-slate-400">
+                <td colSpan={5} className="p-8 text-center text-slate-400">
                   {data.length === 0 ? "발송 내역이 없습니다." : "검색 결과와 일치하는 내역이 없습니다."}
                 </td>
               </tr>
