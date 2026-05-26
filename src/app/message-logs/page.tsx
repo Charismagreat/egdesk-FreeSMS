@@ -25,7 +25,34 @@ export default function MessageLogsPage() {
   const fetchData = async () => {
     const res = await fetch('/api/message-logs');
     const json = await res.json();
-    if (json.success) setData(json.logs);
+    if (json.success) {
+      // 🔍 [디버그] 실제 DB 적재 메타데이터 확인용 콘솔로그
+      console.log("===== [EGDESK SMS] FETCHED MESSAGE LOGS =====");
+      json.logs.slice(0, 5).forEach((log: any) => {
+        console.log(`Log ID: ${log.id} | Phone: ${log.phone} | Raw Message Preview: ${log.message ? log.message.substring(log.message.length - 40) : 'N/A'}`);
+      });
+      setData(json.logs);
+    }
+  };
+
+  // 🕒 한국 시간대(KST) YYYY-MM-DD HH:mm:ss 포맷 변환 헬퍼
+  const formatKoreanTime = (isoString: string) => {
+    if (!isoString) return '';
+    try {
+      const date = new Date(isoString);
+      if (isNaN(date.getTime())) return isoString;
+      
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const hh = String(date.getHours()).padStart(2, '0');
+      const min = String(date.getMinutes()).padStart(2, '0');
+      const ss = String(date.getSeconds()).padStart(2, '0');
+      
+      return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+    } catch (e) {
+      return isoString;
+    }
   };
 
   // 날짜 필터 퀵 프리셋 설정 헬퍼
@@ -206,7 +233,7 @@ export default function MessageLogsPage() {
               const displaySender = deviceId === 'default' ? '기본 기기' : deviceId;
               return (
                 <tr key={t.id} className="border-b border-slate-50 hover:bg-slate-50">
-                  <td className="p-4 text-sm text-slate-500">{t.created_at}</td>
+                  <td className="p-4 text-sm text-slate-500 font-mono whitespace-nowrap">{formatKoreanTime(t.created_at)}</td>
                   <td className="p-4">
                     <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-extrabold border ${
                       deviceId === 'default' 
