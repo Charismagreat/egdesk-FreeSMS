@@ -118,7 +118,7 @@ export default function MessageLogsPage() {
           {/* 1층: 타이틀 & 검색바 (완벽한 좌우 대칭) */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 w-full">
             <h2 className="font-extrabold text-slate-800 text-base whitespace-nowrap shrink-0">발송 목록 ({filteredData.length}건)</h2>
-            <div className="relative w-full sm:w-72 shrink-0">
+            <div className="relative w-full sm:w-72 md:w-80 shrink-0 sm:ml-auto">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
               <input
                 type="text"
