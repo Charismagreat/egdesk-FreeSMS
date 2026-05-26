@@ -48,6 +48,16 @@ export default function SmsPage() {
   const [message, setMessage] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const [isPairing, setIsPairing] = useState(false);
+
+  // 📱 [AI 멀티채널 확장] 등록된 문자 발송 기기 리스트 상태
+  const [smsDevices, setSmsDevices] = useState<Array<{ phoneNumber: string; name: string; isConnected: boolean; dailyLimit: number; todaySent: number }>>([
+    { phoneNumber: "default", name: "기본 스마트폰 기기", isConnected: false, dailyLimit: 150, todaySent: 0 }
+  ]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string>("default");
+  const [newDevicePhone, setNewDevicePhone] = useState("");
+  const [newDeviceName, setNewDeviceName] = useState("");
+  const [showAddDeviceModal, setShowAddDeviceModal] = useState(false);
+  const [isAddingDevice, setIsAddingDevice] = useState(false);
   
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -177,9 +187,138 @@ export default function SmsPage() {
   const endExcelIndex = startExcelIndex + excelItemsPerPage;
   const paginatedExcelCustomers = filteredExcelCustomers.slice(startExcelIndex, endExcelIndex);
 
+  // 📱 [AI 멀티채널 확장] 등록된 기기 리스트 DB 로드 및 실시간 연동 체크
+  const loadDevicesAndStatus = async () => {
+    try {
+      const res = await fetch("/api/settings?key=sms_devices");
+      const data = await res.json();
+      let currentDevices = [
+        { phoneNumber: "default", name: "기본 스마트폰 기기", isConnected: false, dailyLimit: 150, todaySent: 0 }
+      ];
+      if (data.success && data.value) {
+        try {
+          const parsed = JSON.parse(data.value);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            currentDevices = parsed;
+          }
+        } catch (e) {
+          console.error("Failed to parse sms devices:", e);
+        }
+      }
+      setSmsDevices(currentDevices);
+      await checkAllDevicesConnection(currentDevices);
+    } catch (err) {
+      console.error("SMS devices load error:", err);
+    }
+  };
+
+  const checkAllDevicesConnection = async (devicesList: typeof smsDevices) => {
+    try {
+      // 1. 기기별 연결 상태 병렬 체크
+      const connectionStatuses = await Promise.all(
+        devicesList.map(async (dev) => {
+          try {
+            const res = await fetch(`/api/sms/status?deviceId=${dev.phoneNumber}`);
+            const json = await res.json();
+            return {
+              phoneNumber: dev.phoneNumber,
+              isConnected: json.success && json.isConnected
+            };
+          } catch (e) {
+            return { phoneNumber: dev.phoneNumber, isConnected: false };
+          }
+        })
+      );
+
+      // 2. 발송 로그를 불러와 KST 오늘 성공 발송 수량 기기별 정밀 파싱 집계
+      let logs: any[] = [];
+      try {
+        const logsRes = await fetch('/api/message-logs');
+        const logsJson = await logsRes.json();
+        if (logsJson.success && Array.isArray(logsJson.logs)) {
+          logs = logsJson.logs;
+        }
+      } catch (e) {
+        console.error("Failed to fetch message logs:", e);
+      }
+
+      // 한국 표준시(KST) 오늘 00:00:00 KST에 대응하는 UTC 시작 시간 도출
+      const nowKst = new Date(new Date().getTime() + 9 * 60 * 60 * 1000);
+      const startKst = new Date(nowKst);
+      startKst.setUTCHours(0, 0, 0, 0);
+      const startUtc = new Date(startKst.getTime() - 9 * 60 * 60 * 1000);
+      const startUtcTime = startUtc.getTime();
+
+      const todaySuccessLogs = logs.filter(log => {
+        if (log.status !== 'SUCCESS') return false;
+        const logTime = new Date(log.created_at).getTime();
+        return logTime >= startUtcTime;
+      });
+
+      const updated = devicesList.map((dev) => {
+        const conn = connectionStatuses.find(c => c.phoneNumber === dev.phoneNumber);
+        
+        // 해당 기기 비가시 서명 메타데이터 매칭 카운트
+        const devId = dev.phoneNumber;
+        const devSentCount = todaySuccessLogs.filter(log => {
+          const msg = log.message || '';
+          if (devId === 'default') {
+            return msg.includes(`[sender_device: default]`) || !msg.includes('[sender_device:');
+          }
+          return msg.includes(`[sender_device: ${devId}]`);
+        }).length;
+
+        return {
+          ...dev,
+          isConnected: conn ? conn.isConnected : false,
+          todaySent: devSentCount,
+          dailyLimit: dev.dailyLimit || 150
+        };
+      });
+
+      setSmsDevices(updated);
+      
+      // 현재 선택된 디바이스의 연동 상태를 구버전 호환용 isConnected에도 반영
+      const currentActive = updated.find(d => d.phoneNumber === selectedDeviceId);
+      setIsConnected(currentActive ? currentActive.isConnected : false);
+    } catch (e) {
+      console.error("Failed to check all devices connection:", e);
+    }
+  };
+
+  // 📱 [AI 멀티채널 확장] 개별 기기 발송 한도 조절 비동기 저장 헬퍼
+  const handleUpdateDeviceLimit = async (phone: string, limitVal: number) => {
+    const updated = smsDevices.map(d => {
+      if (d.phoneNumber === phone) {
+        return { ...d, dailyLimit: limitVal };
+      }
+      return d;
+    });
+    setSmsDevices(updated);
+
+    try {
+      await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          key: "sms_devices",
+          value: JSON.stringify(updated)
+        })
+      });
+    } catch (e) {
+      console.error("Failed to save device limit settings:", e);
+    }
+  };
+
+  // 선택된 디바이스 변경 시 호환용 isConnected 상태 즉시 동기화
+  useEffect(() => {
+    const currentActive = smsDevices.find(d => d.phoneNumber === selectedDeviceId);
+    setIsConnected(currentActive ? currentActive.isConnected : false);
+  }, [selectedDeviceId, smsDevices]);
+
   useEffect(() => {
     fetchCustomers();
-    checkConnectionStatus();
+    loadDevicesAndStatus();
     fetchAdTemplates();
     fetchProducts();
     fetchTransactions();
@@ -234,18 +373,6 @@ export default function SmsPage() {
     }
   };
 
-  const checkConnectionStatus = async () => {
-    try {
-      const res = await fetch('/api/sms/status');
-      const json = await res.json();
-      if (json.success && json.isConnected) {
-        setIsConnected(true);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
   useEffect(() => {
     const foundWords = SPAM_KEYWORDS.filter(word => message.includes(word));
     setSpamRisk({
@@ -266,14 +393,14 @@ export default function SmsPage() {
     }
   };
 
-  const handlePairing = async () => {
+  const handlePairing = async (deviceIdToPair: string = selectedDeviceId) => {
     setIsPairing(true);
     try {
-      const res = await fetch('/api/sms/setup');
+      const res = await fetch(`/api/sms/setup?deviceId=${deviceIdToPair}`);
       const json = await res.json();
       if (json.message === '연동 성공') {
-        setIsConnected(true);
         alert("Google 메시지 연동이 완료되었습니다.");
+        await loadDevicesAndStatus();
       } else {
         alert("연동 실패: " + (json.error || "알 수 없는 오류"));
       }
@@ -281,6 +408,75 @@ export default function SmsPage() {
       alert("서버 연결에 실패했습니다.");
     } finally {
       setIsPairing(false);
+    }
+  };
+
+  const handleAddDevice = async () => {
+    if (!newDevicePhone || !newDeviceName) return alert("기기 명칭과 전화번호를 정확히 입력해 주세요.");
+    const cleanPhone = newDevicePhone.replace(/[^0-9]/g, "");
+    if (!cleanPhone) return alert("숫자로 된 전화번호를 입력해 주세요.");
+
+    setIsAddingDevice(true);
+    const newDevice = {
+      phoneNumber: cleanPhone,
+      name: newDeviceName,
+      isConnected: false
+    };
+
+    const updatedDevices = [...smsDevices, newDevice];
+    
+    try {
+      const saveRes = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          key: "sms_devices",
+          value: JSON.stringify(updatedDevices)
+        })
+      });
+      const saveData = await saveRes.json();
+      if (saveData.success) {
+        setSmsDevices(updatedDevices);
+        setSelectedDeviceId(cleanPhone);
+        setNewDevicePhone("");
+        setNewDeviceName("");
+        setShowAddDeviceModal(false);
+        alert(`신규 기기 '${newDeviceName}'가 성공적으로 등록되었습니다. 리스트 우측의 연동하기 버튼을 눌러 페어링을 완수해 주세요.`);
+        await checkAllDevicesConnection(updatedDevices);
+      } else {
+        alert("기기 등록 실패: " + saveData.error);
+      }
+    } catch (e) {
+      alert("서버 연결 중 오류가 발생했습니다.");
+    } finally {
+      setIsAddingDevice(false);
+    }
+  };
+
+  const handleDeleteDevice = async (phone: string) => {
+    if (phone === "default") return alert("기본 기기는 삭제할 수 없습니다.");
+    if (!confirm("해당 발송 기기를 시스템에서 분리하시겠습니까?")) return;
+
+    const updatedDevices = smsDevices.filter(d => d.phoneNumber !== phone);
+    try {
+      const saveRes = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          key: "sms_devices",
+          value: JSON.stringify(updatedDevices)
+        })
+      });
+      if ((await saveRes.json()).success) {
+        setSmsDevices(updatedDevices);
+        if (selectedDeviceId === phone) {
+          setSelectedDeviceId("default");
+        }
+        alert("기기가 성공적으로 분리되었습니다.");
+        await checkAllDevicesConnection(updatedDevices);
+      }
+    } catch (e) {
+      alert("기기 분리 중 오류가 발생했습니다.");
     }
   };
 
@@ -547,7 +743,8 @@ export default function SmsPage() {
         body: JSON.stringify({
           phoneNumber: testPhone,
           message: finalMsg,
-          customerId: null
+          customerId: null,
+          deviceId: selectedDeviceId
         })
       });
       const json = await res.json();
@@ -632,7 +829,8 @@ export default function SmsPage() {
           body: JSON.stringify({
             phoneNumber: customer.phone,
             message: finalMsg,
-            customerId: customer.id
+            customerId: customer.id,
+            deviceId: selectedDeviceId
           })
         });
         
@@ -1244,36 +1442,137 @@ export default function SmsPage() {
         </div>
 
         <div className="space-y-6">
-          <div className="bg-gradient-to-br from-indigo-500 to-blue-600 p-6 rounded-2xl shadow-md text-white">
-            <h2 className="text-lg font-bold mb-2 flex items-center">
-              <Smartphone className="w-5 h-5 mr-2" />
-              기기 연동 상태
+          <div 
+            style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)' }}
+            className="p-6 rounded-2xl shadow-md text-white border border-indigo-500/20"
+          >
+            <h2 className="text-lg font-bold mb-4 flex items-center justify-between">
+              <span className="flex items-center text-sm font-extrabold">
+                <Smartphone className="w-5 h-5 mr-2" />
+                발송 기기 멀티 허브
+              </span>
+              <button 
+                onClick={() => setShowAddDeviceModal(true)}
+                className="bg-white/20 hover:bg-white/30 text-white font-bold text-[10px] px-3 py-1.5 rounded-xl border border-white/10 transition-all active:scale-95 cursor-pointer"
+              >
+                + 기기 추가
+              </button>
             </h2>
-            {isConnected ? (
-              <div className="mt-4 bg-white/20 p-4 rounded-xl backdrop-blur-sm">
-                <p className="font-semibold flex items-center">
-                  <CheckCircle className="w-4 h-4 mr-2 text-green-300" />
-                  연동 완료 (정상 작동)
-                </p>
-                <p className="text-sm text-blue-100 mt-2">이제 웹에서 문자를 보낼 수 있습니다.</p>
-              </div>
-            ) : (
-              <div className="mt-4">
-                <p className="text-sm text-blue-100 mb-4">Google 메시지 웹과 휴대폰을 연동해야 자동 문자가 발송됩니다.</p>
-                <button 
-                  onClick={handlePairing}
-                  disabled={isPairing}
-                  className="w-full bg-white text-blue-600 font-bold py-3 rounded-xl flex items-center justify-center hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
-                >
-                  <ScanLine className="w-5 h-5 mr-2" />
-                  {isPairing ? "스마트폰으로 스캔해주세요..." : "QR 코드로 연동하기"}
-                </button>
-                {isPairing && (
-                  <p className="text-xs mt-3 text-center text-blue-100">
-                    새 브라우저 창에 나타난 QR코드를 스캔하시면 창이 자동으로 닫힙니다. (최대 2분 대기)
-                  </p>
-                )}
-              </div>
+
+            {/* 활성 기기 선택 */}
+            <div className="mb-4 bg-white/10 p-3 rounded-xl border border-white/5">
+              <label className="text-[10px] font-black text-indigo-200 block mb-1">📢 현재 문자 전송용 활성 기기</label>
+              <select
+                value={selectedDeviceId}
+                onChange={(e) => setSelectedDeviceId(e.target.value)}
+                className="w-full bg-indigo-900/40 border border-white/10 rounded-xl px-2.5 py-1.5 text-white font-extrabold text-[11px] outline-none focus:ring-2 focus:ring-white/30 cursor-pointer"
+              >
+                {smsDevices.map(d => (
+                  <option key={d.phoneNumber} value={d.phoneNumber} className="text-slate-800 font-medium">
+                    {d.name} ({d.phoneNumber === "default" ? "기본" : d.phoneNumber})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 기기 리스트 */}
+            <div className="space-y-3 mt-4 max-h-[380px] overflow-y-auto pr-1">
+              {smsDevices.map((dev) => (
+                <div key={dev.phoneNumber} className="bg-white/10 hover:bg-white/15 p-3.5 rounded-xl backdrop-blur-sm border border-white/5 space-y-2.5 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1.5 truncate flex-1 pr-2">
+                      <div className="flex items-center gap-2 truncate">
+                        <span className={`inline-flex items-center gap-1.5 text-[9px] px-2 py-0.5 rounded-full font-black border tracking-wider shrink-0 transition-all select-none ${
+                          dev.isConnected 
+                            ? "bg-green-500/20 text-green-300 border-green-400/30 shadow-inner" 
+                            : "bg-red-500/20 text-red-300 border-red-400/30"
+                        }`}>
+                          <span 
+                            className={`w-2.5 h-2.5 rounded-full shrink-0 ${dev.isConnected ? "animate-pulse shadow-sm" : ""}`} 
+                            style={{ 
+                              backgroundColor: dev.isConnected ? '#4ade80' : '#f87171',
+                              boxShadow: dev.isConnected ? '0 0 8px #4ade80' : '0 0 6px #f87171'
+                            }}
+                          />
+                          {dev.isConnected ? "연동 완료" : "미연동"}
+                        </span>
+                        <span className="font-extrabold text-xs text-white truncate">{dev.name}</span>
+                      </div>
+                      <p className="text-[9px] text-indigo-200 font-mono">
+                        {dev.phoneNumber === "default" ? "기본 세션 연동" : dev.phoneNumber}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button 
+                        onClick={() => handlePairing(dev.phoneNumber)}
+                        disabled={isPairing}
+                        className="bg-white hover:bg-slate-100 text-indigo-600 font-black text-[9px] px-2.5 py-1.5 rounded-lg shadow-sm transition-colors disabled:opacity-50 cursor-pointer"
+                      >
+                        {isPairing && selectedDeviceId === dev.phoneNumber ? "대기중" : dev.isConnected ? "재연동" : "연동"}
+                      </button>
+                      {dev.phoneNumber !== "default" && (
+                        <button 
+                          onClick={() => handleDeleteDevice(dev.phoneNumber)}
+                          className="bg-red-500/20 hover:bg-red-500/30 text-red-200 hover:text-red-100 text-[9px] px-2 py-1.5 rounded-lg border border-red-500/10 transition-colors cursor-pointer"
+                          title="기기 분리"
+                        >
+                          삭제
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 📊 오늘 발송 진척도 바 & 뱃지 */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between items-center text-[9px] text-indigo-200 font-bold">
+                      <span>오늘 사용량: <strong className="text-white">{dev.todaySent ?? 0}건</strong> / {dev.dailyLimit ?? 150}건</span>
+                      <span className="font-mono">{Math.round(((dev.todaySent ?? 0) / (dev.dailyLimit ?? 150)) * 100)}%</span>
+                    </div>
+                    <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                      <div 
+                        style={{ width: `${Math.min(100, ((dev.todaySent ?? 0) / (dev.dailyLimit ?? 150)) * 100)}%` }} 
+                        className={`h-full transition-all ${dev.todaySent >= dev.dailyLimit ? "bg-amber-400" : "bg-green-400"}`}
+                      />
+                    </div>
+                  </div>
+
+                  {/* 🎛️ 개별 한도 조절 슬라이더 */}
+                  <div className="bg-indigo-950/20 p-2.5 rounded-lg border border-white/5 space-y-1">
+                    <div className="flex justify-between items-center text-[9px] text-indigo-200 font-bold">
+                      <span>🛡️ 일일 전송 제한량</span>
+                      <div className="flex items-center gap-0.5">
+                        <input 
+                          type="number"
+                          min={1}
+                          max={450}
+                          value={dev.dailyLimit ?? 150}
+                          onChange={(e) => {
+                            const val = Math.min(450, Math.max(1, Number(e.target.value)));
+                            handleUpdateDeviceLimit(dev.phoneNumber, isNaN(val) ? 150 : val);
+                          }}
+                          className="w-10 bg-indigo-900/40 border border-white/10 rounded px-1 text-center font-black text-white text-[9px] focus:outline-none"
+                        />
+                        <span>건</span>
+                      </div>
+                    </div>
+                    <input 
+                      type="range"
+                      min={1}
+                      max={450}
+                      step={5}
+                      value={dev.dailyLimit ?? 150}
+                      onChange={(e) => handleUpdateDeviceLimit(dev.phoneNumber, Number(e.target.value))}
+                      className="w-full h-1 bg-white/10 rounded appearance-none cursor-pointer accent-white"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {isPairing && (
+              <p className="text-[10px] mt-4 text-center text-indigo-200 animate-pulse font-semibold">
+                ⚠️ 새 브라우저 창에 생성된 QR코드를 스캔해주세요 (최대 2분 대기).
+              </p>
             )}
           </div>
           
@@ -1416,6 +1715,69 @@ export default function SmsPage() {
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
               >
                 저장하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📱 신규 기기 추가 등록 모달 */}
+      {showAddDeviceModal && (
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-6 shadow-2xl border border-slate-100 w-full max-w-md animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center border-b pb-3.5 mb-4">
+              <h3 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                <Smartphone className="w-5 h-5 text-indigo-500" />
+                신규 발송 기기 등록
+              </h3>
+              <button 
+                onClick={() => setShowAddDeviceModal(false)}
+                className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-black text-slate-500 block mb-1.5">기기 명칭</label>
+                <input 
+                  type="text" 
+                  placeholder="예: 영업팀 서브폰, 매장 전용폰"
+                  value={newDeviceName}
+                  onChange={(e) => setNewDeviceName(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:ring-2 focus:ring-indigo-400 text-xs font-bold text-slate-800"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-black text-slate-500 block mb-1.5">전화번호 (숫자만 입력)</label>
+                <input 
+                  type="text" 
+                  placeholder="예: 01012345678"
+                  value={newDevicePhone}
+                  onChange={(e) => setNewDevicePhone(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:ring-2 focus:ring-indigo-400 text-xs font-bold text-slate-800"
+                />
+              </div>
+              <div className="bg-amber-50 border border-amber-100 p-3.5 rounded-xl flex gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-[10px] text-amber-800 font-semibold leading-relaxed">
+                  새 스마트폰을 등록한 후, 활성화된 카드 우측의 [연동] 버튼을 눌러 생성되는 QR 코드를 해당 기기로 스캔해 주셔야 무료 발송망이 가동됩니다.
+                </p>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <button 
+                onClick={() => setShowAddDeviceModal(false)}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-655 text-xs font-extrabold hover:bg-slate-50 transition-colors"
+              >
+                취소
+              </button>
+              <button 
+                onClick={handleAddDevice}
+                disabled={isAddingDevice}
+                className="px-5 py-2.5 bg-slate-900 text-white text-xs font-extrabold rounded-xl hover:bg-slate-850 shadow-md transition-colors disabled:opacity-50"
+              >
+                {isAddingDevice ? "등록 중..." : "기기 등록하기"}
               </button>
             </div>
           </div>

@@ -1304,7 +1304,15 @@ export default function InventoryPage() {
 
 
             {/* 영수증/인보이스 드롭존 & 스캔 비주얼 효과 레이어 */}
-            <div className="relative border-2 border-dashed border-slate-200 rounded-xl p-6 flex flex-col items-center justify-center bg-slate-50 min-h-[140px] overflow-hidden group">
+            <div 
+              onClick={() => {
+                if (!aiVisionLoading) {
+                  // 샘플 명세서 제거에 대응하여, 드롭존 클릭 시 1번 명세서(한성정밀) 기준 가상 AI 비전 분석 자동 실행!
+                  triggerAiVisionScan(1);
+                }
+              }}
+              className="relative border-2 border-dashed border-slate-200 rounded-xl p-6 flex flex-col items-center justify-center bg-slate-50 min-h-[140px] overflow-hidden group cursor-pointer hover:bg-indigo-50/20 hover:border-indigo-300/60 transition-all"
+            >
               {scanningLine && (
                 <div className="absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent animate-bounce z-20"></div>
               )}

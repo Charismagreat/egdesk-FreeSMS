@@ -2,9 +2,6 @@ import { chromium, Browser, Page, BrowserContext } from 'playwright';
 import path from 'path';
 import fs from 'fs';
 
-const STORAGE_PATH = path.join(process.cwd(), 'storage', 'google-messages-auth.json');
-const USER_DATA_DIR = path.join(process.cwd(), 'storage', 'playwright-profile');
-
 /**
  * Google 메시지 웹 자동화 클래스
  */
@@ -13,6 +10,16 @@ export class GoogleMessagesAutomation {
   private context: BrowserContext | null = null;
   private page: Page | null = null;
   private currentHeadless: boolean | null = null;
+  public deviceId: string;
+  public storagePath: string;
+  public userDataDir: string;
+
+  constructor(deviceId: string = 'default') {
+    // 세션 구분을 위해 번호의 대시와 띄어쓰기를 없앤 순수 영숫자 식별자 사용
+    this.deviceId = deviceId.replace(/[^0-9a-zA-Z]/g, '') || 'default';
+    this.storagePath = path.join(process.cwd(), 'storage', `google-messages-auth-${this.deviceId}.json`);
+    this.userDataDir = path.join(process.cwd(), 'storage', `playwright-profile-${this.deviceId}`);
+  }
 
   /**
    * 브라우저 초기화 및 세션 로드
@@ -29,7 +36,7 @@ export class GoogleMessagesAutomation {
         if (this.page && !this.page.isClosed()) {
           return;
         }
-        console.log('[GoogleMessages] 기존 브라우저 세션이 끊겼거나 페이지가 닫혔습니다. 재시작 중...');
+        console.log(`[GoogleMessages-${this.deviceId}] 기존 브라우저 세션이 끊겼거나 페이지가 닫혔습니다. 재시작 중...`);
         await this.close();
       } catch (e) {
         await this.close();
@@ -37,22 +44,22 @@ export class GoogleMessagesAutomation {
     }
 
     // 저장소 디렉토리 생성
-    const storageDir = path.dirname(STORAGE_PATH);
+    const storageDir = path.dirname(this.storagePath);
     if (!fs.existsSync(storageDir)) {
       fs.mkdirSync(storageDir, { recursive: true });
     }
-    if (!fs.existsSync(USER_DATA_DIR)) {
-      fs.mkdirSync(USER_DATA_DIR, { recursive: true });
+    if (!fs.existsSync(this.userDataDir)) {
+      fs.mkdirSync(this.userDataDir, { recursive: true });
     }
 
     // Windows 환경에서 비정상 종료 시 남아있는 프로필 Lock 파일 제거 시도
-    const lockFile = path.join(USER_DATA_DIR, 'SingletonLock');
+    const lockFile = path.join(this.userDataDir, 'SingletonLock');
     if (fs.existsSync(lockFile)) {
       try {
         fs.unlinkSync(lockFile);
-        console.log('[GoogleMessages] 이전 세션의 SingletonLock 파일을 정리했습니다.');
+        console.log(`[GoogleMessages-${this.deviceId}] 이전 세션의 SingletonLock 파일을 정리했습니다.`);
       } catch (e) {
-        console.log('[GoogleMessages] SingletonLock 파일 제거 실패 (프로세스가 아직 점유 중일 수 있습니다)');
+        console.log(`[GoogleMessages-${this.deviceId}] SingletonLock 파일 제거 실패 (프로세스가 아직 점유 중일 수 있습니다)`);
       }
     }
 
@@ -74,16 +81,16 @@ export class GoogleMessagesAutomation {
 
     try {
       // 시스템에 설치된 실제 Chrome을 우선 사용 시도 (안정성 및 드라이버 호환성 매우 높음)
-      this.context = await chromium.launchPersistentContext(USER_DATA_DIR, { 
+      this.context = await chromium.launchPersistentContext(this.userDataDir, { 
         ...launchOptions, 
         channel: 'chrome',
         viewport: { width: 1280, height: 800 },
         userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
       });
-      console.log('[GoogleMessages] System Chrome 런칭 성공 (Persistent Context).');
+      console.log(`[GoogleMessages-${this.deviceId}] System Chrome 런칭 성공 (Persistent Context).`);
     } catch (chromeErr: any) {
-      console.log('[GoogleMessages] System Chrome 런칭 실패, 기본 Chromium으로 폴백합니다.', chromeErr.message);
-      this.context = await chromium.launchPersistentContext(USER_DATA_DIR, {
+      console.log(`[GoogleMessages-${this.deviceId}] System Chrome 런칭 실패, 기본 Chromium으로 폴백합니다.`, chromeErr.message);
+      this.context = await chromium.launchPersistentContext(this.userDataDir, {
         ...launchOptions,
         viewport: { width: 1280, height: 800 },
         userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
@@ -364,10 +371,22 @@ export class GoogleMessagesAutomation {
 }
 
 // Next.js 개발 환경에서 Hot Reload 시 인스턴스가 여러 개 생성되어
-// 기존 브라우저 프로세스가 폴더 잠금을 유지하는 현상(EBUSY)을 방지하기 위한 글로벌 싱글톤 처리
-const globalForGM = globalThis as unknown as { gmAutomation: GoogleMessagesAutomation };
-export const gmAutomation = globalForGM.gmAutomation || new GoogleMessagesAutomation();
+// 기존 브라우저 프로세스가 폴더 잠금을 유지하는 현상(EBUSY)을 방지하기 위한 글로벌 캐싱 맵 처리
+const globalForGM = globalThis as unknown as { 
+  automations: Map<string, GoogleMessagesAutomation> 
+};
 
-if (process.env.NODE_ENV !== 'production') {
-  globalForGM.gmAutomation = gmAutomation;
+if (!globalForGM.automations) {
+  globalForGM.automations = new Map<string, GoogleMessagesAutomation>();
 }
+
+export const getGmAutomation = (deviceId: string = 'default') => {
+  const cleanId = deviceId.replace(/[^0-9a-zA-Z]/g, '') || 'default';
+  if (!globalForGM.automations.has(cleanId)) {
+    globalForGM.automations.set(cleanId, new GoogleMessagesAutomation(cleanId));
+  }
+  return globalForGM.automations.get(cleanId)!;
+};
+
+// 하위 호환성을 완벽히 유지하기 위한 기본(default) 기기 인스턴스 바인딩
+export const gmAutomation = getGmAutomation('default');

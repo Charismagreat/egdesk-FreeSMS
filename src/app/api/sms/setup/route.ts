@@ -1,16 +1,19 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { gmAutomation } from '@/lib/google-messages';
+import { getGmAutomation } from '@/lib/google-messages';
 
 /**
- * Google 메시지 연동 설정 API
- * 호출 시 서버에서 헤드풀 브라우저를 열어 QR 코드 스캔 대기
+ * Google 메시지 연동 설정 API (멀티 디바이스 대응)
  */
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const result = await gmAutomation.setupConnection();
+    const { searchParams } = new URL(req.url);
+    const deviceId = searchParams.get('deviceId') || 'default';
+
+    const automation = getGmAutomation(deviceId);
+    const result = await automation.setupConnection();
     if (result.success) {
-      return NextResponse.json({ message: '연동 성공' });
+      return NextResponse.json({ message: '연동 성공', deviceId });
     } else {
       return NextResponse.json({ error: result.error }, { status: 500 });
     }
