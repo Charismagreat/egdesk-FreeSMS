@@ -33,6 +33,7 @@ async function initTables() {
           { name: 'unitValue', type: 'TEXT' }, // 단위 세부 단위명 (g, kg, 등)
           { name: 'boxContains', type: 'INTEGER' }, // 박스당 입수량
           { name: 'description', type: 'TEXT' }, // 품목 설명
+          { name: 'tags', type: 'TEXT' }, // 커스텀 멀티 태그 콤마 구분값
           { name: 'createdAt', type: 'TEXT', notNull: true } // 등록 일자
         ],
         { tableName: 'inventory_items' }
@@ -98,7 +99,7 @@ export async function POST(request: Request) {
     await initTables();
     const body = await request.json();
     
-    const { type, name, category, price, partner, stock, safeStock, location, spec, unitType, unitValue, boxContains, description } = body;
+    const { type, name, category, price, partner, stock, safeStock, location, spec, unitType, unitValue, boxContains, description, tags } = body;
 
     if (!type || !name || !category || price === undefined || stock === undefined || safeStock === undefined) {
       return NextResponse.json(
@@ -121,6 +122,7 @@ export async function POST(request: Request) {
       unitValue: unitValue || '개',
       boxContains: boxContains ? Number(boxContains) : null,
       description: description || '',
+      tags: tags || '',
       createdAt: new Date().toISOString()
     };
 
@@ -158,7 +160,7 @@ export async function PUT(request: Request) {
   try {
     await initTables();
     const body = await request.json();
-    const { id, name, category, price, partner, safeStock, location, spec, unitType, unitValue, boxContains, description } = body;
+    const { id, name, category, price, partner, safeStock, location, spec, unitType, unitValue, boxContains, description, tags } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -179,6 +181,7 @@ export async function PUT(request: Request) {
     if (unitValue !== undefined) updates.unitValue = unitValue;
     if (boxContains !== undefined) updates.boxContains = boxContains ? Number(boxContains) : null;
     if (description !== undefined) updates.description = description;
+    if (tags !== undefined) updates.tags = tags;
 
     await updateRows('inventory_items', updates, {
       ids: [Number(id)]

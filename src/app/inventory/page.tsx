@@ -37,6 +37,7 @@ interface InventoryItem {
   safeStock: number;
   location?: string;
   description?: string;
+  tags?: string; // 콤마로 결합된 커스텀 멀티 태그
   createdAt: string;
 }
 
@@ -113,6 +114,11 @@ export default function InventoryPage() {
   // 엑셀 일괄 등록용 상태
   const [isUploadingExcel, setIsUploadingExcel] = useState(false);
   const [showExcelGuideModal, setShowExcelGuideModal] = useState(false);
+
+  // 글로벌 마스터 태그 풀 및 품목 바인딩 태그용 상태
+  const [globalTags, setGlobalTags] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [newTagInput, setNewTagInput] = useState('');
 
   // 타이핑 애니메이션 레프 및 상태
   const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -200,10 +206,50 @@ export default function InventoryPage() {
     }
   ];
 
-  // 최초 로드 시 데이터 패치
+  // 최초 로드 시 데이터 패치 및 글로벌 태그 풀 로딩
   useEffect(() => {
     fetchData();
+    initGlobalTags();
   }, []);
+
+  // 글로벌 태그 풀 로드 및 Seeding
+  const initGlobalTags = () => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('egdesk_inventory_global_tags') : null;
+    if (saved) {
+      try {
+        setGlobalTags(JSON.parse(saved));
+      } catch (e) {
+        const defaults = ['사용중', '보류', '사용중단', '판매중', '판매중단제품'];
+        setGlobalTags(defaults);
+        localStorage.setItem('egdesk_inventory_global_tags', JSON.stringify(defaults));
+      }
+    } else {
+      const defaults = ['사용중', '보류', '사용중단', '판매중', '판매중단제품'];
+      setGlobalTags(defaults);
+      localStorage.setItem('egdesk_inventory_global_tags', JSON.stringify(defaults));
+    }
+  };
+
+  // 마스터 풀에 태그 누적 추가
+  const addGlobalTag = (tag: string) => {
+    const trimmed = tag.trim();
+    if (!trimmed) return;
+    if (globalTags.includes(trimmed)) return;
+
+    const updated = [...globalTags, trimmed];
+    setGlobalTags(updated);
+    localStorage.setItem('egdesk_inventory_global_tags', JSON.stringify(updated));
+  };
+
+  // 마스터 풀에서 태그 영구 삭제
+  const removeGlobalTag = (tag: string) => {
+    const updated = globalTags.filter(t => t !== tag);
+    setGlobalTags(updated);
+    localStorage.setItem('egdesk_inventory_global_tags', JSON.stringify(updated));
+
+    // 품목 바인딩 태그에서도 즉시 제거 처리
+    setSelectedTags(prev => prev.filter(t => t !== tag));
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -239,7 +285,9 @@ export default function InventoryPage() {
       const isEdit = !!selectedItem;
       const url = '/api/inventory';
       const method = isEdit ? 'PUT' : 'POST';
-      const payload = isEdit ? { ...itemForm, id: selectedItem.id } : itemForm;
+      const payload = isEdit 
+        ? { ...itemForm, id: selectedItem.id, tags: selectedTags.join(',') } 
+        : { ...itemForm, tags: selectedTags.join(',') };
 
       const res = await fetch(url, {
         method,
@@ -444,6 +492,23 @@ export default function InventoryPage() {
     }
   };
 
+  // 태그별 세련된 네온 배지 컬러 클래스 연산
+  const getTagColorClass = (tag: string) => {
+    let hash = 0;
+    for (let i = 0; i < tag.length; i++) {
+      hash = tag.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % 5;
+    const colors = [
+      'bg-emerald-50 text-emerald-700 border-emerald-100', // 에메랄드 그린
+      'bg-indigo-50 text-indigo-750 border-indigo-100',   // 인디고 퍼플
+      'bg-amber-50 text-amber-700 border-amber-100',     // 앰버 오렌지
+      'bg-rose-50 text-rose-700 border-rose-100',       // 로즈 핑크
+      'bg-sky-50 text-sky-700 border-sky-100'          // 스카이 블루
+    ];
+    return colors[index];
+  };
+
   // 입출고 및 조정 등록 처리
   const handleTxSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -491,6 +556,7 @@ export default function InventoryPage() {
       location: '',
       description: ''
     });
+    setSelectedTags([]);
   };
 
   const resetTxForm = () => {
@@ -517,6 +583,7 @@ export default function InventoryPage() {
       location: '',
       description: ''
     });
+    setSelectedTags(activeTab === 'product' ? ['판매중'] : ['사용중']);
     setIsItemModalOpen(true);
   };
 
@@ -534,6 +601,7 @@ export default function InventoryPage() {
       location: item.location || '',
       description: item.description || ''
     });
+    setSelectedTags(item.tags ? item.tags.split(',') : []);
     setIsItemModalOpen(true);
   };
 
@@ -1218,12 +1286,28 @@ export default function InventoryPage() {
                     return (
                       <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
                         <td className="py-4 px-4">
-                          <div className="flex items-center space-x-2.5">
-                            <span className="font-semibold text-slate-800">{item.name}</span>
-                            {isAlert && (
-                              <span className="bg-rose-100 text-rose-600 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md border border-rose-200 animate-pulse">
-                                부족
-                              </span>
+                          <div className="flex flex-col space-y-1">
+                            <div className="flex items-center space-x-2.5">
+                              <span className="font-semibold text-slate-800">{item.name}</span>
+                              {isAlert && (
+                                <span className="bg-rose-100 text-rose-600 text-[9px] font-extrabold px-1.5 py-0.5 rounded-md border border-rose-200 animate-pulse">
+                                  부족
+                                </span>
+                              )}
+                            </div>
+                            
+                            {/* 멀티 네온 배지 렌더링 */}
+                            {item.tags && (
+                              <div className="flex flex-wrap gap-1">
+                                {item.tags.split(',').map((tag) => (
+                                  <span 
+                                    key={tag}
+                                    className={`text-[9px] font-bold px-2 py-0.5 rounded-full border shadow-3xs ${getTagColorClass(tag)}`}
+                                  >
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
                             )}
                           </div>
                         </td>
@@ -1735,6 +1819,101 @@ export default function InventoryPage() {
                     </div>
                   </div>
                 )}
+
+                {/* 6. 다이내믹 커스텀 멀티 태그 빌더 */}
+                <div className="border-t border-slate-100 pt-3">
+                  <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                    품목 관리 태그 (복수 선택 및 커스텀 추가)
+                  </label>
+                  
+                  {/* 적용된 태그 배지 목록 */}
+                  <div className="flex flex-wrap gap-1.5 mb-2 min-h-[32px] p-2 bg-slate-50/60 border border-slate-150 rounded-xl items-center">
+                    {selectedTags.length === 0 ? (
+                      <span className="text-[10px] text-slate-400 font-medium">아래 태그 풀에서 터치하여 추가하거나 새 태그를 만드세요.</span>
+                    ) : (
+                      selectedTags.map((tag) => (
+                        <span 
+                          key={tag}
+                          className="bg-indigo-50 border border-indigo-100 text-indigo-700 text-[10px] font-bold px-2.5 py-1 rounded-full shadow-2xs flex items-center gap-1 group transition-all"
+                        >
+                          <span>{tag}</span>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTags(prev => prev.filter(t => t !== tag))}
+                            className="text-indigo-400 hover:text-indigo-750 font-bold focus:outline-none text-[9px] bg-indigo-100/50 hover:bg-indigo-200/50 px-1 rounded-full"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))
+                    )}
+                  </div>
+
+                  {/* 사용 가능한 글로벌 태그 풀 목록 */}
+                  <div className="flex flex-wrap gap-1.5 mb-3 bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
+                    <span className="text-[9px] text-slate-400 font-bold w-full block mb-1">매장 마스터 태그 풀 (터치 시 품목에 즉각 바인딩):</span>
+                    {globalTags.filter(t => !selectedTags.includes(t)).length === 0 ? (
+                      <span className="text-[9px] text-slate-400">모든 태그가 적용되었습니다.</span>
+                    ) : (
+                      globalTags.filter(t => !selectedTags.includes(t)).map((tag) => (
+                        <span
+                          key={tag}
+                          className="relative pl-2.5 pr-6 py-1 rounded-full bg-white border border-slate-200 text-slate-655 text-[10px] font-semibold cursor-pointer hover:border-indigo-400 hover:text-indigo-600 transition-all shadow-3xs flex items-center gap-1.5"
+                          onClick={() => setSelectedTags(prev => [...prev, tag])}
+                        >
+                          <span>{tag}</span>
+                          <button
+                            type="button"
+                            title="대장에서 영구 삭제"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm(`'${tag}' 태그를 마스터 목록에서 영구히 제거하시겠습니까?`)) {
+                                removeGlobalTag(tag);
+                              }
+                            }}
+                            className="absolute right-1.5 text-slate-350 hover:text-red-500 font-black text-[9px] hover:bg-slate-100 rounded p-0.5"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))
+                    )}
+                  </div>
+
+                  {/* 실시간 커스텀 태그 추가 인풋 */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newTagInput}
+                      onChange={(e) => setNewTagInput(e.target.value)}
+                      placeholder="예: 긴급조달필요, A급자재, 추천"
+                      className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (newTagInput.trim()) {
+                            addGlobalTag(newTagInput);
+                            setSelectedTags(prev => [...prev, newTagInput.trim()]);
+                            setNewTagInput('');
+                          }
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (newTagInput.trim()) {
+                          addGlobalTag(newTagInput);
+                          setSelectedTags(prev => [...prev, newTagInput.trim()]);
+                          setNewTagInput('');
+                        }
+                      }}
+                      className="px-3.5 py-2 rounded-xl bg-slate-800 text-white hover:bg-slate-700 text-xs font-bold transition-all shadow-xs"
+                    >
+                      태그 추가
+                    </button>
+                  </div>
+                </div>
 
                 {/* 비고 및 상세 설명 */}
                 <div>

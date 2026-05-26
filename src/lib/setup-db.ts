@@ -373,6 +373,7 @@ export async function setupDatabase() {
     { name: 'unitValue', type: 'TEXT' },
     { name: 'boxContains', type: 'INTEGER' },
     { name: 'description', type: 'TEXT' },
+    { name: 'tags', type: 'TEXT' }, // 커스텀 멀티 태그 콤마 구분값
     { name: 'createdAt', type: 'TEXT', notNull: true }
   ], { tableName: 'inventory_items', uniqueKeyColumns: ['id'] });
 

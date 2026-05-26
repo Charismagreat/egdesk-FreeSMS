@@ -78,6 +78,7 @@ export async function POST(request: Request) {
         unitValue,
         boxContains,
         description,
+        tags: item.tags?.trim() || (type === 'product' ? '판매중' : '사용중'), // 엑셀 태그 파싱 및 종류별 기본값 보장
         createdAt: createdAtStr
       };
 
