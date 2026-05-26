@@ -374,6 +374,7 @@ export async function setupDatabase() {
     { name: 'boxContains', type: 'INTEGER' },
     { name: 'description', type: 'TEXT' },
     { name: 'tags', type: 'TEXT' }, // 커스텀 멀티 태그 콤마 구분값
+    { name: 'barcode', type: 'TEXT' }, // 바코드 번호 (USB 리더기/EAN-13 등 지원)
     { name: 'createdAt', type: 'TEXT', notNull: true }
   ], { tableName: 'inventory_items', uniqueKeyColumns: ['id'] });
 

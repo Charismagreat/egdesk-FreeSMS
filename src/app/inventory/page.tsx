@@ -23,7 +23,8 @@ import {
   Loader2,
   CheckCircle,
   X,
-  Volume2
+  Volume2,
+  Download
 } from 'lucide-react';
 
 interface InventoryItem {
@@ -53,6 +54,47 @@ interface InventoryLog {
   note?: string;
   createdAt: string;
 }
+
+// 순수 React 기반 초경량 인라인 바코드 (Code 39 규격 호환) SVG 렌더러
+const BarcodeSvg = ({ value }: { value: string }) => {
+  const cleanVal = (value || '880123456789').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  
+  // Code 39 이진 맵핑 테이블 (1: 두꺼운 바, 0: 얇은 바)
+  const getPattern = (char: string) => {
+    const patterns: Record<string, string> = {
+      '0': '000110100', '1': '100100001', '2': '001100001', '3': '101100000',
+      '4': '000110001', '5': '100110000', '6': '001110000', '7': '000100101',
+      '8': '100100100', '9': '001100100', 'A': '100001001', 'B': '001001001',
+      'C': '101001000', 'D': '000011001', 'E': '100011000', 'F': '001011000',
+      'G': '000001101', 'H': '100001100', 'I': '001001100', 'J': '000011100'
+    };
+    return patterns[char] || '000110100'; // fallback
+  };
+
+  let bits = '10010110'; // Start 캐릭터 '*'
+  for (let i = 0; i < Math.min(cleanVal.length, 12); i++) {
+    bits += getPattern(cleanVal[i]) + '0'; // 문자간 구분자
+  }
+  bits += '10010110'; // Stop 캐릭터 '*'
+
+  return (
+    <div className="flex flex-col items-center justify-center p-2 bg-white rounded-lg">
+      <svg width="100%" height="45" viewBox={`0 0 ${bits.length * 2} 45`} preserveAspectRatio="none" className="w-full">
+        <g fill="#000000">
+          {bits.split('').map((bit, idx) => {
+            if (bit === '1') {
+              return <rect key={idx} x={idx * 2} y="0" width="1.8" height="38" />;
+            }
+            return null;
+          })}
+        </g>
+      </svg>
+      <span className="text-[9px] font-bold text-slate-700 tracking-[0.2em] mt-1 select-all font-mono uppercase">
+        {cleanVal || '880123456789'}
+      </span>
+    </div>
+  );
+};
 
 export default function InventoryPage() {
   // 상태 정의
@@ -84,6 +126,7 @@ export default function InventoryPage() {
     stock: '',
     safeStock: '',
     location: '',
+    barcode: '',
     description: ''
   });
 
@@ -119,6 +162,16 @@ export default function InventoryPage() {
   const [globalTags, setGlobalTags] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [newTagInput, setNewTagInput] = useState('');
+
+  // 3대 재고 자산 평가법 상태 (이동평균 / 선입선출 / 후입선출)
+  const [valuationMethod, setValuationMethod] = useState<'moving_average' | 'fifo' | 'lifo'>('moving_average');
+
+  // 바코드 스캔 및 라벨 인쇄 관련 상태
+  const [isScanModalOpen, setIsScanModalOpen] = useState(false);
+  const [scanMode, setScanMode] = useState<'in' | 'out'>('in');
+  const [scanLogs, setScanLogs] = useState<any[]>([]);
+  const [isLabelPrintModalOpen, setIsLabelPrintModalOpen] = useState(false);
+  const [selectedPrintItem, setSelectedPrintItem] = useState<InventoryItem | null>(null);
 
   // 타이핑 애니메이션 레프 및 상태
   const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -211,6 +264,142 @@ export default function InventoryPage() {
     fetchData();
     initGlobalTags();
   }, []);
+
+  // Web Audio API 기반 오디오 비프(Beep) 음 재생기
+  const playBeep = (type: 'success' | 'error') => {
+    if (typeof window === 'undefined') return;
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+      
+      if (type === 'success') {
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(600, audioCtx.currentTime); // 600Hz 맑은 소리
+        gainNode.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 0.1); // 0.1초
+      } else {
+        oscillator.type = 'sawtooth';
+        oscillator.frequency.setValueAtTime(150, audioCtx.currentTime); // 150Hz 저주파 웅-
+        gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 0.35); // 0.35초
+      }
+    } catch (e) {
+      console.error('Beep audio error:', e);
+    }
+  };
+
+  // 바코드 스캔 처리 핵심 트랜잭션 함수
+  const handleBarcodeScanned = async (barcode: string) => {
+    const cleanBarcode = barcode.trim();
+    if (!cleanBarcode) return;
+    
+    // 만약 스캔 모달이 열려 있지 않다면 강제로 열어줍니다.
+    setIsScanModalOpen(true);
+    
+    try {
+      const res = await fetch('/api/inventory/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          barcode: cleanBarcode,
+          mode: scanMode,
+          operator: '최고관리자'
+        })
+      });
+      
+      const json = await res.json();
+      
+      if (json.success) {
+        // 성공 사운드
+        playBeep('success');
+        
+        // 스캔 로그 적재
+        const newLog = {
+          id: String(Date.now()),
+          time: new Date().toLocaleTimeString('ko-KR'),
+          name: json.item.name,
+          type: json.item.type === 'material' ? '자재' : '완제품',
+          beforeStock: scanMode === 'in' ? json.item.stock - 1 : json.item.stock + 1,
+          afterStock: json.item.stock,
+          success: true,
+          barcode: cleanBarcode
+        };
+        
+        setScanLogs(prev => [newLog, ...prev]);
+        fetchData(); // 전체 화면 새로고침
+        
+      } else {
+        // 실패 사운드
+        playBeep('error');
+        
+        const errorLog = {
+          id: String(Date.now()),
+          time: new Date().toLocaleTimeString('ko-KR'),
+          name: '등록되지 않은 품목',
+          type: '-',
+          beforeStock: 0,
+          afterStock: 0,
+          success: false,
+          barcode: cleanBarcode,
+          errorMsg: '시스템에 미등록된 바코드입니다.'
+        };
+        setScanLogs(prev => [errorLog, ...prev]);
+      }
+    } catch (e: any) {
+      playBeep('error');
+      console.error('Scan handling failed:', e);
+    }
+  };
+
+  // 글로벌 바코드 스캐너 전역 감청 감지 이펙트
+  useEffect(() => {
+    let buffer = '';
+    let lastKeyTime = Date.now();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Input이나 Textarea 요소에 포커스가 잡혀있고 그 인풋의 name이 'barcode'가 아닐 때는 입력 감청을 건너뜀
+      const activeEl = document.activeElement;
+      const isInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
+      
+      // 바코드 수동 기입 인풋을 제외한 곳에서 전역 스캔 감지
+      if (isInput && (activeEl as HTMLInputElement).name !== 'barcode_capture') {
+        if (!isScanModalOpen) return;
+      }
+
+      const now = Date.now();
+      const diff = now - lastKeyTime;
+      lastKeyTime = now;
+
+      // 입력 간격이 35ms 이상이면 수동 키보드 입력으로 간주하여 초기화
+      if (diff > 35) {
+        buffer = '';
+      }
+
+      if (e.key === 'Enter') {
+        if (buffer.length >= 2) {
+          const barcode = buffer;
+          buffer = '';
+          e.preventDefault();
+          handleBarcodeScanned(barcode);
+        }
+      } else {
+        if (e.key.length === 1) {
+          buffer += e.key;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isScanModalOpen, scanMode]);
 
   // 글로벌 태그 풀 로드 및 Seeding
   const initGlobalTags = () => {
@@ -509,6 +698,81 @@ export default function InventoryPage() {
     return colors[index];
   };
 
+  // 3대 재고 자산 평가 동적 연산기 (이동평균 / FIFO / LIFO)
+  const calculateValuation = (item: InventoryItem, method: 'moving_average' | 'fifo' | 'lifo') => {
+    // 해당 품목의 모든 로그 이력을 시간순(과거순)으로 정렬
+    const itemLogs = logs
+      .filter(log => log.itemId === item.id)
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+    // 기초 재고가 있는 경우 최초 입고 배치 설정
+    let batches: { quantity: number; price: number }[] = [];
+    
+    // 이 품목이 최초 기초 재고를 갖고 등록되었는지 확인
+    const hasInitialLog = itemLogs.some(log => log.note?.includes('기초') || log.note?.includes('최초'));
+    
+    if (!hasInitialLog && item.stock > 0) {
+      batches.push({ quantity: item.stock, price: item.price });
+    }
+
+    // 모든 로그를 돌며 입출고 배치 소진 연산
+    itemLogs.forEach(log => {
+      if (log.changeType === 'in') {
+        batches.push({ quantity: log.quantity, price: log.price });
+      } else if (log.changeType === 'out') {
+        let outQty = log.quantity;
+        if (method === 'lifo') {
+          // 후입선출: 가장 최근 입고 배치부터 차감 (뒤에서부터)
+          for (let i = batches.length - 1; i >= 0 && outQty > 0; i--) {
+            const take = Math.min(batches[i].quantity, outQty);
+            batches[i].quantity -= take;
+            outQty -= take;
+          }
+        } else {
+          // 선입선출 및 이동평균: 오래된 입고 배치부터 차감 (앞에서부터)
+          for (let i = 0; i < batches.length && outQty > 0; i++) {
+            const take = Math.min(batches[i].quantity, outQty);
+            batches[i].quantity -= take;
+            outQty -= take;
+          }
+        }
+        batches = batches.filter(b => b.quantity > 0);
+      }
+    });
+
+    const currentQty = batches.reduce((sum, b) => sum + b.quantity, 0);
+    const totalVal = batches.reduce((sum, b) => sum + (b.quantity * b.price), 0);
+
+    if (method === 'moving_average') {
+      // 이동평균법 가중 연산
+      let avgPrice = item.price;
+      let curQty = 0;
+      
+      if (!hasInitialLog && item.stock > 0) {
+        curQty = item.stock;
+        avgPrice = item.price;
+      }
+
+      itemLogs.forEach(log => {
+        if (log.changeType === 'in') {
+          avgPrice = ((curQty * avgPrice) + (log.quantity * log.price)) / (curQty + log.quantity);
+          curQty += log.quantity;
+        } else if (log.changeType === 'out') {
+          curQty = Math.max(0, curQty - log.quantity);
+        }
+      });
+      return {
+        unitPrice: Math.round(avgPrice),
+        totalValue: Math.round(item.stock * avgPrice)
+      };
+    }
+
+    return {
+      unitPrice: item.stock > 0 ? Math.round(totalVal / item.stock) : 0,
+      totalValue: Math.round(totalVal)
+    };
+  };
+
   // 입출고 및 조정 등록 처리
   const handleTxSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -581,6 +845,7 @@ export default function InventoryPage() {
       stock: '0',
       safeStock: '10',
       location: '',
+      barcode: '',
       description: ''
     });
     setSelectedTags(activeTab === 'product' ? ['판매중'] : ['사용중']);
@@ -599,6 +864,7 @@ export default function InventoryPage() {
       stock: String(item.stock),
       safeStock: String(item.safeStock),
       location: item.location || '',
+      barcode: item.barcode || '',
       description: item.description || ''
     });
     setSelectedTags(item.tags ? item.tags.split(',') : []);
@@ -787,6 +1053,10 @@ export default function InventoryPage() {
   const totalMaterialStock = materials.reduce((acc, cur) => acc + cur.stock, 0);
   const totalProductStock = products.reduce((acc, cur) => acc + cur.stock, 0);
 
+  // 3대 자산 평가법을 적용한 자재 및 완제품의 총 자산 가치 실시간 역추적 계산
+  const totalMaterialValue = materials.reduce((acc, cur) => acc + calculateValuation(cur, valuationMethod).totalValue, 0);
+  const totalProductValue = products.reduce((acc, cur) => acc + calculateValuation(cur, valuationMethod).totalValue, 0);
+
   // 안전재고 경고가 번쩍여야 하는 품목 수
   const outOfStockItems = safeItems.filter(it => it.stock <= it.safeStock);
   const outOfStockCount = outOfStockItems.length;
@@ -819,12 +1089,12 @@ export default function InventoryPage() {
   const paginatedItems = filteredItems.slice(startIndex, endIndex);
 
   return (
-    <div className="flex-1 bg-[#F8FAFC] min-h-screen text-slate-800 font-sans pb-16">
+    <div className="space-y-6 pb-20">
       
       {/* 최상단 화려한 그라디언트 배너 */}
       <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white px-8 py-10 shadow-lg border-b border-indigo-900/40">
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-300 via-indigo-400 to-purple-600"></div>
-        <div className="relative z-10 max-w-[1600px] mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="relative z-10 w-full flex flex-col md:flex-row items-center justify-between gap-6">
           <div>
             <div className="flex items-center space-x-3 mb-2">
               <span className="bg-indigo-500/20 text-indigo-300 text-xs font-semibold px-3 py-1 rounded-full border border-indigo-500/30 flex items-center gap-1">
@@ -832,7 +1102,7 @@ export default function InventoryPage() {
               </span>
             </div>
             <h1 className="text-3xl font-extrabold tracking-tight md:text-4xl bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-indigo-200">
-              재고 관리
+              재고 관리 AI
             </h1>
             <p className="text-slate-400 mt-2 text-sm md:text-base max-w-2xl leading-relaxed">
               자재(원부자재)와 제품(완제품)의 이원화 물리 스키마를 완벽히 통제하며, 영수증 비전 스캔 분석 및 실시간 자연어 음성 출고 명령이 결합된 독창적인 AI 재고 솔루션입니다.
@@ -840,18 +1110,12 @@ export default function InventoryPage() {
           </div>
           <div className="flex gap-3">
             <button 
-              onClick={() => setShowExcelGuideModal(true)}
-              className="bg-slate-800/40 hover:bg-slate-800/60 text-indigo-300 font-semibold text-sm px-3.5 py-3 rounded-xl border border-indigo-500/20 active:scale-95 transition-all flex items-center justify-center"
-              title="엑셀 업로드 양식 도움말 가이드"
-            >
-              <FileText className="w-4.5 h-4.5" />
-            </button>
-            <button 
               onClick={downloadExcelTemplate}
-              className="bg-slate-800/40 hover:bg-slate-800/60 text-emerald-400 font-semibold text-sm px-3.5 py-3 rounded-xl border border-emerald-500/20 active:scale-95 transition-all flex items-center justify-center"
-              title="표준 엑셀 샘플 서식 (.xlsx) 직접 다운로드"
+              className="bg-slate-800/40 hover:bg-slate-800/60 text-emerald-400 font-semibold text-sm px-5 py-3 rounded-xl border border-emerald-500/20 active:scale-95 transition-all flex items-center space-x-2 shadow-lg"
+              title="표준 엑셀 샘플 서식 (.xlsx) 다운로드"
             >
-              <FileText className="w-4.5 h-4.5 text-emerald-300" />
+              <Download className="w-4.5 h-4.5 text-emerald-300" />
+              <span>엑셀 템플릿</span>
             </button>
             <label className={`bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-semibold text-sm px-5 py-3 rounded-xl shadow-lg shadow-indigo-950/20 active:scale-95 transition-all flex items-center space-x-2 border border-indigo-400/20 ${isUploadingExcel ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}>
               {isUploadingExcel ? (
@@ -862,7 +1126,7 @@ export default function InventoryPage() {
               ) : (
                 <>
                   <FileText className="w-4.5 h-4.5 text-indigo-200" />
-                  <span>엑셀 일괄 등록</span>
+                  <span>엑셀등록</span>
                 </>
               )}
               <input 
@@ -878,20 +1142,75 @@ export default function InventoryPage() {
               className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold text-sm px-5 py-3 rounded-xl shadow-lg shadow-emerald-950/20 active:scale-95 transition-all flex items-center space-x-2 border border-emerald-400/20"
             >
               <Plus className="w-4.5 h-4.5" />
-              <span>신규 품목 등록</span>
+              <span>품목등록</span>
+            </button>
+            <button 
+              onClick={() => setIsScanModalOpen(true)}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-5 py-3 rounded-xl border border-indigo-500 active:scale-95 transition-all flex items-center space-x-2 shadow-lg shadow-indigo-950/20"
+            >
+              <Sliders className="w-4.5 h-4.5 text-indigo-200 animate-pulse" />
+              <span>📊 바코드 스캔</span>
             </button>
             <button 
               onClick={() => openTxModal('in')}
               className="bg-slate-800 hover:bg-slate-755 text-white font-semibold text-sm px-5 py-3 rounded-xl border border-slate-700 active:scale-95 transition-all flex items-center space-x-2"
             >
               <ArrowRightLeft className="w-4.5 h-4.5 text-indigo-400" />
-              <span>입출고 및 실사 조정</span>
+              <span>실사조정</span>
             </button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-[1600px] mx-auto px-6 mt-8 space-y-8">
+      <div className="space-y-6">
+
+        {/* 📊 재고 자산 평가 방법 선택 Glassmorphic 어드민 패널 */}
+        <div className="bg-white/80 backdrop-blur-md rounded-2xl p-5 shadow-sm border border-indigo-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 bg-indigo-50 text-indigo-650 rounded-xl">
+              <Sliders className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                📊 재고 자산 평가 방법 선택 <span className="text-[10px] font-normal text-indigo-650 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">실시간 회계 역추적</span>
+              </h4>
+              <p className="text-xs text-slate-400">입출고 이력(Batch) 데이터를 수학적으로 계산하여 자산 가치를 실시간 역추적합니다.</p>
+            </div>
+          </div>
+          
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <button
+              onClick={() => setValuationMethod('moving_average')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                valuationMethod === 'moving_average'
+                  ? 'bg-white text-indigo-650 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              이동평균법
+            </button>
+            <button
+              onClick={() => setValuationMethod('fifo')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                valuationMethod === 'fifo'
+                  ? 'bg-white text-indigo-650 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              선입선출법 (FIFO)
+            </button>
+            <button
+              onClick={() => setValuationMethod('lifo')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                valuationMethod === 'lifo'
+                  ? 'bg-white text-indigo-650 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              후입선출법 (LIFO)
+            </button>
+          </div>
+        </div>
 
         {/* 1. 상단 물류 요약 대시보드 카드 4종 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -901,7 +1220,9 @@ export default function InventoryPage() {
             <div className="space-y-1 z-10">
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">총 보유 자재</span>
               <h3 className="text-2xl font-bold text-slate-800">{totalMaterialStock.toLocaleString()} 개</h3>
-              <p className="text-xs text-slate-400">{materials.length}종의 원부자재 보관 중</p>
+              <p className="text-xs text-indigo-650 font-bold bg-indigo-50/50 px-2 py-0.5 rounded-md inline-block">
+                자산가치: ₩ {totalMaterialValue.toLocaleString()}
+              </p>
             </div>
             <div className="p-4 bg-blue-50 text-blue-500 rounded-2xl group-hover:scale-110 transition-transform">
               <Package className="w-6 h-6" />
@@ -913,7 +1234,9 @@ export default function InventoryPage() {
             <div className="space-y-1 z-10">
               <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">총 보유 완제품</span>
               <h3 className="text-2xl font-bold text-slate-800">{totalProductStock.toLocaleString()} 개</h3>
-              <p className="text-xs text-slate-400">{products.length}종의 판매 완제품 적재 완료</p>
+              <p className="text-xs text-indigo-650 font-bold bg-indigo-50/50 px-2 py-0.5 rounded-md inline-block">
+                자산가치: ₩ {totalProductValue.toLocaleString()}
+              </p>
             </div>
             <div className="p-4 bg-emerald-50 text-emerald-500 rounded-2xl group-hover:scale-110 transition-transform">
               <TrendingUp className="w-6 h-6" />
@@ -978,26 +1301,7 @@ export default function InventoryPage() {
               </p>
             </div>
 
-            {/* 샘플 명세서 프리셋 버튼 목록 */}
-            <div className="mb-4">
-              <span className="text-xs font-bold text-slate-500 block mb-2">실시간 AI 비전 파싱 시뮬레이션용 프리셋:</span>
-              <div className="grid grid-cols-3 gap-2">
-                {visionPresets.map((preset) => (
-                  <button
-                    key={preset.id}
-                    onClick={() => triggerAiVisionScan(preset.id)}
-                    className={`p-2.5 rounded-xl border text-left text-xs transition-all relative overflow-hidden group ${
-                      selectedVisionPreset === preset.id
-                        ? 'border-indigo-500 bg-indigo-50/50 text-indigo-950 font-semibold'
-                        : 'border-slate-200 hover:border-slate-350 hover:bg-slate-50 text-slate-600'
-                    }`}
-                  >
-                    <div className="truncate font-semibold">{preset.title}</div>
-                    <div className="text-[10px] text-slate-400 mt-1 truncate">{preset.filename}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
+
 
             {/* 영수증/인보이스 드롭존 & 스캔 비주얼 효과 레이어 */}
             <div className="relative border-2 border-dashed border-slate-200 rounded-xl p-6 flex flex-col items-center justify-center bg-slate-50 min-h-[140px] overflow-hidden group">
@@ -1283,6 +1587,7 @@ export default function InventoryPage() {
                 <tbody className="divide-y divide-slate-100 text-xs">
                   {paginatedItems.map((item) => {
                     const isAlert = item.stock <= item.safeStock;
+                    const valuation = calculateValuation(item, valuationMethod);
                     return (
                       <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
                         <td className="py-4 px-4">
@@ -1324,8 +1629,13 @@ export default function InventoryPage() {
                           </span>
                           <span className="text-slate-400"> / {item.safeStock} 개</span>
                         </td>
-                        <td className="py-4 px-4 text-right font-bold text-slate-800">
-                          ₩ {item.price.toLocaleString()}
+                        <td className="py-4 px-4 text-right">
+                          <div className="flex flex-col items-end">
+                            <span className="font-bold text-slate-800">₩ {valuation.unitPrice.toLocaleString()}</span>
+                            <span className="text-[10px] text-slate-400 font-semibold bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 mt-0.5">
+                              총 ₩ {valuation.totalValue.toLocaleString()}
+                            </span>
+                          </div>
                         </td>
                         <td className="py-4 px-4 max-w-[200px] truncate text-slate-500">
                           {activeTab === 'material' ? (
@@ -1366,6 +1676,13 @@ export default function InventoryPage() {
                               title="정보 수정"
                             >
                               <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => { setSelectedPrintItem(item); setIsLabelPrintModalOpen(true); }}
+                              className="text-indigo-600 hover:bg-indigo-50 p-1.5 rounded-lg text-[10px]"
+                              title="바코드 라벨 인쇄"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => handleItemDelete(item.id)}
@@ -1803,9 +2120,9 @@ export default function InventoryPage() {
                   </div>
                 </div>
 
-                {/* 5. 최초 기초 재고 (수정 시에는 비노출) */}
-                {!selectedItem && (
-                  <div className="grid grid-cols-2 gap-3">
+                {/* 5. 최초 기초 재고 & 바코드 번호 (스캐너 포커스 지원) */}
+                <div className="grid grid-cols-2 gap-3">
+                  {!selectedItem ? (
                     <div>
                       <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">최초 기초 재고</label>
                       <input
@@ -1817,8 +2134,28 @@ export default function InventoryPage() {
                         className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                       />
                     </div>
+                  ) : (
+                    <div className="flex flex-col justify-center">
+                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">현재 품목 정보 수정 중</span>
+                      <span className="text-[10px] text-indigo-650 font-semibold bg-indigo-50 px-2 py-1 rounded w-fit mt-1">
+                        기존 재고: {itemForm.stock} 개
+                      </span>
+                    </div>
+                  )}
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                      바코드 식별 번호 (EAN/QR 등)
+                    </label>
+                    <input
+                      type="text"
+                      name="barcode_capture"
+                      value={itemForm.barcode}
+                      onChange={(e) => setItemForm(prev => ({ ...prev, barcode: e.target.value }))}
+                      placeholder="리더기로 쏘거나 직접 기입"
+                      className="w-full px-3 py-2.5 rounded-xl border border-indigo-200 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-indigo-50/20 font-bold text-indigo-950 placeholder-indigo-300"
+                    />
                   </div>
-                )}
+                </div>
 
                 {/* 6. 다이내믹 커스텀 멀티 태그 빌더 */}
                 <div className="border-t border-slate-100 pt-3">
@@ -2114,6 +2451,159 @@ export default function InventoryPage() {
       )}
 
       {/* ========================================================================= */}
+      {/* 6. 하드웨어 바코드 리더기 퀵 스캔 수불 모달 */}
+      {/* ========================================================================= */}
+      {isScanModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all">
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+            
+            {/* 모달 헤더 */}
+            <div className={`px-6 py-5 flex items-center justify-between text-white bg-gradient-to-r ${scanMode === 'in' ? 'from-blue-600 to-indigo-950 shadow-md shadow-blue-950/20' : 'from-rose-600 to-indigo-950 shadow-md shadow-rose-950/20'}`}>
+              <div>
+                <h3 className="text-base font-bold flex items-center gap-2">
+                  <Sliders className="w-5 h-5 animate-pulse" />
+                  <span>바코드 퀵 스캔 입출고 콘솔</span>
+                </h3>
+                <p className="text-[10px] text-slate-300 mt-1">
+                  리더기를 포커스 인풋창에 조준하고 쏘세요. 성공 시 "삑!" 소리와 함께 실시간 적용됩니다.
+                </p>
+              </div>
+              <button 
+                onClick={() => { setIsScanModalOpen(false); setScanLogs([]); }}
+                className="text-slate-300 hover:text-white p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* 모달 바디 */}
+            <div className="p-6 space-y-5 overflow-y-auto flex-1">
+              
+              {/* 스캔 모드 선택 */}
+              <div>
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">스캔 작동 모드</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setScanMode('in'); playBeep('success'); }}
+                    className={`py-3 px-4 rounded-xl border text-xs font-extrabold transition-all flex items-center justify-center space-x-2 ${
+                      scanMode === 'in'
+                        ? 'border-blue-500 bg-blue-50 text-blue-950 shadow-sm'
+                        : 'border-slate-200 hover:bg-slate-50 text-slate-500'
+                    }`}
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500 block animate-ping"></span>
+                    <span>고속 입고 (+1)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setScanMode('out'); playBeep('success'); }}
+                    className={`py-3 px-4 rounded-xl border text-xs font-extrabold transition-all flex items-center justify-center space-x-2 ${
+                      scanMode === 'out'
+                        ? 'border-rose-500 bg-rose-50 text-rose-950 shadow-sm'
+                        : 'border-slate-200 hover:bg-slate-50 text-slate-500'
+                    }`}
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500 block animate-ping"></span>
+                    <span>고속 출고 (-1)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 스캐너 포커스 수집 영역 (실제 감청용) */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col items-center justify-center space-y-3 relative overflow-hidden">
+                <div className={`absolute top-0 inset-x-0 h-1 bg-gradient-to-r ${scanMode === 'in' ? 'from-transparent via-blue-500 to-transparent' : 'from-transparent via-rose-500 to-transparent'} animate-[pulse_1.5s_infinite]`}></div>
+                
+                <span className="text-[11px] font-bold text-slate-400">바코드 리더기 스캔 대기중... (수동 모킹 가능)</span>
+                
+                <div className="relative w-full">
+                  <input
+                    type="text"
+                    name="barcode_capture"
+                    placeholder="이곳에 포커싱 후 리더기를 쏘거나 바코드를 입력 후 엔터를 누르세요."
+                    className="w-full text-center px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs focus:ring-1 focus:ring-indigo-500 outline-none font-bold text-slate-800 placeholder-slate-350"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const val = (e.target as HTMLInputElement).value;
+                        if (val.trim()) {
+                          handleBarcodeScanned(val.trim());
+                          (e.target as HTMLInputElement).value = '';
+                        }
+                      }
+                    }}
+                  />
+                </div>
+                <p className="text-[9px] text-slate-400 text-center leading-normal">
+                  * 스캔 전용 모달이 켜져 있는 동안에는 바코드 입력창에 포커스를 주지 않아도<br />
+                  바코드 리더기로 쏘는 즉시 전역에서 키 신호가 자동으로 감지되어 수불 처리됩니다.
+                </p>
+              </div>
+
+              {/* 실시간 스캔 피드 로그 리스트 */}
+              <div className="space-y-2 flex-1 flex flex-col min-h-[220px]">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">실시간 연속 스캔 타임라인</label>
+                <div className="border border-slate-150 rounded-2xl p-3 bg-slate-50/50 flex-1 overflow-y-auto max-h-[260px] space-y-2 no-scrollbar">
+                  {scanLogs.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-1 py-8">
+                      <Sliders className="w-8 h-8 text-slate-300" />
+                      <span className="text-[10px] font-semibold">아직 스캔된 이력이 없습니다. 바코드를 쏴주세요!</span>
+                    </div>
+                  ) : (
+                    scanLogs.map((log) => (
+                      <div
+                        key={log.id}
+                        className={`p-3 rounded-xl border flex items-center justify-between text-xs animate-in slide-in-from-bottom-2 duration-200 font-medium ${
+                          log.success
+                            ? 'bg-white border-slate-100 text-slate-800 shadow-3xs'
+                            : 'bg-rose-50/70 border-rose-100 text-rose-905'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <span className="text-[10px] text-slate-400 font-bold">{log.time}</span>
+                          <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded ${log.success ? 'bg-indigo-50 text-indigo-650' : 'bg-rose-150 text-rose-700'}`}>
+                            {log.success ? `${scanMode === 'in' ? '입고' : '출고'}성공` : '오류'}
+                          </span>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-slate-800">{log.name}</span>
+                            <span className="text-[9px] text-slate-400 font-semibold">바코드: {log.barcode}</span>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          {log.success ? (
+                            <div className="flex items-center space-x-1.5">
+                              <span className="text-slate-400 line-through text-[10px]">{log.beforeStock}</span>
+                              <span className="text-[10px] font-bold text-slate-400">➔</span>
+                              <span className="font-extrabold text-indigo-650 text-sm">{log.afterStock} 개</span>
+                            </div>
+                          ) : (
+                            <span className="text-[10px] text-rose-600 font-bold">{log.errorMsg}</span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+            </div>
+
+            {/* 모달 푸터 */}
+            <div className="bg-slate-50 px-6 py-4 flex justify-between items-center border-t border-slate-100">
+              <span className="text-[10px] text-slate-400 font-bold bg-slate-100 px-2 py-1 rounded">오퍼레이터: 최고관리자(자동)</span>
+              <button
+                type="button"
+                onClick={() => { setIsScanModalOpen(false); setScanLogs([]); }}
+                className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition-colors"
+              >
+                퀵스캔 종료
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
       {/* 7. 엑셀 업로드 서식 도움말 모달 */}
       {/* ========================================================================= */}
       {showExcelGuideModal && (
@@ -2245,6 +2735,110 @@ export default function InventoryPage() {
                 가이드 닫기
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 8. 바코드 라벨 프린터용 인쇄 및 동적 생성 모달 */}
+      {/* ========================================================================= */}
+      {isLabelPrintModalOpen && selectedPrintItem && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all print:p-0 print:bg-white">
+          <div className="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-200 print:shadow-none print:border-none print:w-[50mm] print:h-[30mm] print:rounded-none">
+            
+            {/* print 전용 인쇄용 CSS 오버라이드 스타일 (중요) */}
+            <style dangerouslySetInnerHTML={{ __html: `
+              @media print {
+                body * {
+                  visibility: hidden !important;
+                }
+                .print-area, .print-area * {
+                  visibility: visible !important;
+                }
+                .print-area {
+                  position: absolute !important;
+                  left: 0 !important;
+                  top: 0 !important;
+                  width: 50mm !important;
+                  height: 30mm !important;
+                  padding: 1.5mm !important;
+                  box-sizing: border-box !important;
+                  display: flex !important;
+                  flex-direction: column !important;
+                  justify-content: space-between !important;
+                  align-items: center !important;
+                  background: white !important;
+                }
+                html, body {
+                  width: 50mm !important;
+                  height: 30mm !important;
+                  background: white !important;
+                }
+              }
+            `}} />
+
+            {/* 모달 헤더 (인쇄 시 숨김) */}
+            <div className="bg-gradient-to-r from-slate-900 to-indigo-950 text-white px-6 py-4 flex items-center justify-between print:hidden">
+              <h3 className="text-xs font-bold flex items-center gap-1.5">
+                <FileText className="w-4 h-4 text-indigo-400" />
+                <span>규격 바코드 라벨 인쇄</span>
+              </h3>
+              <button 
+                onClick={() => { setIsLabelPrintModalOpen(false); setSelectedPrintItem(null); }}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* 모달 바디 (인쇄용 타겟) */}
+            <div className="p-6 flex flex-col items-center justify-center bg-slate-50/50 print:p-0 print:bg-white">
+              
+              {/* 실제 감열지 인쇄 카드 영역 */}
+              <div className="print-area bg-white border border-slate-200 rounded-2xl p-4 w-[65mm] h-[40mm] flex flex-col justify-between items-center shadow-sm print:shadow-none print:border-none print:w-[50mm] print:h-[30mm] print:rounded-none">
+                <div className="text-center w-full">
+                  <span className="text-[10px] font-extrabold text-indigo-655 tracking-wider uppercase block border-b border-dashed border-indigo-100 pb-0.5 print:text-[8px] print:text-black">
+                    {selectedPrintItem.type === 'material' ? '원부자재 라벨' : '완제품 라벨'}
+                  </span>
+                  <h4 className="text-xs font-black text-slate-800 mt-1 truncate max-w-full print:text-[10px] print:text-black">
+                    {selectedPrintItem.name}
+                  </h4>
+                  {selectedPrintItem.spec && (
+                    <span className="text-[8px] text-slate-400 font-bold block truncate max-w-full print:text-[7px] print:text-black mt-0.5">
+                      규격: {selectedPrintItem.spec}
+                    </span>
+                  )}
+                </div>
+
+                <div className="w-full mt-1.5 flex justify-center">
+                  <BarcodeSvg value={selectedPrintItem.barcode || `ITEM-${selectedPrintItem.id}`} />
+                </div>
+              </div>
+
+              <p className="text-[10px] text-slate-400 text-center leading-normal mt-4 print:hidden">
+                * 가로 50mm × 세로 30mm 표준 감열 라벨지 스티커 레이아웃 규격입니다.<br />
+                인쇄하기 버튼 클릭 후 배율을 '100%' 또는 '페이지 맞춤'으로 선택해 주세요.
+              </p>
+            </div>
+
+            {/* 모달 푸터 (인쇄 시 숨김) */}
+            <div className="bg-slate-50 px-6 py-4 flex justify-end space-x-2 border-t border-slate-100 print:hidden">
+              <button
+                type="button"
+                onClick={() => { setIsLabelPrintModalOpen(false); setSelectedPrintItem(null); }}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-500 font-semibold text-[11px] hover:bg-slate-100 transition-colors"
+              >
+                닫기
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-750 text-white font-bold text-[11px] shadow-md shadow-indigo-100 flex items-center space-x-1.5"
+              >
+                <span>라벨 인쇄하기</span>
+              </button>
+            </div>
+
           </div>
         </div>
       )}

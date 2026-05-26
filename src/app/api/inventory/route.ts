@@ -34,6 +34,7 @@ async function initTables() {
           { name: 'boxContains', type: 'INTEGER' }, // 박스당 입수량
           { name: 'description', type: 'TEXT' }, // 품목 설명
           { name: 'tags', type: 'TEXT' }, // 커스텀 멀티 태그 콤마 구분값
+          { name: 'barcode', type: 'TEXT' }, // 바코드 번호 (리더기용)
           { name: 'createdAt', type: 'TEXT', notNull: true } // 등록 일자
         ],
         { tableName: 'inventory_items' }
@@ -99,7 +100,7 @@ export async function POST(request: Request) {
     await initTables();
     const body = await request.json();
     
-    const { type, name, category, price, partner, stock, safeStock, location, spec, unitType, unitValue, boxContains, description, tags } = body;
+    const { type, name, category, price, partner, stock, safeStock, location, spec, unitType, unitValue, boxContains, description, tags, barcode } = body;
 
     if (!type || !name || !category || price === undefined || stock === undefined || safeStock === undefined) {
       return NextResponse.json(
@@ -123,6 +124,7 @@ export async function POST(request: Request) {
       boxContains: boxContains ? Number(boxContains) : null,
       description: description || '',
       tags: tags || '',
+      barcode: barcode || '',
       createdAt: new Date().toISOString()
     };
 
@@ -160,7 +162,7 @@ export async function PUT(request: Request) {
   try {
     await initTables();
     const body = await request.json();
-    const { id, name, category, price, partner, safeStock, location, spec, unitType, unitValue, boxContains, description, tags } = body;
+    const { id, name, category, price, partner, safeStock, location, spec, unitType, unitValue, boxContains, description, tags, barcode } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -182,6 +184,7 @@ export async function PUT(request: Request) {
     if (boxContains !== undefined) updates.boxContains = boxContains ? Number(boxContains) : null;
     if (description !== undefined) updates.description = description;
     if (tags !== undefined) updates.tags = tags;
+    if (barcode !== undefined) updates.barcode = barcode;
 
     await updateRows('inventory_items', updates, {
       ids: [Number(id)]
