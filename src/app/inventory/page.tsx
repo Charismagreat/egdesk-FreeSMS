@@ -1333,19 +1333,8 @@ export default function InventoryPage() {
                   </div>
                 </div>
 
-                {/* 품목명 & 카테고리 */}
+                {/* 1. 카테고리 & 품목명 (순서 변경: 카테고리가 선두로 올라옴) */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">품목명</label>
-                    <input
-                      type="text"
-                      required
-                      value={itemForm.name}
-                      onChange={(e) => setItemForm(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder="예: 초경량 모터"
-                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                    />
-                  </div>
                   <div>
                     <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">카테고리</label>
                     <input
@@ -1357,10 +1346,121 @@ export default function InventoryPage() {
                       className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                     />
                   </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">품목명</label>
+                    <input
+                      type="text"
+                      required
+                      value={itemForm.name}
+                      onChange={(e) => setItemForm(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="예: 초경량 모터"
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                    />
+                  </div>
                 </div>
 
-                {/* 단가 & 거래처 (자재 한정) */}
+                {/* 2. 규격 & 단위 구분 (스펙이 카테고리/품목 바로 밑에 위치) */}
                 <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">규격 (세부 스펙)</label>
+                    <input
+                      type="text"
+                      value={itemForm.spec}
+                      onChange={(e) => setItemForm(prev => ({ ...prev, spec: e.target.value }))}
+                      placeholder="예: 15mm x 150mm, 250g, 13온스"
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">입출고 단위 구분</label>
+                    <select
+                      value={itemForm.unitType}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setItemForm(prev => {
+                          const newForm = { ...prev, unitType: val };
+                          if (val === 'count') {
+                            newForm.unitValue = '개';
+                            newForm.boxContains = '';
+                          } else if (val === 'weight') {
+                            newForm.unitValue = 'g';
+                            newForm.boxContains = '';
+                          } else if (val === 'box') {
+                            newForm.unitValue = '박스';
+                            newForm.boxContains = '10';
+                          }
+                          return newForm;
+                        });
+                      }}
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white font-semibold cursor-pointer"
+                    >
+                      <option value="count">개수 (개)</option>
+                      <option value="weight">중량/부피 (g, kg, L 등)</option>
+                      <option value="box">박스 (BOX)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* 단위별 상세 입력 폼 (박스일 때 박스당 입수량(n개입) 동적 추가) */}
+                {itemForm.unitType === 'weight' && (
+                  <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl">
+                    <div>
+                      <label className="text-[10px] font-bold text-indigo-600 block mb-1">중량/부피 세부 단위</label>
+                      <select
+                        value={itemForm.unitValue}
+                        onChange={(e) => setItemForm(prev => ({ ...prev, unitValue: e.target.value }))}
+                        className="w-full px-3 py-2 rounded-lg border border-slate-250 text-xs focus:ring-1 focus:ring-indigo-500 outline-none bg-white font-medium cursor-pointer"
+                      >
+                        <option value="g">g (그램)</option>
+                        <option value="kg">kg (킬로그램)</option>
+                        <option value="ton">ton (톤)</option>
+                        <option value="ml">ml (밀리리터)</option>
+                        <option value="L">L (리터)</option>
+                        <option value="kL">kL (킬로리터)</option>
+                        <option value="m3">m³ (세제곱미터)</option>
+                        <option value="km3">km³ (세제곱킬로미터)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-indigo-600 block mb-1">단위 수량 (소수점 지원)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        placeholder="n.00"
+                        className="w-full px-3 py-2 rounded-lg border border-slate-250 text-xs focus:ring-1 focus:ring-indigo-500 outline-none"
+                      />
+                      <span className="text-[9px] text-slate-400 mt-1 block">소수점 둘째 자리까지 지원</span>
+                    </div>
+                  </div>
+                )}
+
+                {itemForm.unitType === 'box' && (
+                  <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-indigo-100 animate-in fade-in slide-in-from-top-1 duration-150">
+                    <div>
+                      <label className="text-[10px] font-bold text-indigo-600 block mb-1">박스당 입수량 (추가 단위 표시)</label>
+                      <div className="relative flex items-center">
+                        <input
+                          type="number"
+                          required
+                          value={itemForm.boxContains}
+                          onChange={(e) => setItemForm(prev => ({ ...prev, boxContains: e.target.value }))}
+                          placeholder="10"
+                          className="w-full px-3 py-2 rounded-lg border border-slate-250 pr-12 text-xs focus:ring-1 focus:ring-indigo-500 outline-none font-bold"
+                        />
+                        <span className="absolute right-3 text-[10px] text-indigo-500 font-bold bg-indigo-50 px-1.5 py-0.5 rounded">n개입</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col justify-center">
+                      <span className="text-xs text-slate-650 font-semibold block">최종 규격화 단위명:</span>
+                      <span className="text-xs font-bold text-indigo-655 mt-0.5 bg-indigo-50/50 border border-indigo-100 rounded-lg px-2 py-1 inline-block w-fit">
+                        1박스 ({itemForm.boxContains || '10'}개입)
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. 공급 단가 (매입가) & 주 매입 거래처 (순서 매칭) */}
+                <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-3">
                   <div>
                     <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
                       {itemForm.type === 'material' ? '공급 단가 (매입가)' : '매출 단가 (판매가)'}
@@ -1373,45 +1473,36 @@ export default function InventoryPage() {
                         value={itemForm.price}
                         onChange={(e) => setItemForm(prev => ({ ...prev, price: e.target.value }))}
                         placeholder="0"
-                        className="w-full pl-7 pr-3 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                        className="w-full pl-7 pr-3 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none animate-none"
                       />
                     </div>
                   </div>
                   <div>
                     <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                      {itemForm.type === 'material' ? '주 매입 거래처' : '창고 적재 위치'}
+                      {itemForm.type === 'material' ? '주 매입 거래처' : '주요 거래처'}
                     </label>
                     <input
                       type="text"
-                      value={itemForm.type === 'material' ? itemForm.partner : itemForm.location}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setItemForm(prev => 
-                          itemForm.type === 'material' 
-                            ? { ...prev, partner: val } 
-                            : { ...prev, location: val }
-                        );
-                      }}
-                      placeholder={itemForm.type === 'material' ? '예: 한성정밀' : '예: A홀 3번 선반'}
+                      value={itemForm.partner || ''}
+                      onChange={(e) => setItemForm(prev => ({ ...prev, partner: e.target.value }))}
+                      placeholder={itemForm.type === 'material' ? '예: 한성정밀' : '예: 주요 거래처'}
                       className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                     />
                   </div>
                 </div>
 
-                {/* 안전재고 & 최초/보관 위치 */}
+                {/* 4. 창고 적재 위치 & 안전(적정) 재고량 */}
                 <div className="grid grid-cols-2 gap-3">
-                  {itemForm.type === 'material' && (
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">창고 적재 위치</label>
-                      <input
-                        type="text"
-                        value={itemForm.location}
-                        onChange={(e) => setItemForm(prev => ({ ...prev, location: e.target.value }))}
-                        placeholder="예: A홀 3번 선반"
-                        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                      />
-                    </div>
-                  )}
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">창고 적재 위치</label>
+                    <input
+                      type="text"
+                      value={itemForm.location || ''}
+                      onChange={(e) => setItemForm(prev => ({ ...prev, location: e.target.value }))}
+                      placeholder="예: A홀 3번 선반"
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                    />
+                  </div>
                   <div>
                     <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">안전(적정) 재고량</label>
                     <input
@@ -1423,7 +1514,11 @@ export default function InventoryPage() {
                       className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                     />
                   </div>
-                  {!selectedItem && (
+                </div>
+
+                {/* 5. 최초 기초 재고 (수정 시에는 비노출) */}
+                {!selectedItem && (
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">최초 기초 재고</label>
                       <input
@@ -1435,8 +1530,8 @@ export default function InventoryPage() {
                         className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                       />
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 {/* 비고 및 상세 설명 */}
                 <div>

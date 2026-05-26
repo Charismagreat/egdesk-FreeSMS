@@ -368,6 +368,10 @@ export async function setupDatabase() {
     { name: 'stock', type: 'INTEGER', notNull: true },
     { name: 'safeStock', type: 'INTEGER', notNull: true },
     { name: 'location', type: 'TEXT' },
+    { name: 'spec', type: 'TEXT' },
+    { name: 'unitType', type: 'TEXT' },
+    { name: 'unitValue', type: 'TEXT' },
+    { name: 'boxContains', type: 'INTEGER' },
     { name: 'description', type: 'TEXT' },
     { name: 'createdAt', type: 'TEXT', notNull: true }
   ], { tableName: 'inventory_items', uniqueKeyColumns: ['id'] });

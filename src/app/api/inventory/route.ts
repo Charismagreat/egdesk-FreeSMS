@@ -28,6 +28,10 @@ async function initTables() {
           { name: 'stock', type: 'INTEGER', notNull: true }, // 현재 재고량
           { name: 'safeStock', type: 'INTEGER', notNull: true }, // 안전 재고량
           { name: 'location', type: 'TEXT' }, // 창고 보관 위치
+          { name: 'spec', type: 'TEXT' }, // 규격
+          { name: 'unitType', type: 'TEXT' }, // 단위 구분 (count, weight, box)
+          { name: 'unitValue', type: 'TEXT' }, // 단위 세부 단위명 (g, kg, 등)
+          { name: 'boxContains', type: 'INTEGER' }, // 박스당 입수량
           { name: 'description', type: 'TEXT' }, // 품목 설명
           { name: 'createdAt', type: 'TEXT', notNull: true } // 등록 일자
         ],
@@ -94,7 +98,7 @@ export async function POST(request: Request) {
     await initTables();
     const body = await request.json();
     
-    const { type, name, category, price, partner, stock, safeStock, location, description } = body;
+    const { type, name, category, price, partner, stock, safeStock, location, spec, unitType, unitValue, boxContains, description } = body;
 
     if (!type || !name || !category || price === undefined || stock === undefined || safeStock === undefined) {
       return NextResponse.json(
@@ -112,6 +116,10 @@ export async function POST(request: Request) {
       stock: Number(stock),
       safeStock: Number(safeStock),
       location: location || '',
+      spec: spec || '',
+      unitType: unitType || 'count',
+      unitValue: unitValue || '개',
+      boxContains: boxContains ? Number(boxContains) : null,
       description: description || '',
       createdAt: new Date().toISOString()
     };
@@ -150,7 +158,7 @@ export async function PUT(request: Request) {
   try {
     await initTables();
     const body = await request.json();
-    const { id, name, category, price, partner, safeStock, location, description } = body;
+    const { id, name, category, price, partner, safeStock, location, spec, unitType, unitValue, boxContains, description } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -166,6 +174,10 @@ export async function PUT(request: Request) {
     if (partner !== undefined) updates.partner = partner;
     if (safeStock !== undefined) updates.safeStock = Number(safeStock);
     if (location !== undefined) updates.location = location;
+    if (spec !== undefined) updates.spec = spec;
+    if (unitType !== undefined) updates.unitType = unitType;
+    if (unitValue !== undefined) updates.unitValue = unitValue;
+    if (boxContains !== undefined) updates.boxContains = boxContains ? Number(boxContains) : null;
     if (description !== undefined) updates.description = description;
 
     await updateRows('inventory_items', updates, {
