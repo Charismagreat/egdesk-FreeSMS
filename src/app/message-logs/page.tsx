@@ -116,8 +116,8 @@ export default function MessageLogsPage() {
         <div className="p-5 border-b border-slate-100 bg-slate-50/50 space-y-4">
           
           {/* 1층: 타이틀 & 검색바 (완벽한 좌우 대칭) */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-            <h2 className="font-extrabold text-slate-800 text-base">발송 목록 ({filteredData.length}건)</h2>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 w-full">
+            <h2 className="font-extrabold text-slate-800 text-base whitespace-nowrap shrink-0">발송 목록 ({filteredData.length}건)</h2>
             <div className="relative w-full sm:w-72 shrink-0">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
               <input
@@ -132,8 +132,8 @@ export default function MessageLogsPage() {
 
           {/* 2층: 조회 기간 상세 필터링 영역 (구분선과 정렬 보강) */}
           {isMounted && (
-            <div className="flex flex-col md:flex-row items-start md:items-center gap-3 pt-3.5 border-t border-slate-100/70">
-              <span className="text-xs font-bold text-slate-500 shrink-0">조회 기간</span>
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-3 pt-3.5 border-t border-slate-100/70 w-full">
+              <span className="text-xs font-bold text-slate-500 whitespace-nowrap shrink-0">조회 기간</span>
               <div className="flex flex-wrap items-center gap-3">
                 {/* 프리셋 버튼 */}
                 <div className="flex items-center bg-slate-200/50 rounded-xl p-0.5 border border-slate-200/70 shrink-0">
