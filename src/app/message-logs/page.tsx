@@ -10,8 +10,12 @@ export default function MessageLogsPage() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [activePreset, setActivePreset] = useState<'all' | 'today' | '7d' | '30d' | 'custom'>('all');
+  const [isMounted, setIsMounted] = useState(false);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { 
+    setIsMounted(true);
+    fetchData(); 
+  }, []);
   
   // 검색어 또는 날짜 필터 입력 시 페이지 번호 초기화
   useEffect(() => {
@@ -36,7 +40,7 @@ export default function MessageLogsPage() {
     const start = new Date();
     
     if (preset === 'today') {
-      // 오늘 00:00부터
+      // 오늘
     } else if (preset === '7d') {
       start.setDate(end.getDate() - 7);
     } else if (preset === '30d') {
@@ -63,16 +67,22 @@ export default function MessageLogsPage() {
     if (!matchesSearch) return false;
     if (!t.created_at) return true;
 
-    const logDate = new Date(t.created_at);
-    if (startDate) {
-      const start = new Date(startDate);
-      start.setHours(0, 0, 0, 0);
-      if (logDate < start) return false;
-    }
-    if (endDate) {
-      const end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
-      if (logDate > end) return false;
+    try {
+      const logDate = new Date(t.created_at);
+      if (isNaN(logDate.getTime())) return true; // 안전장치
+
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        if (logDate < start) return false;
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        if (logDate > end) return false;
+      }
+    } catch (e) {
+      console.error(e);
     }
     return true;
   });
@@ -102,74 +112,78 @@ export default function MessageLogsPage() {
       </h1>
       
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-4 border-b border-slate-100 bg-slate-50 flex flex-col xl:flex-row justify-between items-center gap-4">
-          <div className="flex items-center justify-between xl:justify-start w-full xl:w-auto gap-4 shrink-0">
+        <div className="p-4 border-b border-slate-100 bg-slate-50 flex flex-col lg:flex-row justify-between items-center gap-4">
+          <div className="flex items-center justify-between lg:justify-start w-full lg:w-auto gap-4 shrink-0">
             <h2 className="font-bold text-slate-800">발송 목록 ({filteredData.length}건)</h2>
           </div>
 
-          {/* 📅 기간별 조회 컴포넌트 */}
-          <div className="flex flex-col sm:flex-row flex-wrap items-center gap-3 w-full xl:w-auto">
-            <div className="flex items-center bg-slate-200/60 rounded-xl p-0.5 border border-slate-200 shrink-0 w-full sm:w-auto justify-between sm:justify-start">
-              <button 
-                onClick={() => setPreset('all')} 
-                className={`px-3 py-1.5 rounded-lg transition-all text-xs font-bold shrink-0 ${activePreset === 'all' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                전체
-              </button>
-              <button 
-                onClick={() => setPreset('today')} 
-                className={`px-3 py-1.5 rounded-lg transition-all text-xs font-bold shrink-0 ${activePreset === 'today' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                오늘
-              </button>
-              <button 
-                onClick={() => setPreset('7d')} 
-                className={`px-3 py-1.5 rounded-lg transition-all text-xs font-bold shrink-0 ${activePreset === '7d' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                7일
-              </button>
-              <button 
-                onClick={() => setPreset('30d')} 
-                className={`px-3 py-1.5 rounded-lg transition-all text-xs font-bold shrink-0 ${activePreset === '30d' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                30일
-              </button>
-            </div>
+          {/* 📅 기간별 조회 및 검색 컴포넌트 (Hydration 보호막 장착) */}
+          {isMounted && (
+            <>
+              <div className="flex flex-col sm:flex-row flex-wrap items-center gap-3 w-full lg:w-auto">
+                <div className="flex items-center bg-slate-200/60 rounded-xl p-0.5 border border-slate-200 shrink-0 w-full sm:w-auto justify-between sm:justify-start">
+                  <button 
+                    onClick={() => setPreset('all')} 
+                    className={`px-3 py-1.5 rounded-lg transition-all text-xs font-bold shrink-0 ${activePreset === 'all' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    전체
+                  </button>
+                  <button 
+                    onClick={() => setPreset('today')} 
+                    className={`px-3 py-1.5 rounded-lg transition-all text-xs font-bold shrink-0 ${activePreset === 'today' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    오늘
+                  </button>
+                  <button 
+                    onClick={() => setPreset('7d')} 
+                    className={`px-3 py-1.5 rounded-lg transition-all text-xs font-bold shrink-0 ${activePreset === '7d' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    7일
+                  </button>
+                  <button 
+                    onClick={() => setPreset('30d')} 
+                    className={`px-3 py-1.5 rounded-lg transition-all text-xs font-bold shrink-0 ${activePreset === '30d' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    30일
+                  </button>
+                </div>
 
-            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-inner w-full sm:w-auto justify-center">
-              <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
-              <input 
-                type="date" 
-                value={startDate} 
-                onChange={e => {
-                  setStartDate(e.target.value);
-                  setActivePreset('custom');
-                }} 
-                className="outline-none border-none text-slate-700 text-xs bg-transparent cursor-pointer font-bold w-28 sm:w-auto"
-              />
-              <span className="text-slate-300">~</span>
-              <input 
-                type="date" 
-                value={endDate} 
-                onChange={e => {
-                  setEndDate(e.target.value);
-                  setActivePreset('custom');
-                }} 
-                className="outline-none border-none text-slate-700 text-xs bg-transparent cursor-pointer font-bold w-28 sm:w-auto"
-              />
-            </div>
-          </div>
+                <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-inner w-full sm:w-auto justify-center">
+                  <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+                  <input 
+                    type="date" 
+                    value={startDate} 
+                    onChange={e => {
+                      setStartDate(e.target.value);
+                      setActivePreset('custom');
+                    }} 
+                    className="outline-none border-none text-slate-700 text-xs bg-transparent cursor-pointer font-bold w-28 sm:w-auto"
+                  />
+                  <span className="text-slate-300">~</span>
+                  <input 
+                    type="date" 
+                    value={endDate} 
+                    onChange={e => {
+                      setEndDate(e.target.value);
+                      setActivePreset('custom');
+                    }} 
+                    className="outline-none border-none text-slate-700 text-xs bg-transparent cursor-pointer font-bold w-28 sm:w-auto"
+                  />
+                </div>
+              </div>
 
-          <div className="relative w-full xl:w-64 shrink-0">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="수신번호, 발송내용 검색"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-full focus:ring-2 focus:ring-purple-500 outline-none text-xs bg-white font-semibold"
-            />
-          </div>
+              <div className="relative w-full lg:w-64 shrink-0">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="수신번호, 발송내용 검색"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-full focus:ring-2 focus:ring-purple-500 outline-none text-xs bg-white font-semibold"
+                />
+              </div>
+            </>
+          )}
         </div>
         <table className="w-full text-left border-collapse">
           <thead>
