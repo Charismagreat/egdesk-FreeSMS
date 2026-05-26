@@ -372,6 +372,78 @@ export default function InventoryPage() {
     }
   };
 
+  // 엑셀 양식 서식 다운로드 기능
+  const downloadExcelTemplate = async () => {
+    try {
+      const XLSX = await import('xlsx');
+
+      // 1. 헤더 컬럼 목록 정의
+      const headers = [
+        '구분',
+        '품목명',
+        '카테고리',
+        '규격',
+        '단위',
+        '박스당 입수량',
+        '단가',
+        '거래처',
+        '적재 위치',
+        '안전 재고',
+        '최초 재고',
+        '비고'
+      ];
+
+      // 2. 가상의 모의 데이터(자재, 제품 예시) 2개 행 정의
+      const mockRows = [
+        {
+          '구분': '자재',
+          '품목명': '초경량 BLDC 모터 V2',
+          '카테고리': '전동부품',
+          '규격': '15mm x 150mm',
+          '단위': '박스',
+          '박스당 입수량': 10,
+          '단가': 12500,
+          '거래처': '한성정밀(주)',
+          '적재 위치': 'A홀 3번 선반',
+          '안전 재고': 15,
+          '최초 재고': 50,
+          '비고': '고효율 긴수명 모터 브라켓 미포함'
+        },
+        {
+          '구분': '제품',
+          '품목명': '써모글로우 텀블러 500ml',
+          '카테고리': '리빙웨어',
+          '규격': '고진공 스테인리스 이중벽',
+          '단위': '개수',
+          '박스당 입수량': '',
+          '단가': 8700,
+          '거래처': '글로벌 트레이딩',
+          '적재 위치': 'B홀 12번 적재함',
+          '안전 재고': 30,
+          '최초 재고': 120,
+          '비고': '보온보냉 고진공 텀블러 완제품'
+        }
+      ];
+
+      // AOA(Array of Arrays) 형태로 워크시트 생성
+      const aoaData = [headers];
+      mockRows.forEach((row) => {
+        const rowData = headers.map((header) => row[header as keyof typeof row] ?? '');
+        aoaData.push(rowData);
+      });
+
+      const worksheet = XLSX.utils.aoa_to_sheet(aoaData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, '재고일괄등록_샘플서식');
+
+      // 브라우저로 엑셀 파일 즉각 다운로드 시키기
+      XLSX.writeFile(workbook, '이지데스크_재고일괄등록_샘플양식.xlsx');
+    } catch (err) {
+      console.error('템플릿 생성 중 에러:', err);
+      alert('템플릿 파일을 생성하지 못했습니다. 다시 시도해 주세요.');
+    }
+  };
+
   // 입출고 및 조정 등록 처리
   const handleTxSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -702,9 +774,16 @@ export default function InventoryPage() {
             <button 
               onClick={() => setShowExcelGuideModal(true)}
               className="bg-slate-800/40 hover:bg-slate-800/60 text-indigo-300 font-semibold text-sm px-3.5 py-3 rounded-xl border border-indigo-500/20 active:scale-95 transition-all flex items-center justify-center"
-              title="엑셀 업로드 양식 도움말"
+              title="엑셀 업로드 양식 도움말 가이드"
             >
               <FileText className="w-4.5 h-4.5" />
+            </button>
+            <button 
+              onClick={downloadExcelTemplate}
+              className="bg-slate-800/40 hover:bg-slate-800/60 text-emerald-400 font-semibold text-sm px-3.5 py-3 rounded-xl border border-emerald-500/20 active:scale-95 transition-all flex items-center justify-center"
+              title="표준 엑셀 샘플 서식 (.xlsx) 직접 다운로드"
+            >
+              <FileText className="w-4.5 h-4.5 text-emerald-300" />
             </button>
             <label className={`bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-semibold text-sm px-5 py-3 rounded-xl shadow-lg shadow-indigo-950/20 active:scale-95 transition-all flex items-center space-x-2 border border-indigo-400/20 ${isUploadingExcel ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}>
               {isUploadingExcel ? (
@@ -1970,11 +2049,19 @@ export default function InventoryPage() {
             </div>
 
             {/* 푸터 */}
-            <div className="bg-slate-50 px-6 py-4 flex justify-end border-t border-slate-100">
+            <div className="bg-slate-50 px-6 py-4 flex justify-between items-center border-t border-slate-100">
+              <button
+                type="button"
+                onClick={downloadExcelTemplate}
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-200 flex items-center space-x-1.5"
+              >
+                <FileText className="w-4 h-4 text-indigo-200" />
+                <span>표준 서식 샘플(.xlsx) 다운로드</span>
+              </button>
               <button
                 type="button"
                 onClick={() => setShowExcelGuideModal(false)}
-                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-200"
+                className="px-5 py-2.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs transition-colors"
               >
                 가이드 닫기
               </button>
