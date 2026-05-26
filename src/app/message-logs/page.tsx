@@ -112,43 +112,59 @@ export default function MessageLogsPage() {
       </h1>
       
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-4 border-b border-slate-100 bg-slate-50 flex flex-col lg:flex-row justify-between items-center gap-4">
-          <div className="flex items-center justify-between lg:justify-start w-full lg:w-auto gap-4 shrink-0">
-            <h2 className="font-bold text-slate-800">발송 목록 ({filteredData.length}건)</h2>
+        {/* 🌟 프리미엄 2단 구조 레이아웃 성형 개편 */}
+        <div className="p-5 border-b border-slate-100 bg-slate-50/50 space-y-4">
+          
+          {/* 1층: 타이틀 & 검색바 (완벽한 좌우 대칭) */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <h2 className="font-extrabold text-slate-800 text-base">발송 목록 ({filteredData.length}건)</h2>
+            <div className="relative w-full sm:w-72 shrink-0">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="수신번호, 발송내용 검색"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-full focus:ring-2 focus:ring-purple-500 outline-none text-xs bg-white font-semibold transition-all shadow-sm"
+              />
+            </div>
           </div>
 
-          {/* 📅 기간별 조회 및 검색 컴포넌트 (Hydration 보호막 장착) */}
+          {/* 2층: 조회 기간 상세 필터링 영역 (구분선과 정렬 보강) */}
           {isMounted && (
-            <>
-              <div className="flex flex-col sm:flex-row flex-wrap items-center gap-3 w-full lg:w-auto">
-                <div className="flex items-center bg-slate-200/60 rounded-xl p-0.5 border border-slate-200 shrink-0 w-full sm:w-auto justify-between sm:justify-start">
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-3 pt-3.5 border-t border-slate-100/70">
+              <span className="text-xs font-bold text-slate-500 shrink-0">조회 기간</span>
+              <div className="flex flex-wrap items-center gap-3">
+                {/* 프리셋 버튼 */}
+                <div className="flex items-center bg-slate-200/50 rounded-xl p-0.5 border border-slate-200/70 shrink-0">
                   <button 
                     onClick={() => setPreset('all')} 
-                    className={`px-3 py-1.5 rounded-lg transition-all text-xs font-bold shrink-0 ${activePreset === 'all' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`px-3 py-1.5 rounded-lg transition-all text-[11px] font-extrabold shrink-0 ${activePreset === 'all' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                   >
                     전체
                   </button>
                   <button 
                     onClick={() => setPreset('today')} 
-                    className={`px-3 py-1.5 rounded-lg transition-all text-xs font-bold shrink-0 ${activePreset === 'today' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`px-3 py-1.5 rounded-lg transition-all text-[11px] font-extrabold shrink-0 ${activePreset === 'today' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                   >
                     오늘
                   </button>
                   <button 
                     onClick={() => setPreset('7d')} 
-                    className={`px-3 py-1.5 rounded-lg transition-all text-xs font-bold shrink-0 ${activePreset === '7d' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`px-3 py-1.5 rounded-lg transition-all text-[11px] font-extrabold shrink-0 ${activePreset === '7d' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                   >
                     7일
                   </button>
                   <button 
                     onClick={() => setPreset('30d')} 
-                    className={`px-3 py-1.5 rounded-lg transition-all text-xs font-bold shrink-0 ${activePreset === '30d' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    className={`px-3 py-1.5 rounded-lg transition-all text-[11px] font-extrabold shrink-0 ${activePreset === '30d' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                   >
                     30일
                   </button>
                 </div>
 
-                <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-inner w-full sm:w-auto justify-center">
+                {/* 달력 입력 바 */}
+                <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm text-xs">
                   <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
                   <input 
                     type="date" 
@@ -157,9 +173,9 @@ export default function MessageLogsPage() {
                       setStartDate(e.target.value);
                       setActivePreset('custom');
                     }} 
-                    className="outline-none border-none text-slate-700 text-xs bg-transparent cursor-pointer font-bold w-28 sm:w-auto"
+                    className="outline-none border-none text-slate-700 text-xs bg-transparent cursor-pointer font-bold w-[115px]"
                   />
-                  <span className="text-slate-300">~</span>
+                  <span className="text-slate-300 font-bold">~</span>
                   <input 
                     type="date" 
                     value={endDate} 
@@ -167,22 +183,11 @@ export default function MessageLogsPage() {
                       setEndDate(e.target.value);
                       setActivePreset('custom');
                     }} 
-                    className="outline-none border-none text-slate-700 text-xs bg-transparent cursor-pointer font-bold w-28 sm:w-auto"
+                    className="outline-none border-none text-slate-700 text-xs bg-transparent cursor-pointer font-bold w-[115px]"
                   />
                 </div>
               </div>
-
-              <div className="relative w-full lg:w-64 shrink-0">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="수신번호, 발송내용 검색"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-full focus:ring-2 focus:ring-purple-500 outline-none text-xs bg-white font-semibold"
-                />
-              </div>
-            </>
+            </div>
           )}
         </div>
         <table className="w-full text-left border-collapse">
