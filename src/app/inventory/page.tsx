@@ -110,6 +110,10 @@ export default function InventoryPage() {
   const [selectedVoicePreset, setSelectedVoicePreset] = useState<number | null>(null);
   const [highlightFields, setHighlightFields] = useState<Record<string, boolean>>({});
 
+  // 엑셀 일괄 등록용 상태
+  const [isUploadingExcel, setIsUploadingExcel] = useState(false);
+  const [showExcelGuideModal, setShowExcelGuideModal] = useState(false);
+
   // 타이핑 애니메이션 레프 및 상태
   const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -272,6 +276,99 @@ export default function InventoryPage() {
       }
     } catch (error) {
       console.error('삭제 오류:', error);
+    }
+  };
+
+  // 엑셀 일괄 등록 처리
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingExcel(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const data = event.target?.result;
+        if (!data) return;
+
+        try {
+          // SheetJS 동적 임포트
+          const XLSX = await import('xlsx');
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const rawRows = XLSX.utils.sheet_to_json(worksheet) as any[];
+
+          if (rawRows.length === 0) {
+            alert('엑셀 시트에 데이터가 존재하지 않습니다.');
+            setIsUploadingExcel(false);
+            return;
+          }
+
+          // 지능형 퍼지 매핑
+          const mappedItems = rawRows.map((row: any) => {
+            const typeVal = row['종류'] || row['구분'] || row['type'] || '자재';
+            const nameVal = row['품목명'] || row['이름'] || row['name'] || '';
+            const categoryVal = row['카테고리'] || row['분류'] || row['category'] || '';
+            const priceVal = row['단가'] || row['공급 단가'] || row['공급단가'] || row['매입가'] || row['판매가'] || row['price'] || 0;
+            const partnerVal = row['거래처'] || row['매입처'] || row['주매입거래처'] || row['partner'] || '';
+            const locationVal = row['적재 위치'] || row['창고 위치'] || row['적재위치'] || row['location'] || '';
+            const specVal = row['규격'] || row['세부 스펙'] || row['spec'] || '';
+            const unitTypeVal = row['단위'] || row['단위 구분'] || row['unitType'] || '개수';
+            const unitValueVal = row['세부 단위'] || row['unitValue'] || '';
+            const boxContainsVal = row['박스당 입수량'] || row['n개입'] || row['boxContains'] || '';
+            const safeStockVal = row['안전 재고'] || row['적정 재고'] || row['안전재고량'] || row['safeStock'] || 0;
+            const stockVal = row['최초 재고'] || row['현재 재고'] || row['최초기초재고'] || row['stock'] || 0;
+            const descriptionVal = row['비고'] || row['상세 설명'] || row['description'] || '';
+
+            return {
+              type: typeVal,
+              name: nameVal,
+              category: categoryVal,
+              price: priceVal,
+              partner: partnerVal,
+              location: locationVal,
+              spec: specVal,
+              unitType: unitTypeVal,
+              unitValue: unitValueVal,
+              boxContains: boxContainsVal,
+              safeStock: safeStockVal,
+              stock: stockVal,
+              description: descriptionVal
+            };
+          }).filter(item => item.name);
+
+          if (mappedItems.length === 0) {
+            alert('필수 정보인 [품목명]이 기재된 유효한 행을 찾을 수 없습니다.');
+            setIsUploadingExcel(false);
+            return;
+          }
+
+          const res = await fetch('/api/inventory/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items: mappedItems })
+          });
+          const json = await res.json();
+
+          if (json.success) {
+            alert(`🎉 엑셀 일괄 등록 완료!\n수신 데이터: ${json.totalReceived}개 중 ${json.count}개의 신규 품목이 등록되었습니다.\n(중복된 동일 품목명의 데이터는 자동 스킵되었습니다.)`);
+            fetchData();
+          } else {
+            alert('일괄 등록 실패: ' + (json.error || '알 수 없는 오류'));
+          }
+        } catch (err: any) {
+          console.error(err);
+          alert('엑셀 파일 파싱 중 오류가 발생했습니다. 서식을 확인해 주세요.');
+        } finally {
+          setIsUploadingExcel(false);
+          e.target.value = '';
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } catch (e) {
+      alert('파일 읽기 오류가 발생했습니다.');
+      setIsUploadingExcel(false);
     }
   };
 
@@ -602,6 +699,33 @@ export default function InventoryPage() {
             </p>
           </div>
           <div className="flex gap-3">
+            <button 
+              onClick={() => setShowExcelGuideModal(true)}
+              className="bg-slate-800/40 hover:bg-slate-800/60 text-indigo-300 font-semibold text-sm px-3.5 py-3 rounded-xl border border-indigo-500/20 active:scale-95 transition-all flex items-center justify-center"
+              title="엑셀 업로드 양식 도움말"
+            >
+              <FileText className="w-4.5 h-4.5" />
+            </button>
+            <label className={`bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-semibold text-sm px-5 py-3 rounded-xl shadow-lg shadow-indigo-950/20 active:scale-95 transition-all flex items-center space-x-2 border border-indigo-400/20 ${isUploadingExcel ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}>
+              {isUploadingExcel ? (
+                <>
+                  <Loader2 className="w-4.5 h-4.5 animate-spin" />
+                  <span>업로드 중...</span>
+                </>
+              ) : (
+                <>
+                  <FileText className="w-4.5 h-4.5 text-indigo-200" />
+                  <span>엑셀 일괄 등록</span>
+                </>
+              )}
+              <input 
+                type="file" 
+                accept=".xlsx, .xls, .csv" 
+                className="hidden" 
+                onChange={handleExcelUpload}
+                disabled={isUploadingExcel}
+              />
+            </label>
             <button 
               onClick={openNewItemModal}
               className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold text-sm px-5 py-3 rounded-xl shadow-lg shadow-emerald-950/20 active:scale-95 transition-all flex items-center space-x-2 border border-emerald-400/20"
@@ -1727,6 +1851,134 @@ export default function InventoryPage() {
               </div>
             </form>
 
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 7. 엑셀 업로드 서식 도움말 모달 */}
+      {/* ========================================================================= */}
+      {showExcelGuideModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all">
+          <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+            
+            {/* 헤더 */}
+            <div className="bg-gradient-to-r from-indigo-900 to-indigo-950 text-white px-6 py-5 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-indigo-300" />
+                  <span>엑셀 일괄 등록 서식 가이드</span>
+                </h3>
+                <p className="text-[10px] text-slate-300 mt-1">
+                  점주님의 엑셀 파일 첫 행(헤더) 컬럼을 시스템에 매핑하는 기준입니다.
+                </p>
+              </div>
+              <button 
+                onClick={() => setShowExcelGuideModal(false)}
+                className="text-slate-300 hover:text-white p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* 바디 */}
+            <div className="p-6 space-y-4 max-h-[450px] overflow-y-auto text-xs text-slate-600">
+              <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 text-indigo-950 font-medium">
+                💡 **편리한 한글 분석 지원**: 첫 행(헤더)에 아래 예시의 컬럼명 중 하나가 기입되어 있으면, 단어가 조금 다르더라도 시스템이 자동으로 유추하여 안전하게 등록합니다.
+              </div>
+
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200">
+                    <tr>
+                      <th className="p-2.5">매핑 필드</th>
+                      <th className="p-2.5">엑셀 추천 명칭 (헤더 예시)</th>
+                      <th className="p-2.5">필수 여부</th>
+                      <th className="p-2.5">기입 룰 / 예시</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white font-medium text-slate-500">
+                    <tr>
+                      <td className="p-2.5 font-bold text-slate-800">종류 (Type)</td>
+                      <td className="p-2.5 text-indigo-600 font-semibold">종류, 구분, type</td>
+                      <td className="p-2.5 text-red-500 font-bold">기본 '자재'</td>
+                      <td className="p-2.5">**자재** 또는 **제품** 기입</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2.5 font-bold text-slate-800">품목명 (Name)</td>
+                      <td className="p-2.5 text-indigo-600 font-semibold">품목명, 이름, name</td>
+                      <td className="p-2.5 text-red-500 font-bold">필수</td>
+                      <td className="p-2.5">예: 초경량 모터 V2 (중복 시 스킵)</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2.5 font-bold text-slate-800">카테고리</td>
+                      <td className="p-2.5 text-indigo-600 font-semibold">카테고리, 분류, category</td>
+                      <td className="p-2.5 text-red-500 font-bold">필수</td>
+                      <td className="p-2.5">예: 전동부품, 리빙웨어</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2.5 font-bold text-slate-800">규격 (Spec)</td>
+                      <td className="p-2.5 text-indigo-600 font-semibold">규격, 세부 스펙, spec</td>
+                      <td className="p-2.5 text-slate-400">선택</td>
+                      <td className="p-2.5">예: 15mm x 150mm, 250g</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2.5 font-bold text-slate-800">단위 구분</td>
+                      <td className="p-2.5 text-indigo-600 font-semibold">단위, 단위 구분, unitType</td>
+                      <td className="p-2.5 text-slate-400">선택</td>
+                      <td className="p-2.5">**개수**, **중량**, **박스** 중 기입</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2.5 font-bold text-slate-800">박스당 수량</td>
+                      <td className="p-2.5 text-indigo-600 font-semibold">박스당 입수량, n개입</td>
+                      <td className="p-2.5 text-slate-400">선택</td>
+                      <td className="p-2.5">단위가 \'박스\'일 때 숫자 기입 (예: 10)</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2.5 font-bold text-slate-800">단가 (Price)</td>
+                      <td className="p-2.5 text-indigo-600 font-semibold">단가, 공급 단가, 매입가, 판매가</td>
+                      <td className="p-2.5 text-red-500 font-bold">필수</td>
+                      <td className="p-2.5">숫자 기입 (예: 12500)</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2.5 font-bold text-slate-800">거래처 (Partner)</td>
+                      <td className="p-2.5 text-indigo-600 font-semibold">거래처, 매입처, partner</td>
+                      <td className="p-2.5 text-slate-400">선택</td>
+                      <td className="p-2.5">예: 한성정밀(주)</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2.5 font-bold text-slate-800">적재 위치</td>
+                      <td className="p-2.5 text-indigo-600 font-semibold">적재 위치, 창고 위치, location</td>
+                      <td className="p-2.5 text-slate-400">선택</td>
+                      <td className="p-2.5">예: A홀 3번 선반</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2.5 font-bold text-slate-800">안전 재고</td>
+                      <td className="p-2.5 text-indigo-600 font-semibold">안전 재고, 적정 재고, safeStock</td>
+                      <td className="p-2.5 text-red-500 font-bold">필수</td>
+                      <td className="p-2.5">숫자 기입 (예: 15)</td>
+                    </tr>
+                    <tr>
+                      <td className="p-2.5 font-bold text-slate-800">최초 재고</td>
+                      <td className="p-2.5 text-indigo-600 font-semibold">최초 재고, 현재 재고, stock</td>
+                      <td className="p-2.5 text-red-500 font-bold">필수</td>
+                      <td className="p-2.5">숫자 기입 (기초 재고 및 입고 이력 연동)</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* 푸터 */}
+            <div className="bg-slate-50 px-6 py-4 flex justify-end border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setShowExcelGuideModal(false)}
+                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-200"
+              >
+                가이드 닫기
+              </button>
+            </div>
           </div>
         </div>
       )}
