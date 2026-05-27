@@ -272,7 +272,7 @@ export default function ProductsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h1 className="text-3xl font-bold text-slate-800 flex items-center">
           <PackageSearch className="w-8 h-8 mr-3 text-blue-655" /> 
-          상품 DB 관리
+          상품 관리 AI
         </h1>
         <div className="flex items-center gap-2">
           {/* 📄 표준 양식 다운로드 버튼 */}

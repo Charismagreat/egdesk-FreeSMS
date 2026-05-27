@@ -52,7 +52,7 @@ export default function PaymentsPage() {
 
   return (
     <div className="space-y-6 pb-20">
-      <h1 className="text-3xl font-bold text-slate-800 flex items-center"><CreditCard className="w-8 h-8 mr-3 text-emerald-500" /> 결제내역 관리</h1>
+      <h1 className="text-3xl font-bold text-slate-800 flex items-center"><CreditCard className="w-8 h-8 mr-3 text-emerald-500" /> 결제 관리 AI</h1>
       
       {/* 새 결제 등록 */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">

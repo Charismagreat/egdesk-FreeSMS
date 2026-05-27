@@ -251,7 +251,7 @@ export default function CustomersPage() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-slate-800">고객 관리</h1>
+        <h1 className="text-3xl font-bold text-slate-800">고객 관리 AI</h1>
         <div className="flex space-x-2">
           <label className={`bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-lg font-medium transition-colors flex items-center shadow-sm ${isUploading ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}>
             {isUploading ? "업로드 중..." : "CSV/엑셀 일괄 등록"}

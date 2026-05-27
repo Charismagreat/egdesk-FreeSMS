@@ -126,7 +126,7 @@ export default function OrdersPage() {
 
   return (
     <div className="space-y-6 pb-20">
-      <h1 className="text-3xl font-bold text-slate-800 flex items-center"><ClipboardList className="w-8 h-8 mr-3 text-blue-500" /> 주문내역 관리</h1>
+      <h1 className="text-3xl font-bold text-slate-800 flex items-center"><ClipboardList className="w-8 h-8 mr-3 text-blue-500" /> 주문 관리 AI</h1>
       
       {/* New Order Form */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">

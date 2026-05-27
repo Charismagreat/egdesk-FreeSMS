@@ -1,6 +1,6 @@
 /**
  * EGDesk User Data Configuration
- * Generated at: 2026-05-26T00:28:55.790Z
+ * Generated at: 2026-05-26T10:01:44.138Z
  *
  * This file contains type-safe definitions for your EGDesk tables.
  */
@@ -24,7 +24,7 @@ export const TABLES = {
   table1: {
     name: 'inventory_logs',
     displayName: '재고 변동 이력',
-    rowCount: 1,
+    rowCount: 0,
     columnCount: 10,
     columns: ['id', 'itemId', 'itemName', 'itemType', 'changeType', 'quantity', 'price', 'operator', 'note', 'createdAt']
   } as TableDefinition,
@@ -32,8 +32,8 @@ export const TABLES = {
     name: 'inventory_items',
     displayName: '재고 품목',
     rowCount: 0,
-    columnCount: 11,
-    columns: ['id', 'type', 'name', 'category', 'price', 'partner', 'stock', 'safeStock', 'location', 'description', 'createdAt']
+    columnCount: 17,
+    columns: ['id', 'type', 'name', 'category', 'price', 'partner', 'stock', 'safeStock', 'location', 'spec', 'unitType', 'unitValue', 'boxContains', 'description', 'tags', 'barcode', 'createdAt']
   } as TableDefinition,
   table3: {
     name: 'crm_partner_contacts',
@@ -157,7 +157,7 @@ export const TABLES = {
   table20: {
     name: 'system_settings',
     displayName: '시스템 설정',
-    rowCount: 1,
+    rowCount: 2,
     columnCount: 3,
     columns: ['id', 'key', 'value']
   } as TableDefinition,
@@ -213,7 +213,7 @@ export const TABLES = {
   table28: {
     name: 'message_logs',
     displayName: '발송 내역',
-    rowCount: 0,
+    rowCount: 2,
     columnCount: 6,
     columns: ['id', 'customer_id', 'phone', 'message', 'status', 'created_at']
   } as TableDefinition,
