@@ -53,7 +53,7 @@ export default function DeliveriesPage() {
 
   return (
     <div className="space-y-6 pb-20">
-      <h1 className="text-3xl font-bold text-slate-800 flex items-center"><Truck className="w-8 h-8 mr-3 text-amber-500" /> 배송내역 관리</h1>
+      <h1 className="text-3xl font-bold text-slate-800 flex items-center"><Truck className="w-8 h-8 mr-3 text-amber-500" /> 배송 관리 AI</h1>
       
       {/* 새 배송 등록 */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
