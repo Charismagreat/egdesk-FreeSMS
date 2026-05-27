@@ -389,7 +389,63 @@ export async function setupDatabase() {
     { name: 'created_at', type: 'TEXT', notNull: true }
   ], { tableName: 'ai_token_usage_logs', uniqueKeyColumns: ['id'] });
 
-  // 31. Inventory Logs Table (재고 변동 이력 감사록)
+  // 31. 추적 품목 마스터 테이블 (원자재 / 경쟁 제품 분류 및 마진 관리)
+  await safeCreateTable('가격 추적 품목', [
+    { name: 'item_id', type: 'INTEGER', notNull: true },
+    { name: 'item_code', type: 'TEXT', notNull: true },
+    { name: 'item_name', type: 'TEXT', notNull: true },
+    { name: 'category', type: 'TEXT', notNull: true }, // RAW_MATERIAL, COMPETITOR_PRODUCT
+    { name: 'base_price', type: 'REAL', notNull: true },
+    { name: 'target_margin_rate', type: 'REAL', notNull: true },
+    { name: 'created_at', type: 'TEXT' }
+  ], { tableName: 'tracked_items', uniqueKeyColumns: ['item_id'] });
+
+  // 32. 감시 대상 URL 및 수집 룰 관리 테이블
+  await safeCreateTable('가격 감시 URL', [
+    { name: 'url_id', type: 'INTEGER', notNull: true },
+    { name: 'item_id', type: 'INTEGER', notNull: true },
+    { name: 'site_name', type: 'TEXT', notNull: true },
+    { name: 'target_url', type: 'TEXT', notNull: true },
+    { name: 'css_selector', type: 'TEXT', notNull: true },
+    { name: 'xpath', type: 'TEXT' },
+    { name: 'cron_interval', type: 'TEXT', notNull: true }, // '0 9 * * *' 등
+    { name: 'is_active', type: 'INTEGER', notNull: true }, // 1: Active, 0: Inactive
+    { name: 'created_at', type: 'TEXT' }
+  ], { tableName: 'target_urls', uniqueKeyColumns: ['url_id'] });
+
+  // 33. 수집 가격 이력 기록 테이블 (차트용 시세 추이 소스)
+  await safeCreateTable('수집 가격 이력', [
+    { name: 'history_id', type: 'INTEGER', notNull: true },
+    { name: 'url_id', type: 'INTEGER', notNull: true },
+    { name: 'captured_price', type: 'REAL', notNull: true },
+    { name: 'captured_at', type: 'TEXT', notNull: true },
+    { name: 'status', type: 'TEXT', notNull: true }, // SUCCESS, FAILED
+    { name: 'error_message', type: 'TEXT' }
+  ], { tableName: 'price_histories', uniqueKeyColumns: ['history_id'] });
+
+  // 34. FreeSMS 알림 조건 및 템플릿 설정 테이블
+  await safeCreateTable('가격 알림 규칙', [
+    { name: 'rule_id', type: 'INTEGER', notNull: true },
+    { name: 'item_id', type: 'INTEGER', notNull: true },
+    { name: 'rule_name', type: 'TEXT', notNull: true },
+    { name: 'condition_type', type: 'TEXT', notNull: true }, // ABOVE_LIMIT, BELOW_LIMIT, MARGIN_BREAKDOWN
+    { name: 'threshold_value', type: 'REAL', notNull: true },
+    { name: 'phone_number', type: 'TEXT', notNull: true },
+    { name: 'sms_template', type: 'TEXT', notNull: true },
+    { name: 'is_enabled', type: 'INTEGER', notNull: true } // 1: 활성, 0: 비활성
+  ], { tableName: 'alert_rules', uniqueKeyColumns: ['rule_id'] });
+
+  // 35. 알림 발송 이력 로그 테이블
+  await safeCreateTable('가격 알림 발송 로그', [
+    { name: 'log_id', type: 'INTEGER', notNull: true },
+    { name: 'rule_id', type: 'INTEGER', notNull: true },
+    { name: 'sent_price', type: 'REAL', notNull: true },
+    { name: 'sent_message', type: 'TEXT', notNull: true },
+    { name: 'sent_at', type: 'TEXT', notNull: true },
+    { name: 'api_response', type: 'TEXT' }
+  ], { tableName: 'alert_logs', uniqueKeyColumns: ['log_id'] });
+
+  // 36. Inventory Logs Table (재고 변동 이력 감사록)
   await safeCreateTable('재고 변동 이력', [
     { name: 'id', type: 'INTEGER', notNull: true },
     { name: 'itemId', type: 'INTEGER', notNull: true },
@@ -479,6 +535,67 @@ export async function setupDatabase() {
     }
   } catch (e: any) {
     console.error('Error seeding point earning rate setting:', e.message);
+  }
+
+  // 가격 추적 AI 기초 더미 데이터 및 시세 이력 시딩(Seeding)
+  try {
+    const itemsCheck = await queryTable('tracked_items', {});
+    if (!itemsCheck.rows || itemsCheck.rows.length === 0) {
+      const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+      
+      // 1. 구리 품목 시딩
+      await insertRows('tracked_items', [{
+        item_id: 1,
+        item_code: 'RAW-COPPER-01',
+        item_name: '런던금속거래소(LME) 구리 전기동',
+        category: 'RAW_MATERIAL',
+        base_price: 8200.00,
+        target_margin_rate: 12.50,
+        created_at: nowStr
+      }]);
+      
+      // 2. 구리 URL 시딩
+      await insertRows('target_urls', [{
+        url_id: 1,
+        item_id: 1,
+        site_name: 'LME 구리 시세 페이지',
+        target_url: 'https://www.lme.com/en/Metals/Non-ferrous/Copper',
+        css_selector: 'div.price-table__current-price > span',
+        cron_interval: '0 9 * * *',
+        is_active: 1,
+        created_at: nowStr
+      }]);
+
+      // 3. 최근 10일 가격 데이터 시딩 (SVG 차트 실시간 렌더링용)
+      const mockPrices = [8150, 8220, 8180, 8310, 8450, 8580, 8620, 8500, 8420, 8850];
+      for (let index = 0; index < mockPrices.length; index++) {
+        const dateOffset = new Date(Date.now() + 9 * 60 * 60 * 1000 - (10 - index) * 24 * 60 * 60 * 1000);
+        const dateStr = dateOffset.toISOString().replace('T', ' ').slice(0, 19);
+        await insertRows('price_histories', [{
+          history_id: index + 1,
+          url_id: 1,
+          captured_price: mockPrices[index],
+          captured_at: dateStr,
+          status: 'SUCCESS'
+        }]);
+      }
+
+      // 4. 알림 조건 규칙 시딩
+      await insertRows('alert_rules', [{
+        rule_id: 1,
+        item_id: 1,
+        rule_name: '구리 가격 10% 폭등 및 마진 붕괴 경보',
+        condition_type: 'MARGIN_BREAKDOWN',
+        threshold_value: 5.00,
+        phone_number: '010-1234-5678',
+        sms_template: '[🚨 가격추적AI - 마진경보]\n품목: {item_name} ({item_code})\n현재시세: {captured_price} USD\n경고 내용: 설정된 최저 마진 보존선 5%가 무너졌습니다. 원재료 수급 및 판가 조율을 검토해 주세요.',
+        is_enabled: 1
+      }]);
+
+      console.log('Price Tracker AI dummy seed data successfully generated.');
+    }
+  } catch (e: any) {
+    console.error('Error seeding Price Tracker AI data:', e.message);
   }
 
   console.log('Database setup complete.');

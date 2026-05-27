@@ -3,13 +3,13 @@
 import { useState } from "react";
 import { 
   HelpCircle, Search, ChevronDown, MessageSquare, 
-  Bot, Sparkles, BookOpen, Ticket, Coins, Zap
+  Bot, Sparkles, BookOpen, Ticket, Coins, Zap, TrendingUp
 } from "lucide-react";
 
 // FAQ 데이터 아이템 구조 정의
 interface FAQItem {
   id: string;
-  category: "sms" | "rpa" | "point" | "coupon" | "order";
+  category: "sms" | "rpa" | "point" | "coupon" | "order" | "price";
   question: string;
   answer: string;
 }
@@ -21,7 +21,8 @@ const CATEGORIES = [
   { id: "rpa", label: "AI 자율 마케팅 & RPA 🤖", icon: Bot, color: "text-purple-400" },
   { id: "point", label: "단골적립 & 보안 🪙", icon: Coins, color: "text-amber-400" },
   { id: "coupon", label: "쿠폰 & 주문/예약 📦", icon: Ticket, color: "text-rose-400" },
-  { id: "order", label: "전사 협업 & 견적/수주 AI 🪐", icon: Zap, color: "text-cyan-400" }
+  { id: "order", label: "전사 협업 & 견적/수주 AI 🪐", icon: Zap, color: "text-cyan-400" },
+  { id: "price", label: "가격 & 마진 추적 AI 📈", icon: TrendingUp, color: "text-pink-400" }
 ];
 
 // FAQ 데이터베이스 (AI 자율 경영 파트너 Q&A 완전 실장)
@@ -180,6 +181,31 @@ const FAQ_DATABASE: FAQItem[] = [
     category: "order",
     question: "B2B 신규 거래처 등록이나 수주 확정 시 바이어에게 안내 문자를 자동으로 보낼 수 있나요?",
     answer: "네, 완벽히 지원됩니다! [자동 발송 설정] 메뉴에서 새로 추가된 B2B & SCM 자동 발송 이벤트 3종(B2B 신규 거래처 온보딩 시, B2B 견적 요청 접수 시, B2B 수주 확정 시)을 켜고 전송할 템플릿을 연결해 두시면 됩니다. 템플릿 작성 시 B2B 특화 변수인 {상호명}, {담당자명}, {금액}, {수주번호} 등을 활용하시면, 각 이벤트 발생 순간에 바이어의 실시간 거래 정보가 자동으로 매핑되어 세련되고 품격 있는 안내 문자가 즉시 백그라운드에서 발송됩니다."
+  },
+  // 6. 가격 & 마진 추적 AI FAQ
+  {
+    id: "price-1",
+    category: "price",
+    question: "가격 추적 AI의 실시간 마진율은 어떻게 계산되며 원리와 템플릿 치환은 어떻게 작동하나요?",
+    answer: "수집된 시장 시세와 사장님이 설정하신 품목의 [기준 가격(원가)]을 바탕으로 백엔드에서 실시간으로 마진율을 자동 연동 산출합니다. (원자재 품목의 마진 수식: (기준원가 - 수집가격) / 기준원가 * 100). 마진율이 미리 약정한 임계값 이하로 추락하면 이벤트 엔진이 점화되어 SMS 템플릿의 변수들({item_name}, {item_code}, {captured_price}, {margin_rate})을 파싱 가격으로 동적 치환 매핑하여 무료 전송망을 타고 알림 문자가 즉각 안전하게 전달됩니다."
+  },
+  {
+    id: "price-2",
+    category: "price",
+    question: "수집 사이트 AI 추천(Gemini RAG)은 어떠한 원리로 추천 및 CSS Selector를 추출하나요?",
+    answer: "이지데스크에 공식 탑재된 Google Gemini API의 딥러닝 지식과 실시간 공급망 지식을 결합하는 RAG(검색 증강 생성) 아키텍처를 기반으로 동작합니다. 사장님이 영위하시는 비즈니스 도메인 산업군과 추적하고 싶은 자재 품목 키워드를 입력하시면, 인공지능이 즉시 전 세계 공공 가격망 및 자원정보시스템의 소스 데이터 구조를 해독해 크롤러가 직접 접근할 수 있는 물리 고유 HTML CSS Selector 정보와 추천 주소를 정확하게 제안합니다. [즉시 수집 등록] 시 폼에 해당 정보가 원클릭 오토필(Auto-fill) 연동됩니다."
+  },
+  {
+    id: "price-3",
+    category: "price",
+    question: "가격 변동 발생 시 FreeSMS 알림 문자가 중복 폭주하여 발송 비용이나 한도가 초과되지 않나요?",
+    answer: "전혀 염려하실 필요가 없습니다! 시세 급변기나 잦은 크롤링에 따른 문자 폭탄 및 요금제 한도 유실을 원천적으로 차단하기 위해, 백엔드 발송 모듈 내부에 **'3시간의 발송 쿨다운(Cooldown) 유예 방어막'** 로직이 적용되어 있습니다. 알림 조건이 최초 감지되어 1회 경보 문자를 발송한 뒤에는, 동일한 규칙에 대해 최소 3시간 동안은 추가 발송을 유예하도록 설계되어 있어 사장님의 휴대폰 발송 안전 한도를 완벽하게 수호합니다."
+  },
+  {
+    id: "price-4",
+    category: "price",
+    question: "이지봇(EasyBot)에게 가격 추적기나 마진 상태 데이터를 직접 물어봐도 답변을 해주나요?",
+    answer: "네! 가격 추적 AI 대장의 데이터 구조(`tracked_items`, `price_histories` 등)가 백엔드 이지봇 인공지능 스키마와 완벽하게 통합 설계되어 있습니다. 대시보드 챗봇 이지봇 창을 열어 마이크를 켜시거나 채팅으로 \"구리 시세 마진 상태 알려줘\", \"최근 3일간 알루미늄 파싱 가격 이력 표로 보여줘\"라고 말씀하시면, 이지봇이 실시간으로 DB를 분석해 즉석에서 고급스러운 표와 마크다운으로 인사이트 답변을 드립니다."
   }
 ];
 

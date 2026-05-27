@@ -91,6 +91,7 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
     { href: "/estimates", label: "견적/발주/수주 AI", icon: ArrowRightLeft, color: "text-indigo-400" },
     { href: "/snaptasks", label: "AI 스냅태스크", icon: Sparkles, color: "text-indigo-450" },
     { href: "/inventory", label: "재고 관리 AI", icon: Package, color: "text-cyan-400" },
+    { href: "/price-tracker", label: "가격 추적 AI", icon: Zap, color: "text-pink-400" },
     { href: "/website", label: "홈페이지 빌더 AI", icon: Globe, color: "text-sky-400" },
     { href: "/recruitment", label: "채용 매니저 AI", icon: Briefcase, color: "text-rose-400" },
     { href: "/instagram", label: "인스타그램 마케팅 AI", icon: InstagramIcon, color: "text-[#ff007f]" },
