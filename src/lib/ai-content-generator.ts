@@ -1,4 +1,4 @@
-import { queryTable } from '../../egdesk-helpers';
+import { queryTable, insertRows } from '../../egdesk-helpers';
 
 export interface BlogContent {
   title: string;
@@ -96,6 +96,26 @@ Output must be in valid Korean, in strict JSON format using this EXACT structure
 
       if (response.ok) {
         const data = await response.json();
+        
+        // 🕒 토큰 소모량 측정 기록 추가
+        if (data.usageMetadata) {
+          try {
+            const u = data.usageMetadata;
+            const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+            await insertRows('ai_token_usage_logs', [{
+              id: `TKC-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+              model: 'gemini-3.5-flash',
+              purpose: 'marketing-content-pack',
+              prompt_tokens: u.promptTokenCount || 0,
+              completion_tokens: u.candidatesTokenCount || 0,
+              total_tokens: u.totalTokenCount || 0,
+              created_at: nowStr
+            }]);
+          } catch (logErr) {
+            console.error('마케팅 AI 토큰 사용량 기록 실패:', logErr);
+          }
+        }
+
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
         const resJson = JSON.parse(text);
         if (resJson.blog && resJson.instagram && resJson.shorts) {

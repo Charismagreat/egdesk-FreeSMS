@@ -3,6 +3,7 @@
 import { Settings } from "lucide-react";
 import AiSettingsCard from "../AiSettingsCard";
 import PointSettingsCard from "../PointSettingsCard";
+import AiUsageMonitor from "../AiUsageMonitor";
 
 export default function SettingsPage() {
   return (
@@ -17,6 +18,7 @@ export default function SettingsPage() {
 
       <div className="space-y-6">
         <AiSettingsCard />
+        <AiUsageMonitor />
         <PointSettingsCard />
       </div>
     </div>

@@ -1,0 +1,285 @@
+"use client";
+import { useState, useEffect } from "react";
+import { Cpu, Activity, BarChart3, Clock, AlertTriangle, Layers, CalendarRange } from "lucide-react";
+
+interface UsageSummary {
+  api_calls: number;
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
+  total_tokens: number;
+}
+
+interface PurposeStat {
+  purpose: string;
+  calls: number;
+  tokens: number;
+}
+
+interface ModelStat {
+  model: string;
+  calls: number;
+  tokens: number;
+}
+
+interface TokenLog {
+  id: string;
+  model: string;
+  purpose: string;
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  created_at: string;
+}
+
+export default function AiUsageMonitor() {
+  const [range, setRange] = useState<'today' | 'week' | 'month' | 'all'>('today');
+  const [summary, setSummary] = useState<UsageSummary>({ api_calls: 0, total_prompt_tokens: 0, total_completion_tokens: 0, total_tokens: 0 });
+  const [purposes, setPurposes] = useState<PurposeStat[]>([]);
+  const [models, setModels] = useState<ModelStat[]>([]);
+  const [recentLogs, setRecentLogs] = useState<TokenLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchStats();
+  }, [range]);
+
+  const fetchStats = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/settings/ai-usage?range=${range}`);
+      const json = await res.json();
+      if (json.success) {
+        setSummary(json.summary);
+        setPurposes(json.purposes);
+        setModels(json.models);
+        setRecentLogs(json.recentLogs);
+      } else {
+        setError(json.error || '데이터 조회 실패');
+      }
+    } catch (err: any) {
+      setError('서버에 연결할 수 없습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getPurposeLabel = (p: string) => {
+    switch (p) {
+      case 'easybot-sql-generation': return '이지봇 SQL 자동 변환';
+      case 'easybot-response': return '이지봇 지능형 응답 답변';
+      case 'marketing-content-pack': return '옴니채널 광고 원고 패키지 생성';
+      default: return p;
+    }
+  };
+
+  return (
+    <div className="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-100 mt-6 relative overflow-hidden">
+      <div className="relative z-10 flex flex-col gap-6">
+        
+        {/* 1. 헤더 & 필터바 */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-5 gap-4">
+          <div>
+            <h2 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
+              <Cpu className="w-5.5 h-5.5 text-indigo-500" />
+              AI API 토큰 실시간 모니터링 대시보드
+            </h2>
+            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+              구글 Gemini API를 통해 시스템에서 소모되는 인공지능 토큰 소모량을 실시간 정밀 감사 분석합니다.
+            </p>
+          </div>
+          <div className="flex bg-slate-100 p-1 rounded-xl shrink-0">
+            {[
+              { id: 'today', label: '오늘' },
+              { id: 'week', label: '최근 7일' },
+              { id: 'month', label: '최근 30일' },
+              { id: 'all', label: '누적 합계' }
+            ].map(r => (
+              <button
+                key={r.id}
+                onClick={() => setRange(r.id as any)}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${range === r.id ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-500 hover:text-slate-850'}`}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl flex items-center gap-2 text-xs font-semibold">
+            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="py-16 text-center animate-pulse flex flex-col items-center justify-center gap-3">
+            <Activity className="w-8 h-8 text-indigo-400 animate-spin" />
+            <span className="text-xs text-slate-400 font-bold">AI 토큰 소모량 실시간 감사 데이터 로딩 중...</span>
+          </div>
+        ) : (
+          <>
+            {/* 2. 핵심 계기판 스코어카드 그리드 */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              
+              {/* 총 토큰 소모량 */}
+              <div className="bg-gradient-to-br from-indigo-50/50 to-blue-50/20 border border-indigo-100 rounded-xl p-4 flex items-center justify-between shadow-2xs">
+                <div>
+                  <p className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">총 소모 토큰량</p>
+                  <h4 className="text-xl font-black text-slate-800 mt-1">{summary.total_tokens.toLocaleString()} <span className="text-xs font-medium text-slate-400">Tokens</span></h4>
+                </div>
+                <div className="w-9 h-9 rounded-lg bg-indigo-500/10 text-indigo-600 flex items-center justify-center shrink-0">
+                  <Activity className="w-4.5 h-4.5" />
+                </div>
+              </div>
+
+              {/* API 호출 횟수 */}
+              <div className="bg-gradient-to-br from-emerald-50/50 to-teal-50/20 border border-emerald-100 rounded-xl p-4 flex items-center justify-between shadow-2xs">
+                <div>
+                  <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">AI API 호출 횟수</p>
+                  <h4 className="text-xl font-black text-slate-800 mt-1">{summary.api_calls.toLocaleString()} <span className="text-xs font-medium text-slate-400">회</span></h4>
+                </div>
+                <div className="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
+                  <Clock className="w-4.5 h-4.5" />
+                </div>
+              </div>
+
+              {/* 입력 토큰량 */}
+              <div className="bg-gradient-to-br from-blue-50/50 to-sky-50/20 border border-blue-100 rounded-xl p-4 flex items-center justify-between shadow-2xs">
+                <div>
+                  <p className="text-[10px] font-bold text-blue-700 uppercase tracking-wider">입력(질문) 토큰량</p>
+                  <h4 className="text-xl font-black text-slate-800 mt-1">{summary.total_prompt_tokens.toLocaleString()} <span className="text-xs font-medium text-slate-400">Tokens</span></h4>
+                </div>
+                <div className="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
+                  <Layers className="w-4.5 h-4.5" />
+                </div>
+              </div>
+
+              {/* 출력 토큰량 */}
+              <div className="bg-gradient-to-br from-rose-50/50 to-pink-50/20 border border-rose-100 rounded-xl p-4 flex items-center justify-between shadow-2xs">
+                <div>
+                  <p className="text-[10px] font-bold text-rose-700 uppercase tracking-wider">출력(답변) 토큰량</p>
+                  <h4 className="text-xl font-black text-slate-800 mt-1">{summary.total_completion_tokens.toLocaleString()} <span className="text-xs font-medium text-slate-400">Tokens</span></h4>
+                </div>
+                <div className="w-9 h-9 rounded-lg bg-rose-500/10 text-rose-600 flex items-center justify-center shrink-0">
+                  <BarChart3 className="w-4.5 h-4.5" />
+                </div>
+              </div>
+
+            </div>
+
+            {/* 3. 소모 점유율 분석 차트 영역 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
+              
+              {/* 사용 목적별 점유 차트 */}
+              <div className="border border-slate-100 rounded-xl p-5 bg-slate-50/40">
+                <h3 className="text-xs font-extrabold text-slate-700 mb-4 flex items-center gap-1.5">
+                  <span className="w-1.5 h-3.5 bg-indigo-500 rounded-full"></span>
+                  AI 사용 목적별 소모량 통계
+                </h3>
+                {purposes.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-6 text-center font-medium">소모 이력이 존재하지 않습니다.</p>
+                ) : (
+                  <div className="space-y-3.5">
+                    {purposes.map(p => {
+                      const pct = summary.total_tokens > 0 ? (p.tokens / summary.total_tokens) * 100 : 0;
+                      return (
+                        <div key={p.purpose} className="space-y-1">
+                          <div className="flex justify-between text-xs font-semibold text-slate-700">
+                            <span className="truncate max-w-[200px]">{getPurposeLabel(p.purpose)}</span>
+                            <span>{p.tokens.toLocaleString()} Tokens ({pct.toFixed(1)}%)</span>
+                          </div>
+                          <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                            <div className="bg-indigo-500 h-full rounded-full transition-all duration-500" style={{ width: `${pct}%` }}></div>
+                          </div>
+                          <p className="text-[10px] text-slate-400 font-medium">{p.calls}회 호출됨</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* 활성 인공지능 모델별 통계 */}
+              <div className="border border-slate-100 rounded-xl p-5 bg-slate-50/40">
+                <h3 className="text-xs font-extrabold text-slate-700 mb-4 flex items-center gap-1.5">
+                  <span className="w-1.5 h-3.5 bg-emerald-500 rounded-full"></span>
+                  활성 Gemini AI 모델별 점유율
+                </h3>
+                {models.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-6 text-center font-medium">소모 이력이 존재하지 않습니다.</p>
+                ) : (
+                  <div className="space-y-3.5">
+                    {models.map(m => {
+                      const pct = summary.total_tokens > 0 ? (m.tokens / summary.total_tokens) * 100 : 0;
+                      return (
+                        <div key={m.model} className="space-y-1">
+                          <div className="flex justify-between text-xs font-bold text-slate-700">
+                            <span className="font-mono text-indigo-650">{m.model}</span>
+                            <span>{m.tokens.toLocaleString()} Tokens ({pct.toFixed(1)}%)</span>
+                          </div>
+                          <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                            <div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: `${pct}%` }}></div>
+                          </div>
+                          <p className="text-[10px] text-slate-400 font-medium">{m.calls}회 호출됨</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+            {/* 4. 실시간 AI 감사 내역 테이블 (최근 30건) */}
+            <div className="border border-slate-100 rounded-xl overflow-hidden mt-2">
+              <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                <h3 className="text-xs font-extrabold text-slate-700 flex items-center gap-1.5">
+                  <CalendarRange className="w-4 h-4 text-slate-500" />
+                  실시간 AI 호출 토큰 감사록 (최근 30건)
+                </h3>
+                <span className="text-[10px] font-bold text-slate-400">Real-time AI Auditor</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse whitespace-nowrap">
+                  <thead>
+                    <tr className="bg-slate-50/50 border-b border-slate-100 text-slate-500 font-bold">
+                      <th className="p-3">호출일시</th>
+                      <th className="p-3">사용 모델</th>
+                      <th className="p-3">수행 목적</th>
+                      <th className="p-3 text-right">질문 토큰</th>
+                      <th className="p-3 text-right">답변 토큰</th>
+                      <th className="p-3 text-right bg-slate-50/30">총 소모량</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {recentLogs.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="p-8 text-center text-slate-400 font-semibold bg-white">
+                          기록된 실시간 AI 호출 이력이 없습니다. 이지봇 대화나 자동 마케팅을 가동해 보세요!
+                        </td>
+                      </tr>
+                    ) : (
+                      recentLogs.map(log => (
+                        <tr key={log.id} className="hover:bg-slate-50/50 bg-white transition-colors">
+                          <td className="p-3 text-slate-400 font-medium">{log.created_at}</td>
+                          <td className="p-3 font-mono font-bold text-slate-700">{log.model}</td>
+                          <td className="p-3 text-slate-650 font-semibold">{getPurposeLabel(log.purpose)}</td>
+                          <td className="p-3 text-right text-slate-500 font-semibold">{log.prompt_tokens.toLocaleString()}</td>
+                          <td className="p-3 text-right text-slate-500 font-semibold">{log.completion_tokens.toLocaleString()}</td>
+                          <td className="p-3 text-right font-extrabold text-indigo-600 bg-indigo-50/10 font-mono">{log.total_tokens.toLocaleString()} t</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { queryTable, executeSQL, listTables } from '../../../../egdesk-helpers';
+import { queryTable, executeSQL, listTables, insertRows } from '../../../../egdesk-helpers';
 import fs from 'fs';
 import path from 'path';
 
@@ -129,6 +129,25 @@ If the user is asking about how to use the system, menus, manuals, guides, or tr
     const step1Data = await step1Response.json();
     const step1Text = step1Data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
     
+    // 🕒 Step 1 토큰 사용량 로깅
+    if (step1Data.usageMetadata) {
+      try {
+        const u = step1Data.usageMetadata;
+        const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+        await insertRows('ai_token_usage_logs', [{
+          id: `TK1-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          model: selectedModel,
+          purpose: 'easybot-sql-generation',
+          prompt_tokens: u.promptTokenCount || 0,
+          completion_tokens: u.candidatesTokenCount || 0,
+          total_tokens: u.totalTokenCount || 0,
+          created_at: nowStr
+        }]);
+      } catch (logErr) {
+        console.error('Step 1 토큰 로깅 실패:', logErr);
+      }
+    }
+    
     let sqlPlan = { requiresQuery: false, sql: null as string | null, reason: "", requiresManual: false };
     try {
       sqlPlan = JSON.parse(step1Text);
@@ -222,6 +241,25 @@ ${JSON.stringify(localStorageContext, null, 2)}
 
     const step2Data = await step2Response.json();
     const finalAnswer = step2Data.candidates?.[0]?.content?.parts?.[0]?.text || "답변을 생성하는 데 실패했습니다.";
+
+    // 🕒 Step 2 토큰 사용량 로깅
+    if (step2Data.usageMetadata) {
+      try {
+        const u = step2Data.usageMetadata;
+        const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+        await insertRows('ai_token_usage_logs', [{
+          id: `TK2-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          model: selectedModel,
+          purpose: 'easybot-response',
+          prompt_tokens: u.promptTokenCount || 0,
+          completion_tokens: u.candidatesTokenCount || 0,
+          total_tokens: u.totalTokenCount || 0,
+          created_at: nowStr
+        }]);
+      } catch (logErr) {
+        console.error('Step 2 토큰 로깅 실패:', logErr);
+      }
+    }
 
     return NextResponse.json({
       success: true,

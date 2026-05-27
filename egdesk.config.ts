@@ -1,6 +1,6 @@
 /**
  * EGDesk User Data Configuration
- * Generated at: 2026-05-26T10:01:44.138Z
+ * Generated at: 2026-05-27T03:55:07.433Z
  *
  * This file contains type-safe definitions for your EGDesk tables.
  */
@@ -213,7 +213,7 @@ export const TABLES = {
   table28: {
     name: 'message_logs',
     displayName: '발송 내역',
-    rowCount: 2,
+    rowCount: 3,
     columnCount: 6,
     columns: ['id', 'customer_id', 'phone', 'message', 'status', 'created_at']
   } as TableDefinition,

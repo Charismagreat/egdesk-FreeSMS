@@ -378,7 +378,18 @@ export async function setupDatabase() {
     { name: 'createdAt', type: 'TEXT', notNull: true }
   ], { tableName: 'inventory_items', uniqueKeyColumns: ['id'] });
 
-  // 30. Inventory Logs Table (재고 변동 이력 감사록)
+  // 30. AI Token Usage Logs Table (AI 토큰 소모량 정밀 모니터링 로그 대장)
+  await safeCreateTable('AI 토큰 사용량 로그', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'model', type: 'TEXT', notNull: true },
+    { name: 'purpose', type: 'TEXT', notNull: true },
+    { name: 'prompt_tokens', type: 'INTEGER', notNull: true },
+    { name: 'completion_tokens', type: 'INTEGER', notNull: true },
+    { name: 'total_tokens', type: 'INTEGER', notNull: true },
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'ai_token_usage_logs', uniqueKeyColumns: ['id'] });
+
+  // 31. Inventory Logs Table (재고 변동 이력 감사록)
   await safeCreateTable('재고 변동 이력', [
     { name: 'id', type: 'INTEGER', notNull: true },
     { name: 'itemId', type: 'INTEGER', notNull: true },
