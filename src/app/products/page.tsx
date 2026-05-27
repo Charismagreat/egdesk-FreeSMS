@@ -11,6 +11,7 @@ export default function ProductsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [isUploadingExcel, setIsUploadingExcel] = useState(false);
 
   // 검색어 입력 시 페이지 번호 초기화
   useEffect(() => {
@@ -23,6 +24,128 @@ export default function ProductsPage() {
     const res = await fetch('/api/products');
     const json = await res.json();
     if (json.success) setData(json.products);
+  };
+
+  // 🕒 엑셀 일괄 업로드 처리 핸들러 (지능형 퍼지 매핑 탑재)
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingExcel(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const dataVal = event.target?.result;
+        if (!dataVal) return;
+
+        try {
+          const XLSX = await import('xlsx');
+          const workbook = XLSX.read(dataVal, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const rawRows = XLSX.utils.sheet_to_json(worksheet) as any[];
+
+          if (rawRows.length === 0) {
+            alert('엑셀 시트에 데이터가 존재하지 않습니다.');
+            setIsUploadingExcel(false);
+            return;
+          }
+
+          const mappedProducts = rawRows.map((row: any) => {
+            const nameVal = row['상품명'] || row['상품 이름'] || row['이름'] || row['productName'] || row['name'] || '';
+            const priceVal = row['가격'] || row['단가'] || row['판매가'] || row['금액'] || row['price'] || '';
+            const menuCategoryVal = row['카테고리'] || row['분류'] || row['메뉴분류'] || row['menuCategory'] || row['menu_category'] || '';
+            const methodsVal = row['수령방식'] || row['수령 방식'] || row['배송수단'] || row['methods'] || '매장에서,가져가기,배달,배송';
+            const descriptionVal = row['상세설명'] || row['설명'] || row['비고'] || row['description'] || '';
+            const urlVal = row['쇼핑몰URL'] || row['쇼핑몰 링크'] || row['링크'] || row['url'] || '';
+
+            return {
+              name: nameVal,
+              price: String(priceVal),
+              menu_category: menuCategoryVal,
+              available_methods: methodsVal,
+              description: descriptionVal,
+              url: urlVal,
+              category: '스토어용', // 기본 스토어용
+              is_coupon_excludable: 0
+            };
+          }).filter(p => p.name);
+
+          if (mappedProducts.length === 0) {
+            alert('필수 정보인 [상품명]이 기재된 유효한 행을 찾을 수 없습니다.');
+            setIsUploadingExcel(false);
+            return;
+          }
+
+          const resUpload = await fetch('/api/products/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ products: mappedProducts })
+          });
+          const jsonUpload = await resUpload.json();
+
+          if (jsonUpload.success) {
+            alert(`🎉 엑셀 일괄 등록 완료!\n수신 데이터: ${jsonUpload.totalReceived}개 중 ${jsonUpload.count}개의 상품이 신규 등록되었습니다.\n(중복된 동일 상품명의 데이터는 자동 스킵되었습니다.)`);
+            fetchData();
+          } else {
+            alert('일괄 등록 실패: ' + (jsonUpload.error || '알 수 없는 오류'));
+          }
+        } catch (err: any) {
+          console.error(err);
+          alert('엑셀 파일 파싱 중 오류가 발생했습니다. 서식을 확인해 주세요.');
+        } finally {
+          setIsUploadingExcel(false);
+          e.target.value = '';
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } catch (eErr) {
+      console.error(eErr);
+      alert('파일 읽기 오류');
+      setIsUploadingExcel(false);
+    }
+  };
+
+  // 📄 표준 샘플 양식 다운로드 핸들러
+  const handleDownloadSample = async () => {
+    try {
+      const XLSX = await import('xlsx');
+
+      const headers = ['상품명', '가격', '카테고리', '수령방식', '상세설명', '쇼핑몰URL'];
+      const mockRows = [
+        {
+          '상품명': '이지써모 스포츠 텀블러 600ml',
+          '가격': '19800',
+          '카테고리': '리빙웨어',
+          '수령방식': '매장에서,가져가기,배송',
+          '상세설명': '이중진공 스테인리스 구조의 스포츠형 대용량 텀블러',
+          '쇼핑몰URL': 'https://example.com/product/1'
+        },
+        {
+          '상품명': '프리미엄 무선 저소음 키보드 K-30',
+          '가격': '35000',
+          '카테고리': '사무용품',
+          '수령방식': '배송',
+          '상세설명': '조용한 시저 스위치를 탑재한 슬림형 무선 키보드',
+          '쇼핑몰URL': 'https://example.com/product/2'
+        }
+      ];
+
+      const aoaData = [headers];
+      mockRows.forEach((row) => {
+        const rowData = headers.map((header) => row[header as keyof typeof row] ?? '');
+        aoaData.push(rowData);
+      });
+
+      const worksheet = XLSX.utils.aoa_to_sheet(aoaData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, '상품일괄등록_샘플서식');
+
+      XLSX.writeFile(workbook, '이지데스크_상품일괄등록_샘플양식.xlsx');
+    } catch (err) {
+      console.error('샘플 양식 다운로드 에러:', err);
+      alert('템플릿 파일 생성에 실패했습니다.');
+    }
   };
 
   const filteredData = data.filter(t => {
@@ -146,10 +269,36 @@ export default function ProductsPage() {
 
   return (
     <div className="space-y-6 pb-20">
-      <h1 className="text-3xl font-bold text-slate-800 flex items-center">
-        <PackageSearch className="w-8 h-8 mr-3 text-blue-650" /> 
-        상품 DB 관리
-      </h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <h1 className="text-3xl font-bold text-slate-800 flex items-center">
+          <PackageSearch className="w-8 h-8 mr-3 text-blue-655" /> 
+          상품 DB 관리
+        </h1>
+        <div className="flex items-center gap-2">
+          {/* 📄 표준 양식 다운로드 버튼 */}
+          <button 
+            onClick={handleDownloadSample}
+            className="flex items-center gap-1.5 px-3 py-2 bg-white text-slate-650 hover:text-slate-800 border border-slate-200 rounded-xl text-xs font-bold shadow-sm hover:shadow transition-all cursor-pointer active:scale-95 shrink-0"
+            title="표준 엑셀 샘플 서식 (.xlsx) 다운로드"
+          >
+            샘플 서식 다운로드
+          </button>
+          
+          {/* 📥 엑셀 일괄 등록 버튼 */}
+          <label 
+            className={`flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold shadow-sm hover:shadow transition-all cursor-pointer active:scale-95 shrink-0 ${isUploadingExcel ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            <span>{isUploadingExcel ? '일괄 등록 중...' : '엑셀 파일 일괄 등록'}</span>
+            <input 
+              type="file" 
+              accept=".xlsx, .xls, .csv" 
+              onChange={handleExcelUpload} 
+              disabled={isUploadingExcel}
+              className="hidden" 
+            />
+          </label>
+        </div>
+      </div>
       
       <div className="pt-2 pb-4">
         <div className={`bg-white p-6 rounded-2xl shadow-md border ${editTargetId ? 'border-blue-300 ring-4 ring-blue-50' : 'border-slate-100'}`}>
