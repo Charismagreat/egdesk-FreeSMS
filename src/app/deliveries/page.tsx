@@ -10,6 +10,7 @@ export default function DeliveriesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [isUploadingExcel, setIsUploadingExcel] = useState(false);
 
   // 검색어 입력 시 페이지 번호 초기화
   useEffect(() => {
@@ -21,6 +22,124 @@ export default function DeliveriesPage() {
     const res = await fetch('/api/deliveries');
     const json = await res.json();
     if (json.success) setData(json.deliveries);
+  };
+
+  // 🕒 엑셀 일괄 업로드 처리 핸들러 (지능형 퍼지 매핑 탑재)
+  const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingExcel(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const dataVal = event.target?.result;
+        if (!dataVal) return;
+
+        try {
+          const XLSX = await import('xlsx');
+          const workbook = XLSX.read(dataVal, { type: 'array' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const rawRows = XLSX.utils.sheet_to_json(worksheet) as any[];
+
+          if (rawRows.length === 0) {
+            alert('엑셀 시트에 데이터가 존재하지 않습니다.');
+            setIsUploadingExcel(false);
+            return;
+          }
+
+          const mappedDeliveries = rawRows.map((row: any) => {
+            const customerNameVal = row['고객명'] || row['고객'] || row['이름'] || row['수령인'] || row['customerName'] || row['name'] || '';
+            const customerPhoneVal = row['연락처'] || row['전화번호'] || row['휴대폰'] || row['전화'] || row['phone'] || row['customerPhone'] || '';
+            const addressVal = row['배송지 주소'] || row['배송지'] || row['주소'] || row['address'] || '';
+            const courierVal = row['택배사'] || row['택배'] || row['courier'] || '대한통운';
+            const trackingNumberVal = row['운송장번호'] || row['운송장'] || row['송장번호'] || row['송장'] || row['trackingNumber'] || '';
+            const statusVal = row['상태'] || row['배송상태'] || row['status'] || '상품준비중';
+
+            return {
+              customerName: customerNameVal,
+              customerPhone: customerPhoneVal,
+              address: addressVal,
+              courier: courierVal,
+              trackingNumber: trackingNumberVal,
+              status: statusVal
+            };
+          }).filter(d => d.customerName && d.customerPhone && d.address);
+
+          if (mappedDeliveries.length === 0) {
+            alert('필수 정보인 [고객명], [연락처], [배송지 주소]가 모두 기재된 유효한 행을 찾을 수 없습니다.');
+            setIsUploadingExcel(false);
+            return;
+          }
+
+          const resUpload = await fetch('/api/deliveries/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deliveries: mappedDeliveries })
+          });
+          const jsonUpload = await resUpload.json();
+
+          if (jsonUpload.success) {
+            alert(`🎉 엑셀 일괄 등록 완료!\n수신 데이터: ${jsonUpload.totalReceived}개 중 ${jsonUpload.count}개의 배송 내역이 성공적으로 등록되었습니다.`);
+            fetchData();
+          } else {
+            alert('일괄 등록 실패: ' + (jsonUpload.error || '알 수 없는 오류'));
+          }
+        } catch (err: any) {
+          console.error(err);
+          alert('엑셀 파일 파싱 중 오류가 발생했습니다. 서식을 확인해 주세요.');
+        } finally {
+          setIsUploadingExcel(false);
+          e.target.value = '';
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } catch (eErr) {
+      console.error(eErr);
+      alert('파일 읽기 오류');
+      setIsUploadingExcel(false);
+    }
+  };
+
+  // 📄 표준 샘플 양식 다운로드 핸들러
+  const handleDownloadSample = async () => {
+    try {
+      const XLSX = await import('xlsx');
+
+      const headers = ['고객명', '연락처', '배송지 주소', '택배사', '운송장번호'];
+      const mockRows = [
+        {
+          '고객명': '홍길동',
+          '연락처': '010-1234-5678',
+          '배송지 주소': '서울특별시 강남구 테헤란로 123 이지빌딩 5층',
+          '택배사': '우체국',
+          '운송장번호': '6543210987654'
+        },
+        {
+          '고객명': '이순신',
+          '연락처': '010-9876-5432',
+          '배송지 주소': '부산광역시 해운대구 우동 456 센텀아파트 101동 202호',
+          '택배사': '대한통운',
+          '운송장번호': '123456789012'
+        }
+      ];
+
+      const aoaData = [headers];
+      mockRows.forEach((row) => {
+        const rowData = headers.map((header) => row[header as keyof typeof row] ?? '');
+        aoaData.push(rowData);
+      });
+
+      const worksheet = XLSX.utils.aoa_to_sheet(aoaData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, '배송일괄등록_샘플서식');
+
+      XLSX.writeFile(workbook, '이지데스크_배송일괄등록_샘플양식.xlsx');
+    } catch (err) {
+      console.error('샘플 양식 다운로드 에러:', err);
+      alert('템플릿 파일 생성에 실패했습니다.');
+    }
   };
 
   const filteredData = data.filter(t => {
@@ -53,7 +172,33 @@ export default function DeliveriesPage() {
 
   return (
     <div className="space-y-6 pb-20">
-      <h1 className="text-3xl font-bold text-slate-800 flex items-center"><Truck className="w-8 h-8 mr-3 text-amber-500" /> 배송 관리 AI</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <h1 className="text-3xl font-bold text-slate-800 flex items-center"><Truck className="w-8 h-8 mr-3 text-amber-500" /> 배송 관리 AI</h1>
+        <div className="flex items-center gap-2">
+          {/* 📄 표준 양식 다운로드 버튼 */}
+          <button 
+            onClick={handleDownloadSample}
+            className="flex items-center gap-1.5 px-3 py-2 bg-white text-slate-650 hover:text-slate-800 border border-slate-200 rounded-xl text-xs font-bold shadow-sm hover:shadow transition-all cursor-pointer active:scale-95 shrink-0"
+            title="표준 엑셀 샘플 서식 (.xlsx) 다운로드"
+          >
+            샘플 서식 다운로드
+          </button>
+          
+          {/* 📥 엑셀 일괄 등록 버튼 */}
+          <label 
+            className={`flex items-center gap-1.5 px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-sm hover:shadow transition-all cursor-pointer active:scale-95 shrink-0 ${isUploadingExcel ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            <span>{isUploadingExcel ? '일괄 등록 중...' : '엑셀 파일 일괄 등록'}</span>
+            <input 
+              type="file" 
+              accept=".xlsx, .xls, .csv" 
+              onChange={handleExcelUpload} 
+              disabled={isUploadingExcel}
+              className="hidden" 
+            />
+          </label>
+        </div>
+      </div>
       
       {/* 새 배송 등록 */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
