@@ -684,7 +684,7 @@ export default function PriceTrackerAIPage() {
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="space-y-0.5">
               <h4 className="text-xs font-black text-slate-700 flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-pink-650" />
+                <Calendar className="w-3.5 h-3.5 text-pink-600" />
                 과거 누락 환율 지정 기간 소급 가져오기
               </h4>
               <p className="text-[9.5px] text-slate-400 font-semibold">데이터베이스에 수집되지 않은 과거 환율 공백을 원하는 기간만큼 일괄 자동 계산하여 복원합니다.</p>
@@ -717,7 +717,7 @@ export default function PriceTrackerAIPage() {
                 type="button"
                 onClick={handleBulkBackfill}
                 disabled={isBackfilling}
-                className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-pink-650 to-pink-550 hover:from-pink-700 hover:to-pink-600 text-white rounded-xl text-xs font-black shadow-sm transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-pink-600 to-pink-500 hover:from-pink-700 hover:to-pink-600 text-white rounded-xl text-xs font-black shadow-sm transition-all active:scale-95 cursor-pointer disabled:opacity-50"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isBackfilling ? "animate-spin" : ""}`} />
                 {isBackfilling ? "소급 분석 및 적재 중..." : "환율 소급 가져오기 실행"}
@@ -729,7 +729,7 @@ export default function PriceTrackerAIPage() {
 
       {/* 3. 🎛️ 최상단 실시간 주식시장 환율 & 원자재 Ticker 전광판 */}
       <div className="w-full bg-gradient-to-r from-slate-900 via-slate-950 to-indigo-950 text-white rounded-2xl p-3.5 shadow-md border border-slate-850 overflow-hidden relative">
-        <div className="absolute top-0 left-0 bg-pink-650 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-br-lg tracking-wider flex items-center gap-1 z-10 shadow-sm">
+        <div className="absolute top-0 left-0 bg-pink-600 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-br-lg tracking-wider flex items-center gap-1 z-10 shadow-sm">
           <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span>
           Live Exchange Rates
         </div>
@@ -746,7 +746,7 @@ export default function PriceTrackerAIPage() {
                     {rate.current_rate.toLocaleString()} 원
                   </span>
                   <span className={`text-[9px] font-bold font-mono flex items-center gap-0.5 px-1.5 py-0.5 rounded ${
-                    isUp ? "bg-rose-500/20 text-rose-350" : isDown ? "bg-sky-500/20 text-sky-350" : "bg-slate-500/20 text-slate-350"
+                    isUp ? "bg-rose-500/20 text-rose-300" : isDown ? "bg-sky-500/20 text-sky-300" : "bg-slate-500/20 text-slate-300"
                   }`}>
                     {isUp ? "▲" : isDown ? "▼" : "•"} {Math.abs(rate.change_rate)}%
                   </span>
@@ -770,7 +770,7 @@ export default function PriceTrackerAIPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-2">
           <div className="space-y-0.5">
             <h3 className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-              <BarChart3 className="w-4 h-4 text-pink-650" />
+              <BarChart3 className="w-4 h-4 text-pink-600" />
               글로벌 4대 외환 시세 추이 분석 (올해 전체 누적 이력)
             </h3>
             <p className="text-[9.5px] text-slate-400 font-semibold">서버 중단 기간 동안 누락되었던 공백 시세를 자가 회복하여 연속성 보증</p>
@@ -785,7 +785,7 @@ export default function PriceTrackerAIPage() {
                 onClick={() => setActiveRateTab(code)}
                 className={`px-3 py-1.5 rounded-md text-[10px] font-black uppercase transition-all cursor-pointer ${
                   activeRateTab === code
-                    ? "bg-white text-pink-650 shadow-sm"
+                    ? "bg-white text-pink-600 shadow-sm"
                     : "text-slate-450 hover:text-slate-700"
                 }`}
               >
