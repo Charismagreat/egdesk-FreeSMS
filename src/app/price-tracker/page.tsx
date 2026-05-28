@@ -2864,14 +2864,20 @@ export default function PriceTrackerAIPage() {
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 max-h-[300px] overflow-y-auto pr-1">
                         {miningResults.map((cand, idx) => (
-                          <div key={idx} className="bg-slate-50 border border-slate-200/80 p-3 rounded-2xl flex flex-col justify-between gap-3 shadow-inner hover:border-pink-300 transition-all">
+                          <div 
+                            key={idx} 
+                            onClick={() => window.open(cand.url, '_blank')}
+                            className="bg-slate-50 border border-slate-200/80 p-3 rounded-2xl flex flex-col justify-between gap-3 shadow-inner hover:border-pink-500 hover:bg-pink-50/5 hover:scale-[1.01] hover:shadow-md transition-all cursor-pointer relative group"
+                            title="클릭 시 새 창에서 실제 판매처 웹페이지 열기"
+                          >
                             <div className="space-y-2">
                               <div className="flex justify-between items-center">
                                 <span className="text-[9.5px] font-black text-slate-800 bg-white px-2 py-0.5 rounded border border-slate-200 truncate max-w-[80px]">
                                   {cand.site_name}
                                 </span>
-                                <span className="text-[8.5px] font-black text-pink-600 bg-pink-50 px-1.5 py-0.5 rounded">
+                                <span className="text-[8.5px] font-black text-pink-600 bg-pink-50 px-1.5 py-0.5 rounded flex items-center gap-0.5 group-hover:bg-pink-600 group-hover:text-white transition-colors">
                                   적합도 {cand.confidence_score}%
+                                  <ArrowUpRight className="w-2.5 h-2.5" />
                                 </span>
                               </div>
 
