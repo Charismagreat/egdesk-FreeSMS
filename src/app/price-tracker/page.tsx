@@ -1472,6 +1472,7 @@ export default function PriceTrackerAIPage() {
                   item_code: "", 
                   item_name: "", 
                   category: "RAW_MATERIAL", 
+                  spec: "", 
                   base_price: "", 
                   target_margin_rate: "12.5",
                   currency_code: "USD" 
@@ -2144,7 +2145,7 @@ export default function PriceTrackerAIPage() {
                   <input
                     type="text"
                     placeholder="예: 500ml, 40개입, 10kg 등"
-                    value={itemForm.spec}
+                    value={itemForm.spec || ""}
                     onChange={(e) => setItemForm(prev => ({ ...prev, spec: e.target.value }))}
                     className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700"
                   />
