@@ -368,10 +368,7 @@ export default function YoutubeShortsAiLab() {
   };
 
   return (
-    <div className="min-h-screen text-slate-800 font-sans relative overflow-hidden w-full min-w-0">
-      {/* 백그라운드 레드 & 블랙 그라데이션 오로라 광채 효과 */}
-      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-red-100/20 blur-[150px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-slate-200/45 blur-[150px] pointer-events-none" />
+    <div className="space-y-6 pb-20 w-full min-w-0 text-slate-800">
 
       {/* 알림 토스트 (framer-motion 애니메이션) */}
       <AnimatePresence>

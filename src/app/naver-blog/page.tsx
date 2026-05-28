@@ -789,11 +789,7 @@ export default function NaverBlogMarketingPortal() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 w-full min-w-0 font-sans selection:bg-emerald-500 selection:text-white relative overflow-hidden">
-      {/* 백그라운드 네온 초록색/에메랄드/스카이블루 3중 오로라 그라데이션 광채 효과 */}
-      <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-emerald-200/20 blur-[130px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[55%] h-[55%] rounded-full bg-teal-200/20 blur-[130px] pointer-events-none" />
-      <div className="absolute top-[35%] left-[25%] w-[45%] h-[45%] rounded-full bg-sky-200/10 blur-[150px] pointer-events-none" />
+    <div className="space-y-6 pb-20 w-full min-w-0 text-slate-800">
 
       {/* 4. 마그네틱 원클릭 주입용 비행 플라잉 키워드 노출 */}
       <AnimatePresence>

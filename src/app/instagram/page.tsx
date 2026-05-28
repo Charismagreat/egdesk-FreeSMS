@@ -633,11 +633,8 @@ export default function InstagramMarketingPortal() {
     : '시스템 오류율 0%';
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 w-full min-w-0 font-sans selection:bg-pink-500 selection:text-white relative overflow-hidden">
-      {/* 백그라운드 퍼플/블루 그라데이션 오로라 광채 효과 */}
-      <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-purple-100/30 blur-[150px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-pink-100/30 blur-[150px] pointer-events-none" />
-
+    <div className="space-y-6 pb-20 w-full min-w-0 text-slate-800">
+      
       {/* 헤더 영역 */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between border-b border-slate-200 pb-6 mb-8 relative z-10">
         <div className="space-y-1">

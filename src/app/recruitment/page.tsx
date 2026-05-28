@@ -369,11 +369,7 @@ export default function RecruitmentDashboardPage() {
   };
 
   return (
-    <div className="w-full min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-[#f91f7f] selection:text-white relative overflow-hidden min-w-0">
-      
-      {/* 인스타그램 감성의 세련된 네온 글로우 오로라 백그라운드 효과 */}
-      <div className="absolute top-[-35%] left-[-20%] w-[80%] h-[70%] rounded-full bg-gradient-to-tr from-[#f91f7f]/5 via-[#e84e27]/5 to-[#9b2bb4]/5 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-20%] right-[-20%] w-[70%] h-[60%] rounded-full bg-gradient-to-br from-[#9b2bb4]/5 via-[#4f5bd5]/5 to-[#f91f7f]/5 blur-[120px] pointer-events-none" />
+    <div className="space-y-6 pb-20 w-full min-w-0 text-slate-800">
       
       {/* 상단 헤더 영역 - 고대비 다크 텍스트 & 아이콘 매칭 */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 pb-6 border-b border-slate-200 relative z-10 shrink-0">

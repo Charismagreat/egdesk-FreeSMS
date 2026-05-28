@@ -561,13 +561,8 @@ export default function WebsiteBuilderPage() {
   };
 
   return (
-    <div className="w-full min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-pink-500 selection:text-white relative overflow-hidden min-w-0">
+    <div className="space-y-6 pb-20 w-full min-w-0 text-slate-800">
       
-      {/* 백그라운드 럭셔리 핑크 & 퍼플 오로라 광채 효과 */}
-      <div className="absolute top-[-25%] left-[-15%] w-[60%] h-[50%] rounded-full bg-purple-100/40 blur-[150px] pointer-events-none" />
-      <div className="absolute bottom-[-15%] right-[-15%] w-[60%] h-[50%] rounded-full bg-pink-100/40 blur-[150px] pointer-events-none" />
-      <div className="absolute top-[40%] right-[10%] w-[300px] h-[300px] rounded-full bg-blue-50/30 blur-[120px] pointer-events-none" />
-
       {/* 보이지 않는 QR 코드 드로잉용 캔버스 */}
       <canvas ref={qrCanvasRef} width="150" height="150" className="hidden" />
 
