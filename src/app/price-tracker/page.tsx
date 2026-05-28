@@ -48,6 +48,8 @@ export default function PriceTrackerAIPage() {
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isCronHelpOpen, setIsCronHelpOpen] = useState(false);
+  const [isDaemonHelpOpen, setIsDaemonHelpOpen] = useState(false);
+
 
 
   // 폼 입력 상태
@@ -715,22 +717,33 @@ export default function PriceTrackerAIPage() {
             </button>
 
             {/* NPM 명령어 복사 단추 */}
-            <button
-              onClick={() => handleCopyCommand("npm run price:daemon")}
-              className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-600 rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer"
-            >
-              {copiedText === "npm run price:daemon" ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-emerald-600" />
-                  <span className="text-emerald-600">복사 완료!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>터미널 수동 기동 복사</span>
-                </>
-              )}
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => handleCopyCommand("npm run price:daemon")}
+                className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-600 rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer"
+              >
+                {copiedText === "npm run price:daemon" ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-emerald-600">복사 완료!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>터미널 수동 기동 복사</span>
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsDaemonHelpOpen(true)}
+                className="p-2 bg-slate-100 hover:bg-pink-50 hover:text-pink-500 border border-slate-200 rounded-xl cursor-pointer transition-all duration-200 flex items-center justify-center"
+                title="터미널 수동 기동 명령어 설명 보기"
+              >
+                <Info className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
           </div>
         </div>
 
@@ -2084,6 +2097,102 @@ export default function PriceTrackerAIPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* ============================================================ */}
+      {/* MODAL 2-C: 터미널 수동 기동 가이드 팝업 */}
+      {/* ============================================================ */}
+      <AnimatePresence>
+        {isDaemonHelpOpen && (
+          <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-[60] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white border border-slate-200 w-full max-w-[500px] rounded-3xl p-6 shadow-2xl space-y-6 overflow-hidden"
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="space-y-0.5">
+                  <h3 className="text-sm font-black text-slate-800 flex items-center gap-1.5">
+                    <Terminal className="w-4 h-4 text-pink-600" />
+                    터미널 수동 기동 명령어 안내
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-semibold">서버 콘솔(CLI) 독립 구동 명령어 사용법</p>
+                </div>
+                <button onClick={() => setIsDaemonHelpOpen(false)} className="p-1 hover:bg-slate-100 rounded-lg cursor-pointer">
+                  <X className="w-4 h-4 text-slate-500" />
+                </button>
+              </div>
+
+              {/* 명령어 박스 */}
+              <div className="space-y-2">
+                <h4 className="text-[11px] font-bold text-slate-500">기동 명령어</h4>
+                <div className="flex items-center justify-between bg-slate-900 text-slate-100 p-3.5 rounded-2xl font-mono text-xs border border-slate-850 select-all relative group">
+                  <span>npm run price:daemon</span>
+                  <button
+                    onClick={() => {
+                      handleCopyCommand("npm run price:daemon");
+                    }}
+                    className="p-1.5 hover:bg-slate-800 rounded-lg cursor-pointer transition-colors text-slate-400 hover:text-white"
+                    title="복사하기"
+                  >
+                    {copiedText === "npm run price:daemon" ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-500" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* 주요 용도 설명 */}
+              <div className="space-y-3">
+                <div className="flex gap-2">
+                  <div className="p-1.5 bg-pink-50 text-pink-600 rounded-lg h-max shrink-0 mt-0.5">
+                    <Activity className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <h5 className="text-[11px] font-black text-slate-700">1. 웹 서버 독립 구동 (24시간 연속 수집)</h5>
+                    <p className="text-[9.5px] text-slate-450 leading-relaxed font-semibold">
+                      웹 브라우저 창을 꺼두어도 서버 운영체제(OS) 백그라운드 상에서 가격 수집 로봇이 24시간 독자적으로 감시 및 SMS 경보망을 작동하게 할 수 있습니다.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  <div className="p-1.5 bg-pink-50 text-pink-600 rounded-lg h-max shrink-0 mt-0.5">
+                    <Settings className="w-3.5 h-3.5" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <h5 className="text-[11px] font-black text-slate-700">2. 장애 시 강제 재시동 및 디버깅</h5>
+                    <p className="text-[9.5px] text-slate-450 leading-relaxed font-semibold">
+                      서버 컴퓨터 오류 등으로 수집기가 정지했을 때, 서버 콘솔창에 입력하여 수집기를 **즉각 수동 강제 재시작**시키고 수집 로그 및 에러 내역을 추적할 때 유용합니다.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-150 p-3.5 rounded-2xl flex items-start gap-2">
+                <Info className="w-4 h-4 text-pink-600 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <h5 className="text-[10px] font-bold text-slate-700">작동 방식 참고</h5>
+                  <p className="text-[9px] text-slate-450 leading-relaxed font-semibold">
+                    이 명령어를 실행하면 <code className="font-mono text-pink-600 font-bold">scripts/price_tracker_daemon.js</code> 스크립트가 로컬 SQLite 데이터베이스와 연동되어 직접 크롤러 및 실시간 환율 수집 프로세스를 기동시킵니다.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsDaemonHelpOpen(false)}
+                className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs flex items-center justify-center cursor-pointer transition-all duration-200"
+              >
+                닫기
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
 
 
       {/* ============================================================ */}
