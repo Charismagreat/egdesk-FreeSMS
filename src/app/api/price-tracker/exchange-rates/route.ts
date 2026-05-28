@@ -87,12 +87,11 @@ export async function POST(req: Request) {
     if (action === 'BULK_BACKFILL') {
       const { startDate: reqStart, endDate: reqEnd } = body;
       
-      // 파라미터가 주어지면 그것을 쓰고, 없으면 기본값으로 올해 1월 1일부터 오늘까지 지정
       const todayStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
       const startStr = reqStart || '2026-01-01';
       const endStr = reqEnd || todayStr;
 
-      console.log(`⚡ [API] 환율 지정 기간 소급 요청 수신: ${startStr} ~ ${endStr}`);
+      console.log(`⚡ [API] 실제 환율 지정 기간 소급 요청 수신: ${startStr} ~ ${endStr}`);
 
       const startDate = new Date(startStr);
       const endDate = new Date(endStr);
@@ -105,10 +104,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, error: '시작일이 종료일보다 늦을 수 없습니다.' }, { status: 400 });
       }
 
-      const diffTime = endDate.getTime() - startDate.getTime();
-      const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-
-      // 1. 기존에 이미 등록된 데이터가 있는지 확인하여 중복 적재를 철저하게 예방
+      // 1. 기존에 이미 등록된 데이터가 있는지 확인하여 중복 적재 예방
       const existingRes = await queryTable('exchange_rate_histories', { limit: 2000 });
       const existing = existingRes.rows || [];
       const existingSet = new Set(existing.map((r: any) => `${r.currency_code}_${r.captured_date}`));
@@ -117,61 +113,76 @@ export async function POST(req: Request) {
       const rowsToInsert: any[] = [];
       let ignoreCount = 0;
 
-      // 전체 소급 범위의 기준이 될 올해 총 기간 지수 산정 (트렌드 왜곡 방지)
-      const baseStart = new Date('2026-01-01');
-      const baseEnd = new Date(todayStr);
-      const totalYearTime = baseEnd.getTime() - baseStart.getTime();
-      const totalYearDays = Math.round(totalYearTime / (1000 * 60 * 60 * 24)) || 150;
-
-      for (let t = 0; t <= diffDays; t++) {
-        const currentDate = new Date(startDate.getTime() + t * 24 * 60 * 60 * 1000);
-        const dateStr = currentDate.toISOString().slice(0, 10);
-
-        // 연초 1월 1일로부터 이 날짜가 몇 번째 날인지를 t_offset으로 사용해 역사적 파동 모델 유지
-        const offsetTime = currentDate.getTime() - baseStart.getTime();
-        const t_offset = Math.round(offsetTime / (1000 * 60 * 60 * 24));
-        const progress = Math.max(0, Math.min(1.0, t_offset / totalYearDays));
-
-        for (const code of CURRENCIES) {
-          const key = `${code}_${dateStr}`;
-          if (existingSet.has(key)) {
-            ignoreCount++;
-            continue;
-          }
-
-          let rateValue = 0;
-          if (code === 'USD') {
-            const base = 1325.0 + (1380.0 - 1325.0) * progress;
-            const noise = Math.sin(t_offset * 0.15) * 8 + Math.cos(t_offset * 0.08) * 4 + (Math.sin(t_offset * 0.5) * Math.random() * 2);
-            rateValue = Number((base + noise).toFixed(2));
-          } else if (code === 'EUR') {
-            const base = 1445.0 + (1495.0 - 1445.0) * progress;
-            const noise = Math.sin(t_offset * 0.12) * 10 + Math.cos(t_offset * 0.07) * 5 + (Math.sin(t_offset * 0.4) * Math.random() * 2.5);
-            rateValue = Number((base + noise).toFixed(2));
-          } else if (code === 'JPY') {
-            const base = 892.0 + (880.0 - 892.0) * progress;
-            const noise = Math.sin(t_offset * 0.18) * 6 + Math.cos(t_offset * 0.09) * 3 + (Math.sin(t_offset * 0.6) * Math.random() * 1.5);
-            rateValue = Number((base + noise).toFixed(2));
-          } else if (code === 'CNY') {
-            const base = 185.0 + (190.5 - 185.0) * progress;
-            const noise = Math.sin(t_offset * 0.22) * 1.8 + Math.cos(t_offset * 0.11) * 0.8 + (Math.sin(t_offset * 0.7) * Math.random() * 0.4);
-            rateValue = Number((base + noise).toFixed(2));
-          }
-
-          // history_id 유니크 생성 규칙
-          const historyId = 2026000000 + Math.abs(t_offset) * 10 + CURRENCIES.indexOf(code);
-          rowsToInsert.push({
-            history_id: historyId,
-            currency_code: code,
-            rate_value: rateValue,
-            captured_date: dateStr
-          });
+      // 2. Frankfurter Open API 호출을 통해 실제 역사적 환율 이력 데이터 수집
+      try {
+        const queryUrl = `https://api.frankfurter.app/${startStr}..${endStr}?from=USD&to=KRW,EUR,JPY,CNY`;
+        console.log(`📡 [API] Frankfurter API 역사 환율 호출 중 -> ${queryUrl}`);
+        
+        const response = await fetch(queryUrl);
+        if (!response.ok) {
+          throw new Error(`Frankfurter API HTTP ${response.status}: ${response.statusText}`);
         }
+
+        const data = await response.json();
+        const dates = Object.keys(data.rates || {}).sort();
+        console.log(`✓ [API] Frankfurter 환율 데이터 획득 성공 (총 ${dates.length}일 분량)`);
+
+        const baseStart = new Date('2026-01-01');
+
+        for (const dateStr of dates) {
+          const dayRates = data.rates[dateStr];
+          const krwRate = dayRates.KRW;
+          const eurInUsd = dayRates.EUR;
+          const jpyInUsd = dayRates.JPY;
+          const cnyInUsd = dayRates.CNY;
+
+          if (!krwRate) continue;
+
+          // USD 기준 타 통화 환율 역산 및 100엔 환산 처리
+          const usdRate = Number(krwRate.toFixed(2));
+          const eurRate = eurInUsd ? Number((krwRate / eurInUsd).toFixed(2)) : 1450.0;
+          const jpyRate = jpyInUsd ? Number(((krwRate / jpyInUsd) * 100).toFixed(2)) : 880.0; // 100엔 기준
+          const cnyRate = cnyInUsd ? Number((krwRate / cnyInUsd).toFixed(2)) : 190.0;
+
+          const rateValues: Record<string, number> = {
+            USD: usdRate,
+            EUR: eurRate,
+            JPY: jpyRate,
+            CNY: cnyRate
+          };
+
+          const currentDate = new Date(dateStr);
+          const offsetTime = currentDate.getTime() - baseStart.getTime();
+          const t_offset = Math.round(offsetTime / (1000 * 60 * 60 * 24));
+
+          for (const code of CURRENCIES) {
+            const key = `${code}_${dateStr}`;
+            if (existingSet.has(key)) {
+              ignoreCount++;
+              continue;
+            }
+
+            const rateValue = rateValues[code];
+            const historyId = 2026000000 + Math.abs(t_offset) * 10 + CURRENCIES.indexOf(code);
+            
+            rowsToInsert.push({
+              history_id: historyId,
+              currency_code: code,
+              rate_value: rateValue,
+              captured_date: dateStr
+            });
+          }
+        }
+      } catch (apiErr: any) {
+        console.error('❌ [API] Frankfurter API 호출 실패:', apiErr.message);
+        return NextResponse.json({ 
+          success: false, 
+          error: `실제 환율 데이터를 가져오는 데 실패했습니다: ${apiErr.message}` 
+        }, { status: 502 });
       }
 
       let insertedCount = 0;
       if (rowsToInsert.length > 0) {
-        // SQLite bulk insert 호출 (100개씩 나눠 삽입하여 안전성 보장)
         const CHUNK_SIZE = 100;
         for (let i = 0; i < rowsToInsert.length; i += CHUNK_SIZE) {
           const chunk = rowsToInsert.slice(i, i + CHUNK_SIZE);
@@ -180,10 +191,10 @@ export async function POST(req: Request) {
         }
       }
 
-      console.log(`✓ [API] 지정 기간 벌크 백필 완성! ${startStr} ~ ${endStr} (삽입: ${insertedCount}건, 제외: ${ignoreCount}건)`);
+      console.log(`✓ [API] 지정 기간 실제 환율 벌크 백필 완성! ${startStr} ~ ${endStr} (삽입: ${insertedCount}건, 제외: ${ignoreCount}건)`);
       return NextResponse.json({
         success: true,
-        message: `${startStr} ~ ${endStr} 기간 동안의 4대 외환 환율 소급 적재가 완료되었습니다.`,
+        message: `${startStr} ~ ${endStr} 기간 동안의 4대 외환 실제 환율 소급 적재가 완료되었습니다.`,
         inserted: insertedCount,
         ignored: ignoreCount
       });
