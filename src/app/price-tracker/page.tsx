@@ -509,7 +509,7 @@ export default function PriceTrackerAIPage() {
       category: item.category || "RAW_MATERIAL",
       base_price: String(item.base_price || ""),
       target_margin_rate: String(item.target_margin_rate || "10"),
-      currency_code: item.currency_code || "USD"
+      currency_code: item.currency_code || "KRW"
     });
     setIsItemModalOpen(true);
   };
