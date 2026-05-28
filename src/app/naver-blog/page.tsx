@@ -826,28 +826,11 @@ export default function NaverBlogMarketingPortal() {
 
       {/* 헤더 영역 */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between border-b border-slate-200/80 pb-6 mb-8 relative z-10">
-        <div>
-          <div className="flex items-center gap-4">
-            {/* 럭셔리 네이버 그린 그라디언트 엠블럼 */}
-            <div className="p-3 bg-gradient-to-tr from-[#03C75A] via-emerald-500 to-[#1fd66a] rounded-2xl shadow-[0_8px_30px_rgba(3,199,90,0.15)] animate-pulse shrink-0 self-start sm:self-auto">
-              <NaverIcon className="w-7 h-7 text-white" />
-            </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                <span className="bg-emerald-50 text-emerald-600 text-[10.5px] font-extrabold px-3 py-0.5 rounded-full border border-emerald-200/60 shadow-sm flex items-center gap-1.5">
-                  <Sparkles className="w-3 h-3 text-emerald-500 animate-spin" style={{ animationDuration: "4s" }} /> NAVER BLOG AI ENGINE
-                </span>
-                <span className="text-slate-600 border border-slate-200/80 text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100/80">v2.0 PRO</span>
-                <span className="text-emerald-600 border border-emerald-200 bg-emerald-50/80 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">Premium Autopilot</span>
-              </div>
-              <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-600 bg-clip-text text-transparent">
-                N-BLOG 포스팅 AI
-              </h1>
-            </div>
-          </div>
-          <p className="text-slate-500 mt-3 text-sm md:text-base font-medium">
-            AI 모델을 활용해 상품 분석 키워드 도출부터 장문 SEO 원고 집필, 100% 무인 자동 발행(RPA/API)까지 완벽하게 스튜디오에서 핸들링합니다.
-          </p>
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold text-slate-800 tracking-tight flex items-center">
+            <NaverIcon className="w-8 h-8 text-emerald-600 mr-3" />
+            N-BLOG 포스팅 AI
+          </h1>
         </div>
 
         {/* 시스템 시간 표시 */}
