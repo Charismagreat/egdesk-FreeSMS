@@ -116,7 +116,14 @@ export default function PriceTrackerAIPage() {
     const [min, hour, day, month, dayOfWeek] = parts;
 
     if (min === "*" && hour === "*" && day === "*" && month === "*" && dayOfWeek === "*") {
-      return "매분 1회 수집을 실행합니다. (주의: 서버 부하 발생 우려)";
+      return "🚨 매분 1회 수집 (경고: 무리한 초고속 주기입니다. 쇼핑몰 보안망에 의해 매장 IP가 100% 차단(Ban)되며, 서버 부하가 유발되므로 실무 적용이 불가합니다!)";
+    }
+
+    if (min.startsWith("*/")) {
+      const intervalNum = parseInt(min.replace("*/", ""), 10);
+      if (!isNaN(intervalNum) && intervalNum < 30) {
+        return `⚠️ 매 ${intervalNum}분 간격 수집 (주의: 30분 미만의 잦은 수집은 쇼핑몰 봇 차단 시스템에 탐지되어 즉각적인 IP 영구 차단을 유발하므로, 최소 1시간 이상 설정을 권장합니다.)`;
+      }
     }
 
     let result = "";
@@ -491,6 +498,25 @@ export default function PriceTrackerAIPage() {
   const handleAddUrl = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeItem) return alert("매핑할 품목을 선택해 주세요.");
+
+    // 초고속 크론 주기 안전 가드 (쇼핑몰 IP 차단 방어막)
+    const cron = urlForm.cron_interval || "0 9 * * *";
+    const parts = cron.trim().split(/\s+/);
+    if (parts.length === 5) {
+      const minVal = parts[0];
+      if (minVal === "*") {
+        if (!confirm("⚠️ [차단 위험 경보]\n현재 수집 주기가 '매 1분(*)'으로 극도로 빠르게 설정되어 있습니다.\n이 설정 그대로 가동 시 쇼핑몰 서버 보안 필터에 의해 점주님의 IP가 즉시 영구 정지(차단)됩니다.\n그래도 진행하시겠습니까? (최소 1시간 이상 설정을 권장합니다.)")) {
+          return;
+        }
+      } else if (minVal.startsWith("*/")) {
+        const intervalNum = parseInt(minVal.replace("*/", ""), 10);
+        if (!isNaN(intervalNum) && intervalNum < 30) {
+          if (!confirm(`⚠️ [차단 위험 경보]\n현재 설정하신 '${intervalNum}분 간격' 수집 주기는 너무 잦아 대형 유통망 봇 감지기에 걸릴 위험이 매우 높습니다.\n실제로 감시 로봇을 배포 기동하시겠습니까? (최소 30분 이상 설정을 적극 권장합니다.)`)) {
+            return;
+          }
+        }
+      }
+    }
     
     // 사용자가 찾기 힘든 옵션들에 대해 명확하게 필드별 개별 알림 처리로 UX 고도화
     if (!urlForm.site_name) return alert("출처 포털명 (사이트명)을 입력해 주세요.");
