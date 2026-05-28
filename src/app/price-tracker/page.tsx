@@ -2257,7 +2257,29 @@ export default function PriceTrackerAIPage() {
 
                 {/* 추가 폼 */}
                 <form onSubmit={handleAddUrl} className="space-y-3 bg-slate-50/50 border border-slate-150 p-4 rounded-2xl">
-                  <h4 className="text-xs font-black text-pink-600">새로운 크롤링 로봇 바인딩</h4>
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <h4 className="text-xs font-black text-pink-600">새로운 크롤링 로봇 바인딩</h4>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMinerForm({
+                          query: activeItem?.item_name || "",
+                          specification: ""
+                        });
+                        setAiForm(prev => ({
+                          ...prev,
+                          keyword: activeItem?.item_name || ""
+                        }));
+                        setAiModalTab('miner');
+                        setIsAiModalOpen(true);
+                      }}
+                      className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black text-indigo-650 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition-all cursor-pointer shadow-sm hover:scale-[1.02] active:scale-[0.98] animate-pulse shrink-0"
+                      title="AI가 경쟁 상품을 자율 검색하여 수집 노드를 자동 등록해 줍니다."
+                    >
+                      <Sparkles className="w-2.5 h-2.5 text-indigo-650 animate-spin-slow" />
+                      🪄 AI 추천으로 추가
+                    </button>
+                  </div>
                   
                   <div className="space-y-1">
                     <label className="text-[9px] font-bold text-slate-400 uppercase">출처 포털명 (사이트명)</label>
@@ -2739,7 +2761,7 @@ export default function PriceTrackerAIPage() {
       {/* ============================================================ */}
       <AnimatePresence>
         {isAiModalOpen && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
