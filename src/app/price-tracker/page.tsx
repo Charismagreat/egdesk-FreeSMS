@@ -1424,7 +1424,7 @@ export default function PriceTrackerAIPage() {
                       {/* 수집망 노드 개수 */}
                       <td className="p-4 text-center">
                         <span className="px-2.5 py-1 bg-slate-50 text-slate-650 font-bold font-mono rounded-lg border border-slate-200">
-                          {item.collectors_count} 개 노드
+                          {Number(item.collectors_count ?? 0)} 개 노드
                         </span>
                       </td>
 

@@ -49,7 +49,8 @@ export async function GET() {
         ...item,
         latest_price: latestPrice,
         latest_captured_at: latestTime,
-        current_margin_rate: Number(currentMarginRate.toFixed(2))
+        current_margin_rate: Number(currentMarginRate.toFixed(2)),
+        collectors_count: urls.length
       };
     }));
 
