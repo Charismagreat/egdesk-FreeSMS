@@ -200,7 +200,16 @@ export async function POST(req: Request) {
    ]
  }
 `;
-        const userPrompt = `품목명: ${query}\n세부 규격: ${cleanSpec}\n발굴 시세:\n- 쿠팡: ₩${rawPrice1.toLocaleString()}\n- 네이버: ₩${rawPrice2.toLocaleString()}\n- 해외: $${rawPrice3.toLocaleString()} (₩${convertedKrw3.toLocaleString()})`;
+        const coupangCand = candidates.find(c => c.site_name.includes('쿠팡'));
+        const naverCand = candidates.find(c => c.site_name.includes('네이버'));
+        const globalCand = candidates.find(c => c.site_name.includes('아마존') || c.site_name.includes('알리'));
+
+        const coupangPriceText = coupangCand ? `₩${coupangCand.price.toLocaleString()}` : '미포착';
+        const naverPriceText = naverCand ? `₩${naverCand.price.toLocaleString()}` : '미포착';
+        const globalPriceText = globalCand ? `$${globalCand.price.toLocaleString()} (₩${globalCand.price_krw.toLocaleString()})` : '미포착';
+
+        const userPrompt = `품목명: ${query}\n세부 규격: ${cleanSpec}\n발굴 시세:\n- 쿠팡: ${coupangPriceText}\n- 네이버: ${naverPriceText}\n- 해외: ${globalPriceText}`;
+
 
         const model = 'gemini-3.5-flash';
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
