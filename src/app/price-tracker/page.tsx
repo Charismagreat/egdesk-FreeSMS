@@ -568,20 +568,13 @@ export default function PriceTrackerAIPage() {
   return (
     <div className="space-y-6 pb-20 w-full min-w-0 text-slate-800">
       
-      {/* 1. 상단 타이틀 주변 헤더 (초경량 웰컴 배지) */}
+      {/* 1. 상단 타이틀 주변 영역 */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight flex items-center gap-2.5">
-            <Cpu className="w-8 h-8 text-pink-650 animate-pulse" />
+          <h1 className="text-3xl font-bold text-slate-800 tracking-tight flex items-center">
+            <Cpu className="w-8 h-8 text-pink-600 mr-3" />
             가격 추적 AI
-            <span className="text-sm font-semibold px-2.5 py-1 bg-pink-50 text-pink-650 rounded-full border border-pink-100 flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              SCM Intelligence
-            </span>
           </h1>
-          <p className="text-xs text-slate-500 font-semibold max-w-2xl leading-relaxed">
-            원자재 및 경쟁사 제품 시세를 매일 자동으로 수집하고, 타겟 마진 스프레드를 실시간으로 연동 감시하며 위험 수준에 도달 시 긴급 경보 문자를 즉시 발송합니다.
-          </p>
         </div>
 
         <div className="flex items-center gap-2.5 self-end md:self-center">
