@@ -1638,8 +1638,15 @@ export default function PriceTrackerAIPage() {
                       </td>
 
                       {/* 수집망 노드 개수 */}
-                      <td className="p-4 text-center">
-                        <span className="px-2.5 py-1 bg-slate-50 text-slate-650 font-bold font-mono rounded-lg border border-slate-200">
+                      <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
+                        <span 
+                          onClick={() => {
+                            handleItemSelect(item);
+                            setIsCollectorModalOpen(true);
+                          }}
+                          className="px-2.5 py-1 bg-slate-50 text-slate-650 font-bold font-mono rounded-lg border border-slate-200 hover:bg-pink-50 hover:text-pink-650 hover:border-pink-300 transition-all cursor-pointer inline-block animate-pulse"
+                          title="클릭 시 등록된 수집 사이트망 노드별 실시간 현황 조회 및 관리"
+                        >
                           {Number(item.collectors_count ?? 0)} 개 노드
                         </span>
                       </td>
