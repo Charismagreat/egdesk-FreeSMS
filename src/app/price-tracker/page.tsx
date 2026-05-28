@@ -91,6 +91,8 @@ export default function PriceTrackerAIPage() {
   const [updatingRates, setUpdatingRates] = useState(false);
   const [startingDaemon, setStartingDaemon] = useState(false);
   const [copiedText, setCopiedText] = useState("");
+  const [selectorAnalyzing, setSelectorAnalyzing] = useState(false);
+
 
   // 크론식 한글 해석 도우미 함수
   const explainCron = (cron: string) => {
@@ -439,11 +441,50 @@ export default function PriceTrackerAIPage() {
     }
   };
 
+  // AI 셀렉터 자율 감지 기동 함수
+  const handleAnalyzeSelector = async () => {
+    if (!urlForm.target_url) {
+      return alert("수집 대상 웹주소 (Target URL)를 먼저 입력해 주세요.");
+    }
+    
+    setSelectorAnalyzing(true);
+    try {
+      const res = await fetch("/api/price-tracker/ai-selector", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: urlForm.target_url })
+      });
+      const json = await res.json();
+      if (json.success && json.css_selector) {
+        setUrlForm(prev => ({ 
+          ...prev, 
+          css_selector: json.css_selector,
+          // 출처 포털명 사이트명이 비어있을 시 AI 탐지 결과로 자동 대입
+          site_name: prev.site_name || json.site_name || prev.site_name
+        }));
+        alert(`🪄 AI 셀렉터 자율 탐색 완료!\n[${json.message}]\n\nCSS Selector 칸에 [${json.css_selector}]가 자동으로 기입되었습니다.`);
+      } else {
+        alert("AI 셀렉터 분석 실패: " + json.error);
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert("AI 분석 중 통신 에러가 발생했습니다: " + err.message);
+    } finally {
+      setSelectorAnalyzing(false);
+    }
+  };
+
   // 3.2. 수집 URL 등록
   const handleAddUrl = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeItem) return alert("매핑할 품목을 선택해 주세요.");
-    if (!urlForm.site_name || !urlForm.target_url || !urlForm.css_selector) return alert("크롤링 옵션을 입력해 주세요.");
+    
+    // 사용자가 찾기 힘든 옵션들에 대해 명확하게 필드별 개별 알림 처리로 UX 고도화
+    if (!urlForm.site_name) return alert("출처 포털명 (사이트명)을 입력해 주세요.");
+    if (!urlForm.target_url) return alert("수집 대상 웹주소 (Target URL)를 입력해 주세요.");
+    if (!urlForm.css_selector) {
+      return alert("가격을 긁어올 CSS Selector 값을 입력해 주세요.\n(입력창 바로 위의 '🪄 AI 자동 분석' 버튼을 누르시면 자동으로 완성됩니다!)");
+    }
 
     setCrawlerTesting(true);
     try {
@@ -470,6 +511,7 @@ export default function PriceTrackerAIPage() {
       setCrawlerTesting(false);
     }
   };
+
 
   // 수집 URL 삭제
   const handleDeleteUrl = async (urlId: number) => {
@@ -1931,7 +1973,19 @@ export default function PriceTrackerAIPage() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-slate-400 uppercase">수집 대상 웹주소 (Target URL)</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-[9px] font-bold text-slate-400 uppercase">수집 대상 웹주소 (Target URL)</label>
+                      <button
+                        type="button"
+                        onClick={handleAnalyzeSelector}
+                        disabled={selectorAnalyzing}
+                        className="text-[9px] font-black text-pink-600 hover:text-pink-700 flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50"
+                        title="AI가 웹주소 분석을 통해 최적의 가격 셀렉터를 찾아 입력창에 채워줍니다."
+                      >
+                        <Sparkles className="w-3 h-3 animate-pulse" />
+                        {selectorAnalyzing ? "AI 분석 중..." : "🪄 AI 자동 분석"}
+                      </button>
+                    </div>
                     <input
                       type="url"
                       placeholder="https://..."
@@ -1940,6 +1994,7 @@ export default function PriceTrackerAIPage() {
                       className="w-full bg-white border border-slate-200 p-2.5 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700 font-mono"
                     />
                   </div>
+
 
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
