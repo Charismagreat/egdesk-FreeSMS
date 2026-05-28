@@ -51,6 +51,7 @@ export default function PriceTrackerAIPage() {
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isCronHelpOpen, setIsCronHelpOpen] = useState(false);
   const [isDaemonHelpOpen, setIsDaemonHelpOpen] = useState(false);
+  const [copiedUrlId, setCopiedUrlId] = useState<number | null>(null);
 
   // AI 자율 마이닝용 추가 상태
   const [aiModalTab, setAiModalTab] = useState<'recommend' | 'miner'>('recommend');
@@ -497,6 +498,14 @@ export default function PriceTrackerAIPage() {
     } catch (err) {
       console.error(err);
     }
+  };
+
+  // 3.1.4. 주소 복사 헬퍼
+  const handleCopyUrl = (e: React.MouseEvent, urlId: number, targetUrl: string) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(targetUrl);
+    setCopiedUrlId(urlId);
+    setTimeout(() => setCopiedUrlId(null), 1500);
   };
 
   // 3.1.3. 품목 수정 폼 활성화
@@ -2190,20 +2199,51 @@ export default function PriceTrackerAIPage() {
                   <h4 className="text-xs font-bold text-slate-500">현재 연결된 감시 URL ({urls.length}개)</h4>
                   <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
                     {urls.map(url => (
-                      <div key={url.url_id} className="bg-slate-50 border border-slate-200 p-3 rounded-xl flex items-center justify-between gap-3">
-                        <div className="space-y-1 truncate pr-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-xs font-extrabold text-slate-800 truncate">{url.site_name}</span>
-                            <span className="text-[8px] font-mono font-bold bg-white text-slate-500 border border-slate-200 px-1.5 py-0.2 rounded shrink-0">
+                      <div 
+                        key={url.url_id} 
+                        onClick={() => window.open(url.target_url, '_blank')}
+                        className="bg-slate-50 border border-slate-200/80 p-3.5 rounded-2xl flex items-center justify-between gap-3 hover:border-pink-500 hover:bg-pink-50/5 hover:scale-[1.01] hover:shadow-md transition-all cursor-pointer group relative"
+                        title="클릭 시 새 창에서 이 수집 대상 웹페이지 열기"
+                      >
+                        <div className="space-y-1.5 truncate pr-1 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-xs font-black text-slate-800 truncate group-hover:text-pink-600 transition-colors">{url.site_name}</span>
+                            <span className="text-[8px] font-mono font-black bg-white text-slate-505 border border-slate-200 px-1.5 py-0.2 rounded shrink-0">
                               {url.cron_interval}
                             </span>
+                            <ArrowUpRight className="w-3 h-3 text-slate-350 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                           </div>
-                          <p className="text-[9px] text-slate-450 truncate font-mono">{url.target_url}</p>
-                          <span className="text-[8px] text-pink-600 font-bold block truncate">Selector: {url.css_selector}</span>
+                          
+                          {/* URL 표시와 원클릭 복사 배너 */}
+                          <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-xl border border-slate-150/60 max-w-[280px]">
+                            <p className="text-[8.5px] text-slate-450 truncate font-mono flex-1">{url.target_url}</p>
+                            <button
+                              type="button"
+                              onClick={(e) => handleCopyUrl(e, url.url_id, url.target_url)}
+                              className="p-1 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded transition-colors cursor-pointer shrink-0"
+                              title="웹주소 복사"
+                            >
+                              {copiedUrlId === url.url_id ? (
+                                <span className="flex items-center gap-0.5 text-[7.5px] font-bold text-emerald-600 animate-bounce">
+                                  <Check className="w-2.5 h-2.5" />
+                                  복사됨
+                                </span>
+                              ) : (
+                                <Copy className="w-2.5 h-2.5" />
+                              )}
+                            </button>
+                          </div>
+                          
+                          <span className="text-[8px] text-pink-650 font-black block truncate">Selector: {url.css_selector}</span>
                         </div>
+                        
                         <button
-                          onClick={() => handleDeleteUrl(url.url_id)}
-                          className="p-2 hover:bg-rose-50 text-slate-400 hover:text-rose-500 border border-slate-200 hover:border-rose-100 rounded-lg bg-white cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteUrl(url.url_id);
+                          }}
+                          className="p-2 hover:bg-rose-50 text-slate-400 hover:text-rose-500 border border-slate-200 hover:border-rose-100 rounded-xl bg-white cursor-pointer transition-all shrink-0 z-10"
+                          title="수집망 주소 삭제"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
