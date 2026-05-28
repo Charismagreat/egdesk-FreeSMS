@@ -626,7 +626,9 @@ export default function PriceTrackerAIPage() {
     const plotHeight = height - paddingTop - paddingBottom;
 
     const points = history.map((h: any, idx: number) => {
-      const x = paddingLeft + (idx / (history.length - 1)) * plotWidth;
+      const x = history.length > 1 
+        ? paddingLeft + (idx / (history.length - 1)) * plotWidth
+        : paddingLeft + plotWidth / 2;
       const y = paddingTop + plotHeight - ((h.captured_price - minVal) / valRange) * plotHeight;
       return { x, y, price: h.captured_price, date: h.captured_at.slice(5, 10) };
     });
@@ -658,7 +660,9 @@ export default function PriceTrackerAIPage() {
     const plotHeight = height - paddingTop - paddingBottom;
 
     const points = rateHistory.map((h: any, idx: number) => {
-      const x = paddingLeft + (idx / (rateHistory.length - 1)) * plotWidth;
+      const x = rateHistory.length > 1 
+        ? paddingLeft + (idx / (rateHistory.length - 1)) * plotWidth
+        : paddingLeft + plotWidth / 2;
       const y = paddingTop + plotHeight - ((h.rate_value - minVal) / valRange) * plotHeight;
       return { x, y, val: h.rate_value, date: h.captured_date.slice(5, 10) };
     });
