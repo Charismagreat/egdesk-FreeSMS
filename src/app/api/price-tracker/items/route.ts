@@ -132,7 +132,7 @@ export async function GET() {
 // POST /api/price-tracker/items : 신규 가격 추적 품목 등록
 export async function POST(req: Request) {
   try {
-    const { item_code, item_name, category, base_price, target_margin_rate, currency_code } = await req.json();
+    const { item_code, item_name, category, spec, base_price, target_margin_rate, currency_code } = await req.json();
 
     if (!item_code || !item_name || !base_price) {
       return NextResponse.json({ success: false, error: '필수 정보가 누락되었습니다. (품목코드, 품목명, 기준가)' }, { status: 400 });
@@ -146,6 +146,7 @@ export async function POST(req: Request) {
       item_code,
       item_name,
       category: category || 'RAW_MATERIAL',
+      spec: spec || null,
       base_price: Number(base_price),
       target_margin_rate: Number(target_margin_rate || 10),
       currency_code: currency_code || 'KRW',
@@ -162,7 +163,7 @@ export async function POST(req: Request) {
 // PUT /api/price-tracker/items : 추적 품목 수정
 export async function PUT(req: Request) {
   try {
-    const { item_id, item_code, item_name, category, base_price, target_margin_rate, currency_code } = await req.json();
+    const { item_id, item_code, item_name, category, spec, base_price, target_margin_rate, currency_code } = await req.json();
 
     if (!item_id) {
       return NextResponse.json({ success: false, error: '품목 ID가 누락되었습니다.' }, { status: 400 });
@@ -172,6 +173,7 @@ export async function PUT(req: Request) {
       item_code,
       item_name,
       category,
+      spec: spec || null,
       base_price: Number(base_price),
       target_margin_rate: Number(target_margin_rate || 10),
       currency_code: currency_code || 'KRW'

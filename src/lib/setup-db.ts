@@ -395,6 +395,7 @@ export async function setupDatabase() {
     { name: 'item_code', type: 'TEXT', notNull: true },
     { name: 'item_name', type: 'TEXT', notNull: true },
     { name: 'category', type: 'TEXT', notNull: true }, // RAW_MATERIAL, COMPETITOR_PRODUCT
+    { name: 'spec', type: 'TEXT' }, // 상세 규격 정보 (용량, 수량 등)
     { name: 'base_price', type: 'REAL', notNull: true },
     { name: 'target_margin_rate', type: 'REAL', notNull: true },
     { name: 'created_at', type: 'TEXT' }

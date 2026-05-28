@@ -73,6 +73,7 @@ export default function PriceTrackerAIPage() {
     item_code: "", 
     item_name: "", 
     category: "RAW_MATERIAL", 
+    spec: "", 
     base_price: "", 
     target_margin_rate: "12.5",
     currency_code: "USD" 
@@ -459,6 +460,7 @@ export default function PriceTrackerAIPage() {
           item_code: "", 
           item_name: "", 
           category: "RAW_MATERIAL", 
+          spec: "", 
           base_price: "", 
           target_margin_rate: "12.5",
           currency_code: "USD" 
@@ -516,6 +518,7 @@ export default function PriceTrackerAIPage() {
       item_code: item.item_code || "",
       item_name: item.item_name || "",
       category: item.category || "RAW_MATERIAL",
+      spec: item.spec || "",
       base_price: String(item.base_price || ""),
       target_margin_rate: String(item.target_margin_rate || "10"),
       currency_code: item.currency_code || "KRW"
@@ -1538,7 +1541,14 @@ export default function PriceTrackerAIPage() {
                             </span>
                             <span className="text-[10px] font-mono font-bold text-slate-450">{item.item_code}</span>
                           </div>
-                          <h4 className="text-xs font-black text-slate-850 truncate max-w-[200px]">{item.item_name}</h4>
+                          <h4 className="text-xs font-black text-slate-850 truncate max-w-[200px] flex items-center gap-1.5">
+                            {item.item_name}
+                            {item.spec && (
+                              <span className="text-[10px] text-pink-650 bg-pink-50/50 border border-pink-100 font-bold px-1.5 py-0.5 rounded-full shrink-0">
+                                {item.spec}
+                              </span>
+                            )}
+                          </h4>
                         </div>
                       </td>
 
@@ -2129,6 +2139,16 @@ export default function PriceTrackerAIPage() {
                     className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700"
                   />
                 </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase">상세 규격 (용량, 수량 등)</label>
+                  <input
+                    type="text"
+                    placeholder="예: 500ml, 40개입, 10kg 등"
+                    value={itemForm.spec}
+                    onChange={(e) => setItemForm(prev => ({ ...prev, spec: e.target.value }))}
+                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700"
+                  />
+                </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
@@ -2264,7 +2284,7 @@ export default function PriceTrackerAIPage() {
                       onClick={() => {
                         setMinerForm({
                           query: activeItem?.item_name || "",
-                          specification: ""
+                          specification: activeItem?.spec || ""
                         });
                         setAiForm(prev => ({
                           ...prev,
