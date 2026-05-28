@@ -368,7 +368,7 @@ export default function YoutubeShortsAiLab() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-800 p-8 font-sans relative overflow-hidden">
+    <div className="min-h-screen text-slate-800 font-sans relative overflow-hidden w-full min-w-0">
       {/* 백그라운드 레드 & 블랙 그라데이션 오로라 광채 효과 */}
       <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-red-100/20 blur-[150px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-slate-200/45 blur-[150px] pointer-events-none" />

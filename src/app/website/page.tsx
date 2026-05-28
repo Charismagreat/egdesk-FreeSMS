@@ -561,7 +561,7 @@ export default function WebsiteBuilderPage() {
   };
 
   return (
-    <div className="w-full min-h-screen bg-slate-50 text-slate-800 flex flex-col p-4 sm:p-6 lg:p-10 font-sans selection:bg-pink-500 selection:text-white relative overflow-hidden">
+    <div className="w-full min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans selection:bg-pink-500 selection:text-white relative overflow-hidden min-w-0">
       
       {/* 백그라운드 럭셔리 핑크 & 퍼플 오로라 광채 효과 */}
       <div className="absolute top-[-25%] left-[-15%] w-[60%] h-[50%] rounded-full bg-purple-100/40 blur-[150px] pointer-events-none" />

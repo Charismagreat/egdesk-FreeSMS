@@ -1089,7 +1089,7 @@ export default function InventoryPage() {
   const paginatedItems = filteredItems.slice(startIndex, endIndex);
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-20 w-full min-w-0 text-slate-800">
       
       {/* 최상단 화려한 그라디언트 배너 */}
       <div className="relative overflow-hidden bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white px-8 py-10 shadow-lg border-b border-indigo-900/40">
