@@ -1093,25 +1093,11 @@ export default function InventoryPage() {
       
       {/* 상단 타이틀 헤더 */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 pb-6 border-b border-slate-200 relative z-10 shrink-0">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          {/* 럭셔리 인디고-퍼플 그라디언트 엠블럼 */}
-          <div className="p-3.5 bg-gradient-to-tr from-indigo-600 to-purple-600 rounded-2xl shadow-[0_8px_30px_rgba(79,70,229,0.15)] animate-pulse shrink-0 self-start sm:self-auto">
-            <Package className="w-8 h-8 text-white" />
-          </div>
-          <div>
-            <div className="flex flex-wrap items-center gap-2 mb-1.5">
-              <span className="bg-indigo-50 text-indigo-600 text-[10.5px] font-extrabold px-3 py-0.5 rounded-full border border-indigo-200/60 shadow-sm flex items-center gap-1.5">
-                <Sparkles className="w-3 h-3 text-indigo-500 animate-spin" style={{ animationDuration: "4s" }} /> AI INVENTORY HUB
-              </span>
-              <span className="text-slate-600 border border-slate-200/80 text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100/80">v2.1 PRO</span>
-            </div>
-            <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-600 bg-clip-text text-transparent">
-              재고 관리 AI
-            </h1>
-            <p className="text-slate-500 text-sm mt-1 font-medium">
-              자재와 제품의 이원화 물리 스키마를 완벽히 통제하며, 영수증 비전 스캔 분석 및 실시간 자연어 음성 출고 명령이 결합된 독창적인 AI 재고 솔루션입니다.
-            </p>
-          </div>
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold text-slate-800 tracking-tight flex items-center">
+            <Package className="w-8 h-8 text-indigo-600 mr-3" />
+            재고 관리 AI
+          </h1>
         </div>
 
         <div className="flex gap-3 flex-wrap relative z-10">

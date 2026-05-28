@@ -573,26 +573,11 @@ export default function WebsiteBuilderPage() {
 
       {/* 상단 타이틀 헤더 */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 pb-6 border-b border-slate-200 relative z-10 shrink-0">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          {/* 럭셔리 핑크-퍼플 그라디언트 엠블럼 */}
-          <div className="p-3 bg-gradient-to-tr from-[#ff007f] to-[#7928ca] rounded-2xl shadow-[0_8px_30px_rgba(255,0,127,0.2)] animate-pulse shrink-0 self-start sm:self-auto">
-            <Globe className="w-8 h-8 text-white" />
-          </div>
-          <div>
-            <div className="flex flex-wrap items-center gap-2 mb-1.5">
-              <span className="bg-pink-50 text-pink-600 text-[10.5px] font-extrabold px-3 py-0.5 rounded-full border border-pink-200/60 shadow-sm flex items-center gap-1.5">
-                <Sparkles className="w-3 h-3 text-pink-500 animate-spin" style={{ animationDuration: "4s" }} /> AI BUILDER ENGINE
-              </span>
-              <span className="text-slate-600 border border-slate-200/80 text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100/80">v2.5 PRO</span>
-              <span className="text-pink-600 border border-pink-200 bg-pink-50/80 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">Premium Autopilot</span>
-            </div>
-            <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 via-slate-800 to-pink-600 bg-clip-text text-transparent">
-              홈페이지 빌더 AI
-            </h1>
-            <p className="text-slate-500 text-sm mt-1 font-medium">
-              인공지능 비서와의 대화와 고품격 테마를 통해 예약·주문 폼이 결합된 하이브리드 홈페이지를 1분 만에 완성하세요.
-            </p>
-          </div>
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold text-slate-800 tracking-tight flex items-center">
+            <Globe className="w-8 h-8 text-pink-600 mr-3" />
+            홈페이지 빌더 AI
+          </h1>
         </div>
 
         {/* 템플릿 퀵 셀렉터 - 화사한 글래스모피즘 박스 */}
