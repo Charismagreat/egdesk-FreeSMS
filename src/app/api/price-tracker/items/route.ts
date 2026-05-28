@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { queryTable, insertRows } from '@/../egdesk-helpers';
+import { queryTable, insertRows, updateRows, deleteRows } from '@/../egdesk-helpers';
 
 // GET /api/price-tracker/items : 가격 추적 품목 리스트 조회 및 실시간 마진율 연동 계산
 export async function GET() {
@@ -89,3 +89,65 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+// PUT /api/price-tracker/items : 추적 품목 수정
+export async function PUT(req: Request) {
+  try {
+    const { item_id, item_code, item_name, category, base_price, target_margin_rate } = await req.json();
+
+    if (!item_id) {
+      return NextResponse.json({ success: false, error: '품목 ID가 누락되었습니다.' }, { status: 400 });
+    }
+
+    await updateRows('tracked_items', {
+      item_code,
+      item_name,
+      category,
+      base_price: Number(base_price),
+      target_margin_rate: Number(target_margin_rate || 10)
+    }, { filters: { item_id: String(item_id) } });
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('Failed to update tracked item:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+// DELETE /api/price-tracker/items : 추적 품목 삭제 (및 연관 감시 URL들 동반 삭제)
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const itemId = searchParams.get('item_id');
+
+    if (!itemId) {
+      return NextResponse.json({ success: false, error: '품목 ID가 누락되었습니다.' }, { status: 400 });
+    }
+
+    // 1. 해당 품목에 연결된 target_urls 조회
+    const urlsRes = await queryTable('target_urls', { filters: { item_id: itemId } });
+    const urls = urlsRes.rows || [];
+
+    // 2. 각 URL에 종속된 price_histories 및 alert_rules 삭제
+    for (const url of urls) {
+      try {
+        await deleteRows('price_histories', { filters: { url_id: String(url.url_id) } });
+        await deleteRows('alert_rules', { filters: { url_id: String(url.url_id) } });
+      } catch (subErr) {
+        console.warn(`⚠️ url_id ${url.url_id} 관련 이력/알림룰 삭제 실패:`, subErr);
+      }
+    }
+
+    // 3. target_urls 에서 해당 품목 관련 URL 데이터 전체 삭제
+    await deleteRows('target_urls', { filters: { item_id: itemId } });
+
+    // 4. tracked_items 테이블에서 품목 자체 삭제
+    await deleteRows('tracked_items', { filters: { item_id: itemId } });
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('Failed to delete tracked item:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+

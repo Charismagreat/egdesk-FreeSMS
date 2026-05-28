@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  TrendingUp, Plus, Trash2, Globe, Sparkles, Send, Bell, 
+  TrendingUp, Plus, Trash2, Globe, Sparkles, Send, Bell, Edit3,
   HelpCircle, Settings, ShieldAlert, Cpu, CheckCircle2, ChevronRight, Play,
   Layers, Calendar, Search, RefreshCw, AlertTriangle, ArrowUpRight, ArrowDownLeft,
   X, DollarSign, Eye, EyeOff, BarChart3, Info, Terminal, Activity, Copy, Check, Zap
@@ -44,6 +44,8 @@ export default function PriceTrackerAIPage() {
 
   // 모달 제어 상태
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingItemId, setEditingItemId] = useState<number | null>(null);
   const [isCollectorModalOpen, setIsCollectorModalOpen] = useState(false);
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
@@ -429,20 +431,29 @@ export default function PriceTrackerAIPage() {
   };
 
   // 3. 비즈니스 액션
-  // 3.1. 품목 추가
-  const handleAddItem = async (e: React.FormEvent) => {
+  // 3.1. 품목 추가 또는 수정
+  const handleSaveItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!itemForm.item_code || !itemForm.item_name || !itemForm.base_price) return alert("필수 정보를 채워주세요.");
     
     try {
+      const method = isEditMode ? "PUT" : "POST";
+      const bodyPayload = isEditMode 
+        ? { ...itemForm, item_id: editingItemId } 
+        : itemForm;
+
       const res = await fetch("/api/price-tracker/items", {
-        method: "POST",
+        method: method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(itemForm)
+        body: JSON.stringify(bodyPayload)
       });
       const json = await res.json();
       if (json.success) {
-        alert("🎉 신규 시황 추적 품목이 전광판에 등록되었습니다!");
+        if (isEditMode) {
+          alert("🎉 품목의 관제 정보가 성공적으로 수정되었습니다!");
+        } else {
+          alert("🎉 신규 시황 추적 품목이 전광판에 등록되었습니다!");
+        }
         setItemForm({ 
           item_code: "", 
           item_name: "", 
@@ -452,13 +463,55 @@ export default function PriceTrackerAIPage() {
           currency_code: "USD" 
         });
         setIsItemModalOpen(false);
+        setIsEditMode(false);
+        setEditingItemId(null);
         fetchInitData();
       } else {
-        alert("등록 실패: " + json.error);
+        alert("처리에 실패했습니다: " + json.error);
       }
     } catch (err) {
       console.error(err);
     }
+  };
+
+  // 3.1.2. 품목 삭제
+  const handleDeleteItem = async (itemId: number, itemName: string) => {
+    if (!confirm(`🚨 정말로 [${itemName}] 품목을 관제 대상에서 제외하시겠습니까?\n이 작업은 되돌릴 수 없으며, 등록된 수집망 URL 및 이력도 모두 함께 영구 삭제됩니다.`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/price-tracker/items?item_id=${itemId}`, {
+        method: "DELETE"
+      });
+      const json = await res.json();
+      if (json.success) {
+        alert("🗑️ 품목 및 연관 수집망 정보가 영구 삭제되었습니다.");
+        if (activeItem?.item_id === itemId) {
+          setActiveItem(null);
+        }
+        fetchInitData();
+      } else {
+        alert("삭제에 실패했습니다: " + json.error);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // 3.1.3. 품목 수정 폼 활성화
+  const handleEditItemClick = (item: any) => {
+    setIsEditMode(true);
+    setEditingItemId(item.item_id);
+    setItemForm({
+      item_code: item.item_code || "",
+      item_name: item.item_name || "",
+      category: item.category || "RAW_MATERIAL",
+      base_price: String(item.base_price || ""),
+      target_margin_rate: String(item.target_margin_rate || "10"),
+      currency_code: item.currency_code || "USD"
+    });
+    setIsItemModalOpen(true);
   };
 
   // AI 셀렉터 자율 감지 기동 함수
@@ -1400,7 +1453,19 @@ export default function PriceTrackerAIPage() {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setIsItemModalOpen(true)}
+              onClick={() => {
+                setIsEditMode(false);
+                setEditingItemId(null);
+                setItemForm({ 
+                  item_code: "", 
+                  item_name: "", 
+                  category: "RAW_MATERIAL", 
+                  base_price: "", 
+                  target_margin_rate: "12.5",
+                  currency_code: "USD" 
+                });
+                setIsItemModalOpen(true);
+              }}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-pink-600 hover:bg-pink-700 text-white rounded-lg text-xs font-bold shadow-sm transition-all cursor-pointer"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -1602,6 +1667,22 @@ export default function PriceTrackerAIPage() {
                             title="FreeSMS 경보 설정"
                           >
                             <Bell className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button
+                            onClick={() => handleEditItemClick(item)}
+                            className="p-1.5 hover:bg-indigo-50 hover:text-indigo-650 text-slate-450 border border-slate-200 bg-white rounded-lg transition-colors cursor-pointer"
+                            title="품목 정보 수정"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button
+                            onClick={() => handleDeleteItem(item.item_id, item.item_name)}
+                            className="p-1.5 hover:bg-rose-50 hover:text-rose-600 text-slate-450 border border-slate-200 bg-white rounded-lg transition-colors cursor-pointer"
+                            title="품목 영구 삭제"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </td>
@@ -1971,15 +2052,19 @@ export default function PriceTrackerAIPage() {
             >
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <h3 className="text-base font-black text-slate-800 flex items-center gap-1.5">
-                  <Plus className="w-5 h-5 text-pink-650" />
-                  신규 시황 관제 품목 등록
+                  {isEditMode ? (
+                    <Edit3 className="w-5 h-5 text-pink-650" />
+                  ) : (
+                    <Plus className="w-5 h-5 text-pink-650" />
+                  )}
+                  {isEditMode ? "시황 관제 품목 정보 수정" : "신규 시황 관제 품목 등록"}
                 </h3>
                 <button onClick={() => setIsItemModalOpen(false)} className="p-1 hover:bg-slate-150 rounded-lg cursor-pointer">
                   <X className="w-5 h-5 text-slate-500" />
                 </button>
               </div>
 
-              <form onSubmit={handleAddItem} className="space-y-4">
+              <form onSubmit={handleSaveItem} className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase">품목 분류</label>
@@ -2059,7 +2144,7 @@ export default function PriceTrackerAIPage() {
                   type="submit"
                   className="w-full py-4 bg-gradient-to-r from-pink-500 to-indigo-600 hover:from-pink-600 hover:to-indigo-700 text-white font-extrabold rounded-2xl text-xs shadow-lg shadow-pink-500/10 cursor-pointer transition-all active:scale-[0.99]"
                 >
-                  ➕ 품목 시황 감시 등록
+                  {isEditMode ? "💾 품목 시황 정보 수정 완료" : "➕ 품목 시황 감시 등록"}
                 </button>
               </form>
             </motion.div>
