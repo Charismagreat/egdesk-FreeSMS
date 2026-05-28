@@ -495,8 +495,19 @@ export default function PriceTrackerAIPage() {
       });
       const json = await res.json();
       if (json.success) {
-        const detailMsg = json.test_price 
-          ? `[${json.test_price.toLocaleString()} ${json.currency} / ₩${json.test_price_krw.toLocaleString()}]`
+        const rawPrice = json.test_price;
+        const rawPriceKrw = json.test_price_krw;
+        
+        const priceStr = (typeof rawPrice === 'number' && !isNaN(rawPrice)) 
+          ? rawPrice.toLocaleString() 
+          : (rawPrice ? String(rawPrice) : '');
+          
+        const priceKrwStr = (typeof rawPriceKrw === 'number' && !isNaN(rawPriceKrw)) 
+          ? rawPriceKrw.toLocaleString() 
+          : ((typeof rawPrice === 'number' && !isNaN(rawPrice)) ? rawPrice.toLocaleString() : '0');
+
+        const detailMsg = priceStr 
+          ? `[${priceStr} ${json.currency || "USD"} / ₩${priceKrwStr}]`
           : "단가 수집 대기";
         alert(`⚡ 크롤링 로봇 즉시 검수 완료!\n${detailMsg}가 감지되어 DB에 가동 매핑되었습니다.`);
         setUrlForm({ site_name: "", target_url: "", css_selector: "", cron_interval: "0 9 * * *" });

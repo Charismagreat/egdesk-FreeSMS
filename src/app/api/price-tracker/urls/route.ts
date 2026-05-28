@@ -64,17 +64,41 @@ export async function POST(req: Request) {
 
     // 2. 즉시 크롤링 시뮬레이션 모의 실행 옵션 작동
     let testPrice = 0;
+    let testPriceKrw = 0;
+    let currencyCode = 'KRW';
+
     if (run_test) {
-      // 실시간 가상 크롤러 작동: 8000~9000 범위에서 난수 가격 생성
-      testPrice = Math.floor(8000 + Math.random() * 1000);
+      // 2.1. 해당 품목의 통화코드 및 기본 공급가 조회
+      const items = await queryTable('tracked_items', { filters: { item_id: String(item_id) } });
+      if (items.rows && items.rows.length > 0) {
+        currencyCode = items.rows[0].currency_code || 'KRW';
+      }
+
+      // 8000~9000 범위에서 난수 가격 생성 (화폐 가치에 맞추어 보정)
+      const baseNum = currencyCode === 'USD' ? 8 : currencyCode === 'EUR' ? 7 : currencyCode === 'CNY' ? 55 : 8000;
+      testPrice = Math.floor(baseNum + Math.random() * (baseNum * 0.1));
       
+      // 실시간 환율 연동 및 원화(KRW) 환산 연산
+      let rate = 1.0;
+      if (currencyCode !== 'KRW') {
+        const ratesRes = await queryTable('exchange_rates', { filters: { currency_code: currencyCode } });
+        if (ratesRes.rows && ratesRes.rows.length > 0) {
+          const rawRate = ratesRes.rows[0].current_rate || 1.0;
+          rate = currencyCode === 'JPY' ? rawRate / 100 : rawRate;
+        }
+      }
+      testPriceKrw = Math.floor(testPrice * rate);
+
       // 모의 수집된 가격 이력 즉각 적재
       await insertRows('price_histories', [{
         history_id: Date.now() + 1,
         url_id: newUrlId,
         captured_price: testPrice,
         captured_at: nowStr,
-        status: 'SUCCESS'
+        status: 'SUCCESS',
+        currency_code: currencyCode,
+        exchange_rate: rate,
+        converted_krw_price: testPriceKrw
       }]);
     }
 
@@ -82,8 +106,11 @@ export async function POST(req: Request) {
       success: true, 
       url_id: newUrlId, 
       test_price: testPrice > 0 ? testPrice : null,
+      test_price_krw: testPriceKrw > 0 ? testPriceKrw : null,
+      currency: currencyCode,
       message: '감시 URL 및 수집 엔진 룰이 안전하게 등록되었습니다.'
     });
+
 
   } catch (error: any) {
     console.error('Failed to create target URL:', error);
