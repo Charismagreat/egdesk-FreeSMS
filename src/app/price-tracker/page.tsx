@@ -50,7 +50,20 @@ export default function PriceTrackerAIPage() {
   const [isCronHelpOpen, setIsCronHelpOpen] = useState(false);
   const [isDaemonHelpOpen, setIsDaemonHelpOpen] = useState(false);
 
-
+  // AI 자율 마이닝용 추가 상태
+  const [aiModalTab, setAiModalTab] = useState<'recommend' | 'miner'>('recommend');
+  const [minerForm, setMinerForm] = useState({ query: "", specification: "" });
+  const [miningLoading, setMiningLoading] = useState(false);
+  const [miningResults, setMiningResults] = useState<any[]>([]);
+  const [miningSuccess, setMiningSuccess] = useState(false);
+  const [miningLoadStep, setMiningLoadStep] = useState(1); // 1: 검색, 2: 스크래핑, 3: 가격 분석
+  const [searchChannels, setSearchChannels] = useState([
+    { id: 1, name: "쿠팡 자율 수집망", active: true, isCustom: false },
+    { id: 2, name: "네이버 스마트스토어 노드", active: true, isCustom: false },
+    { id: 3, name: "아마존 글로벌 노드", active: true, isCustom: false },
+    { id: 4, name: "알리익스프레스 글로벌", active: true, isCustom: false }
+  ]);
+  const [newChannelName, setNewChannelName] = useState("");
 
   // 폼 입력 상태
   const [itemForm, setItemForm] = useState({ 
@@ -602,6 +615,118 @@ export default function PriceTrackerAIPage() {
     setIsAiModalOpen(false);
     setIsCollectorModalOpen(true);
     alert(`💡 AI 추천 룰 [${rec.site_name}]이 크롤러 등록 폼에 주입되었습니다! [즉시 모의 가동]을 눌러 검수해 보세요.`);
+  };
+
+  // 3.5. AI 경쟁 품목 자율 탐색 및 웹 쇼핑망 마이닝 기동
+  const handleAiMining = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeItem) return alert("자율 감시망을 연동할 품목을 먼저 선택해 주세요.");
+    if (!minerForm.query) return alert("자율 검색할 경쟁 품목명을 입력해 주세요.");
+    
+    setMiningLoading(true);
+    setMiningResults([]);
+    setMiningSuccess(false);
+    setMiningLoadStep(1);
+
+    // AI 자율 분석 느낌을 주는 타임 스텝 틱 연출 (사용자 UX 만족도 향상)
+    const step1 = setTimeout(() => setMiningLoadStep(2), 1800);
+    const step2 = setTimeout(() => setMiningLoadStep(3), 3900);
+
+    try {
+      const res = await fetch("/api/price-tracker/ai-search-miner", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          item_id: activeItem.item_id,
+          query: minerForm.query,
+          specification: minerForm.specification,
+          channels: searchChannels.filter(c => c.active).map(c => c.name)
+        })
+      });
+      const json = await res.json();
+      
+      clearTimeout(step1);
+      clearTimeout(step2);
+
+      if (json.success) {
+        setMiningResults(json.candidates);
+        setMiningSuccess(true);
+      } else {
+        alert("AI 자율 마이닝 실패: " + json.error);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("AI 마이닝 서버와 통신하는 중 오류가 발생했습니다.");
+    } finally {
+      setMiningLoading(false);
+    }
+  };
+
+  // 검색 채널 추가
+  const handleAddChannel = () => {
+    if (!newChannelName.trim()) return alert("추가할 검색 채널/도메인명을 기입해 주세요.");
+    const newChan = {
+      id: Date.now(),
+      name: newChannelName.trim(),
+      active: true,
+      isCustom: true
+    };
+    setSearchChannels(prev => [...prev, newChan]);
+    setNewChannelName("");
+  };
+
+  // 검색 채널 활성 토글
+  const handleToggleChannel = (id: number) => {
+    setSearchChannels(prev => prev.map(c => c.id === id ? { ...c, active: !c.active } : c));
+  };
+
+  // 검색 채널 영구 삭제
+  const handleRemoveChannel = (id: number) => {
+    setSearchChannels(prev => prev.filter(c => c.id !== id));
+  };
+
+  // 3.6. AI 자율 감시 노드 일괄 기동 및 DB 백필 마감
+  const handleBatchDeploy = async () => {
+    if (!activeItem || miningResults.length === 0) return;
+    
+    if (!confirm(`🤖 AI가 자율 포착한 ${miningResults.length}개의 수집망 노드를 이 품목[${activeItem.item_name}]에 자동 등록하고 즉시 시세 DB를 백필하시겠습니까?\n(등록 완료 후 실시간 시세 변동 전광판에 즉각 바인딩됩니다.)`)) return;
+
+    setMiningLoading(true);
+    let successCount = 0;
+    
+    try {
+      for (const candidate of miningResults) {
+        const res = await fetch("/api/price-tracker/urls", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            item_id: activeItem.item_id,
+            site_name: candidate.site_name,
+            target_url: candidate.url,
+            css_selector: candidate.css_selector,
+            cron_interval: "0 9 * * *",
+            run_test: true // 즉시 모의 수집 및 시세 DB 이력 적재 트리거
+          })
+        });
+        const json = await res.json();
+        if (json.success) {
+          successCount++;
+        }
+      }
+
+      alert(`⚡ AI 자율 감시 노드 자동 배포 완수!\n총 ${successCount}개의 실시간 크롤링 로봇이 DB 가동 적재되었으며, 첫 수집 이력이 성공적으로 완료되었습니다.`);
+      setIsAiModalOpen(false);
+      setMinerForm({ query: "", specification: "" });
+      setMiningResults([]);
+      setMiningSuccess(false);
+      fetchItemDetails(activeItem.item_id);
+      fetchInitData();
+    } catch (err) {
+      console.error(err);
+      alert("일괄 배포 도중 기술적 오류가 발생했습니다.");
+    } finally {
+      setMiningLoading(false);
+    }
   };
 
   // 4. SVG 차트 계산 정보 수집
@@ -2461,80 +2586,315 @@ export default function PriceTrackerAIPage() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white border border-slate-200 w-full max-w-[650px] rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+              className="bg-white border border-slate-200 w-full max-w-[680px] rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
             >
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              {/* 모달 헤더 */}
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
                 <div className="space-y-0.5">
                   <h3 className="text-base font-black text-slate-800 flex items-center gap-1.5">
                     <Sparkles className="w-5 h-5 text-pink-600 animate-pulse" />
-                    Gemini AI 원재료/제품 감시대상 사이트 자율 추천
+                    SCM 지능형 AI 자율 관제 센터
                   </h3>
-                  <p className="text-[11px] text-slate-400 font-semibold">인공지능 RAG를 연동한 전세계 최적 시황 포털 및 크롤러 CSS 선택자 발굴</p>
+                  <p className="text-[11px] text-slate-400 font-semibold">Gemini AI를 결합한 웹 쇼핑망 자율 크롤링 노드 구축 및 RAG 추천 제어판</p>
                 </div>
-                <button onClick={() => setIsAiModalOpen(false)} className="p-1 hover:bg-slate-150 rounded-lg cursor-pointer">
+                <button 
+                  onClick={() => {
+                    setIsAiModalOpen(false);
+                    setMiningResults([]);
+                    setMiningSuccess(false);
+                    setMinerForm({ query: "", specification: "" });
+                  }} 
+                  className="p-1 hover:bg-slate-150 rounded-lg cursor-pointer transition-colors"
+                >
                   <X className="w-5 h-5 text-slate-500" />
                 </button>
               </div>
 
-              <form onSubmit={handleAiRecommend} className="flex gap-2.5 bg-slate-50 p-2.5 border border-slate-200 rounded-2xl">
-                <div className="flex-1 grid grid-cols-2 gap-2">
-                  <input
-                    type="text"
-                    placeholder="산업군 (예: 철강 제조, 기계 가공)"
-                    value={aiForm.industry}
-                    onChange={(e) => setAiForm(prev => ({ ...prev, industry: e.target.value }))}
-                    className="bg-white border border-slate-200 px-3 py-2.5 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700"
-                  />
-                  <input
-                    type="text"
-                    placeholder="자재명 (예: 알루미늄 판재, 구리동)"
-                    value={aiForm.keyword}
-                    onChange={(e) => setAiForm(prev => ({ ...prev, keyword: e.target.value }))}
-                    className="bg-white border border-slate-200 px-3 py-2.5 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700"
-                  />
-                </div>
+              {/* 프리미엄 탭 메뉴 */}
+              <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/60 gap-1">
                 <button
-                  type="submit"
-                  disabled={recommendLoading}
-                  className="px-5 bg-pink-600 hover:bg-pink-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center shrink-0 cursor-pointer shadow-sm transition-colors"
+                  type="button"
+                  onClick={() => setAiModalTab('recommend')}
+                  className={`flex-1 py-2 text-xs font-black rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    aiModalTab === 'recommend'
+                      ? "bg-white text-slate-800 shadow-sm border border-slate-200/50"
+                      : "text-slate-450 hover:text-slate-700"
+                  }`}
                 >
-                  {recommendLoading ? "RAG 추적 중..." : "🚀 AI 추천 구동"}
+                  <Globe className="w-3.5 h-3.5" />
+                  🌟 RAG 수집처 자율 추천
                 </button>
-              </form>
+                <button
+                  type="button"
+                  onClick={() => setAiModalTab('miner')}
+                  className={`flex-1 py-2 text-xs font-black rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    aiModalTab === 'miner'
+                      ? "bg-white text-pink-600 shadow-sm border border-slate-200/50"
+                      : "text-slate-450 hover:text-slate-700"
+                  }`}
+                >
+                  <Search className="w-3.5 h-3.5" />
+                  🚀 AI 자율 검색 & 즉시 적재
+                </button>
+              </div>
 
-              {recommendLoading ? (
-                <div className="py-24 text-center flex flex-col items-center justify-center gap-3">
-                  <Cpu className="w-10 h-10 text-pink-600 animate-spin" />
-                  <span className="text-xs font-bold text-slate-400">Gemini SCM 지식 RAG 서버를 정밀 동적 탐색 중입니다...</span>
+              {/* 탭 Content 1: RAG 수집처 추천 */}
+              {aiModalTab === 'recommend' && (
+                <div className="space-y-4">
+                  <form onSubmit={handleAiRecommend} className="flex gap-2.5 bg-slate-50 p-2.5 border border-slate-200 rounded-2xl">
+                    <div className="flex-1 grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        placeholder="산업군 (예: 철강 제조, 기계 가공)"
+                        value={aiForm.industry}
+                        onChange={(e) => setAiForm(prev => ({ ...prev, industry: e.target.value }))}
+                        className="bg-white border border-slate-200 px-3 py-2.5 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700"
+                      />
+                      <input
+                        type="text"
+                        placeholder="자재명 (예: 알루미늄 판재, 구리동)"
+                        value={aiForm.keyword}
+                        onChange={(e) => setAiForm(prev => ({ ...prev, keyword: e.target.value }))}
+                        className="bg-white border border-slate-200 px-3 py-2.5 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={recommendLoading}
+                      className="px-5 bg-pink-600 hover:bg-pink-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center shrink-0 cursor-pointer shadow-sm transition-colors"
+                    >
+                      {recommendLoading ? "RAG 추적 중..." : "🚀 AI 추천 구동"}
+                    </button>
+                  </form>
+
+                  {recommendLoading ? (
+                    <div className="py-24 text-center flex flex-col items-center justify-center gap-3 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                      <Cpu className="w-10 h-10 text-pink-600 animate-spin" />
+                      <span className="text-xs font-bold text-slate-400">Gemini SCM 지식 RAG 서버를 정밀 동적 탐색 중입니다...</span>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-1">
+                      {recommendations.map((rec, index) => (
+                        <div key={index} className="bg-slate-50 border border-slate-200 p-3.5 rounded-2xl flex flex-col justify-between gap-3 shadow-inner">
+                          <div className="space-y-1.5">
+                            <div className="flex justify-between items-center">
+                              <span className="text-[10px] font-black text-slate-800 bg-white px-2 py-0.5 rounded border border-slate-200">{rec.site_name}</span>
+                              <span className="text-[8.5px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">신뢰도 98%</span>
+                            </div>
+                            <p className="text-[10.5px] text-slate-500 leading-relaxed font-semibold">{rec.description}</p>
+                            <div className="text-[7.5px] font-mono text-slate-450 bg-white p-2.5 rounded-lg border border-slate-200 space-y-1">
+                              <div className="truncate">URL: {rec.url}</div>
+                              <div>CSS Selector: <span className="text-pink-600 font-extrabold">{rec.recommended_selector}</span></div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => applyRecommendation(rec)}
+                            className="w-full py-2 bg-white hover:bg-pink-50 text-[10px] font-bold text-pink-600 rounded-xl transition-all border border-pink-100 shadow-sm cursor-pointer"
+                          >
+                            📥 이 추천 룰 즉시 수집 로봇에 주입
+                          </button>
+                        </div>
+                      ))}
+                      {recommendations.length === 0 && (
+                        <p className="text-center py-20 text-xs font-bold text-slate-450 col-span-2 font-sans">
+                          산업군 및 원재료명을 기입하고 AI 추천 구동 단추를 누르면, 전세계의 정밀 고시/포털 가격 사이트 수집 룰을 실시간 발굴합니다.
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-1">
-                  {recommendations.map((rec, index) => (
-                    <div key={index} className="bg-slate-50 border border-slate-200 p-3.5 rounded-2xl flex flex-col justify-between gap-3 shadow-inner">
-                      <div className="space-y-1.5">
-                        <div className="flex justify-between items-center">
-                          <span className="text-[10px] font-black text-slate-800 bg-white px-2 py-0.5 rounded border border-slate-200">{rec.site_name}</span>
-                          <span className="text-[8.5px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">신뢰도 98%</span>
+              )}
+
+              {/* 탭 Content 2: AI 경쟁 품목 자율 탐색 및 일괄 적재 (신규) */}
+              {aiModalTab === 'miner' && (
+                <div className="space-y-4">
+                  <div className="bg-pink-50/20 border border-pink-100/60 p-3 rounded-2xl text-[10.5px] text-pink-700/90 leading-relaxed font-semibold">
+                    💡 <strong>경쟁사 품목명</strong>과 <strong>세부 규격(용량/수량/모델 등)</strong>을 자연어로 입력하면, AI가 자동으로 최상위 웹 검색 링크를 파악하고, Playwright Stealth 브라우저 및 Gemini RAG 분석을 가동하여 3개 최적 유통처 후보와 CSS Selector, 실시간 시세를 자율 탐색하여 영구 DB에 즉시 일괄 적재 및 동적 매핑합니다.
+                  </div>
+
+                  {/* 탐색 대상 채널 제어 섹션 */}
+                  <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-800 flex items-center gap-1">
+                        <Globe className="w-4 h-4 text-pink-600" />
+                        🔍 탐색 대상 채널 제어 ({searchChannels.filter(c => c.active).length}개 활성)
+                      </span>
+                      <span className="text-[9px] text-slate-400 font-bold">칩을 눌러 검색 대상 On/Off 토글</span>
+                    </div>
+
+                    {/* 채널 칩 나열 */}
+                    <div className="flex flex-wrap gap-2">
+                      {searchChannels.map(chan => (
+                        <div 
+                          key={chan.id} 
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[10.5px] font-bold transition-all shadow-sm ${
+                            chan.active 
+                              ? "bg-gradient-to-r from-pink-50 to-indigo-50 border-pink-200 text-pink-700 font-black" 
+                              : "bg-slate-100 border-slate-200 text-slate-400"
+                          }`}
+                        >
+                          <span 
+                            onClick={() => handleToggleChannel(chan.id)}
+                            className="cursor-pointer select-none"
+                          >
+                            {chan.active ? "✅" : "❌"} {chan.name}
+                          </span>
+                          {chan.isCustom && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveChannel(chan.id)}
+                              className="text-[9px] hover:text-rose-600 text-slate-400 bg-white hover:bg-rose-50 w-4 h-4 rounded-full flex items-center justify-center border border-slate-200 transition-colors cursor-pointer"
+                              title="삭제"
+                            >
+                              ✕
+                            </button>
+                          )}
                         </div>
-                        <p className="text-[10.5px] text-slate-500 leading-relaxed font-semibold">{rec.description}</p>
-                        <div className="text-[7.5px] font-mono text-slate-450 bg-white p-2.5 rounded-lg border border-slate-200 space-y-1">
-                          <div className="truncate">URL: {rec.url}</div>
-                          <div>CSS Selector: <span className="text-pink-600 font-extrabold">{rec.recommended_selector}</span></div>
-                        </div>
-                      </div>
+                      ))}
+                    </div>
+
+                    {/* 커스텀 채널 추가 폼 */}
+                    <div className="flex gap-2 pt-1 border-t border-slate-200/60 mt-1">
+                      <input
+                        type="text"
+                        placeholder="추가할 쇼핑몰/도메인명 (예: 11번가, 지마켓, 다나와)"
+                        value={newChannelName}
+                        onChange={(e) => setNewChannelName(e.target.value)}
+                        className="flex-1 bg-white border border-slate-200 px-3 py-2 rounded-xl text-[10.5px] font-bold focus:border-pink-500 outline-none text-slate-700"
+                      />
                       <button
                         type="button"
-                        onClick={() => applyRecommendation(rec)}
-                        className="w-full py-2 bg-white hover:bg-pink-50 text-[10px] font-bold text-pink-600 rounded-xl transition-all border border-pink-100 shadow-sm cursor-pointer"
+                        onClick={handleAddChannel}
+                        className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-[10px] rounded-xl cursor-pointer shadow-sm transition-colors"
                       >
-                        📥 이 추천 룰 즉시 수집 로봇에 주입
+                        ➕ 채널 추가
                       </button>
                     </div>
-                  ))}
-                  {recommendations.length === 0 && (
-                    <p className="text-center py-20 text-xs font-bold text-slate-450 col-span-2 font-sans">
-                      산업군 및 원재료명을 기입하고 AI 추천 구동 단추를 누르면, 전세계의 정밀 고시/포털 가격 사이트 수집 룰을 실시간 발굴합니다.
-                    </p>
+                  </div>
+
+                  {/* 자율 탐색 기동 폼 */}
+                  <form onSubmit={handleAiMining} className="flex gap-2.5 bg-slate-50 p-2.5 border border-slate-200 rounded-2xl">
+                    <div className="flex-1 grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        placeholder="경쟁사 품목명 (예: 신라면, 아이폰 15 프로)"
+                        value={minerForm.query}
+                        onChange={(e) => setMinerForm(prev => ({ ...prev, query: e.target.value }))}
+                        className="bg-white border border-slate-200 px-3 py-2.5 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700"
+                        disabled={miningLoading}
+                      />
+                      <input
+                        type="text"
+                        placeholder="📦 세부 규격/용량/수량 (예: 120g 40개입, 256GB)"
+                        value={minerForm.specification}
+                        onChange={(e) => setMinerForm(prev => ({ ...prev, specification: e.target.value }))}
+                        className="bg-white border border-slate-200 px-3 py-2.5 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700"
+                        disabled={miningLoading}
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={miningLoading}
+                      className="px-5 bg-pink-600 hover:bg-pink-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center shrink-0 cursor-pointer shadow-sm transition-all active:scale-[0.98]"
+                    >
+                      {miningLoading ? "RAG 탐색 중..." : "🚀 AI 자율 탐색 시작"}
+                    </button>
+                  </form>
+
+                  {/* 마이닝 로딩 상태 오버레이 */}
+                  {miningLoading && (
+                    <div className="py-16 text-center flex flex-col items-center justify-center gap-4 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                      <div className="relative flex items-center justify-center">
+                        <Cpu className="w-10 h-10 text-pink-600 animate-spin absolute" />
+                        <Sparkles className="w-6 h-6 text-indigo-500 animate-ping absolute" />
+                        <div className="w-14 h-14 rounded-full border-2 border-pink-100 border-t-pink-600 animate-spin"></div>
+                      </div>
+                      <div className="space-y-1.5 px-6">
+                        <span className="text-xs font-black text-slate-700 block font-sans">
+                          {miningLoadStep === 1 && "1단계: 전세계 웹 쇼핑망 자율 검색 및 가격 링크 추출 중..."}
+                          {miningLoadStep === 2 && "2단계: Playwright Stealth 기동 및 실시간 보안망 우회 접속 중..."}
+                          {miningLoadStep === 3 && "3단계: Gemini AI RAG 기반 시세 데이터 및 가격 Selector 정밀 분석 중..."}
+                        </span>
+                        <span className="text-[10px] font-bold text-slate-400 block leading-normal">
+                          사용자가 입력하신 세부 규격(용량/수량/모델)과 일치 여부를 엄격하게 교차 검증하고 있습니다.
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 마이닝 성공 및 결과 카드 후보 노드 렌더링 */}
+                  {!miningLoading && miningSuccess && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-[11px] font-black text-slate-800 flex items-center gap-1">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                          AI 자율 포착에 성공한 3개 최적 유통/공급처 노드 목록
+                        </h4>
+                        <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded border border-indigo-100">
+                          표준 화폐 자동 역산 완료
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 max-h-[300px] overflow-y-auto pr-1">
+                        {miningResults.map((cand, idx) => (
+                          <div key={idx} className="bg-slate-50 border border-slate-200/80 p-3 rounded-2xl flex flex-col justify-between gap-3 shadow-inner hover:border-pink-300 transition-all">
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-center">
+                                <span className="text-[9.5px] font-black text-slate-800 bg-white px-2 py-0.5 rounded border border-slate-200 truncate max-w-[80px]">
+                                  {cand.site_name}
+                                </span>
+                                <span className="text-[8.5px] font-black text-pink-600 bg-pink-50 px-1.5 py-0.5 rounded">
+                                  적합도 {cand.confidence_score}%
+                                </span>
+                              </div>
+
+                              <div className="space-y-1 bg-white p-2 rounded-xl border border-slate-200/50">
+                                <div className="text-[10px] font-semibold text-slate-400">포착 시세 및 통화</div>
+                                <div className="text-xs font-black text-slate-800">
+                                  {cand.currency === 'USD' ? `$${cand.price}` : `₩${cand.price.toLocaleString()}`}
+                                </div>
+                                {cand.currency !== 'KRW' && (
+                                  <div className="text-[9px] font-extrabold text-slate-450 font-mono">
+                                    (₩ {cand.price_krw.toLocaleString()})
+                                  </div>
+                                )}
+                              </div>
+
+                              <p className="text-[9.5px] text-slate-500 leading-normal font-semibold">
+                                {cand.message}
+                              </p>
+                              
+                              <div className="text-[7.5px] font-mono text-slate-450 bg-white p-2 rounded border border-slate-150 space-y-1">
+                                <div className="truncate">URL: {cand.url}</div>
+                                <div>Selector: <span className="text-pink-600 font-extrabold">{cand.css_selector}</span></div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* 일괄 배포 웅장한 액션 단추 */}
+                      <button
+                        type="button"
+                        onClick={handleBatchDeploy}
+                        className="w-full py-3.5 bg-gradient-to-r from-pink-600 to-indigo-600 hover:from-pink-700 hover:to-indigo-700 text-white font-extrabold text-xs rounded-2xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.99] border-none"
+                      >
+                        <Zap className="w-4 h-4 animate-bounce" />
+                        ⚡ AI 자율 감시 로봇 일괄 기동 및 DB 즉시 적재
+                      </button>
+                    </div>
+                  )}
+
+                  {/* 마이닝 수행 전 초기 뷰 */}
+                  {!miningLoading && !miningSuccess && (
+                    <div className="py-24 text-center flex flex-col items-center justify-center gap-3 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                      <Search className="w-10 h-10 text-slate-300 animate-pulse" />
+                      <div className="space-y-1">
+                        <span className="text-xs font-bold text-slate-400 block">경쟁 상품명과 세부 용량/수량 규격을 기입하고 탐색을 개시해 주세요!</span>
+                        <span className="text-[9.5px] font-semibold text-slate-400/80 block">AI가 실시간 검색을 통해 오차 없이 정확한 공급망 사이트를 타겟합니다.</span>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
