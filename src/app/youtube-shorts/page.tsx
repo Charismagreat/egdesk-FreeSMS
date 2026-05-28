@@ -397,13 +397,23 @@ export default function YoutubeShortsAiLab() {
       {/* --- 대헤더 배너 영역 (인스타그램 스타일 & 레드/블랙 테마 슬림형 리뉴얼) --- */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between border-b border-slate-200 pb-6 mb-8 relative z-10">
         <div>
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-gradient-to-tr from-slate-950 via-slate-900 to-red-600 rounded-xl shadow-[0_0_20px_rgba(220,38,38,0.25)] animate-pulse">
+          <div className="flex items-center gap-4">
+            {/* 럭셔리 레드 그라디언트 엠블럼 */}
+            <div className="p-3 bg-gradient-to-tr from-slate-950 via-slate-900 to-red-600 rounded-2xl shadow-[0_8px_30px_rgba(220,38,38,0.15)] animate-pulse shrink-0 self-start sm:self-auto">
               <YoutubeIcon className="w-7 h-7 text-white" />
             </div>
-            <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-950 via-slate-900 to-red-600 bg-clip-text text-transparent">
-              YOUTUBE 쇼츠 AI <span className="text-xs font-semibold text-red-600 border border-red-200 px-2.5 py-0.5 rounded-full bg-red-50/80 ml-2 shadow-sm align-middle">YouTube Shorts AI Lab</span>
-            </h1>
+            <div>
+              <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                <span className="bg-red-50 text-red-600 text-[10.5px] font-extrabold px-3 py-0.5 rounded-full border border-red-200/60 shadow-sm flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3 text-red-500 animate-spin" style={{ animationDuration: "4s" }} /> YOUTUBE SHORTS ENGINE
+                </span>
+                <span className="text-slate-600 border border-slate-200/80 text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100/80">v2.0 PRO</span>
+                <span className="text-red-600 border border-red-200 bg-red-50/80 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">YouTube Shorts AI Lab</span>
+              </div>
+              <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-950 via-slate-900 to-red-600 bg-clip-text text-transparent">
+                YOUTUBE 쇼츠 AI
+              </h1>
+            </div>
           </div>
           <p className="text-slate-500 mt-2.5 text-sm md:text-base font-medium">
             텍스트 한 줄 또는 블로그 글 주소로 AI 대본을 만들고, 목업 시뮬레이터와 자동 렌더링 예약 업로드까지 원스톱으로 지원합니다.

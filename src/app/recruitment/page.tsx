@@ -378,26 +378,19 @@ export default function RecruitmentDashboardPage() {
       {/* 상단 헤더 영역 - 고대비 다크 텍스트 & 아이콘 매칭 */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 pb-6 border-b border-slate-200 relative z-10 shrink-0">
         <div className="flex items-center gap-4">
+          {/* 럭셔리 핑크-퍼플 그라디언트 엠블럼 */}
           <div 
-            className="p-3.5 rounded-2xl shadow-[0_8px_32px_rgba(249,31,127,0.15)] animate-pulse shrink-0"
+            className="p-3.5 rounded-2xl shadow-[0_8px_30px_rgba(249,31,127,0.15)] animate-pulse shrink-0 self-start sm:self-auto"
             style={{ background: 'linear-gradient(135deg, #f91f7f 0%, #e84e27 50%, #9b2bb4 100%)' }}
           >
             <Sparkles className="w-8 h-8 text-white" />
           </div>
           <div>
-            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-              <span 
-                className="text-white text-[10px] font-black px-3.5 py-1 rounded-full shadow-md flex items-center gap-1.5 uppercase tracking-wider"
-                style={{ background: 'linear-gradient(90deg, #f91f7f 0%, #9b2bb4 100%)' }}
-              >
-                <Heart className="w-3 h-3 text-white fill-white" /> Instagram AI Marketing Style
+            <div className="flex flex-wrap items-center gap-2 mb-1.5">
+              <span className="bg-pink-50 text-pink-600 text-[10.5px] font-extrabold px-3 py-0.5 rounded-full border border-pink-200/60 shadow-sm flex items-center gap-1.5">
+                <Sparkles className="w-3 h-3 text-pink-500 animate-spin" style={{ animationDuration: "4s" }} /> RECRUITMENT AI ENGINE
               </span>
-              <span 
-                className="text-[10px] font-black px-3 py-1 rounded-full bg-slate-800 border border-slate-900 shadow-sm"
-                style={{ color: '#ffffff' }}
-              >
-                DB Core Active
-              </span>
+              <span className="text-slate-600 border border-slate-200/80 text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100/80">v2.0 PRO</span>
             </div>
             <h1 
               className="text-3xl font-extrabold tracking-tight"
