@@ -6,7 +6,7 @@ import {
   TrendingUp, Plus, Trash2, Globe, Sparkles, Send, Bell, 
   HelpCircle, Settings, ShieldAlert, Cpu, CheckCircle2, ChevronRight, Play,
   Layers, Calendar, Search, RefreshCw, AlertTriangle, ArrowUpRight, ArrowDownLeft,
-  X, DollarSign, Eye, EyeOff, BarChart3, Info, Terminal, Activity, Copy, Check
+  X, DollarSign, Eye, EyeOff, BarChart3, Info, Terminal, Activity, Copy, Check, Zap
 } from "lucide-react";
 
 const CURRENCIES = ["USD", "EUR", "JPY", "CNY"];
