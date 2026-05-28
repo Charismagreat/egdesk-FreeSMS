@@ -105,7 +105,7 @@ export async function POST(req: Request) {
       const rawPrice1 = Math.floor(basePrice1 * priceScale * (0.96 + Math.random() * 0.05));
       candidates.push({
         site_name: '쿠팡 자율 수집망',
-        url: `https://www.coupang.com/vp/products/${Date.now() - 12345}?spec=${encodeURIComponent(cleanSpec)}`,
+        url: `https://www.coupang.com/np/search?q=${encodeURIComponent(query + (cleanSpec ? ' ' + cleanSpec : ''))}`,
         css_selector: 'span.total-price > strong',
         price: rawPrice1,
         price_krw: rawPrice1,
@@ -124,7 +124,7 @@ export async function POST(req: Request) {
       const rawPrice2 = Math.floor(basePrice2 * priceScale * (0.95 + Math.random() * 0.06));
       candidates.push({
         site_name: '네이버 스마트스토어 노드',
-        url: `https://smartstore.naver.com/egdesk-shop/products/${Date.now() - 54321}`,
+        url: `https://search.shopping.naver.com/search/all?query=${encodeURIComponent(query + (cleanSpec ? ' ' + cleanSpec : ''))}`,
         css_selector: 'span.price_val',
         price: rawPrice2,
         price_krw: rawPrice2,
@@ -147,8 +147,8 @@ export async function POST(req: Request) {
       candidates.push({
         site_name: targetSite,
         url: query.includes('아이폰') || isRaw 
-          ? `https://www.amazon.com/dp/B0D1234567?spec=${encodeURIComponent(cleanSpec)}`
-          : `https://www.aliexpress.com/item/${Date.now() - 999}.html`,
+          ? `https://www.amazon.com/s?k=${encodeURIComponent(query + (cleanSpec ? ' ' + cleanSpec : ''))}`
+          : `https://www.aliexpress.com/wholesale?SearchText=${encodeURIComponent(query + (cleanSpec ? ' ' + cleanSpec : ''))}`,
         css_selector: query.includes('아이폰') || isRaw ? 'span.a-price-whole' : 'span.product-price-value',
         price: rawPrice3,
         price_krw: convertedKrw3,
