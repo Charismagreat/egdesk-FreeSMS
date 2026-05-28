@@ -16,20 +16,87 @@ export async function GET() {
       
       let latestPrice = 0;
       let latestTime = '-';
+      let latestSiteName = '수집기 매핑 없음';
+
+      // 외화 계산을 위한 환율 가중치 조회 (fallback용으로 가져옴)
+      let usdRate = 1380;
+      let jpyRate = 8.8; // 100엔 기준
+      let eurRate = 1480;
+      let cnyRate = 190;
+      try {
+        const ratesRes = await queryTable('exchange_rates', {});
+        const rates = ratesRes.rows || [];
+        const usdObj = rates.find((r: any) => r.currency_code === 'USD');
+        if (usdObj) usdRate = Number(usdObj.current_rate || 1380);
+        const jpyObj = rates.find((r: any) => r.currency_code === 'JPY');
+        if (jpyObj) jpyRate = Number(jpyObj.current_rate || 880) / 100;
+        const eurObj = rates.find((r: any) => r.currency_code === 'EUR');
+        if (eurObj) eurRate = Number(eurObj.current_rate || 1480);
+        const cnyObj = rates.find((r: any) => r.currency_code === 'CNY');
+        if (cnyObj) cnyRate = Number(cnyObj.current_rate || 190);
+      } catch (rateErr) {
+        console.warn('exchange_rates 조회 실패 (기본값 작동):', rateErr);
+      }
+
+      const getKrwPrice = (price: number, currency: string) => {
+        if (!currency || currency === 'KRW') return price;
+        if (currency === 'USD') return price * usdRate;
+        if (currency === 'JPY') return price * jpyRate;
+        if (currency === 'EUR') return price * eurRate;
+        if (currency === 'CNY') return price * cnyRate;
+        return price;
+      };
 
       if (urls.length > 0) {
-        // 최신 가격 이력 단건 조회
-        const historyRes = await queryTable('price_histories', {
-          filters: { url_id: String(urls[0].url_id), status: 'SUCCESS' },
-          orderBy: 'captured_at',
-          orderDirection: 'DESC',
-          limit: 1
-        });
-        
-        const histories = historyRes.rows || [];
-        if (histories.length > 0) {
-          latestPrice = Number(histories[0].captured_price || 0);
-          latestTime = histories[0].captured_at || '-';
+        const activePrices: any[] = [];
+
+        for (const url of urls) {
+          const historyRes = await queryTable('price_histories', {
+            filters: { url_id: String(url.url_id), status: 'SUCCESS' },
+            orderBy: 'captured_at',
+            orderDirection: 'DESC',
+            limit: 1
+          });
+          const histories = historyRes.rows || [];
+          if (histories.length > 0) {
+            const rawPrice = Number(histories[0].captured_price || 0);
+            
+            // 수집된 화폐 정보는 target_urls나 price_histories에 명시되어 있지 않다면, site_name이나 url을 분석해서 알아낼 수 있다.
+            let currency = 'KRW';
+            const siteLower = (url.site_name || '').toLowerCase();
+            const urlLower = (url.target_url || '').toLowerCase();
+            if (siteLower.includes('아마존') || siteLower.includes('amazon') || siteLower.includes('알리') || siteLower.includes('aliexpress') || urlLower.includes('amazon.com') || urlLower.includes('aliexpress.com')) {
+              currency = 'USD';
+            }
+            
+            const krwPrice = getKrwPrice(rawPrice, currency);
+            activePrices.push({
+              price: rawPrice,
+              krwPrice: krwPrice,
+              time: histories[0].captured_at || '-',
+              siteName: url.site_name || '알 수 없음',
+              currency: currency
+            });
+          }
+        }
+
+        if (activePrices.length > 0) {
+          // 원화 환산가 기준 최저가(Min) 노드 색출!
+          const minPriceObj = activePrices.reduce((prev, curr) => prev.krwPrice < curr.krwPrice ? prev : curr);
+          
+          const itemCurrency = item.currency_code || 'KRW';
+          if (itemCurrency === 'KRW') {
+            latestPrice = minPriceObj.krwPrice;
+          } else {
+            // 품목 자체의 해외 통화 기준에 맞추어 역산해서 대입
+            if (itemCurrency === 'USD') latestPrice = Number((minPriceObj.krwPrice / usdRate).toFixed(2));
+            else if (itemCurrency === 'JPY') latestPrice = Number((minPriceObj.krwPrice / jpyRate).toFixed(2));
+            else if (itemCurrency === 'EUR') latestPrice = Number((minPriceObj.krwPrice / eurRate).toFixed(2));
+            else if (itemCurrency === 'CNY') latestPrice = Number((minPriceObj.krwPrice / cnyRate).toFixed(2));
+            else latestPrice = minPriceObj.price;
+          }
+          latestTime = minPriceObj.time;
+          latestSiteName = minPriceObj.siteName;
         }
       }
 
@@ -49,6 +116,7 @@ export async function GET() {
         ...item,
         latest_price: latestPrice,
         latest_captured_at: latestTime,
+        latest_site_name: latestSiteName,
         current_margin_rate: Number(currentMarginRate.toFixed(2)),
         collectors_count: urls.length
       };
