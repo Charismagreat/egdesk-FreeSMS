@@ -62,6 +62,38 @@ export function useExpenses() {
   // ⚡ 다중 선택 상태 추가 (거래 관리 AI 연동 스펙)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
+  // 📅 기간 조회 상태 탑재 (시작일자, 종료일자)
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+
+  // ⚡ 퀵 기간 피커 프리셋 계산 함수
+  const setQuickRange = (rangeType: 'today' | 'week' | 'month' | '3month' | 'clear') => {
+    const kstToday = new Date(Date.now() + 9 * 60 * 60 * 1000);
+    const todayStr = kstToday.toISOString().slice(0, 10);
+    
+    if (rangeType === 'clear') {
+      setStartDate("");
+      setEndDate("");
+      return;
+    }
+    
+    setEndDate(todayStr);
+    
+    const pastDate = new Date(kstToday);
+    if (rangeType === 'today') {
+      setStartDate(todayStr);
+    } else if (rangeType === 'week') {
+      pastDate.setDate(kstToday.getDate() - 7);
+      setStartDate(pastDate.toISOString().slice(0, 10));
+    } else if (rangeType === 'month') {
+      pastDate.setMonth(kstToday.getMonth() - 1);
+      setStartDate(pastDate.toISOString().slice(0, 10));
+    } else if (rangeType === '3month') {
+      pastDate.setMonth(kstToday.getMonth() - 3);
+      setStartDate(pastDate.toISOString().slice(0, 10));
+    }
+  };
+
   // 신규 등록 폼 (사장님의 지출결의서 실물 양식 필드 탑재)
   const [newExpense, setNewExpense] = useState({
     title: "",
@@ -100,11 +132,11 @@ export function useExpenses() {
     fetchExpenses();
   }, []);
 
-  // 검색/필터 변경 시 페이지 및 선택 상태 초기화
+  // 검색/필터/기간 변경 시 페이지 및 선택 상태 초기화
   useEffect(() => {
     setCurrentPage(1);
     setSelectedIds(new Set());
-  }, [searchQuery, activeCategoryFilter]);
+  }, [searchQuery, activeCategoryFilter, startDate, endDate]);
 
   // 설정 저장
   const handleSaveSettings = async (updatedSettings: ExpenseSettings) => {
@@ -318,10 +350,16 @@ export function useExpenses() {
   // 검색 및 필터링 적용 목록
   const filteredExpenses = expenses.filter(exp => {
     const matchesCategory = activeCategoryFilter === "ALL" || exp.category === activeCategoryFilter;
+    
+    // 기간 조회 필터 매칭
+    const matchesStartDate = !startDate || exp.expense_date >= startDate;
+    const matchesEndDate = !endDate || exp.expense_date <= endDate;
+    
     const lowerQuery = searchQuery.toLowerCase();
     const matchesSearch = exp.title.toLowerCase().includes(lowerQuery) || 
       (exp.memo && exp.memo.toLowerCase().includes(lowerQuery));
-    return matchesCategory && matchesSearch;
+      
+    return matchesCategory && matchesStartDate && matchesEndDate && matchesSearch;
   });
 
   // 장부 페이지네이션 연산
@@ -363,6 +401,11 @@ export function useExpenses() {
     setSelectedIds,
     toggleSelectAll,
     toggleSelect,
-    handleDeleteSelectedExpenses
+    handleDeleteSelectedExpenses,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    setQuickRange
   };
 }

@@ -42,7 +42,12 @@ export default function ExpenseManagementAiPage() {
     selectedIds,
     toggleSelectAll,
     toggleSelect,
-    handleDeleteSelectedExpenses
+    handleDeleteSelectedExpenses,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    setQuickRange
   } = useExpenses();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -547,9 +552,93 @@ export default function ExpenseManagementAiPage() {
                   )}
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                <div className="flex flex-col xl:flex-row items-center gap-3 w-full md:w-auto">
+                  
+                  {/* 📅 지출결의 일자 기간 조회 피커 (Calendar Icon + Input Date) */}
+                  <div className="flex items-center space-x-2 bg-white border border-slate-200 px-3.5 py-1.5 rounded-full w-full sm:w-auto shrink-0">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <input 
+                      type="date"
+                      value={startDate}
+                      onChange={e => setStartDate(e.target.value)}
+                      className="text-xs outline-none bg-transparent font-bold text-slate-700 border-none w-28 cursor-pointer focus:text-rose-500 transition-colors"
+                      title="조회 시작일자"
+                    />
+                    <span className="text-[10px] text-slate-400 font-extrabold whitespace-nowrap">~</span>
+                    <input 
+                      type="date"
+                      value={endDate}
+                      onChange={e => setEndDate(e.target.value)}
+                      className="text-xs outline-none bg-transparent font-bold text-slate-700 border-none w-28 cursor-pointer focus:text-rose-500 transition-colors"
+                      title="조회 종료일자"
+                    />
+                    
+                    {/* 기간 초기화 단추 */}
+                    {(startDate || endDate) && (
+                      <button 
+                        onClick={() => setQuickRange('clear')}
+                        className="text-[10px] font-black text-rose-500 hover:text-rose-700 cursor-pointer ml-1 transition-colors border-none bg-transparent p-0 flex items-center justify-center w-4 h-4 rounded-full hover:bg-rose-50"
+                        title="기간 검색 초기화"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+
+                  {/* ⚡ 퀵 기간 조회 템플릿 프리셋 칩 단추들 */}
+                  <div className="flex items-center gap-1.5 bg-slate-100/60 p-1 rounded-full w-full sm:w-auto justify-start shrink-0 border border-slate-200/50">
+                    <button 
+                      onClick={() => setQuickRange('today')}
+                      className={`px-2.5 py-1 rounded-full text-[9px] font-black border transition-all cursor-pointer ${
+                        startDate === new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10) && endDate === new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
+                          ? 'bg-rose-500 text-white border-rose-500 shadow-3xs'
+                          : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      오늘
+                    </button>
+                    <button 
+                      onClick={() => setQuickRange('week')}
+                      className={`px-2.5 py-1 rounded-full text-[9px] font-black border transition-all cursor-pointer ${
+                        startDate === new Date(Date.now() + 9 * 60 * 60 * 1000 - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+                          ? 'bg-rose-500 text-white border-rose-500 shadow-3xs'
+                          : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      1주일
+                    </button>
+                    <button 
+                      onClick={() => setQuickRange('month')}
+                      className={`px-2.5 py-1 rounded-full text-[9px] font-black border transition-all cursor-pointer ${
+                        startDate === (() => {
+                          const d = new Date(Date.now() + 9 * 60 * 60 * 1000);
+                          d.setMonth(d.getMonth() - 1);
+                          return d.toISOString().slice(0, 10);
+                        })()
+                          ? 'bg-rose-500 text-white border-rose-500 shadow-3xs'
+                          : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      1개월
+                    </button>
+                    <button 
+                      onClick={() => setQuickRange('3month')}
+                      className={`px-2.5 py-1 rounded-full text-[9px] font-black border transition-all cursor-pointer ${
+                        startDate === (() => {
+                          const d = new Date(Date.now() + 9 * 60 * 60 * 1000);
+                          d.setMonth(d.getMonth() - 3);
+                          return d.toISOString().slice(0, 10);
+                        })()
+                          ? 'bg-rose-500 text-white border-rose-500 shadow-3xs'
+                          : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      3개월
+                    </button>
+                  </div>
+
                   {/* 비목 필터 */}
-                  <div className="flex items-center space-x-1.5 bg-white border border-slate-200 px-3 py-1.5 rounded-full w-full sm:w-auto">
+                  <div className="flex items-center space-x-1.5 bg-white border border-slate-200 px-3 py-1.5 rounded-full w-full sm:w-auto shrink-0">
                     <span className="text-[9px] font-extrabold text-slate-500 whitespace-nowrap">비목:</span>
                     <select 
                       value={activeCategoryFilter}
@@ -564,11 +653,11 @@ export default function ExpenseManagementAiPage() {
                   </div>
 
                   {/* 둥근 검색바 (거래 관리 AI 스타일) */}
-                  <div className="relative w-full sm:w-48">
+                  <div className="relative w-full sm:w-40 shrink-0">
                     <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
                     <input 
                       type="text"
-                      placeholder="품명 또는 메모 검색..."
+                      placeholder="품명/메모 검색..."
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
                       className="w-full pl-9 pr-4 py-1.5 border border-slate-200 rounded-full focus:ring-2 focus:ring-rose-500 outline-none text-xs bg-white font-bold text-slate-800"
