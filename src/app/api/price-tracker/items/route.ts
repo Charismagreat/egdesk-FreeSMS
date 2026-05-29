@@ -118,7 +118,8 @@ export async function GET() {
         latest_captured_at: latestTime,
         latest_site_name: latestSiteName,
         current_margin_rate: Number(currentMarginRate.toFixed(2)),
-        collectors_count: urls.length
+        collectors_count: urls.length,
+        collectors_prices: activePrices
       };
     }));
 

@@ -17,16 +17,31 @@ export async function GET(req: Request) {
     const urls = urlsRes.rows || [];
 
     const enrichedUrls = await Promise.all(urls.map(async (url: any) => {
-      // 해당 URL의 최근 10건 가격 변동 이력 조회 (차트 렌더링 리소스)
+      // 해당 URL의 전체 가격 변동 이력 조회 (최신가 및 역대 최저가 추출용)
       const historyRes = await queryTable('price_histories', {
         filters: { url_id: String(url.url_id), status: 'SUCCESS' },
         orderBy: 'captured_at',
-        orderDirection: 'ASC', // 오름차순으로 정렬하여 차트 선 그리기 용이화
-        limit: 15
+        orderDirection: 'ASC', // 오름차순 정렬
+        limit: 1000
       });
+      const histories = historyRes.rows || [];
+
+      let latestPrice = null;
+      let minPrice = null;
+
+      if (histories.length > 0) {
+        latestPrice = histories[histories.length - 1].captured_price;
+        minPrice = Math.min(...histories.map((h: any) => Number(h.captured_price || 0)));
+      }
+
+      // 차트 렌더링 호환성을 위해 최근 15건만 쪼개어 전달
+      const chartHistory = histories.slice(-15);
+
       return {
         ...url,
-        history: historyRes.rows || []
+        latest_price: latestPrice,
+        min_price: minPrice,
+        history: chartHistory
       };
     }));
 
