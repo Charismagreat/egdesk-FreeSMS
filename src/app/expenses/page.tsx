@@ -1893,32 +1893,41 @@ export default function ExpenseManagementAiPage() {
                             })()}
                           </td>
                           <td className="p-4">
-                            <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-black border ${
-                              (() => {
-                                // 소분류가 어떤 대분류에 속하는지 동적으로 색상 계산
-                                let mainCat = "기타";
-                                for (const main of Object.keys(ACCOUNT_CATEGORIES)) {
-                                  for (const mid of Object.keys(ACCOUNT_CATEGORIES[main])) {
-                                    if (ACCOUNT_CATEGORIES[main][mid].includes(exp.category)) {
-                                      mainCat = main;
-                                      break;
-                                    }
+                            {(() => {
+                              // 소분류가 어떤 대분류, 중분류에 속하는지 동적으로 역산
+                              let mainCat = "기타";
+                              let midCat = "일반공통";
+                              for (const main of Object.keys(ACCOUNT_CATEGORIES)) {
+                                for (const mid of Object.keys(ACCOUNT_CATEGORIES[main])) {
+                                  if (ACCOUNT_CATEGORIES[main][mid].includes(exp.category)) {
+                                    mainCat = main;
+                                    midCat = mid;
+                                    break;
                                   }
-                                  if (mainCat !== "기타") break;
                                 }
-                                
-                                if (mainCat === "판매비와관리비") {
-                                  return "bg-blue-50 border-blue-100 text-blue-700";
-                                } else if (mainCat === "제조/물류원가") {
-                                  return "bg-amber-50 border-amber-100 text-amber-700";
-                                } else if (mainCat === "영업외비용") {
-                                  return "bg-purple-50 border-purple-100 text-purple-700";
-                                }
-                                return "bg-slate-100 border-slate-200 text-slate-700";
-                              })()
-                            }`}>
-                              {exp.category}
-                            </span>
+                                if (mainCat !== "기타") break;
+                              }
+                              
+                              const colorClass = {
+                                "판매비와관리비": "bg-blue-50 border-blue-100 text-blue-700",
+                                "제조/물류원가": "bg-amber-50 border-amber-100 text-amber-700",
+                                "영업외비용": "bg-purple-50 border-purple-100 text-purple-700",
+                                "기타": "bg-slate-100 border-slate-200 text-slate-700"
+                              }[mainCat] || "bg-slate-100 border-slate-200 text-slate-700";
+
+                              return (
+                                <div className="flex flex-col space-y-1.5 items-start">
+                                  <span className={`inline-flex px-1.5 py-0.5 rounded-md text-[8px] font-black border ${colorClass}`}>
+                                    {mainCat}
+                                  </span>
+                                  <div className="text-[10px] font-bold text-slate-450 flex items-center gap-0.5 leading-none">
+                                    <span>{midCat}</span>
+                                    <span className="text-slate-300 font-bold text-[8px] mx-0.5">〉</span>
+                                    <span className="text-slate-800 font-black">{exp.category}</span>
+                                  </div>
+                                </div>
+                              );
+                            })()}
                           </td>
                           <td className="p-4 text-right font-black text-slate-850 font-mono">
                             {exp.amount.toLocaleString()}원
