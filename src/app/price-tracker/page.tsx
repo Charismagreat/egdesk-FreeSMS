@@ -3166,6 +3166,26 @@ export default function PriceTrackerAIPage() {
                                 </span>
                               </div>
 
+                              <div className="flex items-center gap-1.5 my-1">
+                                {(() => {
+                                  const isDetail = cand.is_detail === 1 || 
+                                                  (cand.url || '').includes('gate.nhn') || 
+                                                  (cand.url || '').includes('products/') || 
+                                                  (cand.url || '').includes('/vp/') || 
+                                                  (cand.url || '').includes('/item/') || 
+                                                  (cand.url || '').includes('/dp/');
+                                  return isDetail ? (
+                                    <span className="text-[8px] font-black bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded border border-emerald-100 flex items-center gap-0.5">
+                                      🎯 진짜 상품상세 직통 연결
+                                    </span>
+                                  ) : (
+                                    <span className="text-[8px] font-black bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">
+                                      🔍 통합 검색 리스트로 연결
+                                    </span>
+                                  );
+                                })()}
+                              </div>
+
                               <div className="space-y-1 bg-white p-2 rounded-xl border border-slate-200/50">
                                 <div className="text-[10px] font-semibold text-slate-400">포착 시세 및 통화</div>
                                 <div className="text-xs font-black text-slate-800">
