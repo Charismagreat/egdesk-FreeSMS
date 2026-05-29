@@ -118,11 +118,12 @@ export default function ExpenseManagementAiPage() {
           <p className="font-extrabold text-slate-500 text-sm">지출 대장 및 AI 통계 정보를 계산하는 중입니다...</p>
         </div>
       ) : (
-        /* PC 전용 2열 고정 그리드 배치 */
-        <div className="grid grid-cols-2 gap-6 items-start">
-          
-          {/* ================= 좌측 열 (AI 영수증 분석 & 예산 소모율) ================= */}
-          <div className="space-y-6">
+        <div className="space-y-6">
+          {/* 상단 2열 배치 (설정 및 AI 스캔 영역) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            
+            {/* ================= 좌측 열 (AI 영수증 분석 & 예산 소모율) ================= */}
+            <div className="space-y-6">
             
             {/* 1. 월간 예산 소모 현황 전광판 */}
             <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-white p-6 rounded-3xl shadow-lg relative overflow-hidden border border-slate-800">
@@ -316,7 +317,7 @@ export default function ExpenseManagementAiPage() {
 
           </div>
 
-          {/* ================= 우측 열 (SMS 알림 설정 & 지출 장부) ================= */}
+          {/* ================= 우측 열 (SMS 알림 설정) ================= */}
           <div className="space-y-6">
             
             {/* 3. 🚨 예산 초과 방지 커스텀 SMS 알림 설정 제어판 */}
@@ -435,8 +436,13 @@ export default function ExpenseManagementAiPage() {
               </div>
             )}
 
-            {/* 4. 📋 지출 장부 관리 대장 테이블 (거래 관리 AI 정밀 조회 및 일괄 연동 패킹) */}
-            <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden space-y-0">
+          </div> {/* 우측 열 닫기 */}
+
+        </div> {/* 상단 2열 그리드 닫기 */}
+
+        {/* ================= 하단 1열 가로 전체 폭 배치 (지출 장부 대장) ================= */}
+        {/* 4. 📋 지출 장부 관리 대장 테이블 (거래 관리 AI 정밀 조회 및 일괄 연동 패킹) */}
+        <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden space-y-0 w-full">
               
               {/* 상단 통합 대장 컨트롤 바 */}
               <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -664,9 +670,7 @@ export default function ExpenseManagementAiPage() {
             </div>
 
           </div>
-
-        </div>
-      )}
+        )}
       
       {/* 하단 시스템 도움 배너 */}
       <div className="bg-slate-100/80 border border-slate-200 p-4 rounded-2xl flex items-start gap-3 shadow-2xs">
