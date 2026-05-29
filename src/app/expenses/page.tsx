@@ -122,54 +122,8 @@ export default function ExpenseManagementAiPage() {
           {/* 상단 2열 배치 (설정 및 AI 스캔 영역) */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
             
-            {/* ================= 좌측 열 (AI 영수증 분석 & 예산 소모율) ================= */}
+            {/* ================= 좌측 열 (AI 영수증 스캔 & 검수 집중) ================= */}
             <div className="space-y-6">
-            
-            {/* 1. 월간 예산 소모 현황 전광판 */}
-            <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-white p-6 rounded-3xl shadow-lg relative overflow-hidden border border-slate-800">
-              <div className="absolute top-0 right-0 p-4 opacity-10">
-                <TrendingDown className="w-32 h-32 text-white" />
-              </div>
-              
-              <div className="relative z-10 flex justify-between items-center mb-4">
-                <div>
-                  <p className="text-xs text-slate-400 font-extrabold uppercase tracking-wider">이달의 누적 지출 현황 ({stats?.currentMonth}월)</p>
-                  <h3 className="text-3xl font-black mt-1 font-mono tracking-tight text-white">
-                    {stats?.currentMonthTotal.toLocaleString()} <span className="text-sm font-bold text-slate-350">원</span>
-                  </h3>
-                </div>
-                
-                {/* 동적 예산 달성 백분율 배지 */}
-                <div className={`px-3.5 py-1.5 rounded-full font-black text-xs shadow-md ${
-                  (stats?.budgetConsumptionRate || 0) >= 90 
-                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 animate-pulse' 
-                    : (stats?.budgetConsumptionRate || 0) >= 70
-                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                    : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                }`}>
-                  소모율 {stats?.budgetConsumptionRate}%
-                </div>
-              </div>
-
-              {/* 예산 프로그래스 바 (상태별 동적 컬러 적용) */}
-              <div className="relative w-full h-3 bg-slate-800 rounded-full overflow-hidden shadow-inner mb-3">
-                <div 
-                  className={`h-full rounded-full transition-all duration-700 ${
-                    (stats?.budgetConsumptionRate || 0) >= 90
-                      ? 'bg-gradient-to-r from-rose-500 to-orange-500'
-                      : (stats?.budgetConsumptionRate || 0) >= 70
-                      ? 'bg-gradient-to-r from-amber-500 to-yellow-500'
-                      : 'bg-gradient-to-r from-emerald-500 to-teal-500'
-                  }`}
-                  style={{ width: `${Math.min(stats?.budgetConsumptionRate || 0, 100)}%` }}
-                ></div>
-              </div>
-
-              <div className="flex justify-between items-center text-xs text-slate-400 font-bold">
-                <span>예산 한도: {stats?.monthlyBudget.toLocaleString()}원</span>
-                <span>잔여 가능 예산: {Math.max((stats?.monthlyBudget || 0) - (stats?.currentMonthTotal || 0), 0).toLocaleString()}원</span>
-              </div>
-            </div>
 
             {/* 2. 📷 AI 영수증 자율 스캔 드롭존 & 검수 폼 */}
             <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-4">
@@ -317,8 +271,54 @@ export default function ExpenseManagementAiPage() {
 
           </div>
 
-          {/* ================= 우측 열 (SMS 알림 설정) ================= */}
+          {/* ================= 우측 열 (예산 현황 & SMS 경보 비서 통합) ================= */}
           <div className="space-y-6">
+
+            {/* 1. 월간 예산 소모 현황 전광판 (우측 열 상단 대이동) */}
+            <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-white p-6 rounded-3xl shadow-lg relative overflow-hidden border border-slate-800">
+              <div className="absolute top-0 right-0 p-4 opacity-10">
+                <TrendingDown className="w-32 h-32 text-white" />
+              </div>
+              
+              <div className="relative z-10 flex justify-between items-center mb-4">
+                <div>
+                  <p className="text-xs text-slate-400 font-extrabold uppercase tracking-wider">이달의 누적 지출 현황 ({stats?.currentMonth}월)</p>
+                  <h3 className="text-3xl font-black mt-1 font-mono tracking-tight text-white">
+                    {stats?.currentMonthTotal.toLocaleString()} <span className="text-sm font-bold text-slate-350">원</span>
+                  </h3>
+                </div>
+                
+                {/* 동적 예산 달성 백분율 배지 */}
+                <div className={`px-3.5 py-1.5 rounded-full font-black text-xs shadow-md ${
+                  (stats?.budgetConsumptionRate || 0) >= 90 
+                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 animate-pulse' 
+                    : (stats?.budgetConsumptionRate || 0) >= 70
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                    : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                }`}>
+                  소모율 {stats?.budgetConsumptionRate}%
+                </div>
+              </div>
+
+              {/* 예산 프로그래스 바 (상태별 동적 컬러 적용) */}
+              <div className="relative w-full h-3 bg-slate-800 rounded-full overflow-hidden shadow-inner mb-3">
+                <div 
+                  className={`h-full rounded-full transition-all duration-700 ${
+                    (stats?.budgetConsumptionRate || 0) >= 90
+                      ? 'bg-gradient-to-r from-rose-500 to-orange-500'
+                      : (stats?.budgetConsumptionRate || 0) >= 70
+                      ? 'bg-gradient-to-r from-amber-500 to-yellow-500'
+                      : 'bg-gradient-to-r from-emerald-500 to-teal-500'
+                  }`}
+                  style={{ width: `${Math.min(stats?.budgetConsumptionRate || 0, 100)}%` }}
+                ></div>
+              </div>
+
+              <div className="flex justify-between items-center text-xs text-slate-400 font-bold">
+                <span>예산 한도: {stats?.monthlyBudget.toLocaleString()}원</span>
+                <span>잔여 가능 예산: {Math.max((stats?.monthlyBudget || 0) - (stats?.currentMonthTotal || 0), 0).toLocaleString()}원</span>
+              </div>
+            </div>
             
             {/* 3. 🚨 예산 초과 방지 커스텀 SMS 알림 설정 제어판 */}
             {tempSettings && (
