@@ -55,7 +55,8 @@ export default function ExpenseManagementAiPage() {
     handleBulkAddCategories,
     handleDeleteCategory,
     handleAddTag,
-    handleDeleteTag
+    handleDeleteTag,
+    autocompleteData
   } = useExpenses();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -108,6 +109,57 @@ export default function ExpenseManagementAiPage() {
   const [isSubmittingCat, setIsSubmittingCat] = React.useState(false);
   const [isSubmittingTag, setIsSubmittingTag] = React.useState(false);
   const [isExcelUploading, setIsExcelUploading] = React.useState(false);
+
+  // 🏷️ 적요란 '@' 지능형 자동완성 제어용 상태
+  const [showSuggestions, setShowSuggestions] = React.useState(false);
+  const [searchWord, setSearchWord] = React.useState("");
+  const [atIndex, setAtIndex] = React.useState(-1);
+  const [activeSuggestIndex, setActiveSuggestIndex] = React.useState(0);
+
+  // 전체 자동완성 후보군 취합
+  const allSuggestItems = React.useMemo(() => {
+    if (!autocompleteData) return [];
+    const items: Array<{ label: string; value: string; type: 'partner' | 'staff' | 'department' | 'project' }> = [];
+    
+    if (autocompleteData.staff) {
+      autocompleteData.staff.forEach(name => {
+        items.push({ label: name, value: name, type: 'staff' });
+      });
+    }
+    if (autocompleteData.departments) {
+      autocompleteData.departments.forEach(name => {
+        items.push({ label: name, value: name, type: 'department' });
+      });
+    }
+    if (autocompleteData.partners) {
+      autocompleteData.partners.forEach(name => {
+        items.push({ label: name, value: name, type: 'partner' });
+      });
+    }
+    if (autocompleteData.projects) {
+      autocompleteData.projects.forEach(name => {
+        items.push({ label: name, value: name, type: 'project' });
+      });
+    }
+    return items;
+  }, [autocompleteData]);
+
+  // 필터링된 추천 항목 목록 연산
+  const filteredSuggestions = React.useMemo(() => {
+    if (!showSuggestions) return [];
+    const cleanWord = searchWord.toLowerCase().trim();
+    if (!cleanWord) {
+      // 검색어가 비어있을 땐 각 분야별 대표 항목들만 추려서 균형있게 노출
+      const staffGroup = allSuggestItems.filter(i => i.type === 'staff').slice(0, 3);
+      const deptGroup = allSuggestItems.filter(i => i.type === 'department').slice(0, 3);
+      const partnerGroup = allSuggestItems.filter(i => i.type === 'partner').slice(0, 3);
+      const projGroup = allSuggestItems.filter(i => i.type === 'project').slice(0, 3);
+      return [...staffGroup, ...deptGroup, ...partnerGroup, ...projGroup];
+    }
+    return allSuggestItems.filter(item => 
+      item.label.toLowerCase().includes(cleanWord)
+    );
+  }, [allSuggestItems, showSuggestions, searchWord]);
 
   // newExpense.category (소분류) 변경 시 대분류/중분류 역동기화 추적
   React.useEffect(() => {
@@ -186,6 +238,83 @@ export default function ExpenseManagementAiPage() {
       ...prev,
       memo: tags.join(", ")
     }));
+  };
+
+  // 🏷️ 적요란 textarea 제어용 레퍼런스
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+
+  // 자동완성 항목 선택 적용 핸들러
+  const selectSuggestion = (item: { label: string; value: string; type: string }) => {
+    const value = newExpense.title;
+    const cursorPos = textareaRef.current?.selectionStart || 0;
+    
+    const textBefore = value.slice(0, atIndex);
+    const textAfter = value.slice(cursorPos);
+    
+    // 치환용 문자열: @명칭 + 공백 한 칸 추가 (타이핑 연속성 보장)
+    const replacement = `@${item.label} `;
+    const newValue = textBefore + replacement + textAfter;
+    
+    setNewExpense(prev => ({ ...prev, title: newValue }));
+    setShowSuggestions(false);
+    
+    // 치환 완료 후 즉시 커서 포커스를 치환된 문자 뒤로 정밀 회복시킴
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        const newCursorPos = atIndex + replacement.length;
+        textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+      }
+    }, 10);
+  };
+
+  // textarea 실시간 @ 입력 감지 리스너
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    const cursorPos = e.target.selectionStart;
+    
+    setNewExpense({ ...newExpense, title: value });
+    
+    // 커서 앞쪽 텍스트 슬라이싱
+    const beforeCursor = value.slice(0, cursorPos);
+    const lastAtIdx = beforeCursor.lastIndexOf("@");
+    
+    if (lastAtIdx !== -1) {
+      // '@' 기호부터 커서 사이의 문자열을 확인
+      const wordAfterAt = beforeCursor.slice(lastAtIdx + 1);
+      // 공백 문자가 중간에 섞여있는지 확인
+      const hasSpace = /\s/.test(wordAfterAt);
+      
+      if (!hasSpace) {
+        // 자동완성 기동 활성화!
+        setShowSuggestions(true);
+        setSearchWord(wordAfterAt);
+        setAtIndex(lastAtIdx);
+        setActiveSuggestIndex(0);
+        return;
+      }
+    }
+    
+    setShowSuggestions(false);
+  };
+
+  // textarea 내 키보드 조작 인터셉트 리스너
+  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!showSuggestions || filteredSuggestions.length === 0) return;
+    
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveSuggestIndex(prev => (prev + 1) % filteredSuggestions.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveSuggestIndex(prev => (prev - 1 + filteredSuggestions.length) % filteredSuggestions.length);
+    } else if (e.key === "Enter" || e.key === "Tab") {
+      e.preventDefault();
+      selectSuggestion(filteredSuggestions[activeSuggestIndex]);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setShowSuggestions(false);
+    }
   };
 
   // 계정과목 추가 핸들러
@@ -504,15 +633,48 @@ export default function ExpenseManagementAiPage() {
 
                 <div className="grid grid-cols-3 gap-3.5">
                   {/* 적요 (지출 용도 및 상세 내역) */}
-                  <div className="col-span-3">
+                  <div className="col-span-3 relative">
                     <label className="block text-[10px] font-extrabold text-slate-500 mb-1">적요 (지출 용도 및 상세 내역) *</label>
                     <textarea 
+                      ref={textareaRef}
                       rows={3}
                       placeholder="예: 대신정기화물 택배발송비&#10;1) 효성 1공장 1 BOX&#10;2) 동우일렉트릭 1 BOX"
                       value={newExpense.title}
-                      onChange={e => setNewExpense({ ...newExpense, title: e.target.value })}
+                      onChange={handleTextareaChange}
+                      onKeyDown={handleTextareaKeyDown}
                       className="w-full border border-slate-250 rounded-xl px-3.5 py-2.5 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-800 resize-none leading-relaxed"
                     />
+
+                    {/* 🏷️ 지능형 자동완성 플로팅 보드 가동 */}
+                    {showSuggestions && filteredSuggestions.length > 0 && (
+                      <div className="absolute left-0 right-0 mt-1 bg-white/95 backdrop-blur-md border border-slate-200 rounded-xl shadow-lg max-h-[160px] overflow-y-auto z-50 divide-y divide-slate-100/50">
+                        {filteredSuggestions.map((item, index) => {
+                          const typeBadge = {
+                            staff: { label: "임직원", class: "bg-blue-50 text-blue-600 border-blue-100" },
+                            department: { label: "사내부서", class: "bg-emerald-50 text-emerald-600 border-emerald-100" },
+                            partner: { label: "거래처", class: "bg-rose-50 text-rose-600 border-rose-100" },
+                            project: { label: "프로젝트", class: "bg-indigo-50 text-indigo-600 border-indigo-100" }
+                          }[item.type];
+
+                          return (
+                            <div
+                              key={`${item.type}-${item.value}-${index}`}
+                              onClick={() => selectSuggestion(item)}
+                              className={`flex items-center justify-between p-2.5 cursor-pointer text-[10.5px] font-extrabold transition-all ${
+                                index === activeSuggestIndex 
+                                  ? 'bg-rose-50/70 text-rose-600' 
+                                  : 'text-slate-700 hover:bg-slate-50'
+                              }`}
+                            >
+                              <span className="truncate">{item.label}</span>
+                              <span className={`px-1.5 py-0.5 rounded text-[8px] font-black border uppercase tracking-wide shrink-0 ${typeBadge.class}`}>
+                                {typeBadge.label}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
 
                   {/* 계정과목 대/중/소 3단계 동적 연동 셀렉터 */}

@@ -127,6 +127,29 @@ export function useExpenses() {
   const [isLoadingCategories, setIsLoadingCategories] = useState(false);
   const [isLoadingTags, setIsLoadingTags] = useState(false);
 
+  const [autocompleteData, setAutocompleteData] = useState<{
+    partners: string[];
+    staff: string[];
+    departments: string[];
+    projects: string[];
+  }>({ partners: [], staff: [], departments: [], projects: [] });
+  const [isLoadingAutocomplete, setIsLoadingAutocomplete] = useState(false);
+
+  const fetchAutocompleteData = async () => {
+    setIsLoadingAutocomplete(true);
+    try {
+      const res = await fetch("/api/expenses/autocomplete");
+      const json = await res.json();
+      if (json.success) {
+        setAutocompleteData(json.data);
+      }
+    } catch (e) {
+      console.error("자동완성 데이터 로드 오류:", e);
+    } finally {
+      setIsLoadingAutocomplete(false);
+    }
+  };
+
   const fetchCategories = async () => {
     setIsLoadingCategories(true);
     try {
@@ -270,6 +293,7 @@ export function useExpenses() {
     fetchExpenses();
     fetchCategories();
     fetchTags();
+    fetchAutocompleteData();
   }, []);
 
   // 검색/필터/기간 변경 시 페이지 및 선택 상태 초기화
@@ -556,6 +580,8 @@ export function useExpenses() {
     handleBulkAddCategories,
     handleDeleteCategory,
     handleAddTag,
-    handleDeleteTag
+    handleDeleteTag,
+    autocompleteData,
+    fetchAutocompleteData
   };
 }
