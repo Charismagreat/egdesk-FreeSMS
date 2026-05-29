@@ -125,6 +125,10 @@ export default function ExpenseManagementAiPage() {
   const [userRole, setUserRole] = React.useState<string>("SUB_OPERATOR");
   const [editExpense, setEditExpense] = React.useState<any | null>(null); // 수정 모달 제어용
   
+  const isApproved = editExpense?.approval_status === "APPROVED";
+  const isTransferOrCash = editExpense ? ["계좌송금", "계좌이체", "현금"].includes(editExpense.payment_method) : false;
+  const isEditable = isApproved && isTransferOrCash;
+  
   React.useEffect(() => {
     if (typeof window !== "undefined") {
       try {
@@ -2362,16 +2366,11 @@ export default function ExpenseManagementAiPage() {
       )}
 
       {/* 📝 최고관리자 전용 지출결의서 장부 수정 팝업 모달 */}
-      {editExpense && (() => {
-        const isApproved = editExpense.approval_status === 'APPROVED';
-        const isTransferOrCash = ['계좌송금', '계좌이체', '현금'].includes(editExpense.payment_method);
-        const isEditable = isApproved && isTransferOrCash;
-
-        return (
-          <div 
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[90] flex items-center justify-center p-4 transition-all duration-300 animate-fade-in text-left"
-            onClick={() => setEditExpense(null)}
-          >
+      {editExpense && (
+        <div 
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[90] flex items-center justify-center p-4 transition-all duration-300 animate-fade-in text-left"
+          onClick={() => setEditExpense(null)}
+        >
           <div 
             className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-150 transform transition-all duration-300 animate-scale-up"
             onClick={e => e.stopPropagation()}
@@ -2712,8 +2711,8 @@ export default function ExpenseManagementAiPage() {
               </button>
             </div>
           </div>
-        );
-      })()}
+        </div>
+      )}
 
     </div>
   );
