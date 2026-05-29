@@ -52,6 +52,29 @@ export class GoogleMessagesAutomation {
       fs.mkdirSync(this.userDataDir, { recursive: true });
     }
 
+    // Windows 환경에서 지정 기기 프로필을 사용 중인 좀비 프로세스 핀포인트 강제 사살 (SingletonLock 점유 해제)
+    if (process.platform === 'win32') {
+      try {
+        console.log(`[GoogleMessages-${this.deviceId}] Windows 좀비 Playwright 브라우저 프로세스 저격 소탕 가드 기동...`);
+        const { execSync } = require('child_process');
+        
+        // 1순위: PowerShell을 활용한 프로필 파라미터 매칭 좀비 사살 (일반 크롬 보호)
+        const psCommand = `powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \\"CommandLine like '%playwright-profile-${this.deviceId}%'\\" | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"`;
+        execSync(psCommand, { stdio: 'ignore' });
+        console.log(`[GoogleMessages-${this.deviceId}] 1순위 좀비 프로세스 저격 소탕 완료.`);
+      } catch (procErr: any) {
+        // 2순위: WMIC 기반 Fallback 프로세스 종료 기동
+        try {
+          const { execSync } = require('child_process');
+          const wmicCommand = `wmic process where "CommandLine like '%playwright-profile-${this.deviceId}%'" call terminate`;
+          execSync(wmicCommand, { stdio: 'ignore' });
+          console.log(`[GoogleMessages-${this.deviceId}] 2순위 WMIC Fallback 프로세스 종료 성공.`);
+        } catch (wmicErr) {
+          console.log(`[GoogleMessages-${this.deviceId}] 좀비 프로세스 소탕 가드 건너뜀 (프로세스 미존재 혹은 권한 제한).`);
+        }
+      }
+    }
+
     // Windows 환경에서 비정상 종료 시 남아있는 프로필 Lock 파일 제거 시도
     const lockFile = path.join(this.userDataDir, 'SingletonLock');
     if (fs.existsSync(lockFile)) {

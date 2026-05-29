@@ -115,95 +115,215 @@ export async function POST(req: Request) {
     const searchUrl = `https://msearch.shopping.naver.com/search/all?query=${encodeURIComponent(query + (cleanSpec ? ' ' + cleanSpec : ''))}`;
 
     // ============================================================
-    // 1️⃣ [1순위] 초고속 경량 모바일 fetch HTML 스크래퍼 기동 (차단 감지 0%)
+    // 1️⃣ [1순위] 다나와 가격비교(`search.danawa.com`) 초고속 차단 우회 스캔 기동 (차단 감지 0%)
     // ============================================================
+    const danawaSearchUrl = `https://search.danawa.com/dsearch.php?query=${encodeURIComponent(query + (cleanSpec ? ' ' + cleanSpec : ''))}`;
     try {
-      console.log(`📡 [AI-Search-Miner] 네이티브 fetch 모바일 우회 스캔 기동 ➡️ ${searchUrl}`);
-      const fetchRes = await fetch(searchUrl, {
+      console.log(`📡 [AI-Search-Miner] 다나와 가격비교 초고속 우회 스캔 기동 ➡️ ${danawaSearchUrl}`);
+      const danawaRes = await fetch(danawaSearchUrl, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-          'Accept-Language': 'ko,en-US;q=0.9,en;q=0.8'
+          'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7'
         },
         next: { revalidate: 0 }
       });
 
-      if (fetchRes.ok) {
-        const html = await fetchRes.text();
-        
-        // A. __NEXT_DATA__ JSON 추출 (Next.js 완벽한 구조화 데이터 상자)
-        const nextDataMatch = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/);
-        if (nextDataMatch && nextDataMatch[1]) {
-          try {
-            const jsonData = JSON.parse(nextDataMatch[1]);
-            const products = jsonData.props?.pageProps?.initialState?.products?.list || 
-                             jsonData.props?.pageProps?.initialProps?.initialState?.products?.list || [];
-            
-            if (Array.isArray(products) && products.length > 0) {
-              console.log(`🎉 [AI-Search-Miner] fetch __NEXT_DATA__ 파싱 대성공! 상품 ${products.length}개 추출 완료.`);
+      if (danawaRes.ok) {
+        const html = await danawaRes.text();
+        const itemRegex = /<li[^>]*class="[^"]*prod_item[^"]*"[\s\S]*?<\/li>/g;
+        const matches = html.match(itemRegex) || [];
+        console.log(`🎉 [AI-Search-Miner] 다나와 스캔 성공! 후보 상품 ${matches.length}개 포착.`);
+
+        const danawaProducts = [];
+        // 다나와 검색 결과에서 가장 1순위 대표 상품 추출 (매칭 정확도가 가장 높은 1순위 상품)
+        const firstMatch = matches[0];
+        if (firstMatch) {
+          const priceMatch = firstMatch.match(/id="min_price_(\d+)"\s+value="(\d+)"/);
+          const imgAltMatch = firstMatch.match(/<img[^>]*alt=['"]([^'"]*)['"]/);
+
+          if (priceMatch) {
+            const productId = priceMatch[1];
+            const basePrice = parseInt(priceMatch[2], 10) || 0;
+            let title = imgAltMatch ? imgAltMatch[1].replace(/<[^>]*>/g, '').trim() : `${query} ${cleanSpec}`;
+            if (title.length < 5) {
+              title = `${query} (${title})`;
+            }
+
+            const detailUrl = `https://prod.danawa.com/info/?pcode=${productId}`;
+            console.log(`📡 [AI-Search-Miner] 다나와 상품 상세 2차 실시간 스캔 가동 ➡️ ${detailUrl}`);
+            try {
+              const detailRes = await fetch(detailUrl, {
+                headers: {
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+                  'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7'
+                },
+                next: { revalidate: 0 }
+              });
+
+              if (detailRes.ok) {
+                const detailHtml = await detailRes.text();
+                // list-item (쇼핑몰 최저가 리스트 행) 추출
+                const itemRegex = /<li[^>]*class="[^"]*list-item[^"]*"[\s\S]*?<\/li>/g;
+                const detailMatches = detailHtml.match(itemRegex) || [];
+                console.log(`🎉 [AI-Search-Miner] 다나와 상세 파싱 성공! 쇼핑몰 최저가 ${detailMatches.length}개 포착.`);
+
+                let parsedCount = 0;
+                for (const itemHtml of detailMatches) {
+                  if (parsedCount >= 3) break; // 최대 3개 쇼핑몰 최저가만 수집
+
+                  const urlMatch = itemHtml.match(/href=['"]([^'"]*bridge\/loadingBridge\.html[^'"]*)['"]/);
+                  if (!urlMatch) continue;
+
+                  const rawBridgeUrl = urlMatch[1].replace(/&amp;/g, '&');
+                  // 절대 경로 주소 보정
+                  const finalBridgeUrl = rawBridgeUrl.startsWith('http') ? rawBridgeUrl : `https:${rawBridgeUrl}`;
+
+                  const logoImgAltMatch = itemHtml.match(/<img[^>]*alt=['"]([^'"]*)['"]/);
+                  const textLogoMatch = itemHtml.match(/class=['"]text__logo['"][^>]*>([^<]*)<\/span>/) ||
+                                        itemHtml.match(/aria-label=['"]([^'"]*)['"][^>]*class=['"]text__logo['"]/) ||
+                                        itemHtml.match(/class=['"]text__logo['"][^>]*aria-label=['"]([^'"]*)['"]/);
+
+                  let mallName = '';
+                  if (logoImgAltMatch && logoImgAltMatch[1]) {
+                    mallName = logoImgAltMatch[1].trim();
+                  } else if (textLogoMatch && textLogoMatch[1]) {
+                    mallName = textLogoMatch[1].trim();
+                  } else {
+                    mallName = '온라인몰';
+                  }
+
+                  const detailPriceMatch = itemHtml.match(/class=['"]text__num['"]>([^<]*)<\/span>/);
+                  const price = detailPriceMatch ? parseInt(detailPriceMatch[1].replace(/[^\d]/g, ''), 10) : basePrice;
+
+                  danawaProducts.push({
+                    title: `${title} (${mallName})`,
+                    url: finalBridgeUrl,
+                    price: price,
+                    mallName: mallName
+                  });
+                  parsedCount++;
+                }
+              }
+            } catch (detailErr: any) {
+              console.warn('⚠️ [AI-Search-Miner] 다나와 상세 2차 스캔 실패, 기본 폴백 기동:', detailErr.message);
+            }
+
+            // [더블 세이프티 가드] 만약 상세 스캔이 무산되었거나 쇼핑몰 목록이 비어 있다면 기존 다나와 중개 링크를 폴백 주입
+            if (danawaProducts.length === 0) {
+              danawaProducts.push({
+                title,
+                url: detailUrl,
+                price: basePrice,
+                mallName: '다나와 최저가망'
+              });
+            }
+          }
+        }
+
+        if (danawaProducts.length > 0) {
+          crawledItems.push(...danawaProducts);
+          crawlSuccess = true;
+          console.log(`🎉 [AI-Search-Miner] 다나와 데이터 ${danawaProducts.length}개 완착 바인딩 완료.`);
+        }
+      }
+    } catch (danawaErr: any) {
+      console.warn('⚠️ [AI-Search-Miner] 다나와 우회 스캔 실패:', danawaErr.message);
+    }
+
+    // ============================================================
+    // 2️⃣ [2순위] 초고속 경량 모바일 fetch HTML 스크래퍼 기동 (다나와 실패 시 Fallback)
+    // ============================================================
+    if (!crawlSuccess) {
+      try {
+        console.log(`📡 [AI-Search-Miner] 네이티브 fetch 모바일 우회 스캔 기동 ➡️ ${searchUrl}`);
+        const fetchRes = await fetch(searchUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'ko,en-US;q=0.9,en;q=0.8'
+          },
+          next: { revalidate: 0 }
+        });
+
+        if (fetchRes.ok) {
+          const html = await fetchRes.text();
+          
+          // A. __NEXT_DATA__ JSON 추출 (Next.js 완벽한 구조화 데이터 상자)
+          const nextDataMatch = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/);
+          if (nextDataMatch && nextDataMatch[1]) {
+            try {
+              const jsonData = JSON.parse(nextDataMatch[1]);
+              const products = jsonData.props?.pageProps?.initialState?.products?.list || 
+                               jsonData.props?.pageProps?.initialProps?.initialState?.products?.list || [];
               
-              const validProducts = products.slice(0, 3).map((p: any) => {
-                const item = p.item || p;
-                const title = item.productName || item.title || '';
+              if (Array.isArray(products) && products.length > 0) {
+                console.log(`🎉 [AI-Search-Miner] fetch __NEXT_DATA__ 파싱 대성공! 상품 ${products.length}개 추출 완료.`);
                 
-                // 포워딩 결제 게이트 URL
-                let url = item.crUrl || item.cpcUrl || item.mallProductUrl || '';
+                const validProducts = products.slice(0, 3).map((p: any) => {
+                  const item = p.item || p;
+                  const title = item.productName || item.title || '';
+                  
+                  // 포워딩 결제 게이트 URL
+                  let url = item.crUrl || item.cpcUrl || item.mallProductUrl || '';
+                  if (url && url.startsWith('/')) {
+                    url = 'https://msearch.shopping.naver.com' + url;
+                  }
+                  
+                  const price = Number(item.price || item.lowPrice || 0);
+                  const mallName = item.mallName || item.channelName || '네이버 최저가스토어';
+                  
+                  return { title, url, price, mallName };
+                }).filter(p => p.title && p.price > 0);
+
+                if (validProducts.length > 0) {
+                  crawledItems.push(...validProducts);
+                  crawlSuccess = true;
+                }
+              }
+            } catch (jsonErr) {
+              console.warn('⚠️ [AI-Search-Miner] __NEXT_DATA__ JSON 파싱 실패, 정규식 대체 기동:', jsonErr);
+            }
+          }
+          
+          // B. JSON 실패 시 HTML 정규식 기반 추출
+          if (crawledItems.length === 0) {
+            const itemRegex = /<li[^>]*class="[^"]*product_item[^"]*"[\s\S]*?<\/li>/g;
+            const matches = html.match(itemRegex) || [];
+            
+            console.log(`📡 [AI-Search-Miner] HTML 정규식 매칭 시도 ➡️ 후보군 ${matches.length}개 포착.`);
+            
+            for (const itemHtml of matches.slice(0, 3)) {
+              const titleMatch = itemHtml.match(/class="[^"]*product_link[^"]*"[^>]*>([\s\S]*?)<\/a>/);
+              const urlMatch = itemHtml.match(/class="[^"]*product_link[^"]*"[^>]*href="([^"]*)"/);
+              const priceMatch = itemHtml.match(/class="[^"]*price_num[^"]*"[^>]*>([\s\S]*?)<\/span>/) || 
+                                 itemHtml.match(/class="[^"]*price[^"]*"[^>]*>[\s\S]*?<em>([\s\S]*?)<\/em>/);
+              const mallMatch = itemHtml.match(/class="[^"]*mall[^"]*"[^>]*>([\s\S]*?)<\/span>/) || 
+                                itemHtml.match(/alt="([^"]*)"[^>]*class="[^"]*mall[^"]*"/);
+              
+              if (titleMatch && priceMatch) {
+                const title = titleMatch[1].replace(/<[^>]*>/g, '').trim();
+                let url = urlMatch ? urlMatch[1] : '';
                 if (url && url.startsWith('/')) {
                   url = 'https://msearch.shopping.naver.com' + url;
                 }
+                const price = parseInt(priceMatch[1].replace(/[^\d]/g, ''), 10) || 0;
+                const mallName = mallMatch ? mallMatch[1].replace(/<[^>]*>/g, '').trim() : '네이버 최저가스토어';
                 
-                const price = Number(item.price || item.lowPrice || 0);
-                const mallName = item.mallName || item.channelName || '네이버 최저가스토어';
-                
-                return { title, url, price, mallName };
-              }).filter(p => p.title && p.price > 0);
-
-              if (validProducts.length > 0) {
-                crawledItems.push(...validProducts);
-                crawlSuccess = true;
+                if (title && price > 0) {
+                  crawledItems.push({ title, url, price, mallName });
+                }
               }
             }
-          } catch (jsonErr) {
-            console.warn('⚠️ [AI-Search-Miner] __NEXT_DATA__ JSON 파싱 실패, 정규식 대체 기동:', jsonErr);
-          }
-        }
-        
-        // B. JSON 실패 시 HTML 정규식 기반 추출
-        if (crawledItems.length === 0) {
-          const itemRegex = /<li[^>]*class="[^"]*product_item[^"]*"[\s\S]*?<\/li>/g;
-          const matches = html.match(itemRegex) || [];
-          
-          console.log(`📡 [AI-Search-Miner] HTML 정규식 매칭 시도 ➡️ 후보군 ${matches.length}개 포착.`);
-          
-          for (const itemHtml of matches.slice(0, 3)) {
-            const titleMatch = itemHtml.match(/class="[^"]*product_link[^"]*"[^>]*>([\s\S]*?)<\/a>/);
-            const urlMatch = itemHtml.match(/class="[^"]*product_link[^"]*"[^>]*href="([^"]*)"/);
-            const priceMatch = itemHtml.match(/class="[^"]*price_num[^"]*"[^>]*>([\s\S]*?)<\/span>/) || 
-                               itemHtml.match(/class="[^"]*price[^"]*"[^>]*>[\s\S]*?<em>([\s\S]*?)<\/em>/);
-            const mallMatch = itemHtml.match(/class="[^"]*mall[^"]*"[^>]*>([\s\S]*?)<\/span>/) || 
-                              itemHtml.match(/alt="([^"]*)"[^>]*class="[^"]*mall[^"]*"/);
-            
-            if (titleMatch && priceMatch) {
-              const title = titleMatch[1].replace(/<[^>]*>/g, '').trim();
-              let url = urlMatch ? urlMatch[1] : '';
-              if (url && url.startsWith('/')) {
-                url = 'https://msearch.shopping.naver.com' + url;
-              }
-              const price = parseInt(priceMatch[1].replace(/[^\d]/g, ''), 10) || 0;
-              const mallName = mallMatch ? mallMatch[1].replace(/<[^>]*>/g, '').trim() : '네이버 최저가스토어';
-              
-              if (title && price > 0) {
-                crawledItems.push({ title, url, price, mallName });
-              }
+            if (crawledItems.length > 0) {
+              crawlSuccess = true;
             }
           }
-          if (crawledItems.length > 0) {
-            crawlSuccess = true;
-          }
         }
+      } catch (fetchErr: any) {
+        console.warn('⚠️ [AI-Search-Miner] 2차 fetch 우회 스캔 실패:', fetchErr.message);
       }
-    } catch (fetchErr: any) {
-      console.warn('⚠️ [AI-Search-Miner] 1차 fetch 우회 스캔 실패:', fetchErr.message);
     }
 
     // ============================================================
@@ -309,8 +429,17 @@ export async function POST(req: Request) {
 
         const defaultChannelName = idx === 0 ? '쿠팡 자율 수집망' : idx === 1 ? '네이버 스마트스토어 노드' : '아마존 글로벌 노드';
 
+        // 점주님의 훌륭한 피드백에 맞추어, 접두사가 다나와 일괄 매핑이 아닌 실제 격발되는 쇼핑몰 채널명으로 이쁘게 포장되도록 정교화
+        let finalSiteName = item.mallName;
+        if (finalSiteName === '다나와 최저가망' || !finalSiteName || finalSiteName === '알 수 없음') {
+          finalSiteName = idx === 0 ? '쿠팡 최저가망' : idx === 1 ? '네이버 스마트스토어' : '아마존 글로벌 스토어';
+        } else {
+          // 다나와 징검다리를 거쳐 알아낸 실제 판매처 이름(예: 사조공식몰 등)이 있을 경우
+          finalSiteName = `${finalSiteName} (${defaultChannelName.split(' ')[0]} 연계)`;
+        }
+
         candidates.push({
-          site_name: `${item.mallName} (${defaultChannelName.split(' ')[0]} 연계)`,
+          site_name: finalSiteName,
           url: item.url, // 100% 정상 포워딩 게이트 진짜 상세 상품 결제 주소!
           css_selector: 'span.price_num__, span.total-price > strong, span.product-price-value',
           price: finalPrice,
@@ -321,6 +450,27 @@ export async function POST(req: Request) {
           message: `[실시간 웹 수집] 최저가 마켓 [${item.mallName}]에서 진짜 [${item.title}] 상품이 ${currency === 'USD' ? '$' : '₩'}${finalPrice.toLocaleString()} 단가로 안전하게 포착되었습니다.`
         });
       });
+
+      // 🧹 [데이터 정제 가드] 잘못 적재된 구 버전 다나와 중개 주소 노드 일제 소탕
+      if (candidates.length > 0 && item_id) {
+        try {
+          const existingRes = await queryTable('target_urls', { filters: { item_id: String(item_id) } });
+          const existingRows = existingRes.rows || [];
+          const danawaMiddleNodes = existingRows.filter((r: any) => 
+            r.target_url && r.target_url.includes('prod.danawa.com/info/?pcode=')
+          );
+
+          if (danawaMiddleNodes.length > 0) {
+            console.log(`🧹 [AI-Search-Miner] 잘못 적재된 구 버전 다나와 중개 노드 ${danawaMiddleNodes.length}개 발견. 즉시 소탕 소멸.`);
+            const { deleteRows } = require('@/../egdesk-helpers'); // 지연 로딩
+            for (const node of danawaMiddleNodes) {
+              await deleteRows('target_urls', { filters: { url_id: String(node.url_id) } });
+            }
+          }
+        } catch (cleanupErr: any) {
+          console.warn('⚠️ [AI-Search-Miner] 기존 다나와 중개 노드 청소 중 오류 발생:', cleanupErr.message);
+        }
+      }
     } else {
       // ⚠️ 점주님의 보안 룰: 존재하지 않는 데이터는 억지로 가짜 RAG로 채우지 않고, 정직하게 0건으로 리턴함.
       console.log('⚠️ [AI-Search-Miner] 실시간 실제 시세 스캔 실패 및 품목 미존재 ➡️ 후보군 전원 제외 처리 완료.');

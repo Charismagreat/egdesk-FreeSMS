@@ -11,13 +11,27 @@ export async function GET() {
     // 각 품목별 최신 가격을 이력에서 조회하여 마진율 실시간 동적 매핑
     const enrichedItems = await Promise.all(items.map(async (item: any) => {
       // url_id 추출을 위해 target_urls 조회
-      const urlsRes = await queryTable('target_urls', { filters: { item_id: String(item.item_id) } });
-      const urls = urlsRes.rows || [];
+      let urlsRes = await queryTable('target_urls', { filters: { item_id: String(item.item_id) } });
+      let urls = urlsRes.rows || [];
+
+      // 🧹 [실시간 구버전 다나와 중개 노드 소탕 가드]
+      // 조회 결과 중 prod.danawa.com/info/?pcode= 가 들어있는 노드가 있다면 즉시 소멸 처리
+      const oldDanawaNodes = urls.filter((u: any) => u.target_url && u.target_url.includes('prod.danawa.com/info/?pcode='));
+      if (oldDanawaNodes.length > 0) {
+        console.log(`🧹 [Items-GET-Guard] 잘못 매핑된 구버전 다나와 중개 노드 ${oldDanawaNodes.length}개 발견. 실시간 청소 기동.`);
+        for (const node of oldDanawaNodes) {
+          await deleteRows('target_urls', { filters: { url_id: String(node.url_id) } });
+        }
+        // 삭제 후 다시 조회하여 최신 노드 정보 동기화
+        urlsRes = await queryTable('target_urls', { filters: { item_id: String(item.item_id) } });
+        urls = urlsRes.rows || [];
+      }
       
       let latestPrice = 0;
       let latestKrwPrice = 0;
       let latestTime = '-';
       let latestSiteName = '수집기 매핑 없음';
+      let latestSiteUrl = '#';
       const activePrices: any[] = [];
 
       // 외화 계산을 위한 환율 가중치 조회 (fallback용으로 가져옴)
@@ -93,6 +107,7 @@ export async function GET() {
               krwPrice: krwPrice,
               time: histories[0].captured_at || '-',
               siteName: url.site_name || '알 수 없음',
+              siteUrl: url.target_url || '#',
               currency: currency
             });
           }
@@ -116,6 +131,7 @@ export async function GET() {
           }
           latestTime = minPriceObj.time;
           latestSiteName = minPriceObj.siteName;
+          latestSiteUrl = minPriceObj.siteUrl;
         }
       }
 
@@ -141,6 +157,7 @@ export async function GET() {
         base_price_krw: basePriceKrw,
         latest_captured_at: latestTime,
         latest_site_name: latestSiteName,
+        latest_site_url: latestSiteUrl,
         current_margin_rate: Number(currentMarginRate.toFixed(2)),
         collectors_count: urls.length,
         collectors_prices: activePrices

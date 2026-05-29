@@ -93,7 +93,7 @@ export default function PriceTrackerAIPage() {
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
-  const [isCollectorModalOpen, setIsCollectorModalOpen] = useState(false);
+  const [miningItemIds, setMiningItemIds] = useState<number[]>([]);
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
   const [isCronHelpOpen, setIsCronHelpOpen] = useState(false);
   const [isDaemonHelpOpen, setIsDaemonHelpOpen] = useState(false);
@@ -326,6 +326,15 @@ export default function PriceTrackerAIPage() {
           const matched = itemsJson.items.find((x: any) => x.item_id === activeItem.item_id);
           if (matched) setActiveItem(matched);
         }
+
+        // 💡 [Zero-Click SCM 무인 자율 스캔]
+        // 조회된 품목 중 노드 개수(collectors_count)가 0개이면서 현재 백그라운드 수집 진행중이 아닌 품목이 있다면,
+        // 화면 로드 시 자동으로 최저가 AI 발굴 로봇을 백그라운드에서 즉시 기동시켜 줍니다!
+        itemsJson.items.forEach((item: any) => {
+          if (Number(item.collectors_count ?? 0) === 0) {
+            triggerBackgroundAutoMining(item.item_id, item.item_name, item.spec || "");
+          }
+        });
       }
 
       // 2.2. 알림 규칙 및 발송 이력 로그 조회
@@ -717,6 +726,21 @@ export default function PriceTrackerAIPage() {
 
   // 3.4. 품목 신규 등록 시 백그라운드 AI 자율 스캔 및 수집 노드 자동 바인딩 (Zero-Click AI)
   const triggerBackgroundAutoMining = async (itemId: number, itemName: string, spec: string) => {
+    // 🛡️ 중복 스캔 방지 락 가드
+    let isAlreadyMining = false;
+    setMiningItemIds(prev => {
+      if (prev.includes(itemId)) {
+        isAlreadyMining = true;
+        return prev;
+      }
+      return [...prev, itemId];
+    });
+
+    if (isAlreadyMining) {
+      console.log(`🛡️ [Auto-Mining] 품목 [${itemName}] 에 대한 백그라운드 스캔이 이미 활발히 기동 중입니다.`);
+      return;
+    }
+
     console.log(`🤖 [Auto-Mining] 신규 품목 백그라운드 자율 스캔 기동 ➡️ 품목: [${itemName}], 규격: [${spec}]`);
     try {
       const activeChannelList = searchChannels.filter(c => c.active).map(c => c.name);
@@ -754,10 +778,12 @@ export default function PriceTrackerAIPage() {
           if (json.success) deployedCount++;
         }
         console.log(`🎉 [Auto-Mining] 백그라운드 최저가 노드 자동 장착 완수: 총 ${deployedCount}개 노드 바인딩 완료.`);
-        fetchInitData(); // 메인 전광판 실시간 리플래시
       }
     } catch (err) {
       console.warn("⚠️ [Auto-Mining] 백그라운드 자율 스캔 실패:", err);
+    } finally {
+      setMiningItemIds(prev => prev.filter(id => id !== itemId));
+      fetchInitData(); // 메인 전광판 실시간 리플래시
     }
   };
 
@@ -1479,7 +1505,7 @@ export default function PriceTrackerAIPage() {
       </div>
 
       {/* 6. 📈 주식거래소 스타일 SCM 실시간 통합 전광 대장 테이블 (Stock Market Broad Board) */}
-      <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden w-full">
+      <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-visible w-full">
         <div className="p-5 border-b border-slate-155 flex flex-wrap items-center justify-between gap-4 bg-slate-50/50">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-4.5 bg-pink-650 rounded-md"></span>
@@ -1515,7 +1541,7 @@ export default function PriceTrackerAIPage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto w-full">
+        <div className="overflow-visible w-full">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 font-bold uppercase tracking-wider">
@@ -1597,13 +1623,37 @@ export default function PriceTrackerAIPage() {
 
                       {/* 실시간 수집가 */}
                       <td className="p-4 text-right relative group">
-                        {item.latest_price > 0 ? (
-                          <div className="space-y-0.5">
-                            <span className="text-xs font-black font-mono text-slate-850 block cursor-help">
+                        {miningItemIds.includes(item.item_id) ? (
+                          <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-pink-500 to-indigo-650 text-white font-extrabold text-[9px] rounded-lg shadow-sm animate-pulse">
+                            <Sparkles className="w-2.5 h-2.5 animate-spin shrink-0" />
+                            <span>⚡ AI 로봇 수집중...</span>
+                          </div>
+                        ) : item.latest_price > 0 ? (
+                          <div className="space-y-0.5 inline-flex flex-col items-end">
+                            <span 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (item.latest_site_url && item.latest_site_url !== '#') {
+                                  window.open(item.latest_site_url, '_blank');
+                                }
+                              }}
+                              className="text-xs font-black font-mono text-slate-850 cursor-pointer hover:text-pink-600 hover:underline transition-colors flex items-center gap-0.5"
+                              title={`클릭 시 최저가 마켓 [${item.latest_site_name}] 상세 상품 페이지로 새 창에서 즉시 이동`}
+                            >
                               {itemCurrency === 'KRW' ? '₩ ' : '$ '}{item.latest_price.toLocaleString()}
+                              <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                             </span>
                             {itemCurrency !== 'KRW' && (
-                              <span className="text-[9px] text-slate-500 font-extrabold block">
+                              <span 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (item.latest_site_url && item.latest_site_url !== '#') {
+                                    window.open(item.latest_site_url, '_blank');
+                                  }
+                                }}
+                                className="text-[9px] text-slate-500 font-extrabold cursor-pointer hover:text-pink-600 hover:underline transition-colors block"
+                                title={`클릭 시 최저가 마켓 [${item.latest_site_name}] 상세 상품 페이지로 새 창에서 즉시 이동`}
+                              >
                                 (₩ {(item.latest_krw_price ?? 0).toLocaleString()})
                               </span>
                             )}
@@ -1613,7 +1663,7 @@ export default function PriceTrackerAIPage() {
                         )}
 
                         {/* 노드별 실시간 가격 즉석 브리핑 툴팁 카드 */}
-                        {item.collectors_prices && item.collectors_prices.length > 0 && (
+                        {item.collectors_prices && item.collectors_prices.length > 0 && !miningItemIds.includes(item.item_id) && (
                           <div className="hidden group-hover:block absolute z-30 right-4 top-12 w-64 bg-slate-900/95 backdrop-blur-md text-slate-100 p-3.5 rounded-2xl border border-slate-800 shadow-2xl transition-all duration-200 text-left">
                             <div className="border-b border-slate-800 pb-2 mb-2 flex items-center justify-between">
                               <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">노드별 실시간 수집 가격</span>
@@ -1708,43 +1758,102 @@ export default function PriceTrackerAIPage() {
                       </td>
 
                       {/* 수집망 노드 개수 */}
-                      <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
-                        <span 
-                          onClick={() => {
-                            handleItemSelect(item);
-                            setIsCollectorModalOpen(true);
-                          }}
-                          className="px-2.5 py-1 bg-slate-50 text-slate-650 font-bold font-mono rounded-lg border border-slate-200 hover:bg-pink-50 hover:text-pink-650 hover:border-pink-300 transition-all cursor-pointer inline-block animate-pulse"
-                          title="클릭 시 등록된 수집 사이트망 노드별 실시간 현황 조회 및 관리"
-                        >
-                          {Number(item.collectors_count ?? 0)} 개 노드
-                        </span>
+                      <td className="p-4 text-center">
+                        {miningItemIds.includes(item.item_id) ? (
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-pink-500 to-indigo-650 text-white font-extrabold text-[9px] rounded-lg shadow-sm animate-pulse justify-center">
+                            <Zap className="w-3 h-3 shrink-0" />
+                            <span>⚡ AI 로봇 수집중...</span>
+                          </div>
+                        ) : (
+                          <span 
+                            className="px-2.5 py-1 bg-slate-50 text-slate-650 font-bold font-mono rounded-lg border border-slate-200 inline-block text-[11px]"
+                          >
+                            {Number(item.collectors_count ?? 0)} 개 노드
+                          </span>
+                        )}
                       </td>
 
                       {/* 퀵 액션 */}
                       <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-center gap-1.5">
-                          <button
-                            onClick={() => {
-                              handleItemSelect(item);
-                              setIsCollectorModalOpen(true);
-                            }}
-                            className="p-1.5 hover:bg-slate-100 hover:text-slate-900 text-slate-450 border border-slate-200 bg-white rounded-lg transition-colors cursor-pointer"
-                            title="수집 사이트망 관리"
-                          >
-                            <Globe className="w-3.5 h-3.5" />
-                          </button>
-                          
-                          <button
-                            onClick={() => {
-                              handleItemSelect(item);
-                              setIsAlertModalOpen(true);
-                            }}
-                            className="p-1.5 hover:bg-rose-50 hover:text-rose-600 text-slate-450 border border-slate-200 bg-white rounded-lg transition-colors cursor-pointer"
-                            title="FreeSMS 경보 설정"
-                          >
-                            <Bell className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="relative group">
+                            <button
+                              onClick={() => {
+                                handleItemSelect(item);
+                                setIsAlertModalOpen(true);
+                              }}
+                              className={`p-1.5 border rounded-lg transition-colors cursor-pointer ${
+                                alerts.filter((r: any) => r.item_id === item.item_id && r.is_enabled === 1).length > 0
+                                  ? "bg-rose-500 text-white border-rose-500 hover:bg-rose-600 hover:text-white"
+                                  : "bg-white text-slate-450 border-slate-200 hover:bg-rose-50 hover:text-rose-600"
+                              }`}
+                            >
+                              <Bell className="w-3.5 h-3.5" />
+                            </button>
+
+                            {/* 🪄 프리미엄 가격 감시 설정 툴팁 말풍선 */}
+                            <div className="absolute right-full mr-3 -top-2.5 hidden group-hover:block z-40 w-72 bg-slate-900/95 backdrop-blur-md text-white text-[10px] p-4 rounded-2xl shadow-2xl border border-slate-700/50 text-left transition-all duration-200 pointer-events-none">
+                              {/* 말풍선 꼬리 (오른쪽에 장착) */}
+                              <div className="absolute left-full top-3.5 border-[6px] border-transparent border-l-slate-900/95"></div>
+                              
+                              {alerts.filter((r: any) => r.item_id === item.item_id).length === 0 ? (
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-1 font-black text-rose-450 text-[11px]">
+                                    <Bell className="w-3.5 h-3.5" />
+                                    <span>설정된 알림이 없습니다</span>
+                                  </div>
+                                  <p className="text-slate-400 font-bold leading-relaxed">
+                                    클릭하여 실시간 마진 스프레드 붕괴 및 시황 한계 돌파 긴급 경보 규칙을 가동해 보세요.
+                                  </p>
+                                </div>
+                              ) : (
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between border-b border-slate-700/80 pb-1.5">
+                                    <div className="flex items-center gap-1 font-black text-rose-450 text-[11px]">
+                                      <Bell className="w-3.5 h-3.5 animate-bounce" />
+                                      <span>FreeSMS 경보망 ({alerts.filter((r: any) => r.item_id === item.item_id).length}개 작동)</span>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-2 pointer-events-auto">
+                                    {alerts.filter((r: any) => r.item_id === item.item_id).map((rule: any, rIdx: number) => (
+                                      <div key={rule.rule_id || rIdx} className="bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/30 space-y-1">
+                                        <div className="flex items-center justify-between gap-2">
+                                          <span className="font-extrabold text-slate-200 text-xs truncate max-w-[150px]">{rule.rule_name}</span>
+                                          <span className={`px-1.5 py-0.5 rounded text-[8px] font-black uppercase ${
+                                            rule.is_enabled === 1 ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30" : "bg-slate-700 text-slate-400"
+                                          }`}>
+                                            {rule.is_enabled === 1 ? "ON" : "OFF"}
+                                          </span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-1 text-[9px] font-bold text-slate-400 border-t border-slate-700/40 pt-1 mt-1 font-sans">
+                                          <div>
+                                            <span className="text-slate-500">조건: </span>
+                                            <span className="text-rose-350">
+                                              {rule.condition_type === "MARGIN_BREAKDOWN" && "📉 마진 붕괴"}
+                                              {rule.condition_type === "BELOW_LIMIT" && "📉 시세 하락"}
+                                              {rule.condition_type === "ABOVE_LIMIT" && "📈 시세 폭등"}
+                                            </span>
+                                          </div>
+                                          <div className="text-right">
+                                            <span className="text-slate-500">기준: </span>
+                                            <span className="text-white font-mono">
+                                              {rule.condition_type === "MARGIN_BREAKDOWN" 
+                                                ? `${rule.threshold_value}%` 
+                                                : `${rule.threshold_value.toLocaleString()}${item.currency_code || 'KRW'}`
+                                              }
+                                            </span>
+                                          </div>
+                                        </div>
+                                        <div className="text-[8px] text-slate-500 font-mono pt-0.5">
+                                          📞 수신: {rule.phone_number}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
 
                           <button
                             onClick={() => handleEditItemClick(item)}
@@ -1786,11 +1895,17 @@ export default function PriceTrackerAIPage() {
                                   <p className="text-[9px] text-slate-400 font-semibold">최근 파이프라인 수집 누적 히스토리</p>
                                 </div>
                                 <span 
-                                  className="text-[9px] font-black text-pink-655 font-mono bg-pink-50 px-2.5 py-1 rounded-full border border-pink-150 flex items-center gap-1 cursor-help hover:bg-pink-100/50 transition-colors"
-                                  title="현재 등록된 감시 URL(수집 노드) 중, 실시간 원화 환산가 기준 가장 저렴한 최저가를 공급하고 있는 사이트 출처입니다."
+                                  onClick={() => {
+                                    if (item.latest_site_url && item.latest_site_url !== '#') {
+                                      window.open(item.latest_site_url, '_blank');
+                                    }
+                                  }}
+                                  className="text-[9px] font-black text-pink-600 font-mono bg-pink-50 px-2.5 py-1 rounded-full border border-pink-100 flex items-center gap-1 cursor-pointer hover:bg-pink-100 hover:text-pink-700 transition-all shadow-sm"
+                                  title={`클릭 시 최저가를 공급하고 있는 [${item.latest_site_name}] 상세 상품 페이지로 새 창에서 즉시 연결`}
                                 >
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                                   최저가 출처: {item.latest_site_name || '수집기 매핑 없음'}
+                                  <ArrowUpRight className="w-3 h-3 text-pink-500 shrink-0" />
                                 </span>
                               </div>
 
@@ -2246,7 +2361,7 @@ export default function PriceTrackerAIPage() {
       {/* MODAL 2: 수집 로봇 매핑 및 검수 모달 */}
       {/* ============================================================ */}
       <AnimatePresence>
-        {isCollectorModalOpen && activeItem && (
+        {false && activeItem && (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <motion.div 
               initial={{ scale: 0.95, opacity: 0 }}
@@ -2551,7 +2666,7 @@ export default function PriceTrackerAIPage() {
       {/* MODAL 2-B: 수집 주기 (Cron) 설정 방법 안내 팝업 */}
       {/* ============================================================ */}
       <AnimatePresence>
-        {isCronHelpOpen && (
+        {false && (
           <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-[60] flex items-center justify-center p-4">
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
