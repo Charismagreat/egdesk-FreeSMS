@@ -68,6 +68,23 @@ export async function GET() {
             const urlLower = (url.target_url || '').toLowerCase();
             if (siteLower.includes('아마존') || siteLower.includes('amazon') || siteLower.includes('알리') || siteLower.includes('aliexpress') || urlLower.includes('amazon.com') || urlLower.includes('aliexpress.com')) {
               currency = 'USD';
+            } else if (
+              siteLower.includes('타오바오') || siteLower.includes('taobao') ||
+              siteLower.includes('티몰') || siteLower.includes('tmall') ||
+              urlLower.includes('taobao.com') || urlLower.includes('tmall.com') || urlLower.includes('1688.com')
+            ) {
+              currency = 'CNY';
+            } else if (
+              siteLower.includes('야후재팬') || siteLower.includes('yahoo.co.jp') ||
+              siteLower.includes('라쿠텐') || siteLower.includes('rakuten') ||
+              urlLower.includes('yahoo.co.jp') || urlLower.includes('rakuten.co.jp')
+            ) {
+              currency = 'JPY';
+            } else if (
+              siteLower.includes('유로') || siteLower.includes('euro') ||
+              urlLower.includes('.de') || urlLower.includes('.fr') || urlLower.includes('.it') || urlLower.includes('.es')
+            ) {
+              currency = 'EUR';
             }
             
             const krwPrice = getKrwPrice(rawPrice, currency);

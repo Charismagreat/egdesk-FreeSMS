@@ -32,6 +32,8 @@ export async function POST(req: Request) {
     // 2. 실시간 환율 정보 조회 (외화 계산기 안전장치)
     let usdRate = 1380;
     let jpyRate = 8.8; // 100엔 기준
+    let eurRate = 1480;
+    let cnyRate = 190;
     try {
       const ratesRes = await queryTable('exchange_rates', {});
       const rates = ratesRes.rows || [];
@@ -39,8 +41,12 @@ export async function POST(req: Request) {
       if (usdObj) usdRate = Number(usdObj.current_rate || 1380);
       const jpyObj = rates.find((r: any) => r.currency_code === 'JPY');
       if (jpyObj) jpyRate = Number(jpyObj.current_rate || 880) / 100;
+      const eurObj = rates.find((r: any) => r.currency_code === 'EUR');
+      if (eurObj) eurRate = Number(eurObj.current_rate || 1480);
+      const cnyObj = rates.find((r: any) => r.currency_code === 'CNY');
+      if (cnyObj) cnyRate = Number(cnyObj.current_rate || 190);
     } catch (rateErr) {
-      console.warn('⚠️ exchange_rates 조회 실패 (기본 환율값 1380원 작동):', rateErr);
+      console.warn('⚠️ exchange_rates 조회 실패 (기본 환율값 작동):', rateErr);
     }
 
     // ============================================================

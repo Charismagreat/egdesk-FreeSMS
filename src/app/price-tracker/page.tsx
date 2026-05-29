@@ -16,6 +16,53 @@ const CURRENCY_NAMES: Record<string, string> = {
   JPY: "일본 엔화 (100)",
   CNY: "중국 위안"
 };
+// 지능형 글로벌 통화 판별 헬퍼 함수 (사이트명 및 주소 기반)
+function detectCurrency(siteName: string, targetUrl: string): string {
+  const siteLower = (siteName || '').toLowerCase();
+  const urlLower = (targetUrl || '').toLowerCase();
+
+  // 1. 미국 달러(USD) 노드 감지
+  if (
+    siteLower.includes('아마존') || siteLower.includes('amazon') ||
+    siteLower.includes('알리') || siteLower.includes('aliexpress') ||
+    urlLower.includes('amazon.com') || urlLower.includes('aliexpress.com')
+  ) {
+    return 'USD';
+  }
+  // 2. 중국 위안화(CNY) 노드 감지
+  if (
+    siteLower.includes('타오바오') || siteLower.includes('taobao') ||
+    siteLower.includes('티몰') || siteLower.includes('tmall') ||
+    urlLower.includes('taobao.com') || urlLower.includes('tmall.com') || urlLower.includes('1688.com')
+  ) {
+    return 'CNY';
+  }
+  // 3. 일본 엔화(JPY) 노드 감지
+  if (
+    siteLower.includes('야후재팬') || siteLower.includes('yahoo.co.jp') ||
+    siteLower.includes('라쿠텐') || siteLower.includes('rakuten') ||
+    urlLower.includes('yahoo.co.jp') || urlLower.includes('rakuten.co.jp')
+  ) {
+    return 'JPY';
+  }
+  // 4. 유로화(EUR) 노드 감지
+  if (
+    siteLower.includes('유로') || siteLower.includes('euro') ||
+    urlLower.includes('.de') || urlLower.includes('.fr') || urlLower.includes('.it') || urlLower.includes('.es')
+  ) {
+    return 'EUR';
+  }
+  return 'KRW';
+}
+
+// 통화별 화폐 기호 표시 헬퍼 함수
+function getCurrencySymbol(currency: string): string {
+  if (currency === 'USD') return '$';
+  if (currency === 'EUR') return '€';
+  if (currency === 'JPY') return '¥';
+  if (currency === 'CNY') return '元';
+  return '₩';
+}
 
 export default function PriceTrackerAIPage() {
   // 1. 상태 정의
@@ -2270,19 +2317,15 @@ export default function PriceTrackerAIPage() {
 
                           {/* 최근/최저 수집 가격 알약 배지 */}
                           {url.latest_price !== null && url.latest_price !== undefined && (() => {
-                            const isUsdNode = (url.site_name || '').toLowerCase().includes('아마존') || 
-                                              (url.site_name || '').toLowerCase().includes('amazon') || 
-                                              (url.site_name || '').toLowerCase().includes('알리') || 
-                                              (url.site_name || '').toLowerCase().includes('aliexpress') || 
-                                              (url.target_url || '').toLowerCase().includes('amazon.com') || 
-                                              (url.target_url || '').toLowerCase().includes('aliexpress.com');
-                            const symbol = isUsdNode ? '$' : '₩';
+                            const nodeCurrency = detectCurrency(url.site_name, url.target_url);
+                            const symbol = getCurrencySymbol(nodeCurrency);
+                            const isForeignNode = nodeCurrency !== 'KRW';
                             
                             // 외화 노드인 경우 실시간 원화 환산 텍스트 병기
-                            const latestKrwText = isUsdNode && url.latest_krw_price 
+                            const latestKrwText = isForeignNode && url.latest_krw_price 
                               ? ` (₩ ${Math.floor(url.latest_krw_price).toLocaleString()})`
                               : '';
-                            const minKrwText = isUsdNode && url.min_krw_price
+                            const minKrwText = isForeignNode && url.min_krw_price
                               ? ` (₩ ${Math.floor(url.min_krw_price).toLocaleString()})`
                               : '';
 
@@ -3126,9 +3169,9 @@ export default function PriceTrackerAIPage() {
                               <div className="space-y-1 bg-white p-2 rounded-xl border border-slate-200/50">
                                 <div className="text-[10px] font-semibold text-slate-400">포착 시세 및 통화</div>
                                 <div className="text-xs font-black text-slate-800">
-                                  {cand.currency === 'USD' ? `$${cand.price}` : `₩${cand.price.toLocaleString()}`}
+                                  {getCurrencySymbol(cand.currency)}{cand.price.toLocaleString()}
                                 </div>
-                                {cand.currency !== 'KRW' && (
+                                {cand.currency !== 'KRW' && cand.price_krw && (
                                   <div className="text-[9px] font-extrabold text-slate-450 font-mono">
                                     (₩ {cand.price_krw.toLocaleString()})
                                   </div>

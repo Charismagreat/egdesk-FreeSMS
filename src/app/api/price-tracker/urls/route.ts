@@ -2,6 +2,45 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { queryTable, insertRows, deleteRows } from '@/../egdesk-helpers';
 
+// 지능형 글로벌 통화 판별 헬퍼 함수 (사이트명 및 주소 기반)
+function detectCurrency(siteName: string, targetUrl: string): string {
+  const siteLower = (siteName || '').toLowerCase();
+  const urlLower = (targetUrl || '').toLowerCase();
+
+  // 1. 미국 달러(USD) 노드 감지
+  if (
+    siteLower.includes('아마존') || siteLower.includes('amazon') ||
+    siteLower.includes('알리') || siteLower.includes('aliexpress') ||
+    urlLower.includes('amazon.com') || urlLower.includes('aliexpress.com')
+  ) {
+    return 'USD';
+  }
+  // 2. 중국 위안화(CNY) 노드 감지
+  if (
+    siteLower.includes('타오바오') || siteLower.includes('taobao') ||
+    siteLower.includes('티몰') || siteLower.includes('tmall') ||
+    urlLower.includes('taobao.com') || urlLower.includes('tmall.com') || urlLower.includes('1688.com')
+  ) {
+    return 'CNY';
+  }
+  // 3. 일본 엔화(JPY) 노드 감지
+  if (
+    siteLower.includes('야후재팬') || siteLower.includes('yahoo.co.jp') ||
+    siteLower.includes('라쿠텐') || siteLower.includes('rakuten') ||
+    urlLower.includes('yahoo.co.jp') || urlLower.includes('rakuten.co.jp')
+  ) {
+    return 'JPY';
+  }
+  // 4. 유로화(EUR) 노드 감지
+  if (
+    siteLower.includes('유로') || siteLower.includes('euro') ||
+    urlLower.includes('.de') || urlLower.includes('.fr') || urlLower.includes('.it') || urlLower.includes('.es')
+  ) {
+    return 'EUR';
+  }
+  return 'KRW';
+}
+
 // GET /api/price-tracker/urls : 특정 품목에 등록된 감시 URL 및 수집 이력 조회
 export async function GET(req: Request) {
   try {
@@ -15,6 +54,35 @@ export async function GET(req: Request) {
 
     const urlsRes = await queryTable('target_urls', options);
     const urls = urlsRes.rows || [];
+
+    // 실시간 외화 환율 데이터베이스 최신 조회
+    let usdRate = 1380;
+    let jpyRate = 8.8; // 100엔 기준
+    let eurRate = 1480;
+    let cnyRate = 190;
+    try {
+      const ratesRes = await queryTable('exchange_rates', {});
+      const rates = ratesRes.rows || [];
+      const usdObj = rates.find((r: any) => r.currency_code === 'USD');
+      if (usdObj) usdRate = Number(usdObj.current_rate || 1380);
+      const jpyObj = rates.find((r: any) => r.currency_code === 'JPY');
+      if (jpyObj) jpyRate = Number(jpyObj.current_rate || 880) / 100;
+      const eurObj = rates.find((r: any) => r.currency_code === 'EUR');
+      if (eurObj) eurRate = Number(eurObj.current_rate || 1480);
+      const cnyObj = rates.find((r: any) => r.currency_code === 'CNY');
+      if (cnyObj) cnyRate = Number(cnyObj.current_rate || 190);
+    } catch (rateErr) {
+      console.warn('⚠️ exchange_rates 조회 실패 (기본 환율 작동):', rateErr);
+    }
+
+    const getKrwPrice = (price: number, currency: string) => {
+      if (!currency || currency === 'KRW') return price;
+      if (currency === 'USD') return price * usdRate;
+      if (currency === 'JPY') return price * jpyRate;
+      if (currency === 'EUR') return price * eurRate;
+      if (currency === 'CNY') return price * cnyRate;
+      return price;
+    };
 
     const enrichedUrls = await Promise.all(urls.map(async (url: any) => {
       // 해당 URL의 전체 가격 변동 이력 조회 (최신가 및 역대 최저가 추출용)
@@ -31,13 +99,15 @@ export async function GET(req: Request) {
       let latestKrwPrice = null;
       let minKrwPrice = null;
 
+      const detectedCurrency = detectCurrency(url.site_name, url.target_url);
+
       if (histories.length > 0) {
         latestPrice = histories[histories.length - 1].captured_price;
-        latestKrwPrice = histories[histories.length - 1].converted_krw_price || Math.floor(latestPrice * 1380);
+        latestKrwPrice = histories[histories.length - 1].converted_krw_price || Math.floor(getKrwPrice(latestPrice, detectedCurrency));
 
         minPrice = Math.min(...histories.map((h: any) => Number(h.captured_price || 0)));
         const minHistory = histories.find((h: any) => Number(h.captured_price || 0) === minPrice);
-        minKrwPrice = minHistory ? (minHistory.converted_krw_price || Math.floor(minPrice * 1380)) : Math.floor(minPrice * 1380);
+        minKrwPrice = minHistory ? (minHistory.converted_krw_price || Math.floor(getKrwPrice(minPrice, detectedCurrency))) : Math.floor(getKrwPrice(minPrice, detectedCurrency));
       }
 
       // 차트 렌더링 호환성을 위해 최근 15건만 쪼개어 전달
