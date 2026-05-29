@@ -15,7 +15,6 @@ import {
   Download, 
   Check, 
   X,
-  ChevronRight,
   Info,
   Handshake,
   Sparkles
@@ -218,25 +217,25 @@ export default function MobileHubWidget() {
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 text-white relative overflow-hidden shadow-xl mb-8">
+    <div className="bg-slate-900 border border-slate-800 rounded-3xl p-5 md:p-6 text-white relative overflow-hidden shadow-xl mb-6">
       {/* 2중 오로라 백그라운드 블러 */}
       <div className="absolute top-[-100px] left-[-100px] w-[350px] h-[350px] rounded-full bg-blue-500/10 blur-[100px] pointer-events-none"></div>
       <div className="absolute bottom-[-100px] right-[-100px] w-[350px] h-[350px] rounded-full bg-red-500/10 blur-[100px] pointer-events-none"></div>
 
       <div className="relative z-10">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-6 mb-8 border-b border-slate-800">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-4 mb-5 border-b border-slate-800">
           <div>
-            <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight bg-clip-text bg-gradient-to-r from-white via-slate-100 to-slate-400 text-transparent">
+            <h2 className="text-xl md:text-2xl font-extrabold tracking-tight bg-clip-text bg-gradient-to-r from-white via-slate-100 to-slate-400 text-transparent">
               스마트 모바일 채널
             </h2>
-            <p className="text-slate-400 text-sm mt-1">
+            <p className="text-slate-400 text-xs mt-0.5">
               온·오프라인 비즈니스 성장과 현장 협업을 가동하는 7대 모바일 채널을 이곳에서 실시간으로 배포하고 통제하세요.
             </p>
           </div>
         </div>
 
-        {/* 6대 B2B/B2C 채널 목록 - 가로 와이드 콤팩트 리스트 레이아웃 */}
-        <div className="grid grid-cols-1 gap-4.5">
+        {/* 7대 B2B/B2C 채널 목록 - 4열 콤팩트 그리드 레이아웃 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {channels.map((channel) => {
             const Icon = channel.icon;
             const isCopied = copiedId === channel.id;
@@ -245,58 +244,60 @@ export default function MobileHubWidget() {
             return (
               <div 
                 key={channel.id} 
-                className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:bg-slate-800/80 hover:border-slate-650 transition-all duration-300 group shadow-sm hover:shadow-md animate-fade-in"
+                className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-4 flex flex-col justify-between hover:bg-slate-800/80 hover:border-slate-650 transition-all duration-300 group shadow-sm hover:shadow-md animate-fade-in text-left"
               >
-                {/* 왼쪽 영역: 아이콘 + 텍스트 정보 */}
-                <div className="flex gap-6 items-start flex-1 min-w-0">
-                  <div className={`p-4 rounded-2xl bg-gradient-to-br ${channel.themeColor.split(' ').slice(0, 2).join(' ')} text-white shadow-lg shrink-0 group-hover:scale-105 transition-transform`}>
-                    <Icon className="w-5 h-5" />
-                  </div>
-                  <div className="space-y-1.5 flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-base font-extrabold text-white tracking-tight group-hover:text-blue-400 transition-colors">
-                        {channel.name}
-                      </h3>
-                      <span className="text-[9px] font-black bg-slate-700/50 text-slate-300 px-2 py-0.5 rounded border border-slate-700 uppercase tracking-wider">
-                        {channel.badge}
-                      </span>
+                {/* 상단: 아이콘 + 제목 + 뱃지 */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className={`p-2.5 rounded-xl bg-gradient-to-br ${channel.themeColor.split(' ').slice(0, 2).join(' ')} text-white shadow-md shrink-0 group-hover:scale-105 transition-transform`}>
+                      <Icon className="w-4.5 h-4.5" />
                     </div>
-                    <p className="text-slate-400 text-xs leading-relaxed max-w-2xl font-medium">
+                    <span className="text-[8px] font-black bg-slate-700/50 text-slate-300 px-2 py-0.5 rounded border border-slate-700 uppercase tracking-wider">
+                      {channel.badge}
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-extrabold text-white tracking-tight group-hover:text-blue-400 transition-colors">
+                      {channel.name}
+                    </h3>
+                    <p className="text-slate-400 text-[11px] leading-relaxed line-clamp-2 min-h-[32px] font-medium">
                       {channel.description}
                     </p>
                   </div>
                 </div>
 
-                {/* 오른쪽 영역: 사장님이 제안하신 3대 액션 버튼 정렬 */}
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 shrink-0 w-full md:w-auto pt-4 md:pt-0 border-t md:border-t-0 border-slate-800/60">
+                {/* 하단: 액션 버튼 그룹 */}
+                <div className="grid grid-cols-3 gap-1.5 mt-4 pt-3 border-t border-slate-800/60">
                   <button 
                     onClick={() => handleCopyLink(channel.id, channel.path)}
-                    className={`flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl text-xs font-black transition-all ${
+                    className={`flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-[10px] font-black transition-all ${
                       isCopied 
-                        ? "bg-green-600 text-white" 
-                        : "bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700/80"
+                        ? "bg-green-650 text-white" 
+                        : "bg-slate-800 text-slate-350 hover:bg-slate-700 border border-slate-700"
                     }`}
                     title="모바일 링크 복사"
                   >
-                    {isCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{isCopied ? "복사완료" : "링크 복사"}</span>
+                    {isCopied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                    <span>{isCopied ? "완료" : "링크"}</span>
                   </button>
 
                   <button 
                     onClick={() => setActiveQrChannel(channel)}
-                    className="flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl text-xs font-black bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700/80 transition-all"
+                    className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-[10px] font-black bg-slate-800 text-slate-350 hover:bg-slate-700 border border-slate-700 transition-all"
                     title="실시간 QR코드 생성"
                   >
-                    <QrCode className="w-3.5 h-3.5" />
-                    <span>QR 보기</span>
+                    <QrCode className="w-3 h-3" />
+                    <span>QR</span>
                   </button>
 
                   <a 
                     href={`/sms?message=${encodeURIComponent(channel.smsTemplate + fullUrl)}`}
-                    className="flex items-center justify-center gap-1.5 py-2.5 px-4.5 rounded-xl text-xs font-black bg-blue-600 text-white hover:bg-blue-500 shadow-md shadow-blue-600/10 transition-all"
+                    className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-[10px] font-black bg-blue-600 text-white hover:bg-blue-500 shadow-sm transition-all"
+                    title="고객에게 SMS 발송"
                   >
-                    <MessageSquare className="w-3.5 h-3.5" />
-                    <span>고객에게 발송 (SMS)</span>
+                    <MessageSquare className="w-3 h-3" />
+                    <span>발송</span>
                   </a>
                 </div>
               </div>
