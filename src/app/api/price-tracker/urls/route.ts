@@ -28,10 +28,16 @@ export async function GET(req: Request) {
 
       let latestPrice = null;
       let minPrice = null;
+      let latestKrwPrice = null;
+      let minKrwPrice = null;
 
       if (histories.length > 0) {
         latestPrice = histories[histories.length - 1].captured_price;
+        latestKrwPrice = histories[histories.length - 1].converted_krw_price || Math.floor(latestPrice * 1380);
+
         minPrice = Math.min(...histories.map((h: any) => Number(h.captured_price || 0)));
+        const minHistory = histories.find((h: any) => Number(h.captured_price || 0) === minPrice);
+        minKrwPrice = minHistory ? (minHistory.converted_krw_price || Math.floor(minPrice * 1380)) : Math.floor(minPrice * 1380);
       }
 
       // 차트 렌더링 호환성을 위해 최근 15건만 쪼개어 전달
@@ -40,7 +46,9 @@ export async function GET(req: Request) {
       return {
         ...url,
         latest_price: latestPrice,
+        latest_krw_price: latestKrwPrice,
         min_price: minPrice,
+        min_krw_price: minKrwPrice,
         history: chartHistory
       };
     }));
