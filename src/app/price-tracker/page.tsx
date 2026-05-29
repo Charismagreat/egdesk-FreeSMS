@@ -2269,20 +2269,29 @@ export default function PriceTrackerAIPage() {
                           </div>
 
                           {/* 최근/최저 수집 가격 알약 배지 */}
-                          {url.latest_price !== null && url.latest_price !== undefined && (
-                            <div className="flex items-center gap-1.5 flex-wrap text-[9px] my-0.5">
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-650 border border-slate-200 shadow-sm">
-                                <span className="w-1 h-1 rounded-full bg-slate-400 mr-1"></span>
-                                최근: {activeItem?.currency_code === 'KRW' ? '₩' : '$'} {Number(url.latest_price).toLocaleString()}
-                              </span>
-                              {url.min_price !== null && url.min_price !== undefined && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full font-bold bg-rose-50 text-rose-600 border border-rose-100 shadow-sm animate-fade-in">
-                                  <span className="w-1 h-1 rounded-full bg-rose-500 mr-1 animate-pulse"></span>
-                                  최저: {activeItem?.currency_code === 'KRW' ? '₩' : '$'} {Number(url.min_price).toLocaleString()}
+                          {url.latest_price !== null && url.latest_price !== undefined && (() => {
+                            const isUsdNode = (url.site_name || '').toLowerCase().includes('아마존') || 
+                                              (url.site_name || '').toLowerCase().includes('amazon') || 
+                                              (url.site_name || '').toLowerCase().includes('알리') || 
+                                              (url.site_name || '').toLowerCase().includes('aliexpress') || 
+                                              (url.target_url || '').toLowerCase().includes('amazon.com') || 
+                                              (url.target_url || '').toLowerCase().includes('aliexpress.com');
+                            const symbol = isUsdNode ? '$' : '₩';
+                            return (
+                              <div className="flex items-center gap-1.5 flex-wrap text-[9px] my-0.5">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-650 border border-slate-200 shadow-sm">
+                                  <span className="w-1 h-1 rounded-full bg-slate-400 mr-1"></span>
+                                  최근: {symbol} {Number(url.latest_price).toLocaleString()}
                                 </span>
-                              )}
-                            </div>
-                          )}
+                                {url.min_price !== null && url.min_price !== undefined && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full font-bold bg-rose-50 text-rose-600 border border-rose-100 shadow-sm animate-fade-in">
+                                    <span className="w-1 h-1 rounded-full bg-rose-500 mr-1 animate-pulse"></span>
+                                    최저: {symbol} {Number(url.min_price).toLocaleString()}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })()}
                           
                           {/* URL 표시와 원클릭 복사 배너 */}
                           <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-xl border border-slate-150/60 max-w-[280px]">
