@@ -65,7 +65,8 @@ export default function ExpenseManagementAiPage() {
     handleAddEmployee,
     handleDeleteEmployee,
     handleAddProject,
-    handleDeleteProject
+    handleDeleteProject,
+    handleUpdateExpense
   } = useExpenses();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -119,6 +120,32 @@ export default function ExpenseManagementAiPage() {
   const [isSubmittingTag, setIsSubmittingTag] = React.useState(false);
   const [isExcelUploading, setIsExcelUploading] = React.useState(false);
   const [activePreviewUrl, setActivePreviewUrl] = React.useState<string | null>(null);
+
+  // 🔑 최고관리자 권한 상태 및 수정 모달 상태 선언
+  const [userRole, setUserRole] = React.useState<string>("SUB_OPERATOR");
+  const [editExpense, setEditExpense] = React.useState<any | null>(null); // 수정 모달 제어용
+  
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const match = document.cookie.match(/(^| )auth_token=([^;]+)/);
+        const token = match ? match[2] : null;
+        if (token) {
+          const base64Url = token.split('.')[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          }).join(''));
+          const payload = JSON.parse(jsonPayload);
+          if (payload.role) {
+            setUserRole(payload.role);
+          }
+        }
+      } catch (e) {
+        console.error("JWT decoding failed on client", e);
+      }
+    }
+  }, []);
 
   // 🏢 조직 및 사업 전용 추가 폼 상태
   const [newDeptName, setNewDeptName] = React.useState<string>("");
@@ -1812,7 +1839,13 @@ export default function ExpenseManagementAiPage() {
                   {/* 일괄 삭제 액션 단추 */}
                   {selectedIds.size > 0 && (
                     <button 
-                      onClick={handleDeleteSelectedExpenses}
+                      onClick={() => {
+                        if (userRole !== 'SUPER_ADMIN') {
+                          alert("⚠️ 죄송합니다. 지출 내역의 일괄 삭제는 최고관리자(SUPER_ADMIN) 권한으로만 기동할 수 있습니다.");
+                          return;
+                        }
+                        handleDeleteSelectedExpenses();
+                      }}
                       className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-full text-xs font-black shadow-md flex items-center justify-center shrink-0 border-none transition-all active:scale-95 cursor-pointer w-full sm:w-auto"
                     >
                       <Trash2 className="w-3.5 h-3.5 mr-1" />
@@ -1841,7 +1874,7 @@ export default function ExpenseManagementAiPage() {
                       <th className="p-4 font-bold text-[10px]">부서/담당자/프로젝트</th>
                       <th className="p-4 font-bold text-[10px]">계정 과목</th>
                       <th className="p-4 font-bold text-[10px] text-right">지출 금액</th>
-                      <th className="p-4 font-bold text-[10px] text-center">삭제</th>
+                      <th className="p-4 font-bold text-[10px] text-center">관리</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50 font-medium">
@@ -1986,13 +2019,64 @@ export default function ExpenseManagementAiPage() {
                             <span className="block text-[8px] text-slate-400 font-bold mt-0.5">{exp.payment_method}</span>
                           </td>
                           <td className="p-4 text-center" onClick={e => e.stopPropagation()}>
-                            <button 
-                              onClick={() => handleDeleteExpense(exp.id)}
-                              className="p-1.5 text-slate-350 hover:text-rose-600 rounded hover:bg-rose-50 transition-all cursor-pointer border-none"
-                              title="지출 삭제"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center justify-center gap-1.5">
+                              {/* ✏️ 수정 단추 */}
+                              <button 
+                                onClick={() => {
+                                  if (userRole !== 'SUPER_ADMIN') {
+                                    alert("⚠️ 죄송합니다. 지출 내역의 수정은 최고관리자(SUPER_ADMIN) 권한으로만 기동할 수 있습니다.");
+                                    return;
+                                  }
+                                  // 수정 데이터 기입 및 모달 가동
+                                  setEditExpense({
+                                    id: exp.id,
+                                    title: exp.title,
+                                    category: exp.category,
+                                    amount: String(exp.amount),
+                                    expense_date: exp.expense_date,
+                                    payment_method: exp.payment_method,
+                                    attachment_url: exp.attachment_url || '',
+                                    ai_analysis: exp.ai_analysis || '',
+                                    memo: exp.memo || '',
+                                    // 역산 파싱 영수인 추출
+                                    payee: (() => {
+                                      try {
+                                        const parsed = JSON.parse(exp.ai_analysis || "{}");
+                                        return parsed.payee || "";
+                                      } catch (e) {}
+                                      return "";
+                                    })()
+                                  });
+                                }}
+                                className={`p-1.5 rounded transition-all cursor-pointer border-none bg-transparent ${
+                                  userRole === 'SUPER_ADMIN' 
+                                    ? 'text-slate-450 hover:text-blue-600 hover:bg-blue-50' 
+                                    : 'text-slate-300 opacity-45 cursor-not-allowed'
+                                }`}
+                                title={userRole === 'SUPER_ADMIN' ? "지출 내역 수정" : "권한 없음 (최고관리자 전용)"}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"></path></svg>
+                              </button>
+
+                              {/* ✕ 삭제 단추 */}
+                              <button 
+                                onClick={() => {
+                                  if (userRole !== 'SUPER_ADMIN') {
+                                    alert("⚠️ 죄송합니다. 지출 내역의 삭제는 최고관리자(SUPER_ADMIN) 권한으로만 기동할 수 있습니다.");
+                                    return;
+                                  }
+                                  handleDeleteExpense(exp.id);
+                                }}
+                                className={`p-1.5 rounded transition-all cursor-pointer border-none bg-transparent ${
+                                  userRole === 'SUPER_ADMIN' 
+                                    ? 'text-slate-455 hover:text-rose-600 hover:bg-rose-50' 
+                                    : 'text-slate-300 opacity-45 cursor-not-allowed'
+                                }`}
+                                title={userRole === 'SUPER_ADMIN' ? "지출 내역 삭제" : "권한 없음 (최고관리자 전용)"}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -2141,6 +2225,278 @@ export default function ExpenseManagementAiPage() {
                 className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold text-xs shadow-2xs border-none cursor-pointer transition-all active:scale-95"
               >
                 닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📝 최고관리자 전용 지출결의서 장부 수정 팝업 모달 */}
+      {editExpense && (
+        <div 
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[90] flex items-center justify-center p-4 transition-all duration-300 animate-fade-in text-left"
+          onClick={() => setEditExpense(null)}
+        >
+          <div 
+            className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-150 transform transition-all duration-300 animate-scale-up"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* 모달 헤더 */}
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+              <h3 className="text-sm font-black text-slate-800 flex items-center">
+                <FileText className="w-4 h-4 mr-2 text-rose-500 animate-pulse" />
+                📝 지출결의서 수정 (최고관리자 권한 기동)
+              </h3>
+              <button 
+                onClick={() => setEditExpense(null)}
+                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-rose-500 hover:text-white flex items-center justify-center font-bold text-xs text-slate-500 border-none cursor-pointer transition-colors shadow-2xs"
+                title="닫기"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* 모달 바디 */}
+            <div className="p-6 overflow-y-auto flex-1 space-y-4 text-xs">
+              <div className="grid grid-cols-3 gap-3.5">
+                {/* 1. 적요 */}
+                <div className="col-span-3">
+                  <label className="block text-[10px] font-extrabold text-slate-500 mb-1">적요 (지출 용도 및 상세 내역) *</label>
+                  <textarea 
+                    rows={2}
+                    placeholder="예: 직원 야근 식사대"
+                    value={editExpense.title}
+                    onChange={e => setEditExpense({ ...editExpense, title: e.target.value })}
+                    className="w-full border border-slate-250 rounded-xl px-3.5 py-2.5 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
+                  />
+                  <p className="text-[9px] text-slate-400 font-semibold mt-1">
+                    * 사내 부서/임직원/프로젝트가 적요에 '@명칭' 형태로 포함되면 대장에서 자동으로 파싱 분류됩니다.
+                  </p>
+                </div>
+
+                {/* 2. 금액 */}
+                <div>
+                  <label className="block text-[10px] font-extrabold text-slate-500 mb-1">지출 금액 (원화 ₩) *</label>
+                  <input 
+                    type="number"
+                    value={editExpense.amount}
+                    onChange={e => setEditExpense({ ...editExpense, amount: e.target.value })}
+                    className="w-full border border-slate-250 rounded-xl px-3.5 py-2.5 outline-none font-black text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
+                  />
+                </div>
+
+                {/* 3. 결제 수단 */}
+                <div>
+                  <label className="block text-[10px] font-extrabold text-slate-500 mb-1">결제 수단 *</label>
+                  <select
+                    value={editExpense.payment_method}
+                    onChange={e => setEditExpense({ ...editExpense, payment_method: e.target.value })}
+                    className="w-full border border-slate-250 rounded-xl px-3.5 py-2.5 outline-none font-bold text-xs bg-white text-slate-700 cursor-pointer"
+                  >
+                    {PAYMENT_METHODS.map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 4. 품의 일자 */}
+                <div>
+                  <label className="block text-[10px] font-extrabold text-slate-500 mb-1">품의 일자 *</label>
+                  <input 
+                    type="date"
+                    value={editExpense.expense_date}
+                    onChange={e => setEditExpense({ ...editExpense, expense_date: e.target.value })}
+                    className="w-full border border-slate-250 rounded-xl px-3.5 py-2.5 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
+                  />
+                </div>
+
+                {/* 5. 계정과목 3단 연동 */}
+                <div className="col-span-3 grid grid-cols-3 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                  <span className="col-span-3 font-extrabold text-slate-700 text-[10px]">📂 3단계 계정 과목 보정</span>
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-450 mb-0.5">대분류</label>
+                    <select
+                      value={(() => {
+                        let foundMain = "판매비와관리비";
+                        for (const main of Object.keys(ACCOUNT_CATEGORIES)) {
+                          for (const mid of Object.keys(ACCOUNT_CATEGORIES[main])) {
+                            if (ACCOUNT_CATEGORIES[main][mid].includes(editExpense.category)) {
+                              foundMain = main;
+                              break;
+                            }
+                          }
+                        }
+                        return foundMain;
+                      })()}
+                      onChange={e => {
+                        const main = e.target.value;
+                        const mids = Object.keys(ACCOUNT_CATEGORIES[main] || {});
+                        if (mids.length > 0) {
+                          const firstMid = mids[0];
+                          const subs = ACCOUNT_CATEGORIES[main][firstMid] || [];
+                          if (subs.length > 0) {
+                            setEditExpense({ ...editExpense, category: subs[0] });
+                          }
+                        }
+                      }}
+                      className="w-full border border-slate-250 rounded-lg px-2 py-1.5 outline-none font-bold text-[11px] bg-white text-slate-700 cursor-pointer"
+                    >
+                      {Object.keys(ACCOUNT_CATEGORIES).map(main => (
+                        <option key={main} value={main}>{main}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-450 mb-0.5">중분류</label>
+                    <select
+                      value={(() => {
+                        let foundMid = "";
+                        for (const main of Object.keys(ACCOUNT_CATEGORIES)) {
+                          for (const mid of Object.keys(ACCOUNT_CATEGORIES[main])) {
+                            if (ACCOUNT_CATEGORIES[main][mid].includes(editExpense.category)) {
+                              foundMid = mid;
+                              break;
+                            }
+                          }
+                        }
+                        return foundMid;
+                      })()}
+                      onChange={e => {
+                        const mid = e.target.value;
+                        // 현재 대분류 찾기
+                        let curMain = "판매비와관리비";
+                        for (const main of Object.keys(ACCOUNT_CATEGORIES)) {
+                          if (Object.keys(ACCOUNT_CATEGORIES[main]).includes(mid)) {
+                            curMain = main;
+                            break;
+                          }
+                        }
+                        const subs = ACCOUNT_CATEGORIES[curMain][mid] || [];
+                        if (subs.length > 0) {
+                          setEditExpense({ ...editExpense, category: subs[0] });
+                        }
+                      }}
+                      className="w-full border border-slate-250 rounded-lg px-2 py-1.5 outline-none font-bold text-[11px] bg-white text-slate-700 cursor-pointer"
+                    >
+                      {(() => {
+                        // 현재 선택된 대분류의 중분류들만 리스트업
+                        let foundMain = "판매비와관리비";
+                        for (const main of Object.keys(ACCOUNT_CATEGORIES)) {
+                          for (const mid of Object.keys(ACCOUNT_CATEGORIES[main])) {
+                            if (ACCOUNT_CATEGORIES[main][mid].includes(editExpense.category)) {
+                              foundMain = main;
+                              break;
+                            }
+                          }
+                        }
+                        return Object.keys(ACCOUNT_CATEGORIES[foundMain] || {}).map(mid => (
+                          <option key={mid} value={mid}>{mid}</option>
+                        ));
+                      })()}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-450 mb-0.5">소분류 (최종 비목)</label>
+                    <select
+                      value={editExpense.category}
+                      onChange={e => setEditExpense({ ...editExpense, category: e.target.value })}
+                      className="w-full border border-slate-250 rounded-lg px-2 py-1.5 outline-none font-bold text-[11px] bg-white text-slate-700 cursor-pointer"
+                    >
+                      {(() => {
+                        // 현재 선택된 중분류의 소분류들만 리스트업
+                        let foundMain = "판매비와관리비";
+                        let foundMid = "";
+                        for (const main of Object.keys(ACCOUNT_CATEGORIES)) {
+                          for (const mid of Object.keys(ACCOUNT_CATEGORIES[main])) {
+                            if (ACCOUNT_CATEGORIES[main][mid].includes(editExpense.category)) {
+                              foundMain = main;
+                              foundMid = mid;
+                              break;
+                            }
+                          }
+                        }
+                        return (ACCOUNT_CATEGORIES[foundMain]?.[foundMid] || []).map(sub => (
+                          <option key={sub} value={sub}>{sub}</option>
+                        ));
+                      })()}
+                    </select>
+                  </div>
+                </div>
+
+                {/* 6. 거래처 및 영수인 */}
+                <div>
+                  <label className="block text-[10px] font-extrabold text-slate-500 mb-1">영수인/가맹점명/거래처명</label>
+                  <input 
+                    type="text"
+                    value={editExpense.payee}
+                    onChange={e => setEditExpense({ ...editExpense, payee: e.target.value })}
+                    placeholder="가맹점 또는 가입자"
+                    className="w-full border border-slate-250 rounded-xl px-3.5 py-2.5 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
+                  />
+                </div>
+
+                {/* 7. 비고/태그 */}
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-extrabold text-slate-500 mb-1">비고 (지출 퀵 태그)</label>
+                  <input 
+                    type="text"
+                    value={editExpense.memo}
+                    onChange={e => setEditExpense({ ...editExpense, memo: e.target.value })}
+                    placeholder="쉼표(,)로 태그를 구분해 보세요."
+                    className="w-full border border-slate-250 rounded-xl px-3.5 py-2.5 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 모달 푸터 */}
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+              <button 
+                onClick={async () => {
+                  if (!editExpense.title || !editExpense.amount || !editExpense.expense_date) {
+                    alert("필수 값을 기입해 주세요.");
+                    return;
+                  }
+                  
+                  // ai_analysis에 payee를 업데이트해서 동기화
+                  let parsedAnalysis = {};
+                  try {
+                    parsedAnalysis = JSON.parse(editExpense.ai_analysis || "{}");
+                  } catch (e) {}
+
+                  const updatedPayload = {
+                    title: editExpense.title,
+                    category: editExpense.category,
+                    amount: editExpense.amount,
+                    expense_date: editExpense.expense_date,
+                    payment_method: editExpense.payment_method,
+                    attachment_url: editExpense.attachment_url,
+                    memo: editExpense.memo,
+                    ai_analysis: JSON.stringify({
+                      ...parsedAnalysis,
+                      payee: editExpense.payee,
+                      requisition_date: editExpense.expense_date,
+                      approval_date: editExpense.expense_date
+                    })
+                  };
+
+                  const res = await handleUpdateExpense(editExpense.id, updatedPayload);
+                  if (res.success) {
+                    alert("🎉 지출결의서 내역이 최고관리자 권한으로 정상 수정되었습니다.");
+                    setEditExpense(null);
+                  } else {
+                    alert("지출 내역 수정 실패: " + res.error);
+                  }
+                }}
+                className="px-5 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-bold text-xs shadow-2xs border-none cursor-pointer transition-all active:scale-95"
+              >
+                저장 및 적용
+              </button>
+              <button 
+                onClick={() => setEditExpense(null)}
+                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold text-xs shadow-2xs border-none cursor-pointer transition-all active:scale-95"
+              >
+                취소
               </button>
             </div>
           </div>

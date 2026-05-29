@@ -1,6 +1,20 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { decodeJwt } from 'jose';
 import { queryTable, insertRows, deleteRows, updateRows } from '@/../egdesk-helpers';
+
+async function getRoleFromToken() {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth_token')?.value;
+    if (!token) return 'SUB_OPERATOR';
+    const payload = decodeJwt(token);
+    return payload.role as string || 'SUB_OPERATOR';
+  } catch (e) {
+    return 'SUB_OPERATOR';
+  }
+}
 
 // YYYY-MM-DD 형식에서 월(YYYY-MM) 추출 헬퍼
 function getYearMonth(dateStr: string) {
@@ -181,6 +195,12 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    // 최고관리자 권한 검증
+    const role = await getRoleFromToken();
+    if (role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ success: false, error: '최고관리자만 지출 내역을 삭제할 수 있습니다.' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
     const idsParam = searchParams.get('ids');
@@ -194,6 +214,42 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Error deleting expense:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+export async function PUT(request: Request) {
+  try {
+    // 최고관리자 권한 검증
+    const role = await getRoleFromToken();
+    if (role !== 'SUPER_ADMIN') {
+      return NextResponse.json({ success: false, error: '최고관리자만 지출 내역을 수정할 수 있습니다.' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const { id, title, category, amount, expense_date, payment_method, attachment_url, ai_analysis, memo } = body;
+
+    if (!id || !title || !category || !amount || !expense_date || !payment_method) {
+      return NextResponse.json({ success: false, error: '필수 항목이 누락되었습니다.' }, { status: 400 });
+    }
+
+    const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+
+    await updateRows('crm_expenses', {
+      title,
+      category,
+      amount: Number(amount),
+      expense_date,
+      payment_method,
+      attachment_url: attachment_url || '',
+      ai_analysis: ai_analysis ? (typeof ai_analysis === 'string' ? ai_analysis : JSON.stringify(ai_analysis)) : '',
+      memo: memo || '',
+      created_at: nowStr // 수정일자 업데이트
+    }, { id });
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('Error updating expense:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

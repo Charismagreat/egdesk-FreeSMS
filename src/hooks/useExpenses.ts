@@ -527,6 +527,26 @@ export function useExpenses() {
     }
   };
 
+  // 지출 수정
+  const handleUpdateExpense = async (id: string, updatedExpense: any) => {
+    try {
+      const res = await fetch("/api/expenses", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, ...updatedExpense })
+      });
+      const json = await res.json();
+      if (json.success) {
+        await fetchExpenses();
+        return { success: true };
+      } else {
+        return { success: false, error: json.error };
+      }
+    } catch (e) {
+      return { success: false, error: "서버 통신 중 에러가 발생했습니다." };
+    }
+  };
+
   // ⚡ 다중 선택 관리 함수 마운트 (거래 관리 AI 매핑)
   const toggleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
@@ -720,6 +740,7 @@ export function useExpenses() {
     handleAddEmployee,
     handleDeleteEmployee,
     handleAddProject,
-    handleDeleteProject
+    handleDeleteProject,
+    handleUpdateExpense
   };
 }
