@@ -137,46 +137,44 @@ export default function AutomationPage() {
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
         {EVENTS.map(ev => {
           const rule = rules[ev.id] || { enabled: false, templateId: null };
           
           return (
-            <div key={ev.id} className={`p-6 rounded-2xl border transition-all ${rule.enabled ? 'bg-white border-blue-300 shadow-sm' : 'bg-slate-50 border-slate-200'}`}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
+            <div key={ev.id} className={`p-5 rounded-2xl border transition-all flex flex-col justify-between ${rule.enabled ? 'bg-white border-blue-200 shadow-sm hover:border-blue-400' : 'bg-slate-50/80 border-slate-200 hover:border-slate-300'} duration-200`}>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <h3 className={`text-base font-black tracking-tight ${rule.enabled ? 'text-slate-800' : 'text-slate-500'}`}>
+                    {ev.label}
+                  </h3>
                   {/* Toggle Switch */}
-                  <label className="relative inline-flex items-center cursor-pointer">
+                  <label className="relative inline-flex items-center cursor-pointer select-none">
                     <input 
                       type="checkbox" 
                       className="sr-only peer" 
                       checked={rule.enabled}
                       onChange={() => toggleRule(ev.id)}
                     />
-                    <div className="w-14 h-7 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-500"></div>
+                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                   </label>
-                  <div>
-                    <h3 className={`text-lg font-bold ${rule.enabled ? 'text-slate-800' : 'text-slate-500'}`}>
-                      {ev.label}
-                    </h3>
-                    <p className="text-sm text-slate-500">{ev.desc}</p>
-                  </div>
                 </div>
+                <p className="text-xs text-slate-500 leading-relaxed font-semibold">{ev.desc}</p>
+              </div>
 
-                <div className="flex items-center space-x-3 w-1/3">
-                  <span className="text-sm font-medium text-slate-600 whitespace-nowrap">연결 템플릿:</span>
-                  <select 
-                    value={rule.templateId || ''}
-                    onChange={e => changeTemplate(ev.id, e.target.value ? parseInt(e.target.value) : null)}
-                    disabled={!rule.enabled}
-                    className={`w-full border rounded-lg px-3 py-2 text-sm outline-none transition-colors ${rule.enabled ? 'border-slate-300 bg-white focus:border-blue-500' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'}`}
-                  >
-                    <option value="">-- 템플릿을 선택하세요 --</option>
-                    {templates.map(t => (
-                      <option key={t.id} value={t.id}>{t.title}</option>
-                    ))}
-                  </select>
-                </div>
+              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-500 whitespace-nowrap">연결 템플릿:</span>
+                <select 
+                  value={rule.templateId || ''}
+                  onChange={e => changeTemplate(ev.id, e.target.value ? parseInt(e.target.value) : null)}
+                  disabled={!rule.enabled}
+                  className={`w-full border rounded-lg px-2.5 py-1.5 text-xs outline-none font-bold transition-all ${rule.enabled ? 'border-slate-300 bg-white text-slate-700 focus:border-blue-500 cursor-pointer' : 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'}`}
+                >
+                  <option value="">-- 템플릿을 선택하세요 --</option>
+                  {templates.map(t => (
+                    <option key={t.id} value={t.id}>{t.title}</option>
+                  ))}
+                </select>
               </div>
             </div>
           );
