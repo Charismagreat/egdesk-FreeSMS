@@ -35,6 +35,20 @@ export interface ExpenseStats {
   }>;
 }
 
+export interface DbExpenseCategory {
+  id: string;
+  main_category: string;
+  mid_category: string;
+  sub_category: string;
+  created_at: string;
+}
+
+export interface DbExpenseTag {
+  id: string;
+  name: string;
+  created_at: string;
+}
+
 export function useExpenses() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [stats, setStats] = useState<ExpenseStats | null>(null);
@@ -108,6 +122,109 @@ export function useExpenses() {
     requisition_date: new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10), // ✍️ 품의 일자
   });
 
+  const [dbCategories, setDbCategories] = useState<DbExpenseCategory[]>([]);
+  const [dbTags, setDbTags] = useState<DbExpenseTag[]>([]);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(false);
+  const [isLoadingTags, setIsLoadingTags] = useState(false);
+
+  const fetchCategories = async () => {
+    setIsLoadingCategories(true);
+    try {
+      const res = await fetch("/api/expenses/categories");
+      const json = await res.json();
+      if (json.success) {
+        setDbCategories(json.categories);
+      }
+    } catch (e) {
+      console.error("계정과목 로드 오류:", e);
+    } finally {
+      setIsLoadingCategories(false);
+    }
+  };
+
+  const fetchTags = async () => {
+    setIsLoadingTags(true);
+    try {
+      const res = await fetch("/api/expenses/tags");
+      const json = await res.json();
+      if (json.success) {
+        setDbTags(json.tags);
+      }
+    } catch (e) {
+      console.error("지출 태그 로드 오류:", e);
+    } finally {
+      setIsLoadingTags(false);
+    }
+  };
+
+  const handleAddCategory = async (main_category: string, mid_category: string, sub_category: string) => {
+    try {
+      const res = await fetch("/api/expenses/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ main_category, mid_category, sub_category })
+      });
+      const json = await res.json();
+      if (json.success) {
+        await fetchCategories();
+        return { success: true };
+      } else {
+        return { success: false, error: json.error };
+      }
+    } catch (e: any) {
+      return { success: false, error: "서버 통신 에러가 발생했습니다." };
+    }
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    if (!confirm("선택하신 계정 과목을 영구 삭제하시겠습니까?")) return;
+    try {
+      const res = await fetch(`/api/expenses/categories?id=${id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (json.success) {
+        await fetchCategories();
+      } else {
+        alert("계정 과목 삭제 실패: " + json.error);
+      }
+    } catch (e) {
+      alert("계정 과목 삭제 중 통신 에러가 발생했습니다.");
+    }
+  };
+
+  const handleAddTag = async (name: string) => {
+    try {
+      const res = await fetch("/api/expenses/tags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name })
+      });
+      const json = await res.json();
+      if (json.success) {
+        await fetchTags();
+        return { success: true };
+      } else {
+        return { success: false, error: json.error };
+      }
+    } catch (e: any) {
+      return { success: false, error: "서버 통신 에러가 발생했습니다." };
+    }
+  };
+
+  const handleDeleteTag = async (id: string) => {
+    if (!confirm("선택하신 태그 종류를 영구 삭제하시겠습니까?")) return;
+    try {
+      const res = await fetch(`/api/expenses/tags?id=${id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (json.success) {
+        await fetchTags();
+      } else {
+        alert("태그 삭제 실패: " + json.error);
+      }
+    } catch (e) {
+      alert("태그 삭제 중 통신 에러가 발생했습니다.");
+    }
+  };
+
   const fetchExpenses = async () => {
     setIsLoading(true);
     try {
@@ -129,6 +246,8 @@ export function useExpenses() {
 
   useEffect(() => {
     fetchExpenses();
+    fetchCategories();
+    fetchTags();
   }, []);
 
   // 검색/필터/기간 변경 시 페이지 및 선택 상태 초기화
@@ -404,6 +523,16 @@ export function useExpenses() {
     setStartDate,
     endDate,
     setEndDate,
-    setQuickRange
+    setQuickRange,
+    dbCategories,
+    dbTags,
+    isLoadingCategories,
+    isLoadingTags,
+    fetchCategories,
+    fetchTags,
+    handleAddCategory,
+    handleDeleteCategory,
+    handleAddTag,
+    handleDeleteTag
   };
 }

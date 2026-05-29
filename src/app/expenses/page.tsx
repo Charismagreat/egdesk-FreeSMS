@@ -10,35 +10,6 @@ import {
 // 커스텀 훅 임포트
 import { useExpenses, ExpenseSettings } from "@/hooks/useExpenses";
 
-// 3단계 계정과목 체계 전문가 추천 데이터
-const ACCOUNT_CATEGORIES: Record<string, Record<string, string[]>> = {
-  "판매비와관리비": {
-    "복리후생비": ["직원식대", "직원야근식대", "경조사비", "음료및간식비", "피복비", "직원교육비", "건강검진비"],
-    "여비교통비": ["시내교통비", "택시비", "유류비", "톨게이트비", "주차요금", "출장숙박비", "항공료", "철도여객운임"],
-    "소모품비": ["사무용품비", "포장자재비", "전산소모품비", "청소위생용품비", "도서인쇄비"],
-    "접대비(기업업무추진비)": ["거래처식사비", "거래처선물비", "경조사화환비", "행사용품비"],
-    "임차료": ["사무실임차료", "차량리스료", "창고임차료", "장비렌탈료"],
-    "세금과공과": ["재산세", "자동차세", "협회비", "벌과금/과태료", "수도광열비"],
-    "통신비": ["전화요금", "인터넷요금", "팩스이용료", "우편송달료"],
-    "광고선전비": ["온라인광고비", "홍보물제작비", "이벤트비용"]
-  },
-  "제조/물류원가": {
-    "운반비": ["택배배송비", "퀵서비스비", "화물운송료", "용달비"],
-    "포장비": ["박스구매비", "박스테이프비", "완충재(뽁뽁이)", "수축필름비"],
-    "외주가공비": ["제품가공비", "임가공료"]
-  },
-  "영업외비용": {
-    "이자비용": ["은행대출이자", "리스이자비용"],
-    "잡손실": ["단수차손", "재해손실", "기타잡손실"]
-  }
-};
-
-// 전문가 추천 지출 태그 프리셋 10종
-const PRESET_TAGS = [
-  "SCM팀", "정기지출", "긴급비용", "벌크구매", "거래처접대", 
-  "복지지원", "소액결제", "인프라유지", "비품구매", "마케팅홍보"
-];
-
 export default function ExpenseManagementAiPage() {
   const {
     expenses,
@@ -76,14 +47,64 @@ export default function ExpenseManagementAiPage() {
     setStartDate,
     endDate,
     setEndDate,
-    setQuickRange
+    setQuickRange,
+    dbCategories,
+    dbTags,
+    handleAddCategory,
+    handleDeleteCategory,
+    handleAddTag,
+    handleDeleteTag
   } = useExpenses();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // 1. 실시간 DB 데이터 기반으로 3단 계정과목구조 동적 useMemo 빌딩 (하드코딩 0% 제거)
+  const ACCOUNT_CATEGORIES = React.useMemo(() => {
+    const structure: Record<string, Record<string, string[]>> = {};
+    if (!dbCategories || dbCategories.length === 0) {
+      return {
+        "판매비와관리비": {
+          "복리후생비": ["직원야근식대"]
+        }
+      };
+    }
+    dbCategories.forEach(cat => {
+      const main = cat.main_category;
+      const mid = cat.mid_category;
+      const sub = cat.sub_category;
+      if (!structure[main]) {
+        structure[main] = {};
+      }
+      if (!structure[main][mid]) {
+        structure[main][mid] = [];
+      }
+      if (!structure[main][mid].includes(sub)) {
+        structure[main][mid].push(sub);
+      }
+    });
+    return structure;
+  }, [dbCategories]);
+
+  // 2. 실시간 DB 데이터 기반으로 지출 태그 명칭 배열 동적 useMemo 빌딩
+  const PRESET_TAGS = React.useMemo(() => {
+    if (!dbTags || dbTags.length === 0) {
+      return ["SCM팀", "정기지출", "긴급비용"];
+    }
+    return dbTags.map(t => t.name);
+  }, [dbTags]);
+
   // 3단계 계정과목 동적 연동을 위한 상태 선언
   const [selectedMainCat, setSelectedMainCat] = React.useState<string>("판매비와관리비");
   const [selectedMidCat, setSelectedMidCat] = React.useState<string>("복리후생비");
+
+  // 지출 환경 설정 센터 탭 제어용 로컬 상태
+  const [activeConfigTab, setActiveConfigTab] = React.useState<'budget' | 'category' | 'tag'>('budget');
+  const [newMainCat, setNewMainCat] = React.useState<string>("판매비와관리비");
+  const [newMidCat, setNewMidCat] = React.useState<string>("");
+  const [newSubCat, setNewSubCat] = React.useState<string>("");
+  const [newTagName, setNewTagName] = React.useState<string>("");
+  const [isSubmittingCat, setIsSubmittingCat] = React.useState(false);
+  const [isSubmittingTag, setIsSubmittingTag] = React.useState(false);
 
   // newExpense.category (소분류) 변경 시 대분류/중분류 역동기화 추적
   React.useEffect(() => {
@@ -101,15 +122,35 @@ export default function ExpenseManagementAiPage() {
       }
       if (found) break;
     }
-  }, [newExpense.category]);
+  }, [newExpense.category, ACCOUNT_CATEGORIES]);
+
+  // DB 카테고리 로드 완료 후, 초깃값 세팅이 하드코딩값과 불일치할 수 있으므로 강제 보정
+  React.useEffect(() => {
+    if (dbCategories.length > 0) {
+      const mainCats = Object.keys(ACCOUNT_CATEGORIES);
+      if (mainCats.length > 0) {
+        const firstMain = mainCats[0];
+        const midCats = Object.keys(ACCOUNT_CATEGORIES[firstMain] || {});
+        if (midCats.length > 0) {
+          const firstMid = midCats[0];
+          const subCats = ACCOUNT_CATEGORIES[firstMain][firstMid] || [];
+          if (subCats.length > 0 && !subCats.includes(newExpense.category)) {
+            setNewExpense(prev => ({ ...prev, category: subCats[0] }));
+            setSelectedMainCat(firstMain);
+            setSelectedMidCat(firstMid);
+          }
+        }
+      }
+    }
+  }, [dbCategories]);
 
   const handleMainCatChange = (mainCat: string) => {
     setSelectedMainCat(mainCat);
-    const midCats = Object.keys(ACCOUNT_CATEGORIES[mainCat]);
+    const midCats = Object.keys(ACCOUNT_CATEGORIES[mainCat] || {});
     if (midCats.length > 0) {
       const firstMid = midCats[0];
       setSelectedMidCat(firstMid);
-      const subCats = ACCOUNT_CATEGORIES[mainCat][firstMid];
+      const subCats = ACCOUNT_CATEGORIES[mainCat][firstMid] || [];
       if (subCats.length > 0) {
         setNewExpense(prev => ({ ...prev, category: subCats[0] }));
       }
@@ -142,6 +183,41 @@ export default function ExpenseManagementAiPage() {
       ...prev,
       memo: tags.join(", ")
     }));
+  };
+
+  // 계정과목 추가 핸들러
+  const onAddCategoryClick = async () => {
+    if (!newMidCat.trim() || !newSubCat.trim()) {
+      alert("중분류와 소분류 명칭을 모두 입력해 주세요.");
+      return;
+    }
+    setIsSubmittingCat(true);
+    const result = await handleAddCategory(newMainCat, newMidCat.trim(), newSubCat.trim());
+    setIsSubmittingCat(false);
+    if (result.success) {
+      alert("신규 계정 과목이 안전하게 추가되었습니다.");
+      setNewMidCat("");
+      setNewSubCat("");
+    } else {
+      alert("등록 실패: " + result.error);
+    }
+  };
+
+  // 태그 추가 핸들러
+  const onAddTagClick = async () => {
+    if (!newTagName.trim()) {
+      alert("추가할 태그 명칭을 입력해 주세요.");
+      return;
+    }
+    setIsSubmittingTag(true);
+    const result = await handleAddTag(newTagName.trim());
+    setIsSubmittingTag(false);
+    if (result.success) {
+      alert("지출 태그가 프리셋에 정식 추가되었습니다.");
+      setNewTagName("");
+    } else {
+      alert("등록 실패: " + result.error);
+    }
   };
 
   // 1. 임시 경보 설정 수정을 위한 상태 분리 (설정 저장 버튼 클릭 전까지 임시 보관)
@@ -537,122 +613,298 @@ export default function ExpenseManagementAiPage() {
                 <span>잔여 가능 예산: {Math.max((stats?.monthlyBudget || 0) - (stats?.currentMonthTotal || 0), 0).toLocaleString()}원</span>
               </div>
             </div>
-            
-            {/* 3. 🚨 예산 초과 방지 커스텀 SMS 알림 설정 제어판 */}
-            {tempSettings && (
-              <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-4">
-                <h2 className="text-lg font-black text-slate-800 flex items-center justify-between border-b pb-3 mb-2">
-                  <div className="flex items-center">
-                    <AlertTriangle className="w-5 h-5 mr-2 text-rose-500 animate-bounce" />
-                    예산 경보 자동화 비서
-                  </div>
-                  
-                  {/* 알림 활성 토글 */}
-                  <label className="relative inline-flex items-center cursor-pointer select-none">
-                    <input 
-                      type="checkbox" 
-                      className="sr-only peer" 
-                      checked={tempSettings.is_alert_enabled === 1}
-                      onChange={() => handleTempSettingChange('is_alert_enabled', tempSettings.is_alert_enabled === 1 ? 0 : 1)}
-                    />
-                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-350 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-500"></div>
-                  </label>
-                </h2>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">월별 지출 제한 한도 (원화 ₩) *</label>
-                    <input 
-                      type="number"
-                      value={tempSettings.monthly_budget}
-                      onChange={e => handleTempSettingChange('monthly_budget', Number(e.target.value))}
-                      disabled={tempSettings.is_alert_enabled === 0}
-                      className="w-full border border-slate-250 rounded-xl px-3.5 py-2.5 outline-none font-black text-xs bg-white disabled:bg-slate-100 disabled:text-slate-450 focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">경보 수신 연락처 (점주 번호) *</label>
-                    <input 
-                      type="text"
-                      placeholder="예: 010-1234-5678"
-                      value={tempSettings.alert_phone}
-                      onChange={e => handleTempSettingChange('alert_phone', e.target.value)}
-                      disabled={tempSettings.is_alert_enabled === 0}
-                      className="w-full border border-slate-250 rounded-xl px-3.5 py-2.5 outline-none font-bold text-xs bg-white disabled:bg-slate-100 disabled:text-slate-450 focus:ring-2 focus:ring-rose-500 transition-all text-slate-800 font-mono"
-                    />
-                  </div>
-
-                  <div className="col-span-2">
-                    <div className="flex justify-between items-center mb-1">
-                      <label className="block text-[10px] font-extrabold text-slate-500">지출 소모율 경보 임계 기준치 (%) *</label>
-                      <span className="text-[10px] font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded">{tempSettings.alert_threshold_percent}%</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <input 
-                        type="range"
-                        min="50"
-                        max="100"
-                        step="5"
-                        value={tempSettings.alert_threshold_percent}
-                        onChange={e => handleTempSettingChange('alert_threshold_percent', Number(e.target.value))}
-                        disabled={tempSettings.is_alert_enabled === 0}
-                        className="flex-1 accent-rose-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
-                      />
-                    </div>
-                  </div>
-
-                  {/* 커스텀 SMS 경보 문자 템플릿 필드 (Q2 반영) */}
-                  <div className="col-span-2">
-                    <div className="flex justify-between items-center mb-1">
-                      <label className="block text-[10px] font-extrabold text-slate-500">🚨 경보 문자 템플릿 문구 *</label>
-                      <span className="text-[9px] text-slate-450 font-bold">지원 변수: {"{경보임계율}"}, {"{경보금액}"}, {"{누적지출}"}, {"{월예산}"}</span>
-                    </div>
-                    <textarea 
-                      value={tempSettings.alert_sms_template}
-                      onChange={e => handleTempSettingChange('alert_sms_template', e.target.value)}
-                      disabled={tempSettings.is_alert_enabled === 0}
-                      rows={4}
-                      className="w-full border border-slate-250 rounded-xl p-3 outline-none font-semibold text-xs bg-white disabled:bg-slate-100 disabled:text-slate-450 focus:ring-2 focus:ring-rose-500 transition-all text-slate-700 resize-none leading-relaxed"
-                    />
-                    
-                    {tempSettings.is_alert_enabled === 1 && (
-                      <div className="flex justify-between items-center mt-1.5 px-1 animate-fade-in">
-                        <div className="flex items-center space-x-2">
-                          <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider transition-all border ${
-                            getByteLength(tempSettings.alert_sms_template) <= 80 
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-                              : 'bg-amber-50 text-amber-700 border-amber-200 animate-pulse'
-                          }`}>
-                            {getByteLength(tempSettings.alert_sms_template) <= 80 ? '단문 SMS' : '장문 LMS'}
-                          </span>
-                          <span className="text-[10px] font-extrabold text-slate-500">
-                            {getByteLength(tempSettings.alert_sms_template)} / 80 Byte
-                          </span>
-                        </div>
-                        {getByteLength(tempSettings.alert_sms_template) > 80 && (
-                          <span className="text-[9px] text-amber-600 font-extrabold flex items-center animate-shake">
-                            <AlertCircle className="w-3 h-3 mr-0.5 shrink-0 text-amber-500" />
-                            80Byte 초과 시 장문(LMS) 발송 및 요금 추가
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
+            {/* 3. 🛡️ 지출 환경 설정 센터 탭 패널 (예산/계정/태그 원스톱 관리) */}
+            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-4">
+              <h2 className="text-lg font-black text-slate-800 flex flex-col sm:flex-row sm:items-center justify-between border-b pb-3 mb-2 gap-2">
+                <div className="flex items-center text-slate-850">
+                  <AlertTriangle className="w-5 h-5 mr-2 text-rose-500 animate-bounce" />
+                  지출 환경 설정
                 </div>
-
-                <div className="pt-2 flex justify-end">
-                  <button 
-                    onClick={() => handleSaveSettings(tempSettings)}
-                    disabled={isSavingSettings || tempSettings.is_alert_enabled === 0}
-                    className="px-5 py-2.5 bg-slate-900 hover:bg-slate-805 text-white rounded-xl font-bold text-xs shadow-md hover:opacity-95 disabled:bg-slate-350 disabled:shadow-none transition-all cursor-pointer border-none flex items-center"
+                
+                {/* 탭 헤더 */}
+                <div className="flex items-center gap-0.5 bg-slate-100 p-0.5 rounded-xl border border-slate-200 self-end">
+                  <button
+                    type="button"
+                    onClick={() => setActiveConfigTab('budget')}
+                    className={`px-2.5 py-1 rounded-lg text-[9px] font-black transition-all cursor-pointer border-none ${
+                      activeConfigTab === 'budget' ? 'bg-white text-rose-600 shadow-2xs font-extrabold' : 'text-slate-500 hover:text-slate-800 bg-transparent'
+                    }`}
                   >
-                    <Save className="w-3.5 h-3.5 mr-2" />
-                    {isSavingSettings ? "설정 저장 중..." : "경보 설정 적용하기"}
+                    🚨 예산 알림
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveConfigTab('category')}
+                    className={`px-2.5 py-1 rounded-lg text-[9px] font-black transition-all cursor-pointer border-none ${
+                      activeConfigTab === 'category' ? 'bg-white text-rose-600 shadow-2xs font-extrabold' : 'text-slate-500 hover:text-slate-800 bg-transparent'
+                    }`}
+                  >
+                    📂 계정 과목
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveConfigTab('tag')}
+                    className={`px-2.5 py-1 rounded-lg text-[9px] font-black transition-all cursor-pointer border-none ${
+                      activeConfigTab === 'tag' ? 'bg-white text-rose-600 shadow-2xs font-extrabold' : 'text-slate-500 hover:text-slate-800 bg-transparent'
+                    }`}
+                  >
+                    🏷️ 지출 태그
                   </button>
                 </div>
-              </div>
-            )}
+              </h2>
+
+              {/* 🚨 1. 예산 알림 탭 가동 */}
+              {activeConfigTab === 'budget' && tempSettings && (
+                <div className="space-y-4 animate-fade-in">
+                  <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-150">
+                    <span className="text-xs font-black text-slate-700">예산 한도액 알림 가동</span>
+                    <label className="relative inline-flex items-center cursor-pointer select-none">
+                      <input 
+                        type="checkbox" 
+                        className="sr-only peer" 
+                        checked={tempSettings.is_alert_enabled === 1}
+                        onChange={() => handleTempSettingChange('is_alert_enabled', tempSettings.is_alert_enabled === 1 ? 0 : 1)}
+                      />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-350 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-500"></div>
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-extrabold text-slate-500 mb-1">월별 지출 제한 한도 (원화 ₩) *</label>
+                      <input 
+                        type="number"
+                        value={tempSettings.monthly_budget}
+                        onChange={e => handleTempSettingChange('monthly_budget', Number(e.target.value))}
+                        disabled={tempSettings.is_alert_enabled === 0}
+                        className="w-full border border-slate-250 rounded-xl px-3.5 py-2.5 outline-none font-black text-xs bg-white disabled:bg-slate-100 disabled:text-slate-450 focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-extrabold text-slate-500 mb-1">경보 수신 연락처 (점주 번호) *</label>
+                      <input 
+                        type="text"
+                        placeholder="예: 010-1234-5678"
+                        value={tempSettings.alert_phone}
+                        onChange={e => handleTempSettingChange('alert_phone', e.target.value)}
+                        disabled={tempSettings.is_alert_enabled === 0}
+                        className="w-full border border-slate-250 rounded-xl px-3.5 py-2.5 outline-none font-bold text-xs bg-white disabled:bg-slate-100 disabled:text-slate-450 focus:ring-2 focus:ring-rose-500 transition-all text-slate-800 font-mono"
+                      />
+                    </div>
+
+                    <div className="col-span-2">
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="block text-[10px] font-extrabold text-slate-500">지출 소모율 경보 임계 기준치 (%) *</label>
+                        <span className="text-[10px] font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded">{tempSettings.alert_threshold_percent}%</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <input 
+                          type="range"
+                          min="50"
+                          max="100"
+                          step="5"
+                          value={tempSettings.alert_threshold_percent}
+                          onChange={e => handleTempSettingChange('alert_threshold_percent', Number(e.target.value))}
+                          disabled={tempSettings.is_alert_enabled === 0}
+                          className="flex-1 accent-rose-500 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="col-span-2">
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="block text-[10px] font-extrabold text-slate-500">🚨 경보 문자 템플릿 문구 *</label>
+                        <span className="text-[9px] text-slate-450 font-bold">지원 변수: {"{경보임계율}"}, {"{경보금액}"}, {"{누적지출}"}, {"{월예산}"}</span>
+                      </div>
+                      <textarea 
+                        value={tempSettings.alert_sms_template}
+                        onChange={e => handleTempSettingChange('alert_sms_template', e.target.value)}
+                        disabled={tempSettings.is_alert_enabled === 0}
+                        rows={4}
+                        className="w-full border border-slate-250 rounded-xl p-3 outline-none font-semibold text-xs bg-white disabled:bg-slate-100 disabled:text-slate-450 focus:ring-2 focus:ring-rose-500 transition-all text-slate-700 resize-none leading-relaxed"
+                      />
+                      
+                      {tempSettings.is_alert_enabled === 1 && (
+                        <div className="flex justify-between items-center mt-1.5 px-1 animate-fade-in">
+                          <div className="flex items-center space-x-2">
+                            <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider transition-all border ${
+                              getByteLength(tempSettings.alert_sms_template) <= 80 
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                                : 'bg-amber-50 text-amber-700 border-amber-200 animate-pulse'
+                            }`}>
+                              {getByteLength(tempSettings.alert_sms_template) <= 80 ? '단문 SMS' : '장문 LMS'}
+                            </span>
+                            <span className="text-[10px] font-extrabold text-slate-500">
+                              {getByteLength(tempSettings.alert_sms_template)} / 80 Byte
+                            </span>
+                          </div>
+                          {getByteLength(tempSettings.alert_sms_template) > 80 && (
+                            <span className="text-[9px] text-amber-600 font-extrabold flex items-center animate-shake">
+                              <AlertCircle className="w-3 h-3 mr-0.5 shrink-0 text-amber-500" />
+                              80Byte 초과 시 장문(LMS) 발송 및 요금 추가
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex justify-end">
+                    <button 
+                      onClick={() => handleSaveSettings(tempSettings)}
+                      disabled={isSavingSettings || tempSettings.is_alert_enabled === 0}
+                      className="px-5 py-2.5 bg-slate-900 hover:bg-slate-805 text-white rounded-xl font-bold text-xs shadow-md hover:opacity-95 disabled:bg-slate-350 disabled:shadow-none transition-all cursor-pointer border-none flex items-center"
+                    >
+                      <Save className="w-3.5 h-3.5 mr-2" />
+                      {isSavingSettings ? "설정 저장 중..." : "경보 설정 적용하기"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 📂 2. 계정 과목 관리 탭 가동 */}
+              {activeConfigTab === 'category' && (
+                <div className="space-y-4 animate-fade-in text-xs">
+                  {/* 추가 폼 */}
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                    <h3 className="font-extrabold text-slate-800 text-[11px] flex items-center">
+                      <Sparkles className="w-3 h-3 text-rose-500 mr-1.5 animate-pulse" />
+                      ➕ 신규 계정 과목 3단계 추가
+                    </h3>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-[9px] font-bold text-slate-450 mb-0.5">대분류</label>
+                        <select
+                          value={newMainCat}
+                          onChange={e => setNewMainCat(e.target.value)}
+                          className="w-full border border-slate-250 rounded-lg px-2 py-1.5 outline-none font-bold text-[11px] bg-white text-slate-700 cursor-pointer"
+                        >
+                          <option value="판매비와관리비">판매비와관리비</option>
+                          <option value="제조/물류원가">제조/물류원가</option>
+                          <option value="영업외비용">영업외비용</option>
+                          <option value="기타">기타</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[9px] font-bold text-slate-450 mb-0.5">중분류</label>
+                        <input
+                          type="text"
+                          placeholder="예: 복리후생비"
+                          value={newMidCat}
+                          onChange={e => setNewMidCat(e.target.value)}
+                          className="w-full border border-slate-250 rounded-lg px-2.5 py-1.5 outline-none font-bold text-[11px] bg-white text-slate-850"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] font-bold text-slate-450 mb-0.5">소분류 (최종 비목)</label>
+                        <input
+                          type="text"
+                          placeholder="예: 직원식대"
+                          value={newSubCat}
+                          onChange={e => setNewSubCat(e.target.value)}
+                          className="w-full border border-slate-250 rounded-lg px-2.5 py-1.5 outline-none font-bold text-[11px] bg-white text-slate-850"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end pt-1">
+                      <button
+                        onClick={onAddCategoryClick}
+                        disabled={isSubmittingCat || !newMidCat.trim() || !newSubCat.trim()}
+                        className="px-3.5 py-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-lg font-black text-[10px] shadow-sm cursor-pointer disabled:bg-slate-300 border-none transition-all"
+                      >
+                        {isSubmittingCat ? "추가 중..." : "➕ 계정 추가"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 목록 대장 */}
+                  <div className="space-y-1.5">
+                    <h3 className="font-extrabold text-slate-500 text-[10px] pl-1">현재 등록된 계정 과목 목록 ({dbCategories.length}건)</h3>
+                    <div className="max-h-[220px] overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100 bg-white shadow-2xs">
+                      {dbCategories.length === 0 ? (
+                        <div className="py-8 text-center text-slate-400 font-bold">등록된 계정과목이 없습니다.</div>
+                      ) : (
+                        dbCategories.map(cat => (
+                          <div key={cat.id} className="flex justify-between items-center p-2.5 hover:bg-slate-50/50 transition-colors">
+                            <div className="space-y-0.5 min-w-0 pr-2">
+                              <span className="inline-flex px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[8px] font-bold border border-slate-200 mr-1.5">
+                                {cat.main_category}
+                              </span>
+                              <span className="text-slate-400 font-bold text-[9px] mr-1">{cat.mid_category} 〉</span>
+                              <span className="text-slate-850 font-black text-[10px]">{cat.sub_category}</span>
+                            </div>
+                            <button
+                              onClick={() => handleDeleteCategory(cat.id)}
+                              className="text-slate-350 hover:text-rose-500 font-black hover:bg-rose-50 p-1.5 rounded transition-colors cursor-pointer border-none bg-transparent"
+                              title="계정과목 삭제"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 🏷️ 3. 지출 태그 관리 탭 가동 */}
+              {activeConfigTab === 'tag' && (
+                <div className="space-y-4 animate-fade-in text-xs">
+                  {/* 추가 폼 */}
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                    <h3 className="font-extrabold text-slate-800 text-[11px] flex items-center">
+                      <Sparkles className="w-3 h-3 text-rose-500 mr-1.5 animate-pulse" />
+                      ➕ 신규 지출 퀵 태그 추가
+                    </h3>
+                    <div className="flex gap-2 items-center">
+                      <input
+                        type="text"
+                        placeholder="예: 마케팅비용"
+                        value={newTagName}
+                        onChange={e => setNewTagName(e.target.value)}
+                        className="flex-1 border border-slate-250 rounded-lg px-3 py-2 outline-none font-bold text-xs bg-white text-slate-850 focus:ring-2 focus:ring-rose-500 transition-all"
+                      />
+                      <button
+                        onClick={onAddTagClick}
+                        disabled={isSubmittingTag || !newTagName.trim()}
+                        className="px-4 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-lg font-black text-[11px] shadow-sm cursor-pointer disabled:bg-slate-300 border-none transition-all"
+                      >
+                        {isSubmittingTag ? "추가 중..." : "➕ 태그 추가"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 목록 대장 (원클릭 삭제 지원 칩 모임) */}
+                  <div className="space-y-2">
+                    <h3 className="font-extrabold text-slate-500 text-[10px] pl-1">현재 등록된 퀵 태그 프리셋 ({dbTags.length}개)</h3>
+                    <div className="flex flex-wrap gap-2 p-4 bg-slate-50/50 border border-slate-100 rounded-2xl max-h-[220px] overflow-y-auto">
+                      {dbTags.length === 0 ? (
+                        <div className="w-full text-center py-6 text-slate-400 font-bold">등록된 지출 태그가 없습니다.</div>
+                      ) : (
+                        dbTags.map(tag => (
+                          <div 
+                            key={tag.id} 
+                            className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full bg-white text-slate-700 text-[10px] font-black border border-slate-200 shadow-3xs"
+                          >
+                            <span>#{tag.name}</span>
+                            <button
+                              onClick={() => handleDeleteTag(tag.id)}
+                              className="w-4 h-4 rounded-full bg-slate-100 text-slate-400 hover:bg-rose-500 hover:text-white flex items-center justify-center font-bold text-[8px] border-none cursor-pointer transition-colors"
+                              title="태그 삭제"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div> {/* 지출 환경 설정 센터 탭 패널 닫기 */}
 
           </div> {/* 우측 열 닫기 */}
 

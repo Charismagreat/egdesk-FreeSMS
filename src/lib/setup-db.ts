@@ -724,5 +724,87 @@ export async function setupDatabase() {
     console.error('Error seeding expenses data:', e.message);
   }
 
+  // 39-1. 지출 계정과목 3단계 관리 테이블 신설
+  await safeCreateTable('지출 계정과목 관리', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'main_category', type: 'TEXT', notNull: true },
+    { name: 'mid_category', type: 'TEXT', notNull: true },
+    { name: 'sub_category', type: 'TEXT', notNull: true },
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'expense_categories', uniqueKeyColumns: ['id'] });
+
+  // 39-2. 지출 퀵 태그 프리셋/커스텀 관리 테이블 신설
+  await safeCreateTable('지출 태그 관리', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'name', type: 'TEXT', notNull: true },
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'expense_tags', uniqueKeyColumns: ['id'] });
+
+  // 39-3. 계정과목 및 태그 기초 시딩
+  try {
+    const catsCheck = await queryTable('expense_categories', {});
+    if (!catsCheck.rows || catsCheck.rows.length === 0) {
+      const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+      const initialCategories = [
+        // 판매비와관리비 - 복리후생비
+        { id: 'cat-01', main_category: '판매비와관리비', mid_category: '복리후생비', sub_category: '직원식대', created_at: nowStr },
+        { id: 'cat-02', main_category: '판매비와관리비', mid_category: '복리후생비', sub_category: '직원야근식대', created_at: nowStr },
+        { id: 'cat-03', main_category: '판매비와관리비', mid_category: '복리후생비', sub_category: '경조사비', created_at: nowStr },
+        { id: 'cat-04', main_category: '판매비와관리비', mid_category: '복리후생비', sub_category: '음료및간식비', created_at: nowStr },
+        { id: 'cat-05', main_category: '판매비와관리비', mid_category: '복리후생비', sub_category: '피복비', created_at: nowStr },
+        { id: 'cat-06', main_category: '판매비와관리비', mid_category: '복리후생비', sub_category: '직원교육비', created_at: nowStr },
+        { id: 'cat-07', main_category: '판매비와관리비', mid_category: '복리후생비', sub_category: '건강검진비', created_at: nowStr },
+        // 판매비와관리비 - 여비교통비
+        { id: 'cat-08', main_category: '판매비와관리비', mid_category: '여비교통비', sub_category: '시내교통비', created_at: nowStr },
+        { id: 'cat-09', main_category: '판매비와관리비', mid_category: '여비교통비', sub_category: '택시비', created_at: nowStr },
+        { id: 'cat-10', main_category: '판매비와관리비', mid_category: '여비교통비', sub_category: '유류비', created_at: nowStr },
+        { id: 'cat-11', main_category: '판매비와관리비', mid_category: '여비교통비', sub_category: '톨게이트비', created_at: nowStr },
+        { id: 'cat-12', main_category: '판매비와관리비', mid_category: '여비교통비', sub_category: '주차요금', created_at: nowStr },
+        { id: 'cat-13', main_category: '판매비와관리비', mid_category: '여비교통비', sub_category: '출장숙박비', created_at: nowStr },
+        // 판매비와관리비 - 소모품비
+        { id: 'cat-14', main_category: '판매비와관리비', mid_category: '소모품비', sub_category: '사무용품비', created_at: nowStr },
+        { id: 'cat-15', main_category: '판매비와관리비', mid_category: '소모품비', sub_category: '포장자재비', created_at: nowStr },
+        { id: 'cat-16', main_category: '판매비와관리비', mid_category: '소모품비', sub_category: '전산소모품비', created_at: nowStr },
+        // 판매비와관리비 - 접대비
+        { id: 'cat-17', main_category: '판매비와관리비', mid_category: '접대비(기업업무추진비)', sub_category: '거래처식사비', created_at: nowStr },
+        { id: 'cat-18', main_category: '판매비와관리비', mid_category: '접대비(기업업무추진비)', sub_category: '거래처선물비', created_at: nowStr },
+        // 제조/물류원가 - 운반비
+        { id: 'cat-19', main_category: '제조/물류원가', mid_category: '운반비', sub_category: '택배배송비', created_at: nowStr },
+        { id: 'cat-20', main_category: '제조/물류원가', mid_category: '운반비', sub_category: '퀵서비스비', created_at: nowStr },
+        { id: 'cat-21', main_category: '제조/물류원가', mid_category: '운반비', sub_category: '화물운송료', created_at: nowStr },
+        // 제조/물류원가 - 포장비
+        { id: 'cat-22', main_category: '제조/물류원가', mid_category: '포장비', sub_category: '박스구매비', created_at: nowStr },
+        { id: 'cat-23', main_category: '제조/물류원가', mid_category: '포장비', sub_category: '박스테이프비', created_at: nowStr }
+      ];
+      await insertRows('expense_categories', initialCategories);
+      console.log('Expense categories successfully seeded.');
+    }
+  } catch (e: any) {
+    console.error('Error seeding expense categories:', e.message);
+  }
+
+  try {
+    const tagsCheck = await queryTable('expense_tags', {});
+    if (!tagsCheck.rows || tagsCheck.rows.length === 0) {
+      const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+      const initialTags = [
+        { id: 'tag-01', name: 'SCM팀', created_at: nowStr },
+        { id: 'tag-02', name: '정기지출', created_at: nowStr },
+        { id: 'tag-03', name: '긴급비용', created_at: nowStr },
+        { id: 'tag-04', name: '벌크구매', created_at: nowStr },
+        { id: 'tag-05', name: '거래처접대', created_at: nowStr },
+        { id: 'tag-06', name: '복지지원', created_at: nowStr },
+        { id: 'tag-07', name: '소액결제', created_at: nowStr },
+        { id: 'tag-08', name: '인프라유지', created_at: nowStr },
+        { id: 'tag-09', name: '비품구매', created_at: nowStr },
+        { id: 'tag-10', name: '마케팅홍보', created_at: nowStr }
+      ];
+      await insertRows('expense_tags', initialTags);
+      console.log('Expense tags successfully seeded.');
+    }
+  } catch (e: any) {
+    console.error('Error seeding expense tags:', e.message);
+  }
+
   console.log('Database setup complete.');
 }
