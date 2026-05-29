@@ -124,9 +124,9 @@ export async function POST(request: Request) {
       attachment_url: attachment_url || '',
       ai_analysis: ai_analysis ? (typeof ai_analysis === 'string' ? ai_analysis : JSON.stringify(ai_analysis)) : '',
       memo: memo || '',
-      actual_expense_date: actual_expense_date || null,
-      deduction_amount: deduction_amount ? Number(deduction_amount) : 0,
-      transfer_fee: transfer_fee ? Number(transfer_fee) : 0,
+      actual_expense_date: null, // 신규 등록 시에는 미결재(PENDING) 상태이므로 실제 지출일은 강제 무력화(Null)
+      deduction_amount: 0,       // 신규 등록 시에는 미결재 상태이므로 공제액 0 강제
+      transfer_fee: 0,           // 신규 등록 시에는 미결재 상태이므로 송금수수료 0 강제
       created_at: nowStr
     }]);
 
@@ -247,6 +247,29 @@ export async function PUT(request: Request) {
 
     const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
 
+    // 비즈니스 룰 강제 적용을 위해 기존 지출 정보 실시간 조회
+    const currentExpenseRes = await queryTable('crm_expenses', { filters: { id } });
+    const currentExpense = currentExpenseRes.rows?.[0];
+    if (!currentExpense) {
+      return NextResponse.json({ success: false, error: '존재하지 않는 지출 내역입니다.' }, { status: 404 });
+    }
+
+    const isApproved = currentExpense.approval_status === 'APPROVED';
+    const finalPaymentMethod = payment_method || currentExpense.payment_method;
+    const isTransferOrCash = ['계좌송금', '계좌이체', '현금'].includes(finalPaymentMethod);
+
+    let finalActualExpenseDate = actual_expense_date || null;
+    let finalDeductionAmount = deduction_amount ? Number(deduction_amount) : 0;
+    let finalTransferFee = transfer_fee ? Number(transfer_fee) : 0;
+
+    // 결제승인이 완료되고 결제수단이 계좌송금/현금인 경우에만 입력 값 허용
+    if (!isApproved || !isTransferOrCash) {
+      // 그외 수단/상태인 경우 지출일은 품의일, 공제액 0, 수수료 0 으로 강제
+      finalActualExpenseDate = expense_date || currentExpense.expense_date;
+      finalDeductionAmount = 0;
+      finalTransferFee = 0;
+    }
+
     await updateRows('crm_expenses', {
       title,
       category,
@@ -256,9 +279,9 @@ export async function PUT(request: Request) {
       attachment_url: attachment_url || '',
       ai_analysis: ai_analysis ? (typeof ai_analysis === 'string' ? ai_analysis : JSON.stringify(ai_analysis)) : '',
       memo: memo || '',
-      actual_expense_date: actual_expense_date || null,
-      deduction_amount: deduction_amount ? Number(deduction_amount) : 0,
-      transfer_fee: transfer_fee ? Number(transfer_fee) : 0,
+      actual_expense_date: finalActualExpenseDate,
+      deduction_amount: finalDeductionAmount,
+      transfer_fee: finalTransferFee,
       created_at: nowStr // 수정일자 업데이트
     }, { filters: { id } });
 

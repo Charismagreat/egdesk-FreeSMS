@@ -937,47 +937,78 @@ export default function MobileApprovePage() {
                     </div>
 
                     {/* 실제 지출일, 공제액, 송금수수료 즉석 수정란 */}
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100/70 space-y-3">
-                      <span className="block font-black text-slate-750 text-[9.5px]">💰 실제 지출 집행 상세 기입</span>
-                      <div>
-                        <label className="block text-[8px] font-bold text-slate-450 mb-0.5">실제 지출일</label>
-                        <input 
-                          type="date"
-                          value={editActualExpenseDate}
-                          onChange={e => setEditActualExpenseDate(e.target.value)}
-                          className="w-full border border-slate-200 rounded-xl px-2.5 py-1.5 outline-none font-bold text-[10.5px] bg-white focus:ring-2 focus:ring-rose-500 text-slate-800"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                           <label className="block text-[8px] font-bold text-slate-450 mb-0.5">공제액 (₩)</label>
-                           <input 
-                             type="number"
-                             value={editDeductionAmount || ""}
-                             onChange={e => setEditDeductionAmount(Number(e.target.value) || 0)}
-                             placeholder="공제액"
-                             className="w-full border border-slate-200 rounded-xl px-2.5 py-1.5 outline-none font-bold text-[10.5px] bg-white focus:ring-2 focus:ring-rose-500 text-slate-850"
-                           />
+                    {(() => {
+                      const isApproved = selectedExpense.approval_status === 'APPROVED';
+                      const isTransferOrCash = ['계좌송금', '계좌이체', '현금'].includes(editPaymentMethod);
+                      const isEditable = isApproved && isTransferOrCash;
+
+                      return (
+                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100/70 space-y-3">
+                          <span className="block font-black text-slate-750 text-[9.5px]">💰 실제 지출 집행 상세 기입</span>
+                          <div>
+                            <label className={`block text-[8px] font-bold mb-0.5 ${!isEditable ? 'text-slate-400' : 'text-slate-450'}`}>실제 지출일</label>
+                            <input 
+                              type="date"
+                              disabled={!isEditable}
+                              value={editActualExpenseDate}
+                              onChange={e => setEditActualExpenseDate(e.target.value)}
+                              className={`w-full border border-slate-200 rounded-xl px-2.5 py-1.5 outline-none font-bold text-[10.5px] transition-all ${
+                                !isEditable 
+                                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-150' 
+                                  : 'bg-white focus:ring-2 focus:ring-rose-500 text-slate-800'
+                              }`}
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className={`block text-[8px] font-bold mb-0.5 ${!isEditable ? 'text-slate-400' : 'text-slate-450'}`}>공제액 (₩)</label>
+                              <input 
+                                type="number"
+                                disabled={!isEditable}
+                                value={editDeductionAmount || ""}
+                                onChange={e => setEditDeductionAmount(Number(e.target.value) || 0)}
+                                placeholder="공제액"
+                                className={`w-full border border-slate-200 rounded-xl px-2.5 py-1.5 outline-none font-bold text-[10.5px] transition-all ${
+                                  !isEditable 
+                                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-150' 
+                                    : 'bg-white focus:ring-2 focus:ring-rose-500 text-slate-850'
+                                }`}
+                              />
+                            </div>
+                            <div>
+                              <label className={`block text-[8px] font-bold mb-0.5 ${!isEditable ? 'text-slate-400' : 'text-slate-450'}`}>송금수수료 (₩)</label>
+                              <input 
+                                type="number"
+                                disabled={!isEditable}
+                                value={editTransferFee || ""}
+                                onChange={e => setEditTransferFee(Number(e.target.value) || 0)}
+                                placeholder="송금수수료"
+                                className={`w-full border border-slate-250 rounded-xl px-2.5 py-1.5 outline-none font-bold text-[10.5px] transition-all ${
+                                  !isEditable 
+                                    ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-150' 
+                                    : 'bg-white focus:ring-2 focus:ring-rose-500 text-slate-855'
+                                }`}
+                              />
+                            </div>
+                          </div>
+
+                          {/* 비활성화 시 모바일 룰 설명 추가 */}
+                          {!isEditable && (
+                            <div className="p-2 bg-amber-50 border border-amber-100 rounded-xl text-[8px] font-bold text-amber-700 leading-normal">
+                              ⚠️ 안내: 실제 지출일/공제액/수수료는 결제승인이 완료되고 결제수단이 '계좌송금' 또는 '현금'인 지출 건만 사후 수정 기입할 수 있습니다.
+                            </div>
+                          )}
+
+                          {/* 실시간 최종 실지출액 프리뷰 */}
+                          <div className="p-2 bg-slate-900 text-white rounded-lg flex items-center justify-between text-[9px] font-black border border-slate-850">
+                            <span className="text-rose-350">💸 예상 실지급액:</span>
+                            <span className="font-mono">
+                              {((Number(editAmount) || 0) - (Number(editDeductionAmount) || 0) + (Number(editTransferFee) || 0)).toLocaleString()}원
+                            </span>
+                          </div>
                         </div>
-                        <div>
-                           <label className="block text-[8px] font-bold text-slate-450 mb-0.5">송금수수료 (₩)</label>
-                           <input 
-                             type="number"
-                             value={editTransferFee || ""}
-                             onChange={e => setEditTransferFee(Number(e.target.value) || 0)}
-                             placeholder="송금수수료"
-                             className="w-full border border-slate-250 rounded-xl px-2.5 py-1.5 outline-none font-bold text-[10.5px] bg-white focus:ring-2 focus:ring-rose-500 text-slate-855"
-                           />
-                        </div>
-                      </div>
-                      {/* 실시간 최종 실지출액 프리뷰 */}
-                      <div className="p-2 bg-slate-900 text-white rounded-lg flex items-center justify-between text-[9px] font-black border border-slate-850">
-                        <span className="text-rose-350">💸 예상 실지급액:</span>
-                        <span className="font-mono">
-                          {((Number(editAmount) || 0) - (Number(editDeductionAmount) || 0) + (Number(editTransferFee) || 0)).toLocaleString()}원
-                        </span>
-                      </div>
-                    </div>
+                      );
+                    })()}
 
                     {/* 품의일자 및 결제 수단 */}
                     <div className="grid grid-cols-2 gap-3">

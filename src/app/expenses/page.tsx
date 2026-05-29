@@ -1014,25 +1014,27 @@ export default function ExpenseManagementAiPage() {
 
                   {/* 실제 지출일 */}
                   <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">실제 지출일</label>
+                    <label className="block text-[10px] font-extrabold text-slate-400 mb-1">실제 지출일 (승인 시 가능)</label>
                     <input 
                       type="date"
+                      disabled={true}
                       value={newExpense.actual_expense_date || ""}
                       onChange={e => setNewExpense({ ...newExpense, actual_expense_date: e.target.value })}
-                      className="w-full border border-slate-250 rounded-xl px-3.5 py-2 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-700 cursor-pointer"
+                      className="w-full border border-slate-200 rounded-xl px-3.5 py-2 outline-none font-bold text-xs bg-slate-100/70 text-slate-400 cursor-not-allowed border-slate-200/50"
                     />
                   </div>
 
                   {/* 공제액 */}
                   <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">공제액 (차감액 ₩)</label>
+                    <label className="block text-[10px] font-extrabold text-slate-400 mb-1">공제액 (차감액 ₩)</label>
                     <div className="relative">
                       <input 
                         type="number"
-                        placeholder="차감할 공제액"
+                        disabled={true}
+                        placeholder="승인 시 입력 가능"
                         value={newExpense.deduction_amount || ""}
                         onChange={e => setNewExpense({ ...newExpense, deduction_amount: Number(e.target.value) || 0 })}
-                        className="w-full border border-slate-250 rounded-xl pl-3.5 pr-8 py-2.5 outline-none font-semibold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
+                        className="w-full border border-slate-200 rounded-xl pl-3.5 pr-8 py-2.5 outline-none font-semibold text-xs bg-slate-100/70 text-slate-400 cursor-not-allowed border-slate-200/50"
                       />
                       <span className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 font-extrabold text-[10px]">원</span>
                     </div>
@@ -1040,18 +1042,24 @@ export default function ExpenseManagementAiPage() {
 
                   {/* 송금수수료 */}
                   <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">송금수수료 (가산액 ₩)</label>
+                    <label className="block text-[10px] font-extrabold text-slate-400 mb-1">송금수수료 (가산액 ₩)</label>
                     <div className="relative">
                       <input 
                         type="number"
-                        placeholder="가산할 송금수수료"
+                        disabled={true}
+                        placeholder="승인 시 입력 가능"
                         value={newExpense.transfer_fee || ""}
                         onChange={e => setNewExpense({ ...newExpense, transfer_fee: Number(e.target.value) || 0 })}
-                        className="w-full border border-slate-250 rounded-xl pl-3.5 pr-8 py-2.5 outline-none font-semibold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
+                        className="w-full border border-slate-200 rounded-xl pl-3.5 pr-8 py-2.5 outline-none font-semibold text-xs bg-slate-100/70 text-slate-400 cursor-not-allowed border-slate-200/50"
                       />
                       <span className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 font-extrabold text-[10px]">원</span>
                     </div>
                   </div>
+
+                  {/* 지출 등록 폼 내 비즈니스 룰 안내 배너 */}
+                  <p className="col-span-3 text-[9px] text-amber-600 font-extrabold bg-amber-50 p-2.5 rounded-xl border border-amber-100 flex items-center gap-1.5 mt-1 leading-normal">
+                    ⚠️ 안내: 신규 등록 지출은 '결재 대기' 상태이므로 [실제 지출일/공제액/수수료] 항목을 기입할 수 없습니다. 대표자 승인(APPROVED) 및 계좌송금/현금 수단인 건만 승인 완료 후 사후 기입이 허용됩니다.
+                  </p>
 
                   {/* 지출 금액 & 실시간 한글 표기 프리뷰 */}
                   <div className="col-span-3">
@@ -2354,11 +2362,16 @@ export default function ExpenseManagementAiPage() {
       )}
 
       {/* 📝 최고관리자 전용 지출결의서 장부 수정 팝업 모달 */}
-      {editExpense && (
-        <div 
-          className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[90] flex items-center justify-center p-4 transition-all duration-300 animate-fade-in text-left"
-          onClick={() => setEditExpense(null)}
-        >
+      {editExpense && (() => {
+        const isApproved = editExpense.approval_status === 'APPROVED';
+        const isTransferOrCash = ['계좌송금', '계좌이체', '현금'].includes(editExpense.payment_method);
+        const isEditable = isApproved && isTransferOrCash;
+
+        return (
+          <div 
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[90] flex items-center justify-center p-4 transition-all duration-300 animate-fade-in text-left"
+            onClick={() => setEditExpense(null)}
+          >
           <div 
             className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-150 transform transition-all duration-300 animate-scale-up"
             onClick={e => e.stopPropagation()}
@@ -2445,25 +2458,35 @@ export default function ExpenseManagementAiPage() {
 
                 {/* 실제 지출일 */}
                 <div>
-                  <label className="block text-[10px] font-extrabold text-slate-500 mb-1">실제 지출일</label>
+                  <label className={`block text-[10px] font-extrabold mb-1 ${!isEditable ? 'text-slate-400' : 'text-slate-500'}`}>실제 지출일</label>
                   <input 
                     type="date"
+                    disabled={!isEditable}
                     value={editExpense.actual_expense_date || ""}
                     onChange={e => setEditExpense({ ...editExpense, actual_expense_date: e.target.value })}
-                    className="w-full border border-slate-250 rounded-xl px-3.5 py-2.5 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
+                    className={`w-full border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none font-bold text-xs transition-all ${
+                      !isEditable 
+                        ? 'bg-slate-100/70 text-slate-400 cursor-not-allowed border-slate-200/50' 
+                        : 'bg-white focus:ring-2 focus:ring-rose-500 text-slate-800'
+                    }`}
                   />
                 </div>
 
                 {/* 공제액 */}
                 <div>
-                  <label className="block text-[10px] font-extrabold text-slate-500 mb-1">공제액 (차감액 ₩)</label>
+                  <label className={`block text-[10px] font-extrabold mb-1 ${!isEditable ? 'text-slate-400' : 'text-slate-500'}`}>공제액 (차감액 ₩)</label>
                   <div className="relative">
                     <input 
                       type="number"
-                      placeholder="차감할 공제액"
+                      disabled={!isEditable}
+                      placeholder={!isEditable ? "승인 및 송금/현금 시 가능" : "차감할 공제액"}
                       value={editExpense.deduction_amount || ""}
                       onChange={e => setEditExpense({ ...editExpense, deduction_amount: Number(e.target.value) || 0 })}
-                      className="w-full border border-slate-250 rounded-xl pl-3.5 pr-8 py-2.5 outline-none font-semibold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
+                      className={`w-full border border-slate-200 rounded-xl pl-3.5 pr-8 py-2.5 outline-none font-semibold text-xs transition-all ${
+                        !isEditable 
+                          ? 'bg-slate-100/70 text-slate-400 cursor-not-allowed border-slate-200/50' 
+                          : 'bg-white focus:ring-2 focus:ring-rose-500 text-slate-800'
+                      }`}
                     />
                     <span className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 font-extrabold text-[10px]">원</span>
                   </div>
@@ -2471,18 +2494,30 @@ export default function ExpenseManagementAiPage() {
 
                 {/* 송금수수료 */}
                 <div>
-                  <label className="block text-[10px] font-extrabold text-slate-500 mb-1">송금수수료 (가산액 ₩)</label>
+                  <label className={`block text-[10px] font-extrabold mb-1 ${!isEditable ? 'text-slate-400' : 'text-slate-500'}`}>송금수수료 (가산액 ₩)</label>
                   <div className="relative">
                     <input 
                       type="number"
-                      placeholder="가산할 송금수수료"
+                      disabled={!isEditable}
+                      placeholder={!isEditable ? "승인 및 송금/현금 시 가능" : "가산할 송금수수료"}
                       value={editExpense.transfer_fee || ""}
                       onChange={e => setEditExpense({ ...editExpense, transfer_fee: Number(e.target.value) || 0 })}
-                      className="w-full border border-slate-250 rounded-xl pl-3.5 pr-8 py-2.5 outline-none font-semibold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
+                      className={`w-full border border-slate-200 rounded-xl pl-3.5 pr-8 py-2.5 outline-none font-semibold text-xs transition-all ${
+                        !isEditable 
+                          ? 'bg-slate-100/70 text-slate-400 cursor-not-allowed border-slate-200/50' 
+                          : 'bg-white focus:ring-2 focus:ring-rose-500 text-slate-800'
+                      }`}
                     />
                     <span className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 font-extrabold text-[10px]">원</span>
                   </div>
                 </div>
+
+                {/* 지출 수정 폼 내 비즈니스 룰 안내 배너 */}
+                {!isEditable && (
+                  <p className="col-span-3 text-[9px] text-amber-600 font-extrabold bg-amber-50/50 p-2.5 rounded-xl border border-amber-100 flex items-center gap-1.5 mt-1 leading-normal">
+                    ⚠️ 안내: [실제 지출일/공제액/수수료] 항목은 결제승인이 완료('APPROVED')되고 결제수단이 '계좌송금' 또는 '현금'인 지출 건만 사후 수정 기입이 가능합니다. (카드 및 미승인 건은 품의일/0원 강제 제한)
+                  </p>
+                )}
 
                 {/* 5. 계정과목 3단 연동 */}
                 <div className="col-span-3 grid grid-cols-3 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-200">
@@ -2677,8 +2712,8 @@ export default function ExpenseManagementAiPage() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
     </div>
   );
