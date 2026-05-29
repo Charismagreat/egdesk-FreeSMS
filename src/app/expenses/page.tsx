@@ -72,6 +72,20 @@ export default function ExpenseManagementAiPage() {
     }
   };
 
+  // ⚡ 실시간 문자 바이트 계산 유틸리티 (SMS 80바이트 한글 40자 제한 지원)
+  const getByteLength = (str: string) => {
+    let byteLength = 0;
+    for (let i = 0; i < str.length; i++) {
+      const charCode = str.charCodeAt(i);
+      if (charCode <= 127) {
+        byteLength += 1;
+      } else {
+        byteLength += 2;
+      }
+    }
+    return byteLength;
+  };
+
   // 비목 목록
   const CATEGORIES = ["복리후생비", "여비교통비", "소모품비", "접대비", "임차료", "세금공과금", "기타"];
 
@@ -377,6 +391,29 @@ export default function ExpenseManagementAiPage() {
                       rows={4}
                       className="w-full border border-slate-250 rounded-xl p-3 outline-none font-semibold text-xs bg-white disabled:bg-slate-100 disabled:text-slate-450 focus:ring-2 focus:ring-rose-500 transition-all text-slate-700 resize-none leading-relaxed"
                     />
+                    
+                    {tempSettings.is_alert_enabled === 1 && (
+                      <div className="flex justify-between items-center mt-1.5 px-1 animate-fade-in">
+                        <div className="flex items-center space-x-2">
+                          <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider transition-all border ${
+                            getByteLength(tempSettings.alert_sms_template) <= 80 
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                              : 'bg-amber-50 text-amber-700 border-amber-200 animate-pulse'
+                          }`}>
+                            {getByteLength(tempSettings.alert_sms_template) <= 80 ? '단문 SMS' : '장문 LMS'}
+                          </span>
+                          <span className="text-[10px] font-extrabold text-slate-500">
+                            {getByteLength(tempSettings.alert_sms_template)} / 80 Byte
+                          </span>
+                        </div>
+                        {getByteLength(tempSettings.alert_sms_template) > 80 && (
+                          <span className="text-[9px] text-amber-600 font-extrabold flex items-center animate-shake">
+                            <AlertCircle className="w-3 h-3 mr-0.5 shrink-0 text-amber-500" />
+                            80Byte 초과 시 장문(LMS) 발송 및 요금 추가
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
 

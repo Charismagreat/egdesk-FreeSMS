@@ -613,7 +613,7 @@ export async function setupDatabase() {
         condition_type: 'MARGIN_BREAKDOWN',
         threshold_value: 5.00,
         phone_number: '010-1234-5678',
-        sms_template: '[🚨 가격추적AI - 마진경보]\n품목: {item_name} ({item_code})\n현재시세: {captured_price} USD\n경고 내용: 설정된 최저 마진 보존선 5%가 무너졌습니다. 원재료 수급 및 판가 조율을 검토해 주세요.',
+        sms_template: '[🚨가격경보] {item_name} 마진 붕괴! 현재가:{captured_price} USD',
         is_enabled: 1
       }]);
 
@@ -633,7 +633,7 @@ export async function setupDatabase() {
         monthly_budget: 3000000,
         is_alert_enabled: 1,
         alert_threshold_percent: 90,
-        alert_sms_template: '[🚨 이지데스크 - 지출 경보]\n사장님, 이번 달 누적 지출이 설정하신 예산 한도의 {경보임계율}%({경보금액}원)를 돌파했습니다!\n- 현재 누적 지출: {누적지출}원\n- 월별 예산 한도: {월예산}원\n불필요한 과지출이 없는지 경리 대장을 검토해 주세요.',
+        alert_sms_template: '[🚨지출AI] 예산 {경보임계율}% 도달! 누적 {누적지출}원 (한도 {월예산}원)',
         alert_phone: '010-1234-5678',
         created_at: nowStr
       }]);

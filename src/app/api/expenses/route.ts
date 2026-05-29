@@ -32,7 +32,7 @@ export async function GET(request: Request) {
       monthly_budget: 3000000,
       is_alert_enabled: 1,
       alert_threshold_percent: 90,
-      alert_sms_template: '[🚨 이지데스크 - 지출 경보]\n사장님, 이번 달 누적 지출이 설정하신 예산 한도의 {경보임계율}%({경보금액}원)를 돌파했습니다!',
+      alert_sms_template: '[🚨지출AI] 예산 {경보임계율}% 도달! 누적 {누적지출}원 (한도 {월예산}원)',
       alert_phone: '010-1234-5678'
     };
 

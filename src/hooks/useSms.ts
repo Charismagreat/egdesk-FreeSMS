@@ -849,8 +849,26 @@ export function useSms() {
     await loadDevicesAndStatus(); // 발송량 실시간 갱신
   };
 
+  // ⚡ 실시간 문자 바이트 계산 기능 추가 (SMS 80바이트 한글 40자 제한 지원)
+  const getByteLength = (str: string) => {
+    let byteLength = 0;
+    for (let i = 0; i < str.length; i++) {
+      const charCode = str.charCodeAt(i);
+      if (charCode <= 127) {
+        byteLength += 1;
+      } else {
+        byteLength += 2;
+      }
+    }
+    return byteLength;
+  };
+
+  const messageBytes = getByteLength(message);
+  const messageType = messageBytes <= 80 ? "SMS" : "LMS";
+
   return {
     message, setMessage,
+    messageBytes, messageType,
     isConnected, setIsConnected,
     isPairing, setIsPairing,
     smsDevices, setSmsDevices,

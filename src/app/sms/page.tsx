@@ -15,6 +15,7 @@ import SmsDeviceAddModal from "@/components/sms/SmsDeviceAddModal";
 export default function SmsPage() {
   const {
     message, setMessage,
+    messageBytes, messageType,
     isConnected,
     isPairing,
     smsDevices,
@@ -283,7 +284,18 @@ export default function SmsPage() {
 
             {/* 발송 하단 액션바 */}
             <div className="flex justify-between items-center mt-4 border-t border-slate-50 pt-4">
-              <span className="text-xs font-extrabold text-slate-400">{message.length} / 2000 자</span>
+              <div className="flex items-center space-x-2">
+                <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider transition-all border ${
+                  messageType === 'SMS' 
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                    : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                }`}>
+                  {messageType === 'SMS' ? '단문 SMS' : '장문 LMS'}
+                </span>
+                <span className="text-xs font-extrabold text-slate-500">
+                  {messageBytes} / {messageType === 'SMS' ? '80' : '2000'} Byte
+                </span>
+              </div>
               <div className="flex space-x-2">
                 <button 
                   onClick={async () => {
