@@ -95,17 +95,12 @@ export default function PriceTrackerAIPage() {
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
   const [isCollectorModalOpen, setIsCollectorModalOpen] = useState(false);
   const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
-  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isCronHelpOpen, setIsCronHelpOpen] = useState(false);
   const [isDaemonHelpOpen, setIsDaemonHelpOpen] = useState(false);
   const [copiedUrlId, setCopiedUrlId] = useState<number | null>(null);
 
-  // AI 자율 마이닝용 추가 상태
-  const [aiModalTab, setAiModalTab] = useState<'recommend' | 'miner'>('recommend');
-  const [minerForm, setMinerForm] = useState({ query: "", specification: "" });
+  // AI 자율 마이닝용 통합 상태 (매핑 센터 인라인 연동)
   const [miningLoading, setMiningLoading] = useState(false);
-  const [miningResults, setMiningResults] = useState<any[]>([]);
-  const [miningSuccess, setMiningSuccess] = useState(false);
   const [miningLoadStep, setMiningLoadStep] = useState(1); // 1: 검색, 2: 스크래핑, 3: 가격 분석
   const [searchChannels, setSearchChannels] = useState([
     { id: 1, name: "쿠팡 자율 수집망", active: true, isCustom: false },
@@ -149,8 +144,6 @@ export default function PriceTrackerAIPage() {
   // 로딩/액션 상태
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [recommendLoading, setRecommendLoading] = useState(false);
-  const [recommendations, setRecommendations] = useState<any[]>([]);
   const [crawlerTesting, setCrawlerTesting] = useState(false);
   const [updatingRates, setUpdatingRates] = useState(false);
   const [startingDaemon, setStartingDaemon] = useState(false);
@@ -501,7 +494,9 @@ export default function PriceTrackerAIPage() {
         if (isEditMode) {
           alert("🎉 품목의 관제 정보가 성공적으로 수정되었습니다!");
         } else {
-          alert("🎉 신규 시황 추적 품목이 전광판에 등록되었습니다!");
+          alert("🎉 신규 시황 추적 품목이 등록되었습니다!\n백그라운드에서 실시간 최저가 수집망(쿠팡/네이버 등)이 즉시 자율 연동 기동됩니다.");
+          // 백그라운드 AI 자율 스캔 및 수집 노드 자동 적재 트리거 (Zero-Click AI)
+          triggerBackgroundAutoMining(json.item_id, itemForm.item_name, itemForm.spec || "");
         }
         setItemForm({ 
           item_code: "", 
@@ -720,81 +715,111 @@ export default function PriceTrackerAIPage() {
     }
   };
 
-  // 3.4. Gemini AI 추천 룰 적용
-  const handleAiRecommend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setRecommendLoading(true);
+  // 3.4. 품목 신규 등록 시 백그라운드 AI 자율 스캔 및 수집 노드 자동 바인딩 (Zero-Click AI)
+  const triggerBackgroundAutoMining = async (itemId: number, itemName: string, spec: string) => {
+    console.log(`🤖 [Auto-Mining] 신규 품목 백그라운드 자율 스캔 기동 ➡️ 품목: [${itemName}], 규격: [${spec}]`);
     try {
-      const res = await fetch("/api/price-tracker/ai-recommend", {
+      const activeChannelList = searchChannels.filter(c => c.active).map(c => c.name);
+      if (activeChannelList.length === 0) return;
+
+      const mineRes = await fetch("/api/price-tracker/ai-search-miner", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(aiForm)
+        body: JSON.stringify({
+          item_id: itemId,
+          query: itemName,
+          specification: spec,
+          channels: activeChannelList
+        })
       });
-      const json = await res.json();
-      if (json.success) {
-        setRecommendations(json.recommendations);
-      } else {
-        alert("AI 분석 실패: " + json.error);
+      const mineJson = await mineRes.json();
+      
+      if (mineJson.success && mineJson.candidates && mineJson.candidates.length > 0) {
+        let deployedCount = 0;
+        for (const cand of mineJson.candidates) {
+          const res = await fetch("/api/price-tracker/urls", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              item_id: itemId,
+              site_name: cand.site_name,
+              target_url: cand.url,
+              css_selector: cand.css_selector,
+              cron_interval: "0 9 * * *",
+              run_test: true, // 즉시 첫 수집 이력 백필 기동
+              test_price: cand.price
+            })
+          });
+          const json = await res.json();
+          if (json.success) deployedCount++;
+        }
+        console.log(`🎉 [Auto-Mining] 백그라운드 최저가 노드 자동 장착 완수: 총 ${deployedCount}개 노드 바인딩 완료.`);
+        fetchInitData(); // 메인 전광판 실시간 리플래시
       }
     } catch (err) {
-      console.error(err);
-    } finally {
-      setRecommendLoading(false);
+      console.warn("⚠️ [Auto-Mining] 백그라운드 자율 스캔 실패:", err);
     }
   };
 
-  const applyRecommendation = (rec: any) => {
-    setUrlForm({
-      site_name: rec.site_name,
-      target_url: rec.url,
-      css_selector: rec.recommended_selector,
-      cron_interval: "0 9 * * *"
-    });
-    setIsAiModalOpen(false);
-    setIsCollectorModalOpen(true);
-    alert(`💡 AI 추천 룰 [${rec.site_name}]이 크롤러 등록 폼에 주입되었습니다! [즉시 모의 가동]을 눌러 검수해 보세요.`);
-  };
-
-  // 3.5. AI 경쟁 품목 자율 탐색 및 웹 쇼핑망 마이닝 기동
-  const handleAiMining = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeItem) return alert("자율 감시망을 연동할 품목을 먼저 선택해 주세요.");
-    if (!minerForm.query) return alert("자율 검색할 경쟁 품목명을 입력해 주세요.");
+  // 3.5. [수집 사이트망 관리] 모달 전용 🪄 AI 실시간 최저가 즉시 포착 및 자동 장착 (Auto-Deploy)
+  const handleAutoDeploy = async () => {
+    if (!activeItem) return alert("수집망을 연동할 품목을 먼저 선택해 주세요.");
     
     setMiningLoading(true);
-    setMiningResults([]);
-    setMiningSuccess(false);
     setMiningLoadStep(1);
 
-    // AI 자율 분석 느낌을 주는 타임 스텝 틱 연출 (사용자 UX 만족도 향상)
-    const step1 = setTimeout(() => setMiningLoadStep(2), 1800);
-    const step2 = setTimeout(() => setMiningLoadStep(3), 3900);
+    // AI 자율 분석 연출용 타임 틱 기동
+    const step1 = setTimeout(() => setMiningLoadStep(2), 1500);
+    const step2 = setTimeout(() => setMiningLoadStep(3), 3200);
 
     try {
-      const res = await fetch("/api/price-tracker/ai-search-miner", {
+      const activeChannelList = searchChannels.filter(c => c.active).map(c => c.name);
+      console.log(`📡 [Auto-Deploy] 실시간 최저가 자율 포착 시작: [${activeItem.item_name}], 규격: [${activeItem.spec}]`);
+      
+      const mineRes = await fetch("/api/price-tracker/ai-search-miner", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           item_id: activeItem.item_id,
-          query: minerForm.query,
-          specification: minerForm.specification,
-          channels: searchChannels.filter(c => c.active).map(c => c.name)
+          query: activeItem.item_name,
+          specification: activeItem.spec || "",
+          channels: activeChannelList
         })
       });
-      const json = await res.json();
+      const mineJson = await mineRes.json();
       
       clearTimeout(step1);
       clearTimeout(step2);
 
-      if (json.success) {
-        setMiningResults(json.candidates);
-        setMiningSuccess(true);
+      if (mineJson.success && mineJson.candidates && mineJson.candidates.length > 0) {
+        let deployedCount = 0;
+        for (const cand of mineJson.candidates) {
+          const res = await fetch("/api/price-tracker/urls", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              item_id: activeItem.item_id,
+              site_name: cand.site_name,
+              target_url: cand.url,
+              css_selector: cand.css_selector,
+              cron_interval: "0 9 * * *",
+              run_test: true,
+              test_price: cand.price
+            })
+          });
+          const json = await res.json();
+          if (json.success) deployedCount++;
+        }
+        
+        alert(`⚡ AI 실시간 최저가 즉시 포착 완수!\n총 ${deployedCount}개의 최저가 크롤링 로봇이 자동으로 수집 장착되었으며, 실시간 시황이 갱신되었습니다.`);
+        fetchItemDetails(activeItem.item_id); // 노드 리스트 실시간 리로드
+        fetchInitData(); // 메인 전광판 리로드
       } else {
-        alert("AI 자율 마이닝 실패: " + json.error);
+        alert("🚨 실시간 실물 최저가 상품 발굴 실패\n활성화하신 수집 채널에서 해당 규격에 부합하는 실물 상품의 상세 가격과 구매 링크를 실시간 포착하지 못했습니다.");
       }
     } catch (err) {
       console.error(err);
-      alert("AI 마이닝 서버와 통신하는 중 오류가 발생했습니다.");
+      alert("AI 최저가 포착 연동 중 통신 장애가 발생했습니다.");
     } finally {
       setMiningLoading(false);
     }
@@ -821,51 +846,6 @@ export default function PriceTrackerAIPage() {
   // 검색 채널 영구 삭제
   const handleRemoveChannel = (id: number) => {
     setSearchChannels(prev => prev.filter(c => c.id !== id));
-  };
-
-  // 3.6. AI 자율 감시 노드 일괄 기동 및 DB 백필 마감
-  const handleBatchDeploy = async () => {
-    if (!activeItem || miningResults.length === 0) return;
-    
-    if (!confirm(`🤖 AI가 자율 포착한 ${miningResults.length}개의 수집망 노드를 이 품목[${activeItem.item_name}]에 자동 등록하고 즉시 시세 DB를 백필하시겠습니까?\n(등록 완료 후 실시간 시세 변동 전광판에 즉각 바인딩됩니다.)`)) return;
-
-    setMiningLoading(true);
-    let successCount = 0;
-    
-    try {
-      for (const candidate of miningResults) {
-        const res = await fetch("/api/price-tracker/urls", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            item_id: activeItem.item_id,
-            site_name: candidate.site_name,
-            target_url: candidate.url,
-            css_selector: candidate.css_selector,
-            cron_interval: "0 9 * * *",
-            run_test: true, // 즉시 모의 수집 및 시세 DB 이력 적재 트리거
-            test_price: candidate.price // AI가 발굴해 온 진짜 라이브 시장 최저가를 전송!
-          })
-        });
-        const json = await res.json();
-        if (json.success) {
-          successCount++;
-        }
-      }
-
-      alert(`⚡ AI 자율 감시 노드 자동 배포 완수!\n총 ${successCount}개의 실시간 크롤링 로봇이 DB 가동 적재되었으며, 첫 수집 이력이 성공적으로 완료되었습니다.`);
-      setIsAiModalOpen(false);
-      setMinerForm({ query: "", specification: "" });
-      setMiningResults([]);
-      setMiningSuccess(false);
-      fetchItemDetails(activeItem.item_id);
-      fetchInitData();
-    } catch (err) {
-      console.error(err);
-      alert("일괄 배포 도중 기술적 오류가 발생했습니다.");
-    } finally {
-      setMiningLoading(false);
-    }
   };
 
   // 4. SVG 차트 계산 정보 수집
@@ -2386,116 +2366,188 @@ export default function PriceTrackerAIPage() {
                   </div>
                 </div>
 
-                {/* 추가 폼 */}
-                <form onSubmit={handleAddUrl} className="space-y-3 bg-slate-50/50 border border-slate-150 p-4 rounded-2xl">
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                    <h4 className="text-xs font-black text-pink-600">새로운 크롤링 로봇 바인딩</h4>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMinerForm({
-                          query: activeItem?.item_name || "",
-                          specification: activeItem?.spec || ""
-                        });
-                        setAiForm(prev => ({
-                          ...prev,
-                          keyword: activeItem?.item_name || ""
-                        }));
-                        setAiModalTab('miner');
-                        setIsAiModalOpen(true);
-                      }}
-                      className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black text-indigo-650 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition-all cursor-pointer shadow-sm hover:scale-[1.02] active:scale-[0.98] animate-pulse shrink-0"
-                      title="AI가 경쟁 상품을 자율 검색하여 수집 노드를 자동 등록해 줍니다."
-                    >
-                      <Sparkles className="w-2.5 h-2.5 text-indigo-650 animate-spin-slow" />
-                      🪄 AI 추천으로 추가
-                    </button>
-                  </div>
-                  
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-slate-400 uppercase">출처 포털명 (사이트명)</label>
-                    <input
-                      type="text"
-                      placeholder="예: LME 동가 시황"
-                      value={urlForm.site_name}
-                      onChange={(e) => setUrlForm(prev => ({ ...prev, site_name: e.target.value }))}
-                      className="w-full bg-white border border-slate-200 p-2.5 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[9px] font-bold text-slate-400 uppercase">수집 대상 웹주소 (Target URL)</label>
-                      <button
-                        type="button"
-                        onClick={handleAnalyzeSelector}
-                        disabled={selectorAnalyzing}
-                        className="text-[9px] font-black text-pink-600 hover:text-pink-700 flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50"
-                        title="AI가 웹주소 분석을 통해 최적의 가격 셀렉터를 찾아 입력창에 채워줍니다."
-                      >
-                        <Sparkles className="w-3 h-3 animate-pulse" />
-                        {selectorAnalyzing ? "AI 분석 중..." : "🪄 AI 자동 분석"}
-                      </button>
-                    </div>
-                    <input
-                      type="url"
-                      placeholder="https://..."
-                      value={urlForm.target_url}
-                      onChange={(e) => setUrlForm(prev => ({ ...prev, target_url: e.target.value }))}
-                      className="w-full bg-white border border-slate-200 p-2.5 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700 font-mono"
-                    />
-                  </div>
-
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <label className="text-[9px] font-bold text-slate-400 uppercase">CSS Selector</label>
-                      <input
-                        type="text"
-                        placeholder="span.price_val"
-                        value={urlForm.css_selector}
-                        onChange={(e) => setUrlForm(prev => ({ ...prev, css_selector: e.target.value }))}
-                        className="w-full bg-white border border-slate-200 p-2.5 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700 font-mono"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1.5">
-                        <label className="text-[9px] font-bold text-slate-400 uppercase">수집 주기 (Cron)</label>
-                        <button
-                          type="button"
-                          onClick={() => setIsCronHelpOpen(true)}
-                          className="text-slate-400 hover:text-pink-500 transition-colors cursor-pointer flex items-center justify-center p-0.5 rounded-full hover:bg-slate-100"
-                          title="크론 주기 설정 방법 보기"
-                        >
-                          <HelpCircle className="w-3.5 h-3.5" />
-                        </button>
+                {/* 우측 설정 및 바인딩 영역 */}
+                <div className="space-y-4">
+                  {miningLoading ? (
+                    <div className="py-24 text-center flex flex-col items-center justify-center gap-4 bg-slate-50 border border-slate-200 p-6 rounded-2xl shadow-inner animate-pulse">
+                      <div className="relative flex items-center justify-center">
+                        <Cpu className="w-10 h-10 text-pink-600 animate-spin absolute" />
+                        <Sparkles className="w-6 h-6 text-indigo-500 animate-ping absolute" />
+                        <div className="w-14 h-14 rounded-full border-2 border-pink-100 border-t-pink-600 animate-spin"></div>
                       </div>
-                      <input
-                        type="text"
-                        value={urlForm.cron_interval}
-                        onChange={(e) => setUrlForm(prev => ({ ...prev, cron_interval: e.target.value }))}
-                        className="w-full bg-white border border-slate-200 p-2.5 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700 font-mono"
-                        placeholder="예: 0 9 * * *"
-                      />
-                      {urlForm.cron_interval && (
-                        <p className="text-[10px] text-pink-500 font-medium px-1 flex items-center gap-1 mt-1 bg-pink-50/50 p-1.5 rounded-lg border border-pink-100/50 leading-relaxed">
-                          <Info className="w-3.5 h-3.5 flex-shrink-0" />
-                          <span>{explainCron(urlForm.cron_interval)}</span>
-                        </p>
-                      )}
+                      <div className="space-y-1.5 px-6">
+                        <span className="text-xs font-black text-slate-700 block font-sans">
+                          {miningLoadStep === 1 && "1단계: 전세계 웹 쇼핑망 자율 검색 및 가격 링크 추출 중..."}
+                          {miningLoadStep === 2 && "2단계: Playwright Stealth 기동 및 실시간 보안망 우회 접속 중..."}
+                          {miningLoadStep === 3 && "3단계: Gemini AI 기반 시세 데이터 및 가격 Selector 분석 중..."}
+                        </span>
+                        <span className="text-[10px] font-bold text-slate-400 block leading-normal">
+                          활성화하신 채널 및 추가된 커스텀 채널을 대상으로 세부 규격 일치율을 엄격하게 교차 검증하고 있습니다.
+                        </span>
+                      </div>
                     </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* 1. 자율 스캔 채널 제어 섹션 */}
+                      <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl space-y-3 shadow-inner">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-slate-800 flex items-center gap-1">
+                            <Globe className="w-4 h-4 text-pink-600" />
+                            ⚙️ 실시간 자율 스캔 채널 제어 ({searchChannels.filter(c => c.active).length}개 활성)
+                          </span>
+                          <span className="text-[9px] text-slate-400 font-bold">칩을 눌러 On/Off 토글</span>
+                        </div>
 
-                  </div>
+                        {/* 채널 칩 나열 */}
+                        <div className="flex flex-wrap gap-2">
+                          {searchChannels.map(chan => (
+                            <div 
+                              key={chan.id} 
+                              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-[10px] font-bold transition-all shadow-sm ${
+                                chan.active 
+                                  ? "bg-gradient-to-r from-pink-50 to-indigo-50 border-pink-200 text-pink-700 font-black" 
+                                  : "bg-slate-100 border-slate-200 text-slate-400"
+                              }`}
+                            >
+                              <span 
+                                onClick={() => handleToggleChannel(chan.id)}
+                                className="cursor-pointer select-none"
+                              >
+                                {chan.active ? "✅" : "❌"} {chan.name}
+                              </span>
+                              {chan.isCustom && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveChannel(chan.id)}
+                                  className="text-[9px] hover:text-rose-600 text-slate-400 bg-white hover:bg-rose-50 w-4 h-4 rounded-full flex items-center justify-center border border-slate-200 transition-colors cursor-pointer"
+                                  title="채널 삭제"
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
 
-                  <button
-                    type="submit"
-                    disabled={crawlerTesting}
-                    className="w-full mt-2 py-3 bg-gradient-to-r from-pink-500 to-indigo-650 hover:from-pink-600 hover:to-indigo-750 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-55"
-                  >
-                    <Play className="w-3.5 h-3.5" />
-                    {crawlerTesting ? "크롤러 실시간 검수 모의 구동 중..." : "로봇 매핑 및 검수 가동 (Test Run)"}
-                  </button>
-                </form>
+                        {/* 커스텀 채널 즉석 추가 폼 */}
+                        <div className="flex gap-2 pt-1 border-t border-slate-200/60 mt-1">
+                          <input
+                            type="text"
+                            placeholder="추가할 감시 쇼핑몰/도메인명 (예: 11번가, 지마켓, 다나와)"
+                            value={newChannelName}
+                            onChange={(e) => setNewChannelName(e.target.value)}
+                            className="flex-1 bg-white border border-slate-200 px-3 py-2 rounded-xl text-[10.5px] font-bold focus:border-pink-500 outline-none text-slate-700"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddChannel}
+                            className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-[10px] rounded-xl cursor-pointer shadow-sm transition-colors border-none"
+                          >
+                            ➕ 채널 추가
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 2. 새로운 크롤링 로봇 바인딩 수동 폼 */}
+                      <form onSubmit={handleAddUrl} className="space-y-3 bg-slate-50/50 border border-slate-150 p-4 rounded-2xl">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-2 gap-2">
+                          <h4 className="text-xs font-black text-pink-600">수동 크롤링 로봇 바인딩</h4>
+                          <button
+                            type="button"
+                            onClick={handleAutoDeploy}
+                            className="flex items-center gap-1 px-3 py-1.5 text-[9px] font-black text-indigo-650 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition-all cursor-pointer shadow-sm hover:scale-[1.02] active:scale-[0.98] animate-pulse shrink-0"
+                            title="AI가 활성 쇼핑 채널을 자율 검색하여 최저가 수집 노드를 한방에 자동 장착해 줍니다."
+                          >
+                            <Sparkles className="w-2.5 h-2.5 text-indigo-650 animate-spin-slow" />
+                            🪄 AI 최저가 즉시 포착 및 자동 장착
+                          </button>
+                        </div>
+                        
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-slate-400 uppercase">출처 포털명 (사이트명)</label>
+                          <input
+                            type="text"
+                            placeholder="예: LME 동가 시황"
+                            value={urlForm.site_name}
+                            onChange={(e) => setUrlForm(prev => ({ ...prev, site_name: e.target.value }))}
+                            className="w-full bg-white border border-slate-200 p-2.5 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[9px] font-bold text-slate-400 uppercase">수집 대상 웹주소 (Target URL)</label>
+                            <button
+                              type="button"
+                              onClick={handleAnalyzeSelector}
+                              disabled={selectorAnalyzing}
+                              className="text-[9px] font-black text-pink-600 hover:text-pink-700 flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50 border-none bg-transparent"
+                              title="AI가 웹주소 분석을 통해 최적의 가격 셀렉터를 찾아 입력창에 채워줍니다."
+                            >
+                              <Sparkles className="w-3 h-3 animate-pulse" />
+                              {selectorAnalyzing ? "AI 분석 중..." : "🪄 AI 자동 분석"}
+                            </button>
+                          </div>
+                          <input
+                            type="url"
+                            placeholder="https://..."
+                            value={urlForm.target_url}
+                            onChange={(e) => setUrlForm(prev => ({ ...prev, target_url: e.target.value }))}
+                            className="w-full bg-white border border-slate-200 p-2.5 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700 font-mono"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-bold text-slate-400 uppercase">CSS Selector</label>
+                            <input
+                              type="text"
+                              placeholder="span.price_val"
+                              value={urlForm.css_selector}
+                              onChange={(e) => setUrlForm(prev => ({ ...prev, css_selector: e.target.value }))}
+                              className="w-full bg-white border border-slate-200 p-2.5 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700 font-mono"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5">
+                              <label className="text-[9px] font-bold text-slate-400 uppercase">수집 주기 (Cron)</label>
+                              <button
+                                type="button"
+                                onClick={() => setIsCronHelpOpen(true)}
+                                className="text-slate-400 hover:text-pink-500 transition-colors cursor-pointer flex items-center justify-center p-0.5 rounded-full hover:bg-slate-100 border-none bg-transparent"
+                                title="크론 주기 설정 방법 보기"
+                              >
+                                <HelpCircle className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <input
+                              type="text"
+                              value={urlForm.cron_interval}
+                              onChange={(e) => setUrlForm(prev => ({ ...prev, cron_interval: e.target.value }))}
+                              className="w-full bg-white border border-slate-200 p-2.5 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700 font-mono"
+                              placeholder="예: 0 9 * * *"
+                            />
+                            {urlForm.cron_interval && (
+                              <p className="text-[10px] text-pink-500 font-medium px-1 flex items-center gap-1 mt-1 bg-pink-50/50 p-1.5 rounded-lg border border-pink-100/50 leading-relaxed">
+                                <Info className="w-3.5 h-3.5 flex-shrink-0" />
+                                <span>{explainCron(urlForm.cron_interval)}</span>
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={crawlerTesting}
+                          className="w-full mt-2 py-3 bg-gradient-to-r from-pink-500 to-indigo-650 hover:from-pink-600 hover:to-indigo-750 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-55 border-none"
+                        >
+                          <Play className="w-3.5 h-3.5" />
+                          {crawlerTesting ? "크롤러 실시간 검수 모의 구동 중..." : "로봇 매핑 및 검수 가동 (Test Run)"}
+                        </button>
+                      </form>
+                    </div>
+                  )}
+                </div>
               </div>
             </motion.div>
           </div>
@@ -2882,376 +2934,6 @@ export default function PriceTrackerAIPage() {
                   💾 FreeSMS 긴급 경보 자동화 규칙 가동 저장
                 </button>
               </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* ============================================================ */}
-      {/* MODAL 4: Gemini AI 자율 시세 추적 RAG 추천기 모달 */}
-      {/* ============================================================ */}
-      <AnimatePresence>
-        {isAiModalOpen && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white border border-slate-200 w-full max-w-[680px] rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
-            >
-              {/* 모달 헤더 */}
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3.5">
-                <div className="space-y-0.5">
-                  <h3 className="text-base font-black text-slate-800 flex items-center gap-1.5">
-                    <Sparkles className="w-5 h-5 text-pink-600 animate-pulse" />
-                    SCM 지능형 AI 자율 관제 센터
-                  </h3>
-                  <p className="text-[11px] text-slate-400 font-semibold">Gemini AI를 결합한 웹 쇼핑망 자율 크롤링 노드 구축 및 RAG 추천 제어판</p>
-                </div>
-                <button 
-                  onClick={() => {
-                    setIsAiModalOpen(false);
-                    setMiningResults([]);
-                    setMiningSuccess(false);
-                    setMinerForm({ query: "", specification: "" });
-                  }} 
-                  className="p-1 hover:bg-slate-150 rounded-lg cursor-pointer transition-colors"
-                >
-                  <X className="w-5 h-5 text-slate-500" />
-                </button>
-              </div>
-
-              {/* 프리미엄 탭 메뉴 */}
-              <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/60 gap-1">
-                <button
-                  type="button"
-                  onClick={() => setAiModalTab('recommend')}
-                  className={`flex-1 py-2 text-xs font-black rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                    aiModalTab === 'recommend'
-                      ? "bg-white text-slate-800 shadow-sm border border-slate-200/50"
-                      : "text-slate-450 hover:text-slate-700"
-                  }`}
-                >
-                  <Globe className="w-3.5 h-3.5" />
-                  🌟 RAG 수집처 자율 추천
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAiModalTab('miner')}
-                  className={`flex-1 py-2 text-xs font-black rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                    aiModalTab === 'miner'
-                      ? "bg-white text-pink-600 shadow-sm border border-slate-200/50"
-                      : "text-slate-450 hover:text-slate-700"
-                  }`}
-                >
-                  <Search className="w-3.5 h-3.5" />
-                  🚀 AI 자율 검색 & 즉시 적재
-                </button>
-              </div>
-
-              {/* 탭 Content 1: RAG 수집처 추천 */}
-              {aiModalTab === 'recommend' && (
-                <div className="space-y-4">
-                  <form onSubmit={handleAiRecommend} className="flex gap-2.5 bg-slate-50 p-2.5 border border-slate-200 rounded-2xl">
-                    <div className="flex-1 grid grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        placeholder="산업군 (예: 철강 제조, 기계 가공)"
-                        value={aiForm.industry}
-                        onChange={(e) => setAiForm(prev => ({ ...prev, industry: e.target.value }))}
-                        className="bg-white border border-slate-200 px-3 py-2.5 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700"
-                      />
-                      <input
-                        type="text"
-                        placeholder="자재명 (예: 알루미늄 판재, 구리동)"
-                        value={aiForm.keyword}
-                        onChange={(e) => setAiForm(prev => ({ ...prev, keyword: e.target.value }))}
-                        className="bg-white border border-slate-200 px-3 py-2.5 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700"
-                      />
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={recommendLoading}
-                      className="px-5 bg-pink-600 hover:bg-pink-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center shrink-0 cursor-pointer shadow-sm transition-colors"
-                    >
-                      {recommendLoading ? "RAG 추적 중..." : "🚀 AI 추천 구동"}
-                    </button>
-                  </form>
-
-                  {recommendLoading ? (
-                    <div className="py-24 text-center flex flex-col items-center justify-center gap-3 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                      <Cpu className="w-10 h-10 text-pink-600 animate-spin" />
-                      <span className="text-xs font-bold text-slate-400">Gemini SCM 지식 RAG 서버를 정밀 동적 탐색 중입니다...</span>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-1">
-                      {recommendations.map((rec, index) => (
-                        <div key={index} className="bg-slate-50 border border-slate-200 p-3.5 rounded-2xl flex flex-col justify-between gap-3 shadow-inner">
-                          <div className="space-y-1.5">
-                            <div className="flex justify-between items-center">
-                              <span className="text-[10px] font-black text-slate-800 bg-white px-2 py-0.5 rounded border border-slate-200">{rec.site_name}</span>
-                              <span className="text-[8.5px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">신뢰도 98%</span>
-                            </div>
-                            <p className="text-[10.5px] text-slate-500 leading-relaxed font-semibold">{rec.description}</p>
-                            <div className="text-[7.5px] font-mono text-slate-450 bg-white p-2.5 rounded-lg border border-slate-200 space-y-1">
-                              <div className="truncate">URL: {rec.url}</div>
-                              <div>CSS Selector: <span className="text-pink-600 font-extrabold">{rec.recommended_selector}</span></div>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => applyRecommendation(rec)}
-                            className="w-full py-2 bg-white hover:bg-pink-50 text-[10px] font-bold text-pink-600 rounded-xl transition-all border border-pink-100 shadow-sm cursor-pointer"
-                          >
-                            📥 이 추천 룰 즉시 수집 로봇에 주입
-                          </button>
-                        </div>
-                      ))}
-                      {recommendations.length === 0 && (
-                        <p className="text-center py-20 text-xs font-bold text-slate-450 col-span-2 font-sans">
-                          산업군 및 원재료명을 기입하고 AI 추천 구동 단추를 누르면, 전세계의 정밀 고시/포털 가격 사이트 수집 룰을 실시간 발굴합니다.
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* 탭 Content 2: AI 경쟁 품목 자율 탐색 및 일괄 적재 (신규) */}
-              {aiModalTab === 'miner' && (
-                <div className="space-y-4">
-                  <div className="bg-pink-50/20 border border-pink-100/60 p-3 rounded-2xl text-[10.5px] text-pink-700/90 leading-relaxed font-semibold">
-                    💡 <strong>경쟁사 품목명</strong>과 <strong>세부 규격(용량/수량/모델 등)</strong>을 자연어로 입력하면, AI가 자동으로 최상위 웹 검색 링크를 파악하고, Playwright Stealth 브라우저 및 Gemini RAG 분석을 가동하여 3개 최적 유통처 후보와 CSS Selector, 실시간 시세를 자율 탐색하여 영구 DB에 즉시 일괄 적재 및 동적 매핑합니다.
-                  </div>
-
-                  {/* 탐색 대상 채널 제어 섹션 */}
-                  <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-2xl space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-black text-slate-800 flex items-center gap-1">
-                        <Globe className="w-4 h-4 text-pink-600" />
-                        🔍 탐색 대상 채널 제어 ({searchChannels.filter(c => c.active).length}개 활성)
-                      </span>
-                      <span className="text-[9px] text-slate-400 font-bold">칩을 눌러 검색 대상 On/Off 토글</span>
-                    </div>
-
-                    {/* 채널 칩 나열 */}
-                    <div className="flex flex-wrap gap-2">
-                      {searchChannels.map(chan => (
-                        <div 
-                          key={chan.id} 
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[10.5px] font-bold transition-all shadow-sm ${
-                            chan.active 
-                              ? "bg-gradient-to-r from-pink-50 to-indigo-50 border-pink-200 text-pink-700 font-black" 
-                              : "bg-slate-100 border-slate-200 text-slate-400"
-                          }`}
-                        >
-                          <span 
-                            onClick={() => handleToggleChannel(chan.id)}
-                            className="cursor-pointer select-none"
-                          >
-                            {chan.active ? "✅" : "❌"} {chan.name}
-                          </span>
-                          {chan.isCustom && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveChannel(chan.id)}
-                              className="text-[9px] hover:text-rose-600 text-slate-400 bg-white hover:bg-rose-50 w-4 h-4 rounded-full flex items-center justify-center border border-slate-200 transition-colors cursor-pointer"
-                              title="삭제"
-                            >
-                              ✕
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* 커스텀 채널 추가 폼 */}
-                    <div className="flex gap-2 pt-1 border-t border-slate-200/60 mt-1">
-                      <input
-                        type="text"
-                        placeholder="추가할 쇼핑몰/도메인명 (예: 11번가, 지마켓, 다나와)"
-                        value={newChannelName}
-                        onChange={(e) => setNewChannelName(e.target.value)}
-                        className="flex-1 bg-white border border-slate-200 px-3 py-2 rounded-xl text-[10.5px] font-bold focus:border-pink-500 outline-none text-slate-700"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleAddChannel}
-                        className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-[10px] rounded-xl cursor-pointer shadow-sm transition-colors"
-                      >
-                        ➕ 채널 추가
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* 자율 탐색 기동 폼 */}
-                  <form onSubmit={handleAiMining} className="flex gap-2.5 bg-slate-50 p-2.5 border border-slate-200 rounded-2xl">
-                    <div className="flex-1 grid grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        placeholder="경쟁사 품목명 (예: 신라면, 아이폰 15 프로)"
-                        value={minerForm.query}
-                        onChange={(e) => setMinerForm(prev => ({ ...prev, query: e.target.value }))}
-                        className="bg-white border border-slate-200 px-3 py-2.5 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700"
-                        disabled={miningLoading}
-                      />
-                      <input
-                        type="text"
-                        placeholder="📦 세부 규격/용량/수량 (예: 120g 40개입, 256GB)"
-                        value={minerForm.specification}
-                        onChange={(e) => setMinerForm(prev => ({ ...prev, specification: e.target.value }))}
-                        className="bg-white border border-slate-200 px-3 py-2.5 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700"
-                        disabled={miningLoading}
-                      />
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={miningLoading}
-                      className="px-5 bg-pink-600 hover:bg-pink-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center shrink-0 cursor-pointer shadow-sm transition-all active:scale-[0.98]"
-                    >
-                      {miningLoading ? "RAG 탐색 중..." : "🚀 AI 자율 탐색 시작"}
-                    </button>
-                  </form>
-
-                  {/* 마이닝 로딩 상태 오버레이 */}
-                  {miningLoading && (
-                    <div className="py-16 text-center flex flex-col items-center justify-center gap-4 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                      <div className="relative flex items-center justify-center">
-                        <Cpu className="w-10 h-10 text-pink-600 animate-spin absolute" />
-                        <Sparkles className="w-6 h-6 text-indigo-500 animate-ping absolute" />
-                        <div className="w-14 h-14 rounded-full border-2 border-pink-100 border-t-pink-600 animate-spin"></div>
-                      </div>
-                      <div className="space-y-1.5 px-6">
-                        <span className="text-xs font-black text-slate-700 block font-sans">
-                          {miningLoadStep === 1 && "1단계: 전세계 웹 쇼핑망 자율 검색 및 가격 링크 추출 중..."}
-                          {miningLoadStep === 2 && "2단계: Playwright Stealth 기동 및 실시간 보안망 우회 접속 중..."}
-                          {miningLoadStep === 3 && "3단계: Gemini AI RAG 기반 시세 데이터 및 가격 Selector 정밀 분석 중..."}
-                        </span>
-                        <span className="text-[10px] font-bold text-slate-400 block leading-normal">
-                          사용자가 입력하신 세부 규격(용량/수량/모델)과 일치 여부를 엄격하게 교차 검증하고 있습니다.
-                        </span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 마이닝 성공 및 결과 카드 후보 노드 렌더링 */}
-                  {!miningLoading && miningSuccess && (
-                    <div className="space-y-4">
-                      {miningResults.length > 0 ? (
-                        <>
-                          <div className="flex items-center justify-between">
-                            <h4 className="text-[11px] font-black text-slate-800 flex items-center gap-1">
-                              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                              AI 자율 포착에 성공한 {miningResults.length}개 실시간 최적 유통/공급처 노드 목록
-                            </h4>
-                            <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded border border-indigo-100">
-                              표준 화폐 자동 역산 완료
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 max-h-[300px] overflow-y-auto pr-1">
-                            {miningResults.map((cand, idx) => (
-                              <div 
-                                key={idx} 
-                                onClick={() => window.open(cand.url, '_blank')}
-                                className="bg-slate-50 border border-slate-200/80 p-3 rounded-2xl flex flex-col justify-between gap-3 shadow-inner hover:border-pink-500 hover:bg-pink-50/5 hover:scale-[1.01] hover:shadow-md transition-all cursor-pointer relative group"
-                                title="클릭 시 새 창에서 실제 판매처 웹페이지 열기"
-                              >
-                                <div className="space-y-2">
-                                  <div className="flex justify-between items-center">
-                                    <span className="text-[9.5px] font-black text-slate-800 bg-white px-2 py-0.5 rounded border border-slate-200 truncate max-w-[80px]">
-                                      {cand.site_name}
-                                    </span>
-                                    <span className="text-[8.5px] font-black text-pink-600 bg-pink-50 px-1.5 py-0.5 rounded flex items-center gap-0.5 group-hover:bg-pink-600 group-hover:text-white transition-colors">
-                                      적합도 {cand.confidence_score}%
-                                      <ArrowUpRight className="w-2.5 h-2.5" />
-                                    </span>
-                                  </div>
-
-                                  <div className="flex items-center gap-1.5 my-1">
-                                    {(() => {
-                                      const isDetail = cand.is_detail === 1 || 
-                                                      (cand.url || '').includes('gate.nhn') || 
-                                                      (cand.url || '').includes('products/') || 
-                                                      (cand.url || '').includes('/vp/') || 
-                                                      (cand.url || '').includes('/item/') || 
-                                                      (cand.url || '').includes('/dp/');
-                                      return isDetail ? (
-                                        <span className="text-[8px] font-black bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded border border-emerald-100 flex items-center gap-0.5">
-                                          🎯 진짜 상품상세 직통 연결
-                                        </span>
-                                      ) : (
-                                        <span className="text-[8px] font-black bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">
-                                          🔍 통합 검색 리스트로 연결
-                                        </span>
-                                      );
-                                    })()}
-                                  </div>
-
-                                  <div className="space-y-1 bg-white p-2 rounded-xl border border-slate-200/50">
-                                    <div className="text-[10px] font-semibold text-slate-400">포착 시세 및 통화</div>
-                                    <div className="text-xs font-black text-slate-800">
-                                      {getCurrencySymbol(cand.currency)}{cand.price.toLocaleString()}
-                                    </div>
-                                    {cand.currency !== 'KRW' && cand.price_krw && (
-                                      <div className="text-[9px] font-extrabold text-slate-450 font-mono">
-                                        (₩ {cand.price_krw.toLocaleString()})
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  <p className="text-[9.5px] text-slate-500 leading-normal font-semibold">
-                                    {cand.message}
-                                  </p>
-                                  
-                                  <div className="text-[7.5px] font-mono text-slate-450 bg-white p-2 rounded border border-slate-150 space-y-1">
-                                    <div className="truncate">URL: {cand.url}</div>
-                                    <div>Selector: <span className="text-pink-600 font-extrabold">{cand.css_selector}</span></div>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* 일괄 배포 웅장한 액션 단추 */}
-                          <button
-                            type="button"
-                            onClick={handleBatchDeploy}
-                            className="w-full py-3.5 bg-gradient-to-r from-pink-600 to-indigo-600 hover:from-pink-700 hover:to-indigo-700 text-white font-extrabold text-xs rounded-2xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.99] border-none"
-                          >
-                            <Zap className="w-4 h-4 animate-bounce" />
-                            ⚡ AI 자율 감시 로봇 일괄 기동 및 DB 즉시 적재
-                          </button>
-                        </>
-                      ) : (
-                        <div className="py-16 text-center flex flex-col items-center justify-center gap-3 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 animate-fade-in">
-                          <AlertTriangle className="w-10 h-10 text-rose-500 animate-bounce" />
-                          <div className="space-y-1.5 px-6">
-                            <span className="text-xs font-black text-slate-800 block">
-                              🚨 실시간 실물 최저가 상품 발굴 실패
-                            </span>
-                            <span className="text-[9.5px] font-bold text-slate-400 block leading-normal">
-                              활성화하신 쇼핑 채널(쿠팡/네이버 스마트스토어 등)에서 해당 규격에 부합하는 실물 상품의 상세 가격과 구매 링크를 실시간 포착하지 못했습니다.<br/>
-                              ( RAG 가상 매칭 방식이 전면 제거되어, 실물 상품이 매칭되지 않는 채널은 결과에서 안전하게 원천 제외됩니다. )
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* 마이닝 수행 전 초기 뷰 */}
-                  {!miningLoading && !miningSuccess && (
-                    <div className="py-24 text-center flex flex-col items-center justify-center gap-3 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
-                      <Search className="w-10 h-10 text-slate-300 animate-pulse" />
-                      <div className="space-y-1">
-                        <span className="text-xs font-bold text-slate-400 block">경쟁 상품명과 세부 용량/수량 규격을 기입하고 탐색을 개시해 주세요!</span>
-                        <span className="text-[9.5px] font-semibold text-slate-400/80 block">AI가 실시간 검색을 통해 오차 없이 정확한 공급망 사이트를 타겟합니다.</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
             </motion.div>
           </div>
         )}
