@@ -128,27 +128,27 @@ export default function ExpenseManagementAiPage() {
   const isApproved = editExpense?.approval_status === "APPROVED";
   const isTransferOrCash = editExpense ? ["계좌송금", "계좌이체", "현금"].includes(editExpense.payment_method) : false;
   const isEditable = isApproved && isTransferOrCash;
+
+  // 🔑 최고관리자(SUPER_ADMIN) 또는 대표자(PRESIDENT) 권한이 있는지 확인하는 헬퍼 변수
+  const hasAdminAccess = React.useMemo(() => {
+    if (!userRole) return false;
+    const role = userRole.toUpperCase();
+    return role === 'SUPER_ADMIN' || role === 'PRESIDENT';
+  }, [userRole]);
   
   React.useEffect(() => {
-    if (typeof window !== "undefined") {
+    const fetchUserRole = async () => {
       try {
-        const match = document.cookie.match(/(^| )auth_token=([^;]+)/);
-        const token = match ? match[2] : null;
-        if (token) {
-          const base64Url = token.split('.')[1];
-          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-          const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-          }).join(''));
-          const payload = JSON.parse(jsonPayload);
-          if (payload.role) {
-            setUserRole(payload.role);
-          }
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
+        if (data.success && data.role) {
+          setUserRole(data.role);
         }
       } catch (e) {
-        console.error("JWT decoding failed on client", e);
+        console.error("Failed to fetch user session on client", e);
       }
-    }
+    };
+    fetchUserRole();
   }, []);
 
   // 🏢 조직 및 사업 전용 추가 폼 상태
@@ -1906,8 +1906,8 @@ export default function ExpenseManagementAiPage() {
                   {selectedIds.size > 0 && (
                     <button 
                       onClick={() => {
-                        if (userRole !== 'SUPER_ADMIN') {
-                          alert("⚠️ 죄송합니다. 지출 내역의 일괄 삭제는 최고관리자(SUPER_ADMIN) 권한으로만 기동할 수 있습니다.");
+                        if (!hasAdminAccess) {
+                          alert("⚠️ 죄송합니다. 지출 내역의 일괄 삭제는 최고관리자 또는 대표자 권한으로만 기동할 수 있습니다.");
                           return;
                         }
                         handleDeleteSelectedExpenses();
@@ -2154,8 +2154,8 @@ export default function ExpenseManagementAiPage() {
                               {/* ✏️ 수정 단추 */}
                               <button 
                                 onClick={() => {
-                                  if (userRole !== 'SUPER_ADMIN') {
-                                    alert("⚠️ 죄송합니다. 지출 내역의 수정은 최고관리자(SUPER_ADMIN) 권한으로만 기동할 수 있습니다.");
+                                  if (!hasAdminAccess) {
+                                    alert("⚠️ 죄송합니다. 지출 내역의 수정은 최고관리자 또는 대표자 권한으로만 기동할 수 있습니다.");
                                     return;
                                   }
                                   // 수정 데이터 기입 및 모달 가동
@@ -2183,11 +2183,11 @@ export default function ExpenseManagementAiPage() {
                                   });
                                 }}
                                 className={`p-1.5 rounded transition-all cursor-pointer border-none bg-transparent ${
-                                  userRole === 'SUPER_ADMIN' 
+                                  hasAdminAccess 
                                     ? 'text-slate-450 hover:text-blue-600 hover:bg-blue-50' 
                                     : 'text-slate-300 opacity-45 cursor-not-allowed'
                                 }`}
-                                title={userRole === 'SUPER_ADMIN' ? "지출 내역 수정" : "권한 없음 (최고관리자 전용)"}
+                                title={hasAdminAccess ? "지출 내역 수정" : "권한 없음 (최고관리자 및 대표자 전용)"}
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"></path></svg>
                               </button>
@@ -2195,18 +2195,18 @@ export default function ExpenseManagementAiPage() {
                               {/* ✕ 삭제 단추 */}
                               <button 
                                 onClick={() => {
-                                  if (userRole !== 'SUPER_ADMIN') {
-                                    alert("⚠️ 죄송합니다. 지출 내역의 삭제는 최고관리자(SUPER_ADMIN) 권한으로만 기동할 수 있습니다.");
+                                  if (!hasAdminAccess) {
+                                    alert("⚠️ 죄송합니다. 지출 내역의 삭제는 최고관리자 또는 대표자 권한으로만 기동할 수 있습니다.");
                                     return;
                                   }
                                   handleDeleteExpense(exp.id);
                                 }}
                                 className={`p-1.5 rounded transition-all cursor-pointer border-none bg-transparent ${
-                                  userRole === 'SUPER_ADMIN' 
+                                  hasAdminAccess 
                                     ? 'text-slate-455 hover:text-rose-600 hover:bg-rose-50' 
                                     : 'text-slate-300 opacity-45 cursor-not-allowed'
                                 }`}
-                                title={userRole === 'SUPER_ADMIN' ? "지출 내역 삭제" : "권한 없음 (최고관리자 전용)"}
+                                title={hasAdminAccess ? "지출 내역 삭제" : "권한 없음 (최고관리자 및 대표자 전용)"}
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
