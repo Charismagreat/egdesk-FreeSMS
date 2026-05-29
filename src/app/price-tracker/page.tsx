@@ -1576,10 +1576,10 @@ export default function PriceTrackerAIPage() {
                       </td>
 
                       {/* 실시간 수집가 */}
-                      <td className="p-4 text-right">
+                      <td className="p-4 text-right relative group">
                         {item.latest_price > 0 ? (
                           <div className="space-y-0.5">
-                            <span className="text-xs font-black font-mono text-slate-850 block">
+                            <span className="text-xs font-black font-mono text-slate-850 block cursor-help">
                               {itemCurrency === 'KRW' ? '₩ ' : '$ '}{item.latest_price.toLocaleString()}
                             </span>
                             {itemCurrency !== 'KRW' && (
@@ -1590,6 +1590,35 @@ export default function PriceTrackerAIPage() {
                           </div>
                         ) : (
                           <span className="text-slate-400 text-[10px] font-bold">수집 대기 중</span>
+                        )}
+
+                        {/* 노드별 실시간 가격 즉석 브리핑 툴팁 카드 */}
+                        {item.collectors_prices && item.collectors_prices.length > 0 && (
+                          <div className="hidden group-hover:block absolute z-30 right-4 top-12 w-64 bg-slate-900/95 backdrop-blur-md text-slate-100 p-3.5 rounded-2xl border border-slate-800 shadow-2xl transition-all duration-200 text-left">
+                            <div className="border-b border-slate-800 pb-2 mb-2 flex items-center justify-between">
+                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">노드별 실시간 수집 가격</span>
+                              <span className="text-[8px] bg-pink-500/20 text-pink-400 px-1.5 py-0.5 rounded font-extrabold">LIVE</span>
+                            </div>
+                            <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                              {item.collectors_prices.map((cp: any, idx: number) => (
+                                <div key={idx} className="flex justify-between items-center text-[11px] gap-2">
+                                  <span className="text-slate-300 truncate max-w-[130px] font-medium" title={cp.siteName}>
+                                    📍 {cp.siteName}
+                                  </span>
+                                  <div className="text-right shrink-0">
+                                    <span className="font-bold font-mono text-pink-400">
+                                      {cp.currency === 'KRW' ? '₩ ' : '$ '}{cp.price.toLocaleString()}
+                                    </span>
+                                    {cp.currency !== 'KRW' && (
+                                      <span className="block text-[8px] text-slate-400 font-mono">
+                                        (₩ {cp.krwPrice.toLocaleString()})
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
                         )}
                       </td>
 
@@ -1736,9 +1765,12 @@ export default function PriceTrackerAIPage() {
                                   </h3>
                                   <p className="text-[9px] text-slate-400 font-semibold">최근 파이프라인 수집 누적 히스토리</p>
                                 </div>
-                                <span className="text-[9px] font-black text-pink-600 font-mono bg-pink-50 px-2.5 py-1 rounded-full border border-pink-100 flex items-center gap-1">
+                                <span 
+                                  className="text-[9px] font-black text-pink-655 font-mono bg-pink-50 px-2.5 py-1 rounded-full border border-pink-150 flex items-center gap-1 cursor-help hover:bg-pink-100/50 transition-colors"
+                                  title="현재 등록된 감시 URL(수집 노드) 중, 실시간 원화 환산가 기준 가장 저렴한 최저가를 공급하고 있는 사이트 출처입니다."
+                                >
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                  {item.latest_site_name || '수집기 매핑 없음'}
+                                  최저가 출처: {item.latest_site_name || '수집기 매핑 없음'}
                                 </span>
                               </div>
 
@@ -2235,6 +2267,22 @@ export default function PriceTrackerAIPage() {
                             </span>
                             <ArrowUpRight className="w-3 h-3 text-slate-350 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
                           </div>
+
+                          {/* 최근/최저 수집 가격 알약 배지 */}
+                          {url.latest_price !== null && url.latest_price !== undefined && (
+                            <div className="flex items-center gap-1.5 flex-wrap text-[9px] my-0.5">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-650 border border-slate-200 shadow-sm">
+                                <span className="w-1 h-1 rounded-full bg-slate-400 mr-1"></span>
+                                최근: {activeItem?.currency_code === 'KRW' ? '₩' : '$'} {Number(url.latest_price).toLocaleString()}
+                              </span>
+                              {url.min_price !== null && url.min_price !== undefined && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full font-bold bg-rose-50 text-rose-600 border border-rose-100 shadow-sm animate-fade-in">
+                                  <span className="w-1 h-1 rounded-full bg-rose-500 mr-1 animate-pulse"></span>
+                                  최저: {activeItem?.currency_code === 'KRW' ? '₩' : '$'} {Number(url.min_price).toLocaleString()}
+                                </span>
+                              )}
+                            </div>
+                          )}
                           
                           {/* URL 표시와 원클릭 복사 배너 */}
                           <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-xl border border-slate-150/60 max-w-[280px]">
