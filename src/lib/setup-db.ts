@@ -460,8 +460,32 @@ export async function setupDatabase() {
     { name: 'createdAt', type: 'TEXT', notNull: true }
   ], { tableName: 'inventory_logs', uniqueKeyColumns: ['id'] });
 
+  // 37. CRM Expenses Table (지출 내역 대장)
+  await safeCreateTable('지출 내역', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'title', type: 'TEXT', notNull: true },
+    { name: 'category', type: 'TEXT', notNull: true },
+    { name: 'amount', type: 'INTEGER', notNull: true },
+    { name: 'expense_date', type: 'TEXT', notNull: true },
+    { name: 'payment_method', type: 'TEXT', notNull: true },
+    { name: 'attachment_url', type: 'TEXT' },
+    { name: 'ai_analysis', type: 'TEXT' },
+    { name: 'memo', type: 'TEXT' },
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'crm_expenses', uniqueKeyColumns: ['id'] });
 
-    // ID 1의 기본 네이버 블로그 설정 존재 여부 확인 후 자동 주입
+  // 38. Expense Settings Table (지출 예산 경보 설정)
+  await safeCreateTable('지출 예산 설정', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'monthly_budget', type: 'INTEGER', notNull: true },
+    { name: 'is_alert_enabled', type: 'INTEGER', notNull: true },
+    { name: 'alert_threshold_percent', type: 'INTEGER', notNull: true },
+    { name: 'alert_sms_template', type: 'TEXT', notNull: true },
+    { name: 'alert_phone', type: 'TEXT', notNull: true },
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'expense_settings', uniqueKeyColumns: ['id'] });
+
+  // ID 1의 기본 네이버 블로그 설정 존재 여부 확인 후 자동 주입
     try {
       const naverSettingsCheck = await queryTable('naver_blog_marketing_settings', { filters: { id: '1' } });
       if (!naverSettingsCheck.rows || naverSettingsCheck.rows.length === 0) {
@@ -597,6 +621,107 @@ export async function setupDatabase() {
     }
   } catch (e: any) {
     console.error('Error seeding Price Tracker AI data:', e.message);
+  }
+
+  // 39. 지출 관리 AI 기본 설정 및 더미 내역 시딩
+  try {
+    const settingsCheck = await queryTable('expense_settings', { filters: { id: '1' } });
+    if (!settingsCheck.rows || settingsCheck.rows.length === 0) {
+      const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+      await insertRows('expense_settings', [{
+        id: 1,
+        monthly_budget: 3000000,
+        is_alert_enabled: 1,
+        alert_threshold_percent: 90,
+        alert_sms_template: '[🚨 이지데스크 - 지출 경보]\n사장님, 이번 달 누적 지출이 설정하신 예산 한도의 {경보임계율}%({경보금액}원)를 돌파했습니다!\n- 현재 누적 지출: {누적지출}원\n- 월별 예산 한도: {월예산}원\n불필요한 과지출이 없는지 경리 대장을 검토해 주세요.',
+        alert_phone: '010-1234-5678',
+        created_at: nowStr
+      }]);
+      console.log('Expense settings seeded with default budget: 3,000,000 KRW');
+    }
+  } catch (e: any) {
+    console.error('Error seeding expense settings:', e.message);
+  }
+
+  try {
+    const expensesCheck = await queryTable('crm_expenses', {});
+    if (!expensesCheck.rows || expensesCheck.rows.length === 0) {
+      const now = new Date(Date.now() + 9 * 60 * 60 * 1000);
+      const nowStr = now.toISOString().replace('T', ' ').slice(0, 19);
+      
+      const getPastDateStr = (daysAgo: number) => {
+        const d = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+        return d.toISOString().slice(0, 10);
+      };
+
+      const seedExpenses = [
+        {
+          id: 'exp-01',
+          title: '직원 주말 특근 식대 (야식)',
+          category: '복리후생비',
+          amount: 85000,
+          expense_date: getPastDateStr(2),
+          payment_method: '법인카드',
+          attachment_url: '',
+          ai_analysis: JSON.stringify({ parsed: true, confidence: 0.98 }),
+          memo: '개발팀 야근 식대',
+          created_at: nowStr
+        },
+        {
+          id: 'exp-02',
+          title: 'AWS 서버 호스팅 사용료 (5월분)',
+          category: '소모품비',
+          amount: 320000,
+          expense_date: getPastDateStr(5),
+          payment_method: '계좌이체',
+          attachment_url: '',
+          ai_analysis: JSON.stringify({ parsed: true, confidence: 0.99 }),
+          memo: '웹 서버 운영비',
+          created_at: nowStr
+        },
+        {
+          id: 'exp-03',
+          title: '바이어 미팅 다과 및 커피 구매',
+          category: '접대비',
+          amount: 42000,
+          expense_date: getPastDateStr(10),
+          payment_method: '법인카드',
+          attachment_url: '',
+          ai_analysis: JSON.stringify({ parsed: true, confidence: 0.95 }),
+          memo: '스타벅스 강남점',
+          created_at: nowStr
+        },
+        {
+          id: 'exp-04',
+          title: '지방 출장 KTX 왕복 운임',
+          category: '여비교통비',
+          amount: 114000,
+          expense_date: getPastDateStr(15),
+          payment_method: '법인카드',
+          attachment_url: '',
+          ai_analysis: JSON.stringify({ parsed: true, confidence: 0.97 }),
+          memo: '부산 지사 출장',
+          created_at: nowStr
+        },
+        {
+          id: 'exp-05',
+          title: '사무실 복사지 및 필기구 소모품 구입',
+          category: '소모품비',
+          amount: 58000,
+          expense_date: getPastDateStr(20),
+          payment_method: '현금영수증',
+          attachment_url: '',
+          ai_analysis: JSON.stringify({ parsed: true, confidence: 0.96 }),
+          memo: '알파문구',
+          created_at: nowStr
+        }
+      ];
+
+      await insertRows('crm_expenses', seedExpenses);
+      console.log('Expense tracker mock seed data successfully generated.');
+    }
+  } catch (e: any) {
+    console.error('Error seeding expenses data:', e.message);
   }
 
   console.log('Database setup complete.');
