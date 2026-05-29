@@ -37,7 +37,11 @@ export default function ExpenseManagementAiPage() {
     totalPages,
     startIndex,
     endIndex,
-    paginatedExpenses
+    paginatedExpenses,
+    selectedIds,
+    toggleSelectAll,
+    toggleSelect,
+    handleDeleteSelectedExpenses
   } = useExpenses();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -430,67 +434,130 @@ export default function ExpenseManagementAiPage() {
               </div>
             )}
 
-            {/* 4. 📋 지출 장부 관리 대장 테이블 (PC 대화면 visible 구조) */}
-            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-4">
-              <div className="flex justify-between items-center border-b pb-3 mb-2">
-                <h2 className="text-lg font-black text-slate-800 flex items-center">
-                  <FileText className="w-5 h-5 mr-2 text-slate-500" />
-                  지출 장부 대장
-                </h2>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-extrabold text-slate-500 whitespace-nowrap">비목 필터:</span>
-                  <select 
-                    value={activeCategoryFilter}
-                    onChange={e => setActiveCategoryFilter(e.target.value)}
-                    className="border border-slate-250 rounded-lg px-2 py-1 text-xs outline-none bg-white font-bold text-slate-700 cursor-pointer focus:border-rose-500"
-                  >
-                    <option value="ALL">전체 보기</option>
-                    {CATEGORIES.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
+            {/* 4. 📋 지출 장부 관리 대장 테이블 (거래 관리 AI 정밀 조회 및 일괄 연동 패킹) */}
+            <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden space-y-0">
+              
+              {/* 상단 통합 대장 컨트롤 바 */}
+              <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div className="flex items-center space-x-2 shrink-0">
+                  <FileText className="w-5 h-5 text-rose-500" />
+                  <h2 className="font-black text-slate-800 text-sm">지출 목록 ({filteredExpenses.length}건)</h2>
+                  {selectedIds.size > 0 && (
+                    <span className="text-[10px] text-rose-650 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full font-black animate-bounce shadow-3xs">
+                      {selectedIds.size}개 선택됨
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                  {/* 비목 필터 */}
+                  <div className="flex items-center space-x-1.5 bg-white border border-slate-200 px-3 py-1.5 rounded-full w-full sm:w-auto">
+                    <span className="text-[9px] font-extrabold text-slate-500 whitespace-nowrap">비목:</span>
+                    <select 
+                      value={activeCategoryFilter}
+                      onChange={e => setActiveCategoryFilter(e.target.value)}
+                      className="text-xs outline-none bg-transparent font-black text-slate-700 cursor-pointer border-none pr-4"
+                    >
+                      <option value="ALL">전체 보기</option>
+                      {CATEGORIES.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 둥근 검색바 (거래 관리 AI 스타일) */}
+                  <div className="relative w-full sm:w-48">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                    <input 
+                      type="text"
+                      placeholder="품명 또는 메모 검색..."
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      className="w-full pl-9 pr-4 py-1.5 border border-slate-200 rounded-full focus:ring-2 focus:ring-rose-500 outline-none text-xs bg-white font-bold text-slate-800"
+                    />
+                  </div>
+
+                  {/* 일괄 삭제 액션 단추 */}
+                  {selectedIds.size > 0 && (
+                    <button 
+                      onClick={handleDeleteSelectedExpenses}
+                      className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-full text-xs font-black shadow-md flex items-center justify-center shrink-0 border-none transition-all active:scale-95 cursor-pointer w-full sm:w-auto"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 mr-1" />
+                      선택 일괄 삭제
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {/* 검색창 */}
-              <div className="relative">
-                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 transform -translate-y-1/2" />
-                <input 
-                  type="text"
-                  placeholder="품명 또는 메모로 대장 검색..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent text-xs font-semibold text-slate-805 bg-slate-50/50"
-                />
-              </div>
-
-              {/* 테이블 본문 */}
-              <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+              {/* 테이블 본문 (거래 관리 AI 콤팩트 규격 이식) */}
+              <div className="overflow-x-auto w-full">
                 <table className="w-full text-left text-xs border-collapse">
-                  <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-250">
+                  <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-100">
                     <tr>
-                      <th className="p-3">지출 품명</th>
-                      <th className="p-3">비목</th>
-                      <th className="p-3 text-right">금액</th>
-                      <th className="p-3">결제일</th>
-                      <th className="p-3 text-center">제외</th>
+                      <th className="p-4 w-12 text-center">
+                        <input 
+                          type="checkbox" 
+                          onChange={toggleSelectAll} 
+                          checked={paginatedExpenses.length > 0 && selectedIds.size === filteredExpenses.length} 
+                          className="rounded text-rose-500 focus:ring-0 cursor-pointer" 
+                        />
+                      </th>
+                      <th className="p-4 font-bold text-[10px]">결제일자</th>
+                      <th className="p-4 font-bold text-[10px]">영수증</th>
+                      <th className="p-4 font-bold text-[10px]">지출 품명</th>
+                      <th className="p-4 font-bold text-[10px]">비목 (카테고리)</th>
+                      <th className="p-4 font-bold text-[10px] text-right">지출 금액</th>
+                      <th className="p-4 font-bold text-[10px] text-center">삭제</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 font-medium text-[11px]">
+                  <tbody className="divide-y divide-slate-50 font-medium">
                     {paginatedExpenses.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="p-6 text-center text-slate-450 font-bold">
-                          조건에 부합하는 지출 내역이 대장에 존재하지 않습니다.
+                        <td colSpan={7} className="p-12 text-center text-slate-400 font-bold">
+                          {expenses.length === 0 ? "등록된 지출 내역이 대장에 없습니다." : "검색 결과와 부합하는 지출 내역이 없습니다."}
                         </td>
                       </tr>
                     ) : (
                       paginatedExpenses.map((exp) => (
-                        <tr key={exp.id} className="hover:bg-slate-50/60 transition-colors">
-                          <td className="p-3 font-bold text-slate-800 max-w-[150px] truncate" title={exp.title}>
+                        <tr 
+                          key={exp.id} 
+                          className={`border-b border-slate-50 hover:bg-slate-50/50 cursor-pointer transition-colors ${
+                            selectedIds.has(exp.id) ? 'bg-rose-50/20' : ''
+                          }`}
+                          onClick={() => toggleSelect(exp.id)}
+                        >
+                          <td className="p-4 text-center" onClick={e => e.stopPropagation()}>
+                            <input 
+                              type="checkbox" 
+                              checked={selectedIds.has(exp.id)} 
+                              onChange={() => toggleSelect(exp.id)} 
+                              className="rounded text-rose-500 focus:ring-0 cursor-pointer" 
+                            />
+                          </td>
+                          <td className="p-4 text-slate-500 font-semibold font-mono">{exp.expense_date}</td>
+                          <td className="p-4" onClick={e => e.stopPropagation()}>
+                            {exp.attachment_url ? (
+                              <button
+                                onClick={() => {
+                                  const win = window.open();
+                                  if (win) {
+                                    win.document.write(`<iframe src="${exp.attachment_url}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                                  }
+                                }}
+                                className="px-2 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-md text-[10px] font-bold transition-all shadow-3xs active:scale-95 cursor-pointer"
+                              >
+                                📄 보기
+                              </button>
+                            ) : (
+                              <span className="text-[10px] text-slate-400 font-light pl-2">-</span>
+                            )}
+                          </td>
+                          <td className="p-4 font-bold text-slate-800 max-w-[150px] truncate" title={exp.title}>
                             {exp.title}
                             {exp.memo && <span className="block text-[9px] text-slate-400 font-semibold mt-0.5 truncate">{exp.memo}</span>}
                           </td>
-                          <td className="p-3">
+                          <td className="p-4">
                             <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-black border ${
                               exp.category === '복리후생비' 
                                 ? 'bg-blue-50 border-blue-100 text-blue-700' 
@@ -509,12 +576,11 @@ export default function ExpenseManagementAiPage() {
                               {exp.category}
                             </span>
                           </td>
-                          <td className="p-3 text-right font-black text-slate-850 font-mono">
+                          <td className="p-4 text-right font-black text-slate-850 font-mono">
                             {exp.amount.toLocaleString()}원
                             <span className="block text-[8px] text-slate-400 font-bold mt-0.5">{exp.payment_method}</span>
                           </td>
-                          <td className="p-3 text-slate-500 font-semibold font-mono">{exp.expense_date}</td>
-                          <td className="p-3 text-center">
+                          <td className="p-4 text-center" onClick={e => e.stopPropagation()}>
                             <button 
                               onClick={() => handleDeleteExpense(exp.id)}
                               className="p-1.5 text-slate-350 hover:text-rose-600 rounded hover:bg-rose-50 transition-all cursor-pointer border-none"
@@ -530,44 +596,69 @@ export default function ExpenseManagementAiPage() {
                 </table>
               </div>
 
-              {/* 페이지네이션 */}
-              {totalPages > 1 && (
-                <div className="flex justify-between items-center mt-3 pt-2 bg-slate-50/50 p-3 rounded-lg border border-slate-100 text-[10px]">
-                  <span className="font-semibold text-slate-500">
-                    전체 {filteredExpenses.length}건 중 {startIndex + 1}-{Math.min(endIndex, filteredExpenses.length)}건 표시
+              {/* 페이지네이션 하단 컨트롤 바 (거래 관리 AI 정밀 조율 이식) */}
+              <div className="bg-slate-50/50 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-100">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500 font-semibold">페이지당 표시:</span>
+                  <select 
+                    value={itemsPerPage} 
+                    onChange={e => {
+                      setItemsPerPage(Number(e.target.value));
+                      setCurrentPage(1);
+                    }} 
+                    className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs outline-none bg-white font-bold cursor-pointer text-slate-700 focus:border-rose-500"
+                  >
+                    <option value={5}>5개씩 보기</option>
+                    <option value={10}>10개씩 보기</option>
+                    <option value={20}>20개씩 보기</option>
+                    <option value={50}>50개씩 보기</option>
+                  </select>
+                  <span className="text-xs text-slate-400 font-semibold ml-2">
+                    {filteredExpenses.length === 0 
+                      ? "전체 0건 표시" 
+                      : `전체 ${filteredExpenses.length}건 중 ${startIndex + 1}-${Math.min(endIndex, filteredExpenses.length)}건 표시`}
                   </span>
-                  
-                  <div className="flex space-x-1">
+                </div>
+                
+                <div className="flex items-center space-x-1">
+                  <button 
+                    disabled={currentPage === 1 || totalPages <= 1}
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    className="px-2.5 py-1.5 border border-slate-200 bg-white rounded-lg hover:bg-slate-50 disabled:opacity-50 text-[11px] font-bold text-slate-600 cursor-pointer disabled:cursor-not-allowed transition-all"
+                  >
+                    이전
+                  </button>
+                  {totalPages <= 1 ? (
                     <button 
-                      disabled={currentPage === 1}
-                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                      className="px-2 py-1 border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50 text-[10px] font-bold text-slate-655 cursor-pointer disabled:cursor-not-allowed transition-all"
+                      disabled
+                      className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold bg-rose-500 text-white shadow-sm border border-rose-500 cursor-not-allowed"
                     >
-                      이전
+                      1
                     </button>
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  ) : (
+                    Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                       <button 
                         key={page}
                         onClick={() => setCurrentPage(page)}
-                        className={`px-2 py-1 rounded transition-all font-bold ${
+                        className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
                           currentPage === page 
-                            ? 'bg-rose-500 text-white shadow-2xs border border-rose-500' 
+                            ? 'bg-rose-500 text-white shadow-sm border border-rose-500' 
                             : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 cursor-pointer'
                         }`}
                       >
                         {page}
                       </button>
-                    ))}
-                    <button 
-                      disabled={currentPage === totalPages}
-                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                      className="px-2 py-1 border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50 text-[10px] font-bold text-slate-655 cursor-pointer disabled:cursor-not-allowed transition-all"
-                    >
-                      다음
-                    </button>
-                  </div>
+                    ))
+                  )}
+                  <button 
+                    disabled={currentPage === totalPages || totalPages <= 1}
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    className="px-2.5 py-1.5 border border-slate-200 bg-white rounded-lg hover:bg-slate-50 disabled:opacity-50 text-[11px] font-bold text-slate-600 cursor-pointer disabled:cursor-not-allowed transition-all"
+                  >
+                    다음
+                  </button>
                 </div>
-              )}
+              </div>
 
             </div>
 

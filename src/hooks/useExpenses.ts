@@ -59,6 +59,9 @@ export function useExpenses() {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(10);
 
+  // ⚡ 다중 선택 상태 추가 (거래 관리 AI 연동 스펙)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
   // 신규 등록 폼
   const [newExpense, setNewExpense] = useState({
     title: "",
@@ -94,9 +97,10 @@ export function useExpenses() {
     fetchExpenses();
   }, []);
 
-  // 검색/필터 변경 시 페이지 초기화
+  // 검색/필터 변경 시 페이지 및 선택 상태 초기화
   useEffect(() => {
     setCurrentPage(1);
+    setSelectedIds(new Set());
   }, [searchQuery, activeCategoryFilter]);
 
   // 설정 저장
@@ -160,12 +164,52 @@ export function useExpenses() {
       const res = await fetch(`/api/expenses?id=${id}`, { method: "DELETE" });
       const json = await res.json();
       if (json.success) {
+        const newSet = new Set(selectedIds);
+        newSet.delete(id);
+        setSelectedIds(newSet);
         fetchExpenses();
       } else {
         alert("지출 내역 삭제 실패: " + json.error);
       }
     } catch (err) {
       alert("지출 삭제 요청 중 통신 에러가 발생했습니다.");
+    }
+  };
+
+  // ⚡ 다중 선택 관리 함수 마운트 (거래 관리 AI 매핑)
+  const toggleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedIds(new Set(filteredExpenses.map(exp => exp.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setSelectedIds(newSet);
+  };
+
+  // ⚡ 일괄 선택 삭제 핸들러 신설
+  const handleDeleteSelectedExpenses = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`선택하신 ${selectedIds.size}건의 지출 내역을 장부에서 일괄 삭제하시겠습니까?`)) return;
+
+    try {
+      const idsArray = Array.from(selectedIds).join(",");
+      const res = await fetch(`/api/expenses?ids=${idsArray}`, { method: "DELETE" });
+      const json = await res.json();
+      if (json.success) {
+        alert("선택한 지출 내역이 성공적으로 일괄 삭제되었습니다.");
+        setSelectedIds(new Set());
+        fetchExpenses();
+      } else {
+        alert("일괄 삭제 실패: " + json.error);
+      }
+    } catch (err) {
+      alert("일괄 삭제 처리 중 네트워크 통신 오류가 발생했습니다.");
     }
   };
 
@@ -283,6 +327,11 @@ export function useExpenses() {
     totalPages,
     startIndex,
     endIndex,
-    paginatedExpenses
+    paginatedExpenses,
+    selectedIds,
+    setSelectedIds,
+    toggleSelectAll,
+    toggleSelect,
+    handleDeleteSelectedExpenses
   };
 }

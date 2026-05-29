@@ -183,12 +183,14 @@ export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const idsParam = searchParams.get('ids');
 
-    if (!id) {
-      return NextResponse.json({ success: false, error: 'ID가 필요합니다.' }, { status: 400 });
+    if (!id && !idsParam) {
+      return NextResponse.json({ success: false, error: '삭제할 ID가 필요합니다.' }, { status: 400 });
     }
 
-    await deleteRows('crm_expenses', { ids: [id] });
+    const idsToDelete = idsParam ? idsParam.split(',') : [id!];
+    await deleteRows('crm_expenses', { ids: idsToDelete });
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Error deleting expense:', error);
