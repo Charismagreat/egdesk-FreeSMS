@@ -118,6 +118,7 @@ export default function ExpenseManagementAiPage() {
   const [isSubmittingCat, setIsSubmittingCat] = React.useState(false);
   const [isSubmittingTag, setIsSubmittingTag] = React.useState(false);
   const [isExcelUploading, setIsExcelUploading] = React.useState(false);
+  const [activePreviewUrl, setActivePreviewUrl] = React.useState<string | null>(null);
 
   // 🏢 조직 및 사업 전용 추가 폼 상태
   const [newDeptName, setNewDeptName] = React.useState<string>("");
@@ -126,6 +127,28 @@ export default function ExpenseManagementAiPage() {
   const [isSubmittingDept, setIsSubmittingDept] = React.useState(false);
   const [isSubmittingEmp, setIsSubmittingEmp] = React.useState(false);
   const [isSubmittingProj, setIsSubmittingProj] = React.useState(false);
+
+  // 🏷️ 적요란 '@' 태그 파싱 헬퍼 함수
+  const getTaggedInfo = React.useCallback((title: string) => {
+    if (!title) return { department: "-", staff: "-", project: "-" };
+    const regex = /@([^\s@]+)/g;
+    let match;
+    let department = "-";
+    let staff = "-";
+    let project = "-";
+    
+    while ((match = regex.exec(title)) !== null) {
+      const name = match[1];
+      if (autocompleteData?.staff?.includes(name) || dbEmployees?.some(e => e.name === name)) {
+        staff = name;
+      } else if (autocompleteData?.departments?.includes(name) || dbDepartments?.some(d => d.name === name)) {
+        department = name;
+      } else if (autocompleteData?.projects?.includes(name) || dbProjects?.some(p => p.name === name)) {
+        project = name;
+      }
+    }
+    return { department, staff, project };
+  }, [autocompleteData, dbEmployees, dbDepartments, dbProjects]);
 
   // 🏷️ 적요란 '@' 지능형 자동완성 제어용 상태
   const [showSuggestions, setShowSuggestions] = React.useState(false);
@@ -1815,6 +1838,7 @@ export default function ExpenseManagementAiPage() {
                       <th className="p-4 font-bold text-[10px]">품의일자</th>
                       <th className="p-4 font-bold text-[10px]">영수증</th>
                       <th className="p-4 font-bold text-[10px]">적요 (지출 품명/내역)</th>
+                      <th className="p-4 font-bold text-[10px]">부서/담당자/프로젝트</th>
                       <th className="p-4 font-bold text-[10px]">계정 과목</th>
                       <th className="p-4 font-bold text-[10px] text-right">지출 금액</th>
                       <th className="p-4 font-bold text-[10px] text-center">삭제</th>
@@ -1823,7 +1847,7 @@ export default function ExpenseManagementAiPage() {
                   <tbody className="divide-y divide-slate-50 font-medium">
                     {paginatedExpenses.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="p-12 text-center text-slate-400 font-bold">
+                        <td colSpan={8} className="p-12 text-center text-slate-400 font-bold">
                           {expenses.length === 0 ? "등록된 지출 내역이 대장에 없습니다." : "검색 결과와 부합하는 지출 내역이 없습니다."}
                         </td>
                       </tr>
@@ -1851,14 +1875,11 @@ export default function ExpenseManagementAiPage() {
                             {exp.attachment_url ? (
                               <button
                                 onClick={() => {
-                                  const win = window.open();
-                                  if (win) {
-                                    win.document.write(`<iframe src="${exp.attachment_url}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
-                                  }
+                                  setActivePreviewUrl(exp.attachment_url);
                                 }}
-                                className="px-2 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-md text-[10px] font-bold transition-all shadow-3xs active:scale-95 cursor-pointer"
+                                className="px-2 py-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-md text-[10px] font-bold transition-all shadow-3xs active:scale-95 cursor-pointer flex items-center gap-1"
                               >
-                                📄 보기
+                                🔍 미리보기
                               </button>
                             ) : (
                               <span className="text-[10px] text-slate-400 font-light pl-2">-</span>
@@ -1890,6 +1911,37 @@ export default function ExpenseManagementAiPage() {
                                 }
                               } catch (e) {}
                               return null;
+                            })()}
+                          </td>
+                          {/* 부서 / 담당자 / 프로젝트 실시간 파싱 통합 셀 추가 */}
+                          <td className="p-4">
+                            {(() => {
+                              const { department, staff, project } = getTaggedInfo(exp.title);
+                              const hasNoData = department === "-" && staff === "-" && project === "-";
+                              
+                              if (hasNoData) {
+                                return <span className="text-slate-350 text-[10px] pl-2">-</span>;
+                              }
+
+                              return (
+                                <div className="flex flex-wrap gap-1.5 max-w-[180px]">
+                                  {department !== "-" && (
+                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-blue-50 border border-blue-100 text-blue-700 text-[8.5px] font-black shadow-3xs">
+                                      🏢 {department}
+                                    </span>
+                                  )}
+                                  {staff !== "-" && (
+                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-emerald-50 border border-emerald-100 text-emerald-700 text-[8.5px] font-black shadow-3xs">
+                                      👤 {staff}
+                                    </span>
+                                  )}
+                                  {project !== "-" && (
+                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-indigo-50 border border-indigo-100 text-indigo-700 text-[8.5px] font-black shadow-3xs">
+                                      🚀 {project}
+                                    </span>
+                                  )}
+                                </div>
+                              );
                             })()}
                           </td>
                           <td className="p-4">
@@ -2027,6 +2079,73 @@ export default function ExpenseManagementAiPage() {
           <p>• 월간 누적 지출이 한도의 지정 임계값에 도달할 때 자동 발송되는 **SMS 경고 문구 템플릿**을 사장님이 원하는 형태로 언제든지 자유롭게 기입하여 커스터마이징할 수 있습니다.</p>
         </div>
       </div>
+
+      {/* 🖼️ 프리미엄 영수증 실물 첨부파일 미리보기 라이트박스 모달 */}
+      {activePreviewUrl && (
+        <div 
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[100] flex items-center justify-center p-4 transition-all duration-300 animate-fade-in text-left"
+          onClick={() => setActivePreviewUrl(null)}
+        >
+          <div 
+            className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden border border-slate-150 transform transition-all duration-300 animate-scale-up"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* 모달 헤더 */}
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+              <h3 className="text-sm font-black text-slate-800 flex items-center">
+                <FileText className="w-4 h-4 mr-2 text-rose-500 animate-pulse" />
+                📄 영수증 및 첨부파일 실물 미리보기
+              </h3>
+              <button 
+                onClick={() => setActivePreviewUrl(null)}
+                className="w-7 h-7 rounded-full bg-slate-100 hover:bg-rose-500 hover:text-white flex items-center justify-center font-bold text-xs text-slate-500 border-none cursor-pointer transition-colors shadow-2xs"
+                title="닫기"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* 모달 바디 (실물 렌더러) */}
+            <div className="p-6 overflow-y-auto flex-1 flex items-center justify-center bg-slate-100/50 min-h-[300px] max-h-[60vh]">
+              {activePreviewUrl.startsWith("data:application/pdf") || activePreviewUrl.toLowerCase().endsWith(".pdf") ? (
+                <iframe 
+                  src={activePreviewUrl} 
+                  className="w-full h-[50vh] border-none rounded-xl bg-white shadow-2xs"
+                  title="PDF 영수증 미리보기"
+                />
+              ) : (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img 
+                  src={activePreviewUrl} 
+                  alt="영수증 미리보기" 
+                  className="max-w-full max-h-[50vh] object-contain rounded-xl shadow-md border border-slate-200"
+                />
+              )}
+            </div>
+
+            {/* 모달 푸터 */}
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+              <button 
+                onClick={() => {
+                  const win = window.open();
+                  if (win) {
+                    win.document.write(`<iframe src="${activePreviewUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                  }
+                }}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold text-xs shadow-2xs border-none cursor-pointer transition-all active:scale-95"
+              >
+                🖨️ 새 창에서 보기 및 인쇄
+              </button>
+              <button 
+                onClick={() => setActivePreviewUrl(null)}
+                className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold text-xs shadow-2xs border-none cursor-pointer transition-all active:scale-95"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
