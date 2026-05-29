@@ -18,6 +18,7 @@ export async function GET() {
       let latestKrwPrice = 0;
       let latestTime = '-';
       let latestSiteName = '수집기 매핑 없음';
+      const activePrices: any[] = [];
 
       // 외화 계산을 위한 환율 가중치 조회 (fallback용으로 가져옴)
       let usdRate = 1380;
@@ -49,7 +50,6 @@ export async function GET() {
       };
 
       if (urls.length > 0) {
-        const activePrices: any[] = [];
 
         for (const url of urls) {
           const historyRes = await queryTable('price_histories', {
