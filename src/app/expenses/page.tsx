@@ -56,7 +56,16 @@ export default function ExpenseManagementAiPage() {
     handleDeleteCategory,
     handleAddTag,
     handleDeleteTag,
-    autocompleteData
+    autocompleteData,
+    dbDepartments,
+    dbEmployees,
+    dbProjects,
+    handleAddDepartment,
+    handleDeleteDepartment,
+    handleAddEmployee,
+    handleDeleteEmployee,
+    handleAddProject,
+    handleDeleteProject
   } = useExpenses();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -101,7 +110,7 @@ export default function ExpenseManagementAiPage() {
   const [selectedMidCat, setSelectedMidCat] = React.useState<string>("복리후생비");
 
   // 지출 환경 설정 센터 탭 제어용 로컬 상태
-  const [activeConfigTab, setActiveConfigTab] = React.useState<'budget' | 'category' | 'tag'>('budget');
+  const [activeConfigTab, setActiveConfigTab] = React.useState<'budget' | 'category' | 'tag' | 'org'>('budget');
   const [newMainCat, setNewMainCat] = React.useState<string>("판매비와관리비");
   const [newMidCat, setNewMidCat] = React.useState<string>("");
   const [newSubCat, setNewSubCat] = React.useState<string>("");
@@ -109,6 +118,14 @@ export default function ExpenseManagementAiPage() {
   const [isSubmittingCat, setIsSubmittingCat] = React.useState(false);
   const [isSubmittingTag, setIsSubmittingTag] = React.useState(false);
   const [isExcelUploading, setIsExcelUploading] = React.useState(false);
+
+  // 🏢 조직 및 사업 전용 추가 폼 상태
+  const [newDeptName, setNewDeptName] = React.useState<string>("");
+  const [newEmpName, setNewEmpName] = React.useState<string>("");
+  const [newProjName, setNewProjName] = React.useState<string>("");
+  const [isSubmittingDept, setIsSubmittingDept] = React.useState(false);
+  const [isSubmittingEmp, setIsSubmittingEmp] = React.useState(false);
+  const [isSubmittingProj, setIsSubmittingProj] = React.useState(false);
 
   // 🏷️ 적요란 '@' 지능형 자동완성 제어용 상태
   const [showSuggestions, setShowSuggestions] = React.useState(false);
@@ -1110,6 +1127,15 @@ export default function ExpenseManagementAiPage() {
                   >
                     🏷️ 지출 태그
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveConfigTab('org')}
+                    className={`px-2.5 py-1 rounded-lg text-[9px] font-black transition-all cursor-pointer border-none ${
+                      activeConfigTab === 'org' ? 'bg-white text-rose-600 shadow-2xs font-extrabold' : 'text-slate-500 hover:text-slate-800 bg-transparent'
+                    }`}
+                  >
+                    🏢 조직 및 사업
+                  </button>
                 </div>
               </h2>
 
@@ -1402,6 +1428,226 @@ export default function ExpenseManagementAiPage() {
                           </div>
                         ))
                       )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 🏢 4. 조직 및 사업 관리 탭 가동 */}
+              {activeConfigTab === 'org' && (
+                <div className="space-y-4 animate-fade-in text-xs">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* 1열: 부서 관리 */}
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col justify-between space-y-3 min-h-[320px]">
+                      <div className="space-y-3">
+                        <h3 className="font-extrabold text-slate-800 text-[11px] flex items-center">
+                          <Sparkles className="w-3 h-3 text-rose-500 mr-1.5 animate-pulse" />
+                          🏢 사내 부서 관리
+                        </h3>
+                        <div className="flex gap-1.5 items-center">
+                          <input
+                            type="text"
+                            placeholder="예: 개발본부"
+                            value={newDeptName}
+                            onChange={e => setNewDeptName(e.target.value)}
+                            className="flex-1 border border-slate-250 rounded-lg px-2.5 py-1.5 outline-none font-bold text-[11px] bg-white text-slate-850 focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
+                            onKeyDown={async (e) => {
+                              if (e.key === "Enter" && newDeptName.trim()) {
+                                e.preventDefault();
+                                setIsSubmittingDept(true);
+                                const res = await handleAddDepartment(newDeptName.trim());
+                                setIsSubmittingDept(false);
+                                if (res.success) setNewDeptName("");
+                                else alert("부서 추가 실패: " + res.error);
+                              }
+                            }}
+                          />
+                          <button
+                            onClick={async () => {
+                              if (!newDeptName.trim()) return;
+                              setIsSubmittingDept(true);
+                              const res = await handleAddDepartment(newDeptName.trim());
+                              setIsSubmittingDept(false);
+                              if (res.success) {
+                                setNewDeptName("");
+                              } else {
+                                alert("부서 추가 실패: " + res.error);
+                              }
+                            }}
+                            disabled={isSubmittingDept || !newDeptName.trim()}
+                            className="px-2.5 py-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-lg font-black text-[10px] shadow-sm cursor-pointer disabled:bg-slate-300 border-none transition-all whitespace-nowrap"
+                          >
+                            {isSubmittingDept ? "..." : "추가"}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex-1 flex flex-col min-h-0 pt-2 space-y-1.5">
+                        <h4 className="font-extrabold text-slate-550 text-[9px]">부서 목록 ({dbDepartments.length}개)</h4>
+                        <div className="flex-1 overflow-y-auto max-h-[200px] flex flex-wrap gap-1.5 items-start content-start bg-white p-2.5 border border-slate-150 rounded-xl min-h-[140px]">
+                          {dbDepartments.length === 0 ? (
+                            <div className="w-full text-center py-10 text-slate-400 font-bold">등록된 부서가 없습니다.</div>
+                          ) : (
+                            dbDepartments.map(dept => (
+                              <div
+                                key={dept.id}
+                                className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full bg-blue-50/50 text-blue-700 text-[10px] font-black border border-blue-100 shadow-3xs"
+                              >
+                                <span>{dept.name}</span>
+                                <button
+                                  onClick={() => handleDeleteDepartment(dept.id)}
+                                  className="w-4 h-4 rounded-full bg-blue-100/60 text-blue-550 hover:bg-rose-500 hover:text-white flex items-center justify-center font-bold text-[8px] border-none cursor-pointer transition-colors"
+                                  title="부서 삭제"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 2열: 임직원 관리 */}
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col justify-between space-y-3 min-h-[320px]">
+                      <div className="space-y-3">
+                        <h3 className="font-extrabold text-slate-800 text-[11px] flex items-center">
+                          <Sparkles className="w-3 h-3 text-rose-500 mr-1.5 animate-pulse" />
+                          👥 사내 임직원 관리
+                        </h3>
+                        <div className="flex gap-1.5 items-center">
+                          <input
+                            type="text"
+                            placeholder="예: 홍길동"
+                            value={newEmpName}
+                            onChange={e => setNewEmpName(e.target.value)}
+                            className="flex-1 border border-slate-250 rounded-lg px-2.5 py-1.5 outline-none font-bold text-[11px] bg-white text-slate-850 focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
+                            onKeyDown={async (e) => {
+                              if (e.key === "Enter" && newEmpName.trim()) {
+                                e.preventDefault();
+                                setIsSubmittingEmp(true);
+                                const res = await handleAddEmployee(newEmpName.trim());
+                                setIsSubmittingEmp(false);
+                                if (res.success) setNewEmpName("");
+                                else alert("임직원 추가 실패: " + res.error);
+                              }
+                            }}
+                          />
+                          <button
+                            onClick={async () => {
+                              if (!newEmpName.trim()) return;
+                              setIsSubmittingEmp(true);
+                              const res = await handleAddEmployee(newEmpName.trim());
+                              setIsSubmittingEmp(false);
+                              if (res.success) {
+                                setNewEmpName("");
+                              } else {
+                                alert("임직원 추가 실패: " + res.error);
+                              }
+                            }}
+                            disabled={isSubmittingEmp || !newEmpName.trim()}
+                            className="px-2.5 py-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-lg font-black text-[10px] shadow-sm cursor-pointer disabled:bg-slate-300 border-none transition-all whitespace-nowrap"
+                          >
+                            {isSubmittingEmp ? "..." : "추가"}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex-1 flex flex-col min-h-0 pt-2 space-y-1.5">
+                        <h4 className="font-extrabold text-slate-550 text-[9px]">임직원 목록 ({dbEmployees.length}명)</h4>
+                        <div className="flex-1 overflow-y-auto max-h-[200px] flex flex-wrap gap-1.5 items-start content-start bg-white p-2.5 border border-slate-150 rounded-xl min-h-[140px]">
+                          {dbEmployees.length === 0 ? (
+                            <div className="w-full text-center py-10 text-slate-400 font-bold">등록된 임직원이 없습니다.</div>
+                          ) : (
+                            dbEmployees.map(emp => (
+                              <div
+                                key={emp.id}
+                                className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full bg-emerald-50/50 text-emerald-700 text-[10px] font-black border border-emerald-100 shadow-3xs"
+                              >
+                                <span>{emp.name}</span>
+                                <button
+                                  onClick={() => handleDeleteEmployee(emp.id)}
+                                  className="w-4 h-4 rounded-full bg-emerald-100/60 text-emerald-550 hover:bg-rose-500 hover:text-white flex items-center justify-center font-bold text-[8px] border-none cursor-pointer transition-colors"
+                                  title="임직원 삭제"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 3열: 프로젝트 관리 */}
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col justify-between space-y-3 min-h-[320px]">
+                      <div className="space-y-3">
+                        <h3 className="font-extrabold text-slate-800 text-[11px] flex items-center">
+                          <Sparkles className="w-3 h-3 text-rose-500 mr-1.5 animate-pulse" />
+                          🚀 수행 프로젝트 관리
+                        </h3>
+                        <div className="flex gap-1.5 items-center">
+                          <input
+                            type="text"
+                            placeholder="예: 클라우드 이관"
+                            value={newProjName}
+                            onChange={e => setNewProjName(e.target.value)}
+                            className="flex-1 border border-slate-250 rounded-lg px-2.5 py-1.5 outline-none font-bold text-[11px] bg-white text-slate-850 focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
+                            onKeyDown={async (e) => {
+                              if (e.key === "Enter" && newProjName.trim()) {
+                                e.preventDefault();
+                                setIsSubmittingProj(true);
+                                const res = await handleAddProject(newProjName.trim());
+                                setIsSubmittingProj(false);
+                                if (res.success) setNewProjName("");
+                                else alert("프로젝트 추가 실패: " + res.error);
+                              }
+                            }}
+                          />
+                          <button
+                            onClick={async () => {
+                              if (!newProjName.trim()) return;
+                              setIsSubmittingProj(true);
+                              const res = await handleAddProject(newProjName.trim());
+                              setIsSubmittingProj(false);
+                              if (res.success) {
+                                setNewProjName("");
+                              } else {
+                                alert("프로젝트 추가 실패: " + res.error);
+                              }
+                            }}
+                            disabled={isSubmittingProj || !newProjName.trim()}
+                            className="px-2.5 py-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-lg font-black text-[10px] shadow-sm cursor-pointer disabled:bg-slate-300 border-none transition-all whitespace-nowrap"
+                          >
+                            {isSubmittingProj ? "..." : "추가"}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex-1 flex flex-col min-h-0 pt-2 space-y-1.5">
+                        <h4 className="font-extrabold text-slate-550 text-[9px]">프로젝트 목록 ({dbProjects.length}개)</h4>
+                        <div className="flex-1 overflow-y-auto max-h-[200px] flex flex-wrap gap-1.5 items-start content-start bg-white p-2.5 border border-slate-150 rounded-xl min-h-[140px]">
+                          {dbProjects.length === 0 ? (
+                            <div className="w-full text-center py-10 text-slate-400 font-bold">등록된 프로젝트가 없습니다.</div>
+                          ) : (
+                            dbProjects.map(proj => (
+                              <div
+                                key={proj.id}
+                                className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full bg-indigo-50/50 text-indigo-700 text-[10px] font-black border border-indigo-100 shadow-3xs"
+                              >
+                                <span>{proj.name}</span>
+                                <button
+                                  onClick={() => handleDeleteProject(proj.id)}
+                                  className="w-4 h-4 rounded-full bg-indigo-100/60 text-indigo-550 hover:bg-rose-500 hover:text-white flex items-center justify-center font-bold text-[8px] border-none cursor-pointer transition-colors"
+                                  title="프로젝트 삭제"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

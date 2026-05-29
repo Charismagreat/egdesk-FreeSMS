@@ -806,5 +806,85 @@ export async function setupDatabase() {
     console.error('Error seeding expense tags:', e.message);
   }
 
+  // 39-4. 사내 부서 관리 테이블 신설
+  await safeCreateTable('지출 부서 관리', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'name', type: 'TEXT', notNull: true },
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'expense_departments', uniqueKeyColumns: ['id'] });
+
+  // 39-5. 사내 임직원 관리 테이블 신설
+  await safeCreateTable('지출 임직원 관리', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'name', type: 'TEXT', notNull: true },
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'expense_employees', uniqueKeyColumns: ['id'] });
+
+  // 39-6. 수행 프로젝트 관리 테이블 신설
+  await safeCreateTable('지출 프로젝트 관리', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'name', type: 'TEXT', notNull: true },
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'expense_projects', uniqueKeyColumns: ['id'] });
+
+  // 39-7. 부서, 직원, 프로젝트 기초 시딩
+  try {
+    const deptsCheck = await queryTable('expense_departments', {});
+    if (!deptsCheck.rows || deptsCheck.rows.length === 0) {
+      const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+      const initialDepts = [
+        { id: 'dept-01', name: '경영지원팀', created_at: nowStr },
+        { id: 'dept-02', name: 'SCM팀', created_at: nowStr },
+        { id: 'dept-03', name: '물류운송부', created_at: nowStr },
+        { id: 'dept-04', name: '기술개발부', created_at: nowStr },
+        { id: 'dept-05', name: '영업본부', created_at: nowStr },
+        { id: 'dept-06', name: '인사총무부', created_at: nowStr },
+        { id: 'dept-07', name: '기획디자인팀', created_at: nowStr },
+        { id: 'dept-08', name: '마케팅홍보팀', created_at: nowStr }
+      ];
+      await insertRows('expense_departments', initialDepts);
+      console.log('Expense departments seeded.');
+    }
+  } catch (e: any) {
+    console.error('Error seeding departments:', e.message);
+  }
+
+  try {
+    const empsCheck = await queryTable('expense_employees', {});
+    if (!empsCheck.rows || empsCheck.rows.length === 0) {
+      const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+      const initialEmps = [
+        { id: 'emp-01', name: '김경리', created_at: nowStr },
+        { id: 'emp-02', name: '홍길동', created_at: nowStr },
+        { id: 'emp-03', name: '이철수', created_at: nowStr },
+        { id: 'emp-04', name: '박영희', created_at: nowStr },
+        { id: 'emp-05', name: '최민수', created_at: nowStr },
+        { id: 'emp-06', name: '이영민', created_at: nowStr }
+      ];
+      await insertRows('expense_employees', initialEmps);
+      console.log('Expense employees seeded.');
+    }
+  } catch (e: any) {
+    console.error('Error seeding employees:', e.message);
+  }
+
+  try {
+    const projsCheck = await queryTable('expense_projects', {});
+    if (!projsCheck.rows || projsCheck.rows.length === 0) {
+      const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+      const initialProjs = [
+        { id: 'proj-01', name: 'FreeSMS 서비스 고도화', created_at: nowStr },
+        { id: 'proj-02', name: 'B2B 유통 플랫폼 개발', created_at: nowStr },
+        { id: 'proj-03', name: 'SCM 자율 관제 시스템', created_at: nowStr },
+        { id: 'proj-04', name: '오프라인 매장 POS 연동', created_at: nowStr },
+        { id: 'proj-05', name: '고객 마일리지 부스터 프로젝트', created_at: nowStr }
+      ];
+      await insertRows('expense_projects', initialProjs);
+      console.log('Expense projects seeded.');
+    }
+  } catch (e: any) {
+    console.error('Error seeding projects:', e.message);
+  }
+
   console.log('Database setup complete.');
 }

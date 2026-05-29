@@ -135,6 +135,132 @@ export function useExpenses() {
   }>({ partners: [], staff: [], departments: [], projects: [] });
   const [isLoadingAutocomplete, setIsLoadingAutocomplete] = useState(false);
 
+  const [dbDepartments, setDbDepartments] = useState<Array<{ id: string; name: string; created_at: string }>>([]);
+  const [dbEmployees, setDbEmployees] = useState<Array<{ id: string; name: string; created_at: string }>>([]);
+  const [dbProjects, setDbProjects] = useState<Array<{ id: string; name: string; created_at: string }>>([]);
+  
+  const [isLoadingOrg, setIsLoadingOrg] = useState(false);
+
+  // 🏢 1. 부서 CRUD
+  const fetchDepartments = async () => {
+    try {
+      const res = await fetch("/api/expenses/departments");
+      const json = await res.json();
+      if (json.success) setDbDepartments(json.departments);
+    } catch (e) { console.error("부서 로드 에러:", e); }
+  };
+
+  const handleAddDepartment = async (name: string) => {
+    try {
+      const res = await fetch("/api/expenses/departments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name })
+      });
+      const json = await res.json();
+      if (json.success) {
+        await fetchDepartments();
+        await fetchAutocompleteData();
+        return { success: true };
+      }
+      return { success: false, error: json.error };
+    } catch (e) { return { success: false, error: "서버 통신 중 에러가 발생했습니다." }; }
+  };
+
+  const handleDeleteDepartment = async (id: string) => {
+    if (!confirm("선택하신 부서를 조직도에서 영구 삭제하시겠습니까?")) return;
+    try {
+      const res = await fetch(`/api/expenses/departments?id=${id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (json.success) {
+        await fetchDepartments();
+        await fetchAutocompleteData();
+      } else {
+        alert("부서 삭제 실패: " + json.error);
+      }
+    } catch (e) { alert("부서 삭제 중 통신 에러가 발생했습니다."); }
+  };
+
+  // 👥 2. 임직원 CRUD
+  const fetchEmployees = async () => {
+    try {
+      const res = await fetch("/api/expenses/employees");
+      const json = await res.json();
+      if (json.success) setDbEmployees(json.employees);
+    } catch (e) { console.error("임직원 로드 에러:", e); }
+  };
+
+  const handleAddEmployee = async (name: string) => {
+    try {
+      const res = await fetch("/api/expenses/employees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name })
+      });
+      const json = await res.json();
+      if (json.success) {
+        await fetchEmployees();
+        await fetchAutocompleteData();
+        return { success: true };
+      }
+      return { success: false, error: json.error };
+    } catch (e) { return { success: false, error: "서버 통신 중 에러가 발생했습니다." }; }
+  };
+
+  const handleDeleteEmployee = async (id: string) => {
+    if (!confirm("선택하신 임직원을 명단에서 영구 삭제하시겠습니까?")) return;
+    try {
+      const res = await fetch(`/api/expenses/employees?id=${id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (json.success) {
+        await fetchEmployees();
+        await fetchAutocompleteData();
+      } else {
+        alert("임직원 삭제 실패: " + json.error);
+      }
+    } catch (e) { alert("임직원 삭제 중 통신 에러가 발생했습니다."); }
+  };
+
+  // 🚀 3. 프로젝트 CRUD
+  const fetchProjects = async () => {
+    try {
+      const res = await fetch("/api/expenses/projects");
+      const json = await res.json();
+      if (json.success) setDbProjects(json.projects);
+    } catch (e) { console.error("프로젝트 로드 에러:", e); }
+  };
+
+  const handleAddProject = async (name: string) => {
+    try {
+      const res = await fetch("/api/expenses/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name })
+      });
+      const json = await res.json();
+      if (json.success) {
+        await fetchProjects();
+        await fetchAutocompleteData();
+        return { success: true };
+      }
+      return { success: false, error: json.error };
+    } catch (e) { return { success: false, error: "서버 통신 중 에러가 발생했습니다." }; }
+  };
+
+  const handleDeleteProject = async (id: string) => {
+    if (!confirm("선택하신 프로젝트를 사업 명단에서 영구 삭제하시겠습니까?")) return;
+    try {
+      const res = await fetch(`/api/expenses/projects?id=${id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (json.success) {
+        await fetchProjects();
+        await fetchAutocompleteData();
+      } else {
+        alert("프로젝트 삭제 실패: " + json.error);
+      }
+    } catch (e) { alert("프로젝트 삭제 중 통신 에러가 발생했습니다."); }
+  };
+
   const fetchAutocompleteData = async () => {
     setIsLoadingAutocomplete(true);
     try {
@@ -294,6 +420,9 @@ export function useExpenses() {
     fetchCategories();
     fetchTags();
     fetchAutocompleteData();
+    fetchDepartments();
+    fetchEmployees();
+    fetchProjects();
   }, []);
 
   // 검색/필터/기간 변경 시 페이지 및 선택 상태 초기화
@@ -582,6 +711,15 @@ export function useExpenses() {
     handleAddTag,
     handleDeleteTag,
     autocompleteData,
-    fetchAutocompleteData
+    fetchAutocompleteData,
+    dbDepartments,
+    dbEmployees,
+    dbProjects,
+    handleAddDepartment,
+    handleDeleteDepartment,
+    handleAddEmployee,
+    handleDeleteEmployee,
+    handleAddProject,
+    handleDeleteProject
   };
 }
