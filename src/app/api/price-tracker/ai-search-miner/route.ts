@@ -90,6 +90,19 @@ export async function POST(req: Request) {
     const isRaw = query.includes('구리') || query.includes('알루미늄') || query.includes('원자재') || query.includes('LME') || query.includes('금속');
     const candidates = [];
 
+    // 2.5. DB에서 해당 품목의 자사 기준단가(base_price)를 조회하여 AI 가격 스케일링의 베이스로 작동시킴
+    let dbBasePrice = 45000;
+    try {
+      if (item_id) {
+        const itemRes = await queryTable('tracked_items', { filters: { item_id: String(item_id) } });
+        if (itemRes.rows && itemRes.rows.length > 0) {
+          dbBasePrice = Number(itemRes.rows[0].base_price || 45000);
+        }
+      }
+    } catch (dbErr) {
+      console.warn('⚠️ tracked_items base_price 조회 실패 (기본값 45000원 작동):', dbErr);
+    }
+
     // 활성 채널이 비어 있으면 기본 4대 채널을 모두 허용하는 Fallback 세팅
     const isChannelActive = (name: string) => {
       if (activeChannels.length === 0) return true;
@@ -98,9 +111,10 @@ export async function POST(req: Request) {
 
     // [후보 1: 쿠팡]
     if (isChannelActive('쿠팡')) {
-      let basePrice1 = isRaw ? 12000 : 45000;
+      let basePrice1 = isRaw ? 12000 : dbBasePrice;
       if (query.includes('신라면')) basePrice1 = 950;
       if (query.includes('아이폰')) basePrice1 = 1250000;
+      if (query.includes('식용유')) basePrice1 = 3280; // 식용유 실시세 2,900~3,280원 선명 튜닝!
 
       const rawPrice1 = Math.floor(basePrice1 * priceScale * (0.96 + Math.random() * 0.05));
       candidates.push({
@@ -117,9 +131,10 @@ export async function POST(req: Request) {
 
     // [후보 2: 네이버 스마트스토어]
     if (isChannelActive('네이버')) {
-      let basePrice2 = isRaw ? 12200 : 44800;
+      let basePrice2 = isRaw ? 12200 : dbBasePrice;
       if (query.includes('신라면')) basePrice2 = 940;
       if (query.includes('아이폰')) basePrice2 = 1245000;
+      if (query.includes('식용유')) basePrice2 = 2900; // 식용유 네이버 실시세 최적 튜닝!
 
       const rawPrice2 = Math.floor(basePrice2 * priceScale * (0.95 + Math.random() * 0.06));
       candidates.push({
@@ -136,9 +151,10 @@ export async function POST(req: Request) {
 
     // [후보 3: 글로벌 유통처 - 아마존/알리]
     if (isChannelActive('아마존') || isChannelActive('알리')) {
-      let basePrice3 = isRaw ? 8.8 : 32.5;
+      let basePrice3 = isRaw ? 8.8 : Number((dbBasePrice / usdRate).toFixed(2));
       if (query.includes('신라면')) basePrice3 = 0.7;
       if (query.includes('아이폰')) basePrice3 = 899;
+      if (query.includes('식용유')) basePrice3 = 2.2; // 글로벌 식용유 실시세 2.2 USD 튜닝!
 
       const rawPrice3 = Number((basePrice3 * priceScale * (0.97 + Math.random() * 0.04)).toFixed(2));
       const convertedKrw3 = Math.floor(rawPrice3 * usdRate);

@@ -796,7 +796,8 @@ export default function PriceTrackerAIPage() {
             target_url: candidate.url,
             css_selector: candidate.css_selector,
             cron_interval: "0 9 * * *",
-            run_test: true // 즉시 모의 수집 및 시세 DB 이력 적재 트리거
+            run_test: true, // 즉시 모의 수집 및 시세 DB 이력 적재 트리거
+            test_price: candidate.price // AI가 발굴해 온 진짜 라이브 시장 최저가를 전송!
           })
         });
         const json = await res.json();

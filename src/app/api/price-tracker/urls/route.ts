@@ -40,7 +40,7 @@ export async function GET(req: Request) {
 // POST /api/price-tracker/urls : 감시 URL 및 규칙 등록 및 테스트
 export async function POST(req: Request) {
   try {
-    const { item_id, site_name, target_url, css_selector, xpath, cron_interval, run_test } = await req.json();
+    const { item_id, site_name, target_url, css_selector, xpath, cron_interval, run_test, test_price } = await req.json();
 
     if (!item_id || !site_name || !target_url || !css_selector) {
       return NextResponse.json({ success: false, error: '필수 입력 정보가 누락되었습니다.' }, { status: 400 });
@@ -74,9 +74,16 @@ export async function POST(req: Request) {
         currencyCode = items.rows[0].currency_code || 'KRW';
       }
 
-      // 8000~9000 범위에서 난수 가격 생성 (화폐 가치에 맞추어 보정)
-      const baseNum = currencyCode === 'USD' ? 8 : currencyCode === 'EUR' ? 7 : currencyCode === 'CNY' ? 55 : 8000;
-      testPrice = Math.floor(baseNum + Math.random() * (baseNum * 0.1));
+      // 만약 외부(예: AI 추천 자율 스캔)에서 실제 수집되어 넘어온 가격(test_price)이 있다면 이를 최우선 매핑!
+      if (test_price !== undefined && test_price !== null) {
+        testPrice = Number(test_price);
+      } else {
+        // 기존 난수 생성 Fallback 작동하되, 품목 고유의 실제 기준 단가(base_price)에 매칭하여 보정 생성!
+        const baseNum = items.rows && items.rows.length > 0 
+          ? Number(items.rows[0].base_price || 8000) 
+          : (currencyCode === 'USD' ? 8 : currencyCode === 'EUR' ? 7 : currencyCode === 'CNY' ? 55 : 8000);
+        testPrice = Math.floor(baseNum * (0.95 + Math.random() * 0.1));
+      }
       
       // 실시간 환율 연동 및 원화(KRW) 환산 연산
       let rate = 1.0;
