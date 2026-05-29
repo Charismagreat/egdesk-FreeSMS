@@ -1082,7 +1082,7 @@ export default function ExpenseManagementAiPage() {
                     className="px-6 py-2.5 bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white rounded-xl font-black text-xs shadow-md shadow-rose-500/10 hover:opacity-95 disabled:bg-slate-350 disabled:shadow-none transition-all cursor-pointer border-none flex items-center"
                   >
                     <Sparkles className="w-3.5 h-3.5 mr-2 animate-pulse" />
-                    {isSubmittingExpense ? "결의서 장부 등록 중..." : "결의서 장부 등록하기"}
+                    {isSubmittingExpense ? "지출 대장 등록 중..." : "지출 대장 등록"}
                   </button>
                 </div>
               </div>
@@ -1308,13 +1308,13 @@ export default function ExpenseManagementAiPage() {
                       <Sparkles className="w-3 h-3 text-rose-500 mr-1.5 animate-pulse" />
                       ➕ 신규 계정 과목 3단계 추가
                     </h3>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div>
+                    <div className="flex flex-col sm:flex-row items-end gap-2 w-full">
+                      <div className="flex-1 min-w-0 w-full sm:w-auto">
                         <label className="block text-[9px] font-bold text-slate-450 mb-0.5">대분류</label>
                         <select
                           value={newMainCat}
                           onChange={e => setNewMainCat(e.target.value)}
-                          className="w-full border border-slate-250 rounded-lg px-2 py-1.5 outline-none font-bold text-[11px] bg-white text-slate-700 cursor-pointer"
+                          className="w-full border border-slate-250 rounded-lg px-2 py-1.5 outline-none font-bold text-[11px] bg-white text-slate-700 cursor-pointer h-[32px]"
                         >
                           <option value="판매비와관리비">판매비와관리비</option>
                           <option value="제조/물류원가">제조/물류원가</option>
@@ -1322,35 +1322,35 @@ export default function ExpenseManagementAiPage() {
                           <option value="기타">기타</option>
                         </select>
                       </div>
-                      <div>
+                      <div className="flex-1 min-w-0 w-full sm:w-auto">
                         <label className="block text-[9px] font-bold text-slate-450 mb-0.5">중분류</label>
                         <input
                           type="text"
                           placeholder="예: 복리후생비"
                           value={newMidCat}
                           onChange={e => setNewMidCat(e.target.value)}
-                          className="w-full border border-slate-250 rounded-lg px-2.5 py-1.5 outline-none font-bold text-[11px] bg-white text-slate-850"
+                          className="w-full border border-slate-250 rounded-lg px-2.5 py-1.5 outline-none font-bold text-[11px] bg-white text-slate-850 h-[32px]"
                         />
                       </div>
-                      <div>
+                      <div className="flex-1 min-w-0 w-full sm:w-auto">
                         <label className="block text-[9px] font-bold text-slate-450 mb-0.5">소분류 (최종 비목)</label>
                         <input
                           type="text"
                           placeholder="예: 직원식대"
                           value={newSubCat}
                           onChange={e => setNewSubCat(e.target.value)}
-                          className="w-full border border-slate-250 rounded-lg px-2.5 py-1.5 outline-none font-bold text-[11px] bg-white text-slate-850"
+                          className="w-full border border-slate-250 rounded-lg px-2.5 py-1.5 outline-none font-bold text-[11px] bg-white text-slate-850 h-[32px]"
                         />
                       </div>
-                    </div>
-                    <div className="flex justify-end pt-1">
-                      <button
-                        onClick={onAddCategoryClick}
-                        disabled={isSubmittingCat || !newMidCat.trim() || !newSubCat.trim()}
-                        className="px-3.5 py-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-lg font-black text-[10px] shadow-sm cursor-pointer disabled:bg-slate-300 border-none transition-all"
-                      >
-                        {isSubmittingCat ? "추가 중..." : "➕ 계정 추가"}
-                      </button>
+                      <div className="shrink-0 w-full sm:w-auto">
+                        <button
+                          onClick={onAddCategoryClick}
+                          disabled={isSubmittingCat || !newMidCat.trim() || !newSubCat.trim()}
+                          className="w-full sm:w-auto px-4 py-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-lg font-black text-[10px] shadow-sm cursor-pointer disabled:bg-slate-300 border-none transition-all flex items-center justify-center h-[32px]"
+                        >
+                          {isSubmittingCat ? "추가 중..." : "➕ 계정 추가"}
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -1714,14 +1714,28 @@ export default function ExpenseManagementAiPage() {
               
               {/* 상단 통합 대장 컨트롤 바 */}
               <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="flex items-center space-x-2 shrink-0">
-                  <FileText className="w-5 h-5 text-rose-500" />
-                  <h2 className="font-black text-slate-800 text-sm">지출 목록 ({filteredExpenses.length}건)</h2>
-                  {selectedIds.size > 0 && (
-                    <span className="text-[10px] text-rose-650 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full font-black animate-bounce shadow-3xs">
-                      {selectedIds.size}개 선택됨
-                    </span>
-                  )}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto shrink-0">
+                  <div className="flex items-center space-x-2 shrink-0">
+                    <FileText className="w-5 h-5 text-rose-500" />
+                    <h2 className="font-black text-slate-800 text-sm">지출 목록 ({filteredExpenses.length}건)</h2>
+                    {selectedIds.size > 0 && (
+                      <span className="text-[10px] text-rose-650 bg-rose-50 border border-rose-100 px-2 py-0.5 rounded-full font-black animate-bounce shadow-3xs">
+                        {selectedIds.size}개 선택됨
+                      </span>
+                    )}
+                  </div>
+                  
+                  {/* 둥근 검색바 (지출 목록 바로 옆으로 이동 배치 & 태그 검색 표시) */}
+                  <div className="relative w-full sm:w-96 shrink-0">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                    <input 
+                      type="text"
+                      placeholder="품명/메모/태그 검색..."
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      className="w-full pl-9 pr-4 py-1.5 border border-slate-200 rounded-full focus:ring-2 focus:ring-rose-500 outline-none text-xs bg-white font-bold text-slate-800"
+                    />
+                  </div>
                 </div>
 
                 <div className="flex flex-col xl:flex-row items-center gap-3 w-full md:w-auto">
@@ -1748,7 +1762,7 @@ export default function ExpenseManagementAiPage() {
                     {/* 기간 초기화 단추 */}
                     {(startDate || endDate) && (
                       <button 
-                        onClick={() => setQuickRange('clear')}
+                         onClick={() => setQuickRange('clear')}
                         className="text-[10px] font-black text-rose-500 hover:text-rose-700 cursor-pointer ml-1 transition-colors border-none bg-transparent p-0 flex items-center justify-center w-4 h-4 rounded-full hover:bg-rose-50"
                         title="기간 검색 초기화"
                       >
@@ -1824,18 +1838,6 @@ export default function ExpenseManagementAiPage() {
                     </select>
                   </div>
 
-                  {/* 둥근 검색바 (거래 관리 AI 스타일) */}
-                  <div className="relative w-full sm:w-40 shrink-0">
-                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                    <input 
-                      type="text"
-                      placeholder="품명/메모 검색..."
-                      value={searchQuery}
-                      onChange={e => setSearchQuery(e.target.value)}
-                      className="w-full pl-9 pr-4 py-1.5 border border-slate-200 rounded-full focus:ring-2 focus:ring-rose-500 outline-none text-xs bg-white font-bold text-slate-800"
-                    />
-                  </div>
-
                   {/* 일괄 삭제 액션 단추 */}
                   {selectedIds.size > 0 && (
                     <button 
@@ -1874,13 +1876,14 @@ export default function ExpenseManagementAiPage() {
                       <th className="p-4 font-bold text-[10px]">부서/담당자/프로젝트</th>
                       <th className="p-4 font-bold text-[10px]">계정 과목</th>
                       <th className="p-4 font-bold text-[10px] text-right">지출 금액</th>
+                      <th className="p-4 font-bold text-[10px] text-center">결재 상태</th>
                       <th className="p-4 font-bold text-[10px] text-center">관리</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50 font-medium">
                     {paginatedExpenses.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="p-12 text-center text-slate-400 font-bold">
+                        <td colSpan={9} className="p-12 text-center text-slate-400 font-bold">
                           {expenses.length === 0 ? "등록된 지출 내역이 대장에 없습니다." : "검색 결과와 부합하는 지출 내역이 없습니다."}
                         </td>
                       </tr>
@@ -2017,6 +2020,57 @@ export default function ExpenseManagementAiPage() {
                           <td className="p-4 text-right font-black text-slate-850 font-mono">
                             {exp.amount.toLocaleString()}원
                             <span className="block text-[8px] text-slate-400 font-bold mt-0.5">{exp.payment_method}</span>
+                          </td>
+                          <td className="p-4 text-center" onClick={e => e.stopPropagation()}>
+                            {(() => {
+                              const status = exp.approval_status || 'PENDING';
+                              const statusConfig = {
+                                APPROVED: {
+                                  label: "🟢 승인 완료",
+                                  badge: "bg-emerald-50 text-emerald-700 border-emerald-100",
+                                  title: exp.approved_at ? `${exp.approved_at} 결재 완료` : "결재 완료"
+                                },
+                                REJECTED: {
+                                  label: "🔴 반려됨",
+                                  badge: "bg-rose-50 text-rose-700 border-rose-100",
+                                  title: exp.approval_memo ? `반려 사유: ${exp.approval_memo}` : "반려됨"
+                                },
+                                HOLD: {
+                                  label: "🟡 결재 보류",
+                                  badge: "bg-amber-50 text-amber-700 border-amber-100",
+                                  title: exp.approval_memo ? `보류 사유: ${exp.approval_memo}` : "결재 보류"
+                                },
+                                PENDING: {
+                                  label: "⏳ 결재 대기",
+                                  badge: "bg-slate-100 text-slate-500 border-slate-200",
+                                  title: "결재 대기 중"
+                                }
+                              }[status] || {
+                                label: "⏳ 결재 대기",
+                                badge: "bg-slate-100 text-slate-500 border-slate-200",
+                                title: "결재 대기 중"
+                              };
+
+                              return (
+                                <div className="relative group inline-block">
+                                  <span 
+                                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black border shadow-3xs cursor-pointer ${statusConfig.badge}`}
+                                    title={statusConfig.title}
+                                  >
+                                    {statusConfig.label}
+                                  </span>
+                                  
+                                  {/* 반려/보류일 때 의견이 있으면 마우스 호버 시 솟아오르는 다크 말풍선 툴팁 */}
+                                  {(status === 'REJECTED' || status === 'HOLD') && exp.approval_memo && (
+                                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-1.5 hidden group-hover:block z-50 bg-slate-900/95 backdrop-blur-xs text-white text-[9px] font-bold px-2 py-1 rounded shadow-md whitespace-nowrap border border-slate-800 animate-fade-in shadow-2xl">
+                                      {exp.approval_memo}
+                                      {/* 말풍선 꼬리 */}
+                                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-slate-900"></div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </td>
                           <td className="p-4 text-center" onClick={e => e.stopPropagation()}>
                             <div className="flex items-center justify-center gap-1.5">

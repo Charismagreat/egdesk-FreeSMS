@@ -547,6 +547,26 @@ export function useExpenses() {
     }
   };
 
+  // 지출 결재 처리 (대표자/최고관리자 권한)
+  const handleApproveExpense = async (id: string, status: 'APPROVED' | 'REJECTED' | 'HOLD', memo: string = "") => {
+    try {
+      const res = await fetch("/api/expenses/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status, memo })
+      });
+      const json = await res.json();
+      if (json.success) {
+        await fetchExpenses();
+        return { success: true };
+      } else {
+        return { success: false, error: json.error };
+      }
+    } catch (e) {
+      return { success: false, error: "서버 통신 중 에러가 발생했습니다." };
+    }
+  };
+
   // ⚡ 다중 선택 관리 함수 마운트 (거래 관리 AI 매핑)
   const toggleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
@@ -667,9 +687,30 @@ export function useExpenses() {
     const matchesStartDate = !startDate || exp.expense_date >= startDate;
     const matchesEndDate = !endDate || exp.expense_date <= endDate;
     
-    const lowerQuery = searchQuery.toLowerCase();
-    const matchesSearch = exp.title.toLowerCase().includes(lowerQuery) || 
-      (exp.memo && exp.memo.toLowerCase().includes(lowerQuery));
+    const lowerQuery = searchQuery.toLowerCase().trim();
+    
+    // AI 분석 거래처명 추출
+    let payeeText = "";
+    try {
+      if (exp.ai_analysis) {
+        const parsed = JSON.parse(exp.ai_analysis);
+        if (parsed.payee) {
+          payeeText = parsed.payee.toLowerCase();
+        }
+      }
+    } catch (e) {}
+
+    const matchesSearch = 
+      // 1. 적요 본문 및 @태그 매칭
+      exp.title.toLowerCase().includes(lowerQuery) || 
+      // 2. 등록된 지출 태그(memo) 매칭
+      (exp.memo && exp.memo.toLowerCase().includes(lowerQuery)) ||
+      // 3. AI 분석 거래처 매칭
+      payeeText.includes(lowerQuery) ||
+      // 4. 결제 수단(법인카드, 계좌이체 등) 매칭
+      (exp.payment_method && exp.payment_method.toLowerCase().includes(lowerQuery)) ||
+      // 5. 계정과목(소분류) 매칭
+      (exp.category && exp.category.toLowerCase().includes(lowerQuery));
       
     return matchesCategory && matchesStartDate && matchesEndDate && matchesSearch;
   });
@@ -741,6 +782,7 @@ export function useExpenses() {
     handleDeleteEmployee,
     handleAddProject,
     handleDeleteProject,
-    handleUpdateExpense
+    handleUpdateExpense,
+    handleApproveExpense
   };
 }

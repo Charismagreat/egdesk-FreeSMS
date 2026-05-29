@@ -471,6 +471,9 @@ export async function setupDatabase() {
     { name: 'attachment_url', type: 'TEXT' },
     { name: 'ai_analysis', type: 'TEXT' },
     { name: 'memo', type: 'TEXT' },
+    { name: 'approval_status', type: 'TEXT', defaultValue: 'PENDING' },
+    { name: 'approval_memo', type: 'TEXT' },
+    { name: 'approved_at', type: 'TEXT' },
     { name: 'created_at', type: 'TEXT', notNull: true }
   ], { tableName: 'crm_expenses', uniqueKeyColumns: ['id'] });
 
@@ -664,7 +667,9 @@ export async function setupDatabase() {
           payment_method: '법인카드',
           attachment_url: '',
           ai_analysis: JSON.stringify({ parsed: true, confidence: 0.98 }),
-          memo: '개발팀 야근 식대',
+          memo: '복지지원, 소액결제',
+          approval_status: 'APPROVED',
+          approved_at: getPastDateStr(2) + ' 10:00:00',
           created_at: nowStr
         },
         {
@@ -676,7 +681,9 @@ export async function setupDatabase() {
           payment_method: '계좌이체',
           attachment_url: '',
           ai_analysis: JSON.stringify({ parsed: true, confidence: 0.99 }),
-          memo: '웹 서버 운영비',
+          memo: '인프라유지, 정기지출',
+          approval_status: 'APPROVED',
+          approved_at: getPastDateStr(5) + ' 10:00:00',
           created_at: nowStr
         },
         {
@@ -688,7 +695,9 @@ export async function setupDatabase() {
           payment_method: '법인카드',
           attachment_url: '',
           ai_analysis: JSON.stringify({ parsed: true, confidence: 0.95 }),
-          memo: '스타벅스 강남점',
+          memo: '거래처접대, 소액결제',
+          approval_status: 'APPROVED',
+          approved_at: getPastDateStr(10) + ' 10:00:00',
           created_at: nowStr
         },
         {
@@ -700,7 +709,9 @@ export async function setupDatabase() {
           payment_method: '법인카드',
           attachment_url: '',
           ai_analysis: JSON.stringify({ parsed: true, confidence: 0.97 }),
-          memo: '부산 지사 출장',
+          memo: '정기지출, 긴급비용',
+          approval_status: 'APPROVED',
+          approved_at: getPastDateStr(15) + ' 10:00:00',
           created_at: nowStr
         },
         {
@@ -712,7 +723,9 @@ export async function setupDatabase() {
           payment_method: '현금영수증',
           attachment_url: '',
           ai_analysis: JSON.stringify({ parsed: true, confidence: 0.96 }),
-          memo: '알파문구',
+          memo: '비품구매, 소액결제',
+          approval_status: 'APPROVED',
+          approved_at: getPastDateStr(20) + ' 10:00:00',
           created_at: nowStr
         }
       ];

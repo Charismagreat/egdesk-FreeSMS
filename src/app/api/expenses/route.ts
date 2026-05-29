@@ -195,10 +195,10 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    // 최고관리자 권한 검증
+    // 최고관리자 또는 대표자 권한 검증
     const role = await getRoleFromToken();
-    if (role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ success: false, error: '최고관리자만 지출 내역을 삭제할 수 있습니다.' }, { status: 403 });
+    if (role !== 'SUPER_ADMIN' && role !== 'PRESIDENT') {
+      return NextResponse.json({ success: false, error: '최고관리자 또는 대표자만 지출 내역을 삭제할 수 있습니다.' }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -220,10 +220,10 @@ export async function DELETE(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    // 최고관리자 권한 검증
+    // 최고관리자 또는 대표자 권한 검증
     const role = await getRoleFromToken();
-    if (role !== 'SUPER_ADMIN') {
-      return NextResponse.json({ success: false, error: '최고관리자만 지출 내역을 수정할 수 있습니다.' }, { status: 403 });
+    if (role !== 'SUPER_ADMIN' && role !== 'PRESIDENT') {
+      return NextResponse.json({ success: false, error: '최고관리자 또는 대표자만 지출 내역을 수정할 수 있습니다.' }, { status: 403 });
     }
 
     const body = await request.json();
@@ -245,7 +245,7 @@ export async function PUT(request: Request) {
       ai_analysis: ai_analysis ? (typeof ai_analysis === 'string' ? ai_analysis : JSON.stringify(ai_analysis)) : '',
       memo: memo || '',
       created_at: nowStr // 수정일자 업데이트
-    }, { id });
+    }, { filters: { id } });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
