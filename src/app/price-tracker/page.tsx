@@ -3137,89 +3137,106 @@ export default function PriceTrackerAIPage() {
                   {/* 마이닝 성공 및 결과 카드 후보 노드 렌더링 */}
                   {!miningLoading && miningSuccess && (
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-[11px] font-black text-slate-800 flex items-center gap-1">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                          AI 자율 포착에 성공한 3개 최적 유통/공급처 노드 목록
-                        </h4>
-                        <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded border border-indigo-100">
-                          표준 화폐 자동 역산 완료
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 max-h-[300px] overflow-y-auto pr-1">
-                        {miningResults.map((cand, idx) => (
-                          <div 
-                            key={idx} 
-                            onClick={() => window.open(cand.url, '_blank')}
-                            className="bg-slate-50 border border-slate-200/80 p-3 rounded-2xl flex flex-col justify-between gap-3 shadow-inner hover:border-pink-500 hover:bg-pink-50/5 hover:scale-[1.01] hover:shadow-md transition-all cursor-pointer relative group"
-                            title="클릭 시 새 창에서 실제 판매처 웹페이지 열기"
-                          >
-                            <div className="space-y-2">
-                              <div className="flex justify-between items-center">
-                                <span className="text-[9.5px] font-black text-slate-800 bg-white px-2 py-0.5 rounded border border-slate-200 truncate max-w-[80px]">
-                                  {cand.site_name}
-                                </span>
-                                <span className="text-[8.5px] font-black text-pink-600 bg-pink-50 px-1.5 py-0.5 rounded flex items-center gap-0.5 group-hover:bg-pink-600 group-hover:text-white transition-colors">
-                                  적합도 {cand.confidence_score}%
-                                  <ArrowUpRight className="w-2.5 h-2.5" />
-                                </span>
-                              </div>
-
-                              <div className="flex items-center gap-1.5 my-1">
-                                {(() => {
-                                  const isDetail = cand.is_detail === 1 || 
-                                                  (cand.url || '').includes('gate.nhn') || 
-                                                  (cand.url || '').includes('products/') || 
-                                                  (cand.url || '').includes('/vp/') || 
-                                                  (cand.url || '').includes('/item/') || 
-                                                  (cand.url || '').includes('/dp/');
-                                  return isDetail ? (
-                                    <span className="text-[8px] font-black bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded border border-emerald-100 flex items-center gap-0.5">
-                                      🎯 진짜 상품상세 직통 연결
-                                    </span>
-                                  ) : (
-                                    <span className="text-[8px] font-black bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">
-                                      🔍 통합 검색 리스트로 연결
-                                    </span>
-                                  );
-                                })()}
-                              </div>
-
-                              <div className="space-y-1 bg-white p-2 rounded-xl border border-slate-200/50">
-                                <div className="text-[10px] font-semibold text-slate-400">포착 시세 및 통화</div>
-                                <div className="text-xs font-black text-slate-800">
-                                  {getCurrencySymbol(cand.currency)}{cand.price.toLocaleString()}
-                                </div>
-                                {cand.currency !== 'KRW' && cand.price_krw && (
-                                  <div className="text-[9px] font-extrabold text-slate-450 font-mono">
-                                    (₩ {cand.price_krw.toLocaleString()})
-                                  </div>
-                                )}
-                              </div>
-
-                              <p className="text-[9.5px] text-slate-500 leading-normal font-semibold">
-                                {cand.message}
-                              </p>
-                              
-                              <div className="text-[7.5px] font-mono text-slate-450 bg-white p-2 rounded border border-slate-150 space-y-1">
-                                <div className="truncate">URL: {cand.url}</div>
-                                <div>Selector: <span className="text-pink-600 font-extrabold">{cand.css_selector}</span></div>
-                              </div>
-                            </div>
+                      {miningResults.length > 0 ? (
+                        <>
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-[11px] font-black text-slate-800 flex items-center gap-1">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                              AI 자율 포착에 성공한 {miningResults.length}개 실시간 최적 유통/공급처 노드 목록
+                            </h4>
+                            <span className="text-[9px] font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded border border-indigo-100">
+                              표준 화폐 자동 역산 완료
+                            </span>
                           </div>
-                        ))}
-                      </div>
 
-                      {/* 일괄 배포 웅장한 액션 단추 */}
-                      <button
-                        type="button"
-                        onClick={handleBatchDeploy}
-                        className="w-full py-3.5 bg-gradient-to-r from-pink-600 to-indigo-600 hover:from-pink-700 hover:to-indigo-700 text-white font-extrabold text-xs rounded-2xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.99] border-none"
-                      >
-                        <Zap className="w-4 h-4 animate-bounce" />
-                        ⚡ AI 자율 감시 로봇 일괄 기동 및 DB 즉시 적재
-                      </button>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 max-h-[300px] overflow-y-auto pr-1">
+                            {miningResults.map((cand, idx) => (
+                              <div 
+                                key={idx} 
+                                onClick={() => window.open(cand.url, '_blank')}
+                                className="bg-slate-50 border border-slate-200/80 p-3 rounded-2xl flex flex-col justify-between gap-3 shadow-inner hover:border-pink-500 hover:bg-pink-50/5 hover:scale-[1.01] hover:shadow-md transition-all cursor-pointer relative group"
+                                title="클릭 시 새 창에서 실제 판매처 웹페이지 열기"
+                              >
+                                <div className="space-y-2">
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-[9.5px] font-black text-slate-800 bg-white px-2 py-0.5 rounded border border-slate-200 truncate max-w-[80px]">
+                                      {cand.site_name}
+                                    </span>
+                                    <span className="text-[8.5px] font-black text-pink-600 bg-pink-50 px-1.5 py-0.5 rounded flex items-center gap-0.5 group-hover:bg-pink-600 group-hover:text-white transition-colors">
+                                      적합도 {cand.confidence_score}%
+                                      <ArrowUpRight className="w-2.5 h-2.5" />
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center gap-1.5 my-1">
+                                    {(() => {
+                                      const isDetail = cand.is_detail === 1 || 
+                                                      (cand.url || '').includes('gate.nhn') || 
+                                                      (cand.url || '').includes('products/') || 
+                                                      (cand.url || '').includes('/vp/') || 
+                                                      (cand.url || '').includes('/item/') || 
+                                                      (cand.url || '').includes('/dp/');
+                                      return isDetail ? (
+                                        <span className="text-[8px] font-black bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded border border-emerald-100 flex items-center gap-0.5">
+                                          🎯 진짜 상품상세 직통 연결
+                                        </span>
+                                      ) : (
+                                        <span className="text-[8px] font-black bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">
+                                          🔍 통합 검색 리스트로 연결
+                                        </span>
+                                      );
+                                    })()}
+                                  </div>
+
+                                  <div className="space-y-1 bg-white p-2 rounded-xl border border-slate-200/50">
+                                    <div className="text-[10px] font-semibold text-slate-400">포착 시세 및 통화</div>
+                                    <div className="text-xs font-black text-slate-800">
+                                      {getCurrencySymbol(cand.currency)}{cand.price.toLocaleString()}
+                                    </div>
+                                    {cand.currency !== 'KRW' && cand.price_krw && (
+                                      <div className="text-[9px] font-extrabold text-slate-450 font-mono">
+                                        (₩ {cand.price_krw.toLocaleString()})
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <p className="text-[9.5px] text-slate-500 leading-normal font-semibold">
+                                    {cand.message}
+                                  </p>
+                                  
+                                  <div className="text-[7.5px] font-mono text-slate-450 bg-white p-2 rounded border border-slate-150 space-y-1">
+                                    <div className="truncate">URL: {cand.url}</div>
+                                    <div>Selector: <span className="text-pink-600 font-extrabold">{cand.css_selector}</span></div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* 일괄 배포 웅장한 액션 단추 */}
+                          <button
+                            type="button"
+                            onClick={handleBatchDeploy}
+                            className="w-full py-3.5 bg-gradient-to-r from-pink-600 to-indigo-600 hover:from-pink-700 hover:to-indigo-700 text-white font-extrabold text-xs rounded-2xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.99] border-none"
+                          >
+                            <Zap className="w-4 h-4 animate-bounce" />
+                            ⚡ AI 자율 감시 로봇 일괄 기동 및 DB 즉시 적재
+                          </button>
+                        </>
+                      ) : (
+                        <div className="py-16 text-center flex flex-col items-center justify-center gap-3 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 animate-fade-in">
+                          <AlertTriangle className="w-10 h-10 text-rose-500 animate-bounce" />
+                          <div className="space-y-1.5 px-6">
+                            <span className="text-xs font-black text-slate-800 block">
+                              🚨 실시간 실물 최저가 상품 발굴 실패
+                            </span>
+                            <span className="text-[9.5px] font-bold text-slate-400 block leading-normal">
+                              활성화하신 쇼핑 채널(쿠팡/네이버 스마트스토어 등)에서 해당 규격에 부합하는 실물 상품의 상세 가격과 구매 링크를 실시간 포착하지 못했습니다.<br/>
+                              ( RAG 가상 매칭 방식이 전면 제거되어, 실물 상품이 매칭되지 않는 채널은 결과에서 안전하게 원천 제외됩니다. )
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 
