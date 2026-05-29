@@ -38,6 +38,7 @@ export default function ExpenseManagementAiPage() {
     startIndex,
     endIndex,
     paginatedExpenses,
+    filteredExpenses,
     selectedIds,
     toggleSelectAll,
     toggleSelect,
