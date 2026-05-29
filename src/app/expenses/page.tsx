@@ -91,11 +91,45 @@ export default function ExpenseManagementAiPage() {
     return byteLength;
   };
 
+  // 💰 원화 금액 실시간 한글 번역기 (지출결의서 서식 감성)
+  const convertToKoreanNumber = (num: number) => {
+    if (!num || isNaN(num) || num <= 0) return "";
+    const units = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"];
+    const smallUnits = ["", "십", "백", "천"];
+    const bigUnits = ["", "만", "억", "조"];
+    
+    let result = "";
+    let numStr = Math.floor(num).toString();
+    
+    const chunks: string[] = [];
+    while (numStr.length > 0) {
+      chunks.push(numStr.slice(Math.max(0, numStr.length - 4), numStr.length));
+      numStr = numStr.slice(0, Math.max(0, numStr.length - 4));
+    }
+    
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      let chunkResult = "";
+      for (let j = 0; j < chunk.length; j++) {
+        const digit = Number(chunk[chunk.length - 1 - j]);
+        if (digit > 0) {
+          chunkResult = units[digit] + smallUnits[j] + chunkResult;
+        }
+      }
+      chunkResult = chunkResult.replace("일십", "십").replace("일백", "백").replace("일천", "천");
+      if (chunkResult) {
+        result = chunkResult + bigUnits[i] + result;
+      }
+    }
+    
+    return result ? `일금 ${result}원 정` : "";
+  };
+
   // 비목 목록
   const CATEGORIES = ["복리후생비", "여비교통비", "소모품비", "접대비", "임차료", "세금공과금", "기타"];
 
-  // 결제 수단 목록
-  const PAYMENT_METHODS = ["법인카드", "현금영수증", "계좌이체", "개인카드", "기타"];
+  // 결제 수단 목록 (지출결의서 처리사항 규격 고도화)
+  const PAYMENT_METHODS = ["현금", "법인카드", "개인신용카드", "계좌송금", "기타"];
 
   return (
     <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in">
@@ -172,10 +206,13 @@ export default function ExpenseManagementAiPage() {
                 )}
               </div>
 
-              {/* AI 인식 결과 검수 & 등록 폼 */}
+              {/* AI 인식 결과 검수 & 등록 폼 (사장님의 지출결의서 실물 서식 완벽 이식) */}
               <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-inner space-y-4">
                 <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center justify-between border-b pb-2 mb-2">
-                  <span>📝 지출 항목 검수 피드백</span>
+                  <span className="flex items-center text-rose-500 font-extrabold text-[11px]">
+                    <FileText className="w-3.5 h-3.5 mr-1" />
+                    📝 지출결의서 규격 실물 검수 및 자동 기입
+                  </span>
                   <button 
                     onClick={resetExpenseForm}
                     className="text-[10px] font-bold text-slate-450 hover:text-slate-700 cursor-pointer transition-colors"
@@ -184,20 +221,22 @@ export default function ExpenseManagementAiPage() {
                   </button>
                 </h3>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="col-span-2">
-                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">지출 명칭 / 상호명 *</label>
-                    <input 
-                      type="text"
-                      placeholder="예: 홈플러스 - 탕비실 다과 다식 구매"
+                <div className="grid grid-cols-3 gap-3.5">
+                  {/* 적요 (지출 용도 및 상세 내역) */}
+                  <div className="col-span-3">
+                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">적요 (지출 용도 및 상세 내역) *</label>
+                    <textarea 
+                      rows={3}
+                      placeholder="예: 대신정기화물 택배발송비&#10;1) 효성 1공장 1 BOX&#10;2) 동우일렉트릭 1 BOX"
                       value={newExpense.title}
                       onChange={e => setNewExpense({ ...newExpense, title: e.target.value })}
-                      className="w-full border border-slate-250 rounded-xl px-3.5 py-2.5 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
+                      className="w-full border border-slate-250 rounded-xl px-3.5 py-2.5 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-800 resize-none leading-relaxed"
                     />
                   </div>
 
+                  {/* 계정과목 */}
                   <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">지출 비목 (카테고리) *</label>
+                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">계정 과목 *</label>
                     <select 
                       value={newExpense.category}
                       onChange={e => setNewExpense({ ...newExpense, category: e.target.value })}
@@ -209,29 +248,9 @@ export default function ExpenseManagementAiPage() {
                     </select>
                   </div>
 
+                  {/* 처리사항 */}
                   <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">지출 금액 (원화 ₩) *</label>
-                    <input 
-                      type="number"
-                      placeholder="금액을 입력하세요"
-                      value={newExpense.amount}
-                      onChange={e => setNewExpense({ ...newExpense, amount: e.target.value })}
-                      className="w-full border border-slate-250 rounded-xl px-3.5 py-2.5 outline-none font-black text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">지출 일자 *</label>
-                    <input 
-                      type="date"
-                      value={newExpense.expense_date}
-                      onChange={e => setNewExpense({ ...newExpense, expense_date: e.target.value })}
-                      className="w-full border border-slate-250 rounded-xl px-3.5 py-2 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-700"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">결제 수단 *</label>
+                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">처리 사항 (지출 구분) *</label>
                     <select 
                       value={newExpense.payment_method}
                       onChange={e => setNewExpense({ ...newExpense, payment_method: e.target.value })}
@@ -243,11 +262,83 @@ export default function ExpenseManagementAiPage() {
                     </select>
                   </div>
 
-                  <div className="col-span-2">
-                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">비고 / 메모 (구매처 요약 등)</label>
+                  {/* 영수자 */}
+                  <div>
+                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">영수자 (수령자) *</label>
                     <input 
                       type="text"
-                      placeholder="상세 내용이나 비고사항을 기록하세요"
+                      placeholder="예: 최창숙"
+                      value={(newExpense as any).payee || ""}
+                      onChange={e => setNewExpense({ ...newExpense, payee: e.target.value })}
+                      className="w-full border border-slate-250 rounded-xl px-3.5 py-2.5 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
+                    />
+                  </div>
+
+                  {/* 발의 일자 */}
+                  <div>
+                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">발의 일자 *</label>
+                    <input 
+                      type="date"
+                      value={(newExpense as any).requisition_date || ""}
+                      onChange={e => setNewExpense({ ...newExpense, requisition_date: e.target.value })}
+                      className="w-full border border-slate-250 rounded-xl px-3.5 py-2 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-700"
+                    />
+                  </div>
+
+                  {/* 결재 일자 */}
+                  <div>
+                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">결재 일자 *</label>
+                    <input 
+                      type="date"
+                      value={(newExpense as any).approval_date || ""}
+                      onChange={e => setNewExpense({ ...newExpense, approval_date: e.target.value })}
+                      className="w-full border border-slate-250 rounded-xl px-3.5 py-2 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-700"
+                    />
+                  </div>
+
+                  {/* 지출 일자 */}
+                  <div>
+                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">지출 일자 *</label>
+                    <input 
+                      type="date"
+                      value={newExpense.expense_date}
+                      onChange={e => setNewExpense({ ...newExpense, expense_date: e.target.value })}
+                      className="w-full border border-slate-250 rounded-xl px-3.5 py-2 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-700"
+                    />
+                  </div>
+
+                  {/* 지출 금액 & 실시간 한글 표기 프리뷰 */}
+                  <div className="col-span-3">
+                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">지출 금액 (원화 ₩) *</label>
+                    <div className="relative">
+                      <input 
+                        type="number"
+                        placeholder="금액을 입력하세요"
+                        value={newExpense.amount}
+                        onChange={e => setNewExpense({ ...newExpense, amount: e.target.value })}
+                        className="w-full border border-slate-250 rounded-xl pl-3.5 pr-10 py-2.5 outline-none font-black text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
+                      />
+                      <span className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 font-extrabold text-[10px]">원</span>
+                    </div>
+                    {/* 실시간 한글 표기 (지출결의서 서식 감성) */}
+                    {newExpense.amount && Number(newExpense.amount) > 0 && (
+                      <div className="mt-1.5 px-3 py-1.5 bg-gradient-to-r from-rose-50 to-slate-50 border border-rose-100 rounded-xl flex items-center justify-between animate-fade-in shadow-3xs">
+                        <span className="text-[10px] font-black text-rose-600 font-sans tracking-tight">
+                          {convertToKoreanNumber(Number(newExpense.amount))}
+                        </span>
+                        <span className="text-[9px] font-bold text-slate-400 font-mono">
+                          (₩{Number(newExpense.amount).toLocaleString()}원)
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 비고 (비용 귀속 및 담당자) */}
+                  <div className="col-span-3">
+                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">비고 (비용 귀속 / 담당자)</label>
+                    <input 
+                      type="text"
+                      placeholder="예: 홍종현 (SCM팀)"
                       value={newExpense.memo}
                       onChange={e => setNewExpense({ ...newExpense, memo: e.target.value })}
                       className="w-full border border-slate-250 rounded-xl px-3.5 py-2.5 outline-none font-semibold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
@@ -262,7 +353,7 @@ export default function ExpenseManagementAiPage() {
                     className="px-6 py-2.5 bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white rounded-xl font-black text-xs shadow-md shadow-rose-500/10 hover:opacity-95 disabled:bg-slate-350 disabled:shadow-none transition-all cursor-pointer border-none flex items-center"
                   >
                     <Sparkles className="w-3.5 h-3.5 mr-2 animate-pulse" />
-                    {isSubmittingExpense ? "장부 등록 중..." : "지출 등록하기"}
+                    {isSubmittingExpense ? "결의서 장부 등록 중..." : "결의서 장부 등록하기"}
                   </button>
                 </div>
               </div>
@@ -510,10 +601,10 @@ export default function ExpenseManagementAiPage() {
                           className="rounded text-rose-500 focus:ring-0 cursor-pointer" 
                         />
                       </th>
-                      <th className="p-4 font-bold text-[10px]">결제일자</th>
+                      <th className="p-4 font-bold text-[10px]">지출일자</th>
                       <th className="p-4 font-bold text-[10px]">영수증</th>
-                      <th className="p-4 font-bold text-[10px]">지출 품명</th>
-                      <th className="p-4 font-bold text-[10px]">비목 (카테고리)</th>
+                      <th className="p-4 font-bold text-[10px]">적요 (지출 품명/내역)</th>
+                      <th className="p-4 font-bold text-[10px]">계정 과목</th>
                       <th className="p-4 font-bold text-[10px] text-right">지출 금액</th>
                       <th className="p-4 font-bold text-[10px] text-center">삭제</th>
                     </tr>
@@ -542,7 +633,23 @@ export default function ExpenseManagementAiPage() {
                               className="rounded text-rose-500 focus:ring-0 cursor-pointer" 
                             />
                           </td>
-                          <td className="p-4 text-slate-500 font-semibold font-mono">{exp.expense_date}</td>
+                          <td className="p-4 text-slate-500 font-semibold font-mono text-[10px]">
+                            {exp.expense_date}
+                            {(() => {
+                              try {
+                                const parsed = JSON.parse(exp.ai_analysis || "{}");
+                                if (parsed.requisition_date || parsed.approval_date) {
+                                  return (
+                                    <span className="block text-[8px] text-slate-400 font-bold mt-0.5 space-y-0.5 font-sans leading-none">
+                                      {parsed.requisition_date && <span>발의: {parsed.requisition_date}</span>}
+                                      {parsed.approval_date && <span className="block mt-0.5">결재: {parsed.approval_date}</span>}
+                                    </span>
+                                  );
+                                }
+                              } catch (e) {}
+                              return null;
+                            })()}
+                          </td>
                           <td className="p-4" onClick={e => e.stopPropagation()}>
                             {exp.attachment_url ? (
                               <button
@@ -560,9 +667,22 @@ export default function ExpenseManagementAiPage() {
                               <span className="text-[10px] text-slate-400 font-light pl-2">-</span>
                             )}
                           </td>
-                          <td className="p-4 font-bold text-slate-800 max-w-[150px] truncate" title={exp.title}>
-                            {exp.title}
-                            {exp.memo && <span className="block text-[9px] text-slate-400 font-semibold mt-0.5 truncate">{exp.memo}</span>}
+                          <td className="p-4 font-bold text-slate-800 max-w-[150px]" title={exp.title}>
+                            <span className="whitespace-pre-line leading-relaxed block">{exp.title}</span>
+                            {exp.memo && <span className="block text-[9px] text-slate-400 font-semibold mt-1 truncate">비고: {exp.memo}</span>}
+                            {(() => {
+                              try {
+                                const parsed = JSON.parse(exp.ai_analysis || "{}");
+                                if (parsed.payee) {
+                                  return (
+                                    <span className="inline-flex items-center mt-1.5 px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-700 text-[8px] font-black border border-rose-100 shadow-3xs">
+                                      👤 영수자: {parsed.payee}
+                                    </span>
+                                  );
+                                }
+                              } catch (e) {}
+                              return null;
+                            })()}
                           </td>
                           <td className="p-4">
                             <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-black border ${
