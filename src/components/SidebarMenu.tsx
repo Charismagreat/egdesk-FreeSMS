@@ -7,7 +7,7 @@ import {
   Home, Users, MessageSquare, Settings, ShoppingCart, 
   ClipboardList, CreditCard, CalendarDays, Truck, Send, 
   PackageSearch, Package, UserCog, Zap, Ticket, Landmark, Globe, Briefcase, HelpCircle,
-  ArrowRightLeft, Handshake, Sparkles
+  ArrowRightLeft, Handshake, Sparkles, Coins
 } from "lucide-react";
 
 // 커스텀 인스타그램 아이콘 SVG
