@@ -10,6 +10,35 @@ import {
 // 커스텀 훅 임포트
 import { useExpenses, ExpenseSettings } from "@/hooks/useExpenses";
 
+// 3단계 계정과목 체계 전문가 추천 데이터
+const ACCOUNT_CATEGORIES: Record<string, Record<string, string[]>> = {
+  "판매비와관리비": {
+    "복리후생비": ["직원식대", "직원야근식대", "경조사비", "음료및간식비", "피복비", "직원교육비", "건강검진비"],
+    "여비교통비": ["시내교통비", "택시비", "유류비", "톨게이트비", "주차요금", "출장숙박비", "항공료", "철도여객운임"],
+    "소모품비": ["사무용품비", "포장자재비", "전산소모품비", "청소위생용품비", "도서인쇄비"],
+    "접대비(기업업무추진비)": ["거래처식사비", "거래처선물비", "경조사화환비", "행사용품비"],
+    "임차료": ["사무실임차료", "차량리스료", "창고임차료", "장비렌탈료"],
+    "세금과공과": ["재산세", "자동차세", "협회비", "벌과금/과태료", "수도광열비"],
+    "통신비": ["전화요금", "인터넷요금", "팩스이용료", "우편송달료"],
+    "광고선전비": ["온라인광고비", "홍보물제작비", "이벤트비용"]
+  },
+  "제조/물류원가": {
+    "운반비": ["택배배송비", "퀵서비스비", "화물운송료", "용달비"],
+    "포장비": ["박스구매비", "박스테이프비", "완충재(뽁뽁이)", "수축필름비"],
+    "외주가공비": ["제품가공비", "임가공료"]
+  },
+  "영업외비용": {
+    "이자비용": ["은행대출이자", "리스이자비용"],
+    "잡손실": ["단수차손", "재해손실", "기타잡손실"]
+  }
+};
+
+// 전문가 추천 지출 태그 프리셋 10종
+const PRESET_TAGS = [
+  "SCM팀", "정기지출", "긴급비용", "벌크구매", "거래처접대", 
+  "복지지원", "소액결제", "인프라유지", "비품구매", "마케팅홍보"
+];
+
 export default function ExpenseManagementAiPage() {
   const {
     expenses,
@@ -51,6 +80,69 @@ export default function ExpenseManagementAiPage() {
   } = useExpenses();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // 3단계 계정과목 동적 연동을 위한 상태 선언
+  const [selectedMainCat, setSelectedMainCat] = React.useState<string>("판매비와관리비");
+  const [selectedMidCat, setSelectedMidCat] = React.useState<string>("복리후생비");
+
+  // newExpense.category (소분류) 변경 시 대분류/중분류 역동기화 추적
+  React.useEffect(() => {
+    if (!newExpense.category) return;
+    
+    let found = false;
+    for (const mainCat of Object.keys(ACCOUNT_CATEGORIES)) {
+      for (const midCat of Object.keys(ACCOUNT_CATEGORIES[mainCat])) {
+        if (ACCOUNT_CATEGORIES[mainCat][midCat].includes(newExpense.category)) {
+          setSelectedMainCat(mainCat);
+          setSelectedMidCat(midCat);
+          found = true;
+          break;
+        }
+      }
+      if (found) break;
+    }
+  }, [newExpense.category]);
+
+  const handleMainCatChange = (mainCat: string) => {
+    setSelectedMainCat(mainCat);
+    const midCats = Object.keys(ACCOUNT_CATEGORIES[mainCat]);
+    if (midCats.length > 0) {
+      const firstMid = midCats[0];
+      setSelectedMidCat(firstMid);
+      const subCats = ACCOUNT_CATEGORIES[mainCat][firstMid];
+      if (subCats.length > 0) {
+        setNewExpense(prev => ({ ...prev, category: subCats[0] }));
+      }
+    }
+  };
+
+  const handleMidCatChange = (midCat: string) => {
+    setSelectedMidCat(midCat);
+    const subCats = ACCOUNT_CATEGORIES[selectedMainCat][midCat];
+    if (subCats.length > 0) {
+      setNewExpense(prev => ({ ...prev, category: subCats[0] }));
+    }
+  };
+
+  // 비고 란 쉼표 구분 태그 토글 헬퍼 함수
+  const toggleTag = (tag: string) => {
+    const currentMemo = newExpense.memo || "";
+    let tags = currentMemo
+      .split(",")
+      .map(t => t.trim())
+      .filter(t => t !== "");
+
+    if (tags.includes(tag)) {
+      tags = tags.filter(t => t !== tag);
+    } else {
+      tags.push(tag);
+    }
+    
+    setNewExpense(prev => ({
+      ...prev,
+      memo: tags.join(", ")
+    }));
+  };
 
   // 1. 임시 경보 설정 수정을 위한 상태 분리 (설정 저장 버튼 클릭 전까지 임시 보관)
   const [tempSettings, setTempSettings] = React.useState<ExpenseSettings | null>(null);
@@ -130,11 +222,13 @@ export default function ExpenseManagementAiPage() {
     return result ? `일금 ${result}원 정` : "";
   };
 
-  // 비목 목록
-  const CATEGORIES = ["복리후생비", "여비교통비", "소모품비", "접대비", "임차료", "세금공과금", "기타"];
+  // 대장 필터용 고유 카테고리 목록 동적 계산 (기존 데이터와 소분류 혼합 대응)
+  const uniqueCategories = React.useMemo(() => {
+    return Array.from(new Set(expenses.map(exp => exp.category))).filter(Boolean);
+  }, [expenses]);
 
-  // 결제 수단 목록 (지출결의서 처리사항 규격 고도화)
-  const PAYMENT_METHODS = ["현금", "법인카드", "개인신용카드", "계좌송금", "기타"];
+  // 결제 수단 목록 (처리 사항 -> 결제 수단 명칭 변경 대응)
+  const PAYMENT_METHODS = ["법인카드", "개인신용카드", "계좌송금", "현금", "기타"];
 
   return (
     <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in">
@@ -239,23 +333,49 @@ export default function ExpenseManagementAiPage() {
                     />
                   </div>
 
-                  {/* 계정과목 */}
+                  {/* 계정과목 대/중/소 3단계 동적 연동 셀렉터 */}
                   <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">계정 과목 *</label>
+                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">계정 대분류 *</label>
+                    <select 
+                      value={selectedMainCat}
+                      onChange={e => handleMainCatChange(e.target.value)}
+                      className="w-full border border-slate-250 rounded-xl px-3.5 py-2.5 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-700 cursor-pointer"
+                    >
+                      {Object.keys(ACCOUNT_CATEGORIES).map(mainCat => (
+                        <option key={mainCat} value={mainCat}>{mainCat}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">계정 중분류 *</label>
+                    <select 
+                      value={selectedMidCat}
+                      onChange={e => handleMidCatChange(e.target.value)}
+                      className="w-full border border-slate-250 rounded-xl px-3.5 py-2.5 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-700 cursor-pointer"
+                    >
+                      {Object.keys(ACCOUNT_CATEGORIES[selectedMainCat] || {}).map(midCat => (
+                        <option key={midCat} value={midCat}>{midCat}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">계정 소분류 *</label>
                     <select 
                       value={newExpense.category}
                       onChange={e => setNewExpense({ ...newExpense, category: e.target.value })}
                       className="w-full border border-slate-250 rounded-xl px-3.5 py-2.5 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-700 cursor-pointer"
                     >
-                      {CATEGORIES.map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
+                      {(ACCOUNT_CATEGORIES[selectedMainCat]?.[selectedMidCat] || []).map(subCat => (
+                        <option key={subCat} value={subCat}>{subCat}</option>
                       ))}
                     </select>
                   </div>
 
-                  {/* 처리사항 */}
+                  {/* 결제 수단 (명칭 변경) */}
                   <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">처리 사항 (지출 구분) *</label>
+                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">결제 수단 *</label>
                     <select 
                       value={newExpense.payment_method}
                       onChange={e => setNewExpense({ ...newExpense, payment_method: e.target.value })}
@@ -267,48 +387,26 @@ export default function ExpenseManagementAiPage() {
                     </select>
                   </div>
 
-                  {/* 영수자 */}
+                  {/* 영수인/가맹점명/거래처명 (명칭 변경) */}
                   <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">영수자 (수령자) *</label>
+                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">영수인/가맹점명/거래처명 *</label>
                     <input 
                       type="text"
-                      placeholder="예: 최창숙"
+                      placeholder="예: 최창숙 또는 삼송베이커리"
                       value={(newExpense as any).payee || ""}
                       onChange={e => setNewExpense({ ...newExpense, payee: e.target.value })}
                       className="w-full border border-slate-250 rounded-xl px-3.5 py-2.5 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
                     />
                   </div>
 
-                  {/* 발의 일자 */}
+                  {/* 품의 일자 (발의 일자 -> 명칭 변경, 결재/지출일자 삭제 일원화) */}
                   <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">발의 일자 *</label>
+                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">품의 일자 *</label>
                     <input 
                       type="date"
                       value={(newExpense as any).requisition_date || ""}
                       onChange={e => setNewExpense({ ...newExpense, requisition_date: e.target.value })}
-                      className="w-full border border-slate-250 rounded-xl px-3.5 py-2 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-700"
-                    />
-                  </div>
-
-                  {/* 결재 일자 */}
-                  <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">결재 일자 *</label>
-                    <input 
-                      type="date"
-                      value={(newExpense as any).approval_date || ""}
-                      onChange={e => setNewExpense({ ...newExpense, approval_date: e.target.value })}
-                      className="w-full border border-slate-250 rounded-xl px-3.5 py-2 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-700"
-                    />
-                  </div>
-
-                  {/* 지출 일자 */}
-                  <div>
-                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">지출 일자 *</label>
-                    <input 
-                      type="date"
-                      value={newExpense.expense_date}
-                      onChange={e => setNewExpense({ ...newExpense, expense_date: e.target.value })}
-                      className="w-full border border-slate-250 rounded-xl px-3.5 py-2 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-700"
+                      className="w-full border border-slate-250 rounded-xl px-3.5 py-2 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-700 cursor-pointer"
                     />
                   </div>
 
@@ -338,16 +436,40 @@ export default function ExpenseManagementAiPage() {
                     )}
                   </div>
 
-                  {/* 비고 (비용 귀속 및 담당자) */}
+                  {/* 비고 및 지출 태그 시스템 */}
                   <div className="col-span-3">
-                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">비고 (비용 귀속 / 담당자)</label>
+                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">비고 (지출 태그 입력)</label>
                     <input 
                       type="text"
-                      placeholder="예: 홍종현 (SCM팀)"
+                      placeholder="태그를 쉼표(,)로 구분하여 입력하거나 아래 추천 태그를 클릭해 보세요"
                       value={newExpense.memo}
                       onChange={e => setNewExpense({ ...newExpense, memo: e.target.value })}
                       className="w-full border border-slate-250 rounded-xl px-3.5 py-2.5 outline-none font-semibold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
                     />
+                    
+                    {/* 전문가 추천 태그 프리셋 칩 배지 */}
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {PRESET_TAGS.map(tag => {
+                        const isSelected = (newExpense.memo || "")
+                          .split(",")
+                          .map(t => t.trim())
+                          .includes(tag);
+                        return (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => toggleTag(tag)}
+                            className={`px-2.5 py-1.5 rounded-full text-[9px] font-bold border transition-all cursor-pointer ${
+                              isSelected 
+                                ? 'bg-rose-500 text-white border-rose-500 shadow-3xs border-none' 
+                                : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                            }`}
+                          >
+                            #{tag}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
 
@@ -646,7 +768,7 @@ export default function ExpenseManagementAiPage() {
                       className="text-xs outline-none bg-transparent font-black text-slate-700 cursor-pointer border-none pr-4"
                     >
                       <option value="ALL">전체 보기</option>
-                      {CATEGORIES.map(cat => (
+                      {uniqueCategories.map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </select>
@@ -690,7 +812,7 @@ export default function ExpenseManagementAiPage() {
                           className="rounded text-rose-500 focus:ring-0 cursor-pointer" 
                         />
                       </th>
-                      <th className="p-4 font-bold text-[10px]">지출일자</th>
+                      <th className="p-4 font-bold text-[10px]">품의일자</th>
                       <th className="p-4 font-bold text-[10px]">영수증</th>
                       <th className="p-4 font-bold text-[10px]">적요 (지출 품명/내역)</th>
                       <th className="p-4 font-bold text-[10px]">계정 과목</th>
@@ -724,20 +846,6 @@ export default function ExpenseManagementAiPage() {
                           </td>
                           <td className="p-4 text-slate-500 font-semibold font-mono text-[10px]">
                             {exp.expense_date}
-                            {(() => {
-                              try {
-                                const parsed = JSON.parse(exp.ai_analysis || "{}");
-                                if (parsed.requisition_date || parsed.approval_date) {
-                                  return (
-                                    <span className="block text-[8px] text-slate-400 font-bold mt-0.5 space-y-0.5 font-sans leading-none">
-                                      {parsed.requisition_date && <span>발의: {parsed.requisition_date}</span>}
-                                      {parsed.approval_date && <span className="block mt-0.5">결재: {parsed.approval_date}</span>}
-                                    </span>
-                                  );
-                                }
-                              } catch (e) {}
-                              return null;
-                            })()}
                           </td>
                           <td className="p-4" onClick={e => e.stopPropagation()}>
                             {exp.attachment_url ? (
@@ -756,16 +864,27 @@ export default function ExpenseManagementAiPage() {
                               <span className="text-[10px] text-slate-400 font-light pl-2">-</span>
                             )}
                           </td>
-                          <td className="p-4 font-bold text-slate-800 max-w-[150px]" title={exp.title}>
+                          <td className="p-4 font-bold text-slate-800 max-w-[180px]" title={exp.title}>
                             <span className="whitespace-pre-line leading-relaxed block">{exp.title}</span>
-                            {exp.memo && <span className="block text-[9px] text-slate-400 font-semibold mt-1 truncate">비고: {exp.memo}</span>}
+                            
+                            {/* 지출 태그들을 예쁜 해시태그 칩으로 렌더링 */}
+                            {exp.memo && (
+                              <div className="flex flex-wrap gap-1 mt-1.5">
+                                {exp.memo.split(",").map(t => t.trim()).filter(Boolean).map(tag => (
+                                  <span key={tag} className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[8px] font-bold border border-slate-200 shadow-3xs">
+                                    #{tag}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
                             {(() => {
                               try {
                                 const parsed = JSON.parse(exp.ai_analysis || "{}");
                                 if (parsed.payee) {
                                   return (
                                     <span className="inline-flex items-center mt-1.5 px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-700 text-[8px] font-black border border-rose-100 shadow-3xs">
-                                      👤 영수자: {parsed.payee}
+                                      🏢 거래처/영수인: {parsed.payee}
                                     </span>
                                   );
                                 }
@@ -775,19 +894,28 @@ export default function ExpenseManagementAiPage() {
                           </td>
                           <td className="p-4">
                             <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-black border ${
-                              exp.category === '복리후생비' 
-                                ? 'bg-blue-50 border-blue-100 text-blue-700' 
-                                : exp.category === '여비교통비'
-                                ? 'bg-cyan-50 border-cyan-100 text-cyan-700'
-                                : exp.category === '소모품비'
-                                ? 'bg-amber-50 border-amber-100 text-amber-700'
-                                : exp.category === '접대비'
-                                ? 'bg-orange-50 border-orange-100 text-orange-700'
-                                : exp.category === '임차료'
-                                ? 'bg-purple-50 border-purple-100 text-purple-700'
-                                : exp.category === '세금공과금'
-                                ? 'bg-indigo-50 border-indigo-100 text-indigo-700'
-                                : 'bg-slate-100 border-slate-200 text-slate-700'
+                              (() => {
+                                // 소분류가 어떤 대분류에 속하는지 동적으로 색상 계산
+                                let mainCat = "기타";
+                                for (const main of Object.keys(ACCOUNT_CATEGORIES)) {
+                                  for (const mid of Object.keys(ACCOUNT_CATEGORIES[main])) {
+                                    if (ACCOUNT_CATEGORIES[main][mid].includes(exp.category)) {
+                                      mainCat = main;
+                                      break;
+                                    }
+                                  }
+                                  if (mainCat !== "기타") break;
+                                }
+                                
+                                if (mainCat === "판매비와관리비") {
+                                  return "bg-blue-50 border-blue-100 text-blue-700";
+                                } else if (mainCat === "제조/물류원가") {
+                                  return "bg-amber-50 border-amber-100 text-amber-700";
+                                } else if (mainCat === "영업외비용") {
+                                  return "bg-purple-50 border-purple-100 text-purple-700";
+                                }
+                                return "bg-slate-100 border-slate-200 text-slate-700";
+                              })()
                             }`}>
                               {exp.category}
                             </span>

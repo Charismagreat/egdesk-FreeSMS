@@ -94,19 +94,18 @@ export function useExpenses() {
     }
   };
 
-  // 신규 등록 폼 (사장님의 지출결의서 실물 양식 필드 탑재)
+  // 신규 등록 폼 (사장님의 지출결의서 실물 양식 필드 탑재 - 품의일자 일원화)
   const [newExpense, setNewExpense] = useState({
     title: "",
-    category: "소모품비",
+    category: "직원야근식대",
     amount: "",
     expense_date: new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10),
     payment_method: "법인카드",
     memo: "",
     attachment_url: "",
     ai_analysis: "",
-    payee: "", // ✍️ 영수자 (최창숙 인)
-    requisition_date: new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10), // ✍️ 발의 일자
-    approval_date: new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10), // ✍️ 결재 일자
+    payee: "", // ✍️ 영수인/가맹점명/거래처명
+    requisition_date: new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10), // ✍️ 품의 일자
   });
 
   const fetchExpenses = async () => {
@@ -165,16 +164,15 @@ export function useExpenses() {
   // 지출 등록
   const handleRegisterExpense = async () => {
     if (!newExpense.title || !newExpense.amount || !newExpense.expense_date || !newExpense.payment_method) {
-      alert("필수 항목(적요, 금액, 지출일자, 처리사항)을 모두 입력해 주세요.");
+      alert("필수 항목(적요, 금액, 품의일자, 결제수단)을 모두 입력해 주세요.");
       return;
     }
 
     setIsSubmittingExpense(true);
     try {
-      // 실물 지출결의서 추가 메타 정보 (영수자, 발의/결재 일자)를 ai_analysis에 안전하게 백필 병합
+      // 실물 지출결의서 추가 메타 정보 (영수인/가맹점명/거래처명, 품의일자)를 ai_analysis에 안전하게 백필 병합
       const payee = newExpense.payee || "";
       const requisition_date = newExpense.requisition_date || newExpense.expense_date;
-      const approval_date = newExpense.approval_date || newExpense.expense_date;
 
       let parsedAiAnalysis = {};
       try {
@@ -185,11 +183,13 @@ export function useExpenses() {
 
       const payload = {
         ...newExpense,
+        // 품재일자, 결재일자, 지출일자를 품의일자 단 하나로 안전 동기화 이식
+        expense_date: requisition_date, 
         ai_analysis: JSON.stringify({
           ...parsedAiAnalysis,
           payee,
           requisition_date,
-          approval_date
+          approval_date: requisition_date 
         })
       };
 
@@ -306,16 +306,15 @@ export function useExpenses() {
           // AI OCR 분석 결과 폼 자동 채우기
           setNewExpense({
             title: json.title || "",
-            category: json.category || "소모품비",
+            category: json.category || "직원야근식대",
             amount: String(json.amount) || "",
             expense_date: json.expense_date || new Date().toISOString().slice(0, 10),
             payment_method: json.payment_method || "법인카드",
             memo: json.memo || "",
             attachment_url: base64.slice(0, 100), // 프론트 데모용으로 축약 저장
             ai_analysis: JSON.stringify({ ocrParsed: true, filename: file.name, method: json.method }),
-            payee: json.payee || "", // AI가 영수자 인식할 경우 자동 맵핑
+            payee: json.payee || json.merchant || "", // AI가 영수인/가맹점명/거래처명 자동 맵핑
             requisition_date: json.expense_date || new Date().toISOString().slice(0, 10),
-            approval_date: json.expense_date || new Date().toISOString().slice(0, 10)
           });
           
           alert("✨ AI 영수증 자율 스캔 및 분석이 완료되었습니다! 검수 후 [지출 등록하기]를 눌러 장부에 적재하세요.");
@@ -334,7 +333,7 @@ export function useExpenses() {
   const resetExpenseForm = () => {
     setNewExpense({
       title: "",
-      category: "소모품비",
+      category: "직원야근식대",
       amount: "",
       expense_date: new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10),
       payment_method: "법인카드",
@@ -343,7 +342,6 @@ export function useExpenses() {
       ai_analysis: "",
       payee: "",
       requisition_date: new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10),
-      approval_date: new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
     });
   };
 
