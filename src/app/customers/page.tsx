@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Plus, MoreVertical, Filter, X, Calendar, DollarSign, Package, RefreshCw, Truck, AlertCircle, MapPin, User, Phone, Clipboard, ArrowRight, ShoppingBag, Coins } from "lucide-react";
+import { Search, Plus, MoreVertical, Filter, X, Calendar, DollarSign, Package, RefreshCw, Truck, AlertCircle, MapPin, Phone, Coins, ShoppingBag } from "lucide-react";
 
 interface Customer {
   id: number;
@@ -13,7 +13,7 @@ interface Customer {
   shipping_address?: string;
   recipient_name?: string;
   recipient_phone?: string;
-  point_balance?: number; // 적립금 컬럼 추가
+  point_balance?: number; // 적립금 컬럼
 }
 
 export default function CustomersPage() {
@@ -249,11 +249,13 @@ export default function CustomersPage() {
   const paginatedCustomers = filteredCustomers.slice(startIndex, endIndex);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full min-w-0 font-sans text-slate-800">
+      
+      {/* 1. 상단 액션바 (PC용 고정 정렬) */}
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-slate-800">고객 관리 AI</h1>
+        <h1 className="text-3xl font-bold text-slate-800 tracking-tight">고객 관리 AI</h1>
         <div className="flex space-x-2">
-          <label className={`bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-lg font-medium transition-colors flex items-center shadow-sm ${isUploading ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}>
+          <label className={`bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-lg font-medium transition-colors flex items-center shadow-sm text-xs ${isUploading ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}>
             {isUploading ? "업로드 중..." : "CSV/엑셀 일괄 등록"}
             <input 
               type="file" 
@@ -265,7 +267,7 @@ export default function CustomersPage() {
           </label>
           <button 
             onClick={() => setShowAddModal(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center shadow-sm"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center shadow-sm text-xs border-none cursor-pointer"
           >
             <Plus className="w-4 h-4 mr-2" />
             신규 등록
@@ -274,42 +276,44 @@ export default function CustomersPage() {
       </div>
 
       {isUploading && (
-        <div className="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-xl flex items-center justify-between mb-6 shadow-sm">
+        <div className="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-xl flex items-center justify-between shadow-sm">
           <div className="flex items-center">
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mr-3"></div>
             <div>
-              <p className="font-bold">연락처를 업로드하는 중입니다...</p>
-              <p className="text-sm mt-1">파일의 연락처를 분석하고 데이터베이스에 저장하고 있습니다.</p>
+              <p className="font-bold text-xs">연락처를 업로드하는 중입니다...</p>
+              <p className="text-xs mt-1 text-slate-500">파일의 연락처를 분석하고 데이터베이스에 저장하고 있습니다.</p>
             </div>
           </div>
         </div>
       )}
 
+      {/* 2. 필터 및 검색바 (PC용 단일행 고정 정렬) */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-        <div className="flex flex-col md:flex-row justify-between items-center mb-6 space-y-4 md:space-y-0">
-          <div className="relative w-full md:w-96">
+        <div className="flex justify-between items-center mb-6">
+          <div className="relative w-96">
             <Search className="w-5 h-5 text-slate-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
             <input
               type="text"
               placeholder="이름, 연락처, 태그로 검색..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-semibold text-xs"
+              className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-semibold text-xs text-slate-800 bg-slate-50/50"
             />
           </div>
-          <div className="flex space-x-2">
-            <button className="px-4 py-2 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors flex items-center text-xs font-semibold">
-              <Filter className="w-4 h-4 mr-2" />
+          <div>
+            <button className="px-4 py-2 border border-slate-200 rounded-xl text-slate-655 hover:bg-slate-50 transition-colors flex items-center text-xs font-bold cursor-pointer">
+              <Filter className="w-4 h-4 mr-2 text-slate-400" />
               필터
             </button>
           </div>
         </div>
 
-        <div className="border border-slate-200 rounded-xl overflow-hidden">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-slate-600 font-semibold">
+        {/* 3. 고객 메인 전광판 테이블 (PC 대화면 스크롤 없는 레이아웃) */}
+        <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+          <table className="w-full text-left text-sm border-collapse">
+            <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-250">
               <tr>
-                <th className="p-4 w-12"><input type="checkbox" className="rounded text-blue-600" /></th>
+                <th className="p-4 w-12 text-center"><input type="checkbox" className="rounded text-blue-600 focus:ring-0" /></th>
                 <th className="p-4">이름</th>
                 <th className="p-4">연락처</th>
                 <th className="p-4">주소</th>
@@ -317,19 +321,19 @@ export default function CustomersPage() {
                 <th className="p-4">그룹/태그</th>
                 <th className="p-4">적립금</th>
                 <th className="p-4">등록일</th>
-                <th className="p-4">관리</th>
+                <th className="p-4 text-center">관리</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-xs">
+            <tbody className="divide-y divide-slate-100 text-xs font-medium">
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-slate-500">
+                  <td colSpan={9} className="p-8 text-center text-slate-500">
                     로딩 중...
                   </td>
                 </tr>
               ) : paginatedCustomers.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-slate-500">
+                  <td colSpan={9} className="p-8 text-center text-slate-450 font-bold">
                     {customers.length === 0 ? "등록된 고객이 없습니다. 우측 상단의 '신규 등록' 버튼을 눌러 고객을 추가하세요." : "검색 조건과 일치하는 고객이 없습니다."}
                   </td>
                 </tr>
@@ -337,25 +341,25 @@ export default function CustomersPage() {
                 paginatedCustomers.map((c) => (
                   <tr 
                     key={c.id} 
-                    className="hover:bg-slate-50 cursor-pointer transition-colors"
+                    className="hover:bg-slate-50/70 cursor-pointer transition-colors"
                     onClick={() => handleRowClick(c)}
                   >
-                    <td className="p-4" onClick={(e) => e.stopPropagation()}>
-                      <input type="checkbox" className="rounded text-blue-600" />
+                    <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
+                      <input type="checkbox" className="rounded text-blue-600 focus:ring-0" />
                     </td>
-                    <td className="p-4 font-medium text-slate-800 flex items-center">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center font-bold mr-3 shadow-sm text-xs">
+                    <td className="p-4 font-black text-slate-800 flex items-center">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-650 text-white flex items-center justify-center font-bold mr-3 shadow-sm text-xs shrink-0 select-none">
                         {c.name.charAt(0)}
                       </div>
                       {c.name}
                     </td>
-                    <td className="p-4 text-slate-500 font-mono">{c.phone}</td>
-                    <td className="p-4 text-slate-500 truncate max-w-[150px]" title={c.address}>{c.address || '-'}</td>
+                    <td className="p-4 text-slate-505 font-mono font-bold">{c.phone}</td>
+                    <td className="p-4 text-slate-500 truncate max-w-[150px] font-semibold" title={c.address}>{c.address || '-'}</td>
                     <td className="p-4 text-slate-500 text-xs">
                       {c.shipping_address ? (
-                        <div>
-                          <p className="font-semibold text-slate-700">{c.recipient_name} <span className="font-normal text-slate-400">({c.recipient_phone})</span></p>
-                          <p className="truncate max-w-[150px]" title={c.shipping_address}>{c.shipping_address}</p>
+                        <div className="space-y-0.5">
+                          <p className="font-bold text-slate-700">{c.recipient_name} <span className="font-mono text-[10px] text-slate-400">({c.recipient_phone})</span></p>
+                          <p className="truncate max-w-[150px] font-semibold text-slate-450" title={c.shipping_address}>{c.shipping_address}</p>
                         </div>
                       ) : (
                         '-'
@@ -363,7 +367,7 @@ export default function CustomersPage() {
                     </td>
                     <td className="p-4">
                       {c.tags && (
-                        <span className="bg-gradient-to-r from-blue-50 to-indigo-50 text-indigo-700 border border-indigo-100 px-2.5 py-1 rounded-full text-[10px] font-bold shadow-2xs">
+                        <span className="bg-gradient-to-r from-blue-50 to-indigo-50 text-indigo-750 border border-indigo-100 px-2.5 py-1 rounded-full text-[10px] font-bold shadow-2xs">
                           {c.tags}
                         </span>
                       )}
@@ -371,13 +375,13 @@ export default function CustomersPage() {
                     <td className="p-4 font-bold text-indigo-650 font-mono">
                       {(c.point_balance || 0).toLocaleString()}p
                     </td>
-                    <td className="p-4 text-slate-500">
+                    <td className="p-4 text-slate-505 font-semibold">
                       {new Date(c.created_at).toLocaleDateString()}
                     </td>
-                    <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                    <td className="p-4 text-center" onClick={(e) => e.stopPropagation()}>
                       <button 
                         onClick={() => handleRowClick(c)}
-                        className="px-3 py-1.5 bg-slate-50 hover:bg-indigo-50 border border-slate-200 text-slate-600 hover:text-indigo-600 rounded-lg text-[10px] font-bold transition-all shadow-2xs"
+                        className="px-3 py-1.5 bg-slate-50 hover:bg-indigo-50 border border-slate-200 text-slate-655 hover:text-indigo-600 rounded-lg text-[10px] font-bold transition-all shadow-2xs cursor-pointer"
                       >
                         이력 조회
                       </button>
@@ -388,8 +392,10 @@ export default function CustomersPage() {
             </tbody>
           </table>
         </div>
+
+        {/* 4. 테이블 하단 페이지네이션 바 */}
         {!isLoading && (
-          <div className="mt-4 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
+          <div className="mt-4 flex items-center justify-between gap-4 bg-slate-50/50 p-4 rounded-xl border border-slate-100">
             <div className="flex items-center gap-2">
               <span className="text-xs text-slate-500 font-semibold">페이지당 표시:</span>
               <select 
@@ -416,14 +422,14 @@ export default function CustomersPage() {
               <button 
                 disabled={currentPage === 1 || totalPages <= 1}
                 onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                className="px-3 py-1.5 border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50 text-xs font-bold text-slate-655 cursor-pointer disabled:cursor-not-allowed transition-all animate-none"
+                className="px-3 py-1.5 border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50 text-xs font-bold text-slate-655 cursor-pointer disabled:cursor-not-allowed transition-all"
               >
                 이전
               </button>
               {totalPages <= 1 ? (
                 <button 
                   disabled
-                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white shadow-sm border border-blue-600 disabled:opacity-50 cursor-not-allowed"
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 text-white shadow-sm border border-blue-600 cursor-not-allowed"
                 >
                   1
                 </button>
@@ -445,7 +451,7 @@ export default function CustomersPage() {
               <button 
                 disabled={currentPage === totalPages || totalPages <= 1}
                 onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                className="px-3 py-1.5 border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50 text-xs font-bold text-slate-655 cursor-pointer disabled:cursor-not-allowed transition-all animate-none"
+                className="px-3 py-1.5 border border-slate-200 rounded hover:bg-slate-50 disabled:opacity-50 text-xs font-bold text-slate-655 cursor-pointer disabled:cursor-not-allowed transition-all"
               >
                 다음
               </button>
@@ -454,93 +460,93 @@ export default function CustomersPage() {
         )}
       </div>
 
-      {/* Add Customer Modal */}
+      {/* 5. 신규 고객 등록 모달 */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-[500px] shadow-xl">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-bold text-slate-800">신규 고객 등록</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600">
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-6 w-[500px] shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center border-b pb-3 mb-4">
+              <h3 className="text-base font-black text-slate-800">신규 고객 등록</h3>
+              <button onClick={() => setShowAddModal(false)} className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">이름 *</label>
+                <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">이름 *</label>
                 <input 
                   type="text" 
                   value={newCustomer.name}
                   onChange={e => setNewCustomer({...newCustomer, name: e.target.value})}
                   placeholder="예: 홍길동"
-                  className="w-full border border-slate-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold text-slate-800"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">연락처 *</label>
+                <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">연락처 *</label>
                 <input 
                   type="text" 
                   value={newCustomer.phone}
                   onChange={e => setNewCustomer({...newCustomer, phone: e.target.value})}
                   placeholder="예: 010-1234-5678"
-                  className="w-full border border-slate-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold text-slate-800"
                 />
               </div>
               <div className="flex space-x-2">
                 <div className="flex-[2]">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">고객 주소</label>
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">고객 주소</label>
                   <input 
                     type="text" 
                     value={newCustomer.address}
                     onChange={e => setNewCustomer({...newCustomer, address: e.target.value})}
                     placeholder="예: 서울특별시 강남구..."
-                    className="w-full border border-slate-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold text-slate-805"
                   />
                 </div>
                 <div className="flex-[3]">
-                  <label className="block text-sm font-medium text-slate-700 mb-1">그룹/태그</label>
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5 uppercase">그룹/태그</label>
                   <input 
                     type="text" 
                     value={newCustomer.tags}
                     onChange={e => setNewCustomer({...newCustomer, tags: e.target.value})}
                     placeholder="예: VVIP, 신규회원"
-                    className="w-full border border-slate-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold text-slate-805"
                   />
                 </div>
               </div>
               
               <div className="pt-4 border-t border-slate-100 mt-2 mb-2">
-                <h4 className="text-sm font-bold text-slate-800 mb-3 text-blue-600">배송지 정보 (선택)</h4>
+                <h4 className="text-xs font-black text-blue-650 mb-3">배송지 정보 (선택)</h4>
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">배송지 주소</label>
+                    <label className="block text-[10px] font-bold text-slate-400 mb-1.5 uppercase">배송지 주소</label>
                     <input 
                       type="text" 
                       value={newCustomer.shipping_address}
                       onChange={e => setNewCustomer({...newCustomer, shipping_address: e.target.value})}
                       placeholder="예: 경기도 성남시 분당구..."
-                      className="w-full border border-slate-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-805 outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                   <div className="flex space-x-2">
                     <div className="flex-1">
-                      <label className="block text-xs font-medium text-slate-500 mb-1">수령인명</label>
+                      <label className="block text-[10px] font-bold text-slate-400 mb-1.5 uppercase">수령인명</label>
                       <input 
                         type="text" 
                         value={newCustomer.recipient_name}
                         onChange={e => setNewCustomer({...newCustomer, recipient_name: e.target.value})}
                         placeholder="예: 김배송"
-                        className="w-full border border-slate-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                        className="w-full border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-805 outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                     <div className="flex-1">
-                      <label className="block text-xs font-medium text-slate-500 mb-1">수령인 연락처</label>
+                      <label className="block text-[10px] font-bold text-slate-400 mb-1.5 uppercase">수령인 연락처</label>
                       <input 
                         type="text" 
                         value={newCustomer.recipient_phone}
                         onChange={e => setNewCustomer({...newCustomer, recipient_phone: e.target.value})}
                         placeholder="예: 010-9999-8888"
-                        className="w-full border border-slate-200 rounded-xl px-4 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+                        className="w-full border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-805 outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
                   </div>
@@ -551,14 +557,14 @@ export default function CustomersPage() {
             <div className="flex justify-end space-x-2 mt-6">
               <button 
                 onClick={() => setShowAddModal(false)} 
-                className="px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-100 font-medium"
+                className="px-4 py-2.5 rounded-xl text-slate-655 hover:bg-slate-100 font-extrabold text-xs cursor-pointer transition-colors"
               >
                 취소
               </button>
               <button 
                 onClick={handleAddCustomer} 
                 disabled={isSubmitting}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-400 font-medium"
+                className="px-5 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:bg-slate-400 font-extrabold text-xs shadow-md transition-colors cursor-pointer border-none"
               >
                 {isSubmitting ? "등록 중..." : "등록하기"}
               </button>
@@ -567,17 +573,17 @@ export default function CustomersPage() {
         </div>
       )}
 
-      {/* 고객 상세 종합 이력 모달 (History Modal) */}
+      {/* 6. 고객 상세 종합 이력 모달 (History Modal) */}
       {showHistoryModal && selectedCustomer && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300 animate-fade-in">
           <div className="bg-white/95 backdrop-blur-md rounded-3xl w-full max-w-5xl h-[85vh] shadow-2xl flex flex-col overflow-hidden border border-slate-200/50 animate-scale-up">
             
-            {/* 모달 헤더 (고객 카드 프로필) */}
-            <div className="relative p-6 md:p-8 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            {/* 모달 헤더 (PC용 단일행 고정 배열) */}
+            <div className="relative p-8 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white flex justify-between items-center gap-4">
               <div className="absolute top-0 right-0 left-0 h-full overflow-hidden pointer-events-none opacity-20 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-400 via-transparent to-transparent"></div>
               
               <div className="relative z-10 flex items-center space-x-4">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-400 to-indigo-500 flex items-center justify-center font-extrabold text-2xl text-white shadow-lg shadow-indigo-500/25">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-400 to-indigo-500 flex items-center justify-center font-extrabold text-2xl text-white shadow-lg shadow-indigo-500/25 shrink-0 select-none">
                   {selectedCustomer.name.charAt(0)}
                 </div>
                 <div>
@@ -589,7 +595,7 @@ export default function CustomersPage() {
                       </span>
                     )}
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-sm text-slate-300">
+                  <div className="flex items-center gap-x-4 gap-y-1 mt-1.5 text-sm text-slate-300">
                     <span className="flex items-center"><Phone className="w-3.5 h-3.5 mr-1 text-slate-400" /> {selectedCustomer.phone}</span>
                     {selectedCustomer.address && (
                       <span className="flex items-center"><MapPin className="w-3.5 h-3.5 mr-1 text-slate-400" /> {selectedCustomer.address}</span>
@@ -605,18 +611,17 @@ export default function CustomersPage() {
                   setSelectedCustomer(null);
                   setCustomerHistory(null);
                 }} 
-                className="relative z-10 bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white p-2 rounded-xl transition-all border border-white/10 shadow-2xs"
+                className="relative z-10 bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white p-2 rounded-xl transition-all border border-white/10 shadow-2xs cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* 모달 콘텐츠 영역 */}
-            <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6">
+            <div className="flex-1 overflow-y-auto p-8 space-y-6">
               {isLoadingHistory ? (
-                /* 로딩 스켈레톤 */
                 <div className="space-y-6 animate-pulse">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-4 gap-4">
                     {[...Array(4)].map((_, i) => (
                       <div key={i} className="h-24 bg-slate-100 rounded-2xl border border-slate-200/60"></div>
                     ))}
@@ -625,19 +630,18 @@ export default function CustomersPage() {
                   <div className="space-y-3">
                     <div className="h-12 bg-slate-100 rounded-xl"></div>
                     <div className="h-20 bg-slate-100 rounded-xl"></div>
-                    <div className="h-20 bg-slate-100 rounded-xl"></div>
                   </div>
                 </div>
               ) : customerHistory ? (
                 <>
-                  {/* 요약 통계 카드 그리드 */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {/* 요약 통계 카드 그리드 (PC용 4열 고정) */}
+                  <div className="grid grid-cols-4 gap-4">
                     <div className="bg-gradient-to-br from-blue-50/50 to-indigo-50/30 border border-blue-100 rounded-2xl p-4 flex items-center justify-between shadow-xs transition-all hover:scale-[1.02]">
                       <div>
                         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">전체 주문 수</p>
                         <h4 className="text-2xl font-black text-slate-800 mt-1">{customerHistory.stats.totalOrders} <span className="text-sm font-normal text-slate-500">건</span></h4>
                       </div>
-                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
                         <Package className="w-5 h-5" />
                       </div>
                     </div>
@@ -647,7 +651,7 @@ export default function CustomersPage() {
                         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">주문 취소</p>
                         <h4 className="text-2xl font-black text-slate-800 mt-1">{customerHistory.stats.cancelledOrders} <span className="text-sm font-normal text-slate-500">건</span></h4>
                       </div>
-                      <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center shrink-0">
                         <AlertCircle className="w-5 h-5" />
                       </div>
                     </div>
@@ -657,7 +661,7 @@ export default function CustomersPage() {
                         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">반품 수</p>
                         <h4 className="text-2xl font-black text-slate-800 mt-1">{customerHistory.stats.returnedOrders} <span className="text-sm font-normal text-slate-500">건</span></h4>
                       </div>
-                      <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
                         <RefreshCw className="w-5 h-5" />
                       </div>
                     </div>
@@ -667,7 +671,7 @@ export default function CustomersPage() {
                         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">누적 결제액</p>
                         <h4 className="text-2xl font-black text-slate-800 mt-1">{customerHistory.stats.totalAmount.toLocaleString()} <span className="text-sm font-normal text-slate-500">원</span></h4>
                       </div>
-                      <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
                         <DollarSign className="w-5 h-5" />
                       </div>
                     </div>
@@ -688,10 +692,10 @@ export default function CustomersPage() {
                         <button
                            key={tab.id}
                            onClick={() => setActiveHistoryTab(tab.id as any)}
-                           className={`flex items-center space-x-2 pb-3.5 text-sm font-semibold transition-all border-b-2 whitespace-nowrap outline-none ${
+                           className={`flex items-center space-x-2 pb-3.5 text-sm font-semibold transition-all border-b-2 whitespace-nowrap outline-none cursor-pointer ${
                              isActive
-                               ? 'border-indigo-600 text-indigo-600 scale-[1.02]'
-                               : 'border-transparent text-slate-500 hover:text-slate-800'
+                               ? 'border-indigo-650 text-indigo-600 scale-[1.02]'
+                               : 'border-transparent text-slate-505 hover:text-slate-800'
                            }`}
                         >
                            <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-600' : 'text-slate-400'}`} />
@@ -720,7 +724,7 @@ export default function CustomersPage() {
                         ) : (
                           <div className="border border-slate-200/80 rounded-2xl overflow-hidden shadow-xs">
                             <table className="w-full text-left text-sm border-collapse">
-                              <thead className="bg-slate-50/80 text-slate-600 font-semibold border-b border-slate-200/80">
+                              <thead className="bg-slate-50/80 text-slate-655 font-semibold border-b border-slate-200/80">
                                 <tr>
                                   <th className="p-4">주문번호</th>
                                   <th className="p-4">주문일시</th>
@@ -737,12 +741,12 @@ export default function CustomersPage() {
                                   return (
                                     <tr key={order.id} className="hover:bg-slate-50/60 transition-colors">
                                       <td className="p-4 font-mono font-bold text-slate-800 text-xs">{order.id}</td>
-                                      <td className="p-4 text-slate-500 text-xs">
+                                      <td className="p-4 text-slate-505 text-xs">
                                         {new Date(order.order_date).toLocaleString()}
                                       </td>
-                                      <td className="p-4 font-medium text-slate-800">{order.product_name}</td>
+                                      <td className="p-4 font-bold text-slate-800">{order.product_name}</td>
                                       <td className="p-4 text-slate-600">{order.quantity || 1}개</td>
-                                      <td className="p-4 text-right font-bold text-slate-800">
+                                      <td className="p-4 text-right font-black text-slate-800 font-mono">
                                         {Number(order.total_price || 0).toLocaleString()}원
                                       </td>
                                       <td className="p-4 text-center">
@@ -784,7 +788,7 @@ export default function CustomersPage() {
                         ) : (
                           <div className="border border-slate-200/80 rounded-2xl overflow-hidden shadow-xs">
                             <table className="w-full text-left text-sm border-collapse">
-                              <thead className="bg-slate-50/80 text-slate-600 font-semibold border-b border-slate-200/80">
+                              <thead className="bg-slate-50/80 text-slate-655 font-semibold border-b border-slate-200/80">
                                 <tr>
                                   <th className="p-4">주문번호</th>
                                   <th className="p-4">주문일시</th>
@@ -804,11 +808,11 @@ export default function CustomersPage() {
                                     return (
                                       <tr key={order.id} className="hover:bg-slate-50/60 transition-colors">
                                         <td className="p-4 font-mono font-bold text-slate-800 text-xs">{order.id}</td>
-                                        <td className="p-4 text-slate-500 text-xs">
+                                        <td className="p-4 text-slate-505 text-xs">
                                           {new Date(order.order_date).toLocaleString()}
                                         </td>
-                                        <td className="p-4 font-medium text-slate-800">{order.product_name}</td>
-                                        <td className="p-4 text-right font-bold text-rose-600">
+                                        <td className="p-4 font-bold text-slate-800">{order.product_name}</td>
+                                        <td className="p-4 text-right font-black text-rose-600 font-mono">
                                           {Number(order.total_price || 0).toLocaleString()}원
                                         </td>
                                         <td className="p-4 text-center">
@@ -841,7 +845,7 @@ export default function CustomersPage() {
                         ) : (
                           <div className="border border-slate-200/80 rounded-2xl overflow-hidden shadow-xs">
                             <table className="w-full text-left text-sm border-collapse">
-                              <thead className="bg-slate-50/80 text-slate-600 font-semibold border-b border-slate-200/80">
+                              <thead className="bg-slate-50/80 text-slate-655 font-semibold border-b border-slate-200/80">
                                 <tr>
                                   <th className="p-4">거래 ID</th>
                                   <th className="p-4">거래일시</th>
@@ -855,13 +859,13 @@ export default function CustomersPage() {
                                   return (
                                     <tr key={tx.id} className="hover:bg-slate-50/60 transition-colors">
                                       <td className="p-4 font-mono font-bold text-slate-800 text-xs">{tx.id}</td>
-                                      <td className="p-4 text-slate-500 text-xs">
+                                      <td className="p-4 text-slate-505 text-xs">
                                         {new Date(tx.order_date).toLocaleString()}
                                       </td>
-                                      <td className="p-4 text-slate-700 font-medium">
+                                      <td className="p-4 text-slate-700 font-bold">
                                         {tx.payment_method || '신용카드'}
                                       </td>
-                                      <td className="p-4 text-right font-black text-indigo-600">
+                                      <td className="p-4 text-right font-black text-indigo-650 font-mono">
                                         {Number(String(tx.amount || '0').replace(/[^0-9]/g, '')).toLocaleString()}원
                                       </td>
                                       <td className="p-4 text-center">
@@ -883,7 +887,7 @@ export default function CustomersPage() {
                       </div>
                     )}
 
-                    {/* 4. 배송 정보 탭 */}
+                    {/* 4. 배송 정보 탭 (PC용 2열 고정) */}
                     {activeHistoryTab === 'deliveries' && (
                       <div className="space-y-6">
                         {customerHistory.deliveries.length === 0 ? (
@@ -892,13 +896,13 @@ export default function CustomersPage() {
                             <p className="font-semibold text-slate-500">등록된 배송 정보가 존재하지 않습니다.</p>
                           </div>
                         ) : (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="grid grid-cols-2 gap-6">
                             {customerHistory.deliveries.map((delivery: any) => {
                               return (
                                 <div key={delivery.id} className="bg-slate-50/40 border border-slate-200/80 rounded-2xl p-5 shadow-2xs space-y-4 hover:border-indigo-200 transition-all">
                                   <div className="flex justify-between items-center pb-3 border-b border-slate-200/60">
                                     <div className="flex items-center space-x-2">
-                                      <span className="font-bold text-slate-800 text-sm">배송 ID: {delivery.id}</span>
+                                      <span className="font-extrabold text-slate-800 text-sm">배송 ID: {delivery.id}</span>
                                       <span className={`inline-flex px-2 py-0.5 rounded-full text-2xs font-extrabold border ${
                                         delivery.status === '배송완료' 
                                           ? 'bg-indigo-50 border-indigo-100 text-indigo-700' 
@@ -910,24 +914,24 @@ export default function CustomersPage() {
                                     <span className="text-xs text-slate-400 font-mono">운송장: {delivery.tracking_number || '-'}</span>
                                   </div>
 
-                                  <div className="space-y-2 text-xs text-slate-600">
+                                  <div className="space-y-2 text-xs text-slate-655 font-semibold">
                                     <div className="flex items-start">
-                                      <span className="w-20 font-semibold text-slate-400 shrink-0">수령인</span>
+                                      <span className="w-20 font-bold text-slate-400 shrink-0">수령인</span>
                                       <span className="font-bold text-slate-800">{delivery.recipient_name || selectedCustomer.name}</span>
                                     </div>
                                     <div className="flex items-start">
-                                      <span className="w-20 font-semibold text-slate-400 shrink-0">연락처</span>
+                                      <span className="w-20 font-bold text-slate-400 shrink-0">연락처</span>
                                       <span className="font-mono">{delivery.recipient_phone || selectedCustomer.phone}</span>
                                     </div>
                                     {delivery.carrier && (
                                       <div className="flex items-start">
-                                        <span className="w-20 font-semibold text-slate-400 shrink-0">택배사</span>
-                                        <span>{delivery.carrier}</span>
+                                        <span className="w-20 font-bold text-slate-400 shrink-0">택배사</span>
+                                        <span className="text-slate-800">{delivery.carrier}</span>
                                       </div>
                                     )}
                                     <div className="flex items-start">
-                                      <span className="w-20 font-semibold text-slate-400 shrink-0">배송지 주소</span>
-                                      <span className="text-slate-700 font-medium break-all">{delivery.address || selectedCustomer.shipping_address || selectedCustomer.address || '-'}</span>
+                                      <span className="w-20 font-bold text-slate-400 shrink-0">배송지 주소</span>
+                                      <span className="text-slate-700 break-all font-bold">{delivery.address || selectedCustomer.shipping_address || selectedCustomer.address || '-'}</span>
                                     </div>
                                   </div>
                                 </div>
@@ -938,15 +942,15 @@ export default function CustomersPage() {
                       </div>
                     )}
 
-                    {/* 5. 적립금(포인트) 내역 탭 */}
+                    {/* 5. 적립금(포인트) 내역 탭 (PC용 12열 그리드 고정) */}
                     {activeHistoryTab === 'points' && (
                       <div className="space-y-6">
                         
                         {/* 적립금 대시보드 요약 및 수동 충전 폼 */}
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 animate-fade-in">
+                        <div className="grid grid-cols-12 gap-6 animate-fade-in">
                           
                           {/* 적립금 잔액 카드 */}
-                          <div className="md:col-span-5 bg-gradient-to-br from-indigo-600 via-indigo-700 to-indigo-900 text-white rounded-3xl p-6 shadow-md border border-indigo-600/30 flex flex-col justify-between relative overflow-hidden h-44">
+                          <div className="col-span-5 bg-gradient-to-br from-indigo-600 via-indigo-700 to-indigo-900 text-white rounded-3xl p-6 shadow-md border border-indigo-600/30 flex flex-col justify-between relative overflow-hidden h-44">
                             <div className="absolute top-0 right-0 p-3 opacity-15">
                               <Coins className="w-28 h-28 text-white" />
                             </div>
@@ -959,13 +963,13 @@ export default function CustomersPage() {
                             </div>
                           </div>
 
-                          {/* 포인트 수동 조정 폼 */}
-                          <div className="md:col-span-7 bg-slate-50 border border-slate-200 rounded-3xl p-5 shadow-inner space-y-4">
+                          {/* 포인트 수동 조정 폼 (PC용 고정 수평) */}
+                          <div className="col-span-7 bg-slate-50 border border-slate-200 rounded-3xl p-5 shadow-inner space-y-4">
                             <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center">
                               <Coins className="w-4 h-4 mr-1.5 text-indigo-600 animate-bounce" />
                               점주 전용 적립금 수동 지급 / 차감
                             </h4>
-                            <div className="flex flex-col sm:flex-row gap-3">
+                            <div className="flex gap-3">
                               <div className="flex-1">
                                 <input 
                                   type="number"
@@ -992,7 +996,7 @@ export default function CustomersPage() {
                               <button
                                 onClick={handleAdjustPoints}
                                 disabled={isAdjusting}
-                                className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 text-white rounded-xl font-bold text-xs shadow-md shadow-indigo-500/10 hover:opacity-95 disabled:bg-slate-400 disabled:shadow-none transition-all cursor-pointer border-0"
+                                className="px-5 py-2.5 bg-gradient-to-r from-indigo-650 to-blue-600 text-white rounded-xl font-bold text-xs shadow-md shadow-indigo-500/10 hover:opacity-95 disabled:bg-slate-400 disabled:shadow-none transition-all cursor-pointer border-0"
                               >
                                 {isAdjusting ? '적용 중...' : '적용하기'}
                               </button>
@@ -1003,7 +1007,7 @@ export default function CustomersPage() {
 
                         {/* 적립금 상세 타임라인 */}
                         <div className="space-y-4">
-                          <h4 className="text-xs font-black text-slate-800 tracking-wider">포인트 적립 및 사용 이력 타임라인</h4>
+                          <h4 className="text-xs font-black text-slate-805 tracking-wider">포인트 적립 및 사용 이력 타임라인</h4>
                           
                           {pointHistory.length === 0 ? (
                             <div className="py-16 text-center bg-slate-50/50 border border-dashed border-slate-200 rounded-2xl flex flex-col items-center">
@@ -1013,7 +1017,7 @@ export default function CustomersPage() {
                           ) : (
                             <div className="border border-slate-200/80 rounded-2xl overflow-hidden shadow-xs">
                               <table className="w-full text-left text-sm border-collapse">
-                                <thead className="bg-slate-50/80 text-slate-600 font-semibold border-b border-slate-200/80">
+                                <thead className="bg-slate-50/80 text-slate-655 font-semibold border-b border-slate-200/80">
                                   <tr>
                                     <th className="p-4">일시</th>
                                     <th className="p-4">유형</th>
@@ -1022,7 +1026,7 @@ export default function CustomersPage() {
                                     <th className="p-4">내용/사유</th>
                                   </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100 bg-white text-xs">
+                                <tbody className="divide-y divide-slate-100 bg-white text-xs font-medium">
                                   {pointHistory.map((history: any) => {
                                     const isEarn = history.transaction_type === 'EARN';
                                     const isUse = history.transaction_type === 'USE';
@@ -1030,7 +1034,7 @@ export default function CustomersPage() {
                                     
                                     return (
                                       <tr key={history.id} className="hover:bg-slate-50/60 transition-colors">
-                                        <td className="p-4 text-slate-500 font-mono">
+                                        <td className="p-4 text-slate-505 font-mono">
                                           {new Date(history.created_at).toLocaleString()}
                                         </td>
                                         <td className="p-4">
@@ -1044,13 +1048,13 @@ export default function CustomersPage() {
                                             {isEarn ? '구매적립' : isUse ? '결제사용' : '점주조정'}
                                           </span>
                                         </td>
-                                        <td className={`p-4 font-bold font-mono ${isAmtPositive ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                        <td className={`p-4 font-bold font-mono ${isAmtPositive ? 'text-emerald-650' : 'text-rose-650'}`}>
                                           {isAmtPositive ? `+${history.amount.toLocaleString()}` : `${history.amount.toLocaleString()}`} p
                                         </td>
-                                        <td className="p-4 font-semibold text-slate-700 font-mono">
+                                        <td className="p-4 font-bold text-slate-700 font-mono">
                                           {Number(history.balance_after || 0).toLocaleString()} p
                                         </td>
-                                        <td className="p-4 text-slate-600 font-medium">{history.description || '-'}</td>
+                                        <td className="p-4 text-slate-655 font-bold">{history.description || '-'}</td>
                                       </tr>
                                     );
                                   })}
@@ -1067,7 +1071,7 @@ export default function CustomersPage() {
                 </>
               ) : (
                 <div className="py-20 text-center flex flex-col items-center">
-                  <AlertCircle className="w-12 h-12 text-slate-300 mb-3" />
+                  <AlertCircle className="w-12 h-12 text-slate-350 mb-3" />
                   <p className="font-semibold text-slate-500">데이터를 로드하는 중 오류가 발생했습니다.</p>
                 </div>
               )}
@@ -1081,7 +1085,7 @@ export default function CustomersPage() {
                   setSelectedCustomer(null);
                   setCustomerHistory(null);
                 }} 
-                className="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold transition-all shadow-xs"
+                className="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-bold transition-all shadow-xs cursor-pointer border-none"
               >
                 닫기
               </button>

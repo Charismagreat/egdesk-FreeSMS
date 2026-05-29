@@ -1,13 +1,19 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React from "react";
 import { 
-  TrendingUp, Plus, Trash2, Globe, Sparkles, Send, Bell, Edit3,
-  HelpCircle, Settings, ShieldAlert, Cpu, CheckCircle2, ChevronRight, Play,
-  Layers, Calendar, Search, RefreshCw, AlertTriangle, ArrowUpRight, ArrowDownLeft,
-  X, DollarSign, Eye, EyeOff, BarChart3, Info, Terminal, Activity, Copy, Check, Zap
+  Cpu, RefreshCw, Activity, Play, Copy, Check, Info, Calendar, 
+  BarChart3, Globe, Search, Plus, Bell, Edit3, Trash2, ArrowUpRight, 
+  Zap, ShieldAlert, AlertTriangle, CheckCircle2, ChevronRight, X
 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+
+// 커스텀 훅 및 모달 컴포넌트 임포트
+import { usePriceTracker, detectCurrency, getCurrencySymbol } from "@/hooks/usePriceTracker";
+import ItemRegisterModal from "@/components/price-tracker/ItemRegisterModal";
+import CollectorMappingModal from "@/components/price-tracker/CollectorMappingModal";
+import CollectorGuideModal from "@/components/price-tracker/CollectorGuideModal";
+import SmsAlertSettingModal from "@/components/price-tracker/SmsAlertSettingModal";
 
 const CURRENCIES = ["USD", "EUR", "JPY", "CNY"];
 const CURRENCY_NAMES: Record<string, string> = {
@@ -16,967 +22,112 @@ const CURRENCY_NAMES: Record<string, string> = {
   JPY: "일본 엔화 (100)",
   CNY: "중국 위안"
 };
-// 지능형 글로벌 통화 판별 헬퍼 함수 (사이트명 및 주소 기반)
-function detectCurrency(siteName: string, targetUrl: string): string {
-  const siteLower = (siteName || '').toLowerCase();
-  const urlLower = (targetUrl || '').toLowerCase();
-
-  // 1. 미국 달러(USD) 노드 감지
-  if (
-    siteLower.includes('아마존') || siteLower.includes('amazon') ||
-    siteLower.includes('알리') || siteLower.includes('aliexpress') ||
-    urlLower.includes('amazon.com') || urlLower.includes('aliexpress.com')
-  ) {
-    return 'USD';
-  }
-  // 2. 중국 위안화(CNY) 노드 감지
-  if (
-    siteLower.includes('타오바오') || siteLower.includes('taobao') ||
-    siteLower.includes('티몰') || siteLower.includes('tmall') ||
-    urlLower.includes('taobao.com') || urlLower.includes('tmall.com') || urlLower.includes('1688.com')
-  ) {
-    return 'CNY';
-  }
-  // 3. 일본 엔화(JPY) 노드 감지
-  if (
-    siteLower.includes('야후재팬') || siteLower.includes('yahoo.co.jp') ||
-    siteLower.includes('라쿠텐') || siteLower.includes('rakuten') ||
-    urlLower.includes('yahoo.co.jp') || urlLower.includes('rakuten.co.jp')
-  ) {
-    return 'JPY';
-  }
-  // 4. 유로화(EUR) 노드 감지
-  if (
-    siteLower.includes('유로') || siteLower.includes('euro') ||
-    urlLower.includes('.de') || urlLower.includes('.fr') || urlLower.includes('.it') || urlLower.includes('.es')
-  ) {
-    return 'EUR';
-  }
-  return 'KRW';
-}
-
-// 통화별 화폐 기호 표시 헬퍼 함수
-function getCurrencySymbol(currency: string): string {
-  if (currency === 'USD') return '$';
-  if (currency === 'EUR') return '€';
-  if (currency === 'JPY') return '¥';
-  if (currency === 'CNY') return '元';
-  return '₩';
-}
 
 export default function PriceTrackerAIPage() {
-  // 1. 상태 정의
-  const [items, setItems] = useState<any[]>([]);
-  const [activeItem, setActiveItem] = useState<any | null>(null);
-  const [urls, setUrls] = useState<any[]>([]);
-  const [alerts, setAlerts] = useState<any[]>([]);
-  const [alertLogs, setAlertLogs] = useState<any[]>([]);
-  const [exchangeRates, setExchangeRates] = useState<any[]>([]);
-  const [exchangeRateHistories, setExchangeRateHistories] = useState<any[]>([]);
-
-  // 백그라운드 데몬 상태
-  const [daemonInfo, setDaemonInfo] = useState({
-    status: "STOPPED",
-    last_run: "기록 없음",
-    pid: "N/A"
-  });
-
-  // 환율 분석 차트 활성 탭
-  const [activeRateTab, setActiveRateTab] = useState("USD");
-
-  // 검색 및 필터 상태
-  const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("ALL");
-  const [statusFilter, setStatusFilter] = useState("ALL");
-
-  // 모달 제어 상태
-  const [isItemModalOpen, setIsItemModalOpen] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [editingItemId, setEditingItemId] = useState<number | null>(null);
-  const [miningItemIds, setMiningItemIds] = useState<number[]>([]);
-  const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
-  const [isCronHelpOpen, setIsCronHelpOpen] = useState(false);
-  const [isDaemonHelpOpen, setIsDaemonHelpOpen] = useState(false);
-  const [copiedUrlId, setCopiedUrlId] = useState<number | null>(null);
-
-  // AI 자율 마이닝용 통합 상태 (매핑 센터 인라인 연동)
-  const [miningLoading, setMiningLoading] = useState(false);
-  const [miningLoadStep, setMiningLoadStep] = useState(1); // 1: 검색, 2: 스크래핑, 3: 가격 분석
-  const [searchChannels, setSearchChannels] = useState([
-    { id: 1, name: "쿠팡 자율 수집망", active: true, isCustom: false },
-    { id: 2, name: "네이버 스마트스토어 노드", active: true, isCustom: false },
-    { id: 3, name: "아마존 글로벌 노드", active: true, isCustom: false },
-    { id: 4, name: "알리익스프레스 글로벌", active: true, isCustom: false }
-  ]);
-  const [newChannelName, setNewChannelName] = useState("");
-
-  // 폼 입력 상태
-  const [itemForm, setItemForm] = useState({ 
-    item_code: "", 
-    item_name: "", 
-    category: "RAW_MATERIAL", 
-    spec: "", 
-    base_price: "", 
-    target_margin_rate: "12.5",
-    currency_code: "USD" 
-  });
-  const [urlForm, setUrlForm] = useState({ 
-    site_name: "", 
-    target_url: "", 
-    css_selector: "", 
-    cron_interval: "0 9 * * *" 
-  });
-  const [aiForm, setAiForm] = useState({ 
-    industry: "정밀 기계 및 금속가공업", 
-    keyword: "구리 전기동 원자재 LME" 
-  });
-  const [alertForm, setAlertForm] = useState({ 
-    rule_name: "", 
-    condition_type: "MARGIN_BREAKDOWN", 
-    threshold_value: "5.0", 
-    phone_number: "010-1234-5678", 
-    sms_template: "",
-    threshold_unit: "PERCENT", 
-    threshold_currency: "USD", 
-    condition_operator: "MARGIN_BREAKDOWN" 
-  });
-
-  // 로딩/액션 상태
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [crawlerTesting, setCrawlerTesting] = useState(false);
-  const [updatingRates, setUpdatingRates] = useState(false);
-  const [startingDaemon, setStartingDaemon] = useState(false);
-  const [copiedText, setCopiedText] = useState("");
-  const [selectorAnalyzing, setSelectorAnalyzing] = useState(false);
-
-
-  // 크론식 한글 해석 도우미 함수
-  const explainCron = (cron: string) => {
-    if (!cron) return "수집 주기가 비어있습니다.";
-    const parts = cron.trim().split(/\s+/);
-    if (parts.length !== 5) return "올바른 5필드 크론식을 입력해 주세요 (예: 0 9 * * *).";
-
-    const [min, hour, day, month, dayOfWeek] = parts;
-
-    if (min === "*" && hour === "*" && day === "*" && month === "*" && dayOfWeek === "*") {
-      return "🚨 매분 1회 수집 (경고: 무리한 초고속 주기입니다. 쇼핑몰 보안망에 의해 매장 IP가 100% 차단(Ban)되며, 서버 부하가 유발되므로 실무 적용이 불가합니다!)";
-    }
-
-    if (min.startsWith("*/")) {
-      const intervalNum = parseInt(min.replace("*/", ""), 10);
-      if (!isNaN(intervalNum) && intervalNum < 30) {
-        return `⚠️ 매 ${intervalNum}분 간격 수집 (주의: 30분 미만의 잦은 수집은 쇼핑몰 봇 차단 시스템에 탐지되어 즉각적인 IP 영구 차단을 유발하므로, 최소 1시간 이상 설정을 권장합니다.)`;
-      }
-    }
-
-    let result = "";
-
-    // 요일 매핑
-    if (dayOfWeek !== "*") {
-      const daysMap: Record<string, string> = {
-        "0": "일요일", "7": "일요일", "SUN": "일요일",
-        "1": "월요일", "MON": "월요일",
-        "2": "화요일", "TUE": "화요일",
-        "3": "수요일", "WED": "수요일",
-        "4": "목요일", "THU": "목요일",
-        "5": "금요일", "FRI": "금요일",
-        "6": "토요일", "SAT": "토요일"
-      };
-      const dayStr = daysMap[dayOfWeek.toUpperCase()] || `${dayOfWeek}요일`;
-      result += `매주 ${dayStr} `;
-    } else if (day !== "*" && month === "*") {
-      result += `매월 ${day}일 `;
-    } else if (day !== "*" && month !== "*") {
-      result += `매년 ${month}월 ${day}일 `;
-    } else {
-      result += "매일 ";
-    }
-
-    // 시간 매핑
-    if (hour !== "*") {
-      const hNum = parseInt(hour, 10);
-      if (!isNaN(hNum)) {
-        if (hNum === 0) {
-          result += "밤 12시 ";
-        } else if (hNum < 12) {
-          result += `오전 ${hNum}시 `;
-        } else if (hNum === 12) {
-          result += "오후 12시 ";
-        } else {
-          result += `오후 ${hNum - 12}시 `;
-        }
-      } else {
-        result += `${hour}시 `;
-      }
-    } else {
-      result += "매시간 ";
-    }
-
-    // 분 매핑
-    if (min !== "*") {
-      const mNum = parseInt(min, 10);
-      if (!isNaN(mNum)) {
-        if (mNum === 0) {
-          result += "정각에 ";
-        } else {
-          result += `${mNum}분에 `;
-        }
-      } else {
-        result += `${min}분에 `;
-      }
-    } else {
-      result += "매분 ";
-    }
-
-    result += "자동으로 가격을 수집합니다.";
-    return result;
-  };
-
-
-  // 지정 기간 환율 백필 상태 (기본 오늘 기준 1월 1일 지정)
-  const todayDateStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const [backfillStartDate, setBackfillStartDate] = useState("2026-01-01");
-  const [backfillEndDate, setBackfillEndDate] = useState(todayDateStr);
-  const [isBackfilling, setIsBackfilling] = useState(false);
-
-  // 차트 마우스 오버 툴팁 상태
-  const [rateHoverInfo, setRateHoverInfo] = useState<{ x: number; y: number; val: number; date: string; index: number } | null>(null);
-  const [itemHoverInfo, setItemHoverInfo] = useState<{ x: number; y: number; price: number; date: string; index: number; converted_krw?: number } | null>(null);
-
-  // 차트 가로 스크롤바 제어용 Ref
-  const rateScrollRef = React.useRef<HTMLDivElement>(null);
-  const itemScrollRef = React.useRef<HTMLDivElement>(null);
-
-  // 스크롤을 맨 우측으로 밀착시키는 안전 헬퍼 함수
-  const scrollToRight = useCallback((elem: HTMLDivElement | null) => {
-    if (!elem) return;
-    elem.scrollLeft = elem.scrollWidth;
-    // 브라우저 렌더링 프레임 보정을 위한 듀얼 틱 구동
-    requestAnimationFrame(() => {
-      if (elem) elem.scrollLeft = elem.scrollWidth;
-    });
-  }, []);
-
-  // 1. 환율 차트 데이터 로드 및 탭 변경 시 ResizeObserver를 결합하여 확실하게 오늘 날짜(우측 끝)로 스크롤 정렬합니다.
-  useEffect(() => {
-    const scrollElem = rateScrollRef.current;
-    if (!scrollElem) return;
-
-    // 즉시 정렬 시도
-    scrollToRight(scrollElem);
-
-    // 내부 컨텐츠 크기 팽창 실시간 옵저빙
-    const observer = new ResizeObserver(() => {
-      scrollToRight(scrollElem);
-    });
-    observer.observe(scrollElem);
-
-    // 백업 타이머 구동
-    const timer = setTimeout(() => scrollToRight(scrollElem), 150);
-
-    return () => {
-      observer.disconnect();
-      clearTimeout(timer);
-    };
-  }, [exchangeRateHistories, activeRateTab, scrollToRight]);
-
-  // 2. 품목 상세 차트 열림 혹은 수집 이력 갱신 시 ResizeObserver를 결합하여 확실하게 오늘 날짜(우측 끝)로 스크롤 정렬합니다.
-  useEffect(() => {
-    const scrollElem = itemScrollRef.current;
-    if (!scrollElem) return;
-
-    // 즉시 정렬 시도
-    scrollToRight(scrollElem);
-
-    // 내부 컨텐츠 크기 팽창 실시간 옵저빙
-    const observer = new ResizeObserver(() => {
-      scrollToRight(scrollElem);
-    });
-    observer.observe(scrollElem);
-
-    // 백업 타이머 구동
-    const timer = setTimeout(() => scrollToRight(scrollElem), 150);
-
-    return () => {
-      observer.disconnect();
-      clearTimeout(timer);
-    };
-  }, [urls, activeItem, scrollToRight]);
-
-  // 2. 마운트 시 통합 데이터 로드
-  useEffect(() => {
-    fetchInitData();
-  }, []);
-
-  const fetchInitData = async () => {
-    setLoading(true);
-    try {
-      // 2.1. 품목 조회
-      const itemsRes = await fetch("/api/price-tracker/items");
-      const itemsJson = await itemsRes.json();
-      if (itemsJson.success) {
-        setItems(itemsJson.items);
-        if (itemsJson.items.length > 0 && !activeItem) {
-          const defaultItem = itemsJson.items[0];
-          setActiveItem(defaultItem);
-          fetchItemDetails(defaultItem.item_id);
-        } else if (activeItem) {
-          // 활성 아이템 리로드 보정
-          const matched = itemsJson.items.find((x: any) => x.item_id === activeItem.item_id);
-          if (matched) setActiveItem(matched);
-        }
-
-        // 💡 [Zero-Click SCM 무인 자율 스캔]
-        // 조회된 품목 중 노드 개수(collectors_count)가 0개이면서 현재 백그라운드 수집 진행중이 아닌 품목이 있다면,
-        // 화면 로드 시 자동으로 최저가 AI 발굴 로봇을 백그라운드에서 즉시 기동시켜 줍니다!
-        itemsJson.items.forEach((item: any) => {
-          if (Number(item.collectors_count ?? 0) === 0) {
-            triggerBackgroundAutoMining(item.item_id, item.item_name, item.spec || "");
-          }
-        });
-      }
-
-      // 2.2. 알림 규칙 및 발송 이력 로그 조회
-      const alertsRes = await fetch("/api/price-tracker/alerts");
-      const alertsJson = await alertsRes.json();
-      if (alertsJson.success) {
-        setAlerts(alertsJson.rules);
-        setAlertLogs(alertsJson.logs);
-      }
-
-      // 2.3. 환율 및 데몬 상태 조회
-      const ratesRes = await fetch("/api/price-tracker/exchange-rates");
-      const ratesJson = await ratesRes.json();
-      if (ratesJson.success) {
-        setExchangeRates(ratesJson.rates);
-        setExchangeRateHistories(ratesJson.histories || []);
-        if (ratesJson.daemon) {
-          setDaemonInfo(ratesJson.daemon);
-        }
-      }
-    } catch (e) {
-      console.error("초기 SCM 관제 데이터 로딩 에러:", e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchItemDetails = async (itemId: number) => {
-    try {
-      const res = await fetch(`/api/price-tracker/urls?item_id=${itemId}`);
-      const json = await res.json();
-      if (json.success) {
-        setUrls(json.urls);
-      }
-    } catch (e) {
-      console.error("수집 사이트 상세 정보 조회 실패:", e);
-    }
-  };
-
-  // 시세 및 환율 즉각 동기화
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchInitData();
-    if (activeItem) {
-      await fetchItemDetails(activeItem.item_id);
-    }
-    setRefreshing(false);
-  };
-
-  // 실시간 외환 환율 즉각 갱신
-  const handleSyncExchangeRates = async () => {
-    setUpdatingRates(true);
-    try {
-      const res = await fetch("/api/price-tracker/exchange-rates", { method: "POST" });
-      const json = await res.json();
-      if (json.success) {
-        alert("⚡ 외환시장 환율 데이터 동기화 완료! 공백이 있던 경우 오늘의 이력도 정상 누적 적재되었습니다.");
-        fetchInitData();
-      } else {
-        alert("환율 갱신 실패: " + json.error);
-      }
-    } catch (e: any) {
-      console.error(e);
-      alert("에러 발생: " + e.message);
-    } finally {
-      setUpdatingRates(false);
-    }
-  };
-
-  // 백그라운드 수집 데몬 강제 가동 브릿지 실행
-  const handleStartDaemon = async () => {
-    setStartingDaemon(true);
-    try {
-      const res = await fetch("/api/price-tracker/exchange-rates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "START_DAEMON" })
-      });
-      const json = await res.json();
-      if (json.success) {
-        alert("🤖 [Daemon] 백그라운드 가격/환율 수집 데몬 기동 명령 송출 완료!\n서버 내부에서 자율 가동을 시작하며, 누락된 공백 환율도 자동으로 소급 복원(Backfill)합니다.");
-        fetchInitData();
-      } else {
-        alert("데몬 기동 실패: " + json.error);
-      }
-    } catch (e: any) {
-      console.error(e);
-      alert("에러 발생: " + e.message);
-    } finally {
-      setStartingDaemon(false);
-    }
-  };
-
-  // NPM 명령어 복사
-  const handleCopyCommand = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedText(text);
-    setTimeout(() => setCopiedText(""), 2000);
-  };
-
-  // 지정 기간 환율 자율 백필 소급 가져오기 실행
-  const handleBulkBackfill = async () => {
-    if (!backfillStartDate || !backfillEndDate) {
-      alert("시작일과 종료일을 정확히 지정해 주세요.");
-      return;
-    }
-    setIsBackfilling(true);
-    try {
-      const res = await fetch("/api/price-tracker/exchange-rates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "BULK_BACKFILL",
-          startDate: backfillStartDate,
-          endDate: backfillEndDate
-        })
-      });
-      const json = await res.json();
-      if (json.success) {
-        alert(`🎉 [소급 완료] ${backfillStartDate} ~ ${backfillEndDate} 기간 환율 복원 완료!\n- 신규 적재: ${json.inserted} 건\n- 중복 제외: ${json.ignored} 건\n\n대시보드와 환율 추이 분석 그래프가 즉시 실시간 갱신되었습니다.`);
-        fetchInitData();
-      } else {
-        alert("소급 실패: " + json.error);
-      }
-    } catch (e: any) {
-      console.error(e);
-      alert("에러 발생: " + e.message);
-    } finally {
-      setIsBackfilling(false);
-    }
-  };
-
-  // 품목 선택 시 상세 로드
-  const handleItemSelect = (item: any) => {
-    setActiveItem(item);
-    fetchItemDetails(item.item_id);
-    
-    setAlertForm(prev => ({
-      ...prev,
-      rule_name: `${item.item_name} 급변동 긴급 경고`,
-      phone_number: "010-1234-5678",
-      threshold_currency: item.currency_code || "KRW",
-      sms_template: `[🚨 가격추적AI - 마진경보]\n품목: ${item.item_name} ({item_code})\n수집가: {captured_price} ${item.currency_code} (₩{converted_krw_price})\n경고: 설정하신 최저 한계 조건 [{threshold_value} {threshold_unit}]이 감지되어, 긴급 SMS 발송합니다. 판가 마진 검토 바랍니다.`
-    }));
-  };
-
-  // 3. 비즈니스 액션
-  // 3.1. 품목 추가 또는 수정
-  const handleSaveItem = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!itemForm.item_code || !itemForm.item_name || !itemForm.base_price) return alert("필수 정보를 채워주세요.");
-    
-    try {
-      const method = isEditMode ? "PUT" : "POST";
-      const bodyPayload = isEditMode 
-        ? { ...itemForm, item_id: editingItemId } 
-        : itemForm;
-
-      const res = await fetch("/api/price-tracker/items", {
-        method: method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(bodyPayload)
-      });
-      const json = await res.json();
-      if (json.success) {
-        if (isEditMode) {
-          alert("🎉 품목의 관제 정보가 성공적으로 수정되었습니다!");
-        } else {
-          alert("🎉 신규 시황 추적 품목이 등록되었습니다!\n백그라운드에서 실시간 최저가 수집망(쿠팡/네이버 등)이 즉시 자율 연동 기동됩니다.");
-          // 백그라운드 AI 자율 스캔 및 수집 노드 자동 적재 트리거 (Zero-Click AI)
-          triggerBackgroundAutoMining(json.item_id, itemForm.item_name, itemForm.spec || "");
-        }
-        setItemForm({ 
-          item_code: "", 
-          item_name: "", 
-          category: "RAW_MATERIAL", 
-          spec: "", 
-          base_price: "", 
-          target_margin_rate: "12.5",
-          currency_code: "USD" 
-        });
-        setIsItemModalOpen(false);
-        setIsEditMode(false);
-        setEditingItemId(null);
-        fetchInitData();
-      } else {
-        alert("처리에 실패했습니다: " + json.error);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // 3.1.2. 품목 삭제
-  const handleDeleteItem = async (itemId: number, itemName: string) => {
-    if (!confirm(`🚨 정말로 [${itemName}] 품목을 관제 대상에서 제외하시겠습니까?\n이 작업은 되돌릴 수 없으며, 등록된 수집망 URL 및 이력도 모두 함께 영구 삭제됩니다.`)) {
-      return;
-    }
-
-    try {
-      const res = await fetch(`/api/price-tracker/items?item_id=${itemId}`, {
-        method: "DELETE"
-      });
-      const json = await res.json();
-      if (json.success) {
-        alert("🗑️ 품목 및 연관 수집망 정보가 영구 삭제되었습니다.");
-        if (activeItem?.item_id === itemId) {
-          setActiveItem(null);
-        }
-        fetchInitData();
-      } else {
-        alert("삭제에 실패했습니다: " + json.error);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // 3.1.4. 주소 복사 헬퍼
-  const handleCopyUrl = (e: React.MouseEvent, urlId: number, targetUrl: string) => {
-    e.stopPropagation();
-    navigator.clipboard.writeText(targetUrl);
-    setCopiedUrlId(urlId);
-    setTimeout(() => setCopiedUrlId(null), 1500);
-  };
-
-  // 3.1.3. 품목 수정 폼 활성화
-  const handleEditItemClick = (item: any) => {
-    setIsEditMode(true);
-    setEditingItemId(item.item_id);
-    setItemForm({
-      item_code: item.item_code || "",
-      item_name: item.item_name || "",
-      category: item.category || "RAW_MATERIAL",
-      spec: item.spec || "",
-      base_price: String(item.base_price || ""),
-      target_margin_rate: String(item.target_margin_rate || "10"),
-      currency_code: item.currency_code || "KRW"
-    });
-    setIsItemModalOpen(true);
-  };
-
-  // AI 셀렉터 자율 감지 기동 함수
-  const handleAnalyzeSelector = async () => {
-    if (!urlForm.target_url) {
-      return alert("수집 대상 웹주소 (Target URL)를 먼저 입력해 주세요.");
-    }
-    
-    setSelectorAnalyzing(true);
-    try {
-      const res = await fetch("/api/price-tracker/ai-selector", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: urlForm.target_url })
-      });
-      const json = await res.json();
-      if (json.success && json.css_selector) {
-        setUrlForm(prev => ({ 
-          ...prev, 
-          css_selector: json.css_selector,
-          // 출처 포털명 사이트명이 비어있을 시 AI 탐지 결과로 자동 대입
-          site_name: prev.site_name || json.site_name || prev.site_name
-        }));
-        alert(`🪄 AI 셀렉터 자율 탐색 완료!\n[${json.message}]\n\nCSS Selector 칸에 [${json.css_selector}]가 자동으로 기입되었습니다.`);
-      } else {
-        alert("AI 셀렉터 분석 실패: " + json.error);
-      }
-    } catch (err: any) {
-      console.error(err);
-      alert("AI 분석 중 통신 에러가 발생했습니다: " + err.message);
-    } finally {
-      setSelectorAnalyzing(false);
-    }
-  };
-
-  // 3.2. 수집 URL 등록
-  const handleAddUrl = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeItem) return alert("매핑할 품목을 선택해 주세요.");
-
-    // 초고속 크론 주기 안전 가드 (쇼핑몰 IP 차단 방어막)
-    const cron = urlForm.cron_interval || "0 9 * * *";
-    const parts = cron.trim().split(/\s+/);
-    if (parts.length === 5) {
-      const minVal = parts[0];
-      if (minVal === "*") {
-        if (!confirm("⚠️ [차단 위험 경보]\n현재 수집 주기가 '매 1분(*)'으로 극도로 빠르게 설정되어 있습니다.\n이 설정 그대로 가동 시 쇼핑몰 서버 보안 필터에 의해 점주님의 IP가 즉시 영구 정지(차단)됩니다.\n그래도 진행하시겠습니까? (최소 1시간 이상 설정을 권장합니다.)")) {
-          return;
-        }
-      } else if (minVal.startsWith("*/")) {
-        const intervalNum = parseInt(minVal.replace("*/", ""), 10);
-        if (!isNaN(intervalNum) && intervalNum < 30) {
-          if (!confirm(`⚠️ [차단 위험 경보]\n현재 설정하신 '${intervalNum}분 간격' 수집 주기는 너무 잦아 대형 유통망 봇 감지기에 걸릴 위험이 매우 높습니다.\n실제로 감시 로봇을 배포 기동하시겠습니까? (최소 30분 이상 설정을 적극 권장합니다.)`)) {
-            return;
-          }
-        }
-      }
-    }
-    
-    // 사용자가 찾기 힘든 옵션들에 대해 명확하게 필드별 개별 알림 처리로 UX 고도화
-    if (!urlForm.site_name) return alert("출처 포털명 (사이트명)을 입력해 주세요.");
-    if (!urlForm.target_url) return alert("수집 대상 웹주소 (Target URL)를 입력해 주세요.");
-    if (!urlForm.css_selector) {
-      return alert("가격을 긁어올 CSS Selector 값을 입력해 주세요.\n(입력창 바로 위의 '🪄 AI 자동 분석' 버튼을 누르시면 자동으로 완성됩니다!)");
-    }
-
-    setCrawlerTesting(true);
-    try {
-      const res = await fetch("/api/price-tracker/urls", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ item_id: activeItem.item_id, ...urlForm, run_test: true })
-      });
-      const json = await res.json();
-      if (json.success) {
-        const rawPrice = json.test_price;
-        const rawPriceKrw = json.test_price_krw;
-        
-        const priceStr = (typeof rawPrice === 'number' && !isNaN(rawPrice)) 
-          ? rawPrice.toLocaleString() 
-          : (rawPrice ? String(rawPrice) : '');
-          
-        const priceKrwStr = (typeof rawPriceKrw === 'number' && !isNaN(rawPriceKrw)) 
-          ? rawPriceKrw.toLocaleString() 
-          : ((typeof rawPrice === 'number' && !isNaN(rawPrice)) ? rawPrice.toLocaleString() : '0');
-
-        const detailMsg = priceStr 
-          ? `[${priceStr} ${json.currency || "USD"} / ₩${priceKrwStr}]`
-          : "단가 수집 대기";
-        alert(`⚡ 크롤링 로봇 즉시 검수 완료!\n${detailMsg}가 감지되어 DB에 가동 매핑되었습니다.`);
-        setUrlForm({ site_name: "", target_url: "", css_selector: "", cron_interval: "0 9 * * *" });
-        fetchItemDetails(activeItem.item_id);
-        fetchInitData();
-      } else {
-        alert("수집 매핑 실패: " + json.error);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setCrawlerTesting(false);
-    }
-  };
-
-
-  // 수집 URL 삭제
-  const handleDeleteUrl = async (urlId: number) => {
-    if (!confirm("해당 수집 엔진 노드를 전광판에서 제외하시겠습니까?")) return;
-    try {
-      const res = await fetch(`/api/price-tracker/urls?url_id=${urlId}`, { method: "DELETE" });
-      const json = await res.json();
-      if (json.success) {
-        alert("수집 로봇이 안전하게 제외되었습니다.");
-        if (activeItem) fetchItemDetails(activeItem.item_id);
-        fetchInitData();
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // 3.3. 알림 규칙 활성화
-  const handleAddAlertRule = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeItem) return alert("알림을 설정할 타겟 품목을 지정해 주세요.");
-    if (!alertForm.rule_name || !alertForm.threshold_value || !alertForm.sms_template) return alert("입력란을 완성해 주세요.");
-
-    try {
-      const res = await fetch("/api/price-tracker/alerts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          item_id: activeItem.item_id, 
-          ...alertForm,
-          condition_type: alertForm.threshold_unit === "PERCENT" ? "MARGIN_BREAKDOWN" : alertForm.condition_operator
-        })
-      });
-      const json = await res.json();
-      if (json.success) {
-        alert("💬 FreeSMS 가격 경보 자동화 규칙이 성공적으로 가동되었습니다!");
-        setIsAlertModalOpen(false);
-        fetchInitData();
-      } else {
-        alert("알림 설정 실패: " + json.error);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // 3.4. 품목 신규 등록 시 백그라운드 AI 자율 스캔 및 수집 노드 자동 바인딩 (Zero-Click AI)
-  const triggerBackgroundAutoMining = async (itemId: number, itemName: string, spec: string) => {
-    // 🛡️ 중복 스캔 방지 락 가드
-    let isAlreadyMining = false;
-    setMiningItemIds(prev => {
-      if (prev.includes(itemId)) {
-        isAlreadyMining = true;
-        return prev;
-      }
-      return [...prev, itemId];
-    });
-
-    if (isAlreadyMining) {
-      console.log(`🛡️ [Auto-Mining] 품목 [${itemName}] 에 대한 백그라운드 스캔이 이미 활발히 기동 중입니다.`);
-      return;
-    }
-
-    console.log(`🤖 [Auto-Mining] 신규 품목 백그라운드 자율 스캔 기동 ➡️ 품목: [${itemName}], 규격: [${spec}]`);
-    try {
-      const activeChannelList = searchChannels.filter(c => c.active).map(c => c.name);
-      if (activeChannelList.length === 0) return;
-
-      const mineRes = await fetch("/api/price-tracker/ai-search-miner", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          item_id: itemId,
-          query: itemName,
-          specification: spec,
-          channels: activeChannelList
-        })
-      });
-      const mineJson = await mineRes.json();
-      
-      if (mineJson.success && mineJson.candidates && mineJson.candidates.length > 0) {
-        let deployedCount = 0;
-        for (const cand of mineJson.candidates) {
-          const res = await fetch("/api/price-tracker/urls", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              item_id: itemId,
-              site_name: cand.site_name,
-              target_url: cand.url,
-              css_selector: cand.css_selector,
-              cron_interval: "0 9 * * *",
-              run_test: true, // 즉시 첫 수집 이력 백필 기동
-              test_price: cand.price
-            })
-          });
-          const json = await res.json();
-          if (json.success) deployedCount++;
-        }
-        console.log(`🎉 [Auto-Mining] 백그라운드 최저가 노드 자동 장착 완수: 총 ${deployedCount}개 노드 바인딩 완료.`);
-      }
-    } catch (err) {
-      console.warn("⚠️ [Auto-Mining] 백그라운드 자율 스캔 실패:", err);
-    } finally {
-      setMiningItemIds(prev => prev.filter(id => id !== itemId));
-      fetchInitData(); // 메인 전광판 실시간 리플래시
-    }
-  };
-
-  // 3.5. [수집 사이트망 관리] 모달 전용 🪄 AI 실시간 최저가 즉시 포착 및 자동 장착 (Auto-Deploy)
-  const handleAutoDeploy = async () => {
-    if (!activeItem) return alert("수집망을 연동할 품목을 먼저 선택해 주세요.");
-    
-    setMiningLoading(true);
-    setMiningLoadStep(1);
-
-    // AI 자율 분석 연출용 타임 틱 기동
-    const step1 = setTimeout(() => setMiningLoadStep(2), 1500);
-    const step2 = setTimeout(() => setMiningLoadStep(3), 3200);
-
-    try {
-      const activeChannelList = searchChannels.filter(c => c.active).map(c => c.name);
-      console.log(`📡 [Auto-Deploy] 실시간 최저가 자율 포착 시작: [${activeItem.item_name}], 규격: [${activeItem.spec}]`);
-      
-      const mineRes = await fetch("/api/price-tracker/ai-search-miner", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          item_id: activeItem.item_id,
-          query: activeItem.item_name,
-          specification: activeItem.spec || "",
-          channels: activeChannelList
-        })
-      });
-      const mineJson = await mineRes.json();
-      
-      clearTimeout(step1);
-      clearTimeout(step2);
-
-      if (mineJson.success && mineJson.candidates && mineJson.candidates.length > 0) {
-        let deployedCount = 0;
-        for (const cand of mineJson.candidates) {
-          const res = await fetch("/api/price-tracker/urls", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              item_id: activeItem.item_id,
-              site_name: cand.site_name,
-              target_url: cand.url,
-              css_selector: cand.css_selector,
-              cron_interval: "0 9 * * *",
-              run_test: true,
-              test_price: cand.price
-            })
-          });
-          const json = await res.json();
-          if (json.success) deployedCount++;
-        }
-        
-        alert(`⚡ AI 실시간 최저가 즉시 포착 완수!\n총 ${deployedCount}개의 최저가 크롤링 로봇이 자동으로 수집 장착되었으며, 실시간 시황이 갱신되었습니다.`);
-        fetchItemDetails(activeItem.item_id); // 노드 리스트 실시간 리로드
-        fetchInitData(); // 메인 전광판 리로드
-      } else {
-        alert("🚨 실시간 실물 최저가 상품 발굴 실패\n활성화하신 수집 채널에서 해당 규격에 부합하는 실물 상품의 상세 가격과 구매 링크를 실시간 포착하지 못했습니다.");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("AI 최저가 포착 연동 중 통신 장애가 발생했습니다.");
-    } finally {
-      setMiningLoading(false);
-    }
-  };
-
-  // 검색 채널 추가
-  const handleAddChannel = () => {
-    if (!newChannelName.trim()) return alert("추가할 검색 채널/도메인명을 기입해 주세요.");
-    const newChan = {
-      id: Date.now(),
-      name: newChannelName.trim(),
-      active: true,
-      isCustom: true
-    };
-    setSearchChannels(prev => [...prev, newChan]);
-    setNewChannelName("");
-  };
-
-  // 검색 채널 활성 토글
-  const handleToggleChannel = (id: number) => {
-    setSearchChannels(prev => prev.map(c => c.id === id ? { ...c, active: !c.active } : c));
-  };
-
-  // 검색 채널 영구 삭제
-  const handleRemoveChannel = (id: number) => {
-    setSearchChannels(prev => prev.filter(c => c.id !== id));
-  };
-
-  // 4. SVG 차트 계산 정보 수집
-  const getSvgPathData = () => {
-    if (urls.length === 0 || !urls[0].history || urls[0].history.length === 0) {
-      return { path: "", points: [], width: 600 };
-    }
-    const history = urls[0].history;
-    const maxVal = Math.max(...history.map((h: any) => Number(h.captured_price))) * 1.03;
-    const minVal = Math.min(...history.map((h: any) => Number(h.captured_price))) * 0.97;
-    const valRange = maxVal - minVal || 1;
-
-    // 동적 품목 차트 너비 계산: 데이터 1건당 가로폭 32px 할당 (최소 600px 확보)
-    const width = Math.max(600, history.length * 32 + 80);
-    const height = 180;
-    const paddingLeft = 55;
-    const paddingRight = 35;
-    const paddingTop = 20;
-    const paddingBottom = 20;
-
-    const plotWidth = width - paddingLeft - paddingRight;
-    const plotHeight = height - paddingTop - paddingBottom;
-
-    const points = history.map((h: any, idx: number) => {
-      const x = history.length > 1 
-        ? paddingLeft + (idx / (history.length - 1)) * plotWidth
-        : paddingLeft + plotWidth / 2;
-      const y = paddingTop + plotHeight - ((h.captured_price - minVal) / valRange) * plotHeight;
-      return { x, y, price: h.captured_price, date: h.captured_at.slice(5, 10) };
-    });
-
-    const path = points.map((p: any, idx: number) => `${idx === 0 ? "M" : "L"} ${p.x},${p.y}`).join(" ");
-    return { path, points, width };
-  };
+  const {
+    items,
+    activeItem,
+    urls,
+    alerts,
+    alertLogs,
+    exchangeRates,
+    exchangeRateHistories,
+    daemonInfo,
+    activeRateTab,
+    setActiveRateTab,
+    searchQuery,
+    setSearchQuery,
+    categoryFilter,
+    setCategoryFilter,
+    statusFilter,
+    setStatusFilter,
+    isItemModalOpen,
+    setIsItemModalOpen,
+    isCollectorModalOpen,
+    setIsCollectorModalOpen,
+    isEditMode,
+    setIsEditMode,
+    editingItemId,
+    miningItemIds,
+    isAlertModalOpen,
+    setIsAlertModalOpen,
+    isCronHelpOpen,
+    setIsCronHelpOpen,
+    isDaemonHelpOpen,
+    setIsDaemonHelpOpen,
+    copiedUrlId,
+    miningLoading,
+    miningLoadStep,
+    searchChannels,
+    setSearchChannels,
+    newChannelName,
+    setNewChannelName,
+    itemForm,
+    setItemForm,
+    urlForm,
+    setUrlForm,
+    loading,
+    refreshing,
+    crawlerTesting,
+    updatingRates,
+    startingDaemon,
+    copiedText,
+    selectorAnalyzing,
+    backfillStartDate,
+    setBackfillStartDate,
+    backfillEndDate,
+    setBackfillEndDate,
+    isBackfilling,
+    rateHoverInfo,
+    setRateHoverInfo,
+    itemHoverInfo,
+    setItemHoverInfo,
+    rateScrollRef,
+    itemScrollRef,
+    explainCron,
+    fetchItemDetails,
+    handleRefresh,
+    handleSyncExchangeRates,
+    handleStartDaemon,
+    handleCopyCommand,
+    handleBulkBackfill,
+    handleItemSelect,
+    handleSaveItem,
+    handleDeleteItem,
+    handleCopyUrl,
+    handleEditItemClick,
+    handleAnalyzeSelector,
+    handleAddUrl,
+    handleDeleteUrl,
+    handleAddAlertRule,
+    handleAutoDeploy,
+    handleAddChannel,
+    handleToggleChannel,
+    handleRemoveChannel,
+    getSvgPathData,
+    getRateSvgPathData,
+    filteredItems,
+    marginWarningCount,
+    isDaemonRunning
+  } = usePriceTracker();
 
   const { path: svgPath, points: svgPoints, width: svgChartWidth } = getSvgPathData();
-
-  // 5. 환율 분석 차트 SVG 정보 계산
-  const getRateSvgPathData = () => {
-    const rateHistory = exchangeRateHistories.filter(x => x.currency_code === activeRateTab);
-    if (rateHistory.length === 0) return { path: "", points: [], fillPath: "", width: 600 };
-
-    const maxVal = Math.max(...rateHistory.map((h: any) => Number(h.rate_value))) * 1.01;
-    const minVal = Math.min(...rateHistory.map((h: any) => Number(h.rate_value))) * 0.99;
-    const valRange = maxVal - minVal || 1;
-
-    // 동적 환율 차트 너비 계산: 데이터 1건당 가로폭 32px 할당 (최소 600px 확보)
-    const width = Math.max(600, rateHistory.length * 32 + 80);
-    const height = 150;
-    const paddingLeft = 55;
-    const paddingRight = 35;
-    const paddingTop = 15;
-    const paddingBottom = 20;
-
-    const plotWidth = width - paddingLeft - paddingRight;
-    const plotHeight = height - paddingTop - paddingBottom;
-
-    const points = rateHistory.map((h: any, idx: number) => {
-      const x = rateHistory.length > 1 
-        ? paddingLeft + (idx / (rateHistory.length - 1)) * plotWidth
-        : paddingLeft + plotWidth / 2;
-      const y = paddingTop + plotHeight - ((h.rate_value - minVal) / valRange) * plotHeight;
-      return { x, y, val: h.rate_value, date: h.captured_date.slice(5, 10) };
-    });
-
-    const path = points.map((p: any, idx: number) => `${idx === 0 ? "M" : "L"} ${p.x},${p.y}`).join(" ");
-    
-    // 그라데이션 면적용 패스 생성
-    let fillPath = "";
-    if (points.length > 0) {
-      fillPath = `${path} L ${points[points.length - 1].x},${height - paddingBottom} L ${points[0].x},${height - paddingBottom} Z`;
-    }
-
-    return { path, points, fillPath, width };
-  };
-
   const { path: rateSvgPath, points: rateSvgPoints, fillPath: rateFillPath, width: rateChartWidth } = getRateSvgPathData();
 
-  // 6. 검색 및 필터링 적용된 품목 리스트
-  const filteredItems = items.filter(item => {
-    const matchesSearch = 
-      item.item_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.item_code.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesCategory = 
-      categoryFilter === "ALL" || 
-      item.category === categoryFilter;
-
-    const isWarning = item.current_margin_rate < item.target_margin_rate;
-    const matchesStatus = 
-      statusFilter === "ALL" ||
-      (statusFilter === "WARNING" && isWarning) ||
-      (statusFilter === "SAFE" && !isWarning);
-
-    return matchesSearch && matchesCategory && matchesStatus;
-  });
-
-  const marginWarningCount = items.filter(item => item.current_margin_rate < item.target_margin_rate).length;
-  const isDaemonRunning = daemonInfo.status === "RUNNING";
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <RefreshCw className="w-8 h-8 text-pink-600 animate-spin" />
+        <span className="text-sm font-bold text-slate-500">SCM 가격 관제 시스템 로딩 중...</span>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 pb-20 w-full min-w-0 text-slate-800">
+    <div className="space-y-6 pb-20 w-full min-w-0 text-slate-800 font-sans">
       
-      {/* 1. 상단 타이틀 주변 영역 */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      {/* 1. 상단 타이틀 주변 영역 (PC용 고정 수평 레이아웃) */}
+      <div className="flex items-center justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold text-slate-800 tracking-tight flex items-center">
             <Cpu className="w-8 h-8 text-pink-600 mr-3" />
@@ -984,7 +135,7 @@ export default function PriceTrackerAIPage() {
           </h1>
         </div>
 
-        <div className="flex items-center gap-2.5 self-end md:self-center">
+        <div className="flex items-center gap-2.5">
           <button
             onClick={handleSyncExchangeRates}
             disabled={updatingRates}
@@ -999,15 +150,15 @@ export default function PriceTrackerAIPage() {
             disabled={refreshing}
             className="flex items-center gap-2 px-3.5 py-2 bg-white text-slate-700 hover:text-slate-900 border border-slate-200 rounded-xl text-xs font-bold shadow-sm hover:shadow-md transition-all active:scale-95 disabled:opacity-50"
           >
-            <RefreshCw className={`w-3.5 h-3.5 text-slate-500 ${refreshing ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-3.5 h-3.5 text-slate-505 ${refreshing ? "animate-spin" : ""}`} />
             {refreshing ? "시세 갱신 중..." : "전광판 즉시 동기화"}
           </button>
         </div>
       </div>
 
-      {/* 2. 🤖 [NEW] SCM 가격 및 환율 수집 자율 데몬 통합 관제 센터 */}
+      {/* 2. 🤖 SCM 가격 및 환율 수집 자율 데몬 통합 관제 센터 (PC용 최적화) */}
       <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-3">
+        <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-3">
           <div className="flex items-center gap-3.5">
             <div className={`p-3 rounded-2xl border ${
               isDaemonRunning 
@@ -1032,22 +183,20 @@ export default function PriceTrackerAIPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 self-end md:self-center">
-            {/* 데몬 기동 버튼 */}
+          <div className="flex items-center gap-2">
             <button
               onClick={handleStartDaemon}
               disabled={startingDaemon}
-              className="flex items-center gap-1.5 px-3 py-2 bg-pink-600 hover:bg-pink-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-2 bg-pink-650 hover:bg-pink-700 text-white rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer disabled:opacity-50"
             >
               <Play className="w-3.5 h-3.5" />
               {startingDaemon ? "데몬 실행 중..." : "⚡ 자율 데몬 백그라운드 가동"}
             </button>
 
-            {/* NPM 명령어 복사 단추 */}
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => handleCopyCommand("npm run price:daemon")}
-                className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-600 rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-655 rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer"
               >
                 {copiedText === "npm run price:daemon" ? (
                   <>
@@ -1070,12 +219,11 @@ export default function PriceTrackerAIPage() {
                 <Info className="w-3.5 h-3.5" />
               </button>
             </div>
-
           </div>
         </div>
 
-        {/* 데몬 가동 상세 정보 패널 */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+        {/* 데몬 가동 상세 정보 패널 (PC용 4열 그리드 고정) */}
+        <div className="grid grid-cols-4 gap-4 text-xs">
           <div className="bg-slate-50 border border-slate-150 p-3 rounded-2xl">
             <span className="text-[10px] text-slate-400 font-bold block mb-1">데몬 가동 프로세스 PID</span>
             <span className="font-mono font-black text-slate-700">{daemonInfo.pid}</span>
@@ -1097,20 +245,20 @@ export default function PriceTrackerAIPage() {
           </div>
         </div>
 
-        {/* 과거 환율 지정 기간 자율 소급 패널 */}
+        {/* 과거 환율 지정 기간 자율 소급 패널 (PC 고정 정렬) */}
         <div className="border-t border-slate-100 pt-4 mt-2 space-y-3">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-center justify-between gap-4">
             <div className="space-y-0.5">
               <h4 className="text-xs font-black text-slate-700 flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-pink-600" />
+                <Calendar className="w-3.5 h-3.5 text-pink-650" />
                 과거 누락 환율 지정 기간 소급 가져오기
               </h4>
               <p className="text-[9.5px] text-slate-400 font-semibold">데이터베이스에 수집되지 않은 과거 환율 공백을 원하는 기간만큼 일괄 자동 계산하여 복원합니다.</p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
-                <div className="flex items-center bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 gap-1.5">
+                <div className="flex items-center bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-705 gap-1.5">
                   <span className="text-[10px] text-slate-400 font-bold">시작</span>
                   <input
                     type="date"
@@ -1120,7 +268,7 @@ export default function PriceTrackerAIPage() {
                   />
                 </div>
                 <span className="text-slate-400 text-xs font-bold">~</span>
-                <div className="flex items-center bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 gap-1.5">
+                <div className="flex items-center bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-705 gap-1.5">
                   <span className="text-[10px] text-slate-400 font-bold">종료</span>
                   <input
                     type="date"
@@ -1135,7 +283,7 @@ export default function PriceTrackerAIPage() {
                 type="button"
                 onClick={handleBulkBackfill}
                 disabled={isBackfilling}
-                className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-pink-600 to-pink-500 hover:from-pink-700 hover:to-pink-600 text-white rounded-xl text-xs font-black shadow-sm transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-pink-650 to-pink-500 hover:from-pink-700 hover:to-pink-600 text-white rounded-xl text-xs font-black shadow-sm transition-all active:scale-95 cursor-pointer disabled:opacity-50"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isBackfilling ? "animate-spin" : ""}`} />
                 {isBackfilling ? "소급 분석 및 적재 중..." : "환율 소급 가져오기 실행"}
@@ -1147,13 +295,13 @@ export default function PriceTrackerAIPage() {
 
       {/* 3. 🎛️ 최상단 실시간 주식시장 환율 & 원자재 Ticker 전광판 */}
       <div className="w-full bg-gradient-to-r from-slate-900 via-slate-950 to-indigo-950 text-white rounded-2xl p-3.5 shadow-md border border-slate-850 overflow-hidden relative">
-        <div className="absolute top-0 left-0 bg-pink-600 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-br-lg tracking-wider flex items-center gap-1 z-10 shadow-sm">
+        <div className="absolute top-0 left-0 bg-pink-650 text-white text-[9px] font-black uppercase px-2 py-0.5 rounded-br-lg tracking-wider flex items-center gap-1 z-10 shadow-sm">
           <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span>
           Live Exchange Rates
         </div>
         
-        <div className="flex flex-wrap items-center justify-between gap-4 pt-3.5 px-1 md:px-2.5">
-          <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center justify-between gap-4 pt-3.5 px-2.5">
+          <div className="flex items-center gap-3">
             {exchangeRates.map((rate: any) => {
               const isUp = rate.change_direction === "UP";
               const isDown = rate.change_direction === "DOWN";
@@ -1164,7 +312,7 @@ export default function PriceTrackerAIPage() {
                     {rate.current_rate.toLocaleString()} 원
                   </span>
                   <span className={`text-[9px] font-bold font-mono flex items-center gap-0.5 px-1.5 py-0.5 rounded ${
-                    isUp ? "bg-rose-500/20 text-rose-300" : isDown ? "bg-sky-500/20 text-sky-300" : "bg-slate-500/20 text-slate-300"
+                    isUp ? "bg-rose-500/20 text-rose-350" : isDown ? "bg-sky-500/20 text-sky-350" : "bg-slate-500/20 text-slate-300"
                   }`}>
                     {isUp ? "▲" : isDown ? "▼" : "•"} {Math.abs(rate.change_rate)}%
                   </span>
@@ -1183,18 +331,17 @@ export default function PriceTrackerAIPage() {
         </div>
       </div>
 
-      {/* 4. 🌐 [NEW] 글로벌 4대 외환(달러, 유로, 엔, 위안)의 올해 전체 가격 변동 추이 선형 차트 */}
+      {/* 4. 🌐 글로벌 4대 외환의 올해 전체 가격 변동 추이 선형 차트 (PC 고정 4열 그리드) */}
       <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-2">
+        <div className="flex items-center justify-between gap-4 border-b border-slate-100 pb-2">
           <div className="space-y-0.5">
             <h3 className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-              <BarChart3 className="w-4 h-4 text-pink-600" />
+              <BarChart3 className="w-4 h-4 text-pink-650" />
               글로벌 4대 외환 시세 추이 분석 (올해 전체 누적 이력)
             </h3>
             <p className="text-[9.5px] text-slate-400 font-semibold">서버 중단 기간 동안 누락되었던 공백 시세를 자가 회복하여 연속성 보증</p>
           </div>
 
-          {/* 환율 차트 탭 */}
           <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200">
             {CURRENCIES.map(code => (
               <button
@@ -1216,16 +363,16 @@ export default function PriceTrackerAIPage() {
         {/* 환율 선형 SVG 꺾은선 차트 렌더링 */}
         {rateSvgPoints.length === 0 ? (
           <div className="py-16 text-center text-xs font-bold text-slate-400 flex flex-col items-center justify-center gap-2">
-            <Globe className="w-8 h-8 text-slate-300 animate-spin-slow" />
+            <Globe className="w-8 h-8 text-slate-355 animate-spin-slow" />
             환율 누적 변동 데이터가 없습니다. 상단 [실시간 환율 강제 갱신]을 눌러주세요.
           </div>
         ) : (
-          <div className="w-full grid grid-cols-1 lg:grid-cols-4 gap-6 items-center">
+          <div className="w-full grid grid-cols-4 gap-6 items-center">
             
             {/* 차트 영역 (가로 스크롤 컨테이너 바인딩) */}
             <div 
               ref={rateScrollRef} 
-              className="lg:col-span-3 py-1 overflow-x-auto scrollbar-thin scrollbar-thumb-pink-600 scrollbar-track-slate-100 rounded-2xl w-full min-w-0"
+              className="col-span-3 py-1 overflow-x-auto scrollbar-thin scrollbar-thumb-pink-650 scrollbar-track-slate-100 rounded-2xl w-full min-w-0"
             >
               <svg 
                 viewBox={`0 0 ${rateChartWidth} 150`} 
@@ -1254,8 +401,6 @@ export default function PriceTrackerAIPage() {
                 {/* 포인트 */}
                 {rateSvgPoints.map((pt: any, idx: number) => {
                   const isLast = idx === rateSvgPoints.length - 1;
-                  
-                  // 데이터가 대량(15개 초과)일 경우 중간 점들은 생략하고 마지막 점만 표현
                   const shouldRenderPoint = rateSvgPoints.length <= 15 || isLast;
                   if (!shouldRenderPoint) return null;
 
@@ -1271,18 +416,15 @@ export default function PriceTrackerAIPage() {
 
                 {/* 날짜 라벨 (겹침 현상 영구 해소 및 한글 친화 캘린더 포맷팅) */}
                 {(() => {
-                  // 전체 데이터 길이에 기반하여 X축 겹침이 전혀 없도록 균등 6~8개 대표 날짜 선정
                   const labelStep = Math.max(1, Math.ceil(rateSvgPoints.length / 8));
                   
                   return rateSvgPoints.map((pt: any, idx: number) => {
                     const isLast = idx === rateSvgPoints.length - 1;
                     const isFirst = idx === 0;
                     
-                    // 첫날, 마지막날 및 계산된 일정 간격일 때만 출력 (마지막날 겹침 방지 보정 결합)
                     const shouldRenderLabel = isFirst || isLast || (idx % labelStep === 0 && idx < rateSvgPoints.length - labelStep * 0.7);
                     if (!shouldRenderLabel) return null;
 
-                    // 날짜 스트링 포맷팅 개편 (예: "01-01" -> "1월 1일")
                     let formattedDate = pt.date;
                     if (pt.date.includes("-")) {
                       const parts = pt.date.split("-");
@@ -1302,7 +444,6 @@ export default function PriceTrackerAIPage() {
                 {/* 럭셔리 마우스 오버 툴팁 가이드선 & 카드 박스 */}
                 {rateHoverInfo && (
                   <g>
-                    {/* 수직 자석 가이드 점선 */}
                     <line
                       x1={rateHoverInfo.x}
                       y1={15}
@@ -1313,7 +454,6 @@ export default function PriceTrackerAIPage() {
                       strokeDasharray="3,3"
                     />
                     
-                    {/* 오버 지점 도트 서클 피드백 */}
                     <circle
                       cx={rateHoverInfo.x}
                       cy={rateHoverInfo.y}
@@ -1324,13 +464,12 @@ export default function PriceTrackerAIPage() {
                       className="shadow-md"
                     />
 
-                    {/* 카드 박스 렌더링 (경계 침범 방지 툴팁 이동 보정 내장) */}
+                    {/* 카드 박스 렌더링 */}
                     {(() => {
                       const tooltipWidth = 110;
                       const tooltipHeight = 42;
                       let tooltipX = rateHoverInfo.x - tooltipWidth / 2;
                       
-                      // 좌우 링 실크 테두리 경계 충돌 이탈 보정
                       if (tooltipX < 50) tooltipX = 50;
                       if (tooltipX + tooltipWidth > rateChartWidth - 30) {
                         tooltipX = rateChartWidth - 30 - tooltipWidth;
@@ -1422,12 +561,12 @@ export default function PriceTrackerAIPage() {
             </div>
 
             {/* 수치 요약 패널 */}
-            <div className="lg:col-span-1 bg-slate-50 border border-slate-150 p-4 rounded-2xl flex flex-col justify-between min-h-[130px]">
+            <div className="col-span-1 bg-slate-50 border border-slate-150 p-4 rounded-2xl flex flex-col justify-between min-h-[130px]">
               <div>
                 <span className="text-[10px] text-slate-400 font-bold block uppercase mb-1">
                   {CURRENCY_NAMES[activeRateTab as keyof typeof CURRENCY_NAMES]}
                 </span>
-                <h4 className="text-xl font-black text-slate-850 font-mono">
+                <h4 className="text-xl font-black text-slate-855 font-mono">
                   {rateSvgPoints[rateSvgPoints.length - 1]?.val.toLocaleString()} 원
                 </h4>
               </div>
@@ -1452,9 +591,9 @@ export default function PriceTrackerAIPage() {
         )}
       </div>
 
-      {/* 5. SCM 리스크 미니 위젯 및 검색 필터링 */}
-      <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-5">
-        <div className="flex items-center gap-3.5 w-full lg:w-auto">
+      {/* 5. SCM 리스크 미니 위젯 및 검색 필터링 (PC 고정 수평 레이아웃) */}
+      <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm flex items-center justify-between gap-5">
+        <div className="flex items-center gap-3.5 w-auto">
           <div className={`p-3.5 rounded-2xl border ${
             marginWarningCount > 0 
               ? "bg-rose-50 border-rose-100 text-rose-600 animate-pulse" 
@@ -1470,8 +609,8 @@ export default function PriceTrackerAIPage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto justify-end">
-          <div className="relative flex-1 md:flex-initial min-w-[200px]">
+        <div className="flex items-center gap-2.5 w-auto justify-end">
+          <div className="relative min-w-[200px]">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
@@ -1504,9 +643,9 @@ export default function PriceTrackerAIPage() {
         </div>
       </div>
 
-      {/* 6. 📈 주식거래소 스타일 SCM 실시간 통합 전광 대장 테이블 (Stock Market Broad Board) */}
+      {/* 6. 📈 주식거래소 스타일 SCM 실시간 통합 전광 대장 테이블 */}
       <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-visible w-full">
-        <div className="p-5 border-b border-slate-155 flex flex-wrap items-center justify-between gap-4 bg-slate-50/50">
+        <div className="p-5 border-b border-slate-155 flex items-center justify-between gap-4 bg-slate-50/50">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-4.5 bg-pink-650 rounded-md"></span>
             <h3 className="font-extrabold text-slate-800 text-sm flex items-center gap-1.5">
@@ -1521,7 +660,6 @@ export default function PriceTrackerAIPage() {
             <button
               onClick={() => {
                 setIsEditMode(false);
-                setEditingItemId(null);
                 setItemForm({ 
                   item_code: "", 
                   item_name: "", 
@@ -1533,7 +671,7 @@ export default function PriceTrackerAIPage() {
                 });
                 setIsItemModalOpen(true);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-pink-600 hover:bg-pink-700 text-white rounded-lg text-xs font-bold shadow-sm transition-all cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-pink-650 hover:bg-pink-700 text-white rounded-lg text-xs font-bold shadow-sm transition-all cursor-pointer border-none"
             >
               <Plus className="w-3.5 h-3.5" />
               신규 품목 등록
@@ -1544,7 +682,7 @@ export default function PriceTrackerAIPage() {
         <div className="overflow-visible w-full">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 font-bold uppercase tracking-wider">
+              <tr className="border-b border-slate-200 bg-slate-50 text-slate-550 font-bold uppercase tracking-wider">
                 <th className="p-4 font-bold text-[10px]">품목 코드 / 명칭</th>
                 <th className="p-4 font-bold text-[10px] text-center">수집 통화</th>
                 <th className="p-4 font-bold text-[10px] text-right">자사 기준 원가</th>
@@ -1583,7 +721,7 @@ export default function PriceTrackerAIPage() {
                             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${
                               item.category === "RAW_MATERIAL" 
                                 ? "bg-slate-900 text-slate-100 border-slate-800" 
-                                : "bg-indigo-55 text-indigo-750 border-indigo-100"
+                                : "bg-indigo-50 text-indigo-750 border-indigo-100"
                             }`}>
                               {item.category === "RAW_MATERIAL" ? "자재" : "경쟁완제품"}
                             </span>
@@ -1610,7 +748,7 @@ export default function PriceTrackerAIPage() {
                       {/* 기준가 */}
                       <td className="p-4 text-right">
                         <div className="space-y-0.5">
-                          <span className="text-xs font-extrabold font-mono text-slate-800 block">
+                          <span className="text-xs font-extrabold font-mono text-slate-805 block">
                             {itemCurrency === 'KRW' ? '₩ ' : '$ '}{item.base_price.toLocaleString()}
                           </span>
                           {itemCurrency !== 'KRW' && (
@@ -1701,10 +839,10 @@ export default function PriceTrackerAIPage() {
                             </span>
                             <span className={`text-[8px] font-bold px-1 py-0.2 rounded ${
                               item.rate_change_direction === 'UP' 
-                                ? 'bg-rose-50 text-rose-500' 
+                                ? 'bg-rose-50 text-rose-505' 
                                 : item.rate_change_direction === 'DOWN'
-                                ? 'bg-sky-50 text-sky-500'
-                                : 'bg-slate-50 text-slate-500'
+                                ? 'bg-sky-50 text-sky-505'
+                                : 'bg-slate-50 text-slate-505'
                             }`}>
                               {item.rate_change_direction === 'UP' ? '▲' : item.rate_change_direction === 'DOWN' ? '▼' : '•'} {item.rate_change_percent}%
                             </span>
@@ -1757,7 +895,7 @@ export default function PriceTrackerAIPage() {
                         </div>
                       </td>
 
-                      {/* 수집망 노드 개수 */}
+                      {/* 수집망 노드 개수 (클릭 시 수집 로봇 매핑 센터 모달 띄우도록 바인딩) */}
                       <td className="p-4 text-center">
                         {miningItemIds.includes(item.item_id) ? (
                           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-pink-500 to-indigo-650 text-white font-extrabold text-[9px] rounded-lg shadow-sm animate-pulse justify-center">
@@ -1766,9 +904,15 @@ export default function PriceTrackerAIPage() {
                           </div>
                         ) : (
                           <span 
-                            className="px-2.5 py-1 bg-slate-50 text-slate-650 font-bold font-mono rounded-lg border border-slate-200 inline-block text-[11px]"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleItemSelect(item);
+                              setIsCollectorModalOpen(true);
+                            }}
+                            className="px-2.5 py-1 bg-slate-50 text-slate-655 hover:text-pink-650 hover:bg-pink-50/50 hover:border-pink-200 transition-all font-bold font-mono rounded-lg border border-slate-200 inline-block text-[11px] cursor-pointer"
+                            title="클릭하여 수집 로봇 매핑 및 검수 센터 모달 열기"
                           >
-                            {Number(item.collectors_count ?? 0)} 개 노드
+                            {Number(item.collectors_count ?? 0)} 개 노드 ⚙️
                           </span>
                         )}
                       </td>
@@ -1791,9 +935,8 @@ export default function PriceTrackerAIPage() {
                               <Bell className="w-3.5 h-3.5" />
                             </button>
 
-                            {/* 🪄 프리미엄 가격 감시 설정 툴팁 말풍선 */}
+                            {/* 프리미엄 가격 감시 설정 툴팁 말풍선 */}
                             <div className="absolute right-full mr-3 -top-2.5 hidden group-hover:block z-40 w-72 bg-slate-900/95 backdrop-blur-md text-white text-[10px] p-4 rounded-2xl shadow-2xl border border-slate-700/50 text-left transition-all duration-200 pointer-events-none">
-                              {/* 말풍선 꼬리 (오른쪽에 장착) */}
                               <div className="absolute left-full top-3.5 border-[6px] border-transparent border-l-slate-900/95"></div>
                               
                               {alerts.filter((r: any) => r.item_id === item.item_id).length === 0 ? (
@@ -1809,7 +952,7 @@ export default function PriceTrackerAIPage() {
                               ) : (
                                 <div className="space-y-3">
                                   <div className="flex items-center justify-between border-b border-slate-700/80 pb-1.5">
-                                    <div className="flex items-center gap-1 font-black text-rose-450 text-[11px]">
+                                    <div className="flex items-center gap-1 font-black text-rose-455 text-[11px]">
                                       <Bell className="w-3.5 h-3.5 animate-bounce" />
                                       <span>FreeSMS 경보망 ({alerts.filter((r: any) => r.item_id === item.item_id).length}개 작동)</span>
                                     </div>
@@ -1844,7 +987,7 @@ export default function PriceTrackerAIPage() {
                                             </span>
                                           </div>
                                         </div>
-                                        <div className="text-[8px] text-slate-500 font-mono pt-0.5">
+                                        <div className="text-[8px] text-slate-505 font-mono pt-0.5">
                                           📞 수신: {rule.phone_number}
                                         </div>
                                       </div>
@@ -1865,7 +1008,7 @@ export default function PriceTrackerAIPage() {
 
                           <button
                             onClick={() => handleDeleteItem(item.item_id, item.item_name)}
-                            className="p-1.5 hover:bg-rose-50 hover:text-rose-600 text-slate-450 border border-slate-200 bg-white rounded-lg transition-colors cursor-pointer"
+                            className="p-1.5 hover:bg-rose-50 hover:text-rose-600 text-slate-455 border border-slate-200 bg-white rounded-lg transition-colors cursor-pointer"
                             title="품목 영구 삭제"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -1874,7 +1017,7 @@ export default function PriceTrackerAIPage() {
                       </td>
                     </tr>
 
-                    {/* 활성화된 품목의 상세 분석 꺾은선 차트 Drawer 패널 */}
+                    {/* 활성화된 품목의 상세 분석 꺾은선 차트 Drawer 패널 (PC 고정 3열 그리드) */}
                     {isActive && (
                       <tr className="bg-slate-50/30">
                         <td colSpan={9} className="p-6 border-b border-slate-200">
@@ -1882,14 +1025,14 @@ export default function PriceTrackerAIPage() {
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: "auto" }}
                             exit={{ opacity: 0, height: 0 }}
-                            className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start"
+                            className="grid grid-cols-3 gap-6 items-start animate-fade-in"
                           >
                             {/* 와이드 SVG 선형 가격 변동 차트 */}
-                            <div className="lg:col-span-2 bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col justify-between min-h-[260px]">
+                            <div className="col-span-2 bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col justify-between min-h-[260px]">
                               <div className="flex items-center justify-between border-b border-slate-100 pb-3.5 mb-4">
                                 <div className="space-y-0.5">
                                   <h3 className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                                    <BarChart3 className="w-4 h-4 text-pink-600" />
+                                    <BarChart3 className="w-4 h-4 text-pink-650" />
                                     시세 변동 선형 추이 분석 ({item.item_name})
                                   </h3>
                                   <p className="text-[9px] text-slate-400 font-semibold">최근 파이프라인 수집 누적 히스토리</p>
@@ -1900,7 +1043,7 @@ export default function PriceTrackerAIPage() {
                                       window.open(item.latest_site_url, '_blank');
                                     }
                                   }}
-                                  className="text-[9px] font-black text-pink-600 font-mono bg-pink-50 px-2.5 py-1 rounded-full border border-pink-100 flex items-center gap-1 cursor-pointer hover:bg-pink-100 hover:text-pink-700 transition-all shadow-sm"
+                                  className="text-[9px] font-black text-pink-650 font-mono bg-pink-50 px-2.5 py-1 rounded-full border border-pink-100 flex items-center gap-1 cursor-pointer hover:bg-pink-100 hover:text-pink-700 transition-all shadow-sm"
                                   title={`클릭 시 최저가를 공급하고 있는 [${item.latest_site_name}] 상세 상품 페이지로 새 창에서 즉시 연결`}
                                 >
                                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -1910,7 +1053,7 @@ export default function PriceTrackerAIPage() {
                               </div>
 
                               {svgPoints.length === 0 ? (
-                                <div className="h-40 flex flex-col items-center justify-center text-xs text-slate-450 font-bold gap-2">
+                                <div className="h-40 flex flex-col items-center justify-center text-xs text-slate-455 font-bold gap-2">
                                   <Globe className="w-8 h-8 text-slate-300 animate-spin-slow" />
                                   수집 완료된 단가 이력이 없습니다. 수집 로봇 탭에서 크롤링 URL을 먼저 매핑해 주세요!
                                 </div>
@@ -1918,7 +1061,7 @@ export default function PriceTrackerAIPage() {
                                 /* 품목 상세 차트 영역 (가로 스크롤 컨테이너 바인딩) */
                                 <div 
                                   ref={itemScrollRef} 
-                                  className="w-full py-1 overflow-x-auto scrollbar-thin scrollbar-thumb-pink-600 scrollbar-track-slate-100 rounded-2xl min-w-0"
+                                  className="w-full py-1 overflow-x-auto scrollbar-thin scrollbar-thumb-pink-650 scrollbar-track-slate-100 rounded-2xl min-w-0"
                                 >
                                   <svg 
                                     viewBox={`0 0 ${svgChartWidth} 180`} 
@@ -1934,8 +1077,6 @@ export default function PriceTrackerAIPage() {
 
                                     {svgPoints.map((pt: any, idx: number) => {
                                       const isLast = idx === svgPoints.length - 1;
-                                      
-                                      // 데이터가 대량(15개 초과)일 경우 중간 점들은 생략하여 차트를 가볍게 합니다.
                                       const shouldRenderPoint = svgPoints.length <= 15 || isLast;
                                       if (!shouldRenderPoint) return null;
 
@@ -1950,7 +1091,6 @@ export default function PriceTrackerAIPage() {
                                     })}
 
                                     {(() => {
-                                      // X축 날짜가 겹치지 않도록 동적 간격(Step) 계산
                                       const labelStep = Math.max(1, Math.ceil(svgPoints.length / 8));
                                       
                                       return svgPoints.map((pt: any, idx: number) => {
@@ -1960,7 +1100,6 @@ export default function PriceTrackerAIPage() {
                                         const shouldRenderLabel = isFirst || isLast || (idx % labelStep === 0 && idx < svgPoints.length - labelStep * 0.7);
                                         if (!shouldRenderLabel) return null;
 
-                                        // 날짜 포맷 개편 (예: "05-27" -> "5월 27일")
                                         let formattedDate = pt.date;
                                         if (pt.date.includes("-")) {
                                           const parts = pt.date.split("-");
@@ -1980,7 +1119,6 @@ export default function PriceTrackerAIPage() {
                                     {/* 품목 상세 마우스 오버 툴팁 카드 */}
                                     {itemHoverInfo && (
                                       <g>
-                                        {/* 수직 자석 가이드 점선 */}
                                         <line
                                           x1={itemHoverInfo.x}
                                           y1={20}
@@ -1991,7 +1129,6 @@ export default function PriceTrackerAIPage() {
                                           strokeDasharray="3,3"
                                         />
                                         
-                                        {/* 포인트 링 강조 */}
                                         <circle
                                           cx={itemHoverInfo.x}
                                           cy={itemHoverInfo.y}
@@ -2002,13 +1139,12 @@ export default function PriceTrackerAIPage() {
                                           className="shadow-md"
                                         />
 
-                                        {/* 이동 보정이 내장된 툴팁 카드 */}
+                                        {/* 이동 보정 툴팁 카드 */}
                                         {(() => {
                                           const tooltipWidth = 140;
                                           const tooltipHeight = 54;
                                           let tooltipX = itemHoverInfo.x - tooltipWidth / 2;
                                           
-                                          // 경계이탈 방지
                                           if (tooltipX < 50) tooltipX = 50;
                                           if (tooltipX + tooltipWidth > svgChartWidth - 30) {
                                             tooltipX = svgChartWidth - 30 - tooltipWidth;
@@ -2017,7 +1153,6 @@ export default function PriceTrackerAIPage() {
                                           const tooltipY = Math.max(5, itemHoverInfo.y - 64);
                                           const curCode = activeItem?.currency_code || "KRW";
 
-                                          // ₩ 환산 단가 계산 피드백
                                           const krwVal = itemHoverInfo.converted_krw 
                                             ? `(₩${Math.floor(itemHoverInfo.converted_krw).toLocaleString()})`
                                             : "";
@@ -2036,7 +1171,6 @@ export default function PriceTrackerAIPage() {
                                                 strokeWidth="1.5"
                                                 className="shadow-2xl"
                                               />
-                                              {/* 날짜 */}
                                               <text
                                                 x={tooltipX + tooltipWidth / 2}
                                                 y={tooltipY + 14}
@@ -2047,7 +1181,6 @@ export default function PriceTrackerAIPage() {
                                               >
                                                 {itemHoverInfo.date}
                                               </text>
-                                              {/* 수집 가격 (외화) */}
                                               <text
                                                 x={tooltipX + tooltipWidth / 2}
                                                 y={tooltipY + 30}
@@ -2059,7 +1192,6 @@ export default function PriceTrackerAIPage() {
                                               >
                                                 {itemHoverInfo.price.toLocaleString()} {curCode}
                                               </text>
-                                              {/* 원화 환산 (있는 경우) */}
                                               {krwVal && (
                                                 <text
                                                   x={tooltipX + tooltipWidth / 2}
@@ -2091,7 +1223,6 @@ export default function PriceTrackerAIPage() {
                                       const rectWidth = (svgChartWidth - 90) / svgPoints.length;
                                       const rectX = pt.x - rectWidth / 2;
 
-                                      // converted_krw_price 가져오기 보정 매핑
                                       const matchedHist = urls[0]?.history?.[idx];
                                       const krwPrice = matchedHist?.converted_krw_price || 0;
 
@@ -2132,7 +1263,7 @@ export default function PriceTrackerAIPage() {
                             <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col justify-between min-h-[260px]">
                               <div>
                                 <h3 className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                                  <span className="w-1.5 h-3.5 bg-pink-600 rounded-full animate-pulse"></span>
+                                  <span className="w-1.5 h-3.5 bg-pink-655 rounded-full animate-pulse"></span>
                                   실시간 마진 진단
                                 </h3>
                                 <p className="text-[9px] text-slate-400 mt-0.5 leading-relaxed font-semibold">자사 원가 대비 마진 보존 수준 계기판</p>
@@ -2187,7 +1318,7 @@ export default function PriceTrackerAIPage() {
               })}
               {filteredItems.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="p-16 text-center text-slate-400 font-bold bg-white font-sans">
+                  <td colSpan={9} className="p-16 text-center text-slate-405 font-bold bg-white font-sans">
                     <ShieldAlert className="w-8 h-8 mx-auto text-slate-350 mb-2 animate-bounce" />
                     조건에 일치하는 SCM 관제 품목이 검색되지 않습니다.
                   </td>
@@ -2211,22 +1342,22 @@ export default function PriceTrackerAIPage() {
         </div>
         <div className="max-h-60 overflow-y-auto divide-y divide-slate-100 font-mono">
           {alertLogs.map((log: any) => (
-            <div key={log.log_id} className="p-3.5 bg-white hover:bg-slate-50/50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4 text-[10px]">
+            <div key={log.log_id} className="p-3.5 bg-white hover:bg-slate-50/50 transition-colors flex items-center justify-between gap-4 text-[10px]">
               <div className="space-y-1 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="font-extrabold text-rose-600 font-sans text-xs">{log.rule_name}</span>
                   <span className="text-[9px] text-slate-400 font-normal">{log.sent_at || log.fired_at}</span>
                 </div>
-                <p className="text-slate-650 font-semibold font-sans leading-relaxed">{log.sent_message || log.message_sent}</p>
+                <p className="text-slate-655 font-semibold font-sans leading-relaxed">{log.sent_message || log.message_sent}</p>
               </div>
-              <span className="shrink-0 text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-md font-sans font-bold flex items-center gap-1 self-start md:self-center">
+              <span className="shrink-0 text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-md font-sans font-bold flex items-center gap-1 self-center">
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 SMS 발송 완료
               </span>
             </div>
           ))}
           {alertLogs.length === 0 && (
-            <div className="p-8 text-center text-xs text-slate-400 font-semibold bg-white">
+            <div className="p-8 text-center text-xs text-slate-400 font-semibold bg-white font-sans">
               현재까지 긴급 경보로 발송된 FreeSMS 내역이 존재하지 않습니다.
             </div>
           )}
@@ -2234,539 +1365,66 @@ export default function PriceTrackerAIPage() {
       </div>
 
       {/* ============================================================ */}
-      {/* MODAL 1: 신규 관제 품목 등록 모달 */}
+      {/* 4대 분리된 모달 컴포넌트 렌더링 영역 */}
       {/* ============================================================ */}
-      <AnimatePresence>
-        {isItemModalOpen && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white border border-slate-200 w-full max-w-[500px] rounded-3xl p-6 shadow-2xl space-y-5"
-            >
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h3 className="text-base font-black text-slate-800 flex items-center gap-1.5">
-                  {isEditMode ? (
-                    <Edit3 className="w-5 h-5 text-pink-650" />
-                  ) : (
-                    <Plus className="w-5 h-5 text-pink-650" />
-                  )}
-                  {isEditMode ? "시황 관제 품목 정보 수정" : "신규 시황 관제 품목 등록"}
-                </h3>
-                <button onClick={() => setIsItemModalOpen(false)} className="p-1 hover:bg-slate-150 rounded-lg cursor-pointer">
-                  <X className="w-5 h-5 text-slate-500" />
-                </button>
-              </div>
+      
+      {/* MODAL 1: 신규/수정 품목 등록 모달 */}
+      <ItemRegisterModal
+        isOpen={isItemModalOpen}
+        onClose={() => setIsItemModalOpen(false)}
+        isEditMode={isEditMode}
+        itemForm={itemForm}
+        setItemForm={setItemForm}
+        handleSaveItem={handleSaveItem}
+      />
 
-              <form onSubmit={handleSaveItem} className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">품목 분류</label>
-                    <select
-                      value={itemForm.category}
-                      onChange={(e) => setItemForm(prev => ({ ...prev, category: e.target.value }))}
-                      className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700"
-                    >
-                      <option value="RAW_MATERIAL">원자재/부자재 (Raw Material)</option>
-                      <option value="COMPETITOR_PRODUCT">경쟁사 완제품 (Competitor Product)</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">수집 기준 통화</label>
-                    <select
-                      value={itemForm.currency_code}
-                      onChange={(e) => setItemForm(prev => ({ ...prev, currency_code: e.target.value }))}
-                      className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700 font-mono"
-                    >
-                      <option value="KRW">KRW (대한민국 원)</option>
-                      <option value="USD">USD (미국 달러)</option>
-                      <option value="EUR">EUR (유럽 유로)</option>
-                      <option value="JPY">JPY (일본 엔화)</option>
-                      <option value="CNY">CNY (중국 위안화)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">품목 고유 코드</label>
-                  <input
-                    type="text"
-                    placeholder="예: RAW-CU-01"
-                    value={itemForm.item_code}
-                    onChange={(e) => setItemForm(prev => ({ ...prev, item_code: e.target.value }))}
-                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">품목명 (명칭)</label>
-                  <input
-                    type="text"
-                    placeholder="예: LME 구리 전기동"
-                    value={itemForm.item_name}
-                    onChange={(e) => setItemForm(prev => ({ ...prev, item_name: e.target.value }))}
-                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase">상세 규격 (용량, 수량 등)</label>
-                  <input
-                    type="text"
-                    placeholder="예: 500ml, 40개입, 10kg 등"
-                    value={itemForm.spec || ""}
-                    onChange={(e) => setItemForm(prev => ({ ...prev, spec: e.target.value }))}
-                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">
-                      자사 기준 단가 ({itemForm.currency_code})
-                    </label>
-                    <input
-                      type="number"
-                      placeholder="8200"
-                      value={itemForm.base_price}
-                      onChange={(e) => setItemForm(prev => ({ ...prev, base_price: e.target.value }))}
-                      className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-bold focus:border-pink-500 outline-none text-slate-750 font-mono"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase">목표 보존 마진율 (%)</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      placeholder="12.5"
-                      value={itemForm.target_margin_rate}
-                      onChange={(e) => setItemForm(prev => ({ ...prev, target_margin_rate: e.target.value }))}
-                      className="w-full bg-slate-50 border border-slate-200 p-3 rounded-2xl text-xs font-bold focus:border-pink-500 outline-none text-slate-750 font-mono"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full py-4 bg-gradient-to-r from-pink-500 to-indigo-600 hover:from-pink-600 hover:to-indigo-700 text-white font-extrabold rounded-2xl text-xs shadow-lg shadow-pink-500/10 cursor-pointer transition-all active:scale-[0.99]"
-                >
-                  {isEditMode ? "💾 품목 시황 정보 수정 완료" : "➕ 품목 시황 감시 등록"}
-                </button>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* ============================================================ */}
       {/* MODAL 2: 수집 로봇 매핑 및 검수 모달 */}
-      {/* ============================================================ */}
-      <AnimatePresence>
-        {false && activeItem && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white border border-slate-200 w-full max-w-[800px] rounded-3xl p-6 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto"
-            >
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div className="space-y-0.5">
-                  <h3 className="text-base font-black text-slate-800 flex items-center gap-1.5">
-                    <Globe className="w-5 h-5 text-pink-600 animate-spin-slow" />
-                    [{activeItem.item_name}] 수집 로봇 매핑 센터
-                  </h3>
-                  <p className="text-[11px] text-slate-400 font-semibold">크롤링 주기 지정 및 HTML CSS 셀렉터 매핑</p>
-                </div>
-                <button onClick={() => setIsCollectorModalOpen(false)} className="p-1 hover:bg-slate-150 rounded-lg cursor-pointer">
-                  <X className="w-5 h-5 text-slate-500" />
-                </button>
-              </div>
+      <CollectorMappingModal
+        isOpen={isCollectorModalOpen}
+        onClose={() => setIsCollectorModalOpen(false)}
+        activeItem={activeItem}
+        urls={urls}
+        copiedUrlId={copiedUrlId}
+        miningLoading={miningLoading}
+        miningLoadStep={miningLoadStep}
+        searchChannels={searchChannels}
+        newChannelName={newChannelName}
+        urlForm={urlForm}
+        crawlerTesting={crawlerTesting}
+        selectorAnalyzing={selectorAnalyzing}
+        setSearchChannels={setSearchChannels}
+        setNewChannelName={setNewChannelName}
+        setUrlForm={setUrlForm}
+        setIsCronHelpOpen={setIsCronHelpOpen}
+        handleCopyUrl={handleCopyUrl}
+        handleDeleteUrl={handleDeleteUrl}
+        handleToggleChannel={handleToggleChannel}
+        handleRemoveChannel={handleRemoveChannel}
+        handleAddChannel={handleAddChannel}
+        handleAutoDeploy={handleAutoDeploy}
+        handleAnalyzeSelector={handleAnalyzeSelector}
+        handleAddUrl={handleAddUrl}
+        explainCron={explainCron}
+      />
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* 수집기 리스트 */}
-                <div className="space-y-4">
-                  <h4 className="text-xs font-bold text-slate-500">현재 연결된 감시 URL ({urls.length}개)</h4>
-                  <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-                    {urls.map(url => (
-                      <div 
-                        key={url.url_id} 
-                        onClick={() => window.open(url.target_url, '_blank')}
-                        className="bg-slate-50 border border-slate-200/80 p-3.5 rounded-2xl flex items-center justify-between gap-3 hover:border-pink-500 hover:bg-pink-50/5 hover:scale-[1.01] hover:shadow-md transition-all cursor-pointer group relative"
-                        title="클릭 시 새 창에서 이 수집 대상 웹페이지 열기"
-                      >
-                        <div className="space-y-1.5 truncate pr-1 flex-1">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-xs font-black text-slate-800 truncate group-hover:text-pink-600 transition-colors">{url.site_name}</span>
-                            <span className="text-[8px] font-mono font-black bg-white text-slate-505 border border-slate-200 px-1.5 py-0.2 rounded shrink-0">
-                              {url.cron_interval}
-                            </span>
-                            <ArrowUpRight className="w-3 h-3 text-slate-350 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
-                          </div>
+      {/* MODAL 2-B: 수집 주기 (Cron) 설정 안내 팝업 */}
+      <CollectorGuideModal
+        isOpen={isCronHelpOpen}
+        onClose={() => setIsCronHelpOpen(false)}
+        setUrlForm={setUrlForm}
+      />
 
-                          {/* 최근/최저 수집 가격 알약 배지 */}
-                          {url.latest_price !== null && url.latest_price !== undefined && (() => {
-                            const nodeCurrency = detectCurrency(url.site_name, url.target_url);
-                            const symbol = getCurrencySymbol(nodeCurrency);
-                            const isForeignNode = nodeCurrency !== 'KRW';
-                            
-                            // 외화 노드인 경우 실시간 원화 환산 텍스트 병기
-                            const latestKrwText = isForeignNode && url.latest_krw_price 
-                              ? ` (₩ ${Math.floor(url.latest_krw_price).toLocaleString()})`
-                              : '';
-                            const minKrwText = isForeignNode && url.min_krw_price
-                              ? ` (₩ ${Math.floor(url.min_krw_price).toLocaleString()})`
-                              : '';
+      {/* MODAL 3: FreeSMS 경보 조건 설정 모달 */}
+      <SmsAlertSettingModal
+        isOpen={isAlertModalOpen}
+        onClose={() => setIsAlertModalOpen(false)}
+        activeItem={activeItem}
+        alertForm={alertForm}
+        setAlertForm={setAlertForm}
+        handleAddAlertRule={handleAddAlertRule}
+      />
 
-                            return (
-                              <div className="flex items-center gap-1.5 flex-wrap text-[9px] my-0.5">
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-650 border border-slate-200 shadow-sm">
-                                  <span className="w-1 h-1 rounded-full bg-slate-400 mr-1"></span>
-                                  최근: {symbol} {Number(url.latest_price).toLocaleString()}{latestKrwText}
-                                </span>
-                                {url.min_price !== null && url.min_price !== undefined && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full font-bold bg-rose-50 text-rose-600 border border-rose-100 shadow-sm animate-fade-in">
-                                    <span className="w-1 h-1 rounded-full bg-rose-500 mr-1 animate-pulse"></span>
-                                    최저: {symbol} {Number(url.min_price).toLocaleString()}{minKrwText}
-                                  </span>
-                                )}
-                              </div>
-                            );
-                          })()}
-                          
-                          {/* URL 표시와 원클릭 복사 배너 */}
-                          <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-xl border border-slate-150/60 max-w-[280px]">
-                            <p className="text-[8.5px] text-slate-450 truncate font-mono flex-1">{url.target_url}</p>
-                            <button
-                              type="button"
-                              onClick={(e) => handleCopyUrl(e, url.url_id, url.target_url)}
-                              className="p-1 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded transition-colors cursor-pointer shrink-0"
-                              title="웹주소 복사"
-                            >
-                              {copiedUrlId === url.url_id ? (
-                                <span className="flex items-center gap-0.5 text-[7.5px] font-bold text-emerald-600 animate-bounce">
-                                  <Check className="w-2.5 h-2.5" />
-                                  복사됨
-                                </span>
-                              ) : (
-                                <Copy className="w-2.5 h-2.5" />
-                              )}
-                            </button>
-                          </div>
-                          
-                          <span className="text-[8px] text-pink-650 font-black block truncate">Selector: {url.css_selector}</span>
-                        </div>
-                        
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteUrl(url.url_id);
-                          }}
-                          className="p-2 hover:bg-rose-50 text-slate-400 hover:text-rose-500 border border-slate-200 hover:border-rose-100 rounded-xl bg-white cursor-pointer transition-all shrink-0 z-10"
-                          title="수집망 주소 삭제"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                    {urls.length === 0 && (
-                      <p className="text-xs text-slate-455 text-center py-12 font-bold font-sans">감시 사이트가 존재하지 않습니다.</p>
-                    )}
-                  </div>
-                </div>
-
-                {/* 우측 설정 및 바인딩 영역 */}
-                <div className="space-y-4">
-                  {miningLoading ? (
-                    <div className="py-24 text-center flex flex-col items-center justify-center gap-4 bg-slate-50 border border-slate-200 p-6 rounded-2xl shadow-inner animate-pulse">
-                      <div className="relative flex items-center justify-center">
-                        <Cpu className="w-10 h-10 text-pink-600 animate-spin absolute" />
-                        <Sparkles className="w-6 h-6 text-indigo-500 animate-ping absolute" />
-                        <div className="w-14 h-14 rounded-full border-2 border-pink-100 border-t-pink-600 animate-spin"></div>
-                      </div>
-                      <div className="space-y-1.5 px-6">
-                        <span className="text-xs font-black text-slate-700 block font-sans">
-                          {miningLoadStep === 1 && "1단계: 전세계 웹 쇼핑망 자율 검색 및 가격 링크 추출 중..."}
-                          {miningLoadStep === 2 && "2단계: Playwright Stealth 기동 및 실시간 보안망 우회 접속 중..."}
-                          {miningLoadStep === 3 && "3단계: Gemini AI 기반 시세 데이터 및 가격 Selector 분석 중..."}
-                        </span>
-                        <span className="text-[10px] font-bold text-slate-400 block leading-normal">
-                          활성화하신 채널 및 추가된 커스텀 채널을 대상으로 세부 규격 일치율을 엄격하게 교차 검증하고 있습니다.
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {/* 1. 자율 스캔 채널 제어 섹션 */}
-                      <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl space-y-3 shadow-inner">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-black text-slate-800 flex items-center gap-1">
-                            <Globe className="w-4 h-4 text-pink-600" />
-                            ⚙️ 실시간 자율 스캔 채널 제어 ({searchChannels.filter(c => c.active).length}개 활성)
-                          </span>
-                          <span className="text-[9px] text-slate-400 font-bold">칩을 눌러 On/Off 토글</span>
-                        </div>
-
-                        {/* 채널 칩 나열 */}
-                        <div className="flex flex-wrap gap-2">
-                          {searchChannels.map(chan => (
-                            <div 
-                              key={chan.id} 
-                              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-[10px] font-bold transition-all shadow-sm ${
-                                chan.active 
-                                  ? "bg-gradient-to-r from-pink-50 to-indigo-50 border-pink-200 text-pink-700 font-black" 
-                                  : "bg-slate-100 border-slate-200 text-slate-400"
-                              }`}
-                            >
-                              <span 
-                                onClick={() => handleToggleChannel(chan.id)}
-                                className="cursor-pointer select-none"
-                              >
-                                {chan.active ? "✅" : "❌"} {chan.name}
-                              </span>
-                              {chan.isCustom && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveChannel(chan.id)}
-                                  className="text-[9px] hover:text-rose-600 text-slate-400 bg-white hover:bg-rose-50 w-4 h-4 rounded-full flex items-center justify-center border border-slate-200 transition-colors cursor-pointer"
-                                  title="채널 삭제"
-                                >
-                                  ✕
-                                </button>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* 커스텀 채널 즉석 추가 폼 */}
-                        <div className="flex gap-2 pt-1 border-t border-slate-200/60 mt-1">
-                          <input
-                            type="text"
-                            placeholder="추가할 감시 쇼핑몰/도메인명 (예: 11번가, 지마켓, 다나와)"
-                            value={newChannelName}
-                            onChange={(e) => setNewChannelName(e.target.value)}
-                            className="flex-1 bg-white border border-slate-200 px-3 py-2 rounded-xl text-[10.5px] font-bold focus:border-pink-500 outline-none text-slate-700"
-                          />
-                          <button
-                            type="button"
-                            onClick={handleAddChannel}
-                            className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-[10px] rounded-xl cursor-pointer shadow-sm transition-colors border-none"
-                          >
-                            ➕ 채널 추가
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* 2. 새로운 크롤링 로봇 바인딩 수동 폼 */}
-                      <form onSubmit={handleAddUrl} className="space-y-3 bg-slate-50/50 border border-slate-150 p-4 rounded-2xl">
-                        <div className="flex items-center justify-between border-b border-slate-100 pb-2 gap-2">
-                          <h4 className="text-xs font-black text-pink-600">수동 크롤링 로봇 바인딩</h4>
-                          <button
-                            type="button"
-                            onClick={handleAutoDeploy}
-                            className="flex items-center gap-1 px-3 py-1.5 text-[9px] font-black text-indigo-650 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl transition-all cursor-pointer shadow-sm hover:scale-[1.02] active:scale-[0.98] animate-pulse shrink-0"
-                            title="AI가 활성 쇼핑 채널을 자율 검색하여 최저가 수집 노드를 한방에 자동 장착해 줍니다."
-                          >
-                            <Sparkles className="w-2.5 h-2.5 text-indigo-650 animate-spin-slow" />
-                            🪄 AI 최저가 즉시 포착 및 자동 장착
-                          </button>
-                        </div>
-                        
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-bold text-slate-400 uppercase">출처 포털명 (사이트명)</label>
-                          <input
-                            type="text"
-                            placeholder="예: LME 동가 시황"
-                            value={urlForm.site_name}
-                            onChange={(e) => setUrlForm(prev => ({ ...prev, site_name: e.target.value }))}
-                            className="w-full bg-white border border-slate-200 p-2.5 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700"
-                          />
-                        </div>
-
-                        <div className="space-y-1">
-                          <div className="flex items-center justify-between">
-                            <label className="text-[9px] font-bold text-slate-400 uppercase">수집 대상 웹주소 (Target URL)</label>
-                            <button
-                              type="button"
-                              onClick={handleAnalyzeSelector}
-                              disabled={selectorAnalyzing}
-                              className="text-[9px] font-black text-pink-600 hover:text-pink-700 flex items-center gap-1 cursor-pointer transition-colors disabled:opacity-50 border-none bg-transparent"
-                              title="AI가 웹주소 분석을 통해 최적의 가격 셀렉터를 찾아 입력창에 채워줍니다."
-                            >
-                              <Sparkles className="w-3 h-3 animate-pulse" />
-                              {selectorAnalyzing ? "AI 분석 중..." : "🪄 AI 자동 분석"}
-                            </button>
-                          </div>
-                          <input
-                            type="url"
-                            placeholder="https://..."
-                            value={urlForm.target_url}
-                            onChange={(e) => setUrlForm(prev => ({ ...prev, target_url: e.target.value }))}
-                            className="w-full bg-white border border-slate-200 p-2.5 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700 font-mono"
-                          />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <label className="text-[9px] font-bold text-slate-400 uppercase">CSS Selector</label>
-                            <input
-                              type="text"
-                              placeholder="span.price_val"
-                              value={urlForm.css_selector}
-                              onChange={(e) => setUrlForm(prev => ({ ...prev, css_selector: e.target.value }))}
-                              className="w-full bg-white border border-slate-200 p-2.5 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700 font-mono"
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-1.5">
-                              <label className="text-[9px] font-bold text-slate-400 uppercase">수집 주기 (Cron)</label>
-                              <button
-                                type="button"
-                                onClick={() => setIsCronHelpOpen(true)}
-                                className="text-slate-400 hover:text-pink-500 transition-colors cursor-pointer flex items-center justify-center p-0.5 rounded-full hover:bg-slate-100 border-none bg-transparent"
-                                title="크론 주기 설정 방법 보기"
-                              >
-                                <HelpCircle className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                            <input
-                              type="text"
-                              value={urlForm.cron_interval}
-                              onChange={(e) => setUrlForm(prev => ({ ...prev, cron_interval: e.target.value }))}
-                              className="w-full bg-white border border-slate-200 p-2.5 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700 font-mono"
-                              placeholder="예: 0 9 * * *"
-                            />
-                            {urlForm.cron_interval && (
-                              <p className="text-[10px] text-pink-500 font-medium px-1 flex items-center gap-1 mt-1 bg-pink-50/50 p-1.5 rounded-lg border border-pink-100/50 leading-relaxed">
-                                <Info className="w-3.5 h-3.5 flex-shrink-0" />
-                                <span>{explainCron(urlForm.cron_interval)}</span>
-                              </p>
-                            )}
-                          </div>
-                        </div>
-
-                        <button
-                          type="submit"
-                          disabled={crawlerTesting}
-                          className="w-full mt-2 py-3 bg-gradient-to-r from-pink-500 to-indigo-650 hover:from-pink-600 hover:to-indigo-750 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-sm disabled:opacity-55 border-none"
-                        >
-                          <Play className="w-3.5 h-3.5" />
-                          {crawlerTesting ? "크롤러 실시간 검수 모의 구동 중..." : "로봇 매핑 및 검수 가동 (Test Run)"}
-                        </button>
-                      </form>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* ============================================================ */}
-      {/* MODAL 2-B: 수집 주기 (Cron) 설정 방법 안내 팝업 */}
-      {/* ============================================================ */}
-      <AnimatePresence>
-        {false && (
-          <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-[60] flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white border border-slate-200 w-full max-w-[500px] rounded-3xl p-6 shadow-2xl space-y-6 overflow-hidden"
-            >
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div className="space-y-0.5">
-                  <h3 className="text-sm font-black text-slate-800 flex items-center gap-1.5">
-                    <Info className="w-4 h-4 text-pink-600" />
-                    수집 주기 (Cron) 설정 가이드
-                  </h3>
-                  <p className="text-[10px] text-slate-400 font-semibold">자동 수집 주기를 지정하는 5필드 크론식 사용법</p>
-                </div>
-                <button onClick={() => setIsCronHelpOpen(false)} className="p-1 hover:bg-slate-100 rounded-lg cursor-pointer">
-                  <X className="w-4 h-4 text-slate-500" />
-                </button>
-              </div>
-
-              {/* 크론식 구조 시각화 */}
-              <div className="space-y-2">
-                <h4 className="text-[11px] font-bold text-slate-500">크론식 포맷 구조</h4>
-                <div className="grid grid-cols-5 gap-1.5 text-center">
-                  {[
-                    { label: "분", desc: "0-59", value: "*" },
-                    { label: "시", desc: "0-23", value: "*" },
-                    { label: "일", desc: "1-31", value: "*" },
-                    { label: "월", desc: "1-12", value: "*" },
-                    { label: "요일", desc: "0-6", value: "*" },
-                  ].map((field, idx) => (
-                    <div key={idx} className="bg-slate-50 border border-slate-150 p-2 rounded-xl">
-                      <div className="text-[10px] font-black text-slate-700">{field.label}</div>
-                      <div className="text-[8px] text-slate-400 font-semibold mb-1">{field.desc}</div>
-                      <div className="text-xs font-mono font-extrabold text-pink-600 bg-white border border-pink-100 rounded py-0.5">{field.value}</div>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-[9px] text-slate-450 leading-relaxed font-medium">
-                  각 자리는 공백으로 구분하며, <code className="bg-slate-100 px-1 py-0.2 rounded font-mono font-bold text-pink-600 text-[8px]">*</code>은 "모든 값(매 주기)"을 의미합니다. 요일은 0이 일요일, 1이 월요일이며 6이 토요일입니다.
-                </p>
-              </div>
-
-              {/* 빠른 템플릿 선택 */}
-              <div className="space-y-2">
-                <h4 className="text-[11px] font-bold text-slate-500">클릭 시 자동 완성 템플릿</h4>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { title: "매시간 정각", cron: "0 * * * *", desc: "1시간 간격 수집" },
-                    { title: "매일 오전 9시", cron: "0 9 * * *", desc: "업무 시작 시간 수집" },
-                    { title: "매일 밤 12시", cron: "0 0 * * *", desc: "하루 마무리 시각" },
-                    { title: "매주 월요일 9시", cron: "0 9 * * 1", desc: "주간 업무 시작 수집" },
-                  ].map((temp, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => {
-                        setUrlForm(prev => ({ ...prev, cron_interval: temp.cron }));
-                        setIsCronHelpOpen(false);
-                      }}
-                      className="bg-slate-50 hover:bg-pink-50/50 hover:border-pink-200 border border-slate-150 p-3 rounded-2xl text-left cursor-pointer transition-all duration-200 group"
-                    >
-                      <div className="text-[11px] font-extrabold text-slate-800 group-hover:text-pink-600 transition-colors flex items-center justify-between">
-                        <span>{temp.title}</span>
-                        <ArrowUpRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-pink-500 shrink-0" />
-                      </div>
-                      <div className="text-[8px] text-slate-400 font-semibold mb-1">{temp.desc}</div>
-                      <div className="text-[10px] font-mono font-black text-indigo-650 bg-white border border-slate-200 px-1.5 py-0.5 rounded-lg w-max shrink-0 group-hover:border-pink-100">
-                        {temp.cron}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="bg-slate-50 border border-slate-150 p-3.5 rounded-2xl flex items-start gap-2">
-                <Info className="w-4 h-4 text-pink-600 shrink-0 mt-0.5" />
-                <div className="space-y-0.5">
-                  <h5 className="text-[10px] font-bold text-slate-700">고급 팁 (주기 범위)</h5>
-                  <p className="text-[9px] text-slate-450 leading-relaxed font-semibold">
-                    콤마(<code className="font-mono text-pink-600 font-bold">,</code>)를 사용하여 여러 시각을 지정하거나(예: <code className="font-mono text-pink-600 font-bold">0 9,18 * * *</code> = 오전 9시 & 오후 6시), 슬래시(<code className="font-mono text-pink-600 font-bold">/</code>)를 활용해 주기 간격을 지정할 수 있습니다.
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setIsCronHelpOpen(false)}
-                className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs flex items-center justify-center cursor-pointer transition-all duration-200"
-              >
-                닫기
-              </button>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* ============================================================ */}
       {/* MODAL 2-C: 터미널 수동 기동 가이드 팝업 */}
-      {/* ============================================================ */}
       <AnimatePresence>
         {isDaemonHelpOpen && (
           <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-md z-[60] flex items-center justify-center p-4">
@@ -2779,17 +1437,16 @@ export default function PriceTrackerAIPage() {
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="space-y-0.5">
                   <h3 className="text-sm font-black text-slate-800 flex items-center gap-1.5">
-                    <Terminal className="w-4 h-4 text-pink-600" />
+                    <X className="w-4 h-4 text-pink-650" />
                     터미널 수동 기동 명령어 안내
                   </h3>
                   <p className="text-[10px] text-slate-400 font-semibold">서버 콘솔(CLI) 독립 구동 명령어 사용법</p>
                 </div>
                 <button onClick={() => setIsDaemonHelpOpen(false)} className="p-1 hover:bg-slate-100 rounded-lg cursor-pointer">
-                  <X className="w-4 h-4 text-slate-500" />
+                  <X className="w-4 h-4 text-slate-505" />
                 </button>
               </div>
 
-              {/* 명령어 박스 */}
               <div className="space-y-2">
                 <h4 className="text-[11px] font-bold text-slate-500">기동 명령어</h4>
                 <div className="flex items-center justify-between bg-slate-900 text-slate-100 p-3.5 rounded-2xl font-mono text-xs border border-slate-850 select-all relative group">
@@ -2810,7 +1467,6 @@ export default function PriceTrackerAIPage() {
                 </div>
               </div>
 
-              {/* 주요 용도 설명 */}
               <div className="space-y-3">
                 <div className="flex gap-2">
                   <div className="p-1.5 bg-pink-50 text-pink-600 rounded-lg h-max shrink-0 mt-0.5">
@@ -2826,7 +1482,7 @@ export default function PriceTrackerAIPage() {
 
                 <div className="flex gap-2">
                   <div className="p-1.5 bg-pink-50 text-pink-600 rounded-lg h-max shrink-0 mt-0.5">
-                    <Settings className="w-3.5 h-3.5" />
+                    <Activity className="w-3.5 h-3.5" />
                   </div>
                   <div className="space-y-0.5">
                     <h5 className="text-[11px] font-black text-slate-700">2. 장애 시 강제 재시동 및 디버깅</h5>
@@ -2838,11 +1494,11 @@ export default function PriceTrackerAIPage() {
               </div>
 
               <div className="bg-slate-50 border border-slate-150 p-3.5 rounded-2xl flex items-start gap-2">
-                <Info className="w-4 h-4 text-pink-600 shrink-0 mt-0.5" />
+                <Info className="w-4 h-4 text-pink-650 shrink-0 mt-0.5" />
                 <div className="space-y-0.5">
                   <h5 className="text-[10px] font-bold text-slate-700">작동 방식 참고</h5>
                   <p className="text-[9px] text-slate-450 leading-relaxed font-semibold">
-                    이 명령어를 실행하면 <code className="font-mono text-pink-600 font-bold">scripts/price_tracker_daemon.js</code> 스크립트가 로컬 SQLite 데이터베이스와 연동되어 직접 크롤러 및 실시간 환율 수집 프로세스를 기동시킵니다.
+                    이 명령어를 실행하면 <code className="font-mono text-pink-650 font-bold">scripts/price_tracker_daemon.js</code> 스크립트가 로컬 SQLite 데이터베이스와 연동되어 직접 크롤러 및 실시간 환율 수집 프로세스를 기동시킵니다.
                   </p>
                 </div>
               </div>
@@ -2854,194 +1510,6 @@ export default function PriceTrackerAIPage() {
               >
                 닫기
               </button>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-
-
-      {/* ============================================================ */}
-      {/* MODAL 3: FreeSMS 경보 조건 설정 모달 */}
-      {/* ============================================================ */}
-      <AnimatePresence>
-        {isAlertModalOpen && activeItem && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white border border-slate-200 w-full max-w-[600px] rounded-3xl p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto"
-            >
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div className="space-y-0.5">
-                  <h3 className="text-base font-black text-slate-800 flex items-center gap-1.5">
-                    <Bell className="w-5 h-5 text-pink-600 animate-pulse" />
-                    [{activeItem.item_name}] FreeSMS 가격선 경보 제어
-                  </h3>
-                  <p className="text-[11px] text-slate-400 font-semibold">비율(%) 또는 다국어 통화별 금액 기준의 하이브리드 가격선 감지</p>
-                </div>
-                <button onClick={() => setIsAlertModalOpen(false)} className="p-1 hover:bg-slate-150 rounded-lg cursor-pointer">
-                  <X className="w-5 h-5 text-slate-500" />
-                </button>
-              </div>
-
-              <form onSubmit={handleAddAlertRule} className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-slate-400 uppercase">알림 시나리오명</label>
-                    <input
-                      type="text"
-                      value={alertForm.rule_name}
-                      onChange={(e) => setAlertForm(prev => ({ ...prev, rule_name: e.target.value }))}
-                      className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-bold text-slate-400 uppercase">긴급 문자 수신 연락처</label>
-                    <input
-                      type="text"
-                      placeholder="010-1234-5678"
-                      value={alertForm.phone_number}
-                      onChange={(e) => setAlertForm(prev => ({ ...prev, phone_number: e.target.value }))}
-                      className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700 font-mono"
-                    />
-                  </div>
-                </div>
-
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3.5">
-                  <div className="flex items-center justify-between border-b border-slate-150 pb-2">
-                    <span className="text-[10px] font-extrabold text-slate-650">경보 가격선 형식 설정</span>
-                    
-                    <div className="flex bg-slate-200/60 p-0.5 rounded-lg border border-slate-300">
-                      <button
-                        type="button"
-                        onClick={() => setAlertForm(prev => ({ ...prev, threshold_unit: "PERCENT", condition_operator: "MARGIN_BREAKDOWN" }))}
-                        className={`px-3 py-1 rounded-md text-[9px] font-black uppercase transition-all cursor-pointer ${
-                          alertForm.threshold_unit === "PERCENT"
-                            ? "bg-white text-pink-600 shadow-sm"
-                            : "text-slate-450 hover:text-slate-750"
-                        }`}
-                      >
-                        비율 (%)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setAlertForm(prev => ({ ...prev, threshold_unit: "PRICE", condition_operator: "ABOVE" }))}
-                        className={`px-3 py-1 rounded-md text-[9px] font-black uppercase transition-all cursor-pointer ${
-                          alertForm.threshold_unit === "PRICE"
-                            ? "bg-white text-pink-600 shadow-sm"
-                            : "text-slate-450 hover:text-slate-750"
-                        }`}
-                      >
-                        금액 ($ / ₩)
-                      </button>
-                    </div>
-                  </div>
-
-                  {alertForm.threshold_unit === "PERCENT" ? (
-                    <div className="grid grid-cols-2 gap-3 items-center">
-                      <div className="space-y-1">
-                        <span className="text-[9px] font-bold text-slate-400 uppercase block">경보 발생 조건</span>
-                        <div className="p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700">
-                          🛡️ 마진 스프레드 붕괴 시
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-1">
-                        <label className="text-[9px] font-bold text-slate-400 uppercase">허용 최저 마진 보존선 (%)</label>
-                        <div className="relative">
-                          <input
-                            type="number"
-                            step="0.1"
-                            value={alertForm.threshold_value}
-                            onChange={(e) => setAlertForm(prev => ({ ...prev, threshold_value: e.target.value }))}
-                            className="w-full bg-white border border-slate-200 p-2.5 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700 font-mono pr-8"
-                          />
-                          <span className="text-slate-400 text-xs font-bold absolute right-3 top-1/2 -translate-y-1/2">% 미만</span>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="space-y-1 col-span-1">
-                          <label className="text-[9px] font-bold text-slate-400 uppercase">금액 기준 통화</label>
-                          <select
-                            value={alertForm.threshold_currency}
-                            onChange={(e) => setAlertForm(prev => ({ ...prev, threshold_currency: e.target.value }))}
-                            className="w-full bg-white border border-slate-200 p-2.5 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700 font-mono"
-                          >
-                            <option value="KRW">₩ 국내 (KRW)</option>
-                            <option value="USD">$ 미국 (USD)</option>
-                            <option value="EUR">€ 유럽 (EUR)</option>
-                            <option value="JPY">¥ 일본 (JPY)</option>
-                            <option value="CNY">¥ 중국 (CNY)</option>
-                          </select>
-                        </div>
-                        
-                        <div className="space-y-1 col-span-1">
-                          <label className="text-[9px] font-bold text-slate-400 uppercase">동작 연산자</label>
-                          <select
-                            value={alertForm.condition_operator}
-                            onChange={(e) => setAlertForm(prev => ({ ...prev, condition_operator: e.target.value }))}
-                            className="w-full bg-white border border-slate-200 p-2.5 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700"
-                          >
-                            <option value="ABOVE">▲ 초과 돌파 시</option>
-                            <option value="BELOW">▼ 미만 붕괴 시</option>
-                          </select>
-                        </div>
-
-                        <div className="space-y-1 col-span-1">
-                          <label className="text-[9px] font-bold text-slate-400 uppercase">금액 임계값 설정</label>
-                          <input
-                            type="number"
-                            value={alertForm.threshold_value}
-                            onChange={(e) => setAlertForm(prev => ({ ...prev, threshold_value: e.target.value }))}
-                            className="w-full bg-white border border-slate-200 p-2.5 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700 font-mono"
-                          />
-                        </div>
-                      </div>
-
-                      {alertForm.threshold_currency !== "KRW" && Number(alertForm.threshold_value) > 0 && (
-                        <div className="text-[9.5px] text-pink-650 bg-pink-50 px-3.5 py-2.5 rounded-xl border border-pink-100 font-semibold leading-relaxed flex items-center gap-1.5">
-                          <Info className="w-4 h-4 shrink-0" />
-                          <span>
-                            금융 관제 연동: <strong>{Number(alertForm.threshold_value).toLocaleString()} {alertForm.threshold_currency}</strong>는 
-                            실시간 고시 환율 적용 시 원화 <strong>약 ₩ {(
-                              Number(alertForm.threshold_value) * 
-                              (alertForm.threshold_currency === 'USD' ? 1380 : alertForm.threshold_currency === 'EUR' ? 1495 : alertForm.threshold_currency === 'JPY' ? 8.8 : 1.0)
-                            ).toLocaleString()}원</strong>에 해당합니다.
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[9.5px] font-bold text-slate-400 uppercase flex items-center justify-between">
-                    <span>FreeSMS 긴급 경보 통보 SMS LMS 문자 템플릿</span>
-                    <span className="text-[8.5px] text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">변수 치환 가능</span>
-                  </label>
-                  <textarea
-                    rows={4}
-                    value={alertForm.sms_template}
-                    onChange={(e) => setAlertForm(prev => ({ ...prev, sms_template: e.target.value }))}
-                    className="w-full bg-slate-50 border border-slate-200 p-3 rounded-xl text-xs font-bold focus:border-pink-500 outline-none text-slate-700 font-mono placeholder-slate-450 leading-relaxed"
-                  />
-                  <p className="text-[8.5px] text-slate-400 leading-normal font-semibold">
-                    * 치환 매핑 가능한 중소제조 SCM 전용 단가 변수: <strong>{"{item_name}, {item_code}, {captured_price}, {converted_krw_price}, {threshold_value}, {threshold_unit}"}</strong>
-                  </p>
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full py-3.5 bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-650 text-white font-extrabold rounded-xl text-xs shadow-md transition-all active:scale-[0.99] cursor-pointer"
-                >
-                  💾 FreeSMS 긴급 경보 자동화 규칙 가동 저장
-                </button>
-              </form>
             </motion.div>
           </div>
         )}
