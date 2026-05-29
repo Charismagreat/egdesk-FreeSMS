@@ -15,6 +15,7 @@ export async function GET() {
       const urls = urlsRes.rows || [];
       
       let latestPrice = 0;
+      let latestKrwPrice = 0;
       let latestTime = '-';
       let latestSiteName = '수집기 매핑 없음';
 
@@ -83,6 +84,7 @@ export async function GET() {
         if (activePrices.length > 0) {
           // 원화 환산가 기준 최저가(Min) 노드 색출!
           const minPriceObj = activePrices.reduce((prev, curr) => prev.krwPrice < curr.krwPrice ? prev : curr);
+          latestKrwPrice = minPriceObj.krwPrice;
           
           const itemCurrency = item.currency_code || 'KRW';
           if (itemCurrency === 'KRW') {
@@ -100,6 +102,9 @@ export async function GET() {
         }
       }
 
+      // 원화(KRW) 기준 기준가격 계산
+      const basePriceKrw = getKrwPrice(item.base_price, item.currency_code || 'KRW');
+
       // 실시간 마진 계산: (기준가 - 수집된가격) / 기준가 * 100
       let currentMarginRate = 0;
       if (item.base_price > 0 && latestPrice > 0) {
@@ -115,6 +120,8 @@ export async function GET() {
       return {
         ...item,
         latest_price: latestPrice,
+        latest_krw_price: latestKrwPrice,
+        base_price_krw: basePriceKrw,
         latest_captured_at: latestTime,
         latest_site_name: latestSiteName,
         current_margin_rate: Number(currentMarginRate.toFixed(2)),

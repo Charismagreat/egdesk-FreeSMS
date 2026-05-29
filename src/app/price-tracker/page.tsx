@@ -1569,7 +1569,7 @@ export default function PriceTrackerAIPage() {
                           </span>
                           {itemCurrency !== 'KRW' && (
                             <span className="text-[9px] text-slate-400 font-bold block">
-                              (₩ {item.base_price_krw.toLocaleString()})
+                              (₩ {(item.base_price_krw ?? 0).toLocaleString()})
                             </span>
                           )}
                         </div>
@@ -1584,7 +1584,7 @@ export default function PriceTrackerAIPage() {
                             </span>
                             {itemCurrency !== 'KRW' && (
                               <span className="text-[9px] text-slate-500 font-extrabold block">
-                                (₩ {item.latest_krw_price.toLocaleString()})
+                                (₩ {(item.latest_krw_price ?? 0).toLocaleString()})
                               </span>
                             )}
                           </div>
