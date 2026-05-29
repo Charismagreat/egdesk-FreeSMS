@@ -50,22 +50,23 @@ export async function GET(request: Request) {
       alert_phone: '010-1234-5678'
     };
 
-    // 3. 통계 집계 연산 (현재 월 기준)
+    // 3. 통계 집계 연산 (현재 월 기준 - 최종 실지출액 기준 합산)
     const currentMonthStr = getKstDateStr().slice(0, 7); // 예: '2026-05'
     let currentMonthTotal = 0;
     const categoryTotals: Record<string, number> = {};
 
     expenses.forEach((exp: any) => {
       const expMonth = getYearMonth(exp.expense_date);
-      const amount = Number(exp.amount) || 0;
+      // 최종 실지출액 = 승인 금액 - 공제액 + 송금수수료
+      const actualAmount = (Number(exp.amount) || 0) - (Number(exp.deduction_amount) || 0) + (Number(exp.transfer_fee) || 0);
       
       // 이번 달 누적 합산
       if (expMonth === currentMonthStr) {
-        currentMonthTotal += amount;
+        currentMonthTotal += actualAmount;
       }
 
       // 비목별 누적 합산
-      categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + amount;
+      categoryTotals[exp.category] = (categoryTotals[exp.category] || 0) + actualAmount;
     });
 
     // 비목별 데이터 리스트 정렬 가공
@@ -73,7 +74,7 @@ export async function GET(request: Request) {
       category: cat,
       amount: categoryTotals[cat],
       percentage: expenses.length > 0 
-        ? Math.round((categoryTotals[cat] / expenses.reduce((a, b) => a + (Number(b.amount) || 0), 0)) * 100) 
+        ? Math.round((categoryTotals[cat] / expenses.reduce((a, b) => a + ((Number(b.amount) || 0) - (Number(b.deduction_amount) || 0) + (Number(b.transfer_fee) || 0)), 0)) * 100) 
         : 0
     })).sort((a, b) => b.amount - a.amount);
 
@@ -101,7 +102,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { title, category, amount, expense_date, payment_method, attachment_url, ai_analysis, memo } = body;
+    const { 
+      title, category, amount, expense_date, payment_method, attachment_url, ai_analysis, memo,
+      actual_expense_date, deduction_amount, transfer_fee
+    } = body;
 
     if (!title || !category || !amount || !expense_date || !payment_method) {
       return NextResponse.json({ success: false, error: '필수 항목이 누락되었습니다.' }, { status: 400 });
@@ -120,6 +124,9 @@ export async function POST(request: Request) {
       attachment_url: attachment_url || '',
       ai_analysis: ai_analysis ? (typeof ai_analysis === 'string' ? ai_analysis : JSON.stringify(ai_analysis)) : '',
       memo: memo || '',
+      actual_expense_date: actual_expense_date || null,
+      deduction_amount: deduction_amount ? Number(deduction_amount) : 0,
+      transfer_fee: transfer_fee ? Number(transfer_fee) : 0,
       created_at: nowStr
     }]);
 
@@ -136,7 +143,9 @@ export async function POST(request: Request) {
         const currentMonthExpenses = (expensesRes.rows || []).filter((exp: any) => 
           getYearMonth(exp.expense_date) === currentMonthStr
         );
-        const totalMonthAmount = currentMonthExpenses.reduce((sum: number, exp: any) => sum + (Number(exp.amount) || 0), 0);
+        const totalMonthAmount = currentMonthExpenses.reduce((sum: number, exp: any) => 
+          sum + ((Number(exp.amount) || 0) - (Number(exp.deduction_amount) || 0) + (Number(exp.transfer_fee) || 0)), 0
+        );
 
         const thresholdAmount = setting.monthly_budget * (setting.alert_threshold_percent / 100);
 
@@ -227,7 +236,10 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { id, title, category, amount, expense_date, payment_method, attachment_url, ai_analysis, memo } = body;
+    const { 
+      id, title, category, amount, expense_date, payment_method, attachment_url, ai_analysis, memo,
+      actual_expense_date, deduction_amount, transfer_fee
+    } = body;
 
     if (!id || !title || !category || !amount || !expense_date || !payment_method) {
       return NextResponse.json({ success: false, error: '필수 항목이 누락되었습니다.' }, { status: 400 });
@@ -244,6 +256,9 @@ export async function PUT(request: Request) {
       attachment_url: attachment_url || '',
       ai_analysis: ai_analysis ? (typeof ai_analysis === 'string' ? ai_analysis : JSON.stringify(ai_analysis)) : '',
       memo: memo || '',
+      actual_expense_date: actual_expense_date || null,
+      deduction_amount: deduction_amount ? Number(deduction_amount) : 0,
+      transfer_fee: transfer_fee ? Number(transfer_fee) : 0,
       created_at: nowStr // 수정일자 업데이트
     }, { filters: { id } });
 

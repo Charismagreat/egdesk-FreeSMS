@@ -474,6 +474,9 @@ export async function setupDatabase() {
     { name: 'approval_status', type: 'TEXT', defaultValue: 'PENDING' },
     { name: 'approval_memo', type: 'TEXT' },
     { name: 'approved_at', type: 'TEXT' },
+    { name: 'actual_expense_date', type: 'TEXT' },
+    { name: 'deduction_amount', type: 'INTEGER', defaultValue: 0 },
+    { name: 'transfer_fee', type: 'INTEGER', defaultValue: 0 },
     { name: 'created_at', type: 'TEXT', notNull: true }
   ], { tableName: 'crm_expenses', uniqueKeyColumns: ['id'] });
 
@@ -670,6 +673,9 @@ export async function setupDatabase() {
           memo: '복지지원, 소액결제',
           approval_status: 'PENDING',
           approved_at: null,
+          actual_expense_date: null,
+          deduction_amount: 0,
+          transfer_fee: 0,
           created_at: nowStr
         },
         {
@@ -684,6 +690,9 @@ export async function setupDatabase() {
           memo: '인프라유지, 정기지출',
           approval_status: 'PENDING',
           approved_at: null,
+          actual_expense_date: null,
+          deduction_amount: 0,
+          transfer_fee: 0,
           created_at: nowStr
         },
         {
@@ -698,6 +707,9 @@ export async function setupDatabase() {
           memo: '거래처접대, 소액결제',
           approval_status: 'PENDING',
           approved_at: null,
+          actual_expense_date: null,
+          deduction_amount: 0,
+          transfer_fee: 0,
           created_at: nowStr
         },
         {
@@ -712,6 +724,9 @@ export async function setupDatabase() {
           memo: '정기지출, 긴급비용',
           approval_status: 'PENDING',
           approved_at: null,
+          actual_expense_date: null,
+          deduction_amount: 0,
+          transfer_fee: 0,
           created_at: nowStr
         },
         {
@@ -726,6 +741,9 @@ export async function setupDatabase() {
           memo: '비품구매, 소액결제',
           approval_status: 'PENDING',
           approved_at: null,
+          actual_expense_date: null,
+          deduction_amount: 0,
+          transfer_fee: 0,
           created_at: nowStr
         }
       ];

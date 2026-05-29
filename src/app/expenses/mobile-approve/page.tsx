@@ -35,6 +35,9 @@ export default function MobileApprovePage() {
   const [editPaymentMethod, setEditPaymentMethod] = React.useState('');
   const [editExpenseDate, setEditExpenseDate] = React.useState('');
   const [editMemo, setEditMemo] = React.useState('');
+  const [editActualExpenseDate, setEditActualExpenseDate] = React.useState('');
+  const [editDeductionAmount, setEditDeductionAmount] = React.useState<number>(0);
+  const [editTransferFee, setEditTransferFee] = React.useState<number>(0);
 
   // 1-4. 반려/보류 음성 인식(Speech-to-Text) 보조 상태 변수
   const [isListening, setIsListening] = React.useState(false);
@@ -200,6 +203,9 @@ export default function MobileApprovePage() {
       setEditPaymentMethod(selectedExpense.payment_method);
       setEditExpenseDate(selectedExpense.expense_date);
       setEditMemo(selectedExpense.memo || '');
+      setEditActualExpenseDate(selectedExpense.actual_expense_date || '');
+      setEditDeductionAmount(selectedExpense.deduction_amount || 0);
+      setEditTransferFee(selectedExpense.transfer_fee || 0);
       setIsEditing(false); // 새로운 창이 열릴 때는 뷰 모드로 시작
     }
   }, [selectedExpense]);
@@ -314,9 +320,9 @@ export default function MobileApprovePage() {
     });
   }, [expenses, statsRange, statsCategory, statsTag]);
 
-  // 실시간 합계 금액 계산
+  // 실시간 합계 금액 계산 (최종 실지출액 기준)
   const totalStatsAmount = React.useMemo(() => {
-    return filteredForStats.reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0);
+    return filteredForStats.reduce((sum, exp) => sum + ((Number(exp.amount) || 0) - (Number(exp.deduction_amount) || 0) + (Number(exp.transfer_fee) || 0)), 0);
   }, [filteredForStats]);
 
   // 🏷️ 고유 태그 목록 계산 (필터링 드롭다운용)
@@ -479,7 +485,10 @@ export default function MobileApprovePage() {
           payment_method: editPaymentMethod,
           attachment_url: selectedExpense.attachment_url || '',
           ai_analysis: selectedExpense.ai_analysis || '',
-          memo: editMemo.trim()
+          memo: editMemo.trim(),
+          actual_expense_date: editActualExpenseDate || null,
+          deduction_amount: editDeductionAmount,
+          transfer_fee: editTransferFee
         })
       });
       const json = await res.json();
@@ -496,7 +505,10 @@ export default function MobileApprovePage() {
           amount: Number(editAmount),
           expense_date: editExpenseDate,
           payment_method: editPaymentMethod,
-          memo: editMemo.trim()
+          memo: editMemo.trim(),
+          actual_expense_date: editActualExpenseDate || null,
+          deduction_amount: editDeductionAmount,
+          transfer_fee: editTransferFee
         });
         fetchExpenses(); // 목록 동기화
       } else {
@@ -913,7 +925,7 @@ export default function MobileApprovePage() {
                       <select 
                         value={editCategory}
                         onChange={e => setEditCategory(e.target.value)}
-                        className="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none font-bold text-[11px] bg-slate-50 focus:ring-2 focus:ring-rose-500 text-slate-850"
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 outline-none font-bold text-[11px] bg-slate-50 focus:ring-2 focus:ring-rose-500 text-slate-855"
                       >
                         <option value="">계정과목 선택</option>
                         {dbCategories?.map(c => (
@@ -922,6 +934,49 @@ export default function MobileApprovePage() {
                           </option>
                         ))}
                       </select>
+                    </div>
+
+                    {/* 실제 지출일, 공제액, 송금수수료 즉석 수정란 */}
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-100/70 space-y-3">
+                      <span className="block font-black text-slate-750 text-[9.5px]">💰 실제 지출 집행 상세 기입</span>
+                      <div>
+                        <label className="block text-[8px] font-bold text-slate-450 mb-0.5">실제 지출일</label>
+                        <input 
+                          type="date"
+                          value={editActualExpenseDate}
+                          onChange={e => setEditActualExpenseDate(e.target.value)}
+                          className="w-full border border-slate-200 rounded-xl px-2.5 py-1.5 outline-none font-bold text-[10.5px] bg-white focus:ring-2 focus:ring-rose-500 text-slate-800"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                           <label className="block text-[8px] font-bold text-slate-450 mb-0.5">공제액 (₩)</label>
+                           <input 
+                             type="number"
+                             value={editDeductionAmount || ""}
+                             onChange={e => setEditDeductionAmount(Number(e.target.value) || 0)}
+                             placeholder="공제액"
+                             className="w-full border border-slate-200 rounded-xl px-2.5 py-1.5 outline-none font-bold text-[10.5px] bg-white focus:ring-2 focus:ring-rose-500 text-slate-850"
+                           />
+                        </div>
+                        <div>
+                           <label className="block text-[8px] font-bold text-slate-450 mb-0.5">송금수수료 (₩)</label>
+                           <input 
+                             type="number"
+                             value={editTransferFee || ""}
+                             onChange={e => setEditTransferFee(Number(e.target.value) || 0)}
+                             placeholder="송금수수료"
+                             className="w-full border border-slate-250 rounded-xl px-2.5 py-1.5 outline-none font-bold text-[10.5px] bg-white focus:ring-2 focus:ring-rose-500 text-slate-855"
+                           />
+                        </div>
+                      </div>
+                      {/* 실시간 최종 실지출액 프리뷰 */}
+                      <div className="p-2 bg-slate-900 text-white rounded-lg flex items-center justify-between text-[9px] font-black border border-slate-850">
+                        <span className="text-rose-350">💸 예상 실지급액:</span>
+                        <span className="font-mono">
+                          {((Number(editAmount) || 0) - (Number(editDeductionAmount) || 0) + (Number(editTransferFee) || 0)).toLocaleString()}원
+                        </span>
+                      </div>
                     </div>
 
                     {/* 품의일자 및 결제 수단 */}
@@ -1026,6 +1081,25 @@ export default function MobileApprovePage() {
                       <div className="text-right">
                         <span className="block text-[8.5px] text-rose-100 font-extrabold">최종 품의액</span>
                         <span className="text-base font-black font-mono">{selectedExpense.amount.toLocaleString()}원</span>
+                      </div>
+                    </div>
+
+                    {/* 2-2. 최종 실지출액 요약 (모바일 상세 뷰) */}
+                    <div className="bg-slate-900 text-white p-3.5 rounded-xl shadow-xs flex justify-between items-center border border-slate-800">
+                      <div className="space-y-1">
+                        <span className="block text-[8.5px] text-rose-350 font-extrabold leading-none">💸 최종 지급액</span>
+                        <div className="text-[9.5px] font-bold text-slate-400">
+                          (공제: -{(selectedExpense.deduction_amount || 0).toLocaleString()}원 / 수수료: +{(selectedExpense.transfer_fee || 0).toLocaleString()}원)
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="block text-[8.5px] text-slate-400 font-extrabold">실제 지출일</span>
+                        <span className="text-[10px] font-black font-mono">
+                          {selectedExpense.actual_expense_date || "미집행"}
+                        </span>
+                        <span className="block text-sm font-black font-mono text-rose-450 mt-0.5">
+                          {((Number(selectedExpense.amount) || 0) - (Number(selectedExpense.deduction_amount) || 0) + (Number(selectedExpense.transfer_fee) || 0)).toLocaleString()}원
+                        </span>
                       </div>
                     </div>
 

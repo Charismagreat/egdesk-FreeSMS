@@ -1012,6 +1012,47 @@ export default function ExpenseManagementAiPage() {
                     />
                   </div>
 
+                  {/* 실제 지출일 */}
+                  <div>
+                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">실제 지출일</label>
+                    <input 
+                      type="date"
+                      value={newExpense.actual_expense_date || ""}
+                      onChange={e => setNewExpense({ ...newExpense, actual_expense_date: e.target.value })}
+                      className="w-full border border-slate-250 rounded-xl px-3.5 py-2 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-700 cursor-pointer"
+                    />
+                  </div>
+
+                  {/* 공제액 */}
+                  <div>
+                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">공제액 (차감액 ₩)</label>
+                    <div className="relative">
+                      <input 
+                        type="number"
+                        placeholder="차감할 공제액"
+                        value={newExpense.deduction_amount || ""}
+                        onChange={e => setNewExpense({ ...newExpense, deduction_amount: Number(e.target.value) || 0 })}
+                        className="w-full border border-slate-250 rounded-xl pl-3.5 pr-8 py-2.5 outline-none font-semibold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
+                      />
+                      <span className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 font-extrabold text-[10px]">원</span>
+                    </div>
+                  </div>
+
+                  {/* 송금수수료 */}
+                  <div>
+                    <label className="block text-[10px] font-extrabold text-slate-500 mb-1">송금수수료 (가산액 ₩)</label>
+                    <div className="relative">
+                      <input 
+                        type="number"
+                        placeholder="가산할 송금수수료"
+                        value={newExpense.transfer_fee || ""}
+                        onChange={e => setNewExpense({ ...newExpense, transfer_fee: Number(e.target.value) || 0 })}
+                        className="w-full border border-slate-250 rounded-xl pl-3.5 pr-8 py-2.5 outline-none font-semibold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
+                      />
+                      <span className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 font-extrabold text-[10px]">원</span>
+                    </div>
+                  </div>
+
                   {/* 지출 금액 & 실시간 한글 표기 프리뷰 */}
                   <div className="col-span-3">
                     <label className="block text-[10px] font-extrabold text-slate-500 mb-1">지출 금액 (원화 ₩) *</label>
@@ -1033,6 +1074,17 @@ export default function ExpenseManagementAiPage() {
                         </span>
                         <span className="text-[9px] font-bold text-slate-400 font-mono">
                           (₩{Number(newExpense.amount).toLocaleString()}원)
+                        </span>
+                      </div>
+                    )}
+                    {/* 최종 실지출액 프리뷰 */}
+                    {newExpense.amount && (
+                      <div className="mt-1.5 px-3 py-2 bg-gradient-to-r from-slate-900 to-slate-950 text-white rounded-xl flex items-center justify-between animate-fade-in shadow-3xs border border-slate-850">
+                        <span className="text-[9px] font-black text-rose-300 font-sans tracking-tight">
+                          💸 최종 지급액 (승인액 - 공제액 + 수수료)
+                        </span>
+                        <span className="text-xs font-black font-mono text-white">
+                          {((Number(newExpense.amount) || 0) - (Number(newExpense.deduction_amount) || 0) + (Number(newExpense.transfer_fee) || 0)).toLocaleString()}원
                         </span>
                       </div>
                     )}
@@ -1871,11 +1923,14 @@ export default function ExpenseManagementAiPage() {
                         />
                       </th>
                       <th className="p-4 font-bold text-[10px]">품의일자</th>
+                      <th className="p-4 font-bold text-[10px]">실제 지출일</th>
                       <th className="p-4 font-bold text-[10px]">영수증</th>
                       <th className="p-4 font-bold text-[10px]">적요 (지출 품명/내역)</th>
                       <th className="p-4 font-bold text-[10px]">부서/담당자/프로젝트</th>
                       <th className="p-4 font-bold text-[10px]">계정 과목</th>
-                      <th className="p-4 font-bold text-[10px] text-right">지출 금액</th>
+                      <th className="p-4 font-bold text-[10px] text-right">지출 금액(승인액)</th>
+                      <th className="p-4 font-bold text-[10px] text-right">공제액 / 수수료</th>
+                      <th className="p-4 font-bold text-[10px] text-right text-rose-600">최종 실지출액</th>
                       <th className="p-4 font-bold text-[10px] text-center">결재 상태</th>
                       <th className="p-4 font-bold text-[10px] text-center">관리</th>
                     </tr>
@@ -1883,7 +1938,7 @@ export default function ExpenseManagementAiPage() {
                   <tbody className="divide-y divide-slate-50 font-medium">
                     {paginatedExpenses.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="p-12 text-center text-slate-400 font-bold">
+                        <td colSpan={12} className="p-12 text-center text-slate-400 font-bold">
                           {expenses.length === 0 ? "등록된 지출 내역이 대장에 없습니다." : "검색 결과와 부합하는 지출 내역이 없습니다."}
                         </td>
                       </tr>
@@ -1906,6 +1961,9 @@ export default function ExpenseManagementAiPage() {
                           </td>
                           <td className="p-4 text-slate-500 font-semibold font-mono text-[10px]">
                             {exp.expense_date}
+                          </td>
+                          <td className="p-4 text-slate-500 font-semibold font-mono text-[10px]">
+                            {exp.actual_expense_date || <span className="text-slate-300 font-light">-</span>}
                           </td>
                           <td className="p-4" onClick={e => e.stopPropagation()}>
                             {exp.attachment_url ? (
@@ -2019,7 +2077,14 @@ export default function ExpenseManagementAiPage() {
                           </td>
                           <td className="p-4 text-right font-black text-slate-850 font-mono">
                             {exp.amount.toLocaleString()}원
-                            <span className="block text-[8px] text-slate-400 font-bold mt-0.5">{exp.payment_method}</span>
+                          </td>
+                          <td className="p-4 text-right text-[10px] font-semibold text-slate-500">
+                            <div>공제: <span className="font-mono text-rose-500">-{Number(exp.deduction_amount || 0).toLocaleString()}원</span></div>
+                            <div className="mt-0.5">수수료: <span className="font-mono text-blue-600">+{Number(exp.transfer_fee || 0).toLocaleString()}원</span></div>
+                          </td>
+                          <td className="p-4 text-right font-black text-rose-600 font-mono text-[11px] bg-slate-50/20">
+                            {((Number(exp.amount) || 0) - Number(exp.deduction_amount || 0) + Number(exp.transfer_fee || 0)).toLocaleString()}원
+                            <span className="block text-[8px] text-slate-450 font-bold mt-0.5">{exp.payment_method}</span>
                           </td>
                           <td className="p-4 text-center" onClick={e => e.stopPropagation()}>
                             {(() => {
@@ -2092,6 +2157,9 @@ export default function ExpenseManagementAiPage() {
                                     attachment_url: exp.attachment_url || '',
                                     ai_analysis: exp.ai_analysis || '',
                                     memo: exp.memo || '',
+                                    actual_expense_date: exp.actual_expense_date || '',
+                                    deduction_amount: exp.deduction_amount || 0,
+                                    transfer_fee: exp.transfer_fee || 0,
                                     // 역산 파싱 영수인 추출
                                     payee: (() => {
                                       try {
@@ -2337,6 +2405,17 @@ export default function ExpenseManagementAiPage() {
                     onChange={e => setEditExpense({ ...editExpense, amount: e.target.value })}
                     className="w-full border border-slate-250 rounded-xl px-3.5 py-2.5 outline-none font-black text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
                   />
+                  {/* 최종 실지출액 프리뷰 (수정 모달) */}
+                  {editExpense.amount && (
+                    <div className="mt-1 px-2.5 py-1 bg-slate-900 text-white rounded-lg flex items-center justify-between shadow-3xs border border-slate-850">
+                      <span className="text-[8.5px] font-black text-rose-350 font-sans tracking-tight">
+                        💸 최종 실지급액
+                      </span>
+                      <span className="text-[10px] font-black font-mono text-white">
+                        {((Number(editExpense.amount) || 0) - (Number(editExpense.deduction_amount) || 0) + (Number(editExpense.transfer_fee) || 0)).toLocaleString()}원
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* 3. 결제 수단 */}
@@ -2362,6 +2441,47 @@ export default function ExpenseManagementAiPage() {
                     onChange={e => setEditExpense({ ...editExpense, expense_date: e.target.value })}
                     className="w-full border border-slate-250 rounded-xl px-3.5 py-2.5 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
                   />
+                </div>
+
+                {/* 실제 지출일 */}
+                <div>
+                  <label className="block text-[10px] font-extrabold text-slate-500 mb-1">실제 지출일</label>
+                  <input 
+                    type="date"
+                    value={editExpense.actual_expense_date || ""}
+                    onChange={e => setEditExpense({ ...editExpense, actual_expense_date: e.target.value })}
+                    className="w-full border border-slate-250 rounded-xl px-3.5 py-2.5 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
+                  />
+                </div>
+
+                {/* 공제액 */}
+                <div>
+                  <label className="block text-[10px] font-extrabold text-slate-500 mb-1">공제액 (차감액 ₩)</label>
+                  <div className="relative">
+                    <input 
+                      type="number"
+                      placeholder="차감할 공제액"
+                      value={editExpense.deduction_amount || ""}
+                      onChange={e => setEditExpense({ ...editExpense, deduction_amount: Number(e.target.value) || 0 })}
+                      className="w-full border border-slate-250 rounded-xl pl-3.5 pr-8 py-2.5 outline-none font-semibold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
+                    />
+                    <span className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 font-extrabold text-[10px]">원</span>
+                  </div>
+                </div>
+
+                {/* 송금수수료 */}
+                <div>
+                  <label className="block text-[10px] font-extrabold text-slate-500 mb-1">송금수수료 (가산액 ₩)</label>
+                  <div className="relative">
+                    <input 
+                      type="number"
+                      placeholder="가산할 송금수수료"
+                      value={editExpense.transfer_fee || ""}
+                      onChange={e => setEditExpense({ ...editExpense, transfer_fee: Number(e.target.value) || 0 })}
+                      className="w-full border border-slate-250 rounded-xl pl-3.5 pr-8 py-2.5 outline-none font-semibold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-800"
+                    />
+                    <span className="absolute right-3.5 top-1/2 transform -translate-y-1/2 text-slate-400 font-extrabold text-[10px]">원</span>
+                  </div>
                 </div>
 
                 {/* 5. 계정과목 3단 연동 */}
@@ -2521,11 +2641,14 @@ export default function ExpenseManagementAiPage() {
                   const updatedPayload = {
                     title: editExpense.title,
                     category: editExpense.category,
-                    amount: editExpense.amount,
+                    amount: Number(editExpense.amount),
                     expense_date: editExpense.expense_date,
                     payment_method: editExpense.payment_method,
                     attachment_url: editExpense.attachment_url,
                     memo: editExpense.memo,
+                    actual_expense_date: editExpense.actual_expense_date || null,
+                    deduction_amount: Number(editExpense.deduction_amount) || 0,
+                    transfer_fee: Number(editExpense.transfer_fee) || 0,
                     ai_analysis: JSON.stringify({
                       ...parsedAnalysis,
                       payee: editExpense.payee,

@@ -12,6 +12,9 @@ export interface Expense {
   attachment_url?: string;
   ai_analysis?: string;
   memo?: string;
+  actual_expense_date?: string | null;
+  deduction_amount?: number;
+  transfer_fee?: number;
   created_at: string;
 }
 
@@ -120,6 +123,9 @@ export function useExpenses() {
     ai_analysis: "",
     payee: "", // ✍️ 영수인/가맹점명/거래처명
     requisition_date: new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10), // ✍️ 품의 일자
+    actual_expense_date: "",
+    deduction_amount: 0,
+    transfer_fee: 0,
   });
 
   const [dbCategories, setDbCategories] = useState<DbExpenseCategory[]>([]);
@@ -477,6 +483,10 @@ export function useExpenses() {
 
       const payload = {
         ...newExpense,
+        amount: Number(newExpense.amount),
+        deduction_amount: Number(newExpense.deduction_amount) || 0,
+        transfer_fee: Number(newExpense.transfer_fee) || 0,
+        actual_expense_date: newExpense.actual_expense_date || null,
         // 품재일자, 결재일자, 지출일자를 품의일자 단 하나로 안전 동기화 이식
         expense_date: requisition_date, 
         ai_analysis: JSON.stringify({
@@ -649,6 +659,9 @@ export function useExpenses() {
             ai_analysis: JSON.stringify({ ocrParsed: true, filename: file.name, method: json.method }),
             payee: json.payee || json.merchant || "", // AI가 영수인/가맹점명/거래처명 자동 맵핑
             requisition_date: json.expense_date || new Date().toISOString().slice(0, 10),
+            actual_expense_date: "",
+            deduction_amount: 0,
+            transfer_fee: 0,
           });
           
           alert("✨ AI 영수증 자율 스캔 및 분석이 완료되었습니다! 검수 후 [지출 등록하기]를 눌러 장부에 적재하세요.");
@@ -676,6 +689,9 @@ export function useExpenses() {
       ai_analysis: "",
       payee: "",
       requisition_date: new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10),
+      actual_expense_date: "",
+      deduction_amount: 0,
+      transfer_fee: 0,
     });
   };
 
