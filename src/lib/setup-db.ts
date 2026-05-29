@@ -668,8 +668,8 @@ export async function setupDatabase() {
           attachment_url: '',
           ai_analysis: JSON.stringify({ parsed: true, confidence: 0.98 }),
           memo: '복지지원, 소액결제',
-          approval_status: 'APPROVED',
-          approved_at: getPastDateStr(2) + ' 10:00:00',
+          approval_status: 'PENDING',
+          approved_at: null,
           created_at: nowStr
         },
         {
@@ -682,8 +682,8 @@ export async function setupDatabase() {
           attachment_url: '',
           ai_analysis: JSON.stringify({ parsed: true, confidence: 0.99 }),
           memo: '인프라유지, 정기지출',
-          approval_status: 'APPROVED',
-          approved_at: getPastDateStr(5) + ' 10:00:00',
+          approval_status: 'PENDING',
+          approved_at: null,
           created_at: nowStr
         },
         {
@@ -696,8 +696,8 @@ export async function setupDatabase() {
           attachment_url: '',
           ai_analysis: JSON.stringify({ parsed: true, confidence: 0.95 }),
           memo: '거래처접대, 소액결제',
-          approval_status: 'APPROVED',
-          approved_at: getPastDateStr(10) + ' 10:00:00',
+          approval_status: 'PENDING',
+          approved_at: null,
           created_at: nowStr
         },
         {
@@ -710,8 +710,8 @@ export async function setupDatabase() {
           attachment_url: '',
           ai_analysis: JSON.stringify({ parsed: true, confidence: 0.97 }),
           memo: '정기지출, 긴급비용',
-          approval_status: 'APPROVED',
-          approved_at: getPastDateStr(15) + ' 10:00:00',
+          approval_status: 'PENDING',
+          approved_at: null,
           created_at: nowStr
         },
         {
@@ -724,8 +724,8 @@ export async function setupDatabase() {
           attachment_url: '',
           ai_analysis: JSON.stringify({ parsed: true, confidence: 0.96 }),
           memo: '비품구매, 소액결제',
-          approval_status: 'APPROVED',
-          approved_at: getPastDateStr(20) + ' 10:00:00',
+          approval_status: 'PENDING',
+          approved_at: null,
           created_at: nowStr
         }
       ];
