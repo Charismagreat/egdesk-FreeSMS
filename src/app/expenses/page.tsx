@@ -2172,6 +2172,7 @@ export default function ExpenseManagementAiPage() {
                                     actual_expense_date: exp.actual_expense_date || '',
                                     deduction_amount: exp.deduction_amount || 0,
                                     transfer_fee: exp.transfer_fee || 0,
+                                    approval_status: exp.approval_status,
                                     // 역산 파싱 영수인 추출
                                     payee: (() => {
                                       try {
