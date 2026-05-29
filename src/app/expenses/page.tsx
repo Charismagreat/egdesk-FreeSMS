@@ -6,6 +6,7 @@ import {
   Trash2, AlertTriangle, Save, Filter, Search, Calendar, 
   CreditCard, Info, AlertCircle, RefreshCw
 } from "lucide-react";
+import * as XLSX from "xlsx";
 
 // 커스텀 훅 임포트
 import { useExpenses, ExpenseSettings } from "@/hooks/useExpenses";
@@ -51,6 +52,7 @@ export default function ExpenseManagementAiPage() {
     dbCategories,
     dbTags,
     handleAddCategory,
+    handleBulkAddCategories,
     handleDeleteCategory,
     handleAddTag,
     handleDeleteTag
@@ -105,6 +107,7 @@ export default function ExpenseManagementAiPage() {
   const [newTagName, setNewTagName] = React.useState<string>("");
   const [isSubmittingCat, setIsSubmittingCat] = React.useState(false);
   const [isSubmittingTag, setIsSubmittingTag] = React.useState(false);
+  const [isExcelUploading, setIsExcelUploading] = React.useState(false);
 
   // newExpense.category (소분류) 변경 시 대분류/중분류 역동기화 추적
   React.useEffect(() => {
@@ -201,6 +204,109 @@ export default function ExpenseManagementAiPage() {
     } else {
       alert("등록 실패: " + result.error);
     }
+  };
+
+  // 📥 엑셀 샘플 다운로드 핸들러
+  const downloadExcelSample = () => {
+    try {
+      const sampleData = [
+        { "대분류": "판매비와관리비", "중분류": "복리후생비", "소분류": "직원야근식대" },
+        { "대분류": "판매비와관리비", "중분류": "여비교통비", "소분류": "시내교통비" },
+        { "대분류": "제조/물류원가", "중분류": "소모품비", "소분류": "물류부박스구매" }
+      ];
+      
+      const ws = XLSX.utils.json_to_sheet(sampleData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "계정과목_양식");
+      
+      // 컬럼 폭 지정
+      ws["!cols"] = [
+        { wch: 20 }, // 대분류
+        { wch: 20 }, // 중분류
+        { wch: 20 }  // 소분류
+      ];
+      
+      XLSX.writeFile(wb, "계정과목_일괄등록_양식.xlsx");
+    } catch (e) {
+      console.error("샘플 다운로드 오류:", e);
+      alert("엑셀 샘플 파일을 생성하는 과정에서 오류가 발생했습니다.");
+    }
+  };
+
+  // 📤 엑셀 업로드 및 파싱 핸들러
+  const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    const file = files[0];
+    const reader = new FileReader();
+    
+    setIsExcelUploading(true);
+    
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: "binary" });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        
+        // 시트 데이터를 JSON 객체 배열로 변환
+        const data = XLSX.utils.sheet_to_json<any>(ws);
+        
+        if (!data || data.length === 0) {
+          alert("업로드된 엑셀 파일 내에 등록할 데이터 행이 존재하지 않습니다.");
+          setIsExcelUploading(false);
+          return;
+        }
+        
+        // 컬럼 검증
+        const firstRow = data[0];
+        if (!("대분류" in firstRow) || !("중분류" in firstRow) || !("소분류" in firstRow)) {
+          alert("엑셀 양식이 올바르지 않습니다. 헤더 컬럼 이름이 '대분류', '중분류', '소분류' 인지 확인해주세요.");
+          setIsExcelUploading(false);
+          return;
+        }
+        
+        // 백엔드 적재용 객체 매핑
+        const mappedCategories = data.map((row: any) => ({
+          main_category: String(row["대분류"] || "").trim(),
+          mid_category: String(row["중분류"] || "").trim(),
+          sub_category: String(row["소분류"] || "").trim()
+        })).filter(
+          cat => cat.main_category && cat.mid_category && cat.sub_category
+        );
+        
+        if (mappedCategories.length === 0) {
+          alert("엑셀 파일 내에 누락이 없는 유효한 계정과목 데이터가 존재하지 않습니다.");
+          setIsExcelUploading(false);
+          return;
+        }
+        
+        // 훅 메소드 호출하여 백엔드 일괄 등록
+        const result = await handleBulkAddCategories(mappedCategories);
+        if (result.success) {
+          alert(`🎉 엑셀 일괄 추가 성공!\n총 ${result.addedCount}건의 신규 계정과목이 등록되었습니다.${result.message ? `\n(${result.message})` : ""}`);
+        } else {
+          alert("엑셀 일괄 등록 실패: " + result.error);
+        }
+      } catch (err: any) {
+        console.error("엑셀 파일 파싱 오류:", err);
+        alert("엑셀 파일을 분석하는 중 에러가 발생했습니다. 올바른 파일 규격인지 점검해주세요.");
+      } finally {
+        setIsExcelUploading(false);
+        // input 엘리먼트 값 리셋 (동일 파일 재선택 가능 조치)
+        if (e.target) {
+          e.target.value = "";
+        }
+      }
+    };
+    
+    reader.onerror = () => {
+      alert("파일을 로드하는 중 오류가 발생했습니다.");
+      setIsExcelUploading(false);
+    };
+    
+    reader.readAsBinaryString(file);
   };
 
   // 태그 추가 핸들러
@@ -816,6 +922,49 @@ export default function ExpenseManagementAiPage() {
                       >
                         {isSubmittingCat ? "추가 중..." : "➕ 계정 추가"}
                       </button>
+                    </div>
+                  </div>
+
+                  {/* 엑셀 일괄 등록 및 양식 다운로드 카드 */}
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-extrabold text-slate-800 text-[11px] flex items-center">
+                        <Upload className="w-3.5 h-3.5 text-rose-500 mr-1.5" />
+                        📤 엑셀 계정 과목 일괄 등록
+                      </h3>
+                      <button
+                        onClick={downloadExcelSample}
+                        className="text-[9px] font-black text-rose-500 bg-rose-50 hover:bg-rose-100 border border-rose-200 px-2 py-1.5 rounded-lg cursor-pointer transition-all flex items-center shadow-2xs border-none"
+                      >
+                        <FileText className="w-2.5 h-2.5 mr-1" />
+                        📥 양식 다운로드
+                      </button>
+                    </div>
+
+                    <div className="border border-dashed border-slate-250 hover:border-rose-300 rounded-xl p-4 bg-white flex flex-col items-center justify-center space-y-2 transition-colors relative cursor-pointer group shadow-2xs min-h-[90px]">
+                      <input
+                        type="file"
+                        accept=".xlsx, .xls"
+                        onChange={handleExcelUpload}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        disabled={isExcelUploading}
+                      />
+                      {isExcelUploading ? (
+                        <div className="flex flex-col items-center space-y-2">
+                          <RefreshCw className="w-6 h-6 text-rose-500 animate-spin" />
+                          <span className="text-[10px] font-bold text-slate-500">엑셀 파일을 처리하고 있습니다...</span>
+                        </div>
+                      ) : (
+                        <>
+                          <Upload className="w-5 h-5 text-slate-400 group-hover:text-rose-500 transition-colors" />
+                          <span className="text-[10px] font-bold text-slate-500 group-hover:text-slate-700 transition-colors">
+                            엑셀 파일을 드래그하거나 클릭하여 업로드
+                          </span>
+                          <span className="text-[8.5px] text-slate-400 font-medium">
+                            * 대분류, 중분류, 소분류 헤더와 데이터가 들어있는 엑셀 파일만 지원합니다.
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
 

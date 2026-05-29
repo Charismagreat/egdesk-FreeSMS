@@ -176,6 +176,28 @@ export function useExpenses() {
     }
   };
 
+  const handleBulkAddCategories = async (categories: Array<{ main_category: string; mid_category: string; sub_category: string; }>) => {
+    try {
+      if (!categories || categories.length === 0) {
+        return { success: false, error: "등록할 데이터가 없습니다." };
+      }
+      const res = await fetch("/api/expenses/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ categories })
+      });
+      const json = await res.json();
+      if (json.success) {
+        await fetchCategories();
+        return { success: true, addedCount: json.addedCount, message: json.message };
+      } else {
+        return { success: false, error: json.error };
+      }
+    } catch (e: any) {
+      return { success: false, error: "서버 통신 중 에러가 발생했습니다." };
+    }
+  };
+
   const handleDeleteCategory = async (id: string) => {
     if (!confirm("선택하신 계정 과목을 영구 삭제하시겠습니까?")) return;
     try {
@@ -531,6 +553,7 @@ export function useExpenses() {
     fetchCategories,
     fetchTags,
     handleAddCategory,
+    handleBulkAddCategories,
     handleDeleteCategory,
     handleAddTag,
     handleDeleteTag
