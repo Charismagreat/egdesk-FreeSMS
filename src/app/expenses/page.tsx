@@ -116,6 +116,15 @@ export default function ExpenseManagementAiPage() {
   const [atIndex, setAtIndex] = React.useState(-1);
   const [activeSuggestIndex, setActiveSuggestIndex] = React.useState(0);
 
+  // 🏷️ 적요란 '@' 태그 개별 신속 교체(Quick-Switch)용 상태
+  const [activeSwitchTag, setActiveSwitchTag] = React.useState<{
+    label: string;
+    start: number;
+    end: number;
+    type: 'partner' | 'staff' | 'department' | 'project';
+  } | null>(null);
+  const [showSwitchOptions, setShowSwitchOptions] = React.useState(false);
+
   // 전체 자동완성 후보군 취합
   const allSuggestItems = React.useMemo(() => {
     if (!autocompleteData) return [];
@@ -238,6 +247,135 @@ export default function ExpenseManagementAiPage() {
       ...prev,
       memo: tags.join(", ")
     }));
+  };
+
+  // 🏷️ 적요 하이라이트 렌더러 함수
+  const renderHighlightedText = (text: string) => {
+    if (!text) return <span className="text-slate-350 select-none">예: 대신정기화물 택배발송비&#10;1) 효성 1공장 1 BOX&#10;2) 동우일렉트릭 1 BOX</span>;
+    
+    // 정규식을 동원하여 '@단어' 들을 안전하게 토큰화하여 스플릿 렌더링
+    const regex = /@([^\s@]+)/g;
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let match;
+    
+    while ((match = regex.exec(text)) !== null) {
+      const matchIndex = match.index;
+      const fullMatch = match[0];
+      const name = match[1];
+      
+      // 매칭 앞부분 일반 텍스트 푸시
+      if (matchIndex > lastIndex) {
+        parts.push(text.slice(lastIndex, matchIndex));
+      }
+      
+      // 단어의 종류 판별
+      let type: 'staff' | 'department' | 'partner' | 'project' = 'partner'; // 기본값
+      if (autocompleteData?.staff?.includes(name)) {
+        type = 'staff';
+      } else if (autocompleteData?.departments?.includes(name)) {
+        type = 'department';
+      } else if (autocompleteData?.projects?.includes(name)) {
+        type = 'project';
+      } else if (autocompleteData?.partners?.includes(name)) {
+        type = 'partner';
+      }
+      
+      // 태그별 전용 클래스 매핑
+      const badgeClass = {
+        staff: "text-blue-600 underline decoration-2 decoration-blue-300 font-black cursor-pointer bg-blue-50/30 px-1 py-0.5 rounded",
+        department: "text-emerald-600 underline decoration-2 decoration-emerald-300 font-black cursor-pointer bg-emerald-50/30 px-1 py-0.5 rounded",
+        partner: "text-rose-600 underline decoration-2 decoration-rose-300 font-black cursor-pointer bg-rose-50/30 px-1 py-0.5 rounded",
+        project: "text-indigo-600 underline decoration-2 decoration-indigo-300 font-black cursor-pointer bg-indigo-50/30 px-1 py-0.5 rounded"
+      }[type];
+      
+      parts.push(
+        <span key={`hl-${matchIndex}`} className={`${badgeClass} pointer-events-auto`}>
+          {fullMatch}
+        </span>
+      );
+      
+      lastIndex = regex.lastIndex;
+    }
+    
+    // 매칭 뒷부분 남은 텍스트 푸시
+    if (lastIndex < text.length) {
+      parts.push(text.slice(lastIndex));
+    }
+    
+    return parts;
+  };
+
+  // textarea 클릭 시 태그 클릭 여부 역산 탐지 리스너
+  const handleTextareaClick = (e: React.MouseEvent<HTMLTextAreaElement>) => {
+    const value = e.currentTarget.value;
+    const cursorPos = e.currentTarget.selectionStart;
+    
+    // 정규식으로 모든 '@단어' 패턴의 범위 탐색
+    const regex = /@([^\s@]+)/g;
+    let match;
+    
+    while ((match = regex.exec(value)) !== null) {
+      const start = match.index;
+      const end = regex.lastIndex;
+      const fullMatch = match[0];
+      const name = match[1];
+      
+      // 클릭한 커서의 위치가 이 태그 범위 안에 있다면 퀵 스위치 트리거!
+      if (cursorPos >= start && cursorPos <= end) {
+        // 단어 종류 판별
+        let type: 'staff' | 'department' | 'partner' | 'project' = 'partner';
+        if (autocompleteData?.staff?.includes(name)) {
+          type = 'staff';
+        } else if (autocompleteData?.departments?.includes(name)) {
+          type = 'department';
+        } else if (autocompleteData?.projects?.includes(name)) {
+          type = 'project';
+        } else if (autocompleteData?.partners?.includes(name)) {
+          type = 'partner';
+        }
+        
+        setActiveSwitchTag({
+          label: name,
+          start,
+          end,
+          type
+        });
+        setShowSwitchOptions(true);
+        setShowSuggestions(false); // 일반 자동완성 드롭다운은 닫음
+        return;
+      }
+    }
+    
+    // 일반 글자를 클릭하면 퀵 스위치창을 닫음
+    setShowSwitchOptions(false);
+  };
+
+  // 퀵 스위치를 통한 태그 치환 실행 핸들러
+  const executeQuickSwitch = (newLabel: string) => {
+    if (!activeSwitchTag) return;
+    
+    const value = newExpense.title;
+    const { start, end } = activeSwitchTag;
+    
+    const textBefore = value.slice(0, start);
+    const textAfter = value.slice(end);
+    
+    const replacement = `@${newLabel} `;
+    const newValue = textBefore + replacement + textAfter;
+    
+    setNewExpense(prev => ({ ...prev, title: newValue }));
+    setShowSwitchOptions(false);
+    setActiveSwitchTag(null);
+    
+    // 치환 완료 후 즉시 커서 포커스를 치환된 문자 바로 뒤로 포커싱
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        const newCursorPos = start + replacement.length;
+        textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+      }
+    }, 10);
   };
 
   // 🏷️ 적요란 textarea 제어용 레퍼런스
@@ -635,19 +773,29 @@ export default function ExpenseManagementAiPage() {
                   {/* 적요 (지출 용도 및 상세 내역) */}
                   <div className="col-span-3 relative">
                     <label className="block text-[10px] font-extrabold text-slate-500 mb-1">적요 (지출 용도 및 상세 내역) *</label>
-                    <textarea 
-                      ref={textareaRef}
-                      rows={3}
-                      placeholder="예: 대신정기화물 택배발송비&#10;1) 효성 1공장 1 BOX&#10;2) 동우일렉트릭 1 BOX"
-                      value={newExpense.title}
-                      onChange={handleTextareaChange}
-                      onKeyDown={handleTextareaKeyDown}
-                      className="w-full border border-slate-250 rounded-xl px-3.5 py-2.5 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-800 resize-none leading-relaxed"
-                    />
+                    
+                    <div className="relative w-full h-[84px] rounded-xl overflow-hidden border border-slate-250 bg-white focus-within:ring-2 focus-within:ring-rose-500 focus-within:border-transparent transition-all shadow-2xs">
+                      {/* 1. 뒤 레이어: 하이라이트 비주얼 오버레이 Div */}
+                      <div className="absolute inset-0 px-3.5 py-2.5 font-bold text-xs leading-relaxed text-slate-800 pointer-events-none select-none whitespace-pre-wrap break-all overflow-y-auto max-h-[84px] text-left">
+                        {renderHighlightedText(newExpense.title)}
+                      </div>
+
+                      {/* 2. 앞 레이어: 실제 타이핑 투명 textarea */}
+                      <textarea 
+                        ref={textareaRef}
+                        rows={3}
+                        placeholder="예: 대신정기화물 택배발송비&#10;1) 효성 1공장 1 BOX&#10;2) 동우일렉트릭 1 BOX"
+                        value={newExpense.title}
+                        onChange={handleTextareaChange}
+                        onKeyDown={handleTextareaKeyDown}
+                        onClick={handleTextareaClick}
+                        className="w-full h-full bg-transparent text-transparent caret-rose-500 outline-none border-none font-bold text-xs leading-relaxed px-3.5 py-2.5 resize-none absolute inset-0 z-10 text-left"
+                      />
+                    </div>
 
                     {/* 🏷️ 지능형 자동완성 플로팅 보드 가동 */}
                     {showSuggestions && filteredSuggestions.length > 0 && (
-                      <div className="absolute left-0 right-0 mt-1 bg-white/95 backdrop-blur-md border border-slate-200 rounded-xl shadow-lg max-h-[160px] overflow-y-auto z-50 divide-y divide-slate-100/50">
+                      <div className="absolute left-0 right-0 mt-1 bg-white/95 backdrop-blur-md border border-slate-200 rounded-xl shadow-lg max-h-[160px] overflow-y-auto z-50 divide-y divide-slate-100/50 text-left">
                         {filteredSuggestions.map((item, index) => {
                           const typeBadge = {
                             staff: { label: "임직원", class: "bg-blue-50 text-blue-600 border-blue-100" },
@@ -673,6 +821,49 @@ export default function ExpenseManagementAiPage() {
                             </div>
                           );
                         })}
+                      </div>
+                    )}
+
+                    {/* 🏷️ 퀵 스위치(Quick-Switch) 태그 교체 미니 팝업 가동 */}
+                    {showSwitchOptions && activeSwitchTag && (
+                      <div className="absolute left-0 right-0 mt-1 bg-white/95 backdrop-blur-md border border-rose-100 rounded-2xl shadow-xl p-3 z-50 animate-fade-in space-y-2 text-left">
+                        <div className="flex items-center justify-between border-b pb-1.5">
+                          <span className="text-[10px] font-black text-rose-500 flex items-center">
+                            🔄 태그 신속 변경 ({
+                              { staff: "임직원", department: "사내부서", partner: "거래처", project: "프로젝트" }[activeSwitchTag.type]
+                            })
+                          </span>
+                          <button
+                            onClick={() => setShowSwitchOptions(false)}
+                            className="text-[9px] font-bold text-slate-450 hover:text-slate-750 border-none bg-transparent cursor-pointer"
+                          >
+                            ✕ 닫기
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 max-h-[100px] overflow-y-auto py-0.5 pr-1">
+                          {autocompleteData[activeSwitchTag.type === 'staff' ? 'staff' : 
+                                            activeSwitchTag.type === 'department' ? 'departments' : 
+                                            activeSwitchTag.type === 'partner' ? 'partners' : 'projects']
+                            ?.filter(val => val !== activeSwitchTag.label) // 현재 선택된 값은 후보에서 필터링
+                            .map((val, idx) => {
+                              const badgeStyle = {
+                                staff: "bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100",
+                                department: "bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100",
+                                partner: "bg-rose-50 text-rose-600 border-rose-100 hover:bg-rose-100",
+                                project: "bg-indigo-50 text-indigo-600 border-indigo-100 hover:bg-indigo-100"
+                              }[activeSwitchTag.type];
+
+                              return (
+                                <button
+                                  key={`sw-${idx}`}
+                                  onClick={() => executeQuickSwitch(val)}
+                                  className={`px-2 py-1 rounded-lg text-[9.5px] font-extrabold border transition-all cursor-pointer shadow-3xs ${badgeStyle}`}
+                                >
+                                  {val}
+                                </button>
+                              );
+                            })}
+                        </div>
                       </div>
                     )}
                   </div>
