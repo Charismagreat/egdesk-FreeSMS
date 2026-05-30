@@ -1,11 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { jwtVerify } from 'jose';
-
-// JWT 비밀키 로드 (보안 인증용)
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'egdesk-secret-key-change-in-production-123456'
-);
+import { decodeJwt } from 'jose';
 
 // 4단계 로컬 보안 비식별화 가드레일 엔진 (PII Masking & Obfuscation)
 function anonymizeData(rows: any[], schema: any[]) {
@@ -102,21 +97,21 @@ export async function POST(req: Request) {
   try {
     // 🛡️ 1. 최고관리자 권한 가드 검증
     const cookieStore = await cookies();
-    const tokenCookie = cookieStore.get('token');
+    const tokenCookie = cookieStore.get('auth_token');
 
-    if (!tokenCookie) {
+    if (!tokenCookie || !tokenCookie.value) {
       return NextResponse.json({ error: '인증 토큰이 누락되었습니다.' }, { status: 401 });
     }
 
     let decoded: any;
     try {
-      const { payload } = await jwtVerify(tokenCookie.value, JWT_SECRET);
-      decoded = payload;
+      decoded = decodeJwt(tokenCookie.value);
     } catch (e) {
       return NextResponse.json({ error: '인증 세션이 유효하지 않습니다.' }, { status: 401 });
     }
 
-    if (decoded.role !== 'SUPER_ADMIN') {
+    const role = (decoded.role as string || '').toUpperCase();
+    if (role !== 'SUPER_ADMIN') {
       return NextResponse.json({ error: '본 API는 최고관리자 전용 기능입니다.' }, { status: 403 });
     }
 
