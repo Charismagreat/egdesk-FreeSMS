@@ -2083,8 +2083,8 @@ export default function MyDBManagementPage() {
                         </div>
                       </div>
 
-                      {/* 대화 메시지 로그 프레임 (높이를 h-[550px]로 대폭 확장 및 우측 스크롤 여백 pr-5 확보로 말풍선 가독성 극대화) */}
-                      <div className="h-[550px] overflow-y-auto pl-4 pr-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl space-y-4">
+                      {/* 대화 메시지 로그 프레임 (높이를 h-[550px]로 대폭 확장, chat-scrollbar 장착 및 우측 스크롤 여백 pr-5 확보로 말풍선 가독성 극대화) */}
+                      <div className="h-[550px] overflow-y-auto chat-scrollbar pl-4 pr-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl space-y-4">
                         {tuneHistory.length === 0 ? (
                           <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 space-y-2.5">
                             <div className="w-9 h-9 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center animate-bounce">
@@ -2103,9 +2103,9 @@ export default function MyDBManagementPage() {
                             {tuneHistory.map((msg, index) => {
                               if (msg.role === 'user') {
                                 return (
-                                  <div key={index} className="flex justify-end items-end gap-2 animate-fade-in">
+                                  <div key={index} className="flex justify-end items-end gap-2 animate-fade-in pr-0.5">
                                     <span className="text-[8px] text-slate-400 font-medium mb-1">{msg.timestamp}</span>
-                                    <div className="flex flex-col items-end max-w-[80%]">
+                                    <div className="flex flex-col items-end max-w-[80%] mr-2">
                                       {msg.image && (
                                         <img src={msg.image} className="w-48 h-auto rounded-lg mb-1.5 border border-slate-200 shadow-3xs" alt="첨부 이미지" />
                                       )}

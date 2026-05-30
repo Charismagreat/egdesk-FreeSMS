@@ -67,6 +67,23 @@ body {
   scrollbar-width: none;  /* Firefox */
 }
 
+/* 대화 메시지 로그 프레임용 세련되고 얇은 프리미엄 둥근 스크롤바 */
+.chat-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.chat-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.chat-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.4);
+  border-radius: 9999px;
+}
+.chat-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.65);
+}
+
+
 /* 유튜브 쇼츠 AI 상단 배너 강제 그라디언트 배경 설정 */
 .shorts-banner-gradient {
   background: linear-gradient(135deg, #dc2626 0%, #f43f5e 50%, #f97316 100%) !important;
