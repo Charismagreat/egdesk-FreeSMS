@@ -4,7 +4,7 @@ import React from "react";
 import { 
   Database, Play, RefreshCw, Download, Plus, Edit, 
   Trash2, AlertTriangle, Code, Table, Search, Terminal,
-  CheckCircle, ChevronRight, X, ShieldAlert
+  CheckCircle, ChevronRight, X, ShieldAlert, Calendar
 } from "lucide-react";
 
 export default function MyDBManagementPage() {
@@ -335,61 +335,40 @@ export default function MyDBManagementPage() {
   const totalPages = Math.ceil(totalRows / itemsPerPage) || 1;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col p-6 font-sans">
+    <div className="space-y-6 pb-20 bg-slate-50/30 p-2 rounded-3xl">
       
       {/* 🛎️ 알림 토스트 컴포넌트 */}
       {toast && (
         <div className={`fixed top-6 right-6 z-50 p-4 rounded-xl shadow-2xl border flex items-center gap-3 animate-fade-in ${
-          toast.type === 'success' ? 'bg-emerald-950/90 text-emerald-350 border-emerald-500/20' :
-          toast.type === 'error' ? 'bg-rose-950/90 text-rose-350 border-rose-500/20' :
-          'bg-amber-950/90 text-amber-350 border-amber-500/20'
+          toast.type === 'success' ? 'bg-green-50 text-green-700 border-green-200' :
+          toast.type === 'error' ? 'bg-red-50 text-red-700 border-red-200' :
+          'bg-amber-50 text-amber-700 border-amber-200'
         }`}>
-          {toast.type === 'success' && <CheckCircle className="w-5 h-5 text-emerald-400" />}
-          {toast.type === 'error' && <ShieldAlert className="w-5 h-5 text-rose-400" />}
-          {toast.type === 'warn' && <AlertTriangle className="w-5 h-5 text-amber-400" />}
+          {toast.type === 'success' && <CheckCircle className="w-5 h-5 text-green-650" />}
+          {toast.type === 'error' && <ShieldAlert className="w-5 h-5 text-red-650" />}
+          {toast.type === 'warn' && <AlertTriangle className="w-5 h-5 text-amber-650" />}
           <span className="text-xs font-semibold">{toast.message}</span>
         </div>
       )}
 
-      {/* 🚀 상단 헤더 섹션 */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-blue-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/10">
-              <Database className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-400 to-indigo-300">
-                EGDESK 물리 DB 실시간 관제 센터
-              </h1>
-              <p className="text-xs text-slate-400 mt-0.5">최고관리자(SUPER_ADMIN) 물리 데이터베이스 샌드박스 엔진</p>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button 
-            onClick={fetchTables} 
-            disabled={isLoading}
-            className="flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 border border-slate-700 rounded-xl text-xs font-black cursor-pointer select-none transition-all"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-            DB 테이블 스캔
-          </button>
-        </div>
-      </div>
+      {/* 🚀 상단 헤더 섹션 (발송 내역 조회 헤더 스타일 동기화) */}
+      <h1 className="text-3xl font-bold text-slate-800 flex items-center select-none">
+        <Database className="w-8 h-8 mr-3 text-blue-500 shrink-0" />
+        MY DB
+      </h1>
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
         
-        {/* 📁 좌측 영역: 테이블 스캐너 리스트 */}
-        <div className="xl:col-span-1 bg-slate-900/40 p-5 rounded-2xl border border-slate-800">
-          <h2 className="text-sm font-black text-slate-300 mb-4 flex items-center gap-2 pb-3 border-b border-slate-850">
-            <Table className="w-4 h-4 text-blue-400" />
-            물리 테이블 목록 ({tables.length}개)
+        {/* 📁 좌측 영역: 테이블 스캐너 리스트 (둥근 모서리 라이트 테마 성형) */}
+        <div className="xl:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-100 p-5 overflow-hidden">
+          <h2 className="font-extrabold text-slate-800 text-base pb-3.5 border-b border-slate-100 flex items-center gap-2 mb-4 shrink-0">
+            <Table className="w-4.5 h-4.5 text-blue-500" />
+            물리 테이블 ({tables.length})
           </h2>
           
-          <div className="space-y-1.5 max-h-[600px] overflow-y-auto no-scrollbar">
+          <div className="space-y-1.5 max-h-[580px] overflow-y-auto no-scrollbar">
             {tables.length === 0 ? (
-              <div className="p-8 text-center text-xs text-slate-600 font-bold">
+              <div className="p-8 text-center text-xs text-slate-400 font-bold">
                 테이블이 탐색되지 않았습니다.
               </div>
             ) : (
@@ -399,18 +378,18 @@ export default function MyDBManagementPage() {
                   onClick={() => setSelectedTable(t.name)}
                   className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all text-left cursor-pointer group ${
                     selectedTable === t.name
-                      ? 'bg-blue-600/10 border-blue-500 text-blue-200'
-                      : 'bg-slate-900/30 border-slate-800/80 hover:bg-slate-800/40 text-slate-400 hover:text-slate-200'
+                      ? 'bg-blue-50/70 border-blue-200 text-blue-700 font-extrabold shadow-3xs'
+                      : 'bg-white border-slate-100 hover:bg-slate-50 text-slate-650 hover:text-slate-800'
                   }`}
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <Database className={`w-3.5 h-3.5 shrink-0 ${selectedTable === t.name ? 'text-blue-400' : 'text-slate-500'}`} />
-                    <span className="text-xs font-black truncate">{t.name}</span>
+                    <Database className={`w-3.5 h-3.5 shrink-0 ${selectedTable === t.name ? 'text-blue-500' : 'text-slate-400'}`} />
+                    <span className="text-xs truncate">{t.name}</span>
                   </div>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-black border group-hover:scale-105 transition-all ${
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-black border transition-all ${
                     selectedTable === t.name
-                      ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
-                      : 'bg-slate-800 text-slate-500 border-slate-700/60'
+                      ? 'bg-blue-500 text-white border-blue-500'
+                      : 'bg-slate-100 text-slate-450 border-slate-200/60'
                   }`}>
                     {t.count}
                   </span>
@@ -420,14 +399,14 @@ export default function MyDBManagementPage() {
           </div>
         </div>
 
-        {/* 🛠️ 우측 영역: 커스텀 SQL 콘솔 + 제어 탭 */}
+        {/* 🛠️ 우측 영역: 커스텀 SQL 콘솔 + 제어 탭 (발송 내역 스타일 100% 동기화) */}
         <div className="xl:col-span-3 space-y-6">
 
-          {/* 💻 대화형 커스텀 SQL 콘솔 패널 */}
-          <div className="bg-slate-900/40 p-5 rounded-2xl border border-slate-800">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-              <h2 className="text-sm font-black text-slate-300 flex items-center gap-2">
-                <Terminal className="w-4 h-4 text-indigo-400" />
+          {/* 💻 대화형 커스텀 SQL 콘솔 패널 (둥근 모서리 라이트 테마) */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100/70">
+              <h2 className="font-extrabold text-slate-800 text-base flex items-center gap-2">
+                <Terminal className="w-4.5 h-4.5 text-indigo-500" />
                 대화형 SQL 플레이그라운드
               </h2>
               
@@ -437,35 +416,35 @@ export default function MyDBManagementPage() {
                     type="checkbox" 
                     checked={safetyUnlocked}
                     onChange={(e) => setSafetyUnlocked(e.target.checked)}
-                    className="rounded border-slate-700 text-rose-600 bg-slate-950 focus:ring-rose-500/20 w-3.5 h-3.5 cursor-pointer"
+                    className="rounded border-slate-350 text-rose-600 bg-white focus:ring-rose-500/20 w-3.5 h-3.5 cursor-pointer"
                   />
-                  <span className="text-[10px] font-bold text-rose-400/90 flex items-center gap-0.5">
-                    <AlertTriangle className="w-3 h-3" />
+                  <span className="text-[10px] font-bold text-rose-600 flex items-center gap-0.5">
+                    <AlertTriangle className="w-3 h-3 text-rose-500" />
                     안전장치 잠금 해제
                   </span>
                 </label>
               </div>
             </div>
 
-            {/* SQL 에디터 영역 */}
+            {/* SQL 에디터 영역 (라이트 연한 회색) */}
             <div className="relative mb-3.5">
               <textarea
                 value={sqlQuery}
                 onChange={(e) => setSqlQuery(e.target.value)}
                 placeholder="여기에 실행할 커스텀 SQL 쿼리를 기입하십시오. (예: SELECT * FROM crm_expenses;)"
-                className="w-full h-32 pl-4 pr-4 py-3 bg-slate-950/80 border border-slate-800 text-slate-200 font-mono text-xs rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all resize-none shadow-inner"
+                className="w-full h-28 pl-4 pr-4 py-3 bg-slate-50 border border-slate-200 text-slate-700 font-mono text-xs rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all resize-none shadow-3xs"
               />
             </div>
 
             {/* 템플릿 프리셋 및 실행 버튼 */}
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[10px] text-slate-500 font-bold mr-1">프리셋:</span>
+                <span className="text-[10px] text-slate-450 font-bold mr-1">프리셋:</span>
                 {SQL_PRESETS.map((preset, idx) => (
                   <button
                     key={idx}
                     onClick={() => setSqlQuery(preset.query)}
-                    className="px-2.5 py-1 bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-slate-200 rounded-lg text-[9px] font-bold border border-slate-800 cursor-pointer select-none transition-all"
+                    className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-605 rounded-lg text-[9px] font-bold border border-slate-200/50 cursor-pointer select-none transition-all"
                   >
                     {preset.label}
                   </button>
@@ -475,161 +454,169 @@ export default function MyDBManagementPage() {
               <button
                 onClick={handleExecuteSQL}
                 disabled={isLoading}
-                className="flex items-center gap-1 px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-xl text-xs font-black shadow-lg shadow-indigo-600/10 border-none cursor-pointer transition-all active:scale-95 disabled:opacity-50"
+                className="flex items-center gap-1 px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black shadow-sm border-none cursor-pointer transition-all active:scale-95 disabled:opacity-50"
               >
-                <Play className="w-3.5 h-3.5 fill-current" />
+                <Play className="w-3.5 h-3.5 fill-current text-white" />
                 SQL 실행 (Ctrl+Enter)
               </button>
             </div>
           </div>
 
-          {/* 🏷️ 데이터 탭 헤더 */}
-          <div className="bg-slate-900/40 p-5 rounded-2xl border border-slate-800">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-850 pb-4 mb-5">
-              
-              {/* 탭 버튼들 */}
-              <div className="flex items-center gap-2 p-1 bg-slate-950 rounded-xl border border-slate-850 w-fit shrink-0">
-                <button
-                  onClick={() => setActiveTab('data')}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                    activeTab === 'data'
-                      ? 'bg-slate-850 text-blue-400 shadow-md border-none'
-                      : 'text-slate-500 hover:text-slate-350 border-none bg-transparent'
-                  }`}
-                >
-                  <Table className="w-3.5 h-3.5" />
-                  원시 레코드 데이터 ({totalRows}개)
-                </button>
+          {/* 🏷️ 데이터 탭 헤더 및 뷰어 (발송 내역 조회 2단 뷰 스타일 동기화) */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            
+            {/* 상단 탭 2단 도구막대 */}
+            <div className="p-5 border-b border-slate-100 bg-slate-50/50 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 w-full">
                 
-                <button
-                  onClick={() => setActiveTab('schema')}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                    activeTab === 'schema'
-                      ? 'bg-slate-850 text-indigo-400 shadow-md border-none'
-                      : 'text-slate-500 hover:text-slate-350 border-none bg-transparent'
-                  }`}
-                >
-                  <Code className="w-3.5 h-3.5" />
-                  테이블 스키마 DDL
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('console')}
-                  disabled={!consoleResult}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-black transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
-                    activeTab === 'console'
-                      ? 'bg-slate-850 text-emerald-400 shadow-md border-none'
-                      : 'text-slate-500 hover:text-slate-350 border-none bg-transparent'
-                  }`}
-                >
-                  <Terminal className="w-3.5 h-3.5" />
-                  SQL 실행 로그
-                </button>
-              </div>
-
-              {/* 탭 우측 도구 모음 (현재 선택된 탭이 data인 경우만) */}
-              {activeTab === 'data' && selectedTable && (
-                <div className="flex items-center gap-2">
+                {/* 탭 버튼들 (발송 퀵 프리셋과 똑같은 스타일 2단 뷰 적용) */}
+                <div className="flex items-center bg-slate-200/50 rounded-xl p-0.5 border border-slate-200/70 shrink-0">
                   <button
-                    onClick={handleExportCSV}
-                    className="flex items-center justify-center gap-1 px-3 py-1.5 bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-300 rounded-lg text-[10px] font-black cursor-pointer transition-colors"
-                    title="CSV 포맷으로 데이터 백업"
+                    onClick={() => setActiveTab('data')}
+                    className={`px-4 py-1.5 rounded-lg transition-all text-[11px] font-extrabold shrink-0 border-none ${
+                      activeTab === 'data' 
+                        ? 'bg-white text-blue-600 shadow-sm' 
+                        : 'text-slate-500 hover:text-slate-700 bg-transparent'
+                    }`}
                   >
-                    <Download className="w-3 h-3" />
-                    CSV 백업
+                    <Table className="w-3.5 h-3.5 inline mr-1" />
+                    레코드 데이터 ({totalRows})
                   </button>
+                  
                   <button
-                    onClick={() => {
-                      setEditingRow(null);
-                      setIsRowModalOpen(true);
-                    }}
-                    className="flex items-center justify-center gap-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-black border-none cursor-pointer transition-colors"
+                    onClick={() => setActiveTab('schema')}
+                    className={`px-4 py-1.5 rounded-lg transition-all text-[11px] font-extrabold shrink-0 border-none ${
+                      activeTab === 'schema' 
+                        ? 'bg-white text-blue-600 shadow-sm' 
+                        : 'text-slate-500 hover:text-slate-700 bg-transparent'
+                    }`}
                   >
-                    <Plus className="w-3 h-3" />
-                    행 삽입 (INSERT)
+                    <Code className="w-3.5 h-3.5 inline mr-1" />
+                    테이블 스키마 DDL
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab('console')}
+                    disabled={!consoleResult}
+                    className={`px-4 py-1.5 rounded-lg transition-all text-[11px] font-extrabold shrink-0 border-none disabled:opacity-40 disabled:cursor-not-allowed ${
+                      activeTab === 'console' 
+                        ? 'bg-white text-blue-600 shadow-sm' 
+                        : 'text-slate-500 hover:text-slate-700 bg-transparent'
+                    }`}
+                  >
+                    <Terminal className="w-3.5 h-3.5 inline mr-1" />
+                    SQL 실행 결과
                   </button>
                 </div>
-              )}
+
+                {/* 탭 우측 도구 모음 */}
+                {activeTab === 'data' && selectedTable && (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={handleExportCSV}
+                      className="flex items-center justify-center gap-1.5 px-3 py-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-bold shadow-3xs cursor-pointer transition-colors"
+                      title="CSV 포맷으로 데이터 백업"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      CSV 백업
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingRow(null);
+                        setIsRowModalOpen(true);
+                      }}
+                      className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-650 hover:bg-blue-600 text-white rounded-xl text-xs font-black border-none cursor-pointer shadow-3xs transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5 text-white" />
+                      행 삽입 (INSERT)
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* 탭 콘텐트 영역 1: 레코드 데이터 표 뷰어 */}
             {activeTab === 'data' && (
-              <div className="space-y-4">
+              <div className="p-5 space-y-4">
                 
-                {/* 데이터 필터 폼 */}
+                {/* 데이터 필터 폼 (조회 기간 필터와 똑같은 화사한 스타일 디자인) */}
                 {selectedTable && (
-                  <form onSubmit={handleSearch} className="flex flex-wrap items-center gap-2 bg-slate-950/40 p-3 rounded-xl border border-slate-850">
-                    <div className="flex items-center gap-1 text-[10px] font-black text-slate-500 px-1 shrink-0">
-                      <Search className="w-3 h-3 text-slate-500" />
-                      실시간 검색 필터:
+                  <form onSubmit={handleSearch} className="flex flex-wrap items-center gap-3 bg-slate-50/50 p-3.5 border border-slate-100 rounded-2xl w-full">
+                    <div className="flex items-center gap-1 text-[11px] font-black text-slate-500 px-1 shrink-0">
+                      <Search className="w-3.5 h-3.5 text-slate-400 mr-0.5" />
+                      실시간 검색 필터
                     </div>
-                    <select
-                      value={searchKey}
-                      onChange={e => setSearchKey(e.target.value)}
-                      className="text-[10px] font-bold outline-none bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-slate-300"
-                    >
-                      <option value="">-- 검색 컬럼 선택 --</option>
-                      {tableSchema.map(col => (
-                        <option key={col.name} value={col.name}>{col.name}</option>
-                      ))}
-                    </select>
-                    <input
-                      type="text"
-                      placeholder="검색어 입력..."
-                      value={searchValue}
-                      onChange={e => setSearchValue(e.target.value)}
-                      className="text-[10px] bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 text-slate-300 outline-none w-48 focus:border-blue-500"
-                    />
-                    <button
-                      type="submit"
-                      className="px-3 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-[10px] font-black text-slate-300 cursor-pointer"
-                    >
-                      검색
-                    </button>
-                    {(searchKey || searchValue) && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSearchKey("");
-                          setSearchValue("");
-                          fetchTableRows(selectedTable, 1);
-                        }}
-                        className="px-2 py-1 text-slate-500 hover:text-slate-350 text-[10px] font-bold border-none bg-transparent cursor-pointer"
+                    <div className="flex flex-wrap items-center gap-2">
+                      <select
+                        value={searchKey}
+                        onChange={e => setSearchKey(e.target.value)}
+                        className="text-xs font-bold outline-none bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-slate-700 cursor-pointer shadow-3xs"
                       >
-                        초기화
+                        <option value="">-- 검색 컬럼 선택 --</option>
+                        {tableSchema.map(col => (
+                          <option key={col.name} value={col.name}>{col.name}</option>
+                        ))}
+                      </select>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="검색어 입력..."
+                          value={searchValue}
+                          onChange={e => setSearchValue(e.target.value)}
+                          className="text-xs bg-white border border-slate-200 rounded-xl px-3.5 py-1.5 text-slate-700 outline-none w-48 focus:border-blue-500 shadow-3xs"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        className="px-4 py-1.5 bg-slate-800 hover:bg-slate-750 text-white rounded-xl text-xs font-extrabold cursor-pointer border border-slate-800"
+                      >
+                        검색
                       </button>
-                    )}
+                      {(searchKey || searchValue) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearchKey("");
+                            setSearchValue("");
+                            fetchTableRows(selectedTable, 1);
+                          }}
+                          className="px-2 py-1 text-slate-450 hover:text-slate-650 text-xs font-bold border-none bg-transparent cursor-pointer"
+                        >
+                          초기화
+                        </button>
+                      )}
+                    </div>
                   </form>
                 )}
 
-                {/* 그리드 표 렌더러 */}
-                <div className="overflow-x-auto w-full border border-slate-850 rounded-xl bg-slate-950/20 max-h-[500px]">
+                {/* 그리드 표 렌더러 (발송 내역 테이블 스타일 칼동기화) */}
+                <div className="overflow-x-auto w-full border border-slate-100 rounded-xl max-h-[500px]">
                   {tableRows.length === 0 ? (
-                    <div className="p-16 text-center text-xs text-slate-650 font-semibold">
-                      레코드 데이터가 비어있거나 조건에 매칭되는 결과가 없습니다.
+                    <div className="p-16 text-center text-xs text-slate-400 font-semibold">
+                      레코드 데이터가 비어있거나 검색 결과와 일치하는 내역이 없습니다.
                     </div>
                   ) : (
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead className="bg-slate-900 text-slate-400 font-bold border-b border-slate-850">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="bg-slate-50 border-b border-slate-100 text-sm">
                         <tr>
                           {Object.keys(tableRows[0]).map(key => (
-                            <th key={key} className="p-3 border-r border-slate-900 font-bold min-w-[120px] whitespace-nowrap">
+                            <th key={key} className="p-4 font-bold text-slate-700 min-w-[120px] whitespace-nowrap">
                               {key}
                               {tableSchema.find(c => c.name === key)?.pk === 1 && (
-                                <span className="ml-1 text-[8px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1 rounded">PK</span>
+                                <span className="ml-1.5 text-[8px] bg-amber-50 text-amber-700 border border-amber-200 px-1 rounded-sm">PK</span>
                               )}
                             </th>
                           ))}
-                          <th className="p-3 text-center w-20 sticky right-0 bg-slate-900">제어</th>
+                          <th className="p-4 text-center w-20 sticky right-0 bg-slate-50 border-l border-slate-100/60 z-10">제어</th>
                         </tr>
                       </thead>
                       <tbody>
                         {tableRows.map((row, idx) => (
-                          <tr key={idx} className="border-b border-slate-900/50 hover:bg-slate-900/20 transition-all font-mono text-[11px] text-slate-300">
+                          <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/50 transition-all font-mono text-[11px] text-slate-600">
                             {Object.entries(row).map(([key, val], cIdx) => (
-                              <td key={cIdx} className="p-3 border-r border-slate-950 max-w-[250px] truncate" title={val !== null ? String(val) : "NULL"}>
+                              <td key={cIdx} className="p-4 max-w-[250px] truncate" title={val !== null ? String(val) : "NULL"}>
                                 {val === null ? (
-                                  <span className="text-[10px] text-slate-700 italic select-none">NULL</span>
+                                  <span className="text-[10px] text-slate-350 italic select-none">NULL</span>
                                 ) : typeof val === 'object' ? (
                                   JSON.stringify(val)
                                 ) : (
@@ -637,21 +624,21 @@ export default function MyDBManagementPage() {
                                 )}
                               </td>
                             ))}
-                            <td className="p-3 text-center sticky right-0 bg-slate-900/90 backdrop-blur-xs" onClick={e => e.stopPropagation()}>
+                            <td className="p-4 text-center sticky right-0 bg-white/95 border-l border-slate-50" onClick={e => e.stopPropagation()}>
                               <div className="flex items-center justify-center gap-1.5">
                                 <button
                                   onClick={() => {
                                     setEditingRow(row);
                                     setIsRowModalOpen(true);
                                   }}
-                                  className="p-1 text-slate-400 hover:text-blue-500 hover:bg-slate-850 rounded border-none bg-transparent cursor-pointer"
+                                  className="p-1 text-slate-400 hover:text-blue-600 hover:bg-slate-50 rounded border-none bg-transparent cursor-pointer"
                                   title="레코드 인라인 편집"
                                 >
                                   <Edit className="w-3.5 h-3.5" />
                                 </button>
                                 <button
                                   onClick={() => handleDeleteRow(row)}
-                                  className="p-1 text-slate-400 hover:text-rose-500 hover:bg-slate-850 rounded border-none bg-transparent cursor-pointer"
+                                  className="p-1 text-slate-400 hover:text-rose-600 hover:bg-slate-50 rounded border-none bg-transparent cursor-pointer"
                                   title="레코드 영구 삭제"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
@@ -665,27 +652,39 @@ export default function MyDBManagementPage() {
                   )}
                 </div>
 
-                {/* 하단 페이지네이션 피드 */}
+                {/* 하단 페이지네이션 피드 (발송 내역 페이지네이션 디자인 연동) */}
                 {totalPages > 1 && (
-                  <div className="flex items-center justify-between bg-slate-950 p-4 border border-slate-850 rounded-xl">
-                    <span className="text-[10px] font-bold text-slate-500">
-                      총 {totalRows}행 중 {Math.min(totalRows, (currentPage - 1) * itemsPerPage + 1)}-{Math.min(totalRows, currentPage * itemsPerPage)} 표시
+                  <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/50 rounded-xl">
+                    <span className="text-xs text-slate-450 font-semibold">
+                      전체 {totalRows}건 중 {(currentPage - 1) * itemsPerPage + 1}-{Math.min(totalRows, currentPage * itemsPerPage)}건 표시
                     </span>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1">
                       <button
                         onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                         disabled={currentPage === 1}
-                        className="px-2.5 py-1 bg-slate-900 hover:bg-slate-850 disabled:opacity-40 text-slate-300 text-[10px] font-bold rounded border border-slate-800 cursor-pointer"
+                        className="px-3 py-1.5 rounded-lg border bg-white hover:bg-slate-50 disabled:opacity-50 text-xs font-bold text-slate-600 cursor-pointer disabled:cursor-not-allowed transition-all shadow-3xs"
                       >
                         이전
                       </button>
-                      <span className="text-[10px] font-bold text-slate-400 px-2">
-                        {currentPage} / {totalPages}
-                      </span>
+                      
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                        <button 
+                          key={page}
+                          onClick={() => handlePageChange(page)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                            currentPage === page 
+                              ? 'bg-blue-600 text-white shadow-sm border-none' 
+                              : 'border bg-white text-slate-605 hover:bg-slate-50 cursor-pointer'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      ))}
+                      
                       <button
                         onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
                         disabled={currentPage === totalPages}
-                        className="px-2.5 py-1 bg-slate-900 hover:bg-slate-850 disabled:opacity-40 text-slate-300 text-[10px] font-bold rounded border border-slate-800 cursor-pointer"
+                        className="px-3 py-1.5 rounded-lg border bg-white hover:bg-slate-50 disabled:opacity-50 text-xs font-bold text-slate-600 cursor-pointer disabled:cursor-not-allowed transition-all shadow-3xs"
                       >
                         다음
                       </button>
@@ -697,59 +696,59 @@ export default function MyDBManagementPage() {
 
             {/* 탭 콘텐트 영역 2: 스키마 구조 및 DDL */}
             {activeTab === 'schema' && (
-              <div className="space-y-6 animate-fade-in">
+              <div className="p-5 space-y-6 animate-fade-in text-slate-700">
                 {/* 1. DDL 생성 쿼리 */}
                 <div>
-                  <h3 className="text-xs font-black text-slate-400 mb-2 flex items-center gap-1">
-                    <Code className="w-3.5 h-3.5 text-indigo-400" />
+                  <h3 className="text-xs font-black text-slate-450 mb-2.5 flex items-center gap-1">
+                    <Code className="w-3.5 h-3.5 text-indigo-500" />
                     CREATE TABLE DDL (생성 구문)
                   </h3>
-                  <pre className="p-4 bg-slate-950 border border-slate-850 text-indigo-300 font-mono text-xs rounded-xl overflow-x-auto select-all leading-relaxed shadow-inner max-h-60">
+                  <pre className="p-4 bg-slate-50 border border-slate-200 text-slate-800 font-mono text-xs rounded-2xl overflow-x-auto select-all leading-relaxed shadow-3xs max-h-60">
                     {tableDDL || "-- DDL 정보가 조회되지 않았습니다."}
                   </pre>
                 </div>
 
                 {/* 2. 컬럼 구조 테이블 */}
                 <div>
-                  <h3 className="text-xs font-black text-slate-400 mb-2 flex items-center gap-1">
-                    <Table className="w-3.5 h-3.5 text-blue-400" />
+                  <h3 className="text-xs font-black text-slate-450 mb-2.5 flex items-center gap-1">
+                    <Table className="w-3.5 h-3.5 text-blue-500" />
                     데이터베이스 컬럼 상세 구조
                   </h3>
-                  <div className="overflow-x-auto w-full border border-slate-850 rounded-xl bg-slate-950/40">
-                    <table className="w-full text-left text-xs border-collapse">
-                      <thead className="bg-slate-900 text-slate-400 font-bold border-b border-slate-850">
+                  <div className="overflow-x-auto w-full border border-slate-100 rounded-xl">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="bg-slate-50 border-b border-slate-100 text-sm">
                         <tr>
-                          <th className="p-3 border-r border-slate-900">CID</th>
-                          <th className="p-3 border-r border-slate-900">컬럼명 (Name)</th>
-                          <th className="p-3 border-r border-slate-900">데이터 타입 (Type)</th>
-                          <th className="p-3 border-r border-slate-900">Null 허용 여부</th>
-                          <th className="p-3 border-r border-slate-900">기본값 (Default)</th>
-                          <th className="p-3">기본키 (PK)</th>
+                          <th className="p-4 font-bold text-slate-700">CID</th>
+                          <th className="p-4 font-bold text-slate-700">컬럼명</th>
+                          <th className="p-4 font-bold text-slate-700">데이터 타입</th>
+                          <th className="p-4 font-bold text-slate-700">Null 허용 여부</th>
+                          <th className="p-4 font-bold text-slate-700">기본값</th>
+                          <th className="p-4 font-bold text-slate-700">기본키 (PK)</th>
                         </tr>
                       </thead>
                       <tbody>
                         {tableSchema.map((col, idx) => (
-                          <tr key={idx} className="border-b border-slate-900/50 hover:bg-slate-900/10 font-mono text-[11px] text-slate-350">
-                            <td className="p-3 border-r border-slate-950 text-slate-500">{col.cid}</td>
-                            <td className="p-3 border-r border-slate-950 text-slate-200 font-black">{col.name}</td>
-                            <td className="p-3 border-r border-slate-950 text-indigo-400">{col.type}</td>
-                            <td className="p-3 border-r border-slate-950">
+                          <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50 font-mono text-[11px] text-slate-650">
+                            <td className="p-4 text-slate-400">{col.cid}</td>
+                            <td className="p-4 text-slate-800 font-black">{col.name}</td>
+                            <td className="p-4 text-indigo-600 font-bold">{col.type}</td>
+                            <td className="p-4">
                               {col.notnull === 1 || col.notnull === true ? (
-                                <span className="text-[10px] text-rose-400 font-bold">NOT NULL</span>
+                                <span className="text-[10px] text-rose-600 font-bold bg-rose-50 border border-rose-100 px-1.5 py-0.5 rounded">NOT NULL</span>
                               ) : (
-                                <span className="text-[10px] text-slate-600">NULL OK</span>
+                                <span className="text-[10px] text-slate-400">NULL OK</span>
                               )}
                             </td>
-                            <td className="p-3 border-r border-slate-950 text-slate-500">
+                            <td className="p-4 text-slate-500">
                               {col.dflt_value !== null ? String(col.dflt_value) : "-"}
                             </td>
-                            <td className="p-3">
+                            <td className="p-4">
                               {col.pk === 1 || col.pk === true ? (
-                                <span className="inline-flex px-2 py-0.5 bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[9px] font-black rounded">
+                                <span className="inline-flex px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 text-[9px] font-black rounded">
                                   Primary Key
                                 </span>
                               ) : (
-                                <span className="text-slate-600">-</span>
+                                <span className="text-slate-400">-</span>
                               )}
                             </td>
                           </tr>
@@ -763,12 +762,12 @@ export default function MyDBManagementPage() {
 
             {/* 탭 콘텐트 영역 3: SQL 콘솔 실행 로그 및 결과 테이블 */}
             {activeTab === 'console' && consoleResult && (
-              <div className="space-y-4 animate-fade-in">
+              <div className="p-5 space-y-4 animate-fade-in">
                 {consoleResult.success ? (
                   <div className="space-y-4">
                     {/* 성공 헤더 피드 */}
-                    <div className="p-3.5 bg-emerald-950/20 text-emerald-400 border border-emerald-500/10 rounded-xl flex items-center gap-2 text-xs font-semibold">
-                      <CheckCircle className="w-4 h-4 text-emerald-400" />
+                    <div className="p-3.5 bg-green-50 text-green-700 border border-green-200 rounded-xl flex items-center gap-2 text-xs font-semibold">
+                      <CheckCircle className="w-4.5 h-4.5 text-green-600" />
                       성공: 쿼리가 데이터베이스 컴파일러를 통과하여 완수되었습니다. 
                       {consoleResult.affectedRows !== null && ` (영향받은 행: ${consoleResult.affectedRows}개)`}
                       {consoleResult.lastInsertRowid !== null && ` (생성된 ID: ${consoleResult.lastInsertRowid})`}
@@ -776,22 +775,22 @@ export default function MyDBManagementPage() {
 
                     {/* 결과 레코드 표 */}
                     {consoleResult.rows && consoleResult.rows.length > 0 ? (
-                      <div className="overflow-x-auto w-full border border-slate-850 rounded-xl bg-slate-950/40 max-h-[400px]">
-                        <table className="w-full text-left text-xs border-collapse">
-                          <thead className="bg-slate-900 text-slate-450 font-bold border-b border-slate-850">
+                      <div className="overflow-x-auto w-full border border-slate-100 rounded-xl max-h-[400px]">
+                        <table className="w-full text-left border-collapse">
+                          <thead className="bg-slate-50 border-b border-slate-100 text-sm">
                             <tr>
                               {Object.keys(consoleResult.rows[0]).map(key => (
-                                <th key={key} className="p-3 border-r border-slate-900 font-bold whitespace-nowrap">{key}</th>
+                                <th key={key} className="p-4 font-bold text-slate-700 whitespace-nowrap">{key}</th>
                               ))}
                             </tr>
                           </thead>
                           <tbody>
                             {consoleResult.rows.map((row, idx) => (
-                              <tr key={idx} className="border-b border-slate-900/50 hover:bg-slate-900/20 transition-all font-mono text-[11px] text-slate-350">
+                              <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50 transition-all font-mono text-[11px] text-slate-650">
                                 {Object.values(row).map((val: any, cIdx) => (
-                                  <td key={cIdx} className="p-3 border-r border-slate-950 max-w-[250px] truncate" title={val !== null ? String(val) : "NULL"}>
+                                  <td key={cIdx} className="p-4 max-w-[250px] truncate" title={val !== null ? String(val) : "NULL"}>
                                     {val === null ? (
-                                      <span className="text-[10px] text-slate-700 italic select-none">NULL</span>
+                                      <span className="text-[10px] text-slate-350 italic select-none">NULL</span>
                                     ) : (
                                       String(val)
                                     )}
@@ -803,17 +802,17 @@ export default function MyDBManagementPage() {
                         </table>
                       </div>
                     ) : (
-                      <div className="p-10 text-center text-xs text-slate-500 italic font-bold">
+                      <div className="p-10 text-center text-xs text-slate-400 italic font-bold">
                         SELECT 결과 세트가 비어있거나, 데이터를 변경하는 쿼리입니다.
                       </div>
                     )}
                   </div>
                 ) : (
                   /* 실패 정보 피드 */
-                  <div className="p-4 bg-rose-950/20 text-rose-400 border border-rose-500/10 rounded-xl flex items-start gap-2.5 text-xs font-mono leading-relaxed">
-                    <ShieldAlert className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                  <div className="p-4 bg-red-50 text-red-700 border border-red-200 rounded-xl flex items-start gap-2.5 text-xs font-mono leading-relaxed">
+                    <ShieldAlert className="w-4.5 h-4.5 text-red-600 shrink-0 mt-0.5" />
                     <div>
-                      <div className="font-bold text-rose-300 mb-1">SQL Compilation/Execution Failed:</div>
+                      <div className="font-bold text-red-800 mb-1">SQL Compilation/Execution Failed:</div>
                       {consoleResult.error || "알 수 없는 SQL 컴파일 에러입니다. 문법을 확인해 주세요."}
                     </div>
                   </div>
@@ -826,26 +825,26 @@ export default function MyDBManagementPage() {
 
       {/* 📁 레코드 삽입/수정용 모달 (INSERT / UPDATE Modal) */}
       {isRowModalOpen && selectedTable && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-zoom-in">
-            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/60">
-              <h3 className="text-sm font-black text-slate-200 flex items-center gap-1.5">
-                <Database className="w-4 h-4 text-blue-400" />
-                {editingRow ? `✏️ [${selectedTable}] 행 데이터 편집(UPDATE)` : `📥 [${selectedTable}] 신규 레코드 삽입(INSERT)`}
+        <div className="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-hidden animate-zoom-in">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <h3 className="font-extrabold text-slate-800 text-sm flex items-center gap-1.5">
+                <Database className="w-4.5 h-4.5 text-blue-500" />
+                {editingRow ? `✏️ [${selectedTable}] 행 데이터 편집 (UPDATE)` : `📥 [${selectedTable}] 신규 레코드 삽입 (INSERT)`}
               </h3>
               <button 
                 onClick={() => {
                   setIsRowModalOpen(false);
                   setEditingRow(null);
                 }}
-                className="p-1 hover:bg-slate-800 text-slate-400 hover:text-slate-200 rounded border-none bg-transparent cursor-pointer"
+                className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-full border-none bg-transparent cursor-pointer transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleSaveRow} className="flex flex-col">
-              <div className="p-6 max-h-[500px] overflow-y-auto no-scrollbar space-y-4">
+              <div className="p-6 max-h-[480px] overflow-y-auto no-scrollbar space-y-4 text-slate-700 bg-white">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {tableSchema.map(col => {
                     const isPK = col.pk === 1 || col.pk === true;
@@ -853,11 +852,11 @@ export default function MyDBManagementPage() {
                     
                     return (
                       <div key={col.name} className="space-y-1">
-                        <label className="text-[11px] font-black text-slate-400 flex items-center gap-1">
+                        <label className="text-[11px] font-black text-slate-450 flex items-center gap-1">
                           {col.name}
-                          <span className="text-[9px] text-indigo-400 font-bold font-mono">({col.type})</span>
-                          {isPK && <span className="text-[8px] bg-amber-500/20 text-amber-400 px-1 border border-amber-500/20 rounded">PK</span>}
-                          {col.notnull === 1 && <span className="text-[8px] bg-rose-500/20 text-rose-400 px-1 border border-rose-500/20 rounded">필수</span>}
+                          <span className="text-[9px] text-indigo-500 font-bold font-mono">({col.type})</span>
+                          {isPK && <span className="text-[8px] bg-amber-50 text-amber-700 border border-amber-200 px-1 rounded-sm">PK</span>}
+                          {col.notnull === 1 && <span className="text-[8px] bg-rose-50 text-rose-700 border border-rose-200 px-1 rounded-sm">필수</span>}
                         </label>
                         <input
                           type="text"
@@ -866,7 +865,7 @@ export default function MyDBManagementPage() {
                           placeholder={isPK && !editingRow ? "(자동 시퀀스 ID)" : `${col.name} 값 기입...`}
                           disabled={isPK && !editingRow} // 신규 삽입 시 PK가 자동 생성 번호면 잠금
                           required={col.notnull === 1 && (!isPK || editingRow)} // 필수 컬럼 가드
-                          className="w-full px-3.5 py-2.5 bg-slate-950/60 border border-slate-800 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-xs text-slate-200 transition-all placeholder:text-slate-650"
+                          className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-xs text-slate-700 transition-all placeholder:text-slate-350 shadow-3xs disabled:bg-slate-50 disabled:text-slate-400"
                         />
                       </div>
                     );
@@ -874,23 +873,23 @@ export default function MyDBManagementPage() {
                 </div>
               </div>
 
-              <div className="p-4 border-t border-slate-800 bg-slate-900/60 flex items-center justify-end gap-2">
+              <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => {
                     setIsRowModalOpen(false);
                     setEditingRow(null);
                   }}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-350 border border-slate-700 rounded-xl text-xs font-black cursor-pointer"
+                  className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-500 rounded-xl text-xs font-bold cursor-pointer"
                 >
                   취소
                 </button>
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-lg shadow-blue-600/10 border-none cursor-pointer disabled:opacity-50"
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-black shadow-sm border-none cursor-pointer disabled:opacity-50"
                 >
-                  {editingRow ? "데이터 갱신(UPDATE)" : "레코드 삽입(INSERT)"}
+                  {editingRow ? "데이터 갱신 (UPDATE)" : "레코드 삽입 (INSERT)"}
                 </button>
               </div>
             </form>
