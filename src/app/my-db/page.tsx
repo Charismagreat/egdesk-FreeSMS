@@ -42,6 +42,9 @@ export default function MyDBManagementPage() {
   const [isAiLoading, setIsAiLoading] = React.useState<boolean>(false);
   const [aiGeneratedSql, setAiGeneratedSql] = React.useState<string>("");
 
+  // 🗑️ 소프트 삭제 데이터 보기 토글 상태 변수
+  const [showDeleted, setShowDeleted] = React.useState<boolean>(false);
+
   // 로딩 및 알림
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const [toast, setToast] = React.useState<{ message: string; type: 'success' | 'error' | 'warn' } | null>(null);
@@ -95,12 +98,12 @@ export default function MyDBManagementPage() {
   };
 
   // 3. 선택 테이블의 실제 데이터 그리드 레코드 로드 (검색/페이지네이션 연동)
-  const fetchTableRows = async (tableName: string, page: number, key = "", val = "") => {
+  const fetchTableRows = async (tableName: string, page: number, key = "", val = "", includeDeleted = showDeleted) => {
     if (!tableName) return;
     setIsLoading(true);
     try {
       const offset = (page - 1) * itemsPerPage;
-      let url = `/api/db?action=query&tableName=${tableName}&limit=${itemsPerPage}&offset=${offset}`;
+      let url = `/api/db?action=query&tableName=${tableName}&limit=${itemsPerPage}&offset=${offset}&showDeleted=${includeDeleted}`;
       if (key && val) {
         url += `&searchKey=${encodeURIComponent(key)}&searchValue=${encodeURIComponent(val)}`;
       }
@@ -129,20 +132,28 @@ export default function MyDBManagementPage() {
       setCurrentPage(1);
       setSearchKey("");
       setSearchValue("");
+      setShowDeleted(false);
       fetchTableSchema(selectedTable);
-      fetchTableRows(selectedTable, 1);
+      fetchTableRows(selectedTable, 1, "", "", false);
     }
   }, [selectedTable]);
 
+  React.useEffect(() => {
+    if (selectedTable) {
+      setCurrentPage(1);
+      fetchTableRows(selectedTable, 1, searchKey, searchValue, showDeleted);
+    }
+  }, [showDeleted]);
+
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    fetchTableRows(selectedTable, page, searchKey, searchValue);
+    fetchTableRows(selectedTable, page, searchKey, searchValue, showDeleted);
   };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setCurrentPage(1);
-    fetchTableRows(selectedTable, 1, searchKey, searchValue);
+    fetchTableRows(selectedTable, 1, searchKey, searchValue, showDeleted);
   };
 
   // 💡 AI 자연어 SQL 번역 및 에디터 연계 액션
@@ -259,12 +270,50 @@ export default function MyDBManagementPage() {
       if (data.success) {
         showToast(data.message || "레코드가 삭제되었습니다.", "success");
         fetchTables();
-        fetchTableRows(selectedTable, currentPage, searchKey, searchValue);
+        fetchTableRows(selectedTable, currentPage, searchKey, searchValue, showDeleted);
       } else {
         showToast(data.error || "레코드 삭제 실패", "error");
       }
     } catch (e) {
       showToast("삭제 프로세스 통신 실패", "error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 6-2. 소프트 삭제된 레코드 안전 복구 (RESTORE)
+  const handleRestoreRow = async (row: any) => {
+    if (!selectedTable) return;
+    
+    const pkColumn = tableSchema.find(col => col.pk === 1 || col.pk === true)?.name || 'id';
+    const rowId = row[pkColumn];
+
+    if (rowId === undefined) {
+      showToast("고유 식별 기본키(PK) 값을 식별할 수 없는 데이터 행입니다.", "warn");
+      return;
+    }
+
+    if (!confirm(`정말로 해당 레코드(PK ${pkColumn} = ${rowId})를 복구하시겠습니까?\n복구 시 감사추적에 복구자와 일시가 자동 등재됩니다.`)) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/db", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "restore", tableName: selectedTable, id: rowId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(data.message || "레코드가 성공적으로 복원되었습니다.", "success");
+        fetchTables();
+        fetchTableRows(selectedTable, currentPage, searchKey, searchValue, showDeleted);
+      } else {
+        showToast(data.error || "레코드 복원 실패", "error");
+      }
+    } catch (e) {
+      showToast("복구 프로세스 통신 실패", "error");
     } finally {
       setIsLoading(false);
     }
@@ -319,7 +368,7 @@ export default function MyDBManagementPage() {
         setIsRowModalOpen(false);
         setEditingRow(null);
         fetchTables();
-        fetchTableRows(selectedTable, currentPage, searchKey, searchValue);
+        fetchTableRows(selectedTable, currentPage, searchKey, searchValue, showDeleted);
       } else {
         showToast(data.error || "레코드 적재 실패", "error");
       }
@@ -718,51 +767,71 @@ export default function MyDBManagementPage() {
                 
                 {/* 데이터 필터 폼 (조회 기간 필터와 똑같은 화사한 스타일 디자인) */}
                 {selectedTable && (
-                  <form onSubmit={handleSearch} className="flex flex-wrap items-center gap-3 bg-slate-50/50 p-3.5 border border-slate-100 rounded-2xl w-full">
-                    <div className="flex items-center gap-1 text-[11px] font-black text-slate-500 px-1 shrink-0">
-                      <Search className="w-3.5 h-3.5 text-slate-400 mr-0.5" />
-                      실시간 검색 필터
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <select
-                        value={searchKey}
-                        onChange={e => setSearchKey(e.target.value)}
-                        className="text-xs font-bold outline-none bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-slate-700 cursor-pointer shadow-3xs"
-                      >
-                        <option value="">-- 검색 컬럼 선택 --</option>
-                        {tableSchema.map(col => (
-                          <option key={col.name} value={col.name}>{col.name}</option>
-                        ))}
-                      </select>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          placeholder="검색어 입력..."
-                          value={searchValue}
-                          onChange={e => setSearchValue(e.target.value)}
-                          className="text-xs bg-white border border-slate-200 rounded-xl px-3.5 py-1.5 text-slate-700 outline-none w-48 focus:border-blue-500 shadow-3xs"
-                        />
+                  <form onSubmit={handleSearch} className="flex flex-wrap items-center justify-between gap-3 bg-slate-50/50 p-3.5 border border-slate-100 rounded-2xl w-full">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="flex items-center gap-1 text-[11px] font-black text-slate-500 px-1 shrink-0">
+                        <Search className="w-3.5 h-3.5 text-slate-400 mr-0.5" />
+                        실시간 검색 필터
                       </div>
-                      <button
-                        type="submit"
-                        className="px-4 py-1.5 bg-slate-800 hover:bg-slate-750 text-white rounded-xl text-xs font-extrabold cursor-pointer border border-slate-800"
-                      >
-                        검색
-                      </button>
-                      {(searchKey || searchValue) && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSearchKey("");
-                            setSearchValue("");
-                            fetchTableRows(selectedTable, 1);
-                          }}
-                          className="px-2 py-1 text-slate-450 hover:text-slate-650 text-xs font-bold border-none bg-transparent cursor-pointer"
+                      <div className="flex flex-wrap items-center gap-2">
+                        <select
+                          value={searchKey}
+                          onChange={e => setSearchKey(e.target.value)}
+                          className="text-xs font-bold outline-none bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-slate-700 cursor-pointer shadow-3xs"
                         >
-                          초기화
+                          <option value="">-- 검색 컬럼 선택 --</option>
+                          {tableSchema.map(col => (
+                            <option key={col.name} value={col.name}>{col.name}</option>
+                          ))}
+                        </select>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            placeholder="검색어 입력..."
+                            value={searchValue}
+                            onChange={e => setSearchValue(e.target.value)}
+                            className="text-xs bg-white border border-slate-200 rounded-xl px-3.5 py-1.5 text-slate-700 outline-none w-48 focus:border-blue-500 shadow-3xs"
+                          />
+                        </div>
+                        <button
+                          type="submit"
+                          className="px-4 py-1.5 bg-slate-800 hover:bg-slate-750 text-white rounded-xl text-xs font-extrabold cursor-pointer border border-slate-800"
+                        >
+                          검색
                         </button>
-                      )}
+                        {(searchKey || searchValue) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSearchKey("");
+                              setSearchValue("");
+                              fetchTableRows(selectedTable, 1, "", "", showDeleted);
+                            }}
+                            className="px-2 py-1 text-slate-450 hover:text-slate-650 text-xs font-bold border-none bg-transparent cursor-pointer"
+                          >
+                            초기화
+                          </button>
+                        )}
+                      </div>
                     </div>
+
+                    {/* 🗑️ 소프트 삭제 컬럼 존재 시 휴지통 토글 마운트 */}
+                    {tableSchema.some(col => col.name === 'deleted_at') && (
+                      <div className="flex items-center shrink-0">
+                        <label className="inline-flex items-center gap-2 px-3 py-1.5 bg-rose-50/60 hover:bg-rose-50 border border-rose-100 rounded-xl cursor-pointer select-none transition-all shadow-3xs">
+                          <input
+                            type="checkbox"
+                            checked={showDeleted}
+                            onChange={(e) => setShowDeleted(e.target.checked)}
+                            className="rounded border-rose-300 text-rose-600 bg-white focus:ring-rose-500/20 w-4 h-4 cursor-pointer"
+                          />
+                          <span className="text-[11px] font-black text-rose-700 flex items-center gap-1">
+                            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                            소프트 삭제(휴지통) 보기
+                          </span>
+                        </label>
+                      </div>
+                    )}
                   </form>
                 )}
 
@@ -788,42 +857,65 @@ export default function MyDBManagementPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {tableRows.map((row, idx) => (
-                          <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/50 transition-all font-mono text-[11px] text-slate-600">
-                            {Object.entries(row).map(([key, val], cIdx) => (
-                              <td key={cIdx} className="p-4 max-w-[250px] truncate" title={val !== null ? String(val) : "NULL"}>
-                                {val === null ? (
-                                  <span className="text-[10px] text-slate-350 italic select-none">NULL</span>
-                                ) : typeof val === 'object' ? (
-                                  JSON.stringify(val)
-                                ) : (
-                                  String(val)
-                                )}
+                        {tableRows.map((row, idx) => {
+                          const isSoftDeleted = row.deleted_at !== undefined && row.deleted_at !== null;
+                          return (
+                            <tr 
+                              key={idx} 
+                              className={`border-b transition-all font-mono text-[11px] ${
+                                isSoftDeleted 
+                                  ? 'bg-rose-50/50 hover:bg-rose-50/80 text-rose-700 border-rose-100/80' 
+                                  : 'border-slate-50 hover:bg-slate-50/50 text-slate-600'
+                              }`}
+                            >
+                              {Object.entries(row).map(([key, val], cIdx) => (
+                                <td key={cIdx} className="p-4 max-w-[250px] truncate" title={val !== null ? String(val) : "NULL"}>
+                                  {val === null ? (
+                                    <span className="text-[10px] text-slate-350 italic select-none">NULL</span>
+                                  ) : typeof val === 'object' ? (
+                                    JSON.stringify(val)
+                                  ) : (
+                                    String(val)
+                                  )}
+                                </td>
+                              ))}
+                              <td className={`p-4 text-center sticky right-0 border-l ${isSoftDeleted ? 'bg-rose-50/95 border-rose-100/80' : 'bg-white/95 border-slate-50'}`} onClick={e => e.stopPropagation()}>
+                                <div className="flex items-center justify-center gap-1.5">
+                                  {isSoftDeleted ? (
+                                    <button
+                                      onClick={() => handleRestoreRow(row)}
+                                      className="px-2.5 py-1 bg-green-650 hover:bg-green-600 text-white rounded-lg text-[10px] font-black border-none cursor-pointer flex items-center gap-0.5 shadow-3xs transition-all active:scale-95"
+                                      title="소프트 삭제 레코드 안전 복구"
+                                    >
+                                      <RefreshCw className="w-3 h-3 text-white" />
+                                      복구
+                                    </button>
+                                  ) : (
+                                    <>
+                                      <button
+                                        onClick={() => {
+                                          setEditingRow(row);
+                                          setIsRowModalOpen(true);
+                                        }}
+                                        className="p-1 text-slate-400 hover:text-blue-600 hover:bg-slate-50 rounded border-none bg-transparent cursor-pointer transition-colors"
+                                        title="레코드 인라인 편집"
+                                      >
+                                        <Edit className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteRow(row)}
+                                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-slate-50 rounded border-none bg-transparent cursor-pointer transition-colors"
+                                        title={tableSchema.some(col => col.name === 'deleted_at') ? "휴지통으로 소프트 삭제" : "레코드 즉시 삭제"}
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
                               </td>
-                            ))}
-                            <td className="p-4 text-center sticky right-0 bg-white/95 border-l border-slate-50" onClick={e => e.stopPropagation()}>
-                              <div className="flex items-center justify-center gap-1.5">
-                                <button
-                                  onClick={() => {
-                                    setEditingRow(row);
-                                    setIsRowModalOpen(true);
-                                  }}
-                                  className="p-1 text-slate-400 hover:text-blue-600 hover:bg-slate-50 rounded border-none bg-transparent cursor-pointer"
-                                  title="레코드 인라인 편집"
-                                >
-                                  <Edit className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteRow(row)}
-                                  className="p-1 text-slate-400 hover:text-rose-600 hover:bg-slate-50 rounded border-none bg-transparent cursor-pointer"
-                                  title="레코드 영구 삭제"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   )}
