@@ -6,7 +6,7 @@ import {
   Trash2, AlertTriangle, Code, Table, Search, Terminal,
   CheckCircle, ChevronRight, X, ShieldAlert, Calendar,
   BarChart, FileText, Activity, Sparkles, Paperclip, Send,
-  Undo
+  Undo, RotateCcw
 } from "lucide-react";
 import DBChartRenderer from "@/components/DBChartRenderer";
 
@@ -89,6 +89,12 @@ export default function MyDBManagementPage() {
     tuneHistory: any[];
   } | null>(null);
 
+  // 🏁 최초 차트 생성 시의 오리지널 스냅샷 상태 변수 (처음으로 돌아가기용)
+  const [initialSnapshot, setInitialSnapshot] = React.useState<{
+    chartSpec: any;
+    briefing: string | null;
+  } | null>(null);
+
   // 💾 챗봇 상태 실시간 localStorage 보존 (복원이 완전히 마친 시점 이후부터 안전 작동)
   React.useEffect(() => {
     if (!isRestored) return;
@@ -118,6 +124,17 @@ export default function MyDBManagementPage() {
       }
     }
   }, [previousSnapshot, isRestored]);
+
+  React.useEffect(() => {
+    if (!isRestored) return;
+    if (typeof window !== "undefined") {
+      if (initialSnapshot) {
+        localStorage.setItem("egdesk_mydb_initialSnapshot", JSON.stringify(initialSnapshot));
+      } else {
+        localStorage.removeItem("egdesk_mydb_initialSnapshot");
+      }
+    }
+  }, [initialSnapshot, isRestored]);
 
   const fetchSharedDashboards = async () => {
     try {
@@ -199,6 +216,7 @@ export default function MyDBManagementPage() {
     setIsVisualizing(true);
     setAiChartSpec(null);
     setAiBriefing(null);
+    setInitialSnapshot(null); // 최초 스냅샷 초기화
 
     try {
       // 1. 쿼리 구문에서 테이블명 지능적 추론
@@ -230,6 +248,12 @@ export default function MyDBManagementPage() {
       if (data.recommendedChart) {
         setAiChartSpec(data.recommendedChart);
         setAiBriefing(data.briefing);
+        
+        // 🏁 최초 오리지널 시각화 차트 스펙과 브리핑 상태를 안전 보존 스냅샷에 백업
+        setInitialSnapshot({
+          chartSpec: data.recommendedChart,
+          briefing: data.briefing || null
+        });
       } else {
         console.error("AI 시각화 분석 실패:", data.error);
         showToast(`AI 시각화 분석 실패: ${data.error || '알 수 없는 오류'}`, "error");
@@ -377,17 +401,33 @@ export default function MyDBManagementPage() {
   };
 
   const handleResetChat = () => {
-    if (confirm("최고관리자님, AI 챗봇과의 대화 이력을 모두 초기화하시겠습니까?")) {
+    if (confirm("최고관리자님, AI 챗봇과의 대화 내용을 모두 초기화하고\n차트와 브리핑도 AI가 최초 추천했던 원본 상태로 완전히 되돌리시겠습니까?")) {
       setTuneHistory([]);
       setSelectedChartPart("");
       setAttachedImage("");
       setPreviousSnapshot(null);
+      
+      // 🏁 최초 분석 원본 상태가 존재한다면 차트와 브리핑도 즉시 복원
+      if (initialSnapshot) {
+        setAiChartSpec(initialSnapshot.chartSpec);
+        setAiBriefing(initialSnapshot.briefing);
+      }
+
       if (typeof window !== "undefined") {
         localStorage.removeItem("egdesk_mydb_tuneHistory");
         localStorage.removeItem("egdesk_mydb_selectedChartPart");
         localStorage.removeItem("egdesk_mydb_previousSnapshot");
+        
+        if (initialSnapshot) {
+          localStorage.setItem("egdesk_mydb_aiChartSpec", JSON.stringify(initialSnapshot.chartSpec));
+          if (initialSnapshot.briefing) {
+            localStorage.setItem("egdesk_mydb_aiBriefing", initialSnapshot.briefing);
+          } else {
+            localStorage.removeItem("egdesk_mydb_aiBriefing");
+          }
+        }
       }
-      showToast("대화 이력이 완전히 초기화되었습니다.", "success");
+      showToast("✓ 대화 내용 및 차트 상태가 최초 추천 원본 상태로 조화롭게 리셋되었습니다.", "success");
     }
   };
 
@@ -417,6 +457,39 @@ export default function MyDBManagementPage() {
 
       setPreviousSnapshot(null); // 사용 완료 후 스냅샷 초기화
       showToast("✓ 성공적으로 직전 튜닝 이전의 상태로 되돌렸습니다!", "success");
+    }
+  };
+
+  // 🏁 AI 최초 추천 시각화 오리지널 차트 상태로 완전히 돌아가기 (처음으로 돌아가기)
+  const handleResetToOriginal = () => {
+    if (!initialSnapshot) {
+      showToast("되돌아갈 최초 차트 정보가 존재하지 않습니다.", "warn");
+      return;
+    }
+    
+    if (confirm("최고관리자님, AI가 최초로 추천해 드렸던 최초 원본 차트 및 브리핑 상태로 완전히 복원하시겠습니까?\n(이전 챗 대화 내용과 튜닝 히스토리는 모두 깨끗이 초기화됩니다.)")) {
+      setAiChartSpec(initialSnapshot.chartSpec);
+      setAiBriefing(initialSnapshot.briefing);
+      setTuneHistory([]);
+      setSelectedChartPart("");
+      setAttachedImage("");
+      setPreviousSnapshot(null);
+      
+      // 로컬스토리지 전면 복구 및 초기화
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("egdesk_mydb_tuneHistory");
+        localStorage.removeItem("egdesk_mydb_selectedChartPart");
+        localStorage.removeItem("egdesk_mydb_previousSnapshot");
+        
+        localStorage.setItem("egdesk_mydb_aiChartSpec", JSON.stringify(initialSnapshot.chartSpec));
+        if (initialSnapshot.briefing) {
+          localStorage.setItem("egdesk_mydb_aiBriefing", initialSnapshot.briefing);
+        } else {
+          localStorage.removeItem("egdesk_mydb_aiBriefing");
+        }
+      }
+      
+      showToast("✓ 최초 생성되었던 오리지널 시각화 차트 상태로 완벽히 되돌아갔습니다!", "success");
     }
   };
 
@@ -1962,7 +2035,18 @@ export default function MyDBManagementPage() {
                           <span>AI 지능형 피드백 챗봇 대화</span>
                           <span className="text-[9px] bg-indigo-50 border border-indigo-150 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold ml-1 animate-pulse">gemini-3.5-flash</span>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2.5">
+                          {initialSnapshot && (
+                            <button
+                              type="button"
+                              onClick={handleResetToOriginal}
+                              className="flex items-center gap-1 text-[10px] font-bold text-amber-600 hover:text-amber-700 bg-transparent border-none cursor-pointer outline-none transition-all active:scale-95 animate-pulse"
+                              title="AI가 최초 추천했던 원본 차트 및 브리핑 상태로 완전히 돌아가기 (대화 초기화 동반)"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                              처음으로 돌아가기
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={handleUndoTuning}
@@ -1982,10 +2066,10 @@ export default function MyDBManagementPage() {
                               type="button"
                               onClick={handleResetChat}
                               className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-rose-500 bg-transparent border-none cursor-pointer outline-none transition-all active:scale-95"
-                              title="대화 이력 초기화"
+                              title="대화 내용 및 차트 상태를 최초 추천 상태로 리셋"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
-                              이력 초기화
+                              대화 초기화
                             </button>
                           )}
                         </div>
