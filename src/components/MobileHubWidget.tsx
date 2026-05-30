@@ -17,7 +17,8 @@ import {
   X,
   Info,
   Handshake,
-  Sparkles
+  Sparkles,
+  Coins
 } from "lucide-react";
 
 interface MobileChannel {
@@ -113,6 +114,16 @@ export default function MobileHubWidget() {
       themeColor: "from-indigo-600 to-violet-600 bg-indigo-50 text-indigo-600 border-indigo-100",
       badge: "현장 실무자/R&D/마케팅 전용",
       smsTemplate: "[이지데스크] 현장/업무 스냅태스크 모바일 전송 채널입니다. 아래 링크에서 바로 실시간 텍스트 메모 및 미디어(사진/녹취/문서) 스냅 전송을 시작하세요! "
+    },
+    {
+      id: "expenses-mobile-approve",
+      name: "지출결의 모바일 승인",
+      description: "대표자가 야외 현장에서도 실시간 지출 내역을 심사하고 승인/반려 처리를 모바일로 즉석 집행하는 모바일 관제서",
+      path: "/expenses/mobile-approve",
+      icon: Coins,
+      themeColor: "from-rose-600 to-pink-650 bg-rose-50 text-rose-600 border-rose-100",
+      badge: "대표자/임원진 전용",
+      smsTemplate: "[이지데스크] 지출결의서 모바일 실시간 심사 링크입니다. 아래 링크에서 즉석 검수 및 승인을 진행해 주시기 바랍니다. "
     }
   ];
 
@@ -229,12 +240,12 @@ export default function MobileHubWidget() {
               스마트 모바일 채널
             </h2>
             <p className="text-slate-400 text-xs mt-0.5">
-              온·오프라인 비즈니스 성장과 현장 협업을 가동하는 7대 모바일 채널을 이곳에서 실시간으로 배포하고 통제하세요.
+              온·오프라인 비즈니스 성장과 현장 협업을 가동하는 8대 모바일 채널을 이곳에서 실시간으로 배포하고 통제하세요.
             </p>
           </div>
         </div>
 
-        {/* 7대 B2B/B2C 채널 목록 - 4열 콤팩트 그리드 레이아웃 */}
+        {/* 8대 B2B/B2C 채널 목록 - 4열 콤팩트 그리드 레이아웃 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {channels.map((channel) => {
             const Icon = channel.icon;
