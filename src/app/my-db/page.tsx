@@ -1959,7 +1959,7 @@ export default function MyDBManagementPage() {
                       </div>
                       <div 
                         id="chart-capture-target"
-                        className="bg-slate-50/50 p-4 border border-slate-100 rounded-2xl overflow-hidden relative"
+                        className="bg-slate-50 p-4 border border-slate-100 rounded-2xl overflow-hidden relative"
                       >
                         {aiChartSpec ? (
                           <>
@@ -2014,7 +2014,7 @@ export default function MyDBManagementPage() {
                       </div>
                       
                       {aiBriefing ? (
-                        <div className="p-5 bg-emerald-50/20 border border-emerald-100/60 rounded-2xl shadow-3xs space-y-3 animate-fade-in">
+                        <div className="p-5 bg-[#f0fdf4] border border-emerald-100 rounded-2xl shadow-3xs space-y-3 animate-fade-in">
                           <div className="text-xs font-bold leading-relaxed text-slate-700 whitespace-pre-line font-sans">
                             {aiBriefing}
                           </div>
@@ -2083,8 +2083,8 @@ export default function MyDBManagementPage() {
                         </div>
                       </div>
 
-                      {/* 대화 메시지 로그 프레임 (높이를 h-[550px]로 대폭 확장하여 쾌적화) */}
-                      <div className="h-[550px] overflow-y-auto p-4 bg-slate-50/50 border border-slate-100 rounded-2xl space-y-4">
+                      {/* 대화 메시지 로그 프레임 (높이를 h-[550px]로 대폭 확장 및 우측 스크롤 여백 pr-5 확보로 말풍선 가독성 극대화) */}
+                      <div className="h-[550px] overflow-y-auto pl-4 pr-5 py-4 bg-slate-50 border border-slate-100 rounded-2xl space-y-4">
                         {tuneHistory.length === 0 ? (
                           <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 space-y-2.5">
                             <div className="w-9 h-9 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center animate-bounce">
@@ -2135,7 +2135,7 @@ export default function MyDBManagementPage() {
                                   // 골드 그라데이션 자가 스킬 학습 알림
                                   return (
                                     <div key={index} className="flex justify-center my-1.5 max-w-[95%] mx-auto animate-pulse">
-                                      <div className="w-full bg-amber-50/90 border border-amber-300 rounded-2xl p-3.5 shadow-sm flex items-start gap-2.5">
+                                      <div className="w-full bg-amber-50 border border-amber-300 rounded-2xl p-3.5 shadow-sm flex items-start gap-2.5">
                                         <div className="w-6.5 h-6.5 rounded-full bg-amber-100 flex items-center justify-center shrink-0 shadow-3xs">
                                           <Sparkles className="w-3.5 h-3.5 text-amber-600" />
                                         </div>
@@ -2175,41 +2175,6 @@ export default function MyDBManagementPage() {
                         )}
                       </div>
 
-                      {/* 이미지 프리뷰 & 집중 수정 지표 칩 패널 */}
-                      {(selectedChartPart || (attachedImage && attachedImage.length > 50)) && (
-                        <div className="flex flex-wrap items-center gap-2 p-2 bg-slate-50 border border-slate-100 rounded-xl animate-fade-in">
-                          {selectedChartPart && (
-                            <div className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-150 text-indigo-755 text-[10px] font-extrabold px-2.5 py-1 rounded-lg">
-                              <span>🎯 집중 수정 지표: {selectedChartPart}</span>
-                              <button 
-                                type="button" 
-                                onClick={() => setSelectedChartPart("")}
-                                className="text-indigo-400 hover:text-indigo-600 font-black cursor-pointer bg-transparent border-none p-0 outline-none text-xs ml-1"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          )}
-                          {attachedImage && attachedImage.length > 50 && (
-                            <div className="relative flex items-center gap-1.5 border border-slate-200 bg-white p-1 rounded-lg shrink-0 shadow-2xs">
-                              <img 
-                                src={attachedImage} 
-                                className="w-12 h-12 object-contain bg-slate-100/50 rounded-md block" 
-                                alt="지정 영역 프리뷰" 
-                              />
-                              <button 
-                                type="button" 
-                                onClick={() => setAttachedImage("")}
-                                className="absolute -top-1.5 -right-1.5 w-4.5 h-4.5 rounded-full bg-rose-500 hover:bg-rose-650 text-white text-[9px] font-black flex items-center justify-center cursor-pointer shadow-3xs border border-white"
-                                title="지정 영역 삭제"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
                       {/* 숨김형 파일 업로더 */}
                       <input 
                         type="file" 
@@ -2219,56 +2184,93 @@ export default function MyDBManagementPage() {
                         onChange={handleImageUpload} 
                       />
 
-                      {/* 대화 입력 바 */}
-                      <div className="flex items-end gap-2 bg-slate-50 border border-slate-200 rounded-2xl p-2 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-405 transition-all">
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={isVisualizing}
-                          className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 rounded-xl transition-all cursor-pointer border-none bg-transparent active:scale-95 flex items-center justify-center shrink-0"
-                          title="이미지 분석 첨부 (Vision)"
-                        >
-                          <Paperclip className="w-4 h-4" />
-                        </button>
-                        
-                        <textarea
-                          value={tunePrompt}
-                          onChange={(e) => setTunePrompt(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              if (e.ctrlKey) {
-                                e.preventDefault();
-                                handleTuneChart();
-                              } else if (!e.shiftKey) {
-                                e.preventDefault();
-                                handleTuneChart();
+                      {/* 통합형 콤팩트 대화 입력 컨테이너 (칩과 텍스트 입력 영역 사이의 여백을 완전히 수축 정리) */}
+                      <div className="bg-slate-50 border border-slate-200 rounded-2xl focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-400 transition-all overflow-hidden flex flex-col shadow-3xs">
+                        {/* 이미지 프리뷰 & 집중 수정 지표 칩 패널 */}
+                        {(selectedChartPart || (attachedImage && attachedImage.length > 50)) && (
+                          <div className="flex flex-wrap items-center gap-2 p-2 bg-slate-100/60 border-b border-slate-200/80 animate-fade-in">
+                            {selectedChartPart && (
+                              <div className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-150 text-indigo-700 text-[10px] font-extrabold px-2.5 py-1 rounded-lg">
+                                <span>🎯 집중 수정 지표: {selectedChartPart}</span>
+                                <button 
+                                  type="button" 
+                                  onClick={() => setSelectedChartPart("")}
+                                  className="text-indigo-455 hover:text-indigo-655 font-black cursor-pointer bg-transparent border-none p-0 outline-none text-xs ml-1"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            )}
+                            {attachedImage && attachedImage.length > 50 && (
+                              <div className="relative flex items-center gap-1.5 border border-slate-200 bg-white p-1 rounded-lg shrink-0 shadow-2xs">
+                                <img 
+                                  src={attachedImage} 
+                                  className="w-10 h-10 object-contain bg-slate-50 rounded-md block" 
+                                  alt="지정 영역 프리뷰" 
+                                />
+                                <button 
+                                  type="button" 
+                                  onClick={() => setAttachedImage("")}
+                                  className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 hover:bg-rose-600 text-white text-[9px] font-black flex items-center justify-center cursor-pointer shadow-3xs border border-white"
+                                  title="지정 영역 삭제"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* 대화 입력 바 */}
+                        <div className="flex items-center gap-2.5 py-1.5 px-2.5 min-h-[46px]">
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isVisualizing}
+                            className="p-2 text-slate-400 hover:text-slate-650 hover:bg-slate-200/50 rounded-xl transition-all cursor-pointer border-none bg-transparent active:scale-95 flex items-center justify-center shrink-0"
+                            title="이미지 분석 첨부 (Vision)"
+                          >
+                            <Paperclip className="w-4 h-4" />
+                          </button>
+                          
+                          <textarea
+                            value={tunePrompt}
+                            onChange={(e) => setTunePrompt(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                if (e.ctrlKey) {
+                                  e.preventDefault();
+                                  handleTuneChart();
+                                } else if (!e.shiftKey) {
+                                  e.preventDefault();
+                                  handleTuneChart();
+                                }
                               }
-                            }
-                          }}
-                          placeholder={isVisualizing ? "AI 분석 튜닝이 진행 중입니다..." : "AI에게 피드백을 전달해 보세요... (Ctrl+Enter: 전송, Shift+Enter: 줄바꿈)"}
-                          disabled={isVisualizing}
-                          rows={Math.min(tunePrompt.split('\n').length || 1, 5)}
-                          className="flex-1 max-h-32 text-xs bg-transparent border-none outline-none py-1.5 resize-none text-slate-800 placeholder-slate-455 leading-relaxed font-semibold font-sans focus:ring-0 focus:outline-none"
-                        />
-                        
-                        <button
-                          type="button"
-                          onClick={() => handleTuneChart()}
-                          disabled={isVisualizing || (!tunePrompt.trim() && !attachedImage)}
-                          className={`p-3 rounded-2xl transition-all duration-200 shrink-0 border flex items-center justify-center gap-1 shadow-sm select-none ${
-                            (!tunePrompt.trim() && !attachedImage) || isVisualizing
-                              ? 'bg-slate-200 text-slate-500 border-slate-350 cursor-not-allowed opacity-90'
-                              : 'bg-gradient-to-r from-blue-600 to-indigo-650 hover:from-blue-500 hover:to-indigo-550 text-white border-transparent cursor-pointer active:scale-95 shadow-md'
-                          }`}
-                          style={{ minWidth: '44px', minHeight: '44px' }}
-                          title="수정 요청 전송"
-                        >
-                          {isVisualizing ? (
-                            <RefreshCw className="w-5 h-5 animate-spin" />
-                          ) : (
-                            <Send className="w-5 h-5" />
-                          )}
-                        </button>
+                            }}
+                            placeholder={isVisualizing ? "AI 분석 튜닝이 진행 중입니다..." : "AI에게 피드백을 전달해 보세요... (Ctrl+Enter: 전송, Shift+Enter: 줄바꿈)"}
+                            disabled={isVisualizing}
+                            rows={Math.min(tunePrompt.split('\n').length || 1, 5)}
+                            className="flex-1 max-h-32 text-xs bg-transparent border-none outline-none py-1.5 resize-none text-slate-800 placeholder-slate-400 leading-relaxed font-semibold font-sans focus:ring-0 focus:outline-none self-center"
+                          />
+                          
+                          <button
+                            type="button"
+                            onClick={() => handleTuneChart()}
+                            disabled={isVisualizing || (!tunePrompt.trim() && !attachedImage)}
+                            className={`w-9 h-9 rounded-xl transition-all duration-200 shrink-0 border flex items-center justify-center shadow-3xs select-none active:scale-95 ${
+                              (!tunePrompt.trim() && !attachedImage) || isVisualizing
+                                ? 'bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed opacity-90'
+                                : 'bg-gradient-to-r from-blue-600 to-indigo-650 hover:from-blue-500 hover:to-indigo-550 text-white border-transparent cursor-pointer shadow-sm'
+                            }`}
+                            title="수정 요청 전송"
+                          >
+                            {isVisualizing ? (
+                              <RefreshCw className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Send className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
