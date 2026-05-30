@@ -128,19 +128,38 @@ export async function GET(request: Request) {
     baseQuery += whereClause;
     countQuery += whereClause;
 
-    // 정렬 조건 적용 (정렬 대상 컬럼이 노출 컬럼 중 하나이고 안전한지 검사)
-    let sortBy = default_sort_column || '';
-    let sortDir = (default_sort_direction || 'DESC').toUpperCase();
-    if (sortDir !== 'ASC' && sortDir !== 'DESC') sortDir = 'DESC';
+    // 5.1. 다단계 정렬 조건 조립 (column_mappings 내의 sortOrder 및 sortDirection 사용)
+    const sortConditions: string[] = [];
+    
+    // sortOrder가 정의되어 있고 정렬 방향이 유효한 것들만 필터링 후 정렬
+    const sortedMappings = [...visibleColumns]
+      .filter((col: any) => col.sortOrder && col.sortOrder > 0 && (col.sortDirection === 'ASC' || col.sortDirection === 'DESC'))
+      .sort((a: any, b: any) => Number(a.sortOrder) - Number(b.sortOrder));
 
-    const isSortColVisible = visibleColumns.some((col: any) => col.physical === sortBy);
-    if (sortBy && isSortColVisible && SAFE_SQL_NAME_REGEX.test(sortBy)) {
-      baseQuery += ` ORDER BY "${sortBy}" ${sortDir}`;
+    if (sortedMappings.length > 0) {
+      for (const col of sortedMappings) {
+        if (SAFE_SQL_NAME_REGEX.test(col.physical)) {
+          sortConditions.push(`"${col.physical}" ${col.sortDirection}`);
+        }
+      }
+    }
+
+    if (sortConditions.length > 0) {
+      baseQuery += ` ORDER BY ${sortConditions.join(', ')}`;
     } else {
-      // 기본 키를 임시 정렬 컬럼으로 선택하거나 첫 노출 컬럼으로 대체
-      const firstCol = visibleColumns[0].physical;
-      if (SAFE_SQL_NAME_REGEX.test(firstCol)) {
-        baseQuery += ` ORDER BY "${firstCol}" DESC`;
+      // 레거시/기본 정렬 호환성 유지
+      let sortBy = default_sort_column || '';
+      let sortDir = (default_sort_direction || 'DESC').toUpperCase();
+      if (sortDir !== 'ASC' && sortDir !== 'DESC') sortDir = 'DESC';
+
+      const isSortColVisible = visibleColumns.some((col: any) => col.physical === sortBy);
+      if (sortBy && isSortColVisible && SAFE_SQL_NAME_REGEX.test(sortBy)) {
+        baseQuery += ` ORDER BY "${sortBy}" ${sortDir}`;
+      } else {
+        const firstCol = visibleColumns[0].physical;
+        if (SAFE_SQL_NAME_REGEX.test(firstCol)) {
+          baseQuery += ` ORDER BY "${firstCol}" DESC`;
+        }
       }
     }
 
@@ -152,10 +171,12 @@ export async function GET(request: Request) {
     const countRes = db.prepare(countQuery).get();
     const total = countRes?.cnt || 0;
 
-    // 보안 강화: 브라우저에 비공개 맵핑 정보는 일절 누출하지 않고, visible = true 인 한글 명칭만 필터하여 반환
+    // 보안 강화: 브라우저에 비공개 맵핑 정보는 일절 누출하지 않고, visible = true 인 한글 명칭 및 정렬 필터하여 반환
     const cleanMappings = visibleColumns.map((col: any) => ({
       physical: col.physical,
       friendly: col.friendly || col.physical,
+      sortOrder: col.sortOrder || 0,
+      sortDirection: col.sortDirection || 'NONE'
     }));
 
     return NextResponse.json({

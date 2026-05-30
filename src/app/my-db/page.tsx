@@ -708,7 +708,9 @@ export default function MyDBManagementPage() {
       return {
         physical: col.name,
         friendly,
-        visible: !isSensitive
+        visible: !isSensitive,
+        sortOrder: 0,
+        sortDirection: 'NONE'
       };
     });
 
@@ -3280,249 +3282,347 @@ export default function MyDBManagementPage() {
 
       {/* 👥 임직원 친화형 커스텀 공유 테이블 뷰 개설 모달 */}
       {isFriendlyShareModalOpen && (
-        <div className="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-hidden animate-zoom-in text-left">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <h3 className="font-extrabold text-slate-800 text-sm flex items-center gap-1.5">
-                <Table className="w-4.5 h-4.5 text-indigo-600" />
-                👥 임직원 친화형 커스텀 공유 테이블 뷰 개설
-              </h3>
-              <button 
-                onClick={() => setIsFriendlyShareModalOpen(false)}
-                className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-full border-none bg-transparent cursor-pointer transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+        <div className="fixed inset-0 z-[100] bg-slate-100 flex flex-col w-screen h-screen overflow-hidden animate-fade-in text-left">
+          {/* 🌌 최상단 프리미엄 헤더바 (네온 그라데이션 라인 결합) */}
+          <div className="h-1.5 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
+          <div className="p-5 border-b border-slate-200 bg-white flex items-center justify-between shadow-xs shrink-0">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-650 font-black shadow-3xs">
+                <Table className="w-5 h-5 text-indigo-600 animate-pulse" />
+              </div>
+              <div className="space-y-0.5">
+                <h3 className="font-extrabold text-slate-900 text-sm md:text-base flex items-center gap-1.5">
+                  👥 임직원 친화형 커스텀 공유 테이블 뷰 개설 대시보드
+                </h3>
+                <p className="text-[10px] text-slate-400 font-bold">
+                  물리 테이블 명: <span className="font-mono text-indigo-550 font-extrabold">{selectedTable}</span>
+                </p>
+              </div>
             </div>
+            <button 
+              onClick={() => setIsFriendlyShareModalOpen(false)}
+              className="p-2 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-full border-none bg-transparent cursor-pointer transition-all active:scale-90"
+              title="창 닫기 (취소)"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
 
-            <div className="p-6 space-y-5 text-slate-700 bg-white">
-              {generatedFriendlyShareUrl ? (
-                <div className="space-y-4.5 animate-zoom-in text-center py-4">
-                  <div className="w-12 h-12 rounded-full bg-indigo-50 border border-indigo-200 flex items-center justify-center mx-auto text-indigo-600">
-                    <CheckCircle className="w-6 h-6" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <h4 className="text-xs font-black text-slate-880">임직원 전용 커스텀 테이블 뷰가 성공적으로 개설되었습니다!</h4>
-                    <p className="text-[10px] text-slate-400">민감정보(소프트 삭제자, 비밀번호 등)가 완벽히 제외된 정제된 링크입니다. 사내 임직원에게 즉시 공유하세요.</p>
-                  </div>
+          {/* 🚀 메인 본문 영역 (스크롤 최적화 & 풀 레이아웃) */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50">
+            {generatedFriendlyShareUrl ? (
+              // 🏆 [A방안] 발행 완료 성공 카드 화면 (대형 프리미엄 성공 안내)
+              <div className="max-w-2xl mx-auto bg-white border border-slate-200 rounded-3xl p-8 shadow-2xl text-center space-y-6 animate-zoom-in my-12">
+                <div className="w-16 h-16 rounded-full bg-indigo-50 border border-indigo-200 flex items-center justify-center mx-auto text-indigo-600 shadow-3xs">
+                  <CheckCircle className="w-8 h-8" />
+                </div>
+                <div className="space-y-2">
+                  <h4 className="text-base md:text-lg font-black text-slate-800">
+                    임직원 전용 커스텀 테이블 뷰가 성공적으로 개설되었습니다!
+                  </h4>
+                  <p className="text-xs text-slate-500 leading-relaxed max-w-lg mx-auto">
+                    지정한 한국어 타이틀과 필터링된 데이터 컬럼 구조가 반영되었습니다. 민감한 정보(비밀번호, 삭제자 등)가 완벽히 은폐된 안전한 공유 링크입니다.
+                  </p>
+                </div>
 
-                  <div className="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-2xl select-all font-mono text-[11px] text-slate-650 justify-between">
-                    <span className="truncate pr-4">{generatedFriendlyShareUrl}</span>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(generatedFriendlyShareUrl);
-                        showToast("공유 뷰어 링크가 클립보드에 무사히 복사되었습니다!", "success");
-                      }}
-                      className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-[10px] font-black shrink-0 border-none cursor-pointer hover:bg-indigo-500 shadow-3xs"
-                    >
-                      복사
-                    </button>
-                  </div>
+                <div className="flex items-center gap-2.5 p-4 bg-slate-50 border border-slate-200 rounded-2xl select-all font-mono text-xs text-slate-650 justify-between">
+                  <span className="truncate pr-4 select-all">{generatedFriendlyShareUrl}</span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(generatedFriendlyShareUrl);
+                      showToast("공유 뷰어 링크가 클립보드에 무사히 복사되었습니다!", "success");
+                    }}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black shrink-0 border-none cursor-pointer hover:bg-indigo-500 shadow-3xs transition-all active:scale-95"
+                  >
+                    복사
+                  </button>
+                </div>
 
-                  <div className="pt-2 flex gap-2">
-                    <a
-                      href={generatedFriendlyShareUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 py-2.5 bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 rounded-xl text-xs font-black text-center cursor-pointer shadow-3xs transition-all flex items-center justify-center gap-1.5 text-decoration-none"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                      공유 페이지 바로가기
-                    </a>
-                    <button
-                      onClick={() => setIsFriendlyShareModalOpen(false)}
-                      className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-750 text-white rounded-xl text-xs font-extrabold border border-slate-800 cursor-pointer shadow-3xs"
-                    >
-                      설정 닫기
-                    </button>
+                <div className="pt-4 flex flex-col sm:flex-row gap-3 justify-center max-w-md mx-auto">
+                  <a
+                    href={generatedFriendlyShareUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 py-3 bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 rounded-xl text-xs font-black text-center cursor-pointer shadow-3xs transition-all flex items-center justify-center gap-2 text-decoration-none active:scale-95"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    공유 페이지 바로가기
+                  </a>
+                  <button
+                    onClick={() => setIsFriendlyShareModalOpen(false)}
+                    className="flex-1 py-3 bg-slate-800 hover:bg-slate-750 text-white rounded-xl text-xs font-extrabold border border-slate-800 cursor-pointer shadow-3xs transition-all active:scale-95"
+                  >
+                    대시보드 닫기
+                  </button>
+                </div>
+              </div>
+            ) : (
+              // ⚙️ [B방안] 풀스크린 세팅 폼 대시보드
+              <div className="max-w-7xl mx-auto space-y-6">
+                
+                {/* 1. 상단 기본 세팅 블록 */}
+                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-3xs grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* 테이블 한글 명칭 */}
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                      📌 임직원용 한글 테이블 명칭
+                    </label>
+                    <input
+                      type="text"
+                      value={friendlyShareTableName}
+                      onChange={(e) => setFriendlyShareTableName(e.target.value)}
+                      placeholder="예: 단골 고객 연락처 대장, 지출 승인 명세서..."
+                      className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-xs text-slate-700 font-semibold transition-all placeholder:text-slate-400 shadow-3xs"
+                    />
+                    <p className="text-[10px] text-slate-400 font-medium">
+                      임직원용 공유 링크의 웹 타이틀 및 엑셀 다운로드 파일명으로 사용됩니다.
+                    </p>
+                  </div>
+                  
+                  {/* CSV 다운로드 토글 */}
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                      📥 엑셀/CSV 백업 다운로드 권한
+                    </label>
+                    <div className="flex items-center gap-3 h-[42px] bg-slate-50 border border-slate-200 rounded-xl px-4">
+                      <input
+                        type="checkbox"
+                        id="friendlyAllowCsv"
+                        checked={friendlyAllowCsv}
+                        onChange={(e) => setFriendlyAllowCsv(e.target.checked)}
+                        className="w-4.5 h-4.5 rounded text-indigo-600 border-slate-350 focus:ring-indigo-555 cursor-pointer"
+                      />
+                      <label htmlFor="friendlyAllowCsv" className="text-xs font-black text-slate-600 cursor-pointer select-none">
+                        임직원들이 웹 뷰어 화면에서 데이터를 CSV 엑셀 파일로 내려받도록 허용합니다.
+                      </label>
+                    </div>
+                    <p className="text-[10px] text-slate-400 font-medium">
+                      보안 유지를 위해 다운로드 파일 역시 숨김(`visible: false`) 처리된 컬럼은 자동 누락됩니다.
+                    </p>
                   </div>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* 테이블 한글 명칭 */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-black text-slate-400">
-                        임직원용 테이블 한글명
-                      </label>
-                      <input
-                        type="text"
-                        value={friendlyShareTableName}
-                        onChange={(e) => setFriendlyShareTableName(e.target.value)}
-                        placeholder="예: 단골 고객 연락처 대장"
-                        className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-xs text-slate-700 transition-all placeholder:text-slate-400 shadow-3xs font-semibold"
-                      />
-                    </div>
-                    
-                    {/* CSV 다운로드 토글 */}
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-black text-slate-400">
-                        엑셀/CSV 다운로드 권한
-                      </label>
-                      <div className="flex items-center gap-3 h-[38px] bg-slate-50 border border-slate-200 rounded-xl px-4">
-                        <input
-                          type="checkbox"
-                          id="friendlyAllowCsv"
-                          checked={friendlyAllowCsv}
-                          onChange={(e) => setFriendlyAllowCsv(e.target.checked)}
-                          className="w-4 h-4 rounded text-indigo-600 border-slate-350 focus:ring-indigo-500 cursor-pointer"
-                        />
-                        <label htmlFor="friendlyAllowCsv" className="text-xs font-bold text-slate-600 cursor-pointer select-none">
-                          임직원들이 이 테이블을 다운로드하도록 허용
-                        </label>
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* 컬럼 개별 매핑 및 비식별화 */}
-                  <div className="space-y-2 text-left">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[11px] font-black text-slate-400">
-                        컬럼 개별 한글 맵핑 및 노출 제어 (보안 설정)
-                      </label>
-                      <span className="text-[9px] text-indigo-600 font-extrabold bg-indigo-50 px-2 py-0.5 rounded-full">
-                        노출된 컬럼만 안전하게 공유됩니다
+                {/* 2. 하단 대규모 컬럼 및 다단계 멀티 정렬 매핑 표 */}
+                <div className="bg-white border border-slate-200 rounded-2xl shadow-3xs overflow-hidden">
+                  <div className="p-4 bg-slate-50/70 border-b border-slate-150 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="space-y-0.5 text-left">
+                      <h4 className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                        🧬 전체 스키마 명세 및 멀티 정렬 조건 구성
+                      </h4>
+                      <p className="text-[10px] text-slate-400 font-medium">
+                        영문 컬럼명을 알기 쉬운 한글 별칭으로 변환하고, 노출 여부와 다단계 정렬 순위를 지정합니다.
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-150 px-2.5 py-0.5 rounded-full select-none">
+                        총 {friendlyColumnMappings.length}개 컬럼 로드됨
                       </span>
                     </div>
-
-                    <div className="max-h-[220px] overflow-y-auto no-scrollbar border border-slate-100 rounded-2xl p-3.5 bg-slate-50/40 space-y-2.5">
-                      {friendlyColumnMappings.map((col, idx) => (
-                        <div key={col.physical} className="flex items-center justify-between gap-3 bg-white p-2.5 border border-slate-200/60 rounded-xl shadow-3xs">
-                          {/* 컬럼 정보 */}
-                          <div className="flex-1 min-w-[120px]">
-                            <div className="text-[10px] font-black text-slate-400 font-mono truncate">{col.physical}</div>
-                          </div>
-                          
-                          {/* 한글 매핑 명칭 */}
-                          <div className="flex-2">
-                            <input
-                              type="text"
-                              value={col.friendly}
-                              onChange={(e) => {
-                                const newMappings = [...friendlyColumnMappings];
-                                newMappings[idx].friendly = e.target.value;
-                                setFriendlyColumnMappings(newMappings);
-                              }}
-                              placeholder="한글 컬럼 이름..."
-                              className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded-lg outline-none text-xs text-slate-700 font-semibold focus:border-indigo-500"
-                            />
-                          </div>
-
-                          {/* 노출 여부 토글 */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const newMappings = [...friendlyColumnMappings];
-                              newMappings[idx].visible = !col.visible;
-                              setFriendlyColumnMappings(newMappings);
-                            }}
-                            className={`flex items-center justify-center gap-1 px-2.5 py-1 border rounded-lg text-[10px] font-black cursor-pointer transition-colors ${
-                              col.visible
-                                ? 'bg-indigo-50 border-indigo-200 text-indigo-650'
-                                : 'bg-slate-100 border-slate-200 text-slate-400'
-                            }`}
-                          >
-                            {col.visible ? (
-                              <>
-                                <Eye className="w-3 h-3 text-indigo-600" />
-                                노출
-                              </>
-                            ) : (
-                              <>
-                                <EyeOff className="w-3 h-3 text-slate-400" />
-                                숨김
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
                   </div>
 
-                  {/* 정렬 설정 */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-black text-slate-400">
-                        기본 정렬 기준 컬럼
-                      </label>
-                      <select
-                        value={friendlySortColumn}
-                        onChange={(e) => setFriendlySortColumn(e.target.value)}
-                        className="w-full text-xs font-bold outline-none bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-700 cursor-pointer shadow-3xs focus:border-indigo-500"
-                      >
-                        {friendlyColumnMappings.filter(col => col.visible).map(col => (
-                          <option key={col.physical} value={col.physical}>{col.friendly || col.physical}</option>
+                  {/* 컬럼 및 정렬 설정 대형 데이터 표 */}
+                  <div className="overflow-x-auto w-full no-scrollbar">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-50/40 border-b border-slate-200">
+                          <th className="px-6 py-4.5 text-[11px] font-black text-slate-400 select-none w-1/4">물리 컬럼명 (DB 명세)</th>
+                          <th className="px-6 py-4.5 text-[11px] font-black text-slate-400 select-none w-1/4">컬럼 표시명 (한글 별칭)</th>
+                          <th className="px-6 py-4.5 text-[11px] font-black text-slate-400 select-none text-center w-36">노출 제어</th>
+                          <th className="px-6 py-4.5 text-[11px] font-black text-slate-400 select-none text-center w-64">정렬 옵션 (방향)</th>
+                          <th className="px-6 py-4.5 text-[11px] font-black text-slate-400 select-none text-center w-40">다단계 정렬 우선순위</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 bg-white">
+                        {friendlyColumnMappings.map((col, idx) => (
+                          <tr key={col.physical} className="hover:bg-slate-50/30 transition-colors">
+                            {/* 1. 영문 물리명 */}
+                            <td className="px-6 py-3.5">
+                              <span className="text-xs font-extrabold font-mono text-slate-400 select-all">{col.physical}</span>
+                            </td>
+                            
+                            {/* 2. 한글 별칭 인풋 */}
+                            <td className="px-6 py-3.5">
+                              <input
+                                type="text"
+                                value={col.friendly}
+                                onChange={(e) => {
+                                  const newMappings = [...friendlyColumnMappings];
+                                  newMappings[idx].friendly = e.target.value;
+                                  setFriendlyColumnMappings(newMappings);
+                                }}
+                                placeholder="한글 별칭 입력..."
+                                className="w-full px-3 py-1.5 bg-white border border-slate-200 focus:border-indigo-500 rounded-lg outline-none text-xs text-slate-700 font-semibold transition-colors"
+                              />
+                            </td>
+
+                            {/* 3. 노출여부 스위치 */}
+                            <td className="px-6 py-3.5 text-center">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newMappings = [...friendlyColumnMappings];
+                                  newMappings[idx].visible = !col.visible;
+                                  
+                                  // 만약 노출을 끄면 정렬 옵션도 자동 리셋하여 안전 보호
+                                  if (!newMappings[idx].visible) {
+                                    newMappings[idx].sortDirection = 'NONE';
+                                    newMappings[idx].sortOrder = 0;
+                                  }
+                                  setFriendlyColumnMappings(newMappings);
+                                }}
+                                className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 border rounded-lg text-[10px] font-black cursor-pointer transition-all active:scale-95 ${
+                                  col.visible
+                                    ? 'bg-indigo-50 border-indigo-200 text-indigo-650'
+                                    : 'bg-slate-100 border-slate-200 text-slate-400 opacity-70'
+                                }`}
+                              >
+                                {col.visible ? (
+                                  <>
+                                    <Eye className="w-3.5 h-3.5 text-indigo-600" />
+                                    공개 노출
+                                  </>
+                                ) : (
+                                  <>
+                                    <EyeOff className="w-3.5 h-3.5 text-slate-400" />
+                                    공개 숨김
+                                  </>
+                                )}
+                              </button>
+                            </td>
+
+                            {/* 4. 멀티 정렬 방향 토글 (ASC / DESC / NONE) */}
+                            <td className="px-6 py-3.5 text-center">
+                              <div className="inline-flex bg-slate-100 rounded-xl p-0.5 border border-slate-200 select-none">
+                                <button
+                                  type="button"
+                                  disabled={!col.visible}
+                                  onClick={() => {
+                                    const newMappings = [...friendlyColumnMappings];
+                                    newMappings[idx].sortDirection = 'NONE';
+                                    newMappings[idx].sortOrder = 0;
+                                    setFriendlyColumnMappings(newMappings);
+                                  }}
+                                  className={`px-3 py-1 text-[10px] font-extrabold rounded-lg border-none transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+                                    col.sortDirection === 'NONE'
+                                      ? 'bg-white text-slate-700 shadow-3xs'
+                                      : 'text-slate-450 bg-transparent hover:text-slate-600'
+                                  }`}
+                                >
+                                  정렬 안 함
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={!col.visible}
+                                  onClick={() => {
+                                    const newMappings = [...friendlyColumnMappings];
+                                    newMappings[idx].sortDirection = 'ASC';
+                                    if (!col.sortOrder || col.sortOrder === 0) {
+                                      const maxOrder = Math.max(...newMappings.map(m => m.sortOrder || 0), 0);
+                                      newMappings[idx].sortOrder = maxOrder + 1;
+                                    }
+                                    setFriendlyColumnMappings(newMappings);
+                                  }}
+                                  className={`px-3 py-1 text-[10px] font-extrabold rounded-lg border-none transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+                                    col.sortDirection === 'ASC'
+                                      ? 'bg-indigo-50 text-indigo-650 shadow-3xs'
+                                      : 'text-slate-450 bg-transparent hover:text-slate-600'
+                                  }`}
+                                >
+                                  ⬆️ 오름차순
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={!col.visible}
+                                  onClick={() => {
+                                    const newMappings = [...friendlyColumnMappings];
+                                    newMappings[idx].sortDirection = 'DESC';
+                                    if (!col.sortOrder || col.sortOrder === 0) {
+                                      const maxOrder = Math.max(...newMappings.map(m => m.sortOrder || 0), 0);
+                                      newMappings[idx].sortOrder = maxOrder + 1;
+                                    }
+                                    setFriendlyColumnMappings(newMappings);
+                                  }}
+                                  className={`px-3 py-1 text-[10px] font-extrabold rounded-lg border-none transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+                                    col.sortDirection === 'DESC'
+                                      ? 'bg-indigo-50 text-indigo-650 shadow-3xs'
+                                      : 'text-slate-450 bg-transparent hover:text-slate-600'
+                                  }`}
+                                >
+                                  ⬇️ 내림차순
+                                </button>
+                              </div>
+                            </td>
+
+                            {/* 5. 다단계 정렬 순위 설정 */}
+                            <td className="px-6 py-3.5 text-center">
+                              <select
+                                value={col.sortOrder || 0}
+                                disabled={!col.visible || col.sortDirection === 'NONE'}
+                                onChange={(e) => {
+                                  const newMappings = [...friendlyColumnMappings];
+                                  newMappings[idx].sortOrder = Number(e.target.value);
+                                  setFriendlyColumnMappings(newMappings);
+                                }}
+                                className="text-[11px] font-extrabold outline-none bg-white border border-slate-200 disabled:bg-slate-50 disabled:text-slate-350 disabled:cursor-not-allowed rounded-lg px-2.5 py-1 text-slate-700 cursor-pointer shadow-3xs focus:border-indigo-500"
+                              >
+                                <option value={0}>지정 안 함</option>
+                                <option value={1}>1순위 정렬</option>
+                                <option value={2}>2순위 정렬</option>
+                                <option value={3}>3순위 정렬</option>
+                                <option value={4}>4순위 정렬</option>
+                                <option value={5}>5순위 정렬</option>
+                              </select>
+                            </td>
+                          </tr>
                         ))}
-                      </select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-black text-slate-400">
-                        기본 정렬 방향
-                      </label>
-                      <div className="flex items-center bg-slate-100 rounded-xl p-0.5 border border-slate-200 h-[38px]">
-                        <button
-                          type="button"
-                          onClick={() => setFriendlySortDirection('DESC')}
-                          className={`flex-1 py-1.5 text-[10px] font-extrabold rounded-lg border-none transition-all cursor-pointer ${
-                            friendlySortDirection === 'DESC'
-                              ? 'bg-white text-indigo-650 shadow-3xs'
-                              : 'text-slate-500 bg-transparent'
-                          }`}
-                        >
-                          ⬇️ 내림차순 (최신순 / 큰값)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setFriendlySortDirection('ASC')}
-                          className={`flex-1 py-1.5 text-[10px] font-extrabold rounded-lg border-none transition-all cursor-pointer ${
-                            friendlySortDirection === 'ASC'
-                              ? 'bg-white text-indigo-650 shadow-3xs'
-                              : 'text-slate-500 bg-transparent'
-                          }`}
-                        >
-                          ⬆️ 오름차순 (과거순 / 작은값)
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-3 bg-indigo-50/40 border border-indigo-100 rounded-2xl text-[10px] text-indigo-750 font-medium leading-relaxed">
-                    🔒 **강력한 데이터 보안 비식별화 가드레일**:
-                    공유된 링크는 로그인이 필요 없으나, 설정하신 숨김 컬럼은 백엔드 API에서 물리적으로 완전 차단된 뒤 브라우저로 렌더링되므로 민감 정보 유출 걱정 없이 안전합니다.
-                  </div>
-
-                  <div className="pt-2 flex items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsFriendlyShareModalOpen(false)}
-                      className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-500 rounded-xl text-xs font-bold cursor-pointer"
-                    >
-                      취소
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleCreateFriendlyShare}
-                      disabled={isFriendlySharing}
-                      className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-sm border-none cursor-pointer transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
-                    >
-                      {isFriendlySharing ? (
-                        <>
-                          <RefreshCw className="w-3.5 h-3.5 animate-spin mr-0.5 text-white" />
-                          공유 뷰 발행 중...
-                        </>
-                      ) : (
-                        <>
-                          <Link className="w-3.5 h-3.5 text-white" />
-                          임직원 공유 뷰 개설하기
-                        </>
-                      )}
-                    </button>
+                      </tbody>
+                    </table>
                   </div>
                 </div>
-              )}
-            </div>
+
+                {/* 3. 하단 보안 안내 보드 */}
+                <div className="p-4 bg-indigo-50/40 border border-indigo-100 rounded-2xl text-[10px] text-indigo-750 font-medium leading-relaxed text-left flex items-start gap-2 select-none shadow-3xs">
+                  <span className="shrink-0 text-xs">🔒</span>
+                  <div className="space-y-0.5">
+                    <strong>엔터프라이즈급 멀티 컬럼 데이터 정제 가드레일:</strong>
+                    임직원 공유 뷰 대시보드는 다단계 정렬(`ORDER BY col1 DESC, col2 ASC`) 명세와 컬럼 마스킹 규칙을 Next.js API 레벨에 직접 적용시킵니다. 노출 여부를 숨김(`visible: false`) 처리한 컬럼은 백엔드 물리적 쿼리문 스코프에서 완전 영구 배제되어 클라이언트에 데이터 흐름이 원천 단절되므로 안전합니다.
+                  </div>
+                </div>
+
+              </div>
+            )}
           </div>
+
+          {/* 🏁 하단 액션 도구막대 (푸터 - 폼 미발행 시에만 노출) */}
+          {!generatedFriendlyShareUrl && (
+            <div className="p-4.5 border-t border-slate-200 bg-white flex items-center justify-end gap-2.5 shrink-0 shadow-xs">
+              <button
+                type="button"
+                onClick={() => setIsFriendlyShareModalOpen(false)}
+                className="px-5 py-2.5 bg-white border border-slate-250 hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-bold cursor-pointer transition-all active:scale-95 shadow-3xs"
+              >
+                취소하고 닫기
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateFriendlyShare}
+                disabled={isFriendlySharing}
+                className="px-6 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white rounded-xl text-xs font-black shadow-sm border-none cursor-pointer transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {isFriendlySharing ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin mr-0.5 text-white" />
+                    공유 뷰 발행 등록 중...
+                  </>
+                ) : (
+                  <>
+                    <Link className="w-3.5 h-3.5 text-white" />
+                    임직원 공유 뷰 개설하기
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </div>
       )}
 
