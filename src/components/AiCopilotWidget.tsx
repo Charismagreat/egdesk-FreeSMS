@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { 
   Sparkles, CloudRain, Sun, Cloud, Zap, ArrowRight, Check, Send, 
-  BookOpen, Phone, CheckCircle2, MessageSquare, AlertCircle
+  BookOpen, Phone, CheckCircle2, MessageSquare, AlertCircle, RefreshCw
 } from "lucide-react";
 
 interface CustomerInsight {
@@ -54,6 +54,7 @@ export default function AiCopilotWidget() {
   const [strategy, setStrategy] = useState<Strategy | null>(null);
   const [contentPack, setContentPack] = useState<ContentPack | null>(null);
   const [mobileText, setMobileText] = useState("");
+  const [omnichannelAiEnabled, setOmnichannelAiEnabled] = useState(true);
   
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"strategy" | "sms" | "omni">("strategy");
@@ -79,6 +80,9 @@ export default function AiCopilotWidget() {
         setStrategy(data.strategy);
         setContentPack(data.contentPack);
         setMobileText(data.mobileBriefingText);
+        if (data.omnichannelAiEnabled !== undefined) {
+          setOmnichannelAiEnabled(data.omnichannelAiEnabled);
+        }
       }
     } catch (e) {
       console.error("Failed to load AI briefing:", e);
@@ -342,7 +346,30 @@ export default function AiCopilotWidget() {
             {/* 탭 콘텐츠 3: 옴니채널 크리에이티브 */}
             {activeTab === "omni" && (
               <div className="space-y-4">
-                {!contentPack ? (
+                {!omnichannelAiEnabled && !contentPack ? (
+                  <div className="bg-amber-50/65 border border-amber-200 rounded-2xl p-7 text-center space-y-4 shadow-xs animate-fade-in">
+                    <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center mx-auto">
+                      <AlertCircle className="w-6 h-6 text-amber-600" />
+                    </div>
+                    <div className="space-y-1.5 max-w-md mx-auto">
+                      <h4 className="text-xs font-extrabold text-amber-900">옴니채널 AI 광고 원고 생성 기능 중지됨</h4>
+                      <p className="text-[10.5px] text-amber-700/90 leading-relaxed font-bold">
+                        현재 시스템 설정에서 <b>AI 광고 원고 생성 기능이 비활성화(중지)</b>되어 있습니다. 
+                        Gemini AI 호출 및 API 토큰 소모량이 완벽하게 차단되었습니다.
+                        <br />
+                        <span className="text-[9.5px] text-amber-600 font-semibold block mt-1">※ 활성화를 원하시면 [시스템 설정 &gt; AI 설정]에서 스위치를 켜주세요.</span>
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleGenerateOmniChannel}
+                      disabled={isGeneratingOmni}
+                      className="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-755 border border-slate-300/60 font-extrabold text-xs rounded-xl flex items-center justify-center mx-auto transition-all active:scale-95 duration-150 shadow-xs"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 mr-1.5 text-slate-550" />
+                      로컬 폴백 원고 불러오기 (비용 0원)
+                    </button>
+                  </div>
+                ) : !contentPack ? (
                   <div className="bg-slate-100 border border-slate-200/60 rounded-2xl p-8 text-center space-y-4 shadow-sm animate-fade-in">
                     <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mx-auto">
                       <Sparkles className="w-7 h-7 text-indigo-650 animate-pulse" />
@@ -381,7 +408,7 @@ export default function AiCopilotWidget() {
                     <div className="flex items-center justify-between border-b border-slate-200/70 pb-2">
                       <span className="text-[10px] text-indigo-600 font-extrabold flex items-center font-bold">
                         <Sparkles className="w-3.5 h-3.5 mr-1 text-indigo-550 animate-pulse" />
-                        Gemini 3.5 Flash에 의해 최적의 맞춤 광고 원고 작문이 완료되었습니다.
+                        {omnichannelAiEnabled ? "Gemini 3.5 Flash에 의해 최적의 맞춤 광고 원고 작문이 완료되었습니다." : "로컬 폴백 템플릿에 의해 프리미엄 광고 원고 작문이 완료되었습니다 (비용 0원)."}
                       </span>
                       <button
                         onClick={handleGenerateOmniChannel}
@@ -493,7 +520,7 @@ export default function AiCopilotWidget() {
                     {/* 마케팅 실행 버튼 구역 */}
                     <div className="border-t border-slate-200 pt-5 flex flex-col md:flex-row items-center justify-between gap-3">
                       <div className="text-[10px] text-slate-450 font-bold">
-                        * 아래 승인 버튼을 누르시면 {strategy.targetIds.length}명의 고객에게 초개인화 문자가 발송되며, SNS 스케줄링이 기동됩니다.
+                        * 아래 승인 버튼을 누르시면 {strategy?.targetIds?.length || 0}명의 고객에게 초개인화 문자가 발송되며, SNS 스케줄링이 기동됩니다.
                       </div>
                       
                       {!executedResult ? (

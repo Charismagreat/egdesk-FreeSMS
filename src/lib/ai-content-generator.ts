@@ -38,16 +38,22 @@ export async function generateOmniChannelContent(
   popularProducts: string[]
 ): Promise<OmniChannelPack> {
   let apiKey: string | null = null;
+  let isEnabled = true;
   try {
     const settingsRes = await queryTable('system_settings', { filters: { key: 'google_ai_api_key' } });
     apiKey = settingsRes.rows && settingsRes.rows.length > 0 ? settingsRes.rows[0].value : null;
+
+    const enabledRes = await queryTable('system_settings', { filters: { key: 'omnichannel_ai_enabled' } });
+    if (enabledRes.rows && enabledRes.rows.length > 0) {
+      isEnabled = enabledRes.rows[0].value !== 'false';
+    }
   } catch (e) {
-    console.error('Failed to get api key, fallback to local content generator');
+    console.error('Failed to get settings, fallback to local content generator', e);
   }
 
   const menu = popularProducts[0] || '시그니처 메뉴';
 
-  if (apiKey) {
+  if (apiKey && isEnabled) {
     try {
       const systemPrompt = `
 You are an expert copywriter, digital marketer, and content creator specializing in Naver Blog SEO, Instagram influencer feed creation, and high-retention TikTok/YouTube Shorts scripts.

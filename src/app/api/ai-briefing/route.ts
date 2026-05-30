@@ -28,7 +28,11 @@ export async function GET(req: Request) {
 
     const generateContent = searchParams.get('generateContent') === 'true';
 
-    // 3. 옴니채널 AI 크리에이티브 콘텐츠 생성
+    // 3. 옴니채널 AI 활성화 상태 확인
+    const enabledRes = await queryTable('system_settings', { filters: { key: 'omnichannel_ai_enabled' } });
+    const omnichannelAiEnabled = enabledRes.rows && enabledRes.rows.length > 0 ? enabledRes.rows[0].value !== 'false' : true;
+
+    // 4. 옴니채널 AI 크리에이티브 콘텐츠 생성
     let contentPack = null;
     if (generateContent) {
       contentPack = await generateOmniChannelContent(
@@ -38,7 +42,7 @@ export async function GET(req: Request) {
       );
     }
 
-    // 4. 모바일 알림 브리핑 텍스트 생성 (카카오톡/문자용)
+    // 5. 모바일 알림 브리핑 텍스트 생성 (카카오톡/문자용)
     const mobileBriefingText = `🔔 [이지데스크 AI 아침 브리핑]
 사장님, 오늘 비 내리는 ${currentDay} 아지트 매장을 위한 성장 플랜이 준비되었습니다!
 
@@ -60,7 +64,8 @@ export async function GET(req: Request) {
       insights,
       strategy,
       contentPack,
-      mobileBriefingText
+      mobileBriefingText,
+      omnichannelAiEnabled
     });
   } catch (error: any) {
     console.error('API Briefing GET error:', error);

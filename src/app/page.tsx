@@ -14,6 +14,14 @@ export default async function Home() {
   let recentCustomers: any[] = [];
   let totalLogs = 0;
   let recentLogs: any[] = [];
+  let copilotEnabled = true;
+
+  try {
+    const copilotSetting = await queryTable('system_settings', { filters: { key: 'copilot_widget_enabled' } });
+    copilotEnabled = copilotSetting.rows && copilotSetting.rows.length > 0 ? copilotSetting.rows[0].value !== 'false' : true;
+  } catch (e) {
+    console.error("자율 마케팅 설정 조회 실패", e);
+  }
 
   try {
     const customersRes = await queryTable('crm_customers', { limit: 5, orderBy: 'created_at', orderDirection: 'DESC' });
@@ -48,7 +56,7 @@ export default async function Home() {
       </div>
 
       {/* AI 자율 마케팅 파트너 어시스턴트 위젯 */}
-      <AiCopilotWidget />
+      {copilotEnabled && <AiCopilotWidget />}
 
       {/* 모바일 채널 제어 센터 */}
       <MobileHubWidget />
