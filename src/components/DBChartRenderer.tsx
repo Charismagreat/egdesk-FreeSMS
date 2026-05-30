@@ -9,6 +9,7 @@ interface ChartSpec {
   yAxisColumn: string;
   title: string;
   unit: string;
+  centerLabel?: string; // 💡 도넛 차트 중앙에 표시할 커스텀 핵심 요약 라벨 문구
 }
 
 // 💰 금액 및 비율 포맷터 헬퍼 함수
@@ -234,7 +235,7 @@ export default function DBChartRenderer({ spec, rows, onSelectPart }: DBChartRen
                       fontFamily: 'Inter, system-ui, -apple-system, sans-serif'
                     }}
                   >
-                    전체 누적
+                    {spec.centerLabel || '전체 누적'}
                   </text>
                   <text
                     x="0"
