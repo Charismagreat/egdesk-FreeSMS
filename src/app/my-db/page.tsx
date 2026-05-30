@@ -1210,7 +1210,7 @@ export default function MyDBManagementPage() {
                 setGeneratedShareUrl("");
                 setIsShareModalOpen(true);
               }}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-650 hover:from-blue-500 hover:to-indigo-550 text-white rounded-xl text-xs font-black border-none cursor-pointer shadow-3xs transition-all active:scale-95"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black border-none cursor-pointer shadow-3xs transition-all active:scale-95"
               title="현재 튜닝된 지능형 차트와 비즈니스 브리핑 리포트를 퍼블릭 웹에 게시하고 실시간 자동 갱신을 연동합니다."
             >
               <Database className="w-3.5 h-3.5 text-white" />
@@ -1266,7 +1266,7 @@ export default function MyDBManagementPage() {
                     }}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black border transition-all cursor-pointer active:scale-95 select-none ${
                       isAreaSelectMode 
-                        ? 'bg-indigo-650 text-white border-indigo-650 hover:bg-indigo-600' 
+                        ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700' 
                         : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                     }`}
                   >
@@ -1340,7 +1340,7 @@ export default function MyDBManagementPage() {
             <div className="mt-6 border-t border-slate-100 pt-5 space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5 text-xs font-black text-slate-700 animate-pulse">
-                  <Sparkles className="w-4.5 h-4.5 text-indigo-650" />
+                  <Sparkles className="w-4.5 h-4.5 text-indigo-600" />
                   <span>AI 지능형 피드백 챗봇 대화</span>
                   <span className="text-[9px] bg-indigo-50 border border-indigo-150 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold ml-1">gemini-3.5-flash</span>
                 </div>
@@ -1397,11 +1397,11 @@ export default function MyDBManagementPage() {
                 {tuneHistory.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 space-y-2.5">
                     <div className="w-9 h-9 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center animate-bounce">
-                      <Sparkles className="w-4.5 h-4.5 text-indigo-505" />
+                      <Sparkles className="w-4.5 h-4.5 text-indigo-500" />
                     </div>
                     <div className="space-y-1">
                       <p className="text-xs font-black text-slate-500">지능형 튜닝 챗봇 대화가 활성화되었습니다.</p>
-                      <p className="text-[9px] text-slate-450 leading-relaxed">
+                      <p className="text-[9px] text-slate-400 leading-relaxed">
                         차트의 범례나 X축 레이블을 클릭하면 [집중 수정 지표] 칩이 자동 연동되어<br />
                         AI에게 정밀 타겟팅된 수정 피드백을 전달할 수 있습니다.
                       </p>
@@ -1418,7 +1418,7 @@ export default function MyDBManagementPage() {
                               {msg.image && (
                                 <img src={msg.image} className="w-48 h-auto rounded-lg mb-1.5 border border-slate-200 shadow-3xs" alt="첨부 이미지" />
                               )}
-                              <div className="bg-gradient-to-r from-blue-600 to-indigo-650 text-white text-xs px-4 py-2.5 rounded-2xl rounded-tr-none shadow-3xs whitespace-pre-wrap leading-relaxed font-semibold">
+                              <div className="bg-blue-600 text-white text-xs px-4 py-2.5 rounded-2xl rounded-tr-none shadow-3xs whitespace-pre-wrap leading-relaxed font-semibold">
                                 {msg.text}
                               </div>
                             </div>
@@ -1428,7 +1428,7 @@ export default function MyDBManagementPage() {
                         return (
                           <div key={index} className="flex justify-start items-end gap-2 animate-fade-in">
                             <div className="w-7 h-7 rounded-full bg-indigo-50 border border-indigo-150 flex items-center justify-center shrink-0 shadow-3xs">
-                              <Sparkles className="w-3.5 h-3.5 text-indigo-550" />
+                              <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
                             </div>
                             <div className="flex flex-col items-start max-w-[80%]">
                               <div className="bg-white border border-slate-150 text-slate-800 text-xs px-4 py-2.5 rounded-2xl rounded-tl-none shadow-3xs whitespace-pre-wrap leading-relaxed">
@@ -1467,9 +1467,9 @@ export default function MyDBManagementPage() {
                     {isVisualizing && (
                       <div className="flex justify-start items-center gap-2 animate-pulse mt-3">
                         <div className="w-7 h-7 rounded-full bg-indigo-50 border border-indigo-150 flex items-center justify-center shrink-0 shadow-3xs">
-                          <RefreshCw className="w-3.5 h-3.5 text-indigo-505 animate-spin" />
+                          <RefreshCw className="w-3.5 h-3.5 text-indigo-500 animate-spin" />
                         </div>
-                        <div className="bg-white border border-slate-150 text-slate-505 text-[10px] px-3.5 py-1.5 rounded-full font-bold shadow-3xs">
+                        <div className="bg-white border border-slate-150 text-slate-500 text-[10px] px-3.5 py-1.5 rounded-full font-bold shadow-3xs">
                           🤖 AI 지능형 엔진이 최고관리자님의 의견을 반영하여 차트와 브리핑을 정밀 재튜닝하고 있습니다... (약 2초 소요)
                         </div>
                       </div>
@@ -1499,7 +1499,7 @@ export default function MyDBManagementPage() {
                         <button 
                           type="button" 
                           onClick={() => setSelectedChartPart("")}
-                          className="text-indigo-455 hover:text-indigo-655 font-black cursor-pointer bg-transparent border-none p-0 outline-none text-xs ml-1"
+                          className="text-indigo-500 hover:text-indigo-600 font-black cursor-pointer bg-transparent border-none p-0 outline-none text-xs ml-1"
                         >
                           ✕
                         </button>
@@ -1530,7 +1530,7 @@ export default function MyDBManagementPage() {
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isVisualizing}
-                    className="p-2 text-slate-400 hover:text-slate-655 hover:bg-slate-200/50 rounded-xl transition-all cursor-pointer border-none bg-transparent active:scale-95 flex items-center justify-center shrink-0"
+                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 rounded-xl transition-all cursor-pointer border-none bg-transparent active:scale-95 flex items-center justify-center shrink-0"
                     title="이미지 분석 첨부 (Vision)"
                   >
                     <Paperclip className="w-4 h-4" />
@@ -1563,7 +1563,7 @@ export default function MyDBManagementPage() {
                     className={`w-9 h-9 rounded-xl transition-all duration-200 shrink-0 border flex items-center justify-center shadow-3xs select-none active:scale-95 ${
                       (!tunePrompt.trim() && !attachedImage) || isVisualizing
                         ? 'bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed opacity-90'
-                        : 'bg-gradient-to-r from-blue-600 to-indigo-650 hover:from-blue-500 hover:to-indigo-550 text-white border-transparent cursor-pointer shadow-sm'
+                        : 'bg-blue-600 hover:bg-blue-700 text-white border-transparent cursor-pointer shadow-sm'
                     }`}
                     title="수정 요청 전송"
                   >
@@ -1581,7 +1581,7 @@ export default function MyDBManagementPage() {
           <div className="p-16 text-center bg-white border border-slate-200 rounded-3xl shadow-sm text-slate-400 flex flex-col items-center justify-center space-y-3">
             <Sparkles className="w-10 h-10 text-indigo-400 animate-pulse" />
             <h3 className="font-bold text-slate-700 text-sm">현재 로드된 지능형 리포트 데이터가 존재하지 않습니다.</h3>
-            <p className="text-xs text-slate-450">원본 DB 관리 화면에서 쿼리 실행 후 [AI 지능형 시각화 & 브리핑] 탭을 먼저 활성화해 주세요.</p>
+            <p className="text-xs text-slate-400">원본 DB 관리 화면에서 쿼리 실행 후 [AI 지능형 시각화 & 브리핑] 탭을 먼저 활성화해 주세요.</p>
           </div>
         )}
 
@@ -1643,7 +1643,7 @@ export default function MyDBManagementPage() {
                     <div className="pt-2">
                       <button
                         onClick={() => setIsShareModalOpen(false)}
-                        className="w-full py-2.5 bg-slate-800 hover:bg-slate-750 text-white rounded-xl text-xs font-extrabold border border-slate-800 cursor-pointer shadow-3xs"
+                        className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-extrabold border border-slate-800 cursor-pointer shadow-3xs"
                       >
                         설정 닫기
                       </button>
@@ -1652,7 +1652,7 @@ export default function MyDBManagementPage() {
                 ) : (
                   <div className="space-y-4">
                     <div className="space-y-1.5">
-                      <label className="text-[11px] font-black text-slate-450 flex items-center gap-1">
+                      <label className="text-[11px] font-black text-slate-400 flex items-center gap-1">
                         공개 게시글 제목 (의사결정자용 대시보드 한글 제목)
                       </label>
                       <input
@@ -1660,12 +1660,12 @@ export default function MyDBManagementPage() {
                         value={shareTitle}
                         onChange={(e) => setShareTitle(e.target.value)}
                         placeholder="예: 월별 지출 현황 및 AI 자금 브리핑"
-                        className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-xs text-slate-700 transition-all placeholder:text-slate-350 shadow-3xs"
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-xs text-slate-700 transition-all placeholder:text-slate-400 shadow-3xs"
                       />
                     </div>
 
                     <div className="space-y-2">
-                      <label className="text-[11px] font-black text-slate-450 flex items-center gap-1">
+                      <label className="text-[11px] font-black text-slate-400 flex items-center gap-1">
                         실시간 최신 데이터 자동 갱신 주기
                       </label>
                       
@@ -1729,7 +1729,7 @@ export default function MyDBManagementPage() {
                       <button
                         onClick={handleCreateShare}
                         disabled={isSharing}
-                        className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-650 hover:from-blue-500 hover:to-indigo-550 text-white rounded-xl text-xs font-black shadow-sm border-none cursor-pointer transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1"
+                        className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-sm border-none cursor-pointer transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1"
                       >
                         {isSharing ? (
                           <>
@@ -1826,7 +1826,7 @@ export default function MyDBManagementPage() {
                   <span className={`text-[10px] px-2 py-0.5 rounded-full font-black border transition-all shrink-0 ${
                     selectedTable === t.name
                       ? 'bg-blue-500 text-white border-blue-500'
-                      : 'bg-slate-100 text-slate-450 border-slate-200/60'
+                      : 'bg-slate-100 text-slate-400 border-slate-200/60'
                   }`}>
                     {t.count}
                   </span>
@@ -1853,7 +1853,7 @@ export default function MyDBManagementPage() {
                   <button
                     onClick={() => setConsoleTab('ai')}
                     className={`px-3 py-1.5 rounded-md transition-all border-none cursor-pointer flex items-center gap-0.5 ${
-                      consoleTab === 'ai' ? 'bg-white text-blue-650 shadow-3xs font-black' : 'text-slate-500 bg-transparent'
+                      consoleTab === 'ai' ? 'bg-white text-blue-600 shadow-3xs font-black' : 'text-slate-500 bg-transparent'
                     }`}
                   >
                     AI 자연어 요청 💡
@@ -1861,7 +1861,7 @@ export default function MyDBManagementPage() {
                   <button
                     onClick={() => setConsoleTab('direct')}
                     className={`px-3 py-1.5 rounded-md transition-all border-none cursor-pointer ${
-                      consoleTab === 'direct' ? 'bg-white text-blue-650 shadow-3xs font-black' : 'text-slate-500 bg-transparent'
+                      consoleTab === 'direct' ? 'bg-white text-blue-600 shadow-3xs font-black' : 'text-slate-500 bg-transparent'
                     }`}
                   >
                     직접 쿼리 입력
@@ -1907,7 +1907,7 @@ export default function MyDBManagementPage() {
                 {/* 템플릿 프리셋 및 실행 버튼 */}
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-[10px] text-slate-450 font-bold mr-1">프리셋:</span>
+                    <span className="text-[10px] text-slate-400 font-bold mr-1">프리셋:</span>
                     {SQL_PRESETS.map((preset, idx) => (
                       <button
                         key={idx}
@@ -1952,7 +1952,7 @@ export default function MyDBManagementPage() {
 
                 <div className="flex items-center justify-between gap-4 flex-wrap">
                   <div className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
-                    <Database className="w-3 h-3 text-blue-450" />
+                    <Database className="w-3 h-3 text-blue-500" />
                     {tables.length}개의 로컬 물리 테이블 정보 동기화 완료
                   </div>
 
@@ -1979,10 +1979,10 @@ export default function MyDBManagementPage() {
                 {aiGeneratedSql && (
                   <div className="bg-slate-50/70 border border-slate-200/60 p-4.5 rounded-2xl space-y-3.5 animate-fade-in shadow-3xs">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black text-indigo-650 bg-indigo-50 px-2 py-1 border border-indigo-100 rounded-md">
+                      <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-2 py-1 border border-indigo-100 rounded-md">
                         🤖 AI가 해독한 SQLite3 쿼리
                       </span>
-                      <span className="text-[9px] text-slate-450">
+                      <span className="text-[9px] text-slate-400">
                         오류 제어 번역 확률: 99.8% (Gemini 3.5 Flash)
                       </span>
                     </div>
@@ -2176,7 +2176,7 @@ export default function MyDBManagementPage() {
                         </div>
                         <button
                           type="submit"
-                          className="px-4 py-1.5 bg-slate-800 hover:bg-slate-750 text-white rounded-xl text-xs font-extrabold cursor-pointer border border-slate-800"
+                          className="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-extrabold cursor-pointer border border-slate-800"
                         >
                           검색
                         </button>
@@ -2188,7 +2188,7 @@ export default function MyDBManagementPage() {
                               setSearchValue("");
                               fetchTableRows(selectedTable, 1, "", "", showDeleted);
                             }}
-                            className="px-2 py-1 text-slate-450 hover:text-slate-650 text-xs font-bold border-none bg-transparent cursor-pointer"
+                            className="px-2 py-1 text-slate-400 hover:text-slate-600 text-xs font-bold border-none bg-transparent cursor-pointer"
                           >
                             초기화
                           </button>
@@ -2252,7 +2252,7 @@ export default function MyDBManagementPage() {
                               {Object.entries(row).map(([key, val], cIdx) => (
                                 <td key={cIdx} className="p-4 max-w-[250px] truncate" title={val !== null ? String(val) : "NULL"}>
                                   {val === null ? (
-                                    <span className="text-[10px] text-slate-350 italic select-none">NULL</span>
+                                    <span className="text-[10px] text-slate-300 italic select-none">NULL</span>
                                   ) : typeof val === 'object' ? (
                                     JSON.stringify(val)
                                   ) : (
@@ -2265,7 +2265,7 @@ export default function MyDBManagementPage() {
                                   {isSoftDeleted ? (
                                     <button
                                       onClick={() => handleRestoreRow(row)}
-                                      className="px-2.5 py-1 bg-green-650 hover:bg-green-600 text-white rounded-lg text-[10px] font-black border-none cursor-pointer flex items-center gap-0.5 shadow-3xs transition-all active:scale-95"
+                                      className="px-2.5 py-1 bg-green-600 hover:bg-green-700 text-white rounded-lg text-[10px] font-black border-none cursor-pointer flex items-center gap-0.5 shadow-3xs transition-all active:scale-95"
                                       title="소프트 삭제 레코드 안전 복구"
                                     >
                                       <RefreshCw className="w-3 h-3 text-white" />
@@ -2305,7 +2305,7 @@ export default function MyDBManagementPage() {
                 {/* 하단 페이지네이션 피드 (발송 내역 페이지네이션 디자인 연동) */}
                 {totalPages > 1 && (
                   <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/50 rounded-xl">
-                    <span className="text-xs text-slate-450 font-semibold">
+                    <span className="text-xs text-slate-400 font-semibold">
                       전체 {totalRows}건 중 {(currentPage - 1) * itemsPerPage + 1}-{Math.min(totalRows, currentPage * itemsPerPage)}건 표시
                     </span>
                     <div className="flex items-center gap-1">
@@ -2324,7 +2324,7 @@ export default function MyDBManagementPage() {
                           className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                             currentPage === page 
                               ? 'bg-blue-600 text-white shadow-sm border-none' 
-                              : 'border bg-white text-slate-605 hover:bg-slate-50 cursor-pointer'
+                              : 'border bg-white text-slate-600 hover:bg-slate-50 cursor-pointer'
                           }`}
                         >
                           {page}
@@ -2349,7 +2349,7 @@ export default function MyDBManagementPage() {
               <div className="p-5 space-y-6 animate-fade-in text-slate-700">
                 {/* 1. DDL 생성 쿼리 */}
                 <div>
-                  <h3 className="text-xs font-black text-slate-450 mb-2.5 flex items-center gap-1">
+                  <h3 className="text-xs font-black text-slate-400 mb-2.5 flex items-center gap-1">
                     <Code className="w-3.5 h-3.5 text-indigo-500" />
                     CREATE TABLE DDL (생성 구문)
                   </h3>
@@ -2360,7 +2360,7 @@ export default function MyDBManagementPage() {
 
                 {/* 2. 컬럼 구조 테이블 */}
                 <div>
-                  <h3 className="text-xs font-black text-slate-450 mb-2.5 flex items-center gap-1">
+                  <h3 className="text-xs font-black text-slate-400 mb-2.5 flex items-center gap-1">
                     <Table className="w-3.5 h-3.5 text-blue-500" />
                     데이터베이스 컬럼 상세 구조
                   </h3>
@@ -2378,7 +2378,7 @@ export default function MyDBManagementPage() {
                       </thead>
                       <tbody>
                         {tableSchema.map((col, idx) => (
-                          <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50 font-mono text-[11px] text-slate-650">
+                          <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50 font-mono text-[11px] text-slate-600">
                             <td className="p-4 text-slate-400">{col.cid}</td>
                             <td className="p-4 text-slate-800 font-black">{col.name}</td>
                             <td className="p-4 text-indigo-600 font-bold">{col.type}</td>
@@ -2436,11 +2436,11 @@ export default function MyDBManagementPage() {
                           </thead>
                           <tbody>
                             {consoleResult.rows.map((row, idx) => (
-                              <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50 transition-all font-mono text-[11px] text-slate-650">
+                              <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50 transition-all font-mono text-[11px] text-slate-600">
                                 {Object.values(row).map((val: any, cIdx) => (
                                   <td key={cIdx} className="p-4 max-w-[250px] truncate" title={val !== null ? String(val) : "NULL"}>
                                     {val === null ? (
-                                      <span className="text-[10px] text-slate-350 italic select-none">NULL</span>
+                                      <span className="text-[10px] text-slate-300 italic select-none">NULL</span>
                                     ) : (
                                       String(val)
                                     )}
@@ -2474,7 +2474,7 @@ export default function MyDBManagementPage() {
             {activeTab === 'chart' && consoleResult && consoleResult.success && consoleResult.rows && (
               <div className="p-5 space-y-6 animate-fade-in text-slate-700">
                 <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
-                  <h4 className="text-[11px] font-black text-slate-450 flex items-center gap-1">
+                  <h4 className="text-[11px] font-black text-slate-400 flex items-center gap-1">
                     <BarChart className="w-3.5 h-3.5 text-indigo-500" />
                     AI 지능형 통합 리포트
                   </h4>
@@ -2486,7 +2486,7 @@ export default function MyDBManagementPage() {
                           window.open('/my-db?standalone=true', '_blank');
                         }
                       }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-indigo-650 border border-indigo-200 rounded-xl text-[10px] font-black cursor-pointer shadow-3xs transition-all active:scale-95"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-indigo-600 border border-indigo-200 rounded-xl text-[10px] font-black cursor-pointer shadow-3xs transition-all active:scale-95"
                       title="AI 차트 및 피드백 챗봇을 별도의 넓은 새 탭 화면으로 열어서 쾌적하게 작업합니다."
                     >
                       <ExternalLink className="w-3.5 h-3.5" />
@@ -2502,7 +2502,7 @@ export default function MyDBManagementPage() {
                         setGeneratedShareUrl("");
                         setIsShareModalOpen(true);
                       }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-650 hover:from-blue-500 hover:to-indigo-550 text-white rounded-xl text-[10px] font-black border-none cursor-pointer shadow-3xs transition-all active:scale-95"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black border-none cursor-pointer shadow-3xs transition-all active:scale-95"
                     >
                       <Database className="w-3.5 h-3.5 text-white" />
                       🌐 웹에 게시 및 자동 갱신
@@ -2518,7 +2518,7 @@ export default function MyDBManagementPage() {
                     </div>
                     <div className="space-y-2">
                       <p className="text-xs font-black text-slate-600">AI 지능형 엔진이 차트 시각화 및 비즈니스 브리핑서를 융합 집필 중입니다...</p>
-                      <p className="text-[10px] text-slate-450">데이터 비식별화 가드레일 통과 및 요점 분석 중 (약 2초 소요)</p>
+                      <p className="text-[10px] text-slate-400">데이터 비식별화 가드레일 통과 및 요점 분석 중 (약 2초 소요)</p>
                     </div>
                     <div className="w-48 h-3.5 bg-slate-200 rounded-full mx-auto" />
                   </div>
@@ -2529,7 +2529,7 @@ export default function MyDBManagementPage() {
                       <div className="flex items-center justify-between px-1">
                         <div className="flex items-center gap-2">
                           <BarChart className="w-4 h-4 text-indigo-500" />
-                          <span className="text-xs font-extrabold text-slate-850">1. AI 지능형 시각화 차트 분석</span>
+                          <span className="text-xs font-extrabold text-slate-800">1. AI 지능형 시각화 차트 분석</span>
                         </div>
                         {aiChartSpec && (
                           <button
@@ -2542,7 +2542,7 @@ export default function MyDBManagementPage() {
                             }}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black border transition-all cursor-pointer active:scale-95 select-none ${
                               isAreaSelectMode 
-                                ? 'bg-indigo-650 text-white border-indigo-650 hover:bg-indigo-600' 
+                                ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700' 
                                 : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                             }`}
                           >
@@ -2590,7 +2590,7 @@ export default function MyDBManagementPage() {
                           </>
                         ) : (
                           <div className="p-10 text-center text-slate-400 flex flex-col items-center justify-center space-y-2">
-                            <Activity className="w-8 h-8 text-slate-350" />
+                            <Activity className="w-8 h-8 text-slate-300" />
                             <span className="text-xs font-bold">본 데이터 세트의 시각화 분석 정보를 구성하지 못했습니다.</span>
                           </div>
                         )}
@@ -2604,11 +2604,11 @@ export default function MyDBManagementPage() {
                     <div className="space-y-3">
                       <div className="flex items-center gap-2 px-1">
                         <FileText className="w-4 h-4 text-emerald-600" />
-                        <span className="text-xs font-extrabold text-slate-850">2. AI 데이터 비즈니스 통찰 및 브리핑 요약</span>
+                        <span className="text-xs font-extrabold text-slate-800">2. AI 데이터 비즈니스 통찰 및 브리핑 요약</span>
                       </div>
                       
                       {aiBriefing ? (
-                        <div className="p-5 bg-[#f0fdf4] border border-emerald-100 rounded-2xl shadow-3xs space-y-3 animate-fade-in">
+                        <div className="p-5 bg-emerald-50/50 border border-emerald-100 rounded-2xl shadow-3xs space-y-3 animate-fade-in">
                           <div className="text-xs font-bold leading-relaxed text-slate-700 whitespace-pre-line font-sans">
                             {aiBriefing}
                           </div>
@@ -2625,9 +2625,9 @@ export default function MyDBManagementPage() {
                     <div className="mt-6 border-t border-slate-100 pt-5 space-y-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5 text-xs font-black text-slate-700">
-                          <Sparkles className="w-4.5 h-4.5 text-indigo-650 animate-pulse" />
+                          <Sparkles className="w-4.5 h-4.5 text-indigo-600 animate-pulse" />
                           <span>AI 지능형 피드백 챗봇 대화</span>
-                          <span className="text-[9px] bg-indigo-50 border border-indigo-150 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold ml-1 animate-pulse">gemini-3.5-flash</span>
+                          <span className="text-[9px] bg-indigo-50 border border-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold ml-1 animate-pulse">gemini-3.5-flash</span>
                         </div>
                         <div className="flex items-center gap-2.5">
                           <button
@@ -2682,11 +2682,11 @@ export default function MyDBManagementPage() {
                         {tuneHistory.length === 0 ? (
                           <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 space-y-2.5">
                             <div className="w-9 h-9 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center animate-bounce">
-                              <Sparkles className="w-4.5 h-4.5 text-indigo-505" />
+                              <Sparkles className="w-4.5 h-4.5 text-indigo-500" />
                             </div>
                             <div className="space-y-1">
                               <p className="text-xs font-black text-slate-500">지능형 튜닝 챗봇 대화가 활성화되었습니다.</p>
-                              <p className="text-[9px] text-slate-450 leading-relaxed">
+                              <p className="text-[9px] text-slate-400 leading-relaxed">
                                 차트의 범례나 X축 레이블을 클릭하면 [집중 수정 지표] 칩이 자동 연동되어<br />
                                 AI에게 정밀 타겟팅된 수정 피드백을 전달할 수 있습니다.
                               </p>
@@ -2703,7 +2703,7 @@ export default function MyDBManagementPage() {
                                       {msg.image && (
                                         <img src={msg.image} className="w-48 h-auto rounded-lg mb-1.5 border border-slate-200 shadow-3xs" alt="첨부 이미지" />
                                       )}
-                                      <div className="bg-gradient-to-r from-blue-600 to-indigo-650 text-white text-xs px-4 py-2.5 rounded-2xl rounded-tr-none shadow-3xs whitespace-pre-wrap leading-relaxed font-semibold">
+                                      <div className="bg-blue-600 text-white text-xs px-4 py-2.5 rounded-2xl rounded-tr-none shadow-3xs whitespace-pre-wrap leading-relaxed font-semibold">
                                         {msg.text}
                                       </div>
                                     </div>
@@ -2712,11 +2712,11 @@ export default function MyDBManagementPage() {
                               } else if (msg.role === 'ai') {
                                 return (
                                   <div key={index} className="flex justify-start items-end gap-2 animate-fade-in">
-                                    <div className="w-7 h-7 rounded-full bg-indigo-50 border border-indigo-150 flex items-center justify-center shrink-0 shadow-3xs">
-                                      <Sparkles className="w-3.5 h-3.5 text-indigo-550" />
+                                    <div className="w-7 h-7 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0 shadow-3xs">
+                                      <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
                                     </div>
                                     <div className="flex flex-col items-start max-w-[80%]">
-                                      <div className="bg-white border border-slate-150 text-slate-800 text-xs px-4 py-2.5 rounded-2xl rounded-tl-none shadow-3xs whitespace-pre-wrap leading-relaxed">
+                                      <div className="bg-white border border-slate-100 text-slate-800 text-xs px-4 py-2.5 rounded-2xl rounded-tl-none shadow-3xs whitespace-pre-wrap leading-relaxed">
                                         {msg.text}
                                       </div>
                                     </div>
@@ -2789,7 +2789,7 @@ export default function MyDBManagementPage() {
                                 <button 
                                   type="button" 
                                   onClick={() => setSelectedChartPart("")}
-                                  className="text-indigo-455 hover:text-indigo-655 font-black cursor-pointer bg-transparent border-none p-0 outline-none text-xs ml-1"
+                                  className="text-indigo-500 hover:text-indigo-600 font-black cursor-pointer bg-transparent border-none p-0 outline-none text-xs ml-1"
                                 >
                                   ✕
                                 </button>
@@ -2821,7 +2821,7 @@ export default function MyDBManagementPage() {
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
                             disabled={isVisualizing}
-                            className="p-2 text-slate-400 hover:text-slate-650 hover:bg-slate-200/50 rounded-xl transition-all cursor-pointer border-none bg-transparent active:scale-95 flex items-center justify-center shrink-0"
+                            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 rounded-xl transition-all cursor-pointer border-none bg-transparent active:scale-95 flex items-center justify-center shrink-0"
                             title="이미지 분석 첨부 (Vision)"
                           >
                             <Paperclip className="w-4 h-4" />
@@ -2854,7 +2854,7 @@ export default function MyDBManagementPage() {
                             className={`w-9 h-9 rounded-xl transition-all duration-200 shrink-0 border flex items-center justify-center shadow-3xs select-none active:scale-95 ${
                               (!tunePrompt.trim() && !attachedImage) || isVisualizing
                                 ? 'bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed opacity-90'
-                                : 'bg-gradient-to-r from-blue-600 to-indigo-650 hover:from-blue-500 hover:to-indigo-550 text-white border-transparent cursor-pointer shadow-sm'
+                                : 'bg-blue-600 hover:bg-blue-700 text-white border-transparent cursor-pointer shadow-sm'
                             }`}
                             title="수정 요청 전송"
                           >
@@ -2904,7 +2904,7 @@ export default function MyDBManagementPage() {
                     
                     return (
                       <div key={col.name} className="space-y-1">
-                        <label className="text-[11px] font-black text-slate-450 flex items-center gap-1">
+                        <label className="text-[11px] font-black text-slate-400 flex items-center gap-1">
                           {col.name}
                           <span className="text-[9px] text-indigo-500 font-bold font-mono">({col.type})</span>
                           {isPK && <span className="text-[8px] bg-amber-50 text-amber-700 border border-amber-200 px-1 rounded-sm">PK</span>}
@@ -3002,7 +3002,7 @@ export default function MyDBManagementPage() {
               ) : (
                 <div className="space-y-4">
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-black text-slate-450 flex items-center gap-1">
+                    <label className="text-[11px] font-black text-slate-400 flex items-center gap-1">
                       공개 게시글 제목 (의사결정자용 대시보드 한글 제목)
                     </label>
                     <input
@@ -3010,12 +3010,12 @@ export default function MyDBManagementPage() {
                       value={shareTitle}
                       onChange={(e) => setShareTitle(e.target.value)}
                       placeholder="예: 월별 지출 현황 및 AI 자금 브리핑"
-                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-xs text-slate-700 transition-all placeholder:text-slate-350 shadow-3xs"
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-xs text-slate-700 transition-all placeholder:text-slate-400 shadow-3xs"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[11px] font-black text-slate-450 flex items-center gap-1">
+                    <label className="text-[11px] font-black text-slate-400 flex items-center gap-1">
                       실시간 최신 데이터 자동 갱신 주기
                     </label>
                     
@@ -3025,7 +3025,7 @@ export default function MyDBManagementPage() {
                         className={`p-3 rounded-xl border text-center cursor-pointer transition-all border-solid ${
                           shareInterval === 'NONE' 
                             ? 'bg-blue-50/70 border-blue-200 text-blue-700' 
-                            : 'bg-white border-slate-100 hover:bg-slate-50 text-slate-650'
+                            : 'bg-white border-slate-100 hover:bg-slate-50 text-slate-600'
                         }`}
                       >
                         🔄 자동 갱신 안 함
@@ -3078,7 +3078,7 @@ export default function MyDBManagementPage() {
                     <button
                       onClick={handleCreateShare}
                       disabled={isSharing}
-                      className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-650 hover:from-blue-500 hover:to-indigo-550 text-white rounded-xl text-xs font-black shadow-sm border-none cursor-pointer transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1"
+                      className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-sm border-none cursor-pointer transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1"
                     >
                       {isSharing ? (
                         <>
