@@ -4,8 +4,10 @@ import React from "react";
 import { 
   Database, Play, RefreshCw, Download, Plus, Edit, 
   Trash2, AlertTriangle, Code, Table, Search, Terminal,
-  CheckCircle, ChevronRight, X, ShieldAlert, Calendar
+  CheckCircle, ChevronRight, X, ShieldAlert, Calendar,
+  BarChart, FileText, Activity
 } from "lucide-react";
+import DBChartRenderer from "@/components/DBChartRenderer";
 
 export default function MyDBManagementPage() {
   // DB 관련 핵심 상태 변수
@@ -18,8 +20,8 @@ export default function MyDBManagementPage() {
   const [currentPage, setCurrentPage] = React.useState<number>(1);
   const itemsPerPage = 50;
 
-  // 탭 제어 ('data' | 'schema' | 'console')
-  const [activeTab, setActiveTab] = React.useState<'data' | 'schema' | 'console'>('data');
+  // 탭 제어 ('data' | 'schema' | 'console' | 'chart' | 'briefing')
+  const [activeTab, setActiveTab] = React.useState<'data' | 'schema' | 'console' | 'chart' | 'briefing'>('data');
 
   // 검색/필터 필드
   const [searchKey, setSearchKey] = React.useState<string>("");
@@ -44,6 +46,58 @@ export default function MyDBManagementPage() {
 
   // 🗑️ 소프트 삭제 데이터 보기 토글 상태 변수
   const [showDeleted, setShowDeleted] = React.useState<boolean>(false);
+
+  // 💡 AI 지능형 시각화 및 데이터 브리핑 요약 융합 트리거
+  const [aiChartSpec, setAiChartSpec] = React.useState<any | null>(null);
+  const [aiBriefing, setAiBriefing] = React.useState<string | null>(null);
+  const [isVisualizing, setIsVisualizing] = React.useState<boolean>(false);
+
+  const triggerAIVisualization = async (rows: any[], queryStr: string) => {
+    if (!rows || rows.length === 0) return;
+
+    setIsVisualizing(true);
+    setAiChartSpec(null);
+    setAiBriefing(null);
+
+    try {
+      // 1. 쿼리 구문에서 테이블명 지능적 추론
+      const fromMatch = queryStr.match(/FROM\s+["']?([a-zA-Z0-9_-]+)["']?/i);
+      const tableName = fromMatch ? fromMatch[1] : (selectedTable || 'raw_query');
+      
+      // 2. 쿼리 결과에 맞추어 임시 1차 스펙 정의
+      const tempSchema = Object.keys(rows[0]).map(key => {
+        const val = rows[0][key];
+        const isNum = typeof val === 'number' || (typeof val === 'string' && !isNaN(Number(val)) && val.trim() !== '');
+        return {
+          name: key,
+          type: isNum ? 'INTEGER' : 'TEXT'
+        };
+      });
+
+      const res = await fetch("/api/db/ai-visualize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rows,
+          schema: tempSchema,
+          tableName,
+          displayName: tables.find(t => t.name === tableName)?.displayName || tableName
+        })
+      });
+
+      const data = await res.json();
+      if (data.recommendedChart) {
+        setAiChartSpec(data.recommendedChart);
+        setAiBriefing(data.briefing);
+      } else {
+        console.error("AI 시각화 분석 실패:", data.error);
+      }
+    } catch (err: any) {
+      console.error("AI 시각화 API 연동 실패:", err.message);
+    } finally {
+      setIsVisualizing(false);
+    }
+  };
 
   // 로딩 및 알림
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
@@ -222,6 +276,12 @@ export default function MyDBManagementPage() {
           lastInsertRowid: data.lastInsertRowid
         });
         showToast("SQL 쿼리가 성공적으로 완수되었습니다.", "success");
+        
+        // AI 시각화 및 데이터 브리핑 호출 작동!
+        if (data.rows && data.rows.length > 0) {
+          triggerAIVisualization(data.rows, sqlQuery);
+        }
+
         // 전체 스캔 갱신
         fetchTables();
         if (selectedTable) {
@@ -711,6 +771,12 @@ export default function MyDBManagementPage() {
                                   lastInsertRowid: data.lastInsertRowid
                                 });
                                 showToast("AI 생성 쿼리가 데이터베이스에서 성공적으로 완수되었습니다.", "success");
+                                
+                                // AI 시각화 및 데이터 브리핑 호출 작동!
+                                if (data.rows && data.rows.length > 0) {
+                                  triggerAIVisualization(data.rows, aiGeneratedSql);
+                                }
+
                                 setActiveTab('console');
                               } else {
                                 setConsoleResult({ success: false, error: data.error });
@@ -780,6 +846,35 @@ export default function MyDBManagementPage() {
                     <Terminal className="w-3.5 h-3.5 inline mr-1" />
                     SQL 실행 결과
                   </button>
+
+                  {/* 📊 AI 시각화 차트 탭 (SQL 결과 레코드가 존재할 때만 표시) */}
+                  {consoleResult && consoleResult.success && consoleResult.rows && consoleResult.rows.length > 0 && (
+                    <>
+                      <button
+                        onClick={() => setActiveTab('chart')}
+                        className={`px-4 py-1.5 rounded-lg transition-all text-[11px] font-extrabold shrink-0 border-none ${
+                          activeTab === 'chart' 
+                            ? 'bg-white text-blue-600 shadow-sm' 
+                            : 'text-slate-500 hover:text-slate-700 bg-transparent'
+                        }`}
+                      >
+                        <BarChart className="w-3.5 h-3.5 inline mr-1 text-indigo-500" />
+                        📊 AI 시각화 차트
+                      </button>
+
+                      <button
+                        onClick={() => setActiveTab('briefing')}
+                        className={`px-4 py-1.5 rounded-lg transition-all text-[11px] font-extrabold shrink-0 border-none ${
+                          activeTab === 'briefing' 
+                            ? 'bg-white text-blue-600 shadow-sm' 
+                            : 'text-slate-500 hover:text-slate-700 bg-transparent'
+                        }`}
+                      >
+                        <FileText className="w-3.5 h-3.5 inline mr-1 text-emerald-500" />
+                        📝 AI 데이터 브리핑
+                      </button>
+                    </>
+                  )}
                 </div>
 
                 {/* 탭 우측 도구 모음 */}
@@ -1131,6 +1226,66 @@ export default function MyDBManagementPage() {
                       <div className="font-bold text-red-800 mb-1">SQL Compilation/Execution Failed:</div>
                       {consoleResult.error || "알 수 없는 SQL 컴파일 에러입니다. 문법을 확인해 주세요."}
                     </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 탭 콘텐트 영역 4: AI 지능형 시각화 차트 뷰 */}
+            {activeTab === 'chart' && consoleResult && consoleResult.success && consoleResult.rows && (
+              <div className="p-5 space-y-4 animate-fade-in text-slate-700">
+                {isVisualizing ? (
+                  // 미려한 스켈레톤 로딩 인디케이터
+                  <div className="p-8 bg-slate-50 border border-slate-100 rounded-2xl animate-pulse flex flex-col items-center justify-center text-center space-y-3">
+                    <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center">
+                      <BarChart className="w-5 h-5 text-slate-400 animate-spin" />
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-xs font-black text-slate-600">AI가 데이터를 분석하여 시각화 스펙을 설계하고 있습니다...</p>
+                      <p className="text-[10px] text-slate-400">데이터의 구조 및 특징 분석 완료 중 (약 1.5초 소요)</p>
+                    </div>
+                    <div className="w-48 h-3.5 bg-slate-200 rounded-full mx-auto" />
+                  </div>
+                ) : aiChartSpec ? (
+                  <DBChartRenderer spec={aiChartSpec} rows={consoleResult.rows} />
+                ) : (
+                  <div className="p-8 bg-slate-50 border border-slate-100 border-dashed rounded-2xl flex flex-col items-center justify-center text-center text-slate-400">
+                    <Activity className="w-8 h-8 text-slate-350 mb-2" />
+                    <p className="text-xs font-bold">본 데이터 세트의 시각화 분석 정보를 찾을 수 없습니다.</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 탭 콘텐트 영역 5: AI 비즈니스 통찰 브리핑 뷰 */}
+            {activeTab === 'briefing' && consoleResult && consoleResult.success && (
+              <div className="p-5 space-y-4 animate-fade-in text-slate-700">
+                {isVisualizing ? (
+                  // 스켈레톤 로더
+                  <div className="p-8 bg-slate-50 border border-slate-100 rounded-2xl animate-pulse flex flex-col items-center justify-center text-center space-y-3">
+                    <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center">
+                      <FileText className="w-5 h-5 text-slate-400" />
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-xs font-black text-slate-600">AI가 비즈니스 데이터 브리핑 요약서를 집필하고 있습니다...</p>
+                      <p className="text-[10px] text-slate-400">의사결정을 위한 요점 분석 중</p>
+                    </div>
+                    <div className="w-40 h-3.5 bg-slate-200 rounded-full mx-auto" />
+                  </div>
+                ) : aiBriefing ? (
+                  <div className="p-6 bg-emerald-50/20 border border-emerald-100/60 rounded-2xl shadow-3xs space-y-4">
+                    <h3 className="text-xs font-black text-emerald-800 flex items-center gap-1.5 border-b border-emerald-100/50 pb-2">
+                      <FileText className="w-4 h-4 text-emerald-600" />
+                      💡 AI 데이터 브리핑 및 비즈니스 요약 레포트
+                    </h3>
+                    <div className="text-xs font-bold leading-relaxed text-slate-700 whitespace-pre-line font-sans space-y-2">
+                      {aiBriefing}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-8 bg-slate-50 border border-slate-100 border-dashed rounded-2xl flex flex-col items-center justify-center text-center text-slate-400">
+                    <Activity className="w-8 h-8 text-slate-350 mb-2" />
+                    <p className="text-xs font-bold">비즈니스 통찰 브리핑 데이터를 구성하지 못했습니다.</p>
                   </div>
                 )}
               </div>
