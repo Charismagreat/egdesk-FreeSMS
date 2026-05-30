@@ -75,6 +75,12 @@ export default function MyDBManagementPage() {
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const chatEndRef = React.useRef<HTMLDivElement | null>(null);
 
+  // ✂️ 차트 시각적 영역 지정 및 크롭 캡처 상태 변수 추가
+  const [isAreaSelectMode, setIsAreaSelectMode] = React.useState<boolean>(false);
+  const [isSelecting, setIsSelecting] = React.useState<boolean>(false);
+  const [startCoords, setStartCoords] = React.useState<{ x: number; y: number } | null>(null);
+  const [selectionRect, setSelectionRect] = React.useState<{ x: number; y: number; width: number; height: number } | null>(null);
+
   // 💾 챗봇 상태 localStorage 복원 및 저장 연동
   React.useEffect(() => {
     if (typeof window !== "undefined") {
@@ -370,6 +376,106 @@ export default function MyDBManagementPage() {
         localStorage.removeItem("egdesk_mydb_selectedChartPart");
       }
       showToast("대화 이력이 완전히 초기화되었습니다.", "success");
+    }
+  };
+
+  // ✂️ 차트 시각적 영역 드래그 캡처 및 XMLSerializer 기반 크롭 헬퍼 핸들러
+  const handleAreaMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    setStartCoords({ x, y });
+    setIsSelecting(true);
+    setSelectionRect({ x, y, width: 0, height: 0 });
+  };
+
+  const handleAreaMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isSelecting || !startCoords) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const currentX = e.clientX - rect.left;
+    const currentY = e.clientY - rect.top;
+
+    const x = Math.min(startCoords.x, currentX);
+    const y = Math.min(startCoords.y, currentY);
+    const width = Math.abs(startCoords.x - currentX);
+    const height = Math.abs(startCoords.y - currentY);
+
+    setSelectionRect({ x, y, width, height });
+  };
+
+  const handleAreaMouseUp = async (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isSelecting || !selectionRect || selectionRect.width < 5 || selectionRect.height < 5) {
+      setIsSelecting(false);
+      setStartCoords(null);
+      return;
+    }
+
+    setIsSelecting(false);
+    setStartCoords(null);
+    setIsAreaSelectMode(false); // 선택 완료 시 모드 자동 해제
+
+    try {
+      const container = document.getElementById("chart-capture-target");
+      const svgElement = container?.querySelector("svg");
+
+      if (svgElement) {
+        // 1. XMLSerializer를 통해 SVG 마크업 문자열 획득
+        const serializer = new XMLSerializer();
+        const svgString = serializer.serializeToString(svgElement);
+        const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+        const URL = window.URL || window.webkitURL || window;
+        const blobURL = URL.createObjectURL(svgBlob);
+
+        const image = new Image();
+        image.onload = () => {
+          // 2. 캔버스 초기 해상도 보정 (고품질 크롭을 위해 2배 스케일 적용)
+          const canvas = document.createElement("canvas");
+          canvas.width = selectionRect.width * 2;
+          canvas.height = selectionRect.height * 2;
+          const context = canvas.getContext("2d");
+
+          const svgRect = svgElement.getBoundingClientRect();
+          const scaleX = image.width / svgRect.width;
+          const scaleY = image.height / svgRect.height;
+
+          // 차트 박스 컨테이너 패딩 보정
+          const relativeX = selectionRect.x - (svgElement.getBoundingClientRect().left - container!.getBoundingClientRect().left);
+          const relativeY = selectionRect.y - (svgElement.getBoundingClientRect().top - container!.getBoundingClientRect().top);
+
+          if (context) {
+            context.scale(2, 2);
+            // 3. 캔버스 위에 지정된 부분만 정밀하게 크롭하여 복사
+            context.drawImage(
+              image,
+              relativeX * scaleX,
+              relativeY * scaleY,
+              selectionRect.width * scaleX,
+              selectionRect.height * scaleY,
+              0,
+              0,
+              selectionRect.width,
+              selectionRect.height
+            );
+
+            // 4. base64 png 포맷으로 변환 후 챗봇 미디어 업로더에 자동 바인딩
+            const croppedBase64 = canvas.toDataURL("image/png");
+            setAttachedImage(croppedBase64);
+            setSelectedChartPart(`지정된 시각적 영역 (${Math.round(selectionRect.width)}x${Math.round(selectionRect.height)})`);
+            showToast("✓ 선택 영역이 성공적으로 캡처 첨부되었습니다! 챗봇에서 바로 지시해 보세요.", "success");
+          }
+          URL.revokeObjectURL(blobURL);
+        };
+        image.src = blobURL;
+      } else {
+        // Fallback: SVG 탐색이 불가한 경우 단순 좌표 배지 지정
+        setSelectedChartPart(`지정된 시각적 영역 (x: ${Math.round(selectionRect.x)}, y: ${Math.round(selectionRect.y)})`);
+        showToast("✓ 선택 영역이 지정되었습니다.", "success");
+      }
+    } catch (err: any) {
+      console.error("⚠️ 차트 영역 크롭 실패:", err.message);
+      setSelectedChartPart(`지정된 시각적 영역 (x: ${Math.round(selectionRect.x)}, y: ${Math.round(selectionRect.y)})`);
+      showToast("영역 캡처가 불가하여 좌표 지정으로 대체되었습니다.", "warn");
     }
   };
 
@@ -1683,20 +1789,68 @@ export default function MyDBManagementPage() {
                   <div className="bg-white border border-slate-150 rounded-3xl p-6 shadow-3xs space-y-6">
                     {/* 통합 대시보드 내 차트 세션 */}
                     <div className="space-y-3">
-                      <div className="flex items-center gap-2 px-1">
-                        <BarChart className="w-4 h-4 text-indigo-500" />
-                        <span className="text-xs font-extrabold text-slate-850">1. AI 지능형 시각화 차트 분석</span>
-                      </div>
-                      <div className="bg-slate-50/50 p-4 border border-slate-100 rounded-2xl overflow-hidden">
-                        {aiChartSpec ? (
-                          <DBChartRenderer 
-                            spec={aiChartSpec} 
-                            rows={consoleResult.rows} 
-                            onSelectPart={(partName) => {
-                              setSelectedChartPart(partName);
-                              showToast(`🎯 수정 대상 지표로 "${partName}"이(가) 지정되었습니다.`, "success");
+                      <div className="flex items-center justify-between px-1">
+                        <div className="flex items-center gap-2">
+                          <BarChart className="w-4 h-4 text-indigo-500" />
+                          <span className="text-xs font-extrabold text-slate-850">1. AI 지능형 시각화 차트 분석</span>
+                        </div>
+                        {aiChartSpec && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsAreaSelectMode(!isAreaSelectMode);
+                              if (!isAreaSelectMode) {
+                                showToast("✂️ 차트에서 원하는 범위를 드래그하여 지정해 주세요.", "success");
+                              }
                             }}
-                          />
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black border transition-all cursor-pointer active:scale-95 select-none ${
+                              isAreaSelectMode 
+                                ? 'bg-indigo-650 text-white border-indigo-650 hover:bg-indigo-600' 
+                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                            }`}
+                          >
+                            <Sparkles className="w-3 h-3" />
+                            {isAreaSelectMode ? "영역 선택 중... (드래그)" : "✂️ 화면 영역 지정 수정"}
+                          </button>
+                        )}
+                      </div>
+                      <div 
+                        id="chart-capture-target"
+                        className="bg-slate-50/50 p-4 border border-slate-100 rounded-2xl overflow-hidden relative"
+                      >
+                        {aiChartSpec ? (
+                          <>
+                            <DBChartRenderer 
+                              spec={aiChartSpec} 
+                              rows={consoleResult.rows} 
+                              onSelectPart={(partName) => {
+                                setSelectedChartPart(partName);
+                                showToast(`🎯 수정 대상 지표로 "${partName}"이(가) 지정되었습니다.`, "success");
+                              }}
+                            />
+                            {/* ✂️ 영역 선택 모드 활성화 시 표시되는 투명 오버레이 패널 */}
+                            {isAreaSelectMode && (
+                              <div
+                                onMouseDown={handleAreaMouseDown}
+                                onMouseMove={handleAreaMouseMove}
+                                onMouseUp={handleAreaMouseUp}
+                                className="absolute inset-0 z-40 bg-slate-900/10 cursor-crosshair select-none rounded-2xl"
+                                title="수정하고자 하는 차트 영역을 마우스로 드래그해서 지정하세요"
+                              >
+                                {isSelecting && selectionRect && (
+                                  <div
+                                    style={{
+                                      left: `${selectionRect.x}px`,
+                                      top: `${selectionRect.y}px`,
+                                      width: `${selectionRect.width}px`,
+                                      height: `${selectionRect.height}px`,
+                                    }}
+                                    className="absolute border-2 border-dashed border-indigo-500 bg-indigo-500/15 rounded-md shadow-lg pointer-events-none"
+                                  />
+                                )}
+                              </div>
+                            )}
+                          </>
                         ) : (
                           <div className="p-10 text-center text-slate-400 flex flex-col items-center justify-center space-y-2">
                             <Activity className="w-8 h-8 text-slate-350" />
