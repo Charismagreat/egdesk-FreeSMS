@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
+import { queryTable } from '../../../../../egdesk-helpers';
 
 // 4단계 로컬 보안 비식별화 가드레일 엔진 (PII Masking & Obfuscation)
 function anonymizeData(rows: any[], schema: any[]) {
@@ -126,24 +127,21 @@ export async function POST(req: Request) {
     // 3. 로컬 보안 가드레일을 통과시켜 완전 비식별화된 초경량 데이터셋 확보
     const { stats, sampleRows } = anonymizeData(rows, schema || []);
 
-    // 4. 로컬 및 DB에 등록된 Google AI API Key 검색
-    let apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || '';
+    // 4. 로컬 및 DB에 등록된 Google AI API Key 검색 (우선순위: DB 설정값 최우선 ➔ 환경 변수 Fallback)
+    let apiKey = '';
 
-    // 만약 로컬에 설정이 되어있지 않다면, SQLite 설정 테이블을 즉석 스캔할 수 있도록 시도
-    // (본 라우트는 NEXT.js 환경이므로, 백엔드 DB 연동 helpers를 활용)
-    if (!apiKey) {
-      try {
-        const Database = require('better-sqlite3');
-        const dbPath = 'C:\\Users\\CHARISMA\\AppData\\Roaming\\egdesk\\database\\user_data.db';
-        const db = new Database(dbPath);
-        const apiKeyRow = db.prepare("SELECT value FROM system_settings WHERE key = 'google_ai_api_key';").get();
-        if (apiKeyRow && apiKeyRow.value) {
-          apiKey = apiKeyRow.value;
-        }
-        db.close();
-      } catch (err: any) {
-        console.error('API 키 로컬 DB 조회 실패:', err.message);
+    try {
+      const settingsRes = await queryTable('system_settings', { filters: { key: 'google_ai_api_key' } });
+      if (settingsRes.rows && settingsRes.rows.length > 0) {
+        apiKey = (settingsRes.rows[0].value || '').trim();
       }
+    } catch (err: any) {
+      console.error('API 키 로컬 DB 조회 실패:', err.message);
+    }
+
+    // 만약 DB 설정값에 API 키가 비어있다면, 로컬 .env.local 환경 변수를 Fallback으로 스캔
+    if (!apiKey) {
+      apiKey = (process.env.GOOGLE_GENERATIVE_AI_API_KEY || '').trim();
     }
 
     if (!apiKey) {

@@ -1008,5 +1008,20 @@ export async function setupDatabase() {
     console.error('Error seeding projects:', e.message);
   }
 
+  // 40. Shared Dashboards Table (퍼블릭 대시보드 웹 공유 및 배치 자동 갱신)
+  await safeCreateTable('공유 대시보드 관리', [
+    { name: 'share_id', type: 'TEXT', notNull: true },
+    { name: 'title', type: 'TEXT', notNull: true },
+    { name: 'sql_query', type: 'TEXT', notNull: true },
+    { name: 'table_name', type: 'TEXT' },
+    { name: 'display_name', type: 'TEXT' },
+    { name: 'chart_spec_json', type: 'TEXT' },
+    { name: 'briefing_markdown', type: 'TEXT' },
+    { name: 'refresh_interval', type: 'TEXT', defaultValue: 'NONE' },
+    { name: 'last_refreshed_at', type: 'TEXT' },
+    { name: 'created_at', type: 'TEXT', notNull: true },
+    { name: 'is_active', type: 'INTEGER', defaultValue: 1 }
+  ], { tableName: 'shared_dashboards', uniqueKeyColumns: ['share_id'] });
+
   console.log('Database setup complete.');
 }

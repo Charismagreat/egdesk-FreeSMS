@@ -20,8 +20,8 @@ export default function MyDBManagementPage() {
   const [currentPage, setCurrentPage] = React.useState<number>(1);
   const itemsPerPage = 50;
 
-  // 탭 제어 ('data' | 'schema' | 'console' | 'chart' | 'briefing')
-  const [activeTab, setActiveTab] = React.useState<'data' | 'schema' | 'console' | 'chart' | 'briefing'>('data');
+  // 탭 제어 ('data' | 'schema' | 'console' | 'chart')
+  const [activeTab, setActiveTab] = React.useState<'data' | 'schema' | 'console' | 'chart'>('data');
 
   // 검색/필터 필드
   const [searchKey, setSearchKey] = React.useState<string>("");
@@ -51,6 +51,88 @@ export default function MyDBManagementPage() {
   const [aiChartSpec, setAiChartSpec] = React.useState<any | null>(null);
   const [aiBriefing, setAiBriefing] = React.useState<string | null>(null);
   const [isVisualizing, setIsVisualizing] = React.useState<boolean>(false);
+
+  // 🌐 퍼블릭 공유 및 자동 갱신 상태
+  const [isShareModalOpen, setIsShareModalOpen] = React.useState<boolean>(false);
+  const [shareTitle, setShareTitle] = React.useState<string>("");
+  const [shareInterval, setShareInterval] = React.useState<'NONE' | 'HOURLY' | 'DAILY' | 'WEEKLY'>('NONE');
+  const [generatedShareUrl, setGeneratedShareUrl] = React.useState<string>("");
+  const [sharedDashboards, setSharedDashboards] = React.useState<any[]>([]);
+  const [isSharing, setIsSharing] = React.useState<boolean>(false);
+
+  const fetchSharedDashboards = async () => {
+    try {
+      const res = await fetch("/api/db/ai-visualize/share");
+      const data = await res.json();
+      if (data.success) {
+        setSharedDashboards(data.list || []);
+      }
+    } catch (e) {
+      console.error("공유 대시보드 리스트 조회 실패:", e);
+    }
+  };
+
+  const handleCreateShare = async () => {
+    if (!shareTitle.trim()) {
+      showToast("공유 대시보드의 공개 제목을 입력해 주세요.", "warn");
+      return;
+    }
+
+    setIsSharing(true);
+    try {
+      const fromMatch = sqlQuery.match(/FROM\s+["']?([a-zA-Z0-9_-]+)["']?/i);
+      const tableName = fromMatch ? fromMatch[1] : (selectedTable || 'raw_query');
+
+      const res = await fetch("/api/db/ai-visualize/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: shareTitle,
+          sqlQuery: sqlQuery,
+          tableName,
+          displayName: tables.find(t => t.name === tableName)?.displayName || tableName,
+          chartSpecJson: aiChartSpec,
+          briefingMarkdown: aiBriefing,
+          refreshInterval: shareInterval
+        })
+      });
+
+      const data = await res.json();
+      if (data.success && data.shareId) {
+        const url = `${window.location.origin}/public/share/${data.shareId}`;
+        setGeneratedShareUrl(url);
+        showToast("공유 대시보드가 성공적으로 웹에 게시되었습니다!", "success");
+        fetchSharedDashboards();
+      } else {
+        showToast(data.error || "웹 게시 등록에 실패했습니다.", "error");
+      }
+    } catch (e) {
+      showToast("서버와 통신할 수 없습니다.", "error");
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
+  const handleDeleteShare = async (shareId: string) => {
+    if (!confirm("정말로 이 공유 대시보드의 공개를 철회하고 완전히 삭제하시겠습니까?\n외부 공유 링크 접근이 즉시 차단됩니다.")) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/db/ai-visualize/share?shareId=${shareId}`, {
+        method: "DELETE"
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast("공유 대시보드 게시가 안전하게 해제되었습니다.", "success");
+        fetchSharedDashboards();
+      } else {
+        showToast(data.error || "삭제에 실패했습니다.", "error");
+      }
+    } catch (e) {
+      showToast("서버와 통신할 수 없습니다.", "error");
+    }
+  };
 
   const triggerAIVisualization = async (rows: any[], queryStr: string) => {
     if (!rows || rows.length === 0) return;
@@ -181,6 +263,7 @@ export default function MyDBManagementPage() {
   // 4. 최초 렌더링 및 테이블 전환 시 연동
   React.useEffect(() => {
     fetchTables();
+    fetchSharedDashboards();
   }, []);
 
   React.useEffect(() => {
@@ -849,33 +932,19 @@ export default function MyDBManagementPage() {
                     SQL 실행 결과
                   </button>
 
-                  {/* 📊 AI 시각화 차트 탭 (SQL 결과 레코드가 존재할 때만 표시) */}
+                  {/* 📊 AI 지능형 시각화 & 브리핑 통합 탭 (SQL 결과 레코드가 존재할 때만 표시) */}
                   {consoleResult && consoleResult.success && consoleResult.rows && consoleResult.rows.length > 0 && (
-                    <>
-                      <button
-                        onClick={() => setActiveTab('chart')}
-                        className={`px-4 py-1.5 rounded-lg transition-all text-[11px] font-extrabold shrink-0 border-none ${
-                          activeTab === 'chart' 
-                            ? 'bg-white text-blue-600 shadow-sm' 
-                            : 'text-slate-500 hover:text-slate-700 bg-transparent'
-                        }`}
-                      >
-                        <BarChart className="w-3.5 h-3.5 inline mr-1 text-indigo-500" />
-                        📊 AI 시각화 차트
-                      </button>
-
-                      <button
-                        onClick={() => setActiveTab('briefing')}
-                        className={`px-4 py-1.5 rounded-lg transition-all text-[11px] font-extrabold shrink-0 border-none ${
-                          activeTab === 'briefing' 
-                            ? 'bg-white text-blue-600 shadow-sm' 
-                            : 'text-slate-500 hover:text-slate-700 bg-transparent'
-                        }`}
-                      >
-                        <FileText className="w-3.5 h-3.5 inline mr-1 text-emerald-500" />
-                        📝 AI 데이터 브리핑
-                      </button>
-                    </>
+                    <button
+                      onClick={() => setActiveTab('chart')}
+                      className={`px-4 py-1.5 rounded-lg transition-all text-[11px] font-extrabold shrink-0 border-none ${
+                        activeTab === 'chart' 
+                          ? 'bg-white text-blue-600 shadow-sm' 
+                          : 'text-slate-500 hover:text-slate-700 bg-transparent'
+                      }`}
+                    >
+                      <BarChart className="w-3.5 h-3.5 inline mr-1 text-indigo-500" />
+                      📊 AI 지능형 시각화 & 브리핑
+                    </button>
                   )}
                 </div>
 
@@ -1233,61 +1302,86 @@ export default function MyDBManagementPage() {
               </div>
             )}
 
-            {/* 탭 콘텐트 영역 4: AI 지능형 시각화 차트 뷰 */}
+            {/* 탭 콘텐트 영역 4: AI 지능형 시각화 & 비즈니스 브리핑 통합 뷰 */}
             {activeTab === 'chart' && consoleResult && consoleResult.success && consoleResult.rows && (
-              <div className="p-5 space-y-4 animate-fade-in text-slate-700">
+              <div className="p-5 space-y-6 animate-fade-in text-slate-700">
+                <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
+                  <h4 className="text-[11px] font-black text-slate-450 flex items-center gap-1">
+                    <BarChart className="w-3.5 h-3.5 text-indigo-500" />
+                    AI 지능형 통합 리포트
+                  </h4>
+                  <button
+                    onClick={() => {
+                      const fromMatch = sqlQuery.match(/FROM\s+["']?([a-zA-Z0-9_-]+)["']?/i);
+                      const tName = fromMatch ? fromMatch[1] : selectedTable;
+                      const dName = tables.find(t => t.name === tName)?.displayName || tName;
+                      setShareTitle(`${dName} AI 지능형 통합 리포트`);
+                      setShareInterval('NONE');
+                      setGeneratedShareUrl("");
+                      setIsShareModalOpen(true);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-650 hover:from-blue-500 hover:to-indigo-550 text-white rounded-xl text-xs font-black border-none cursor-pointer shadow-3xs transition-all active:scale-95"
+                  >
+                    <Database className="w-3.5 h-3.5 text-white" />
+                    🌐 웹에 게시 및 자동 갱신
+                  </button>
+                </div>
+
                 {isVisualizing ? (
-                  // 미려한 스켈레톤 로딩 인디케이터
-                  <div className="p-8 bg-slate-50 border border-slate-100 rounded-2xl animate-pulse flex flex-col items-center justify-center text-center space-y-3">
+                  // 통합 웅장형 스켈레톤 로더
+                  <div className="p-8 bg-slate-50 border border-slate-100 rounded-2xl animate-pulse flex flex-col items-center justify-center text-center space-y-4">
                     <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center">
-                      <BarChart className="w-5 h-5 text-slate-400 animate-spin" />
+                      <RefreshCw className="w-5 h-5 text-slate-400 animate-spin" />
                     </div>
                     <div className="space-y-2">
-                      <p className="text-xs font-black text-slate-600">AI가 데이터를 분석하여 시각화 스펙을 설계하고 있습니다...</p>
-                      <p className="text-[10px] text-slate-400">데이터의 구조 및 특징 분석 완료 중 (약 1.5초 소요)</p>
+                      <p className="text-xs font-black text-slate-600">AI 지능형 엔진이 차트 시각화 및 비즈니스 브리핑서를 융합 집필 중입니다...</p>
+                      <p className="text-[10px] text-slate-450">데이터 비식별화 가드레일 통과 및 요점 분석 중 (약 2초 소요)</p>
                     </div>
                     <div className="w-48 h-3.5 bg-slate-200 rounded-full mx-auto" />
                   </div>
-                ) : aiChartSpec ? (
-                  <DBChartRenderer spec={aiChartSpec} rows={consoleResult.rows} />
                 ) : (
-                  <div className="p-8 bg-slate-50 border border-slate-100 border-dashed rounded-2xl flex flex-col items-center justify-center text-center text-slate-400">
-                    <Activity className="w-8 h-8 text-slate-350 mb-2" />
-                    <p className="text-xs font-bold">본 데이터 세트의 시각화 분석 정보를 찾을 수 없습니다.</p>
-                  </div>
-                )}
-              </div>
-            )}
+                  <div className="bg-white border border-slate-150 rounded-3xl p-6 shadow-3xs space-y-6">
+                    {/* 통합 대시보드 내 차트 세션 */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 px-1">
+                        <BarChart className="w-4 h-4 text-indigo-500" />
+                        <span className="text-xs font-extrabold text-slate-850">1. AI 지능형 시각화 차트 분석</span>
+                      </div>
+                      <div className="bg-slate-50/50 p-4 border border-slate-100 rounded-2xl overflow-hidden">
+                        {aiChartSpec ? (
+                          <DBChartRenderer spec={aiChartSpec} rows={consoleResult.rows} />
+                        ) : (
+                          <div className="p-10 text-center text-slate-400 flex flex-col items-center justify-center space-y-2">
+                            <Activity className="w-8 h-8 text-slate-350" />
+                            <span className="text-xs font-bold">본 데이터 세트의 시각화 분석 정보를 구성하지 못했습니다.</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
-            {/* 탭 콘텐트 영역 5: AI 비즈니스 통찰 브리핑 뷰 */}
-            {activeTab === 'briefing' && consoleResult && consoleResult.success && (
-              <div className="p-5 space-y-4 animate-fade-in text-slate-700">
-                {isVisualizing ? (
-                  // 스켈레톤 로더
-                  <div className="p-8 bg-slate-50 border border-slate-100 rounded-2xl animate-pulse flex flex-col items-center justify-center text-center space-y-3">
-                    <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center">
-                      <FileText className="w-5 h-5 text-slate-400" />
+                    {/* 일체형 대시보드 경계선 (그라데이션 피드) */}
+                    <div className="h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent my-6" />
+
+                    {/* 통합 대시보드 내 브리핑 세션 */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 px-1">
+                        <FileText className="w-4 h-4 text-emerald-600" />
+                        <span className="text-xs font-extrabold text-slate-850">2. AI 데이터 비즈니스 통찰 및 브리핑 요약</span>
+                      </div>
+                      
+                      {aiBriefing ? (
+                        <div className="p-5 bg-emerald-50/20 border border-emerald-100/60 rounded-2xl shadow-3xs space-y-3 animate-fade-in">
+                          <div className="text-xs font-bold leading-relaxed text-slate-700 whitespace-pre-line font-sans">
+                            {aiBriefing}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-6 bg-slate-50 border border-slate-100 border-dashed rounded-2xl flex flex-col items-center justify-center text-center text-slate-400">
+                          <Activity className="w-6 h-6 text-slate-300 mb-1.5" />
+                          <p className="text-xs font-bold">비즈니스 브리핑 리포트를 불러오지 못했습니다.</p>
+                        </div>
+                      )}
                     </div>
-                    <div className="space-y-2">
-                      <p className="text-xs font-black text-slate-600">AI가 비즈니스 데이터 브리핑 요약서를 집필하고 있습니다...</p>
-                      <p className="text-[10px] text-slate-400">의사결정을 위한 요점 분석 중</p>
-                    </div>
-                    <div className="w-40 h-3.5 bg-slate-200 rounded-full mx-auto" />
-                  </div>
-                ) : aiBriefing ? (
-                  <div className="p-6 bg-emerald-50/20 border border-emerald-100/60 rounded-2xl shadow-3xs space-y-4">
-                    <h3 className="text-xs font-black text-emerald-800 flex items-center gap-1.5 border-b border-emerald-100/50 pb-2">
-                      <FileText className="w-4 h-4 text-emerald-600" />
-                      💡 AI 데이터 브리핑 및 비즈니스 요약 레포트
-                    </h3>
-                    <div className="text-xs font-bold leading-relaxed text-slate-700 whitespace-pre-line font-sans space-y-2">
-                      {aiBriefing}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-8 bg-slate-50 border border-slate-100 border-dashed rounded-2xl flex flex-col items-center justify-center text-center text-slate-400">
-                    <Activity className="w-8 h-8 text-slate-350 mb-2" />
-                    <p className="text-xs font-bold">비즈니스 통찰 브리핑 데이터를 구성하지 못했습니다.</p>
                   </div>
                 )}
               </div>
@@ -1366,6 +1460,232 @@ export default function MyDBManagementPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 🌐 공개 게시된 공유 대시보드 관리국 */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 overflow-hidden">
+        <h2 className="font-extrabold text-slate-800 text-base pb-3.5 border-b border-slate-100 flex items-center gap-2 mb-4 shrink-0">
+          <Database className="w-4.5 h-4.5 text-indigo-500" />
+          🌐 공개 웹 게시판 공유 대시보드 관리국 ({sharedDashboards.length})
+        </h2>
+
+        <div className="overflow-x-auto w-full border border-slate-100 rounded-xl">
+          {sharedDashboards.length === 0 ? (
+            <div className="p-16 text-center text-xs text-slate-400 font-semibold leading-relaxed">
+              현재 외부에 웹 공유 게시된 대시보드가 없습니다.<br />
+              <span className="text-[10px] text-slate-400 font-normal">AI 시각화/브리핑 성공 화면에서 즉석에서 🌐 웹에 게시 및 자동 갱신 링크를 발급받으실 수 있습니다.</span>
+            </div>
+          ) : (
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-slate-50 border-b border-slate-100 text-xs">
+                <tr>
+                  <th className="p-4 font-bold text-slate-700">공개 대시보드 제목</th>
+                  <th className="p-4 font-bold text-slate-700">원본 SQL 쿼리</th>
+                  <th className="p-4 font-bold text-slate-700">갱신 주기</th>
+                  <th className="p-4 font-bold text-slate-700">최종 갱신 시각</th>
+                  <th className="p-4 text-center w-36">공유 링크</th>
+                  <th className="p-4 text-center w-24">제어</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sharedDashboards.map((board) => (
+                  <tr key={board.share_id} className="border-b border-slate-50 hover:bg-slate-50/50 text-[11px]">
+                    <td className="p-4 text-slate-800 font-bold max-w-[200px] truncate" title={board.title}>
+                      {board.title}
+                    </td>
+                    <td className="p-4 font-mono text-slate-500 max-w-[250px] truncate" title={board.sql_query}>
+                      {board.sql_query}
+                    </td>
+                    <td className="p-4">
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border ${
+                        board.refresh_interval === 'NONE' ? 'bg-slate-100 text-slate-500 border-slate-200' :
+                        board.refresh_interval === 'HOURLY' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                        board.refresh_interval === 'DAILY' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                        'bg-purple-50 text-purple-700 border-purple-200'
+                      }`}>
+                        {board.refresh_interval === 'NONE' ? '자동갱신 없음' :
+                         board.refresh_interval === 'HOURLY' ? '매시간 자동갱신' :
+                         board.refresh_interval === 'DAILY' ? '매일 자동갱신' :
+                         '매주 자동갱신'}
+                      </span>
+                    </td>
+                    <td className="p-4 font-mono text-slate-450">{board.last_refreshed_at || '-'}</td>
+                    <td className="p-4 text-center">
+                      <button
+                        onClick={() => {
+                          const url = `${window.location.origin}/public/share/${board.share_id}`;
+                          navigator.clipboard.writeText(url);
+                          showToast("공유 링크가 클립보드에 복사되었습니다!", "success");
+                        }}
+                        className="px-2.5 py-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-650 rounded-lg text-[10px] font-bold cursor-pointer transition-colors shadow-3xs"
+                      >
+                        🔗 링크 복사
+                      </button>
+                    </td>
+                    <td className="p-4 text-center">
+                      <button
+                        onClick={() => handleDeleteShare(board.share_id)}
+                        className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-[10px] font-black border border-rose-200 shadow-3xs cursor-pointer transition-all active:scale-95"
+                      >
+                        게시 철회
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {/* 🌐 웹에 게시 및 자동 갱신 구성 모달 */}
+      {isShareModalOpen && (
+        <div className="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-hidden animate-zoom-in">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <h3 className="font-extrabold text-slate-800 text-sm flex items-center gap-1.5">
+                <Database className="w-4.5 h-4.5 text-indigo-500" />
+                🌐 AI 분석 결과 퍼블릭 웹 게시 & 자동 갱신 구성
+              </h3>
+              <button 
+                onClick={() => setIsShareModalOpen(false)}
+                className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-full border-none bg-transparent cursor-pointer transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5 text-slate-700 bg-white">
+              {generatedShareUrl ? (
+                <div className="space-y-4.5 animate-zoom-in text-center py-4">
+                  <div className="w-12 h-12 rounded-full bg-green-50 border border-green-200 flex items-center justify-center mx-auto text-green-600">
+                    <CheckCircle className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <h4 className="text-xs font-black text-slate-800">공개 대시보드가 성공적으로 개설되었습니다!</h4>
+                    <p className="text-[10px] text-slate-400">외부 손님용 링크를 복사하여 바이어, 의사결정자에게 전달할 수 있습니다.</p>
+                  </div>
+
+                  <div className="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-2xl select-all font-mono text-[11px] text-slate-650 justify-between">
+                    <span className="truncate pr-4">{generatedShareUrl}</span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(generatedShareUrl);
+                        showToast("게시판 공유 링크가 클립보드에 무사히 복사되었습니다!", "success");
+                      }}
+                      className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-[10px] font-black shrink-0 border-none cursor-pointer hover:bg-blue-500 shadow-3xs"
+                    >
+                      복사
+                    </button>
+                  </div>
+
+                  <div className="pt-2">
+                    <button
+                      onClick={() => setIsShareModalOpen(false)}
+                      className="w-full py-2.5 bg-slate-800 hover:bg-slate-750 text-white rounded-xl text-xs font-extrabold border border-slate-800 cursor-pointer shadow-3xs"
+                    >
+                      설정 닫기
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-black text-slate-450 flex items-center gap-1">
+                      공개 게시글 제목 (의사결정자용 대시보드 한글 제목)
+                    </label>
+                    <input
+                      type="text"
+                      value={shareTitle}
+                      onChange={(e) => setShareTitle(e.target.value)}
+                      placeholder="예: 월별 지출 현황 및 AI 자금 브리핑"
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-xs text-slate-700 transition-all placeholder:text-slate-350 shadow-3xs"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-black text-slate-450 flex items-center gap-1">
+                      실시간 최신 데이터 자동 갱신 주기
+                    </label>
+                    
+                    <div className="grid grid-cols-2 gap-2 text-xs font-bold">
+                      <button
+                        onClick={() => setShareInterval('NONE')}
+                        className={`p-3 rounded-xl border text-center cursor-pointer transition-all border-solid ${
+                          shareInterval === 'NONE' 
+                            ? 'bg-blue-50/70 border-blue-200 text-blue-700' 
+                            : 'bg-white border-slate-100 hover:bg-slate-50 text-slate-650'
+                        }`}
+                      >
+                        🔄 자동 갱신 안 함
+                      </button>
+                      <button
+                        onClick={() => setShareInterval('HOURLY')}
+                        className={`p-3 rounded-xl border text-center cursor-pointer transition-all border-solid ${
+                          shareInterval === 'HOURLY' 
+                            ? 'bg-blue-50/70 border-blue-200 text-blue-700' 
+                            : 'bg-white border-slate-100 hover:bg-slate-50 text-slate-650'
+                        }`}
+                      >
+                        ⏰ 매시간 갱신
+                      </button>
+                      <button
+                        onClick={() => setShareInterval('DAILY')}
+                        className={`p-3 rounded-xl border text-center cursor-pointer transition-all border-solid ${
+                          shareInterval === 'DAILY' 
+                            ? 'bg-blue-50/70 border-blue-200 text-blue-700' 
+                            : 'bg-white border-slate-100 hover:bg-slate-50 text-slate-650'
+                        }`}
+                      >
+                        📅 매일 갱신 (권장)
+                      </button>
+                      <button
+                        onClick={() => setShareInterval('WEEKLY')}
+                        className={`p-3 rounded-xl border text-center cursor-pointer transition-all border-solid ${
+                          shareInterval === 'WEEKLY' 
+                            ? 'bg-blue-50/70 border-blue-200 text-blue-700' 
+                            : 'bg-white border-slate-100 hover:bg-slate-50 text-slate-650'
+                        }`}
+                      >
+                        📆 매주 갱신
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-indigo-50/40 border border-indigo-100 rounded-2xl text-[10px] text-indigo-700 font-medium leading-relaxed">
+                    💡 **자동 갱신 파이프라인 작동 메커니즘**:
+                    매시간/매일/매주 주기에 도래하면 시스템은 백그라운드에서 원본 SQL을 다시 구동하여 최신 레코드를 읽고, **4단계 로컬 보안 비식별화 가드레일**을 정밀 통과시킨 최신 요약 데이터로 차트와 AI 브리핑 내용을 신선하게 자동 갱신합니다.
+                  </div>
+
+                  <div className="pt-2 flex items-center justify-end gap-2">
+                    <button
+                      onClick={() => setIsShareModalOpen(false)}
+                      className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-500 rounded-xl text-xs font-bold cursor-pointer"
+                    >
+                      취소
+                    </button>
+                    <button
+                      onClick={handleCreateShare}
+                      disabled={isSharing}
+                      className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-650 hover:from-blue-500 hover:to-indigo-550 text-white rounded-xl text-xs font-black shadow-sm border-none cursor-pointer transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1"
+                    >
+                      {isSharing ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin mr-0.5 text-white" />
+                          발행 등록 중...
+                        </>
+                      ) : (
+                        <>
+                          🌐 퍼블릭 대시보드 게시글 발행
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
