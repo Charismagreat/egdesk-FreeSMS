@@ -7,7 +7,7 @@ import {
   Home, Users, MessageSquare, Settings, ShoppingCart, 
   ClipboardList, CreditCard, CalendarDays, Truck, Send, 
   PackageSearch, Package, UserCog, Zap, Ticket, Landmark, Globe, Briefcase, HelpCircle,
-  ArrowRightLeft, Handshake, Sparkles, Coins
+  ArrowRightLeft, Handshake, Sparkles, Coins, Database
 } from "lucide-react";
 
 // 커스텀 인스타그램 아이콘 SVG
@@ -125,17 +125,30 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
       </nav>
       <div className="p-4 border-t border-slate-800 space-y-2">
         {userRole === "SUPER_ADMIN" && (
-          <Link
-            href="/operators"
-            className={`flex items-center space-x-3 p-3 rounded-lg transition-all ${
-              isActive("/operators")
-                ? "bg-blue-600 text-white font-semibold shadow-md shadow-blue-500/10 scale-[1.02]"
-                : "text-slate-300 hover:bg-slate-800 hover:text-white hover:scale-[1.01]"
-            }`}
-          >
-            <UserCog className={`w-5 h-5 shrink-0 ${isActive("/operators") ? "text-white" : "text-indigo-400"}`} />
-            <span>운영자 관리</span>
-          </Link>
+          <>
+            <Link
+              href="/operators"
+              className={`flex items-center space-x-3 p-3 rounded-lg transition-all ${
+                isActive("/operators")
+                  ? "bg-blue-600 text-white font-semibold shadow-md shadow-blue-500/10 scale-[1.02]"
+                  : "text-slate-300 hover:bg-slate-800 hover:text-white hover:scale-[1.01]"
+              }`}
+            >
+              <UserCog className={`w-5 h-5 shrink-0 ${isActive("/operators") ? "text-white" : "text-indigo-400"}`} />
+              <span>운영자 관리</span>
+            </Link>
+            <Link
+              href="/my-db"
+              className={`flex items-center space-x-3 p-3 rounded-lg transition-all ${
+                isActive("/my-db")
+                  ? "bg-blue-600 text-white font-semibold shadow-md shadow-blue-500/10 scale-[1.02]"
+                  : "text-slate-300 hover:bg-slate-800 hover:text-white hover:scale-[1.01]"
+              }`}
+            >
+              <Database className={`w-5 h-5 shrink-0 ${isActive("/my-db") ? "text-white" : "text-indigo-400"}`} />
+              <span>MY DB</span>
+            </Link>
+          </>
         )}
         <Link
           href="/help"
