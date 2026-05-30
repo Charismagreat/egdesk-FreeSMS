@@ -382,11 +382,18 @@ export default function MyDBManagementPage() {
                       : 'bg-white border-slate-100 hover:bg-slate-50 text-slate-650 hover:text-slate-800'
                   }`}
                 >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Database className={`w-3.5 h-3.5 shrink-0 ${selectedTable === t.name ? 'text-blue-500' : 'text-slate-400'}`} />
-                    <span className="text-xs truncate">{t.name}</span>
+                  <div className="flex flex-col min-w-0 leading-tight">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Database className={`w-3.5 h-3.5 shrink-0 ${selectedTable === t.name ? 'text-blue-500' : 'text-slate-400'}`} />
+                      <span className="text-xs truncate font-semibold">{t.name}</span>
+                    </div>
+                    {t.displayName && t.displayName !== t.name && (
+                      <span className="text-[10px] text-slate-400 pl-5 truncate font-normal mt-0.5">
+                        {t.displayName}
+                      </span>
+                    )}
                   </div>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-black border transition-all ${
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-black border transition-all shrink-0 ${
                     selectedTable === t.name
                       ? 'bg-blue-500 text-white border-blue-500'
                       : 'bg-slate-100 text-slate-450 border-slate-200/60'

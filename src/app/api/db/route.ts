@@ -41,14 +41,14 @@ export async function GET(request: Request) {
 
     // 1. 모든 물리 테이블 목록 조회
     if (action === 'list') {
-      const tablesResult = await listTables();
+      const tablesList = await listTables();
       
       // 각 테이블의 실시간 데이터 행(Row) 개수 조회를 동적으로 수행
-      const list = tablesResult.rows || [];
+      const list = Array.isArray(tablesList) ? tablesList : [];
       const tablesWithCount = [];
       
       for (const t of list) {
-        const name = t.name || t.tbl_name;
+        const name = t.tableName;
         if (!name || name === 'sqlite_sequence') continue;
         
         try {
@@ -56,11 +56,13 @@ export async function GET(request: Request) {
           const count = countRes.rows?.[0]?.cnt || 0;
           tablesWithCount.push({
             name,
+            displayName: t.displayName || name,
             count
           });
         } catch (err) {
           tablesWithCount.push({
             name,
+            displayName: t.displayName || name,
             count: 'Error'
           });
         }
