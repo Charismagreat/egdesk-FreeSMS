@@ -441,6 +441,55 @@ export default function MyDBManagementPage() {
     }
   };
 
+  const handleResetAllPlayground = () => {
+    if (confirm("최고관리자님, 대화형 SQL 플레이그라운드 입력값, SQL 실행 결과, AI 지능형 시각화 차트 및 챗봇 대화 등 모든 작업을 최초 대기 상태로 초기화하시겠습니까?")) {
+      // 1. SQL 플레이그라운드 입력 및 결과 초기화
+      setSqlQuery("SELECT * FROM crm_expenses LIMIT 10;");
+      setConsoleResult(null);
+      setSafetyUnlocked(false);
+      setConsoleTab('ai');
+      setAiPrompt("");
+      setAiGeneratedSql("");
+      
+      // 2. AI 지능형 시각화 및 브리핑 초기화
+      setAiChartSpec(null);
+      setAiBriefing(null);
+      setIsVisualizing(false);
+      setTunePrompt("");
+      setTuneHistory([]);
+      setSelectedChartPart("");
+      setAttachedImage("");
+      setPreviousSnapshot(null);
+      setInitialSnapshot(null);
+      
+      // 3. 검색 필터 및 활성 탭 초기화
+      setSearchKey("");
+      setSearchValue("");
+      setActiveTab('data');
+
+      // 4. 로컬스토리지 청소
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("egdesk_mydb_sqlQuery");
+        localStorage.removeItem("egdesk_mydb_consoleResult");
+        localStorage.removeItem("egdesk_mydb_safetyUnlocked");
+        localStorage.removeItem("egdesk_mydb_consoleTab");
+        localStorage.removeItem("egdesk_mydb_aiPrompt");
+        localStorage.removeItem("egdesk_mydb_aiGeneratedSql");
+        localStorage.removeItem("egdesk_mydb_aiChartSpec");
+        localStorage.removeItem("egdesk_mydb_aiBriefing");
+        localStorage.removeItem("egdesk_mydb_tuneHistory");
+        localStorage.removeItem("egdesk_mydb_selectedChartPart");
+        localStorage.removeItem("egdesk_mydb_previousSnapshot");
+        localStorage.removeItem("egdesk_mydb_initialSnapshot");
+        localStorage.removeItem("egdesk_mydb_activeTab");
+        localStorage.removeItem("egdesk_mydb_searchKey");
+        localStorage.removeItem("egdesk_mydb_searchValue");
+      }
+
+      showToast("✓ 대화형 SQL 플레이그라운드, 실행 결과, AI 시각화 등 모든 데이터가 완벽히 초기화되었습니다.", "success");
+    }
+  };
+
   // ↩️ 이전 튜닝 상태로 되돌리기 (Undo) 핸들러 구현
   const handleUndoTuning = () => {
     if (!previousSnapshot) return;
@@ -1776,15 +1825,26 @@ export default function MyDBManagementPage() {
           <Database className="w-8 h-8 mr-3 text-blue-500 shrink-0" />
           MY DB
         </h1>
-        <button
-          onClick={handleSyncAll}
-          disabled={isLoading}
-          className="flex items-center justify-center gap-1.5 px-4.5 py-2.5 bg-blue-650 hover:bg-blue-600 text-white rounded-xl text-xs font-black shadow-3xs border-none cursor-pointer transition-all active:scale-95 disabled:opacity-50 shrink-0 self-start sm:self-auto"
-          title="서버 데이터베이스 테이블 개수 및 레코드 실시간 동기화"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 text-white ${isLoading ? 'animate-spin' : ''}`} />
-          전체 데이터 동기화
-        </button>
+        <div className="flex items-center gap-2.5 shrink-0 self-start sm:self-auto">
+          <button
+            onClick={handleResetAllPlayground}
+            className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-650 hover:text-rose-700 rounded-xl text-xs font-black shadow-3xs border border-rose-200 cursor-pointer transition-all active:scale-95 shrink-0"
+            title="대화형 SQL 플레이그라운드, 결과 및 차트 등 모든 작업 상태를 최초 대기 상태로 초기화"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-rose-500" />
+            전체 작업 초기화
+          </button>
+
+          <button
+            onClick={handleSyncAll}
+            disabled={isLoading}
+            className="flex items-center justify-center gap-1.5 px-4.5 py-2.5 bg-blue-650 hover:bg-blue-600 text-white rounded-xl text-xs font-black shadow-3xs border-none cursor-pointer transition-all active:scale-95 disabled:opacity-50 shrink-0"
+            title="서버 데이터베이스 테이블 개수 및 레코드 실시간 동기화"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-white ${isLoading ? 'animate-spin' : ''}`} />
+            전체 데이터 동기화
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
