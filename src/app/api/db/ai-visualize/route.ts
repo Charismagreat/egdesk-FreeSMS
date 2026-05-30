@@ -219,8 +219,12 @@ ${JSON.stringify(stats, null, 2)}
       throw new Error('Gemini 분석 응답이 비어있습니다.');
     }
 
-    // 7. 결과 파싱 및 전송
-    const cleanJson = JSON.parse(resultText.trim());
+    // 7. 결과 파싱 및 전송 (안전한 마크다운 백틱 제거 장치 장착)
+    let cleanedText = resultText.trim();
+    if (cleanedText.startsWith('```')) {
+      cleanedText = cleanedText.replace(/^```json?\s*/i, '').replace(/```\s*$/, '').trim();
+    }
+    const cleanJson = JSON.parse(cleanedText);
     return NextResponse.json(cleanJson);
 
   } catch (err: any) {

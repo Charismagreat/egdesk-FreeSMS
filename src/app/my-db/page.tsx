@@ -91,9 +91,11 @@ export default function MyDBManagementPage() {
         setAiBriefing(data.briefing);
       } else {
         console.error("AI 시각화 분석 실패:", data.error);
+        showToast(`AI 시각화 분석 실패: ${data.error || '알 수 없는 오류'}`, "error");
       }
     } catch (err: any) {
       console.error("AI 시각화 API 연동 실패:", err.message);
+      showToast(`AI 시각화 연동 실패: ${err.message}`, "error");
     } finally {
       setIsVisualizing(false);
     }
