@@ -51,10 +51,19 @@ export async function GET(request: Request) {
       console.log(`🔍 [DB API Debug] Using NEXT_PUBLIC_EGDESK_API_URL: ${targetApiUrl}`);
 
       const tablesList = await listTables();
-      console.log(`🔍 [DB API Debug] listTables() return:`, Array.isArray(tablesList) ? `Array (${tablesList.length} items)` : typeof tablesList);
+      console.log(`🔍 [DB API Debug] listTables() return:`, typeof tablesList, Array.isArray(tablesList) ? 'is Array' : 'is Object');
       
       // 각 테이블의 실시간 데이터 행(Row) 개수 조회를 동적으로 수행
-      const list = Array.isArray(tablesList) ? tablesList : [];
+      let list: any[] = [];
+      if (tablesList && typeof tablesList === 'object') {
+        if (Array.isArray((tablesList as any).tables)) {
+          list = (tablesList as any).tables;
+        } else if (Array.isArray(tablesList)) {
+          list = tablesList;
+        }
+      }
+      
+      console.log(`🔍 [DB API Debug] Parsed tables count: ${list.length}`);
       const tablesWithCount = [];
       
       for (const t of list) {
