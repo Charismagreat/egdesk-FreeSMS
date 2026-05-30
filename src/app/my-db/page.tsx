@@ -6,7 +6,8 @@ import {
   Trash2, AlertTriangle, Code, Table, Search, Terminal,
   CheckCircle, ChevronRight, X, ShieldAlert, Calendar,
   BarChart, FileText, Activity, Sparkles, Paperclip, Send,
-  Undo, RotateCcw, ExternalLink, Eye, EyeOff, Link, Copy
+  Undo, RotateCcw, ExternalLink, Eye, EyeOff, Link, Copy,
+  ArrowUp, ArrowDown, Filter, ArrowLeft, ArrowRight, Users
 } from "lucide-react";
 import DBChartRenderer from "@/components/DBChartRenderer";
 
@@ -667,6 +668,66 @@ export default function MyDBManagementPage() {
   const [friendlyAllowCsv, setFriendlyAllowCsv] = React.useState<boolean>(true);
   const [generatedFriendlyShareUrl, setGeneratedFriendlyShareUrl] = React.useState<string>("");
   const [isFriendlySharing, setIsFriendlySharing] = React.useState<boolean>(false);
+
+  // 실시간 컬럼 데이터 필터링용 상태 변수
+  const [friendlyFilters, setFriendlyFilters] = React.useState<Record<string, string>>({});
+  // 컬럼 가로 드래그앤드롭 순서 변경용 상태 변수
+  const [draggedColIndex, setDraggedColIndex] = React.useState<number | null>(null);
+
+  // 실시간 필터 적용된 데이터 연산
+  const filteredRows = React.useMemo(() => {
+    if (!tableRows) return [];
+    return tableRows.filter(row => {
+      return Object.entries(friendlyFilters).every(([colPhysical, filterText]) => {
+        if (!filterText) return true;
+        const cellValue = row[colPhysical];
+        if (cellValue === null || cellValue === undefined) return false;
+        
+        const stringVal = typeof cellValue === 'object' ? JSON.stringify(cellValue) : String(cellValue);
+        return stringVal.toLowerCase().includes(filterText.toLowerCase());
+      });
+    });
+  }, [tableRows, friendlyFilters]);
+
+  // 컬럼 좌우 이동 함수
+  const moveFriendlyColumn = (index: number, direction: 'left' | 'right') => {
+    if (direction === 'left' && index === 0) return;
+    if (direction === 'right' && index === friendlyColumnMappings.length - 1) return;
+    
+    const targetIndex = direction === 'left' ? index - 1 : index + 1;
+    const newMappings = [...friendlyColumnMappings];
+    
+    const temp = newMappings[index];
+    newMappings[index] = newMappings[targetIndex];
+    newMappings[targetIndex] = temp;
+    
+    setFriendlyColumnMappings(newMappings);
+  };
+
+  // 드래그 앤 드롭 이벤트 핸들러
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedColIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (draggedColIndex === null || draggedColIndex === targetIndex) return;
+    
+    const newMappings = [...friendlyColumnMappings];
+    const draggedCol = newMappings[draggedColIndex];
+    
+    // 제거 후 삽입
+    newMappings.splice(draggedColIndex, 1);
+    newMappings.splice(targetIndex, 0, draggedCol);
+    
+    setFriendlyColumnMappings(newMappings);
+    setDraggedColIndex(null);
+  };
 
   // 👥 임직원 친화형 공유 테이블 뷰 모달 오픈 핸들러
   const handleOpenFriendlyShareModal = () => {
@@ -3429,16 +3490,46 @@ export default function MyDBManagementPage() {
                           {friendlyColumnMappings.map((col, idx) => (
                             <th 
                               key={col.physical} 
-                              className={`px-4 py-4 w-72 min-w-[288px] max-w-[288px] transition-all duration-200 ${
-                                !col.visible ? 'bg-slate-100/50 opacity-60' : 'bg-white'
+                              draggable={col.visible}
+                              onDragStart={(e) => handleDragStart(e, idx)}
+                              onDragOver={(e) => handleDragOver(e, idx)}
+                              onDrop={(e) => handleDrop(e, idx)}
+                              className={`px-4 py-4 w-72 min-w-[288px] max-w-[288px] transition-all duration-200 cursor-grab active:cursor-grabbing select-none relative group ${
+                                !col.visible ? 'bg-slate-100/50 opacity-60' : 'bg-white hover:bg-slate-50/50'
                               }`}
+                              title={col.visible ? "이 컬럼 헤더를 좌우로 드래그하여 순서를 변경할 수 있습니다." : ""}
                             >
                               <div className="space-y-3.5">
-                                {/* 컬럼 물리명 & 노출제어 */}
+                                {/* 컬럼 물리명 & 순서이동 & 노출제어 */}
                                 <div className="flex items-center justify-between">
-                                  <span className="text-[10px] font-bold font-mono text-slate-400 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded select-all">
-                                    {col.physical}
-                                  </span>
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-[10px] font-bold font-mono text-slate-400 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded select-all">
+                                      {col.physical}
+                                    </span>
+                                    {/* 좌우 이동 간편 버튼 (hover 시 노출) */}
+                                    {col.visible && (
+                                      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-slate-200 rounded-md p-0.5 gap-0.5 shadow-3xs z-10">
+                                        <button
+                                          type="button"
+                                          disabled={idx === 0}
+                                          onClick={() => moveFriendlyColumn(idx, 'left')}
+                                          className="p-0.5 text-slate-400 hover:text-indigo-650 hover:bg-slate-50 disabled:opacity-30 disabled:hover:bg-transparent rounded border-none bg-transparent cursor-pointer animate-fade-in"
+                                          title="왼쪽으로 이동"
+                                        >
+                                          <ArrowLeft className="w-3 h-3" />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          disabled={idx === friendlyColumnMappings.length - 1}
+                                          onClick={() => moveFriendlyColumn(idx, 'right')}
+                                          className="p-0.5 text-slate-400 hover:text-indigo-650 hover:bg-slate-50 disabled:opacity-30 disabled:hover:bg-transparent rounded border-none bg-transparent cursor-pointer animate-fade-in"
+                                          title="오른쪽으로 이동"
+                                        >
+                                          <ArrowRight className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
                                   {/* 눈모양 👁️/🙈 노출제어 버튼 */}
                                   <button
                                     type="button"
@@ -3483,12 +3574,32 @@ export default function MyDBManagementPage() {
                                   />
                                 </div>
 
+                                {/* 실시간 컬럼 필터 인풋 추가 */}
+                                <div className="space-y-1">
+                                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                    <Filter className="w-2.5 h-2.5" /> 실시간 데이터 필터
+                                  </span>
+                                  <input
+                                    type="text"
+                                    value={friendlyFilters[col.physical] || ""}
+                                    disabled={!col.visible}
+                                    onChange={(e) => {
+                                      setFriendlyFilters({
+                                        ...friendlyFilters,
+                                        [col.physical]: e.target.value
+                                      });
+                                    }}
+                                    placeholder="필터 검색어 입력..."
+                                    className="w-full px-2.5 py-1.5 bg-white disabled:bg-slate-50 border border-slate-250 focus:border-indigo-500 rounded-lg outline-none text-xs text-slate-700 font-semibold transition-colors disabled:text-slate-400 shadow-3xs"
+                                  />
+                                </div>
+
                                 {/* 정렬 제어 영역 */}
                                 <div className="space-y-1">
                                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">멀티 정렬 및 우선순위</span>
                                   
                                   <div className="flex items-center gap-1.5">
-                                    {/* 정렬 방향 토글식 버튼 */}
+                                    {/* 정렬 방향 토글식 버튼 (글자 대신 화살표 아이콘으로 전격 교체) */}
                                     <div className="flex bg-slate-100 rounded-lg p-0.5 border border-slate-200 select-none flex-1">
                                       <button
                                         type="button"
@@ -3504,6 +3615,7 @@ export default function MyDBManagementPage() {
                                             ? 'bg-white text-slate-700 shadow-3xs'
                                             : 'text-slate-450 bg-transparent hover:text-slate-655'
                                         }`}
+                                        title="정렬 해제"
                                       >
                                         안함
                                       </button>
@@ -3519,13 +3631,14 @@ export default function MyDBManagementPage() {
                                           }
                                           setFriendlyColumnMappings(newMappings);
                                         }}
-                                        className={`flex-1 py-1 text-[9px] font-black rounded-md border-none transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+                                        className={`flex-1 py-1 text-[9px] font-black rounded-md border-none transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center ${
                                           col.sortDirection === 'ASC'
                                             ? 'bg-indigo-50 text-indigo-650 shadow-3xs'
                                             : 'text-slate-450 bg-transparent hover:text-slate-655'
                                         }`}
+                                        title="오름차순 (ASC)"
                                       >
-                                        ASC
+                                        <ArrowUp className="w-3.5 h-3.5" />
                                       </button>
                                       <button
                                         type="button"
@@ -3539,13 +3652,14 @@ export default function MyDBManagementPage() {
                                           }
                                           setFriendlyColumnMappings(newMappings);
                                         }}
-                                        className={`flex-1 py-1 text-[9px] font-black rounded-md border-none transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+                                        className={`flex-1 py-1 text-[9px] font-black rounded-md border-none transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center ${
                                           col.sortDirection === 'DESC'
                                             ? 'bg-indigo-50 text-indigo-650 shadow-3xs'
                                             : 'text-slate-450 bg-transparent hover:text-slate-655'
                                         }`}
+                                        title="내림차순 (DESC)"
                                       >
-                                        DESC
+                                        <ArrowDown className="w-3.5 h-3.5" />
                                       </button>
                                     </div>
 
@@ -3577,17 +3691,20 @@ export default function MyDBManagementPage() {
 
                       {/* 2. 실제 데이터 행 실시간 시뮬레이션 영역 */}
                       <tbody className="divide-y divide-slate-150 bg-white">
-                        {tableRows.length === 0 ? (
+                        {filteredRows.length === 0 ? (
                           <tr>
                             <td 
                               colSpan={friendlyColumnMappings.length} 
-                              className="px-4 py-8 text-center text-xs font-bold text-slate-400"
+                              className="px-4 py-12 text-center text-xs font-bold text-slate-400 bg-slate-50/50"
                             >
-                              시뮬레이션할 실제 레코드가 존재하지 않습니다.
+                              <div className="flex flex-col items-center justify-center space-y-2">
+                                <Search className="w-6 h-6 text-slate-300" />
+                                <span>현재 설정된 필터 조건에 부합하는 레코드가 없습니다.</span>
+                              </div>
                             </td>
                           </tr>
                         ) : (
-                          tableRows.slice(0, 5).map((row, rowIdx) => (
+                          filteredRows.slice(0, 5).map((row, rowIdx) => (
                             <tr key={rowIdx} className="hover:bg-slate-50/20 divide-x divide-slate-100 transition-colors">
                               {friendlyColumnMappings.map((col) => {
                                 const cellValue = row[col.physical];
