@@ -89,34 +89,9 @@ export default function MyDBManagementPage() {
     tuneHistory: any[];
   } | null>(null);
 
-  // 💾 챗봇 상태 localStorage 복원 및 저장 연동
+  // 💾 챗봇 상태 실시간 localStorage 보존 (복원이 완전히 마친 시점 이후부터 안전 작동)
   React.useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedHistory = localStorage.getItem("egdesk_mydb_tuneHistory");
-      const savedPart = localStorage.getItem("egdesk_mydb_selectedChartPart");
-      const savedSnapshot = localStorage.getItem("egdesk_mydb_previousSnapshot");
-      
-      if (savedHistory) {
-        try {
-          setTuneHistory(JSON.parse(savedHistory));
-        } catch (e) {
-          console.error("⚠️ 챗 로그 복원 실패", e);
-        }
-      }
-      if (savedPart) {
-        setSelectedChartPart(savedPart);
-      }
-      if (savedSnapshot) {
-        try {
-          setPreviousSnapshot(JSON.parse(savedSnapshot));
-        } catch (e) {
-          console.error("⚠️ 스냅샷 복원 실패", e);
-        }
-      }
-    }
-  }, []);
-
-  React.useEffect(() => {
+    if (!isRestored) return;
     if (typeof window !== "undefined") {
       localStorage.setItem("egdesk_mydb_tuneHistory", JSON.stringify(tuneHistory));
     }
@@ -124,15 +99,17 @@ export default function MyDBManagementPage() {
     if (chatEndRef.current) {
       chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [tuneHistory]);
+  }, [tuneHistory, isRestored]);
 
   React.useEffect(() => {
+    if (!isRestored) return;
     if (typeof window !== "undefined") {
       localStorage.setItem("egdesk_mydb_selectedChartPart", selectedChartPart);
     }
-  }, [selectedChartPart]);
+  }, [selectedChartPart, isRestored]);
 
   React.useEffect(() => {
+    if (!isRestored) return;
     if (typeof window !== "undefined") {
       if (previousSnapshot) {
         localStorage.setItem("egdesk_mydb_previousSnapshot", JSON.stringify(previousSnapshot));
@@ -140,7 +117,7 @@ export default function MyDBManagementPage() {
         localStorage.removeItem("egdesk_mydb_previousSnapshot");
       }
     }
-  }, [previousSnapshot]);
+  }, [previousSnapshot, isRestored]);
 
   const fetchSharedDashboards = async () => {
     try {
@@ -675,6 +652,29 @@ export default function MyDBManagementPage() {
       }
       if (savedAiBriefing) setAiBriefing(savedAiBriefing);
       if (savedAiGeneratedSql) setAiGeneratedSql(savedAiGeneratedSql);
+
+      // 💬 챗 로그, 집중 수정 파트 칩, 그리고 되돌리기(Undo) 스냅샷 상태 원자적 통합 복원
+      const savedHistory = localStorage.getItem("egdesk_mydb_tuneHistory");
+      const savedPart = localStorage.getItem("egdesk_mydb_selectedChartPart");
+      const savedSnapshot = localStorage.getItem("egdesk_mydb_previousSnapshot");
+      
+      if (savedHistory) {
+        try {
+          setTuneHistory(JSON.parse(savedHistory));
+        } catch (e) {
+          console.error("⚠️ 챗 로그 복원 실패", e);
+        }
+      }
+      if (savedPart) {
+        setSelectedChartPart(savedPart);
+      }
+      if (savedSnapshot) {
+        try {
+          setPreviousSnapshot(JSON.parse(savedSnapshot));
+        } catch (e) {
+          console.error("⚠️ 스냅샷 복원 실패", e);
+        }
+      }
       
       setIsRestored(true);
     }
@@ -1963,17 +1963,20 @@ export default function MyDBManagementPage() {
                           <span className="text-[9px] bg-indigo-50 border border-indigo-150 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold ml-1 animate-pulse">gemini-3.5-flash</span>
                         </div>
                         <div className="flex items-center gap-3">
-                          {previousSnapshot && (
-                            <button
-                              type="button"
-                              onClick={handleUndoTuning}
-                              className="flex items-center gap-1 text-[10px] font-bold text-indigo-500 hover:text-indigo-700 bg-transparent border-none cursor-pointer outline-none transition-all active:scale-95 animate-pulse"
-                              title="직전 피드백 전송 전의 차트와 대화 이력 상태로 되돌리기 (Undo)"
-                            >
-                              <Undo className="w-3.5 h-3.5" />
-                              이전으로 되돌리기
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            onClick={handleUndoTuning}
+                            disabled={!previousSnapshot}
+                            className={`flex items-center gap-1 text-[10px] bg-transparent border-none outline-none transition-all select-none ${
+                              previousSnapshot 
+                                ? 'font-bold text-indigo-500 hover:text-indigo-700 cursor-pointer active:scale-95 animate-pulse' 
+                                : 'font-medium text-slate-350 cursor-not-allowed opacity-50'
+                            }`}
+                            title={previousSnapshot ? "직전 피드백 전송 전의 차트와 대화 이력 상태로 되돌리기 (Undo)" : "되돌릴 수 있는 이전 튜닝 이력이 존재하지 않습니다."}
+                          >
+                            <Undo className="w-3.5 h-3.5" />
+                            이전으로 되돌리기
+                          </button>
                           {tuneHistory.length > 0 && (
                             <button
                               type="button"
