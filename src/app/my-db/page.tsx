@@ -5,7 +5,8 @@ import {
   Database, Play, RefreshCw, Download, Plus, Edit, 
   Trash2, AlertTriangle, Code, Table, Search, Terminal,
   CheckCircle, ChevronRight, X, ShieldAlert, Calendar,
-  BarChart, FileText, Activity, Sparkles, Paperclip, Send
+  BarChart, FileText, Activity, Sparkles, Paperclip, Send,
+  Undo
 } from "lucide-react";
 import DBChartRenderer from "@/components/DBChartRenderer";
 
@@ -81,11 +82,19 @@ export default function MyDBManagementPage() {
   const [startCoords, setStartCoords] = React.useState<{ x: number; y: number } | null>(null);
   const [selectionRect, setSelectionRect] = React.useState<{ x: number; y: number; width: number; height: number } | null>(null);
 
+  // ↩️ 이전 상태로 되돌리기(Undo) 스냅샷 상태 변수
+  const [previousSnapshot, setPreviousSnapshot] = React.useState<{
+    chartSpec: any;
+    briefing: string | null;
+    tuneHistory: any[];
+  } | null>(null);
+
   // 💾 챗봇 상태 localStorage 복원 및 저장 연동
   React.useEffect(() => {
     if (typeof window !== "undefined") {
       const savedHistory = localStorage.getItem("egdesk_mydb_tuneHistory");
       const savedPart = localStorage.getItem("egdesk_mydb_selectedChartPart");
+      const savedSnapshot = localStorage.getItem("egdesk_mydb_previousSnapshot");
       
       if (savedHistory) {
         try {
@@ -96,6 +105,13 @@ export default function MyDBManagementPage() {
       }
       if (savedPart) {
         setSelectedChartPart(savedPart);
+      }
+      if (savedSnapshot) {
+        try {
+          setPreviousSnapshot(JSON.parse(savedSnapshot));
+        } catch (e) {
+          console.error("⚠️ 스냅샷 복원 실패", e);
+        }
       }
     }
   }, []);
@@ -115,6 +131,16 @@ export default function MyDBManagementPage() {
       localStorage.setItem("egdesk_mydb_selectedChartPart", selectedChartPart);
     }
   }, [selectedChartPart]);
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (previousSnapshot) {
+        localStorage.setItem("egdesk_mydb_previousSnapshot", JSON.stringify(previousSnapshot));
+      } else {
+        localStorage.removeItem("egdesk_mydb_previousSnapshot");
+      }
+    }
+  }, [previousSnapshot]);
 
   const fetchSharedDashboards = async () => {
     try {
@@ -254,6 +280,13 @@ export default function MyDBManagementPage() {
     const attachedImgStr = attachedImage; // 캡처
     const targetPart = selectedChartPart; // 캡처
 
+    // ↩️ 튜닝 피드백 반영 직전 상태를 스냅샷으로 백업 (차트 스펙, 브리핑 마크다운, 기존 대화 이력 포함)
+    setPreviousSnapshot({
+      chartSpec: aiChartSpec,
+      briefing: aiBriefing,
+      tuneHistory: [...tuneHistory]
+    });
+
     // 입력 상태 초기화
     setTunePrompt("");
     setAttachedImage("");
@@ -371,11 +404,42 @@ export default function MyDBManagementPage() {
       setTuneHistory([]);
       setSelectedChartPart("");
       setAttachedImage("");
+      setPreviousSnapshot(null);
       if (typeof window !== "undefined") {
         localStorage.removeItem("egdesk_mydb_tuneHistory");
         localStorage.removeItem("egdesk_mydb_selectedChartPart");
+        localStorage.removeItem("egdesk_mydb_previousSnapshot");
       }
       showToast("대화 이력이 완전히 초기화되었습니다.", "success");
+    }
+  };
+
+  // ↩️ 이전 튜닝 상태로 되돌리기 (Undo) 핸들러 구현
+  const handleUndoTuning = () => {
+    if (!previousSnapshot) return;
+
+    if (confirm("최고관리자님, 직전 피드백 전송 전의 차트 상태와 대화 이력으로 되돌리시겠습니까?")) {
+      setAiChartSpec(previousSnapshot.chartSpec);
+      setAiBriefing(previousSnapshot.briefing);
+      setTuneHistory(previousSnapshot.tuneHistory);
+
+      // 로컬스토리지 복구 반영
+      if (typeof window !== "undefined") {
+        localStorage.setItem("egdesk_mydb_tuneHistory", JSON.stringify(previousSnapshot.tuneHistory));
+        if (previousSnapshot.chartSpec) {
+          localStorage.setItem("egdesk_mydb_aiChartSpec", JSON.stringify(previousSnapshot.chartSpec));
+        } else {
+          localStorage.removeItem("egdesk_mydb_aiChartSpec");
+        }
+        if (previousSnapshot.briefing) {
+          localStorage.setItem("egdesk_mydb_aiBriefing", previousSnapshot.briefing);
+        } else {
+          localStorage.removeItem("egdesk_mydb_aiBriefing");
+        }
+      }
+
+      setPreviousSnapshot(null); // 사용 완료 후 스냅샷 초기화
+      showToast("✓ 성공적으로 직전 튜닝 이전의 상태로 되돌렸습니다!", "success");
     }
   };
 
@@ -1898,17 +1962,30 @@ export default function MyDBManagementPage() {
                           <span>AI 지능형 피드백 챗봇 대화</span>
                           <span className="text-[9px] bg-indigo-50 border border-indigo-150 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold ml-1 animate-pulse">gemini-3.5-flash</span>
                         </div>
-                        {tuneHistory.length > 0 && (
-                          <button
-                            type="button"
-                            onClick={handleResetChat}
-                            className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-rose-500 bg-transparent border-none cursor-pointer outline-none transition-all active:scale-95"
-                            title="대화 이력 초기화"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            이력 초기화
-                          </button>
-                        )}
+                        <div className="flex items-center gap-3">
+                          {previousSnapshot && (
+                            <button
+                              type="button"
+                              onClick={handleUndoTuning}
+                              className="flex items-center gap-1 text-[10px] font-bold text-indigo-500 hover:text-indigo-700 bg-transparent border-none cursor-pointer outline-none transition-all active:scale-95 animate-pulse"
+                              title="직전 피드백 전송 전의 차트와 대화 이력 상태로 되돌리기 (Undo)"
+                            >
+                              <Undo className="w-3.5 h-3.5" />
+                              이전으로 되돌리기
+                            </button>
+                          )}
+                          {tuneHistory.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={handleResetChat}
+                              className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-rose-500 bg-transparent border-none cursor-pointer outline-none transition-all active:scale-95"
+                              title="대화 이력 초기화"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              이력 초기화
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       {/* 대화 메시지 로그 프레임 (높이를 h-[550px]로 대폭 확장하여 쾌적화) */}
