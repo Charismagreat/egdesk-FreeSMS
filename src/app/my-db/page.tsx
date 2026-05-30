@@ -435,13 +435,19 @@ export default function MyDBManagementPage() {
           canvas.height = selectionRect.height * 2;
           const context = canvas.getContext("2d");
 
+          const containerRect = container!.getBoundingClientRect();
           const svgRect = svgElement.getBoundingClientRect();
+
+          // 컨테이너 대비 SVG의 실제 상대 오프셋 도출 (최소 0 이상 안심 장치)
+          const svgOffsetLeft = Math.max(0, svgRect.left - containerRect.left);
+          const svgOffsetTop = Math.max(0, svgRect.top - containerRect.top);
+
+          // 드래그 좌표에서 오프셋 차감 후 경계선 한계 보정 (음수 방지 및 가로세로 폭 방어)
+          let relativeX = Math.max(0, Math.min(selectionRect.x - svgOffsetLeft, svgRect.width - 5));
+          let relativeY = Math.max(0, Math.min(selectionRect.y - svgOffsetTop, svgRect.height - 5));
+
           const scaleX = image.width / svgRect.width;
           const scaleY = image.height / svgRect.height;
-
-          // 차트 박스 컨테이너 패딩 보정
-          const relativeX = selectionRect.x - (svgElement.getBoundingClientRect().left - container!.getBoundingClientRect().left);
-          const relativeY = selectionRect.y - (svgElement.getBoundingClientRect().top - container!.getBoundingClientRect().top);
 
           if (context) {
             context.scale(2, 2);
@@ -1773,8 +1779,8 @@ export default function MyDBManagementPage() {
                   </button>
                 </div>
 
-                {isVisualizing ? (
-                  // 통합 웅장형 스켈레톤 로더
+                {(isVisualizing && !aiChartSpec) ? (
+                  // 통합 웅장형 스켈레톤 로더 (최초 시각화 분석 구동 시에만 작동)
                   <div className="p-8 bg-slate-50 border border-slate-100 rounded-2xl animate-pulse flex flex-col items-center justify-center text-center space-y-4">
                     <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center">
                       <RefreshCw className="w-5 h-5 text-slate-400 animate-spin" />
@@ -1786,7 +1792,7 @@ export default function MyDBManagementPage() {
                     <div className="w-48 h-3.5 bg-slate-200 rounded-full mx-auto" />
                   </div>
                 ) : (
-                  <div className="bg-white border border-slate-150 rounded-3xl p-6 shadow-3xs space-y-6">
+                  <div className="bg-white border border-slate-150 rounded-3xl p-6 shadow-3xs space-y-6 relative">
                     {/* 통합 대시보드 내 차트 세션 */}
                     <div className="space-y-3">
                       <div className="flex items-center justify-between px-1">
@@ -1905,8 +1911,8 @@ export default function MyDBManagementPage() {
                         )}
                       </div>
 
-                      {/* 대화 메시지 로그 프레임 */}
-                      <div className="h-64 overflow-y-auto p-4 bg-slate-50/50 border border-slate-100 rounded-2xl space-y-4">
+                      {/* 대화 메시지 로그 프레임 (높이를 h-[550px]로 대폭 확장하여 쾌적화) */}
+                      <div className="h-[550px] overflow-y-auto p-4 bg-slate-50/50 border border-slate-100 rounded-2xl space-y-4">
                         {tuneHistory.length === 0 ? (
                           <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 space-y-2.5">
                             <div className="w-9 h-9 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center animate-bounce">
@@ -1929,7 +1935,7 @@ export default function MyDBManagementPage() {
                                     <span className="text-[8px] text-slate-400 font-medium mb-1">{msg.timestamp}</span>
                                     <div className="flex flex-col items-end max-w-[80%]">
                                       {msg.image && (
-                                        <img src={msg.image} className="w-32 h-auto rounded-lg mb-1.5 border border-slate-200 shadow-3xs" alt="첨부 이미지" />
+                                        <img src={msg.image} className="w-48 h-auto rounded-lg mb-1.5 border border-slate-200 shadow-3xs" alt="첨부 이미지" />
                                       )}
                                       <div className="bg-gradient-to-r from-blue-600 to-indigo-650 text-white text-xs px-4 py-2.5 rounded-2xl rounded-tr-none shadow-3xs whitespace-pre-wrap leading-relaxed font-semibold">
                                         {msg.text}
@@ -1979,13 +1985,26 @@ export default function MyDBManagementPage() {
                                 );
                               }
                             })}
+                            
+                            {/* 🤖 튜닝 전송 후 응답을 기다리는 동안 사라지지 않고 자리를 지켜주는 고급형 AI 로딩 말풍선 */}
+                            {isVisualizing && (
+                              <div className="flex justify-start items-center gap-2 animate-pulse mt-3">
+                                <div className="w-7 h-7 rounded-full bg-indigo-50 border border-indigo-150 flex items-center justify-center shrink-0 shadow-3xs">
+                                  <RefreshCw className="w-3.5 h-3.5 text-indigo-500 animate-spin" />
+                                </div>
+                                <div className="bg-white border border-slate-150 text-slate-500 text-[10px] px-3.5 py-1.5 rounded-full font-bold shadow-3xs">
+                                  🤖 AI 지능형 엔진이 최고관리자님의 의견을 반영하여 차트와 브리핑을 정밀 재튜닝하고 있습니다... (약 2초 소요)
+                                </div>
+                              </div>
+                            )}
+
                             <div ref={chatEndRef} />
                           </div>
                         )}
                       </div>
 
                       {/* 이미지 프리뷰 & 집중 수정 지표 칩 패널 */}
-                      {(selectedChartPart || attachedImage) && (
+                      {(selectedChartPart || (attachedImage && attachedImage.length > 50)) && (
                         <div className="flex flex-wrap items-center gap-2 p-2 bg-slate-50 border border-slate-100 rounded-xl animate-fade-in">
                           {selectedChartPart && (
                             <div className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-150 text-indigo-755 text-[10px] font-extrabold px-2.5 py-1 rounded-lg">
@@ -1999,14 +2018,18 @@ export default function MyDBManagementPage() {
                               </button>
                             </div>
                           )}
-                          {attachedImage && (
-                            <div className="relative flex items-center gap-2 border border-slate-250 bg-white p-1 rounded-lg shrink-0">
-                              <img src={attachedImage} className="w-10 h-10 object-cover rounded-md" alt="프리뷰" />
+                          {attachedImage && attachedImage.length > 50 && (
+                            <div className="relative flex items-center gap-1.5 border border-slate-200 bg-white p-1 rounded-lg shrink-0 shadow-2xs">
+                              <img 
+                                src={attachedImage} 
+                                className="w-12 h-12 object-contain bg-slate-100/50 rounded-md block" 
+                                alt="지정 영역 프리뷰" 
+                              />
                               <button 
                                 type="button" 
                                 onClick={() => setAttachedImage("")}
-                                className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 hover:bg-rose-600 text-white text-[9px] font-black flex items-center justify-center cursor-pointer shadow-3xs border-none"
-                                title="이미지 삭제"
+                                className="absolute -top-1.5 -right-1.5 w-4.5 h-4.5 rounded-full bg-rose-500 hover:bg-rose-650 text-white text-[9px] font-black flex items-center justify-center cursor-pointer shadow-3xs border border-white"
+                                title="지정 영역 삭제"
                               >
                                 ✕
                               </button>
@@ -2053,24 +2076,25 @@ export default function MyDBManagementPage() {
                           placeholder={isVisualizing ? "AI 분석 튜닝이 진행 중입니다..." : "AI에게 피드백을 전달해 보세요... (Ctrl+Enter: 전송, Shift+Enter: 줄바꿈)"}
                           disabled={isVisualizing}
                           rows={Math.min(tunePrompt.split('\n').length || 1, 5)}
-                          className="flex-1 max-h-32 text-xs bg-transparent border-none outline-none py-1.5 resize-none text-slate-800 placeholder-slate-450 leading-relaxed font-semibold font-sans focus:ring-0 focus:outline-none"
+                          className="flex-1 max-h-32 text-xs bg-transparent border-none outline-none py-1.5 resize-none text-slate-800 placeholder-slate-455 leading-relaxed font-semibold font-sans focus:ring-0 focus:outline-none"
                         />
                         
                         <button
                           type="button"
                           onClick={() => handleTuneChart()}
                           disabled={isVisualizing || (!tunePrompt.trim() && !attachedImage)}
-                          className={`p-2.5 rounded-xl transition-all duration-200 shrink-0 border-none flex items-center justify-center ${
+                          className={`p-3 rounded-2xl transition-all duration-200 shrink-0 border flex items-center justify-center gap-1 shadow-sm select-none ${
                             (!tunePrompt.trim() && !attachedImage) || isVisualizing
-                              ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-80'
-                              : 'bg-indigo-650 hover:bg-indigo-600 text-white cursor-pointer active:scale-95 shadow-3xs'
+                              ? 'bg-slate-200 text-slate-500 border-slate-350 cursor-not-allowed opacity-90'
+                              : 'bg-gradient-to-r from-blue-600 to-indigo-650 hover:from-blue-500 hover:to-indigo-550 text-white border-transparent cursor-pointer active:scale-95 shadow-md'
                           }`}
-                          title="피드백 전송"
+                          style={{ minWidth: '44px', minHeight: '44px' }}
+                          title="수정 요청 전송"
                         >
                           {isVisualizing ? (
-                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            <RefreshCw className="w-5 h-5 animate-spin" />
                           ) : (
-                            <Send className="w-4 h-4" />
+                            <Send className="w-5 h-5" />
                           )}
                         </button>
                       </div>
