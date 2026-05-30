@@ -3402,179 +3402,221 @@ export default function MyDBManagementPage() {
                   </div>
                 </div>
 
-                {/* 2. 하단 대규모 컬럼 및 다단계 멀티 정렬 매핑 표 */}
-                <div className="bg-white border border-slate-200 rounded-2xl shadow-3xs overflow-hidden">
+                {/* 2. Notion/Airtable 스타일의 가로형 컬럼 & 데이터 그리드 시뮬레이터 */}
+                <div className="bg-white border border-slate-200 rounded-2xl shadow-3xs overflow-hidden flex flex-col text-left">
                   <div className="p-4 bg-slate-50/70 border-b border-slate-150 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="space-y-0.5 text-left">
+                    <div className="space-y-0.5">
                       <h4 className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                        🧬 전체 스키마 명세 및 멀티 정렬 조건 구성
+                        🧬 Notion/Airtable형 컬럼 맵핑 & 멀티 정렬 시뮬레이터 (실시간 반영)
                       </h4>
-                      <p className="text-[10px] text-slate-400 font-medium">
-                        영문 컬럼명을 알기 쉬운 한글 별칭으로 변환하고, 노출 여부와 다단계 정렬 순위를 지정합니다.
+                      <p className="text-[10px] text-slate-400 font-medium font-sans">
+                        컬럼들이 가로 방향으로 나열되며 실제 데이터 행이 실시간 매핑됩니다. 공개 숨김 컬럼은 비주얼 피드백으로 즉각 숨김 마스킹 처리가 시뮬레이션됩니다.
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-150 px-2.5 py-0.5 rounded-full select-none">
-                        총 {friendlyColumnMappings.length}개 컬럼 로드됨
+                      <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-150 px-2.5 py-0.5 rounded-full select-none animate-pulse">
+                        총 {friendlyColumnMappings.length}개 컬럼
                       </span>
                     </div>
                   </div>
 
-                  {/* 컬럼 및 정렬 설정 대형 데이터 표 */}
-                  <div className="overflow-x-auto w-full no-scrollbar">
-                    <table className="w-full text-left border-collapse">
+                  {/* 실시간 데이터 테이블 가로형 스크롤 프레임 */}
+                  <div className="overflow-x-auto w-full border-t border-slate-100 bg-white" style={{ maxWidth: '100%' }}>
+                    <table className="min-w-max text-left border-collapse table-fixed w-full">
+                      {/* 1. 컬럼 매핑 헤더 영역 */}
                       <thead>
-                        <tr className="bg-slate-50/40 border-b border-slate-200">
-                          <th className="px-6 py-4.5 text-[11px] font-black text-slate-400 select-none w-1/4">물리 컬럼명 (DB 명세)</th>
-                          <th className="px-6 py-4.5 text-[11px] font-black text-slate-400 select-none w-1/4">컬럼 표시명 (한글 별칭)</th>
-                          <th className="px-6 py-4.5 text-[11px] font-black text-slate-400 select-none text-center w-36">노출 제어</th>
-                          <th className="px-6 py-4.5 text-[11px] font-black text-slate-400 select-none text-center w-64">정렬 옵션 (방향)</th>
-                          <th className="px-6 py-4.5 text-[11px] font-black text-slate-400 select-none text-center w-40">다단계 정렬 우선순위</th>
+                        <tr className="bg-slate-50/30 border-b border-slate-200 divide-x divide-slate-150">
+                          {friendlyColumnMappings.map((col, idx) => (
+                            <th 
+                              key={col.physical} 
+                              className={`px-4 py-4 w-72 min-w-[288px] max-w-[288px] transition-all duration-200 ${
+                                !col.visible ? 'bg-slate-100/50 opacity-60' : 'bg-white'
+                              }`}
+                            >
+                              <div className="space-y-3.5">
+                                {/* 컬럼 물리명 & 노출제어 */}
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-bold font-mono text-slate-400 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded select-all">
+                                    {col.physical}
+                                  </span>
+                                  {/* 눈모양 👁️/🙈 노출제어 버튼 */}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newMappings = [...friendlyColumnMappings];
+                                      newMappings[idx].visible = !col.visible;
+                                      if (!newMappings[idx].visible) {
+                                        newMappings[idx].sortDirection = 'NONE';
+                                        newMappings[idx].sortOrder = 0;
+                                      }
+                                      setFriendlyColumnMappings(newMappings);
+                                    }}
+                                    className={`inline-flex items-center justify-center p-1.5 border rounded-lg transition-all active:scale-95 cursor-pointer ${
+                                      col.visible
+                                        ? 'bg-indigo-50 border-indigo-200 text-indigo-655 hover:bg-indigo-100 hover:border-indigo-300'
+                                        : 'bg-slate-100 border-slate-250 text-slate-400 hover:bg-slate-200'
+                                    }`}
+                                    title={col.visible ? "현재 공유 노출 상태 (클릭시 숨김)" : "현재 공유 숨김 상태 (클릭시 노출)"}
+                                  >
+                                    {col.visible ? (
+                                      <Eye className="w-3.5 h-3.5 text-indigo-650" />
+                                    ) : (
+                                      <EyeOff className="w-3.5 h-3.5 text-slate-400" />
+                                    )}
+                                  </button>
+                                </div>
+
+                                {/* 한글 표시명 인풋 */}
+                                <div className="space-y-1">
+                                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">한글 표시명 (별칭)</span>
+                                  <input
+                                    type="text"
+                                    value={col.friendly}
+                                    disabled={!col.visible}
+                                    onChange={(e) => {
+                                      const newMappings = [...friendlyColumnMappings];
+                                      newMappings[idx].friendly = e.target.value;
+                                      setFriendlyColumnMappings(newMappings);
+                                    }}
+                                    placeholder="한글 별칭 입력..."
+                                    className="w-full px-2.5 py-1.5 bg-white disabled:bg-slate-50 border border-slate-250 focus:border-indigo-500 rounded-lg outline-none text-xs text-slate-700 font-semibold transition-colors disabled:text-slate-400 shadow-3xs"
+                                  />
+                                </div>
+
+                                {/* 정렬 제어 영역 */}
+                                <div className="space-y-1">
+                                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider block">멀티 정렬 및 우선순위</span>
+                                  
+                                  <div className="flex items-center gap-1.5">
+                                    {/* 정렬 방향 토글식 버튼 */}
+                                    <div className="flex bg-slate-100 rounded-lg p-0.5 border border-slate-200 select-none flex-1">
+                                      <button
+                                        type="button"
+                                        disabled={!col.visible}
+                                        onClick={() => {
+                                          const newMappings = [...friendlyColumnMappings];
+                                          newMappings[idx].sortDirection = 'NONE';
+                                          newMappings[idx].sortOrder = 0;
+                                          setFriendlyColumnMappings(newMappings);
+                                        }}
+                                        className={`flex-1 py-1 text-[9px] font-black rounded-md border-none transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+                                          col.sortDirection === 'NONE'
+                                            ? 'bg-white text-slate-700 shadow-3xs'
+                                            : 'text-slate-450 bg-transparent hover:text-slate-655'
+                                        }`}
+                                      >
+                                        안함
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={!col.visible}
+                                        onClick={() => {
+                                          const newMappings = [...friendlyColumnMappings];
+                                          newMappings[idx].sortDirection = 'ASC';
+                                          if (!col.sortOrder || col.sortOrder === 0) {
+                                            const maxOrder = Math.max(...newMappings.map(m => m.sortOrder || 0), 0);
+                                            newMappings[idx].sortOrder = maxOrder + 1;
+                                          }
+                                          setFriendlyColumnMappings(newMappings);
+                                        }}
+                                        className={`flex-1 py-1 text-[9px] font-black rounded-md border-none transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+                                          col.sortDirection === 'ASC'
+                                            ? 'bg-indigo-50 text-indigo-650 shadow-3xs'
+                                            : 'text-slate-450 bg-transparent hover:text-slate-655'
+                                        }`}
+                                      >
+                                        ASC
+                                      </button>
+                                      <button
+                                        type="button"
+                                        disabled={!col.visible}
+                                        onClick={() => {
+                                          const newMappings = [...friendlyColumnMappings];
+                                          newMappings[idx].sortDirection = 'DESC';
+                                          if (!col.sortOrder || col.sortOrder === 0) {
+                                            const maxOrder = Math.max(...newMappings.map(m => m.sortOrder || 0), 0);
+                                            newMappings[idx].sortOrder = maxOrder + 1;
+                                          }
+                                          setFriendlyColumnMappings(newMappings);
+                                        }}
+                                        className={`flex-1 py-1 text-[9px] font-black rounded-md border-none transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+                                          col.sortDirection === 'DESC'
+                                            ? 'bg-indigo-50 text-indigo-650 shadow-3xs'
+                                            : 'text-slate-450 bg-transparent hover:text-slate-655'
+                                        }`}
+                                      >
+                                        DESC
+                                      </button>
+                                    </div>
+
+                                    {/* 다단계 정렬 순위 드롭다운 */}
+                                    <select
+                                      value={col.sortOrder || 0}
+                                      disabled={!col.visible || col.sortDirection === 'NONE'}
+                                      onChange={(e) => {
+                                        const newMappings = [...friendlyColumnMappings];
+                                        newMappings[idx].sortOrder = Number(e.target.value);
+                                        setFriendlyColumnMappings(newMappings);
+                                      }}
+                                      className="text-[9px] font-extrabold outline-none bg-white border border-slate-200 disabled:bg-slate-50 disabled:text-slate-350 disabled:cursor-not-allowed rounded-lg px-1.5 py-1 text-slate-700 cursor-pointer shadow-3xs focus:border-indigo-500 w-16"
+                                    >
+                                      <option value={0}>없음</option>
+                                      <option value={1}>1순위</option>
+                                      <option value={2}>2순위</option>
+                                      <option value={3}>3순위</option>
+                                      <option value={4}>4순위</option>
+                                      <option value={5}>5순위</option>
+                                    </select>
+                                  </div>
+                                </div>
+                              </div>
+                            </th>
+                          ))}
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100 bg-white">
-                        {friendlyColumnMappings.map((col, idx) => (
-                          <tr key={col.physical} className="hover:bg-slate-50/30 transition-colors">
-                            {/* 1. 영문 물리명 */}
-                            <td className="px-6 py-3.5">
-                              <span className="text-xs font-extrabold font-mono text-slate-400 select-all">{col.physical}</span>
-                            </td>
-                            
-                            {/* 2. 한글 별칭 인풋 */}
-                            <td className="px-6 py-3.5">
-                              <input
-                                type="text"
-                                value={col.friendly}
-                                onChange={(e) => {
-                                  const newMappings = [...friendlyColumnMappings];
-                                  newMappings[idx].friendly = e.target.value;
-                                  setFriendlyColumnMappings(newMappings);
-                                }}
-                                placeholder="한글 별칭 입력..."
-                                className="w-full px-3 py-1.5 bg-white border border-slate-200 focus:border-indigo-500 rounded-lg outline-none text-xs text-slate-700 font-semibold transition-colors"
-                              />
-                            </td>
 
-                            {/* 3. 노출여부 스위치 */}
-                            <td className="px-6 py-3.5 text-center">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const newMappings = [...friendlyColumnMappings];
-                                  newMappings[idx].visible = !col.visible;
-                                  
-                                  // 만약 노출을 끄면 정렬 옵션도 자동 리셋하여 안전 보호
-                                  if (!newMappings[idx].visible) {
-                                    newMappings[idx].sortDirection = 'NONE';
-                                    newMappings[idx].sortOrder = 0;
-                                  }
-                                  setFriendlyColumnMappings(newMappings);
-                                }}
-                                className={`inline-flex items-center justify-center gap-1.5 px-3 py-1.5 border rounded-lg text-[10px] font-black cursor-pointer transition-all active:scale-95 ${
-                                  col.visible
-                                    ? 'bg-indigo-50 border-indigo-200 text-indigo-650'
-                                    : 'bg-slate-100 border-slate-200 text-slate-400 opacity-70'
-                                }`}
-                              >
-                                {col.visible ? (
-                                  <>
-                                    <Eye className="w-3.5 h-3.5 text-indigo-600" />
-                                    공개 노출
-                                  </>
-                                ) : (
-                                  <>
-                                    <EyeOff className="w-3.5 h-3.5 text-slate-400" />
-                                    공개 숨김
-                                  </>
-                                )}
-                              </button>
-                            </td>
-
-                            {/* 4. 멀티 정렬 방향 토글 (ASC / DESC / NONE) */}
-                            <td className="px-6 py-3.5 text-center">
-                              <div className="inline-flex bg-slate-100 rounded-xl p-0.5 border border-slate-200 select-none">
-                                <button
-                                  type="button"
-                                  disabled={!col.visible}
-                                  onClick={() => {
-                                    const newMappings = [...friendlyColumnMappings];
-                                    newMappings[idx].sortDirection = 'NONE';
-                                    newMappings[idx].sortOrder = 0;
-                                    setFriendlyColumnMappings(newMappings);
-                                  }}
-                                  className={`px-3 py-1 text-[10px] font-extrabold rounded-lg border-none transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
-                                    col.sortDirection === 'NONE'
-                                      ? 'bg-white text-slate-700 shadow-3xs'
-                                      : 'text-slate-450 bg-transparent hover:text-slate-600'
-                                  }`}
-                                >
-                                  정렬 안 함
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={!col.visible}
-                                  onClick={() => {
-                                    const newMappings = [...friendlyColumnMappings];
-                                    newMappings[idx].sortDirection = 'ASC';
-                                    if (!col.sortOrder || col.sortOrder === 0) {
-                                      const maxOrder = Math.max(...newMappings.map(m => m.sortOrder || 0), 0);
-                                      newMappings[idx].sortOrder = maxOrder + 1;
-                                    }
-                                    setFriendlyColumnMappings(newMappings);
-                                  }}
-                                  className={`px-3 py-1 text-[10px] font-extrabold rounded-lg border-none transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
-                                    col.sortDirection === 'ASC'
-                                      ? 'bg-indigo-50 text-indigo-650 shadow-3xs'
-                                      : 'text-slate-450 bg-transparent hover:text-slate-600'
-                                  }`}
-                                >
-                                  ⬆️ 오름차순
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={!col.visible}
-                                  onClick={() => {
-                                    const newMappings = [...friendlyColumnMappings];
-                                    newMappings[idx].sortDirection = 'DESC';
-                                    if (!col.sortOrder || col.sortOrder === 0) {
-                                      const maxOrder = Math.max(...newMappings.map(m => m.sortOrder || 0), 0);
-                                      newMappings[idx].sortOrder = maxOrder + 1;
-                                    }
-                                    setFriendlyColumnMappings(newMappings);
-                                  }}
-                                  className={`px-3 py-1 text-[10px] font-extrabold rounded-lg border-none transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
-                                    col.sortDirection === 'DESC'
-                                      ? 'bg-indigo-50 text-indigo-650 shadow-3xs'
-                                      : 'text-slate-450 bg-transparent hover:text-slate-600'
-                                  }`}
-                                >
-                                  ⬇️ 내림차순
-                                </button>
-                              </div>
-                            </td>
-
-                            {/* 5. 다단계 정렬 순위 설정 */}
-                            <td className="px-6 py-3.5 text-center">
-                              <select
-                                value={col.sortOrder || 0}
-                                disabled={!col.visible || col.sortDirection === 'NONE'}
-                                onChange={(e) => {
-                                  const newMappings = [...friendlyColumnMappings];
-                                  newMappings[idx].sortOrder = Number(e.target.value);
-                                  setFriendlyColumnMappings(newMappings);
-                                }}
-                                className="text-[11px] font-extrabold outline-none bg-white border border-slate-200 disabled:bg-slate-50 disabled:text-slate-350 disabled:cursor-not-allowed rounded-lg px-2.5 py-1 text-slate-700 cursor-pointer shadow-3xs focus:border-indigo-500"
-                              >
-                                <option value={0}>지정 안 함</option>
-                                <option value={1}>1순위 정렬</option>
-                                <option value={2}>2순위 정렬</option>
-                                <option value={3}>3순위 정렬</option>
-                                <option value={4}>4순위 정렬</option>
-                                <option value={5}>5순위 정렬</option>
-                              </select>
+                      {/* 2. 실제 데이터 행 실시간 시뮬레이션 영역 */}
+                      <tbody className="divide-y divide-slate-150 bg-white">
+                        {tableRows.length === 0 ? (
+                          <tr>
+                            <td 
+                              colSpan={friendlyColumnMappings.length} 
+                              className="px-4 py-8 text-center text-xs font-bold text-slate-400"
+                            >
+                              시뮬레이션할 실제 레코드가 존재하지 않습니다.
                             </td>
                           </tr>
-                        ))}
+                        ) : (
+                          tableRows.slice(0, 5).map((row, rowIdx) => (
+                            <tr key={rowIdx} className="hover:bg-slate-50/20 divide-x divide-slate-100 transition-colors">
+                              {friendlyColumnMappings.map((col) => {
+                                const cellValue = row[col.physical];
+                                const isVisible = col.visible;
+                                
+                                return (
+                                  <td 
+                                    key={col.physical} 
+                                    className={`px-4 py-3 text-xs transition-all duration-200 font-medium ${
+                                      !isVisible 
+                                        ? 'bg-slate-50/80 text-slate-300 line-through select-none font-mono opacity-50 relative' 
+                                        : 'text-slate-700'
+                                    }`}
+                                  >
+                                    {!isVisible ? (
+                                      <span className="inline-flex items-center gap-1 bg-slate-200 border border-slate-250 text-[9px] px-1.5 py-0.5 rounded-md font-sans no-underline font-extrabold select-none">
+                                        🔒 숨김 처리됨
+                                      </span>
+                                    ) : cellValue !== null && cellValue !== undefined ? (
+                                      typeof cellValue === 'object' ? JSON.stringify(cellValue) : String(cellValue)
+                                    ) : (
+                                      <span className="text-slate-300 font-sans italic text-[10px]">NULL</span>
+                                    )}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
                   </div>
