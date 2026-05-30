@@ -139,6 +139,13 @@ export async function setupDatabase() {
     { name: 'payment_date', type: 'TEXT' },
     { name: 'status', type: 'TEXT' },
     { name: 'order_id', type: 'TEXT' },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
   ], { tableName: 'crm_payments', uniqueKeyColumns: ['id'] });
 
   // 9. Reservations Table
@@ -150,6 +157,13 @@ export async function setupDatabase() {
     { name: 'reservation_date', type: 'TEXT' },
     { name: 'reservation_time', type: 'TEXT' },
     { name: 'status', type: 'TEXT' },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
   ], { tableName: 'crm_reservations', uniqueKeyColumns: ['id'] });
 
   // 10. Deliveries Table
@@ -162,6 +176,13 @@ export async function setupDatabase() {
     { name: 'tracking_number', type: 'TEXT' },
     { name: 'status', type: 'TEXT' },
     { name: 'order_id', type: 'TEXT' },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
   ], { tableName: 'crm_deliveries', uniqueKeyColumns: ['id'] });
 
   // 11. System Settings Table
@@ -252,6 +273,13 @@ export async function setupDatabase() {
     { name: 'status', type: 'TEXT', notNull: true }, // 'active', 'used', 'expired' 등
     { name: 'expires_at', type: 'TEXT' }, // 'YYYY-MM-DD' 형식 (nullable, 지정 안 하면 무제한)
     { name: 'created_at', type: 'TEXT', notNull: true },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
   ], { tableName: 'coupons', uniqueKeyColumns: ['id'] });
 
   // 18. Coupons Restrictions Table (쿠폰 상품/카테고리 제한 관리)
@@ -417,7 +445,14 @@ export async function setupDatabase() {
     { name: 'description', type: 'TEXT' },
     { name: 'tags', type: 'TEXT' }, // 커스텀 멀티 태그 콤마 구분값
     { name: 'barcode', type: 'TEXT' }, // 바코드 번호 (USB 리더기/EAN-13 등 지원)
-    { name: 'createdAt', type: 'TEXT', notNull: true }
+    { name: 'createdAt', type: 'TEXT', notNull: true },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
   ], { tableName: 'inventory_items', uniqueKeyColumns: ['id'] });
 
   // 30. AI Token Usage Logs Table (AI 토큰 소모량 정밀 모니터링 로그 대장)

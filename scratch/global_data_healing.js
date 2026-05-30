@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const dbPath = 'C:\\Users\\CHARISMA\\AppData\\Roaming\\egdesk\\database\\user_data.db';
 const db = new Database(dbPath);
 
-// 8대 핵심 감사 및 소프트 딜리트 대상 테이블 목록
+// 13대 핵심 감사 및 소프트 딜리트 대상 테이블 목록
 const TARGET_TABLES = [
   'crm_expenses',
   'crm_operators',
@@ -12,7 +12,12 @@ const TARGET_TABLES = [
   'crm_estimates',
   'crm_orders',
   'products',
-  'expense_projects'
+  'expense_projects',
+  'inventory_items',
+  'crm_payments',
+  'coupons',
+  'crm_deliveries',
+  'crm_reservations'
 ];
 
 // 추가할 7대 필수 감사 컬럼 정의
