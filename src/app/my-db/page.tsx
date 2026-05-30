@@ -6,7 +6,7 @@ import {
   Trash2, AlertTriangle, Code, Table, Search, Terminal,
   CheckCircle, ChevronRight, X, ShieldAlert, Calendar,
   BarChart, FileText, Activity, Sparkles, Paperclip, Send,
-  Undo, RotateCcw, ExternalLink
+  Undo, RotateCcw, ExternalLink, Eye, EyeOff, Link, Copy
 } from "lucide-react";
 import DBChartRenderer from "@/components/DBChartRenderer";
 
@@ -655,6 +655,115 @@ export default function MyDBManagementPage() {
       console.error("⚠️ 차트 영역 크롭 실패:", err.message);
       setSelectedChartPart(`지정된 시각적 영역 (x: ${Math.round(selectionRect.x)}, y: ${Math.round(selectionRect.y)})`);
       showToast("영역 캡처가 불가하여 좌표 지정으로 대체되었습니다.", "warn");
+    }
+  };
+
+  // 👥 임직원 친화형 커스텀 공유 테이블 뷰 관련 상태 변수
+  const [isFriendlyShareModalOpen, setIsFriendlyShareModalOpen] = React.useState<boolean>(false);
+  const [friendlyShareTableName, setFriendlyShareTableName] = React.useState<string>("");
+  const [friendlyColumnMappings, setFriendlyColumnMappings] = React.useState<any[]>([]);
+  const [friendlySortColumn, setFriendlySortColumn] = React.useState<string>("");
+  const [friendlySortDirection, setFriendlySortDirection] = React.useState<string>("DESC");
+  const [friendlyAllowCsv, setFriendlyAllowCsv] = React.useState<boolean>(true);
+  const [generatedFriendlyShareUrl, setGeneratedFriendlyShareUrl] = React.useState<string>("");
+  const [isFriendlySharing, setIsFriendlySharing] = React.useState<boolean>(false);
+
+  // 👥 임직원 친화형 공유 테이블 뷰 모달 오픈 핸들러
+  const handleOpenFriendlyShareModal = () => {
+    if (!selectedTable) return;
+    
+    // 테이블의 기본 표시 한글명 힌트 결정
+    let displayName = selectedTable;
+    if (selectedTable === 'crm_expenses') displayName = '지출 장부 관리';
+    else if (selectedTable === 'crm_operators') displayName = '운영자 권한 관리';
+    else if (selectedTable === 'crm_customers') displayName = '고객 명단 관리';
+    else if (selectedTable === 'crm_partners') displayName = '거래처 정보 관리';
+    else if (selectedTable === 'crm_estimates') displayName = '견적서 관리';
+    else if (selectedTable === 'crm_orders') displayName = '주문 내역 관리';
+    else if (selectedTable === 'products') displayName = '광고 상품 관리';
+    else if (selectedTable === 'expense_projects') displayName = '지출 프로젝트 관리';
+
+    setFriendlyShareTableName(displayName);
+    
+    // 테이블 스키마로부터 컬럼 맵핑 초기화
+    const initialMappings = tableSchema.map(col => {
+      let friendly = col.name;
+      // 기본 한글 매핑 힌트
+      if (col.name === 'id') friendly = '일련번호';
+      else if (col.name === 'created_at') friendly = '생성일시';
+      else if (col.name === 'updated_at') friendly = '수정일시';
+      else if (col.name === 'deleted_at') friendly = '삭제일시';
+      else if (col.name === 'created_by') friendly = '생성자';
+      else if (col.name === 'updated_by') friendly = '수정자';
+      else if (col.name === 'deleted_by') friendly = '삭제자';
+      else if (col.name === 'amount') friendly = '금액';
+      else if (col.name === 'name') friendly = '이름';
+      else if (col.name === 'phone') friendly = '연락처';
+      else if (col.name === 'email') friendly = '이메일';
+      else if (col.name === 'status') friendly = '상태';
+
+      // 민감한 정보는 기본적으로 비노출 처리
+      const isSensitive = ['password', 'pwd', 'token', 'deleted_at', 'deleted_by', 'secret', 'key'].includes(col.name.toLowerCase());
+
+      return {
+        physical: col.name,
+        friendly,
+        visible: !isSensitive
+      };
+    });
+
+    setFriendlyColumnMappings(initialMappings);
+    
+    // 정렬 컬럼 초기 설정: 첫 번째 컬럼
+    if (tableSchema.length > 0) {
+      setFriendlySortColumn(tableSchema[0].name);
+    } else {
+      setFriendlySortColumn("");
+    }
+    setFriendlySortDirection("DESC");
+    setFriendlyAllowCsv(true);
+    setGeneratedFriendlyShareUrl("");
+    setIsFriendlyShareModalOpen(true);
+  };
+
+  // 👥 임직원 친화형 공유 테이블 뷰 등록 API 호출 핸들러
+  const handleCreateFriendlyShare = async () => {
+    if (!selectedTable || !friendlyShareTableName) {
+      showToast("테이블 명칭이 올바르지 않습니다.", "error");
+      return;
+    }
+
+    setIsFriendlySharing(true);
+    try {
+      const response = await fetch('/api/shared-views', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          sourceTable: selectedTable,
+          friendlyTableName: friendlyShareTableName,
+          columnMappings: friendlyColumnMappings,
+          defaultSortColumn: friendlySortColumn,
+          defaultSortDirection: friendlySortDirection,
+          allowCsvDownload: friendlyAllowCsv
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        const origin = typeof window !== 'undefined' ? window.location.origin : '';
+        const shareUrl = `${origin}/shared/view/${data.shareHash}`;
+        setGeneratedFriendlyShareUrl(shareUrl);
+        showToast("공유 뷰가 성공적으로 발행되었습니다!", "success");
+      } else {
+        showToast(data.error || "공유 뷰 개설에 실패했습니다.", "error");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast("네트워크 오류가 발생했습니다.", "error");
+    } finally {
+      setIsFriendlySharing(false);
     }
   };
 
@@ -2180,6 +2289,14 @@ export default function MyDBManagementPage() {
                 {activeTab === 'data' && selectedTable && (
                   <div className="flex items-center gap-2 shrink-0">
                     <button
+                      onClick={handleOpenFriendlyShareModal}
+                      className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-indigo-50 to-indigo-100/50 hover:from-indigo-100 hover:to-indigo-150 border border-indigo-200/80 text-indigo-650 rounded-xl text-xs font-black shadow-3xs cursor-pointer transition-all active:scale-95"
+                      title="임직원용 커스텀 한글 공유 테이블 뷰 개설"
+                    >
+                      <Link className="w-3.5 h-3.5 text-indigo-550" />
+                      임직원 공유 뷰 개설
+                    </button>
+                    <button
                       onClick={handleExportCSV}
                       className="flex items-center justify-center gap-1.5 px-3 py-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-bold shadow-3xs cursor-pointer transition-colors"
                       title="CSV 포맷으로 데이터 백업"
@@ -3148,6 +3265,254 @@ export default function MyDBManagementPage() {
                       ) : (
                         <>
                           🌐 퍼블릭 대시보드 게시글 발행
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 👥 임직원 친화형 커스텀 공유 테이블 뷰 개설 모달 */}
+      {isFriendlyShareModalOpen && (
+        <div className="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl bg-white border border-slate-200 rounded-3xl shadow-2xl overflow-hidden animate-zoom-in text-left">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <h3 className="font-extrabold text-slate-800 text-sm flex items-center gap-1.5">
+                <Table className="w-4.5 h-4.5 text-indigo-600" />
+                👥 임직원 친화형 커스텀 공유 테이블 뷰 개설
+              </h3>
+              <button 
+                onClick={() => setIsFriendlyShareModalOpen(false)}
+                className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-full border-none bg-transparent cursor-pointer transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5 text-slate-700 bg-white">
+              {generatedFriendlyShareUrl ? (
+                <div className="space-y-4.5 animate-zoom-in text-center py-4">
+                  <div className="w-12 h-12 rounded-full bg-indigo-50 border border-indigo-200 flex items-center justify-center mx-auto text-indigo-600">
+                    <CheckCircle className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <h4 className="text-xs font-black text-slate-880">임직원 전용 커스텀 테이블 뷰가 성공적으로 개설되었습니다!</h4>
+                    <p className="text-[10px] text-slate-400">민감정보(소프트 삭제자, 비밀번호 등)가 완벽히 제외된 정제된 링크입니다. 사내 임직원에게 즉시 공유하세요.</p>
+                  </div>
+
+                  <div className="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-2xl select-all font-mono text-[11px] text-slate-650 justify-between">
+                    <span className="truncate pr-4">{generatedFriendlyShareUrl}</span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(generatedFriendlyShareUrl);
+                        showToast("공유 뷰어 링크가 클립보드에 무사히 복사되었습니다!", "success");
+                      }}
+                      className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-[10px] font-black shrink-0 border-none cursor-pointer hover:bg-indigo-500 shadow-3xs"
+                    >
+                      복사
+                    </button>
+                  </div>
+
+                  <div className="pt-2 flex gap-2">
+                    <a
+                      href={generatedFriendlyShareUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex-1 py-2.5 bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 rounded-xl text-xs font-black text-center cursor-pointer shadow-3xs transition-all flex items-center justify-center gap-1.5 text-decoration-none"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      공유 페이지 바로가기
+                    </a>
+                    <button
+                      onClick={() => setIsFriendlyShareModalOpen(false)}
+                      className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-750 text-white rounded-xl text-xs font-extrabold border border-slate-800 cursor-pointer shadow-3xs"
+                    >
+                      설정 닫기
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* 테이블 한글 명칭 */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-black text-slate-400">
+                        임직원용 테이블 한글명
+                      </label>
+                      <input
+                        type="text"
+                        value={friendlyShareTableName}
+                        onChange={(e) => setFriendlyShareTableName(e.target.value)}
+                        placeholder="예: 단골 고객 연락처 대장"
+                        className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-xs text-slate-700 transition-all placeholder:text-slate-400 shadow-3xs font-semibold"
+                      />
+                    </div>
+                    
+                    {/* CSV 다운로드 토글 */}
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-black text-slate-400">
+                        엑셀/CSV 다운로드 권한
+                      </label>
+                      <div className="flex items-center gap-3 h-[38px] bg-slate-50 border border-slate-200 rounded-xl px-4">
+                        <input
+                          type="checkbox"
+                          id="friendlyAllowCsv"
+                          checked={friendlyAllowCsv}
+                          onChange={(e) => setFriendlyAllowCsv(e.target.checked)}
+                          className="w-4 h-4 rounded text-indigo-600 border-slate-350 focus:ring-indigo-500 cursor-pointer"
+                        />
+                        <label htmlFor="friendlyAllowCsv" className="text-xs font-bold text-slate-600 cursor-pointer select-none">
+                          임직원들이 이 테이블을 다운로드하도록 허용
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 컬럼 개별 매핑 및 비식별화 */}
+                  <div className="space-y-2 text-left">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-black text-slate-400">
+                        컬럼 개별 한글 맵핑 및 노출 제어 (보안 설정)
+                      </label>
+                      <span className="text-[9px] text-indigo-600 font-extrabold bg-indigo-50 px-2 py-0.5 rounded-full">
+                        노출된 컬럼만 안전하게 공유됩니다
+                      </span>
+                    </div>
+
+                    <div className="max-h-[220px] overflow-y-auto no-scrollbar border border-slate-100 rounded-2xl p-3.5 bg-slate-50/40 space-y-2.5">
+                      {friendlyColumnMappings.map((col, idx) => (
+                        <div key={col.physical} className="flex items-center justify-between gap-3 bg-white p-2.5 border border-slate-200/60 rounded-xl shadow-3xs">
+                          {/* 컬럼 정보 */}
+                          <div className="flex-1 min-w-[120px]">
+                            <div className="text-[10px] font-black text-slate-400 font-mono truncate">{col.physical}</div>
+                          </div>
+                          
+                          {/* 한글 매핑 명칭 */}
+                          <div className="flex-2">
+                            <input
+                              type="text"
+                              value={col.friendly}
+                              onChange={(e) => {
+                                const newMappings = [...friendlyColumnMappings];
+                                newMappings[idx].friendly = e.target.value;
+                                setFriendlyColumnMappings(newMappings);
+                              }}
+                              placeholder="한글 컬럼 이름..."
+                              className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded-lg outline-none text-xs text-slate-700 font-semibold focus:border-indigo-500"
+                            />
+                          </div>
+
+                          {/* 노출 여부 토글 */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newMappings = [...friendlyColumnMappings];
+                              newMappings[idx].visible = !col.visible;
+                              setFriendlyColumnMappings(newMappings);
+                            }}
+                            className={`flex items-center justify-center gap-1 px-2.5 py-1 border rounded-lg text-[10px] font-black cursor-pointer transition-colors ${
+                              col.visible
+                                ? 'bg-indigo-50 border-indigo-200 text-indigo-650'
+                                : 'bg-slate-100 border-slate-200 text-slate-400'
+                            }`}
+                          >
+                            {col.visible ? (
+                              <>
+                                <Eye className="w-3 h-3 text-indigo-600" />
+                                노출
+                              </>
+                            ) : (
+                              <>
+                                <EyeOff className="w-3 h-3 text-slate-400" />
+                                숨김
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 정렬 설정 */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-black text-slate-400">
+                        기본 정렬 기준 컬럼
+                      </label>
+                      <select
+                        value={friendlySortColumn}
+                        onChange={(e) => setFriendlySortColumn(e.target.value)}
+                        className="w-full text-xs font-bold outline-none bg-white border border-slate-200 rounded-xl px-3 py-2 text-slate-700 cursor-pointer shadow-3xs focus:border-indigo-500"
+                      >
+                        {friendlyColumnMappings.filter(col => col.visible).map(col => (
+                          <option key={col.physical} value={col.physical}>{col.friendly || col.physical}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-black text-slate-400">
+                        기본 정렬 방향
+                      </label>
+                      <div className="flex items-center bg-slate-100 rounded-xl p-0.5 border border-slate-200 h-[38px]">
+                        <button
+                          type="button"
+                          onClick={() => setFriendlySortDirection('DESC')}
+                          className={`flex-1 py-1.5 text-[10px] font-extrabold rounded-lg border-none transition-all cursor-pointer ${
+                            friendlySortDirection === 'DESC'
+                              ? 'bg-white text-indigo-650 shadow-3xs'
+                              : 'text-slate-500 bg-transparent'
+                          }`}
+                        >
+                          ⬇️ 내림차순 (최신순 / 큰값)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFriendlySortDirection('ASC')}
+                          className={`flex-1 py-1.5 text-[10px] font-extrabold rounded-lg border-none transition-all cursor-pointer ${
+                            friendlySortDirection === 'ASC'
+                              ? 'bg-white text-indigo-650 shadow-3xs'
+                              : 'text-slate-500 bg-transparent'
+                          }`}
+                        >
+                          ⬆️ 오름차순 (과거순 / 작은값)
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-indigo-50/40 border border-indigo-100 rounded-2xl text-[10px] text-indigo-750 font-medium leading-relaxed">
+                    🔒 **강력한 데이터 보안 비식별화 가드레일**:
+                    공유된 링크는 로그인이 필요 없으나, 설정하신 숨김 컬럼은 백엔드 API에서 물리적으로 완전 차단된 뒤 브라우저로 렌더링되므로 민감 정보 유출 걱정 없이 안전합니다.
+                  </div>
+
+                  <div className="pt-2 flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsFriendlyShareModalOpen(false)}
+                      className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-500 rounded-xl text-xs font-bold cursor-pointer"
+                    >
+                      취소
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCreateFriendlyShare}
+                      disabled={isFriendlySharing}
+                      className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-sm border-none cursor-pointer transition-all active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
+                    >
+                      {isFriendlySharing ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin mr-0.5 text-white" />
+                          공유 뷰 발행 중...
+                        </>
+                      ) : (
+                        <>
+                          <Link className="w-3.5 h-3.5 text-white" />
+                          임직원 공유 뷰 개설하기
                         </>
                       )}
                     </button>
