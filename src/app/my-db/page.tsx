@@ -2289,14 +2289,6 @@ export default function MyDBManagementPage() {
                 {activeTab === 'data' && selectedTable && (
                   <div className="flex items-center gap-2 shrink-0">
                     <button
-                      onClick={handleOpenFriendlyShareModal}
-                      className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-indigo-50 to-indigo-100/50 hover:from-indigo-100 hover:to-indigo-150 border border-indigo-200/80 text-indigo-650 rounded-xl text-xs font-black shadow-3xs cursor-pointer transition-all active:scale-95"
-                      title="임직원용 커스텀 한글 공유 테이블 뷰 개설"
-                    >
-                      <Link className="w-3.5 h-3.5 text-indigo-550" />
-                      임직원 공유 뷰 개설
-                    </button>
-                    <button
                       onClick={handleExportCSV}
                       className="flex items-center justify-center gap-1.5 px-3 py-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-bold shadow-3xs cursor-pointer transition-colors"
                       title="CSV 포맷으로 데이터 백업"
@@ -2373,9 +2365,19 @@ export default function MyDBManagementPage() {
                       </div>
                     </div>
 
-                    {/* 🗑️ 소프트 삭제 컬럼 존재 시 휴지통 토글 마운트 */}
-                    {tableSchema.some(col => col.name === 'deleted_at') && (
-                      <div className="flex items-center shrink-0">
+                    {/* 👥 임직원 공유 뷰 개설 버튼 및 🗑️ 소프트 삭제 컬럼 존재 시 휴지통 토글 마운트 */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={handleOpenFriendlyShareModal}
+                        className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-indigo-50 to-indigo-100/50 hover:from-indigo-100 hover:to-indigo-150 border border-indigo-200/80 text-indigo-650 rounded-xl text-xs font-black shadow-3xs cursor-pointer transition-all active:scale-95"
+                        title="임직원용 커스텀 한글 공유 테이블 뷰 개설"
+                      >
+                        <Link className="w-3.5 h-3.5 text-indigo-550" />
+                        임직원 공유 뷰 개설
+                      </button>
+
+                      {tableSchema.some(col => col.name === 'deleted_at') && (
                         <label className="inline-flex items-center gap-2 px-3 py-1.5 bg-rose-50/60 hover:bg-rose-50 border border-rose-100 rounded-xl cursor-pointer select-none transition-all shadow-3xs">
                           <input
                             type="checkbox"
@@ -2388,8 +2390,8 @@ export default function MyDBManagementPage() {
                             소프트 삭제(휴지통) 보기
                           </span>
                         </label>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </form>
                 )}
 
