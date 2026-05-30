@@ -1,15 +1,11 @@
 const Database = require('better-sqlite3');
-const dbPath = 'C:\\Users\\CHARISMA\\AppData\\Roaming\\egdesk\\database\\user_data.db';
+const dbPath = 'c:\\dev\\egdesk-FreeSMS\\crm_data.db'; // 프로젝트 루트 crm_data.db 타격!
 const db = new Database(dbPath);
 
 try {
-  console.log('=== [Forensic] user_tables DDL ===');
-  const ddl = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='user_tables';").get();
-  console.log(ddl.sql);
-
-  console.log('\n=== [Forensic] SELECT * FROM user_tables ===');
-  const rows = db.prepare('SELECT * FROM user_tables;').all();
-  console.log(JSON.stringify(rows));
+  console.log('=== [Forensic crm_data.db] Listing all tables ===');
+  const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table';").all();
+  console.log(JSON.stringify(tables));
 } catch (e) {
   console.error('Forensic failed:', e.message);
 }
