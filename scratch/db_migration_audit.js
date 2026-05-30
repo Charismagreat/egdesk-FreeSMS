@@ -17,7 +17,7 @@ const AUDIT_COLUMNS = [
   'restored_by'
 ];
 
-// 대상이 되는 핵심 7대 비즈니스 테이블 목록
+// 대상이 되는 핵심 비즈니스 테이블 목록 (지출 프로젝트 관리 확장 편입)
 const TARGET_TABLES = [
   'crm_expenses',
   'crm_operators',
@@ -25,7 +25,8 @@ const TARGET_TABLES = [
   'crm_partners',
   'crm_estimates',
   'crm_orders',
-  'products'
+  'products',
+  'expense_projects'
 ];
 
 async function runMigration() {

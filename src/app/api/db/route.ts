@@ -11,7 +11,7 @@ function getDirectDB() {
   return new Database(dbPath, { verbose: console.log });
 }
 
-// 감사추적이 필요한 대상이 되는 핵심 7대 비즈니스 테이블 목록
+// 감사추적이 필요한 대상이 되는 핵심 비즈니스 테이블 목록 (지출 프로젝트 관리 확장 편입)
 const TARGET_TABLES = [
   'crm_expenses',
   'crm_operators',
@@ -19,7 +19,8 @@ const TARGET_TABLES = [
   'crm_partners',
   'crm_estimates',
   'crm_orders',
-  'products'
+  'products',
+  'expense_projects'
 ];
 
 // 🔑 최고관리자 및 작업자 정보 동시 획득용 헬퍼
@@ -91,6 +92,7 @@ export async function GET(request: Request) {
           else if (name === 'crm_estimates') displayName = '견적서 관리';
           else if (name === 'crm_orders') displayName = '주문 내역 관리';
           else if (name === 'products') displayName = '광고 상품 관리';
+          else if (name === 'expense_projects') displayName = '지출 프로젝트 관리';
 
           tablesWithCount.push({
             name,
