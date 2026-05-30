@@ -36,6 +36,13 @@ export async function setupDatabase() {
     { name: 'recipient_phone', type: 'TEXT' },
     { name: 'point_balance', type: 'INTEGER' }, // 적립금 잔액 컬럼 추가
     { name: 'created_at', type: 'TEXT' },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
   ], { tableName: 'crm_customers', uniqueKeyColumns: ['id'] });
 
   // 2. Message Templates Table
@@ -77,7 +84,14 @@ export async function setupDatabase() {
     { name: 'category', type: 'TEXT' },
     { name: 'menu_category', type: 'TEXT' },
     { name: 'is_coupon_excludable', type: 'INTEGER' },
-    { name: 'is_estimate_price', type: 'INTEGER', defaultValue: 0 }
+    { name: 'is_estimate_price', type: 'INTEGER', defaultValue: 0 },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
   ], { tableName: 'products', uniqueKeyColumns: ['id'], duplicateAction: 'update' });
 
   // 6. Transactions Table
@@ -107,6 +121,13 @@ export async function setupDatabase() {
     { name: 'customer_memo', type: 'TEXT' },
     { name: 'order_date', type: 'TEXT' },
     { name: 'status', type: 'TEXT' },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
   ], { tableName: 'crm_orders', uniqueKeyColumns: ['id'], duplicateAction: 'update' });
 
   // 8. Payments Table
@@ -156,7 +177,14 @@ export async function setupDatabase() {
     { name: 'password_hash', type: 'TEXT', notNull: true },
     { name: 'name', type: 'TEXT', notNull: true },
     { name: 'role', type: 'TEXT', notNull: true }, // 'SUPER_ADMIN' or 'SUB_OPERATOR'
-    { name: 'created_at', type: 'TEXT' }
+    { name: 'created_at', type: 'TEXT' },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
   ], { tableName: 'crm_operators', uniqueKeyColumns: ['username'] });
 
   // 13. Instagram Posts Table
@@ -260,7 +288,14 @@ export async function setupDatabase() {
     { name: 'file_url', type: 'TEXT' },
     { name: 'business_license_url', type: 'TEXT' },             // 첫 견적 요청 시 사업자등록증 첨부 파일 경로
     { name: 'ai_parsed', type: 'INTEGER', defaultValue: 0 },
-    { name: 'created_at', type: 'TEXT', notNull: true }
+    { name: 'created_at', type: 'TEXT', notNull: true },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
   ], { tableName: 'crm_estimates', uniqueKeyColumns: ['id'] });
 
   // 21. CRM Estimate Items Table (견적 품목 관리)
@@ -313,7 +348,14 @@ export async function setupDatabase() {
     { name: 'credit_limit', type: 'INTEGER', defaultValue: 0 },
     { name: 'business_license_url', type: 'TEXT' },             // 파트너의 공식 사업자등록증 첨부 파일 경로
     { name: 'memo', type: 'TEXT' },
-    { name: 'created_at', type: 'TEXT', notNull: true }
+    { name: 'created_at', type: 'TEXT', notNull: true },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
   ], { tableName: 'crm_partners', uniqueKeyColumns: ['id'] });
 
   // 25. CRM SnapTasks Table (스냅태스크 관리)
@@ -477,7 +519,14 @@ export async function setupDatabase() {
     { name: 'actual_expense_date', type: 'TEXT' },
     { name: 'deduction_amount', type: 'INTEGER', defaultValue: 0 },
     { name: 'transfer_fee', type: 'INTEGER', defaultValue: 0 },
-    { name: 'created_at', type: 'TEXT', notNull: true }
+    { name: 'created_at', type: 'TEXT', notNull: true },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
   ], { tableName: 'crm_expenses', uniqueKeyColumns: ['id'] });
 
   // 38. Expense Settings Table (지출 예산 경보 설정)
@@ -855,7 +904,14 @@ export async function setupDatabase() {
   await safeCreateTable('지출 프로젝트 관리', [
     { name: 'id', type: 'TEXT', notNull: true },
     { name: 'name', type: 'TEXT', notNull: true },
-    { name: 'created_at', type: 'TEXT', notNull: true }
+    { name: 'created_at', type: 'TEXT', notNull: true },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
   ], { tableName: 'expense_projects', uniqueKeyColumns: ['id'] });
 
   // 39-7. 부서, 직원, 프로젝트 기초 시딩
