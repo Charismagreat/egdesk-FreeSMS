@@ -37,7 +37,7 @@ export default function MyDBManagementPage() {
   const [safetyUnlocked, setSafetyUnlocked] = React.useState<boolean>(false);
 
   // 💡 AI 자연어 SQL 번역기 콘솔 관련 추가 상태 변수
-  const [consoleTab, setConsoleTab] = React.useState<'direct' | 'ai'>('direct');
+  const [consoleTab, setConsoleTab] = React.useState<'direct' | 'ai'>('ai');
   const [aiPrompt, setAiPrompt] = React.useState<string>("");
   const [isAiLoading, setIsAiLoading] = React.useState<boolean>(false);
   const [aiGeneratedSql, setAiGeneratedSql] = React.useState<string>("");
@@ -538,20 +538,20 @@ export default function MyDBManagementPage() {
                 {/* 💡 직접 입력 / AI 자연어 스위치 탭 */}
                 <div className="flex bg-slate-100 rounded-lg p-0.5 border border-slate-200/70 text-[10px] font-bold">
                   <button
-                    onClick={() => setConsoleTab('direct')}
-                    className={`px-3 py-1.5 rounded-md transition-all border-none cursor-pointer ${
-                      consoleTab === 'direct' ? 'bg-white text-blue-650 shadow-3xs font-black' : 'text-slate-500 bg-transparent'
-                    }`}
-                  >
-                    직접 쿼리 입력
-                  </button>
-                  <button
                     onClick={() => setConsoleTab('ai')}
                     className={`px-3 py-1.5 rounded-md transition-all border-none cursor-pointer flex items-center gap-0.5 ${
                       consoleTab === 'ai' ? 'bg-white text-blue-650 shadow-3xs font-black' : 'text-slate-500 bg-transparent'
                     }`}
                   >
                     AI 자연어 요청 💡
+                  </button>
+                  <button
+                    onClick={() => setConsoleTab('direct')}
+                    className={`px-3 py-1.5 rounded-md transition-all border-none cursor-pointer ${
+                      consoleTab === 'direct' ? 'bg-white text-blue-650 shadow-3xs font-black' : 'text-slate-500 bg-transparent'
+                    }`}
+                  >
+                    직접 쿼리 입력
                   </button>
                 </div>
 
