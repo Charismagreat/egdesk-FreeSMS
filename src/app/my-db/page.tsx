@@ -798,7 +798,7 @@ export default function MyDBManagementPage() {
                         setEditingRow(null);
                         setIsRowModalOpen(true);
                       }}
-                      className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-650 hover:bg-blue-600 text-white rounded-xl text-xs font-black border-none cursor-pointer shadow-3xs transition-colors"
+                      className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black border-none cursor-pointer shadow-3xs transition-colors"
                     >
                       <Plus className="w-3.5 h-3.5 text-white" />
                       행 삽입 (INSERT)
