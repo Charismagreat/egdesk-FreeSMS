@@ -411,6 +411,24 @@ export default function MyDBManagementPage() {
     }
   };
 
+  // 9. 전체 데이터 동기화 액션 (서버 물리 데이터 강제 동기화)
+  const handleSyncAll = async () => {
+    setIsLoading(true);
+    showToast("물리 데이터베이스 실시간 전체 동기화 중...", "success");
+    try {
+      await fetchTables();
+      if (selectedTable) {
+        await fetchTableSchema(selectedTable);
+        await fetchTableRows(selectedTable, currentPage, searchKey, searchValue, showDeleted);
+      }
+      showToast("전체 데이터 동기화가 성공적으로 완료되었습니다.", "success");
+    } catch (e) {
+      showToast("데이터 동기화 중 오류가 발생했습니다.", "error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // 대화형 SQL 프리셋 주입 단추 리스트
   const SQL_PRESETS = [
     { label: "지출 장부 스캔 (Top 10)", query: "SELECT * FROM crm_expenses ORDER BY id DESC LIMIT 10;" },
@@ -440,10 +458,21 @@ export default function MyDBManagementPage() {
       )}
 
       {/* 🚀 상단 헤더 섹션 (발송 내역 조회 헤더 스타일 동기화) */}
-      <h1 className="text-3xl font-bold text-slate-800 flex items-center select-none">
-        <Database className="w-8 h-8 mr-3 text-blue-500 shrink-0" />
-        MY DB
-      </h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2 select-none">
+        <h1 className="text-3xl font-bold text-slate-800 flex items-center">
+          <Database className="w-8 h-8 mr-3 text-blue-500 shrink-0" />
+          MY DB
+        </h1>
+        <button
+          onClick={handleSyncAll}
+          disabled={isLoading}
+          className="flex items-center justify-center gap-1.5 px-4.5 py-2.5 bg-blue-650 hover:bg-blue-600 text-white rounded-xl text-xs font-black shadow-3xs border-none cursor-pointer transition-all active:scale-95 disabled:opacity-50 shrink-0 self-start sm:self-auto"
+          title="서버 데이터베이스 테이블 개수 및 레코드 실시간 동기화"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 text-white ${isLoading ? 'animate-spin' : ''}`} />
+          전체 데이터 동기화
+        </button>
+      </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
         
@@ -454,7 +483,7 @@ export default function MyDBManagementPage() {
             물리 테이블 ({tables.length})
           </h2>
           
-          <div className="space-y-1.5 max-h-[580px] overflow-y-auto no-scrollbar">
+          <div className="space-y-1.5 max-h-[850px] overflow-y-auto no-scrollbar">
             {tables.length === 0 ? (
               <div className="p-8 text-center text-xs text-slate-400 font-bold">
                 테이블이 탐색되지 않았습니다.
@@ -549,8 +578,17 @@ export default function MyDBManagementPage() {
                     value={sqlQuery}
                     onChange={(e) => setSqlQuery(e.target.value)}
                     placeholder="여기에 실행할 커스텀 SQL 쿼리를 기입하십시오. (예: SELECT * FROM crm_expenses;)"
-                    className="w-full h-28 pl-4 pr-4 py-3 bg-slate-50 border border-slate-200 text-slate-700 font-mono text-xs rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all resize-none shadow-3xs"
+                    className="w-full h-28 pl-4 pr-10 py-3 bg-slate-50 border border-slate-200 text-slate-700 font-mono text-xs rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all resize-none shadow-3xs"
                   />
+                  {sqlQuery && (
+                    <button
+                      onClick={() => setSqlQuery("")}
+                      className="absolute top-3 right-3 p-1.5 text-slate-400 hover:text-slate-650 hover:bg-slate-200/50 rounded-full border-none bg-transparent cursor-pointer transition-colors"
+                      title="에디터 입력 내용 비우기"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
 
                 {/* 템플릿 프리셋 및 실행 버튼 */}
@@ -586,8 +624,17 @@ export default function MyDBManagementPage() {
                     value={aiPrompt}
                     onChange={(e) => setAiPrompt(e.target.value)}
                     placeholder="DB 전문가가 아니더라도 자연어로 원하시는 데이터를 AI에게 편하게 물어보세요!&#10;(예: '최근 등록된 5개의 지출 내역 보여줘' 또는 '결제 수단별로 총 지출 금액 합계를 내줘')"
-                    className="w-full h-24 pl-4 pr-4 py-3 bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all resize-none shadow-3xs"
+                    className="w-full h-24 pl-4 pr-10 py-3 bg-slate-50 border border-slate-200 text-slate-700 text-xs rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all resize-none shadow-3xs"
                   />
+                  {aiPrompt && (
+                    <button
+                      onClick={() => setAiPrompt("")}
+                      className="absolute top-3 right-3 p-1.5 text-slate-400 hover:text-slate-650 hover:bg-slate-200/50 rounded-full border-none bg-transparent cursor-pointer transition-colors"
+                      title="AI 요구사항 입력 비우기"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between gap-4 flex-wrap">
