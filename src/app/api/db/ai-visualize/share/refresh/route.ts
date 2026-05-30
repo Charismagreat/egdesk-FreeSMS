@@ -70,10 +70,11 @@ function anonymizeData(rows: any[], schema: any[]) {
         }
       }
 
-      if (numericCols.includes(col) && typeof val === 'number') {
-        const colSum = stats.numericColumns[col]?.sum || 1;
-        val = parseFloat(((val / colSum) * 100).toFixed(2));
-      }
+      // 수치 기밀 데이터는 전체 합계 대비 백분율(상대 점유율) 정보로 전격 원형 치환 (기밀 금액 보호) -> 최고관리자 실데이터 노출 요구로 주석처리
+      // if (numericCols.includes(col) && typeof val === 'number') {
+      //   const colSum = stats.numericColumns[col]?.sum || 1;
+      //   val = parseFloat(((val / colSum) * 100).toFixed(2));
+      // }
 
       cleanRow[col] = val;
     }
@@ -90,6 +91,19 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   return handleRefresh(req);
+}
+
+// 💡 자가 학습 스킬 헬퍼 함수 (동기화)
+async function getAccumulatedSkills(): Promise<string[]> {
+  try {
+    const res = await queryTable('system_settings', { filters: { key: 'mydb_ai_skills' } });
+    if (res.rows && res.rows.length > 0) {
+      return JSON.parse(res.rows[0].value || '[]');
+    }
+  } catch (e: any) {
+    console.error('⚠️ DB 누적 스킬 로드 실패:', e.message);
+  }
+  return [];
 }
 
 async function handleRefresh(req: Request) {
@@ -200,21 +214,27 @@ async function handleRefresh(req: Request) {
           continue;
         }
 
-        // E. AI 호출 프롬프트 조립
+        // E-1. DB에서 최고관리자 누적 스킬 리스트 로드 및 프롬프트 인젝션
+        const currentSkills = await getAccumulatedSkills();
+        const skillsPrompt = currentSkills.length > 0
+          ? `\n[최고관리자의 고유 분석/시각화 스킬 및 선호 취향 (반드시 최우선 적용)]\n${currentSkills.map((s, idx) => `${idx + 1}. ${s}`).join('\n')}\n`
+          : '';
+
+        // E-2. AI 호출 프롬프트 조립
         const prompt = `
 당신은 세계 최고 수준의 비즈니스 데이터 분석가(Business Intelligence Expert)입니다.
 전달받은 [데이터셋 정보]를 깊이 있게 관찰한 후, 의사결정자를 wowed시킬 수 있는 시각화 차트 설계 JSON 스펙과 3줄 비즈니스 요약 브리핑(마크다운 형식)을 생성해 주세요.
 
 [중요 지침]
 1. 분석 대상 테이블명: "${table_name}" (${display_name || table_name})
-2. 데이터셋의 수치는 보안상의 이유로 전체 합계 대비 백분율(%) 비중 값으로 치환되어 있습니다. 요약 브리핑 시 수치가 % 비율임을 명확히 인지하고 서술해 주십시오. (예: "A 부서의 지출 비중이 전체의 35%를 차지합니다")
+2. 데이터셋의 수치와 통계 정보는 실제 원본 값(금액 등)입니다. 요약 브리핑 시 실제 수치 가치를 근거로 세련되게 서술해 주십시오. (예: "소모품비 지출액이 총 320,000원으로 가장 큰 비중을 차지합니다")
 3. 수치 컬럼의 전체 물리적 누적 합계 등은 [통계 정보]를 근거로 서술해 주십시오.
 4. 차트 종류("line" | "bar" | "pie" | "metric")를 하나 추천해 주세요.
    - 시간 축의 변화 추이가 중요하고 연속적일 시: "line"
    - 부서별, 카테고리별 등 범주형 데이터 비교에 적합할 시: "bar"
    - 결제 수단, 부서 점유율 등 지분 비중을 한눈에 보고 싶을 시: "pie"
    - 쿼리 결과가 단일 합계값 등 단일 행일 시: "metric"
-
+${skillsPrompt}
 [데이터셋 정보]
 ${JSON.stringify(sampleRows, null, 2)}
 
@@ -235,8 +255,8 @@ ${JSON.stringify(stats, null, 2)}
 }
 `;
 
-        // F. Gemini REST API fetch 타격
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+        // F. Gemini REST API fetch 타격 (gemini-3.5-flash 모델 적용)
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
         const response = await fetch(geminiUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -264,9 +284,14 @@ ${JSON.stringify(stats, null, 2)}
         }
         const cleanJson = JSON.parse(cleanedText);
 
-        // G. 대시보드 저장 데이터 업데이트
+        // G. 대시보드 저장 데이터 업데이트 (sampleRows가 누락 유실되지 않도록 머지하여 저장)
+        const enrichedSpec = {
+          ...cleanJson.recommendedChart,
+          sampleRows
+        };
+
         await updateRows('shared_dashboards', {
-          chart_spec_json: JSON.stringify(cleanJson.recommendedChart),
+          chart_spec_json: JSON.stringify(enrichedSpec),
           briefing_markdown: cleanJson.briefing,
           last_refreshed_at: nowStr
         }, { filters: { share_id } });

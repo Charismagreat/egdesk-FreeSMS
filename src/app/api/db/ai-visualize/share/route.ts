@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
-import { queryTable, insertRows, deleteRows, executeSQL, getTableSchema } from '../../../../../../egdesk-helpers';
+import { queryTable, insertRows, updateRows, deleteRows, executeSQL, getTableSchema } from '../../../../../../egdesk-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -98,8 +98,9 @@ function anonymizeData(rows: any[], schema: any[]) {
       }
 
       if (numericCols.includes(col) && typeof val === 'number') {
-        const colSum = stats.numericColumns[col]?.sum || 1;
-        val = parseFloat(((val / colSum) * 100).toFixed(2));
+        // AI 브리핑 페이지에서도 백분율 비율로 뭉개지 않고 실제 원본 수치를 고스란히 보여주기 위해 비율 전환 비식별화 과정을 주석처리합니다.
+        // const colSum = stats.numericColumns[col]?.sum || 1;
+        // val = parseFloat(((val / colSum) * 100).toFixed(2));
       }
 
       cleanRow[col] = val;
@@ -131,8 +132,23 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: false, error: '권한이 없습니다. 최고관리자 전용 기능입니다.' }, { status: 403 });
     }
 
-    const res = await queryTable('shared_dashboards', { orderBy: 'created_at', orderDirection: 'DESC' });
-    return NextResponse.json({ success: true, list: res.rows || [] });
+    const res = await queryTable('shared_dashboards', {});
+    const list = res.rows || [];
+
+    // 정교한 자바스크립트 다중 정렬 처리 (sort_order 오름차순, 생성일자 내림차순)
+    const sortedList = [...list].sort((a: any, b: any) => {
+      const aOrder = a.sort_order !== null && a.sort_order !== undefined ? Number(a.sort_order) : 0;
+      const bOrder = b.sort_order !== null && b.sort_order !== undefined ? Number(b.sort_order) : 0;
+      if (aOrder !== bOrder) {
+        return aOrder - bOrder;
+      }
+      
+      const aTime = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bTime = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return bTime - aTime;
+    });
+
+    return NextResponse.json({ success: true, list: sortedList });
   } catch (err: any) {
     console.error('공유 목록 조회 오류:', err.message);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
@@ -148,7 +164,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { title, sqlQuery, tableName, displayName, chartSpecJson, briefingMarkdown, refreshInterval } = body;
+    const { title, sqlQuery, tableName, displayName, chartSpecJson, briefingMarkdown, refreshInterval, isPinned, isActive } = body;
 
     if (!title || !sqlQuery || !chartSpecJson || !briefingMarkdown) {
       return NextResponse.json({ success: false, error: '필수 등록 정보가 누락되었습니다.' }, { status: 400 });
@@ -197,7 +213,10 @@ export async function POST(req: Request) {
       refresh_interval: refreshInterval || 'NONE',
       last_refreshed_at: nowStr,
       created_at: nowStr,
-      is_active: 1
+      is_active: isActive !== undefined ? Number(isActive) : 1,
+      sort_order: 0,
+      is_pinned: isPinned !== undefined ? Number(isPinned) : 1,
+      custom_title: title.trim()
     }]);
 
     return NextResponse.json({
@@ -208,6 +227,61 @@ export async function POST(req: Request) {
 
   } catch (err: any) {
     console.error('공유 등록 오류:', err.message);
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  }
+}
+
+// 📂 [PATCH] 공유 대시보드 속성 부분 갱신 (순서 일괄 변경, 단건 정보 수정 등)
+export async function PATCH(req: Request) {
+  try {
+    const isAuthorized = await verifySuperAdmin();
+    if (!isAuthorized) {
+      return NextResponse.json({ success: false, error: '권한이 없습니다. 최고관리자 전용 기능입니다.' }, { status: 403 });
+    }
+
+    const body = await req.json();
+    const { action, orders, shareId, customTitle, isPinned, isActive, refreshInterval } = body;
+
+    if (!action) {
+      return NextResponse.json({ success: false, error: '수행할 action 정보가 누락되었습니다.' }, { status: 400 });
+    }
+
+    if (action === 'REORDER') {
+      if (!orders || !Array.isArray(orders)) {
+        return NextResponse.json({ success: false, error: '정렬 정보 orders 배열이 필요합니다.' }, { status: 400 });
+      }
+
+      // 일괄 순서 가중치 갱신 루프 구동
+      for (const item of orders) {
+        await updateRows('shared_dashboards', 
+          { sort_order: Number(item.sortOrder) }, 
+          { filters: { share_id: item.shareId } }
+        );
+      }
+
+      return NextResponse.json({ success: true, message: '대시보드 순서가 완벽히 보존되었습니다.' });
+    }
+
+    if (action === 'UPDATE_INFO') {
+      if (!shareId) {
+        return NextResponse.json({ success: false, error: '수정할 shareId가 누락되었습니다.' }, { status: 400 });
+      }
+
+      const updatePayload: any = {};
+      if (customTitle !== undefined) updatePayload.custom_title = customTitle;
+      if (isPinned !== undefined) updatePayload.is_pinned = Number(isPinned);
+      if (isActive !== undefined) updatePayload.is_active = Number(isActive);
+      if (refreshInterval !== undefined) updatePayload.refresh_interval = refreshInterval;
+
+      await updateRows('shared_dashboards', updatePayload, { filters: { share_id: shareId } });
+
+      return NextResponse.json({ success: true, message: '보고서 정보가 성공적으로 반영되었습니다.' });
+    }
+
+    return NextResponse.json({ success: false, error: '정의되지 않은 action 명령입니다.' }, { status: 400 });
+
+  } catch (err: any) {
+    console.error('공유 갱신(PATCH) 오류:', err.message);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }

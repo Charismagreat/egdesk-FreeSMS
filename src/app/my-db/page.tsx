@@ -5,7 +5,7 @@ import {
   Database, Play, RefreshCw, Download, Plus, Edit, 
   Trash2, AlertTriangle, Code, Table, Search, Terminal,
   CheckCircle, ChevronRight, X, ShieldAlert, Calendar,
-  BarChart, FileText, Activity
+  BarChart, FileText, Activity, Sparkles, Paperclip, Send
 } from "lucide-react";
 import DBChartRenderer from "@/components/DBChartRenderer";
 
@@ -59,6 +59,56 @@ export default function MyDBManagementPage() {
   const [generatedShareUrl, setGeneratedShareUrl] = React.useState<string>("");
   const [sharedDashboards, setSharedDashboards] = React.useState<any[]>([]);
   const [isSharing, setIsSharing] = React.useState<boolean>(false);
+  const [isRestored, setIsRestored] = React.useState<boolean>(false);
+  const [tunePrompt, setTunePrompt] = React.useState<string>("");
+
+  // 💬 AI 챗봇 튜닝 대화 이력 및 부가 제어 상태 추가
+  const [tuneHistory, setTuneHistory] = React.useState<Array<{
+    role: 'user' | 'ai' | 'system';
+    text: string;
+    image?: string; // Base64 첨부 이미지
+    isNewSkill?: boolean; // 새 스킬 배지 노출용
+    timestamp: string;
+  }>>([]);
+  const [selectedChartPart, setSelectedChartPart] = React.useState<string>("");
+  const [attachedImage, setAttachedImage] = React.useState<string>(""); // Base64 이미지 데이터
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+  const chatEndRef = React.useRef<HTMLDivElement | null>(null);
+
+  // 💾 챗봇 상태 localStorage 복원 및 저장 연동
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedHistory = localStorage.getItem("egdesk_mydb_tuneHistory");
+      const savedPart = localStorage.getItem("egdesk_mydb_selectedChartPart");
+      
+      if (savedHistory) {
+        try {
+          setTuneHistory(JSON.parse(savedHistory));
+        } catch (e) {
+          console.error("⚠️ 챗 로그 복원 실패", e);
+        }
+      }
+      if (savedPart) {
+        setSelectedChartPart(savedPart);
+      }
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("egdesk_mydb_tuneHistory", JSON.stringify(tuneHistory));
+    }
+    // 메시지 추가 시 최하단으로 부드러운 자동 스크롤 추적
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [tuneHistory]);
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("egdesk_mydb_selectedChartPart", selectedChartPart);
+    }
+  }, [selectedChartPart]);
 
   const fetchSharedDashboards = async () => {
     try {
@@ -183,6 +233,146 @@ export default function MyDBManagementPage() {
     }
   };
 
+  const handleTuneChart = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const currentPrompt = tunePrompt.trim();
+    if (!currentPrompt && !attachedImage) return;
+
+    // 현재 분석할 로우 데이터 획득
+    const rows = consoleResult?.rows || tableRows;
+    if (!rows || rows.length === 0) {
+      showToast("튜닝을 수행할 차트 데이터가 존재하지 않습니다.", "warn");
+      return;
+    }
+
+    const attachedImgStr = attachedImage; // 캡처
+    const targetPart = selectedChartPart; // 캡처
+
+    // 입력 상태 초기화
+    setTunePrompt("");
+    setAttachedImage("");
+    setSelectedChartPart("");
+
+    // 1. 사용자의 메시지를 챗 로그에 추가
+    const userMsg = {
+      role: 'user' as const,
+      text: targetPart ? `[집중 수정 지표: ${targetPart}] ${currentPrompt}` : currentPrompt,
+      image: attachedImgStr || undefined,
+      timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+    };
+    setTuneHistory(prev => [...prev, userMsg]);
+
+    setIsVisualizing(true);
+    showToast("⚡ 최고관리자님의 피드백을 반영하여 차트 및 비즈니스 브리핑을 정밀 재조정 중...", "success");
+
+    try {
+      const fromMatch = sqlQuery.match(/FROM\s+["']?([a-zA-Z0-9_-]+)["']?/i);
+      const tableName = fromMatch ? fromMatch[1] : (selectedTable || 'raw_query');
+      
+      const tempSchema = Object.keys(rows[0]).map(key => {
+        const val = rows[0][key];
+        const isNum = typeof val === 'number' || (typeof val === 'string' && !isNaN(Number(val)) && val.trim() !== '');
+        return { name: key, type: isNum ? 'INTEGER' : 'TEXT' };
+      });
+
+      // 지시사항 접두사로 targetPart 칩 지표 정보가 있다면 빌드
+      const fullFeedback = targetPart
+        ? `[집중 수정 지표: ${targetPart}] ${currentPrompt}`
+        : currentPrompt;
+
+      const res = await fetch("/api/db/ai-visualize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rows,
+          schema: tempSchema,
+          tableName,
+          displayName: tables.find(t => t.name === tableName)?.displayName || tableName,
+          userFeedback: fullFeedback,
+          currentSpec: aiChartSpec,
+          attachedImage: attachedImgStr || undefined
+        })
+      });
+
+      const data = await res.json();
+      if (data.recommendedChart) {
+        setAiChartSpec(data.recommendedChart);
+        setAiBriefing(data.briefing);
+
+        // 2. AI 튜닝 답변 메시지를 챗 로그에 추가
+        const aiMsg = {
+          role: 'ai' as const,
+          text: data.briefing || "최고관리자님의 튜닝 요구사항을 차트에 정밀 반영했습니다.",
+          timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+        };
+
+        // 3. 만약 자가 학습 완료 룰이 있다면 추가 스페셜 알림 메시지 주입
+        if (data.newSkillLearned) {
+          const skillMsg = {
+            role: 'system' as const,
+            text: `💡 [자가 진화 스킬 획득] 최고관리자의 분석 취향을 습득하여 AI 핵심 가이드라인에 영구 등록했습니다:\n"${data.newSkillLearned}"`,
+            isNewSkill: true,
+            timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+          };
+          setTuneHistory(prev => [...prev, aiMsg, skillMsg]);
+        } else {
+          setTuneHistory(prev => [...prev, aiMsg]);
+        }
+
+        showToast("✓ 최고관리자님의 피드백이 차트와 브리핑에 칼반영되었습니다!", "success");
+      } else {
+        const errMsg = {
+          role: 'system' as const,
+          text: `❌ 튜닝 반영 실패: ${data.error || '알 수 없는 오류'}`,
+          timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+        };
+        setTuneHistory(prev => [...prev, errMsg]);
+        showToast(data.error || "피드백 조정에 실패했습니다.", "error");
+      }
+    } catch (err: any) {
+      const errMsg = {
+        role: 'system' as const,
+        text: `❌ 통신 장애: ${err.message}`,
+        timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+      };
+      setTuneHistory(prev => [...prev, errMsg]);
+      showToast(`통신 장애: ${err.message}`, "error");
+    } finally {
+      setIsVisualizing(false);
+    }
+  };
+
+  // 💡 챗봇 보조 헬퍼 함수 (이미지 첨부 및 초기화)
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // 5MB 이하 파일 검증
+      if (file.size > 5 * 1024 * 1024) {
+        showToast("파일 크기는 최대 5MB를 초과할 수 없습니다.", "warn");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAttachedImage(reader.result as string);
+        showToast("✓ 이미지가 성공적으로 임시 첨부되었습니다.", "success");
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleResetChat = () => {
+    if (confirm("최고관리자님, AI 챗봇과의 대화 이력을 모두 초기화하시겠습니까?")) {
+      setTuneHistory([]);
+      setSelectedChartPart("");
+      setAttachedImage("");
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("egdesk_mydb_tuneHistory");
+        localStorage.removeItem("egdesk_mydb_selectedChartPart");
+      }
+      showToast("대화 이력이 완전히 초기화되었습니다.", "success");
+    }
+  };
+
   // 로딩 및 알림
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const [toast, setToast] = React.useState<{ message: string; type: 'success' | 'error' | 'warn' } | null>(null);
@@ -207,7 +397,8 @@ export default function MyDBManagementPage() {
       const data = await res.json();
       if (data.success) {
         setTables(data.tables || []);
-        if (data.tables && data.tables.length > 0 && !selectedTable) {
+        const savedTable = typeof window !== "undefined" ? localStorage.getItem("egdesk_mydb_selectedTable") : null;
+        if (data.tables && data.tables.length > 0 && !selectedTable && !savedTable) {
           setSelectedTable(data.tables[0].name);
         }
       } else {
@@ -266,16 +457,165 @@ export default function MyDBManagementPage() {
     fetchSharedDashboards();
   }, []);
 
+  // 🔄 로컬스토리지로부터 이전 작업중이던 내용 상태 복원
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedTable = localStorage.getItem("egdesk_mydb_selectedTable");
+      const savedTab = localStorage.getItem("egdesk_mydb_activeTab");
+      const savedSqlQuery = localStorage.getItem("egdesk_mydb_sqlQuery");
+      const savedConsoleTab = localStorage.getItem("egdesk_mydb_consoleTab");
+      const savedAiPrompt = localStorage.getItem("egdesk_mydb_aiPrompt");
+      const savedSafety = localStorage.getItem("egdesk_mydb_safetyUnlocked");
+      const savedSearchKey = localStorage.getItem("egdesk_mydb_searchKey");
+      const savedSearchVal = localStorage.getItem("egdesk_mydb_searchValue");
+
+      const savedConsoleResult = localStorage.getItem("egdesk_mydb_consoleResult");
+      const savedAiChartSpec = localStorage.getItem("egdesk_mydb_aiChartSpec");
+      const savedAiBriefing = localStorage.getItem("egdesk_mydb_aiBriefing");
+      const savedAiGeneratedSql = localStorage.getItem("egdesk_mydb_aiGeneratedSql");
+
+      if (savedTable) setSelectedTable(savedTable);
+      if (savedTab) setActiveTab(savedTab as any);
+      if (savedSqlQuery) setSqlQuery(savedSqlQuery);
+      if (savedConsoleTab) setConsoleTab(savedConsoleTab as any);
+      if (savedAiPrompt) setAiPrompt(savedAiPrompt);
+      if (savedSafety) setSafetyUnlocked(savedSafety === "true");
+      if (savedSearchKey) setSearchKey(savedSearchKey);
+      if (savedSearchVal) setSearchValue(savedSearchVal);
+
+      if (savedConsoleResult) {
+        try {
+          setConsoleResult(JSON.parse(savedConsoleResult));
+        } catch (e) {
+          console.error("consoleResult 복원 실패:", e);
+        }
+      }
+      if (savedAiChartSpec) {
+        try {
+          setAiChartSpec(JSON.parse(savedAiChartSpec));
+        } catch (e) {
+          console.error("aiChartSpec 복원 실패:", e);
+        }
+      }
+      if (savedAiBriefing) setAiBriefing(savedAiBriefing);
+      if (savedAiGeneratedSql) setAiGeneratedSql(savedAiGeneratedSql);
+      
+      setIsRestored(true);
+    }
+  }, []);
+
+  // 💾 상태 실시간 로컬스토리지 보존 (복원이 완료된 시점 이후부터 동작)
+  React.useEffect(() => {
+    if (!isRestored) return;
+    if (typeof window !== "undefined") {
+      localStorage.setItem("egdesk_mydb_selectedTable", selectedTable);
+    }
+  }, [selectedTable, isRestored]);
+
+  React.useEffect(() => {
+    if (!isRestored) return;
+    if (typeof window !== "undefined") {
+      localStorage.setItem("egdesk_mydb_activeTab", activeTab);
+    }
+  }, [activeTab, isRestored]);
+
+  React.useEffect(() => {
+    if (!isRestored) return;
+    if (typeof window !== "undefined") {
+      localStorage.setItem("egdesk_mydb_sqlQuery", sqlQuery);
+    }
+  }, [sqlQuery, isRestored]);
+
+  React.useEffect(() => {
+    if (!isRestored) return;
+    if (typeof window !== "undefined") {
+      localStorage.setItem("egdesk_mydb_consoleTab", consoleTab);
+    }
+  }, [consoleTab, isRestored]);
+
+  React.useEffect(() => {
+    if (!isRestored) return;
+    if (typeof window !== "undefined") {
+      localStorage.setItem("egdesk_mydb_aiPrompt", aiPrompt);
+    }
+  }, [aiPrompt, isRestored]);
+
+  React.useEffect(() => {
+    if (!isRestored) return;
+    if (typeof window !== "undefined") {
+      localStorage.setItem("egdesk_mydb_safetyUnlocked", String(safetyUnlocked));
+    }
+  }, [safetyUnlocked, isRestored]);
+
+  React.useEffect(() => {
+    if (!isRestored) return;
+    if (typeof window !== "undefined") {
+      localStorage.setItem("egdesk_mydb_searchKey", searchKey);
+      localStorage.setItem("egdesk_mydb_searchValue", searchValue);
+    }
+  }, [searchKey, searchValue, isRestored]);
+
+  React.useEffect(() => {
+    if (!isRestored) return;
+    if (typeof window !== "undefined") {
+      if (consoleResult) {
+        localStorage.setItem("egdesk_mydb_consoleResult", JSON.stringify(consoleResult));
+      } else {
+        localStorage.removeItem("egdesk_mydb_consoleResult");
+      }
+    }
+  }, [consoleResult, isRestored]);
+
+  React.useEffect(() => {
+    if (!isRestored) return;
+    if (typeof window !== "undefined") {
+      if (aiChartSpec) {
+        localStorage.setItem("egdesk_mydb_aiChartSpec", JSON.stringify(aiChartSpec));
+      } else {
+        localStorage.removeItem("egdesk_mydb_aiChartSpec");
+      }
+    }
+  }, [aiChartSpec, isRestored]);
+
+  React.useEffect(() => {
+    if (!isRestored) return;
+    if (typeof window !== "undefined") {
+      if (aiBriefing) {
+        localStorage.setItem("egdesk_mydb_aiBriefing", aiBriefing);
+      } else {
+        localStorage.removeItem("egdesk_mydb_aiBriefing");
+      }
+    }
+  }, [aiBriefing, isRestored]);
+
+  React.useEffect(() => {
+    if (!isRestored) return;
+    if (typeof window !== "undefined") {
+      if (aiGeneratedSql) {
+        localStorage.setItem("egdesk_mydb_aiGeneratedSql", aiGeneratedSql);
+      } else {
+        localStorage.removeItem("egdesk_mydb_aiGeneratedSql");
+      }
+    }
+  }, [aiGeneratedSql, isRestored]);
+
   React.useEffect(() => {
     if (selectedTable) {
       setCurrentPage(1);
-      setSearchKey("");
-      setSearchValue("");
+      // 최초 복원 중이 아닐 때(즉 이미 복원이 완전히 끝난 후 테이블을 변경할 때)만 검색 필터를 초기화합니다.
+      if (isRestored) {
+        setSearchKey("");
+        setSearchValue("");
+      }
       setShowDeleted(false);
+      
+      const savedSearchKey = isRestored ? "" : (localStorage.getItem("egdesk_mydb_searchKey") || "");
+      const savedSearchVal = isRestored ? "" : (localStorage.getItem("egdesk_mydb_searchValue") || "");
+      
       fetchTableSchema(selectedTable);
-      fetchTableRows(selectedTable, 1, "", "", false);
+      fetchTableRows(selectedTable, 1, savedSearchKey, savedSearchVal, false);
     }
-  }, [selectedTable]);
+  }, [selectedTable, isRestored]);
 
   React.useEffect(() => {
     if (selectedTable) {
@@ -1349,7 +1689,14 @@ export default function MyDBManagementPage() {
                       </div>
                       <div className="bg-slate-50/50 p-4 border border-slate-100 rounded-2xl overflow-hidden">
                         {aiChartSpec ? (
-                          <DBChartRenderer spec={aiChartSpec} rows={consoleResult.rows} />
+                          <DBChartRenderer 
+                            spec={aiChartSpec} 
+                            rows={consoleResult.rows} 
+                            onSelectPart={(partName) => {
+                              setSelectedChartPart(partName);
+                              showToast(`🎯 수정 대상 지표로 "${partName}"이(가) 지정되었습니다.`, "success");
+                            }}
+                          />
                         ) : (
                           <div className="p-10 text-center text-slate-400 flex flex-col items-center justify-center space-y-2">
                             <Activity className="w-8 h-8 text-slate-350" />
@@ -1381,6 +1728,198 @@ export default function MyDBManagementPage() {
                           <p className="text-xs font-bold">비즈니스 브리핑 리포트를 불러오지 못했습니다.</p>
                         </div>
                       )}
+                    </div>
+
+                    {/* 💡 AI 챗봇 튜닝 대화형 메신저 UI 세션 */}
+                    <div className="mt-6 border-t border-slate-100 pt-5 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-xs font-black text-slate-700">
+                          <Sparkles className="w-4.5 h-4.5 text-indigo-650 animate-pulse" />
+                          <span>AI 지능형 피드백 챗봇 대화</span>
+                          <span className="text-[9px] bg-indigo-50 border border-indigo-150 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold ml-1 animate-pulse">gemini-3.5-flash</span>
+                        </div>
+                        {tuneHistory.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleResetChat}
+                            className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-rose-500 bg-transparent border-none cursor-pointer outline-none transition-all active:scale-95"
+                            title="대화 이력 초기화"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            이력 초기화
+                          </button>
+                        )}
+                      </div>
+
+                      {/* 대화 메시지 로그 프레임 */}
+                      <div className="h-64 overflow-y-auto p-4 bg-slate-50/50 border border-slate-100 rounded-2xl space-y-4">
+                        {tuneHistory.length === 0 ? (
+                          <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 space-y-2.5">
+                            <div className="w-9 h-9 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center animate-bounce">
+                              <Sparkles className="w-4.5 h-4.5 text-indigo-505" />
+                            </div>
+                            <div className="space-y-1">
+                              <p className="text-xs font-black text-slate-500">지능형 튜닝 챗봇 대화가 활성화되었습니다.</p>
+                              <p className="text-[9px] text-slate-450 leading-relaxed">
+                                차트의 범례나 X축 레이블을 클릭하면 [집중 수정 지표] 칩이 자동 연동되어<br />
+                                AI에게 정밀 타겟팅된 수정 피드백을 전달할 수 있습니다.
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-4 font-sans">
+                            {tuneHistory.map((msg, index) => {
+                              if (msg.role === 'user') {
+                                return (
+                                  <div key={index} className="flex justify-end items-end gap-2 animate-fade-in">
+                                    <span className="text-[8px] text-slate-400 font-medium mb-1">{msg.timestamp}</span>
+                                    <div className="flex flex-col items-end max-w-[80%]">
+                                      {msg.image && (
+                                        <img src={msg.image} className="w-32 h-auto rounded-lg mb-1.5 border border-slate-200 shadow-3xs" alt="첨부 이미지" />
+                                      )}
+                                      <div className="bg-gradient-to-r from-blue-600 to-indigo-650 text-white text-xs px-4 py-2.5 rounded-2xl rounded-tr-none shadow-3xs whitespace-pre-wrap leading-relaxed font-semibold">
+                                        {msg.text}
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              } else if (msg.role === 'ai') {
+                                return (
+                                  <div key={index} className="flex justify-start items-end gap-2 animate-fade-in">
+                                    <div className="w-7 h-7 rounded-full bg-indigo-50 border border-indigo-150 flex items-center justify-center shrink-0 shadow-3xs">
+                                      <Sparkles className="w-3.5 h-3.5 text-indigo-550" />
+                                    </div>
+                                    <div className="flex flex-col items-start max-w-[80%]">
+                                      <div className="bg-white border border-slate-150 text-slate-800 text-xs px-4 py-2.5 rounded-2xl rounded-tl-none shadow-3xs whitespace-pre-wrap leading-relaxed">
+                                        {msg.text}
+                                      </div>
+                                    </div>
+                                    <span className="text-[8px] text-slate-400 font-medium mb-1">{msg.timestamp}</span>
+                                  </div>
+                                );
+                              } else {
+                                // System 메시지
+                                if (msg.isNewSkill) {
+                                  // 골드 그라데이션 자가 스킬 학습 알림
+                                  return (
+                                    <div key={index} className="flex justify-center my-1.5 max-w-[95%] mx-auto animate-pulse">
+                                      <div className="w-full bg-amber-50/90 border border-amber-300 rounded-2xl p-3.5 shadow-sm flex items-start gap-2.5">
+                                        <div className="w-6.5 h-6.5 rounded-full bg-amber-100 flex items-center justify-center shrink-0 shadow-3xs">
+                                          <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                                        </div>
+                                        <div className="flex-1 space-y-1">
+                                          <span className="text-[10px] font-black text-amber-800 tracking-wider">💡 최고관리자 개인화 스킬 스스로 획득</span>
+                                          <p className="text-xs font-bold text-slate-700 leading-relaxed whitespace-pre-line">{msg.text}</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                                // 일반 알림
+                                return (
+                                  <div key={index} className="flex justify-center my-1 animate-fade-in">
+                                    <div className="bg-slate-100 border border-slate-200 text-slate-500 text-[10px] px-3 py-1 rounded-full font-bold">
+                                      {msg.text}
+                                    </div>
+                                  </div>
+                                );
+                              }
+                            })}
+                            <div ref={chatEndRef} />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 이미지 프리뷰 & 집중 수정 지표 칩 패널 */}
+                      {(selectedChartPart || attachedImage) && (
+                        <div className="flex flex-wrap items-center gap-2 p-2 bg-slate-50 border border-slate-100 rounded-xl animate-fade-in">
+                          {selectedChartPart && (
+                            <div className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-150 text-indigo-755 text-[10px] font-extrabold px-2.5 py-1 rounded-lg">
+                              <span>🎯 집중 수정 지표: {selectedChartPart}</span>
+                              <button 
+                                type="button" 
+                                onClick={() => setSelectedChartPart("")}
+                                className="text-indigo-400 hover:text-indigo-600 font-black cursor-pointer bg-transparent border-none p-0 outline-none text-xs ml-1"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          )}
+                          {attachedImage && (
+                            <div className="relative flex items-center gap-2 border border-slate-250 bg-white p-1 rounded-lg shrink-0">
+                              <img src={attachedImage} className="w-10 h-10 object-cover rounded-md" alt="프리뷰" />
+                              <button 
+                                type="button" 
+                                onClick={() => setAttachedImage("")}
+                                className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-rose-500 hover:bg-rose-600 text-white text-[9px] font-black flex items-center justify-center cursor-pointer shadow-3xs border-none"
+                                title="이미지 삭제"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* 숨김형 파일 업로더 */}
+                      <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        className="hidden" 
+                        accept="image/*" 
+                        onChange={handleImageUpload} 
+                      />
+
+                      {/* 대화 입력 바 */}
+                      <div className="flex items-end gap-2 bg-slate-50 border border-slate-200 rounded-2xl p-2 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-405 transition-all">
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isVisualizing}
+                          className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 rounded-xl transition-all cursor-pointer border-none bg-transparent active:scale-95 flex items-center justify-center shrink-0"
+                          title="이미지 분석 첨부 (Vision)"
+                        >
+                          <Paperclip className="w-4 h-4" />
+                        </button>
+                        
+                        <textarea
+                          value={tunePrompt}
+                          onChange={(e) => setTunePrompt(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              if (e.ctrlKey) {
+                                e.preventDefault();
+                                handleTuneChart();
+                              } else if (!e.shiftKey) {
+                                e.preventDefault();
+                                handleTuneChart();
+                              }
+                            }
+                          }}
+                          placeholder={isVisualizing ? "AI 분석 튜닝이 진행 중입니다..." : "AI에게 피드백을 전달해 보세요... (Ctrl+Enter: 전송, Shift+Enter: 줄바꿈)"}
+                          disabled={isVisualizing}
+                          rows={Math.min(tunePrompt.split('\n').length || 1, 5)}
+                          className="flex-1 max-h-32 text-xs bg-transparent border-none outline-none py-1.5 resize-none text-slate-800 placeholder-slate-450 leading-relaxed font-semibold font-sans focus:ring-0 focus:outline-none"
+                        />
+                        
+                        <button
+                          type="button"
+                          onClick={() => handleTuneChart()}
+                          disabled={isVisualizing || (!tunePrompt.trim() && !attachedImage)}
+                          className={`p-2.5 rounded-xl transition-all duration-200 shrink-0 border-none flex items-center justify-center ${
+                            (!tunePrompt.trim() && !attachedImage) || isVisualizing
+                              ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-80'
+                              : 'bg-indigo-650 hover:bg-indigo-600 text-white cursor-pointer active:scale-95 shadow-3xs'
+                          }`}
+                          title="피드백 전송"
+                        >
+                          {isVisualizing ? (
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Send className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1463,82 +2002,6 @@ export default function MyDBManagementPage() {
           </div>
         </div>
       )}
-
-      {/* 🌐 공개 게시된 공유 대시보드 관리국 */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 overflow-hidden">
-        <h2 className="font-extrabold text-slate-800 text-base pb-3.5 border-b border-slate-100 flex items-center gap-2 mb-4 shrink-0">
-          <Database className="w-4.5 h-4.5 text-indigo-500" />
-          🌐 공개 웹 게시판 공유 대시보드 관리국 ({sharedDashboards.length})
-        </h2>
-
-        <div className="overflow-x-auto w-full border border-slate-100 rounded-xl">
-          {sharedDashboards.length === 0 ? (
-            <div className="p-16 text-center text-xs text-slate-400 font-semibold leading-relaxed">
-              현재 외부에 웹 공유 게시된 대시보드가 없습니다.<br />
-              <span className="text-[10px] text-slate-400 font-normal">AI 시각화/브리핑 성공 화면에서 즉석에서 🌐 웹에 게시 및 자동 갱신 링크를 발급받으실 수 있습니다.</span>
-            </div>
-          ) : (
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-slate-50 border-b border-slate-100 text-xs">
-                <tr>
-                  <th className="p-4 font-bold text-slate-700">공개 대시보드 제목</th>
-                  <th className="p-4 font-bold text-slate-700">원본 SQL 쿼리</th>
-                  <th className="p-4 font-bold text-slate-700">갱신 주기</th>
-                  <th className="p-4 font-bold text-slate-700">최종 갱신 시각</th>
-                  <th className="p-4 text-center w-36">공유 링크</th>
-                  <th className="p-4 text-center w-24">제어</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sharedDashboards.map((board) => (
-                  <tr key={board.share_id} className="border-b border-slate-50 hover:bg-slate-50/50 text-[11px]">
-                    <td className="p-4 text-slate-800 font-bold max-w-[200px] truncate" title={board.title}>
-                      {board.title}
-                    </td>
-                    <td className="p-4 font-mono text-slate-500 max-w-[250px] truncate" title={board.sql_query}>
-                      {board.sql_query}
-                    </td>
-                    <td className="p-4">
-                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border ${
-                        board.refresh_interval === 'NONE' ? 'bg-slate-100 text-slate-500 border-slate-200' :
-                        board.refresh_interval === 'HOURLY' ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                        board.refresh_interval === 'DAILY' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                        'bg-purple-50 text-purple-700 border-purple-200'
-                      }`}>
-                        {board.refresh_interval === 'NONE' ? '자동갱신 없음' :
-                         board.refresh_interval === 'HOURLY' ? '매시간 자동갱신' :
-                         board.refresh_interval === 'DAILY' ? '매일 자동갱신' :
-                         '매주 자동갱신'}
-                      </span>
-                    </td>
-                    <td className="p-4 font-mono text-slate-450">{board.last_refreshed_at || '-'}</td>
-                    <td className="p-4 text-center">
-                      <button
-                        onClick={() => {
-                          const url = `${window.location.origin}/public/share/${board.share_id}`;
-                          navigator.clipboard.writeText(url);
-                          showToast("공유 링크가 클립보드에 복사되었습니다!", "success");
-                        }}
-                        className="px-2.5 py-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-650 rounded-lg text-[10px] font-bold cursor-pointer transition-colors shadow-3xs"
-                      >
-                        🔗 링크 복사
-                      </button>
-                    </td>
-                    <td className="p-4 text-center">
-                      <button
-                        onClick={() => handleDeleteShare(board.share_id)}
-                        className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-[10px] font-black border border-rose-200 shadow-3xs cursor-pointer transition-all active:scale-95"
-                      >
-                        게시 철회
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      </div>
 
       {/* 🌐 웹에 게시 및 자동 갱신 구성 모달 */}
       {isShareModalOpen && (

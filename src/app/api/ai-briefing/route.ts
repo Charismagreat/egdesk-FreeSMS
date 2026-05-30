@@ -26,12 +26,17 @@ export async function GET(req: Request) {
       dayOfWeek: currentDay
     });
 
+    const generateContent = searchParams.get('generateContent') === 'true';
+
     // 3. 옴니채널 AI 크리에이티브 콘텐츠 생성
-    const contentPack = await generateOmniChannelContent(
-      strategy.strategyTitle,
-      strategy.strategyDescription,
-      insights.popularProducts
-    );
+    let contentPack = null;
+    if (generateContent) {
+      contentPack = await generateOmniChannelContent(
+        strategy.strategyTitle,
+        strategy.strategyDescription,
+        insights.popularProducts
+      );
+    }
 
     // 4. 모바일 알림 브리핑 텍스트 생성 (카카오톡/문자용)
     const mobileBriefingText = `🔔 [이지데스크 AI 아침 브리핑]

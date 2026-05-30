@@ -66,6 +66,8 @@ export default function PriceTrackerAIPage() {
     setItemForm,
     urlForm,
     setUrlForm,
+    alertForm,
+    setAlertForm,
     loading,
     refreshing,
     crawlerTesting,

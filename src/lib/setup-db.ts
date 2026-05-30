@@ -1020,8 +1020,37 @@ export async function setupDatabase() {
     { name: 'refresh_interval', type: 'TEXT', defaultValue: 'NONE' },
     { name: 'last_refreshed_at', type: 'TEXT' },
     { name: 'created_at', type: 'TEXT', notNull: true },
-    { name: 'is_active', type: 'INTEGER', defaultValue: 1 }
+    { name: 'is_active', type: 'INTEGER', defaultValue: 1 },
+    { name: 'sort_order', type: 'INTEGER', defaultValue: 0 },
+    { name: 'is_pinned', type: 'INTEGER', defaultValue: 1 },
+    { name: 'custom_title', type: 'TEXT' }
   ], { tableName: 'shared_dashboards', uniqueKeyColumns: ['share_id'] });
+
+  // 40-1. 기존 shared_dashboards 테이블 물리 ALTER TABLE 보정 마이그레이션 (자율 핫픽스)
+  try {
+    const Database = require('better-sqlite3');
+    const dbPath = 'C:\\Users\\CHARISMA\\AppData\\Roaming\\egdesk\\database\\user_data.db';
+    const db = new Database(dbPath);
+    
+    const colInfo = db.prepare("PRAGMA table_info(shared_dashboards);").all();
+    const colNames = colInfo.map((c: any) => c.name);
+    
+    if (!colNames.includes('sort_order')) {
+      db.exec("ALTER TABLE shared_dashboards ADD COLUMN sort_order INTEGER DEFAULT 0;");
+      console.log('✓ In-app migration: added sort_order to shared_dashboards');
+    }
+    if (!colNames.includes('is_pinned')) {
+      db.exec("ALTER TABLE shared_dashboards ADD COLUMN is_pinned INTEGER DEFAULT 1;");
+      console.log('✓ In-app migration: added is_pinned to shared_dashboards');
+    }
+    if (!colNames.includes('custom_title')) {
+      db.exec("ALTER TABLE shared_dashboards ADD COLUMN custom_title TEXT;");
+      console.log('✓ In-app migration: added custom_title to shared_dashboards');
+    }
+    db.close();
+  } catch (err: any) {
+    console.error('⚠️ In-app migration error:', err.message);
+  }
 
   console.log('Database setup complete.');
 }

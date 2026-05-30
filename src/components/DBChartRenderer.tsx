@@ -11,12 +11,48 @@ interface ChartSpec {
   unit: string;
 }
 
+// 💰 금액 및 비율 포맷터 헬퍼 함수
+function formatChartValue(val: number, unit: string = ''): string {
+  const cleanUnit = (unit || '').trim();
+  
+  // 1. 비율(%) 표시일 경우 (소수점 2자리까지 표시를 기본)
+  if (cleanUnit === '%') {
+    return `${val.toFixed(2)}%`;
+  }
+  
+  // 2. 원화일 경우 (단위가 '원'인 경우)
+  if (cleanUnit === '원') {
+    // 통화표시(원) 하지 않고 소수점 없이 천단위 콤마만 표시
+    return new Intl.NumberFormat('ko-KR', { maximumFractionDigits: 0 }).format(val);
+  }
+  
+  // 3. 외화일 경우 (단위가 있고 '원'이나 '%'가 아닌 경우)
+  if (cleanUnit !== '') {
+    const formattedNum = new Intl.NumberFormat('en-US', { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    }).format(val);
+    
+    // 통화 기호가 $, €, ¥, £ 등인 경우 앞에 붙이고 나머지는 뒤에 붙임
+    const isSymbol = ['$', '€', '¥', '£', '₩'].includes(cleanUnit);
+    if (isSymbol) {
+      return `${cleanUnit}${formattedNum}`;
+    } else {
+      return `${formattedNum} ${cleanUnit}`;
+    }
+  }
+  
+  // 4. 단위가 없는 경우: 기본 천단위 콤마 포맷팅
+  return new Intl.NumberFormat('ko-KR').format(val);
+}
+
 interface DBChartRendererProps {
   spec: ChartSpec;
   rows: any[];
+  onSelectPart?: (partName: string) => void;
 }
 
-export default function DBChartRenderer({ spec, rows }: DBChartRendererProps) {
+export default function DBChartRenderer({ spec, rows, onSelectPart }: DBChartRendererProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
@@ -57,21 +93,15 @@ export default function DBChartRenderer({ spec, rows }: DBChartRendererProps) {
   if (spec.type === 'metric' || slicedData.length === 1) {
     const singleVal = slicedData[0]?.value || 0;
     const singleLabel = slicedData[0]?.label || spec.title;
-    
-    // 금액 포맷터
-    const formattedVal = spec.unit === '원' 
-      ? new Intl.NumberFormat('ko-KR').format(singleVal) 
-      : singleVal;
 
     return (
-      <div className="flex flex-col items-center justify-center p-8 bg-white border border-slate-100 rounded-2xl shadow-sm text-center">
+      <div className="flex flex-col items-center justify-center p-6 bg-slate-50/50 rounded-2xl text-center">
         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
           <TrendingUp className="w-3.5 h-3.5 text-blue-500" />
           {spec.title}
         </span>
-        <div className="text-3xl font-black text-slate-800 tracking-tight flex items-baseline gap-1">
-          <span>{formattedVal}</span>
-          <span className="text-sm font-bold text-slate-500">{spec.unit || ''}</span>
+        <div className="text-3xl font-black text-slate-800 tracking-tight">
+          {formatChartValue(singleVal, spec.unit)}
         </div>
         <p className="text-[10px] text-slate-400 mt-2 font-medium">대상 항목: {singleLabel}</p>
       </div>
@@ -120,13 +150,13 @@ export default function DBChartRenderer({ spec, rows }: DBChartRendererProps) {
         pathData,
         label: d.label,
         value: d.value,
-        percent: (percentage * 100).toFixed(1),
+        percent: (percentage * 100).toFixed(2), // 비율(%) 소수점 2자리 기본으로 설정
         color: colors[i % colors.length]
       };
     });
 
     return (
-      <div className="flex flex-col md:flex-row items-center justify-center gap-8 p-5 bg-white border border-slate-100 rounded-2xl shadow-sm">
+      <div className="flex flex-col md:flex-row items-center justify-center gap-8 p-0 bg-transparent">
         {/* 원형 SVG 영역 */}
         <div className="relative w-48 h-48 flex-shrink-0">
           <svg viewBox="-1.2 -1.2 2.4 2.4" className="w-full h-full -rotate-90 transform">
@@ -161,7 +191,7 @@ export default function DBChartRenderer({ spec, rows }: DBChartRendererProps) {
               <>
                 <span className="text-[9px] font-black text-slate-400">전체 누적</span>
                 <span className="text-sm font-extrabold text-slate-700">
-                  {spec.unit === '원' ? new Intl.NumberFormat('ko-KR').format(sum) : sum}{spec.unit}
+                  {sum >= 99.5 && sum <= 100.5 && spec.unit === '%' ? '100%' : formatChartValue(sum, spec.unit)}
                 </span>
               </>
             )}
@@ -177,18 +207,20 @@ export default function DBChartRenderer({ spec, rows }: DBChartRendererProps) {
           {pieSlices.map((slice, i) => (
             <div
               key={i}
-              className={`flex items-center justify-between text-xs p-1.5 rounded-lg transition-all ${
-                hoveredIndex === i ? 'bg-slate-50/80 font-bold' : ''
+              onClick={() => onSelectPart && onSelectPart(slice.label)}
+              className={`flex items-center justify-between text-xs p-1.5 rounded-lg transition-all cursor-pointer ${
+                hoveredIndex === i ? 'bg-indigo-50/70 text-indigo-755 font-bold' : 'hover:bg-slate-50'
               }`}
               onMouseEnter={() => setHoveredIndex(i)}
               onMouseLeave={() => setHoveredIndex(null)}
+              title={`${slice.label} 항목을 클릭하여 지능형 수정 타겟으로 지정`}
             >
               <div className="flex items-center gap-2 min-w-0">
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: slice.color }} />
                 <span className="text-slate-600 truncate">{slice.label}</span>
               </div>
               <span className="text-slate-400 text-[10px] shrink-0 font-medium ml-2">
-                {spec.unit === '원' ? new Intl.NumberFormat('ko-KR').format(slice.value) : slice.value}{spec.unit} ({slice.percent}%)
+                {formatChartValue(slice.value, spec.unit)} ({slice.percent}%)
               </span>
             </div>
           ))}
@@ -213,7 +245,7 @@ export default function DBChartRenderer({ spec, rows }: DBChartRendererProps) {
   const itemWidth = count > 0 ? (chartWidth - barGap * (count - 1)) / count : 0;
 
   return (
-    <div className="p-5 bg-white border border-slate-100 rounded-2xl shadow-sm space-y-3 relative">
+    <div className="p-0 bg-transparent space-y-3 relative">
       <h3 className="text-xs font-black text-slate-500 flex items-center gap-1.5">
         {spec.type === 'line' ? (
           <TrendingUp className="w-4 h-4 text-blue-500" />
@@ -229,9 +261,7 @@ export default function DBChartRenderer({ spec, rows }: DBChartRendererProps) {
           {[0, 0.25, 0.5, 0.75, 1].map((ratio, i) => {
             const y = paddingTop + chartHeight * (1 - ratio);
             const gridVal = minValue + (maxValue - minValue) * ratio;
-            const displayVal = spec.unit === '원'
-              ? (gridVal >= 10000 ? (gridVal / 10000).toFixed(0) + '만' : gridVal.toFixed(0))
-              : gridVal.toFixed(0);
+            const displayVal = formatChartValue(gridVal, spec.unit);
 
             return (
               <g key={i} className="opacity-45">
@@ -300,7 +330,7 @@ export default function DBChartRenderer({ spec, rows }: DBChartRendererProps) {
                     fill="#3b82f6"
                     className="text-[10px] font-black"
                   >
-                    {spec.unit === '원' ? new Intl.NumberFormat('ko-KR').format(d.value) : d.value}{spec.unit}
+                    {formatChartValue(d.value, spec.unit)}
                   </text>
                 )}
               </g>
@@ -370,7 +400,7 @@ export default function DBChartRenderer({ spec, rows }: DBChartRendererProps) {
                         fill="#4f46e5"
                         className="text-[10px] font-black"
                       >
-                        {spec.unit === '원' ? new Intl.NumberFormat('ko-KR').format(p.val) : p.val}{spec.unit}
+                        {formatChartValue(p.val, spec.unit)}
                       </text>
                     )}
                   </g>
@@ -388,10 +418,12 @@ export default function DBChartRenderer({ spec, rows }: DBChartRendererProps) {
                 x={x}
                 y={paddingTop + chartHeight + 16}
                 textAnchor="middle"
-                fill={hoveredIndex === i ? '#475569' : '#94a3b8'}
-                className={`text-[9px] font-bold transition-colors ${
+                fill={hoveredIndex === i ? '#4f46e5' : '#94a3b8'}
+                className={`text-[9px] font-bold transition-colors cursor-pointer hover:fill-indigo-600 ${
                   hoveredIndex === i ? 'font-black' : ''
                 }`}
+                onClick={() => onSelectPart && onSelectPart(d.label)}
+                title={`${d.label} 항목을 클릭하여 지능형 수정 타겟으로 지정`}
               >
                 {d.label}
               </text>

@@ -98,11 +98,14 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
     { href: "/instagram", label: "인스타그램 마케팅 AI", icon: InstagramIcon, color: "text-[#ff007f]" },
     { href: "/naver-blog", label: "N-BLOG 포스팅 AI", icon: NaverIcon, color: "text-[#2db400]" },
     { href: "/youtube-shorts", label: "YOUTUBE 쇼츠 AI", icon: YoutubeIcon, color: "text-[#FF0000]" },
+    ...(userRole === "SUPER_ADMIN" ? [
+      { href: "/ai-briefing", label: "AI 브리핑", icon: Sparkles, color: "text-indigo-400" }
+    ] : [])
   ];
 
   return (
     <>
-      <nav className="p-4 space-y-2 flex-1 overflow-y-auto no-scrollbar">
+      <nav className="p-4 space-y-2 flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800/80 scrollbar-track-transparent">
         {menuItems.map((item) => {
           const active = isActive(item.href);
           const Icon = item.icon;
@@ -123,7 +126,7 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
           );
         })}
       </nav>
-      <div className="p-4 border-t border-slate-800 space-y-2">
+      <div className="p-4 border-t border-slate-700/80 bg-slate-900/95 backdrop-blur-md space-y-2 shadow-[0_-12px_24px_-8px_rgba(0,0,0,0.8)] relative z-10">
         {userRole === "SUPER_ADMIN" && (
           <>
             <Link
@@ -137,6 +140,7 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
               <UserCog className={`w-5 h-5 shrink-0 ${isActive("/operators") ? "text-white" : "text-indigo-400"}`} />
               <span>운영자 관리</span>
             </Link>
+
             <Link
               href="/my-db"
               className={`flex items-center space-x-3 p-3 rounded-lg transition-all ${

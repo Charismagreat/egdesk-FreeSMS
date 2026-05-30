@@ -1,6 +1,6 @@
 /**
  * EGDesk User Data Configuration
- * Generated at: 2026-05-30T03:25:00.785Z
+ * Generated at: 2026-05-30T04:46:45.744Z
  *
  * This file contains type-safe definitions for your EGDesk tables.
  */
@@ -24,7 +24,7 @@ export const TABLES = {
   table1: {
     name: 'shared_dashboards',
     displayName: '공유 대시보드 관리',
-    rowCount: 0,
+    rowCount: 2,
     columnCount: 11,
     columns: ['share_id', 'title', 'sql_query', 'table_name', 'display_name', 'chart_spec_json', 'briefing_markdown', 'refresh_interval', 'last_refreshed_at', 'created_at', 'is_active']
   } as TableDefinition,
@@ -122,7 +122,7 @@ export const TABLES = {
   table15: {
     name: 'ai_token_usage_logs',
     displayName: 'AI 토큰 사용량 로그',
-    rowCount: 2,
+    rowCount: 4,
     columnCount: 7,
     columns: ['id', 'model', 'purpose', 'prompt_tokens', 'completion_tokens', 'total_tokens', 'created_at']
   } as TableDefinition,
