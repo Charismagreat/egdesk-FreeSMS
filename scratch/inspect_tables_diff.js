@@ -3,13 +3,13 @@ const dbPath = 'C:\\Users\\CHARISMA\\AppData\\Roaming\\egdesk\\database\\user_da
 const db = new Database(dbPath);
 
 try {
-  console.log('=== [Forensic] Querying user_tables ===');
-  const userTables = db.prepare('SELECT * FROM user_tables;').all();
-  console.log(JSON.stringify(userTables));
+  console.log('=== [Forensic] user_tables DDL ===');
+  const ddl = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='user_tables';").get();
+  console.log(ddl.sql);
 
-  console.log('\n=== [Forensic] Querying user_columns for expense_projects ===');
-  const userColumns = db.prepare('SELECT * FROM user_columns WHERE table_name = "expense_projects";').all();
-  console.log(JSON.stringify(userColumns));
+  console.log('\n=== [Forensic] SELECT * FROM user_tables ===');
+  const rows = db.prepare('SELECT * FROM user_tables;').all();
+  console.log(JSON.stringify(rows));
 } catch (e) {
   console.error('Forensic failed:', e.message);
 }
