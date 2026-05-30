@@ -159,43 +159,101 @@ export default function DBChartRenderer({ spec, rows, onSelectPart }: DBChartRen
       <div className="flex flex-col md:flex-row items-center justify-center gap-8 p-0 bg-transparent">
         {/* 원형 SVG 영역 */}
         <div className="relative w-48 h-48 flex-shrink-0">
-          <svg viewBox="-1.2 -1.2 2.4 2.4" className="w-full h-full -rotate-90 transform">
-            {pieSlices.map((slice, i) => (
-              <path
-                key={i}
-                d={slice.pathData}
-                fill={slice.color}
-                opacity={hoveredIndex === null || hoveredIndex === i ? 1 : 0.4}
-                className="transition-all duration-300 hover:scale-105 cursor-pointer origin-center"
-                onMouseEnter={(e) => {
-                  setHoveredIndex(i);
-                }}
-                onMouseLeave={() => setHoveredIndex(null)}
-              />
-            ))}
-            {/* 내부를 하얗게 파서 도넛 차트로 형상화 */}
-            <circle cx="0" cy="0" r="0.65" fill="#ffffff" />
+          <svg 
+            viewBox="-1.2 -1.2 2.4 2.4" 
+            width="192" 
+            height="192" 
+            className="w-full h-full"
+          >
+            {/* 도넛 차트 조각들 및 내부 배경 원을 그룹으로 감싸 SVG 내에서 물리적으로 회전 시킵니다 */}
+            <g transform="rotate(-90)">
+              {pieSlices.map((slice, i) => (
+                <path
+                  key={i}
+                  d={slice.pathData}
+                  fill={slice.color}
+                  opacity={hoveredIndex === null || hoveredIndex === i ? 1 : 0.4}
+                  className="transition-all duration-300 hover:scale-105 cursor-pointer origin-center"
+                  onMouseEnter={(e) => {
+                    setHoveredIndex(i);
+                  }}
+                  onMouseLeave={() => setHoveredIndex(null)}
+                />
+              ))}
+              {/* 내부를 하얗게 파서 도넛 차트로 형상화 */}
+              <circle cx="0" cy="0" r="0.65" fill="#ffffff" />
+            </g>
+
+            {/* 중앙 중심부 텍스트: 회전되지 않고 항상 똑바로 유지되어야 하므로 회전 그룹 바깥에 배치합니다 */}
+            {/* XMLSerializer로 캡처할 때 외부 CSS가 무시되므로, 폰트 크기 및 정렬 기준을 명시적 인라인 스타일로 세팅합니다 */}
+            <g className="pointer-events-none select-none">
+              {hoveredIndex !== null ? (
+                <>
+                  <text
+                    x="0"
+                    y="-0.12"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fill="#94a3b8"
+                    style={{
+                      fontSize: '0.14px',
+                      fontWeight: 900,
+                      fontFamily: 'Inter, system-ui, -apple-system, sans-serif'
+                    }}
+                  >
+                    {pieSlices[hoveredIndex].label.length > 7 
+                      ? pieSlices[hoveredIndex].label.substring(0, 6) + '..'
+                      : pieSlices[hoveredIndex].label}
+                  </text>
+                  <text
+                    x="0"
+                    y="0.16"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fill="#1e293b"
+                    style={{
+                      fontSize: '0.24px',
+                      fontWeight: 900,
+                      fontFamily: 'Inter, system-ui, -apple-system, sans-serif'
+                    }}
+                  >
+                    {pieSlices[hoveredIndex].percent}%
+                  </text>
+                </>
+              ) : (
+                <>
+                  <text
+                    x="0"
+                    y="-0.12"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fill="#94a3b8"
+                    style={{
+                      fontSize: '0.13px',
+                      fontWeight: 900,
+                      fontFamily: 'Inter, system-ui, -apple-system, sans-serif'
+                    }}
+                  >
+                    전체 누적
+                  </text>
+                  <text
+                    x="0"
+                    y="0.16"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fill="#334155"
+                    style={{
+                      fontSize: '0.22px',
+                      fontWeight: 900,
+                      fontFamily: 'Inter, system-ui, -apple-system, sans-serif'
+                    }}
+                  >
+                    {sum >= 99.5 && sum <= 100.5 && spec.unit === '%' ? '100%' : formatChartValue(sum, spec.unit)}
+                  </text>
+                </>
+              )}
+            </g>
           </svg>
-          {/* 중앙 중심부 텍스트 */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-            {hoveredIndex !== null ? (
-              <>
-                <span className="text-[10px] font-black text-slate-400 truncate max-w-[100px]">
-                  {pieSlices[hoveredIndex].label}
-                </span>
-                <span className="text-base font-extrabold text-slate-800">
-                  {pieSlices[hoveredIndex].percent}%
-                </span>
-              </>
-            ) : (
-              <>
-                <span className="text-[9px] font-black text-slate-400">전체 누적</span>
-                <span className="text-sm font-extrabold text-slate-700">
-                  {sum >= 99.5 && sum <= 100.5 && spec.unit === '%' ? '100%' : formatChartValue(sum, spec.unit)}
-                </span>
-              </>
-            )}
-          </div>
         </div>
 
         {/* 범례 리스트 */}
