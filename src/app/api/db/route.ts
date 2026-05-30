@@ -14,15 +14,19 @@ async function verifySuperAdmin() {
     const cookieStore = await cookies();
     const token = cookieStore.get('auth_token')?.value;
     
+    console.log("🔍 [DB API Debug] Raw token from cookie exist:", !!token);
+    
     if (!token) return false;
     
     const payload = decodeJwt(token);
     const role = (payload.role as string || '').toUpperCase();
     
+    console.log(`🔍 [DB API Debug] Token parsed role: ${role}`);
+    
     // 최고관리자(SUPER_ADMIN) 권한이 확인된 경우에만 통과
     return role === 'SUPER_ADMIN';
-  } catch (e) {
-    console.error("verifySuperAdmin failed in DB route:", e);
+  } catch (e: any) {
+    console.error("❌ [DB API Debug] verifySuperAdmin failed:", e.message);
     return false;
   }
 }
@@ -32,6 +36,7 @@ export async function GET(request: Request) {
   try {
     const isAuthorized = await verifySuperAdmin();
     if (!isAuthorized) {
+      console.warn("❌ [DB API Debug] Access denied: Not a SUPER_ADMIN");
       return NextResponse.json({ success: false, error: '권한이 없습니다. 최고관리자 전용 기능입니다.' }, { status: 403 });
     }
 
@@ -41,7 +46,12 @@ export async function GET(request: Request) {
 
     // 1. 모든 물리 테이블 목록 조회
     if (action === 'list') {
+      console.log("🔍 [DB API Debug] List tables action started");
+      const targetApiUrl = process.env.NEXT_PUBLIC_EGDESK_API_URL || 'default';
+      console.log(`🔍 [DB API Debug] Using NEXT_PUBLIC_EGDESK_API_URL: ${targetApiUrl}`);
+
       const tablesList = await listTables();
+      console.log(`🔍 [DB API Debug] listTables() return:`, Array.isArray(tablesList) ? `Array (${tablesList.length} items)` : typeof tablesList);
       
       // 각 테이블의 실시간 데이터 행(Row) 개수 조회를 동적으로 수행
       const list = Array.isArray(tablesList) ? tablesList : [];
@@ -59,7 +69,8 @@ export async function GET(request: Request) {
             displayName: t.displayName || name,
             count
           });
-        } catch (err) {
+        } catch (err: any) {
+          console.error(`❌ [DB API Debug] executeSQL failed for table ${name}:`, err.message);
           tablesWithCount.push({
             name,
             displayName: t.displayName || name,
@@ -68,6 +79,7 @@ export async function GET(request: Request) {
         }
       }
 
+      console.log(`🔍 [DB API Debug] Responding successfully with ${tablesWithCount.length} tables`);
       return NextResponse.json({ success: true, tables: tablesWithCount });
     }
 
