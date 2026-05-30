@@ -2036,17 +2036,21 @@ export default function MyDBManagementPage() {
                           <span className="text-[9px] bg-indigo-50 border border-indigo-150 text-indigo-600 px-1.5 py-0.5 rounded-full font-bold ml-1 animate-pulse">gemini-3.5-flash</span>
                         </div>
                         <div className="flex items-center gap-2.5">
-                          {initialSnapshot && (
-                            <button
-                              type="button"
-                              onClick={handleResetToOriginal}
-                              className="flex items-center gap-1 text-[10px] font-bold text-amber-600 hover:text-amber-700 bg-transparent border-none cursor-pointer outline-none transition-all active:scale-95 animate-pulse"
-                              title="AI가 최초 추천했던 원본 차트 및 브리핑 상태로 완전히 돌아가기 (대화 초기화 동반)"
-                            >
-                              <RotateCcw className="w-3.5 h-3.5" />
-                              처음으로 돌아가기
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            onClick={handleResetToOriginal}
+                            disabled={!initialSnapshot}
+                            className={`flex items-center gap-1 text-[10px] bg-transparent border-none outline-none transition-all select-none ${
+                              initialSnapshot 
+                                ? 'font-bold text-amber-600 hover:text-amber-700 cursor-pointer active:scale-95 animate-pulse' 
+                                : 'font-medium text-slate-350 cursor-not-allowed opacity-50'
+                            }`}
+                            title={initialSnapshot ? "AI가 최초 추천했던 원본 차트 및 브리핑 상태로 완전히 돌아가기 (대화 초기화 동반)" : "되돌아갈 최초 차트 정보가 존재하지 않습니다."}
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            처음으로 돌아가기
+                          </button>
+                          
                           <button
                             type="button"
                             onClick={handleUndoTuning}
@@ -2061,17 +2065,21 @@ export default function MyDBManagementPage() {
                             <Undo className="w-3.5 h-3.5" />
                             이전으로 되돌리기
                           </button>
-                          {tuneHistory.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={handleResetChat}
-                              className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-rose-500 bg-transparent border-none cursor-pointer outline-none transition-all active:scale-95"
-                              title="대화 내용 및 차트 상태를 최초 추천 상태로 리셋"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                              대화 초기화
-                            </button>
-                          )}
+                          
+                          <button
+                            type="button"
+                            onClick={handleResetChat}
+                            disabled={tuneHistory.length === 0}
+                            className={`flex items-center gap-1 text-[10px] bg-transparent border-none outline-none transition-all select-none ${
+                              tuneHistory.length > 0 
+                                ? 'font-bold text-slate-400 hover:text-rose-500 cursor-pointer active:scale-95' 
+                                : 'font-medium text-slate-350 cursor-not-allowed opacity-50'
+                            }`}
+                            title={tuneHistory.length > 0 ? "대화 내용 및 차트 상태를 최초 추천 상태로 리셋" : "초기화할 대화 내용이 존재하지 않습니다."}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            대화 초기화
+                          </button>
                         </div>
                       </div>
 
