@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
-import { queryTable } from '../../../../../../egdesk-helpers';
+import { queryTable } from '../../../../../../../egdesk-helpers';
 
 /**
  * 최고관리자(SUPER_ADMIN) 권한 검증 공통 헬퍼
