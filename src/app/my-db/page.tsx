@@ -826,7 +826,7 @@ export default function MyDBManagementPage() {
     }
   };
 
-  // 👥 임직원 친화형 공유 테이블 뷰 등록 API 호출 핸들러
+  // 👥 데이터 공유 뷰 등록 API 호출 핸들러
   const handleCreateFriendlyShare = async () => {
     if (!selectedTable || !friendlyShareTableName) {
       showToast("테이블 명칭이 올바르지 않습니다.", "error");
@@ -857,7 +857,7 @@ export default function MyDBManagementPage() {
         setGeneratedFriendlyShareUrl(shareUrl);
         showToast("공유 뷰가 성공적으로 발행되었습니다!", "success");
       } else {
-        showToast(data.error || "공유 뷰 개설에 실패했습니다.", "error");
+        showToast(data.error || "공유 뷰 생성에 실패했습니다.", "error");
       }
     } catch (err) {
       console.error(err);
@@ -2477,16 +2477,16 @@ export default function MyDBManagementPage() {
                       </div>
                     </div>
 
-                    {/* 👥 임직원 공유 뷰 개설 버튼 및 🗑️ 소프트 삭제 컬럼 존재 시 휴지통 토글 마운트 */}
+                    {/* 👥 데이터 공유 뷰 생성 버튼 및 🗑️ 소프트 삭제 컬럼 존재 시 휴지통 토글 마운트 */}
                     <div className="flex items-center gap-2 shrink-0">
                       <button
                         type="button"
                         onClick={handleOpenFriendlyShareModal}
                         className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-indigo-50 to-indigo-100/50 hover:from-indigo-100 hover:to-indigo-150 border border-indigo-200/80 text-indigo-650 rounded-xl text-xs font-black shadow-3xs cursor-pointer transition-all active:scale-95"
-                        title="임직원용 커스텀 한글 공유 테이블 뷰 개설"
+                        title="데이터 공유 테이블 뷰 생성"
                       >
                         <Link className="w-3.5 h-3.5 text-indigo-550" />
-                        임직원 공유 뷰 개설
+                        데이터 공유 뷰 생성
                       </button>
 
                       {tableSchema.some(col => col.name === 'deleted_at') && (
@@ -3390,7 +3390,7 @@ export default function MyDBManagementPage() {
         </div>
       )}
 
-      {/* 👥 데이터 공유 테이블 뷰 개설 모달 */}
+      {/* 👥 데이터 공유 테이블 뷰 생성 모달 */}
       {isFriendlyShareModalOpen && (
         <div className="fixed inset-0 z-[100] bg-slate-100 flex flex-col w-screen h-screen overflow-hidden animate-fade-in text-left">
           {/* 🌌 최상단 프리미엄 헤더바 (네온 그라데이션 라인 결합) */}
@@ -3402,7 +3402,7 @@ export default function MyDBManagementPage() {
               </div>
               <div className="space-y-0.5">
                 <h3 className="font-extrabold text-slate-900 text-sm md:text-base flex items-center gap-1.5">
-                  👥 데이터 공유 테이블 뷰 개설 대시보드
+                  👥 데이터 공유 테이블 뷰 생성 대시보드
                 </h3>
                 <p className="text-[10px] text-slate-400 font-bold">
                   물리 테이블 명: <span className="font-mono text-indigo-550 font-extrabold">{selectedTable}</span>
@@ -3428,7 +3428,7 @@ export default function MyDBManagementPage() {
                 </div>
                 <div className="space-y-2">
                   <h4 className="text-base md:text-lg font-black text-slate-800">
-                    데이터 공유 뷰가 성공적으로 개설되었습니다!
+                    데이터 공유 뷰가 성공적으로 생성되었습니다!
                   </h4>
                   <p className="text-xs text-slate-500 leading-relaxed max-w-lg mx-auto">
                     지정한 한국어 타이틀과 필터링된 데이터 컬럼 구조가 반영되었습니다. 민감한 정보(비밀번호, 삭제자 등)가 완벽히 은폐된 안전한 공유 링크입니다.
@@ -3849,7 +3849,7 @@ export default function MyDBManagementPage() {
                 ) : (
                   <>
                     <Link className="w-3.5 h-3.5 text-white" />
-                    데이터 공유 뷰 개설하기
+                    데이터 공유 뷰 생성하기
                   </>
                 )}
               </button>

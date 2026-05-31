@@ -271,7 +271,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: '데이터 공유 뷰가 성공적으로 개설되었습니다.',
+      message: '데이터 공유 뷰가 성공적으로 생성되었습니다.',
       viewId,
       shareHash,
       friendlyTableName
