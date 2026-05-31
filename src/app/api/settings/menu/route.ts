@@ -25,6 +25,7 @@ const DEFAULT_MENU_ITEMS = [
   { href: "/snaptasks", label: "AI 스냅태스크" },
   { href: "/inventory", label: "재고 관리 AI" },
   { href: "/expenses", label: "지출 관리 AI" },
+  { href: "/hr/attendance", label: "근태 관리 AI" },
   { href: "/price-tracker", label: "가격 추적 AI" },
   { href: "/website", label: "홈페이지 빌더 AI" },
   { href: "/recruitment", label: "채용 매니저 AI" },

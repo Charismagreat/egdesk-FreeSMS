@@ -61,7 +61,7 @@ export async function POST(req: Request) {
     }
 
     const sessionUser = decodeJwt(token);
-    const operatorId = sessionUser.id;
+    const operatorId = sessionUser.id as string;
 
     const now = new Date();
 

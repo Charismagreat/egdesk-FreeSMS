@@ -361,7 +361,7 @@ export default function HrAttendancePage() {
   const currentEmpRecord = employees.find(e => e.id === currentUser?.id);
 
   return (
-    <div className="w-full min-h-screen bg-slate-50 p-6 md:p-8 space-y-8 block relative overflow-x-hidden text-slate-800">
+    <div className="space-y-8 animate-fade-in relative pb-16">
       {/* 럭셔리 네온 아우라 데코 */}
       <div className="absolute top-0 right-10 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl -z-10 animate-pulse"></div>
       <div className="absolute bottom-10 left-10 w-96 h-96 bg-rose-500/5 rounded-full blur-3xl -z-10"></div>

@@ -218,7 +218,7 @@ export async function POST(req: Request) {
     }
 
     const payload = decodeJwt(token);
-    const operatorId = payload.id;
+    const operatorId = payload.id as string;
     const operatorName = payload.name || '직원';
 
     const now = new Date();
