@@ -163,9 +163,19 @@ export async function GET(request: Request) {
       }
 
       // 검색 조건 주입
-      if (searchKey && searchValue) {
+      if (searchValue) {
         const escapedVal = searchValue.replace(/'/g, "''");
-        conditions.push(`"${searchKey}" LIKE '%${escapedVal}%'`);
+        if (searchKey) {
+          conditions.push(`"${searchKey}" LIKE '%${escapedVal}%'`);
+        } else {
+          // -- 검색 컬럼 선택 -- 일 때 전체 컬럼 대상 통합 검색 (OR 결합)
+          const allColConditions = schemaInfo
+            .map((col: any) => `"${col.name}" LIKE '%${escapedVal}%'`)
+            .join(' OR ');
+          if (allColConditions) {
+            conditions.push(`(${allColConditions})`);
+          }
+        }
       }
 
       // WHERE 조건 조립

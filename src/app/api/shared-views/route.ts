@@ -36,7 +36,7 @@ async function verifySuperAdmin() {
 // 🛡️ 영문 테이블명 및 컬럼명 SQL 인젝션 방어용 안전 정규식 검증
 const SAFE_SQL_NAME_REGEX = /^[a-zA-Z0-9_]+$/;
 
-// 📂 [GET] 임직원용 공유 뷰 설정 로드 및 안전 필터링된 레코드 데이터 쿼리
+// 📂 [GET] 데이터 공유 뷰 설정 로드 및 안전 필터링된 레코드 데이터 쿼리
 export async function GET(request: Request) {
   let db: any = null;
   try {
@@ -271,7 +271,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: '임직원 친화형 커스텀 공유 뷰가 성공적으로 개설되었습니다.',
+      message: '데이터 공유 뷰가 성공적으로 개설되었습니다.',
       viewId,
       shareHash,
       friendlyTableName

@@ -38,6 +38,7 @@ export default function MyDBManagementPage() {
   // 검색/필터 필드
   const [searchKey, setSearchKey] = React.useState<string>("");
   const [searchValue, setSearchValue] = React.useState<string>("");
+  const [debouncedSearchValue, setDebouncedSearchValue] = React.useState<string>("");
 
   // SQL 콘솔 상태
   const [sqlQuery, setSqlQuery] = React.useState<string>("SELECT * FROM crm_expenses LIMIT 10;");
@@ -659,7 +660,7 @@ export default function MyDBManagementPage() {
     }
   };
 
-  // 👥 임직원 친화형 커스텀 공유 테이블 뷰 관련 상태 변수
+  // 👥 데이터 공유 테이블 뷰 관련 상태 변수
   const [isFriendlyShareModalOpen, setIsFriendlyShareModalOpen] = React.useState<boolean>(false);
   const [friendlyShareTableName, setFriendlyShareTableName] = React.useState<string>("");
   const [friendlyColumnMappings, setFriendlyColumnMappings] = React.useState<any[]>([]);
@@ -890,8 +891,11 @@ export default function MyDBManagementPage() {
     try {
       const offset = (page - 1) * itemsPerPage;
       let url = `/api/db?action=query&tableName=${tableName}&limit=${itemsPerPage}&offset=${offset}&showDeleted=${includeDeleted}`;
-      if (key && val) {
-        url += `&searchKey=${encodeURIComponent(key)}&searchValue=${encodeURIComponent(val)}`;
+      if (val) {
+        url += `&searchValue=${encodeURIComponent(val)}`;
+        if (key) {
+          url += `&searchKey=${encodeURIComponent(key)}`;
+        }
       }
       const res = await fetch(url);
       const data = await res.json();
@@ -1097,22 +1101,31 @@ export default function MyDBManagementPage() {
     }
   }, [selectedTable, isRestored]);
 
+  // 🔍 실시간 검색 디바운스 제어 (300ms)
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchValue(searchValue);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchValue]);
+
+  // 🗑️ 소프트 삭제 토글, 검색 컬럼(searchKey), 디바운스된 검색어(debouncedSearchValue) 변경 시 실시간 자동 조회
   React.useEffect(() => {
     if (selectedTable) {
       setCurrentPage(1);
-      fetchTableRows(selectedTable, 1, searchKey, searchValue, showDeleted);
+      fetchTableRows(selectedTable, 1, searchKey, debouncedSearchValue, showDeleted);
     }
-  }, [showDeleted]);
+  }, [showDeleted, searchKey, debouncedSearchValue]);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    fetchTableRows(selectedTable, page, searchKey, searchValue, showDeleted);
+    fetchTableRows(selectedTable, page, searchKey, debouncedSearchValue, showDeleted);
   };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setCurrentPage(1);
-    fetchTableRows(selectedTable, 1, searchKey, searchValue, showDeleted);
+    setDebouncedSearchValue(searchValue); // 수동 검색 시 즉각 동기화하여 딜레이 해소
   };
 
   // 💡 AI 자연어 SQL 번역 및 에디터 연계 액션
@@ -1191,7 +1204,7 @@ export default function MyDBManagementPage() {
         fetchTables();
         if (selectedTable) {
           fetchTableSchema(selectedTable);
-          fetchTableRows(selectedTable, currentPage, searchKey, searchValue);
+          fetchTableRows(selectedTable, currentPage, searchKey, debouncedSearchValue);
         }
         setActiveTab('console');
       } else {
@@ -1235,7 +1248,7 @@ export default function MyDBManagementPage() {
       if (data.success) {
         showToast(data.message || "레코드가 삭제되었습니다.", "success");
         fetchTables();
-        fetchTableRows(selectedTable, currentPage, searchKey, searchValue, showDeleted);
+        fetchTableRows(selectedTable, currentPage, searchKey, debouncedSearchValue, showDeleted);
       } else {
         showToast(data.error || "레코드 삭제 실패", "error");
       }
@@ -1273,7 +1286,7 @@ export default function MyDBManagementPage() {
       if (data.success) {
         showToast(data.message || "레코드가 성공적으로 복원되었습니다.", "success");
         fetchTables();
-        fetchTableRows(selectedTable, currentPage, searchKey, searchValue, showDeleted);
+        fetchTableRows(selectedTable, currentPage, searchKey, debouncedSearchValue, showDeleted);
       } else {
         showToast(data.error || "레코드 복원 실패", "error");
       }
@@ -1333,7 +1346,7 @@ export default function MyDBManagementPage() {
         setIsRowModalOpen(false);
         setEditingRow(null);
         fetchTables();
-        fetchTableRows(selectedTable, currentPage, searchKey, searchValue, showDeleted);
+        fetchTableRows(selectedTable, currentPage, searchKey, debouncedSearchValue, showDeleted);
       } else {
         showToast(data.error || "레코드 적재 실패", "error");
       }
@@ -1384,7 +1397,7 @@ export default function MyDBManagementPage() {
       await fetchTables();
       if (selectedTable) {
         await fetchTableSchema(selectedTable);
-        await fetchTableRows(selectedTable, currentPage, searchKey, searchValue, showDeleted);
+        await fetchTableRows(selectedTable, currentPage, searchKey, debouncedSearchValue, showDeleted);
       }
       showToast("전체 데이터 동기화가 성공적으로 완료되었습니다.", "success");
     } catch (e) {
@@ -2418,7 +2431,7 @@ export default function MyDBManagementPage() {
                             onClick={() => {
                               setSearchKey("");
                               setSearchValue("");
-                              fetchTableRows(selectedTable, 1, "", "", showDeleted);
+                              setDebouncedSearchValue("");
                             }}
                             className="px-2 py-1 text-slate-400 hover:text-slate-600 text-xs font-bold border-none bg-transparent cursor-pointer"
                           >
@@ -3341,7 +3354,7 @@ export default function MyDBManagementPage() {
         </div>
       )}
 
-      {/* 👥 임직원 친화형 커스텀 공유 테이블 뷰 개설 모달 */}
+      {/* 👥 데이터 공유 테이블 뷰 개설 모달 */}
       {isFriendlyShareModalOpen && (
         <div className="fixed inset-0 z-[100] bg-slate-100 flex flex-col w-screen h-screen overflow-hidden animate-fade-in text-left">
           {/* 🌌 최상단 프리미엄 헤더바 (네온 그라데이션 라인 결합) */}
@@ -3353,7 +3366,7 @@ export default function MyDBManagementPage() {
               </div>
               <div className="space-y-0.5">
                 <h3 className="font-extrabold text-slate-900 text-sm md:text-base flex items-center gap-1.5">
-                  👥 임직원 친화형 커스텀 공유 테이블 뷰 개설 대시보드
+                  👥 데이터 공유 테이블 뷰 개설 대시보드
                 </h3>
                 <p className="text-[10px] text-slate-400 font-bold">
                   물리 테이블 명: <span className="font-mono text-indigo-550 font-extrabold">{selectedTable}</span>
@@ -3379,7 +3392,7 @@ export default function MyDBManagementPage() {
                 </div>
                 <div className="space-y-2">
                   <h4 className="text-base md:text-lg font-black text-slate-800">
-                    임직원 전용 커스텀 테이블 뷰가 성공적으로 개설되었습니다!
+                    데이터 공유 뷰가 성공적으로 개설되었습니다!
                   </h4>
                   <p className="text-xs text-slate-500 leading-relaxed max-w-lg mx-auto">
                     지정한 한국어 타이틀과 필터링된 데이터 컬럼 구조가 반영되었습니다. 민감한 정보(비밀번호, 삭제자 등)가 완벽히 은폐된 안전한 공유 링크입니다.
@@ -3426,7 +3439,7 @@ export default function MyDBManagementPage() {
                   {/* 테이블 한글 명칭 */}
                   <div className="space-y-2">
                     <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                      📌 임직원용 한글 테이블 명칭
+                      📌 공유용 한글 테이블 명칭
                     </label>
                     <input
                       type="text"
@@ -3436,7 +3449,7 @@ export default function MyDBManagementPage() {
                       className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-xs text-slate-700 font-semibold transition-all placeholder:text-slate-400 shadow-3xs"
                     />
                     <p className="text-[10px] text-slate-400 font-medium">
-                      임직원용 공유 링크의 웹 타이틀 및 엑셀 다운로드 파일명으로 사용됩니다.
+                      공유 링크의 웹 타이틀 및 엑셀 다운로드 파일명으로 사용됩니다.
                     </p>
                   </div>
                   
@@ -3453,8 +3466,8 @@ export default function MyDBManagementPage() {
                         onChange={(e) => setFriendlyAllowCsv(e.target.checked)}
                         className="w-4.5 h-4.5 rounded text-indigo-600 border-slate-350 focus:ring-indigo-555 cursor-pointer"
                       />
-                      <label htmlFor="friendlyAllowCsv" className="text-xs font-black text-slate-600 cursor-pointer select-none">
-                        임직원들이 웹 뷰어 화면에서 데이터를 CSV 엑셀 파일로 내려받도록 허용합니다.
+                      <label htmlFor="friendlyAllowCsv" className="text-xs font-black text-slate-650 cursor-pointer select-none">
+                        사용자들이 웹 뷰어 화면에서 데이터를 CSV 엑셀 파일로 내려받도록 허용합니다.
                       </label>
                     </div>
                     <p className="text-[10px] text-slate-400 font-medium">
@@ -3744,7 +3757,7 @@ export default function MyDBManagementPage() {
                   <span className="shrink-0 text-xs">🔒</span>
                   <div className="space-y-0.5">
                     <strong>엔터프라이즈급 멀티 컬럼 데이터 정제 가드레일:</strong>
-                    임직원 공유 뷰 대시보드는 다단계 정렬(`ORDER BY col1 DESC, col2 ASC`) 명세와 컬럼 마스킹 규칙을 Next.js API 레벨에 직접 적용시킵니다. 노출 여부를 숨김(`visible: false`) 처리한 컬럼은 백엔드 물리적 쿼리문 스코프에서 완전 영구 배제되어 클라이언트에 데이터 흐름이 원천 단절되므로 안전합니다.
+                    데이터 공유 뷰 대시보드는 다단계 정렬(`ORDER BY col1 DESC, col2 ASC`) 명세와 컬럼 마스킹 규칙을 Next.js API 레벨에 직접 적용시킵니다. 노출 여부를 숨김(`visible: false`) 처리한 컬럼은 백엔드 물리적 쿼리문 스코프에서 완전 영구 배제되어 클라이언트에 데이터 흐름이 원천 단절되므로 안전합니다.
                   </div>
                 </div>
 
@@ -3776,7 +3789,7 @@ export default function MyDBManagementPage() {
                 ) : (
                   <>
                     <Link className="w-3.5 h-3.5 text-white" />
-                    임직원 공유 뷰 개설하기
+                    데이터 공유 뷰 개설하기
                   </>
                 )}
               </button>

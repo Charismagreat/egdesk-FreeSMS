@@ -158,14 +158,14 @@ export default function ShareViewPage({ params }: ShareViewPageProps) {
       <div className="h-1.5 w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500" />
       
       {/* 🚀 메인 본문 컨테이너 */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-6">
+      <div className="max-w-[98%] mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-6">
         
         {/* 1. 상단 정보 카드 영역 (Glassmorphism & Neon Shadow) */}
         <div className="bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-3xl p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="space-y-1 text-left">
             <div className="flex items-center gap-2">
               <span className="text-[10px] bg-indigo-50 text-indigo-650 border border-indigo-200 px-2 py-0.5 rounded-full font-black select-none">
-                임직원 공유 뷰
+                데이터 공유 뷰
               </span>
               <span className="text-[10px] text-slate-400 font-bold font-mono">
                 {hash.substring(0, 8)}...
@@ -251,8 +251,8 @@ export default function ShareViewPage({ params }: ShareViewPageProps) {
             </div>
 
             {/* 메인 데이터 그리드 (반응형 모바일 스크롤 & 최상급 스크롤 디자인) */}
-            <div className="overflow-x-auto w-full no-scrollbar">
-              <table className="w-full text-left border-collapse">
+            <div className="overflow-x-auto w-full min-w-0">
+              <table className="min-w-max w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-50/70 border-b border-slate-150">
                     {data.columnMappings.map((col) => {
