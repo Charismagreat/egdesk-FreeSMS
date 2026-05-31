@@ -590,7 +590,8 @@ export default function EasyBot() {
             role: m.role,
             content: m.content
           })),
-          localStorageContext: localStorageData
+          localStorageContext: localStorageData,
+          currentUrl: window.location.pathname // 현재 페이지 URL 동봉 📍
         })
       });
 

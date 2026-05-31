@@ -1,7 +1,49 @@
 import { NextResponse } from 'next/server';
-import { queryTable, executeSQL, listTables, insertRows } from '../../../../egdesk-helpers';
+import { queryTable, executeSQL, listTables, insertRows, createTable } from '../../../../egdesk-helpers';
 import fs from 'fs';
 import path from 'path';
+
+let isFeedbackTableInitialized = false;
+
+// user_feedbacks 테이블이 존재하지 않을 시 멱등적으로 자동 신설하는 헬퍼
+async function ensureFeedbackTableExists() {
+  if (isFeedbackTableInitialized) return;
+  try {
+    const tableListResult = await listTables();
+    let tables: string[] = [];
+    if (tableListResult && tableListResult.tables) {
+      tables = tableListResult.tables.map((t: any) => t.tableName || t);
+    } else if (Array.isArray(tableListResult)) {
+      tables = tableListResult.map((t: any) => t.tableName || t);
+    } else if (typeof tableListResult === 'object') {
+      tables = Object.keys(tableListResult);
+    }
+    
+    const exists = tables.some((t: string) => t === 'user_feedbacks');
+    if (!exists) {
+      console.log('user_feedbacks 테이블이 존재하지 않아 신규 생성합니다.');
+      await createTable(
+        '사용자 피드백 및 버그 제보',
+        [
+          { name: 'id', type: 'TEXT', notNull: true },
+          { name: 'user_prompt', type: 'TEXT', notNull: true },
+          { name: 'detected_type', type: 'TEXT' }, // 'bug', 'feature_request', 'complaint', 'other'
+          { name: 'current_url', type: 'TEXT' },
+          { name: 'resolved_status', type: 'TEXT', defaultValue: 'pending' }, // 'pending', 'resolved', 'ignored'
+          { name: 'created_at', type: 'TEXT' }
+        ],
+        {
+          tableName: 'user_feedbacks',
+          uniqueKeyColumns: ['id'],
+          duplicateAction: 'skip'
+        }
+      );
+    }
+    isFeedbackTableInitialized = true;
+  } catch (err) {
+    console.error('user_feedbacks 테이블 초기화 실패:', err);
+  }
+}
 
 // SELECT 쿼리만 통과시키고 데이터 파괴적인 쿼리는 원천 차단하는 유효성 검사 함수
 function isSafeSelectQuery(sql: string): boolean {
@@ -24,7 +66,8 @@ function isSafeSelectQuery(sql: string): boolean {
 
 export async function POST(req: Request) {
   try {
-    const { prompt, chatHistory = [], localStorageContext = {} } = await req.json();
+    await ensureFeedbackTableExists();
+    const { prompt, chatHistory = [], localStorageContext = {}, currentUrl = '/' } = await req.json();
 
     if (!prompt) {
       return NextResponse.json({ success: false, error: '질문(prompt)이 누락되었습니다.' }, { status: 400 });
@@ -205,6 +248,7 @@ If the user is asking about how to use the system, menus, manuals, guides, or tr
 - 만약 SQL 쿼리가 실패했거나 오류가 있었다면, 관리자가 원인을 파악할 수 있도록 SQL 오류 메시지를 보여주며 원인 진단을 도와주세요.
 - 챗봇 자체에서 데이터를 임의로 수정/삭제(UPDATE/DELETE)할 수 없음을 인지하되, SELECT를 통한 깊이 있는 데이터 분석 및 인사이트 제공에 집중해 주세요.
 - [중요 💡] 만약 사용자가 특정 메뉴나 페이지로 직접 이동하기를 희망한다는 의도가 명백히 감지되면(예: "금융 정보 페이지로 가줘", "지출 관리 열어줘", "홈페이지 빌더 가자"), 최종 답변의 가장 마지막 줄에 정확하게 \`[REDIRECT:이동할_경로]\` (예: \`[REDIRECT:/finance]\`, \`[REDIRECT:/expenses]\`, \`[REDIRECT:/sms]\`, \`[REDIRECT:/settings]\`, \`[REDIRECT:/my-db]\`) 태그를 단독 라인으로 기입해 주세요. 시스템이 이를 감지하여 관리자에게 확인 창을 띄워 페이지를 실시간 자동 이동시킵니다.
+- [중요 ⚠️] 만약 사용자가 시스템의 버그, 불편함, 건의사항, 개선 필요, 불만 사항, 또는 신규 기능 추가 요청 등을 명확하게 제기하는 의도가 감지되면(예: "재고 관리가 이상해요", "버그 있어요", "이 부분 추가해 줘", "너무 느려요", "이메일 알림 연동해줘"), 최종 답변의 가장 마지막 줄에 정확하게 \`[FEEDBACK:유형:핵심제보요약]\` (예: \`[FEEDBACK:bug:재고 바코드 리더 오작동]\`, \`[FEEDBACK:feature_request:이메일 알림 연동 희망]\`, \`[FEEDBACK:complaint:발송 속도가 너무 느림]\`) 태그를 단독 라인으로 기입해 주세요. (유형 후보: 'bug', 'feature_request', 'complaint', 'other'). 그리고 답변 내용에는 "제보해 주신 소중한 버그/의견은 관리자 피드백 보드에 정식으로 즉시 접수되었습니다. 개발팀과 함께 신속하게 검토하여 개선하겠습니다!"와 같이 상냥하고 신뢰감을 주는 접수 완료 멘트를 포함해 주세요.
 
 ${manualContext ? `\n============================\n[공식 시스템 매뉴얼 지식 베이스 (RAG)]\n${manualContext}\n\n-> 지시사항: 사용자가 시스템 사용법, 메뉴 구조, 가이드라인 등을 묻고 있습니다. 지어내지 말고, 위 매뉴얼 내용에 기반하여 가장 정확하고 친절하게 대답해 주세요.\n============================\n` : ''}
 [LocalStorage 상태 스냅샷]:
@@ -241,7 +285,32 @@ ${JSON.stringify(localStorageContext, null, 2)}
     }
 
     const step2Data = await step2Response.json();
-    const finalAnswer = step2Data.candidates?.[0]?.content?.parts?.[0]?.text || "답변을 생성하는 데 실패했습니다.";
+    let finalAnswer = step2Data.candidates?.[0]?.content?.parts?.[0]?.text || "답변을 생성하는 데 실패했습니다.";
+
+    // [FEEDBACK:유형:내용] 태그 감지 시 user_feedbacks 테이블에 안전하게 접수 및 적재
+    const feedbackMatch = finalAnswer.match(/\[FEEDBACK:(.*?):(.*?)\]/);
+    if (feedbackMatch) {
+      const detectedType = feedbackMatch[1].trim();
+      const feedbackContent = feedbackMatch[2].trim();
+      
+      try {
+        const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+        await insertRows('user_feedbacks', [{
+          id: `FB-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          user_prompt: feedbackContent,
+          detected_type: detectedType,
+          current_url: currentUrl,
+          resolved_status: 'pending',
+          created_at: nowStr
+        }]);
+        console.log(`[피드백 접수 처리 완료] 유형: ${detectedType}, 내용: ${feedbackContent}, 위치: ${currentUrl}`);
+      } catch (dbErr) {
+        console.error('피드백 접수 DB 저장 실패:', dbErr);
+      }
+
+      // 최종 답변 본문에서 개발용 트리거 태그 깔끔히 소거
+      finalAnswer = finalAnswer.replace(/\[FEEDBACK:.*?\]/g, '').trim();
+    }
 
     // 🕒 Step 2 토큰 사용량 로깅
     if (step2Data.usageMetadata) {

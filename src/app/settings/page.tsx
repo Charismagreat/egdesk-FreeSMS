@@ -5,6 +5,7 @@ import AiSettingsCard from "../AiSettingsCard";
 import PointSettingsCard from "../PointSettingsCard";
 import AiUsageMonitor from "../AiUsageMonitor";
 import MenuSettingsCard from "./MenuSettingsCard";
+import FeedbackManagementCard from "./FeedbackManagementCard";
 
 export default function SettingsPage() {
   return (
@@ -22,6 +23,7 @@ export default function SettingsPage() {
         <AiUsageMonitor />
         <PointSettingsCard />
         <MenuSettingsCard />
+        <FeedbackManagementCard />
       </div>
     </div>
   );
