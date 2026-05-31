@@ -3283,7 +3283,7 @@ export default function MyDBManagementPage() {
                             <th className="py-3.5 px-4 font-black">원본 물리 테이블</th>
                             <th className="py-3.5 px-4 font-black">보안 컬럼 수</th>
                             <th className="py-3.5 px-4 font-black">생성일시</th>
-                            <th className="py-3.5 px-4 font-black text-center w-[260px]">액션 제어</th>
+                            <th className="py-3.5 px-4 font-black text-center w-[130px]">액션 제어</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -3334,11 +3334,10 @@ export default function MyDBManagementPage() {
                                           showToast("📋 공유 뷰 URL이 성공적으로 클립보드에 복사되었습니다!", "success");
                                         }
                                       }}
-                                      className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-lg text-[10px] font-black cursor-pointer shadow-3xs transition-all active:scale-95"
+                                      className="w-8 h-8 flex items-center justify-center bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 rounded-xl cursor-pointer shadow-3xs transition-all active:scale-95 border-solid"
                                       title="주소 복사"
                                     >
-                                      <Copy className="w-3 h-3 text-slate-400" />
-                                      주소 복사
+                                      <Copy className="w-4 h-4 text-slate-400" />
                                     </button>
 
                                     {/* 바로가기 */}
@@ -3348,21 +3347,19 @@ export default function MyDBManagementPage() {
                                           window.open(shareUrl, '_blank');
                                         }
                                       }}
-                                      className="flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-indigo-700 rounded-lg text-[10px] font-black cursor-pointer border-none shadow-3xs transition-all active:scale-95"
-                                      title="새 창에서 열기"
+                                      className="w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-indigo-700 rounded-xl cursor-pointer border-none shadow-3xs transition-all active:scale-95"
+                                      title="공유 뷰 페이지 보러가기"
                                     >
-                                      <ExternalLink className="w-3 h-3 text-indigo-500" />
-                                      보러가기
+                                      <ExternalLink className="w-4 h-4 text-indigo-500" />
                                     </button>
 
                                     {/* 뷰 폐쇄 (삭제) */}
                                     <button
                                       onClick={() => handleDeleteSharedView(view.view_id, view.friendly_table_name)}
-                                      className="flex items-center gap-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 hover:border-rose-200 rounded-lg text-[10px] font-black cursor-pointer shadow-3xs transition-all active:scale-95"
+                                      className="w-8 h-8 flex items-center justify-center bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 hover:border-rose-200 rounded-xl cursor-pointer shadow-3xs transition-all active:scale-95 border-solid"
                                       title="공유 뷰 즉시 폐쇄"
                                     >
-                                      <Trash2 className="w-3 h-3 text-rose-500" />
-                                      링크 폐쇄
+                                      <Trash2 className="w-4 h-4 text-rose-500" />
                                     </button>
                                   </div>
                                 </td>
