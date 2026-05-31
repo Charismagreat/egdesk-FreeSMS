@@ -446,14 +446,30 @@ export default function EasyBot() {
     }
   };
 
-  // 마크다운 특수문자 및 코드를 음성 출력에 맞게 정제하는 필터
+  // 마크다운 특수문자 및 기호를 정제하고, 긴 텍스트 답변을 청각적으로 쾌적한 2~3문장으로 자동 요약하는 지능형 음성 전용 필터
   const cleanTextForSpeech = (text: string) => {
-    return text
-      .replace(/```[\s\S]*?```/g, " 코드 조각이 생략되었습니다. ") // 코드 블록 제거
-      .replace(/\|.*\|/g, " 표 데이터가 표기되었습니다. ") // 테이블 제거
-      .replace(/[*_#`~>]/g, "") // 마크다운 제거
-      .replace(/\n/g, " ") // 줄바꿈을 공백으로
+    // 1. 코드 블록, 표(Table), 리다이렉트 태그 등 시각 전용 원천 요소들 제거
+    let cleaned = text
+      .replace(/\[REDIRECT:.*?\]/g, "") // 리다이렉트 태그 제거
+      .replace(/```[\s\S]*?```/g, "") // 코드 블록 통째로 제거
+      .replace(/\|[\s\S]*?\|/g, "") // 표(Table) 통째로 제거
+      .replace(/[*_#`~>]/g, "") // 마크다운 특수기호 소거
+      .replace(/\s+/g, " ") // 다중 공백을 단일 공백으로
       .trim();
+
+    // 2. 문장 종결자(마침표, 물음표, 느낌표) 뒤의 공백을 기준으로 문장 단위 분할
+    const sentences = cleaned.split(/(?<=[.?!])\s+/);
+
+    // 3. 만약 문장이 3개 이하로 콤팩트하다면 전체 텍스트 그대로 음성 변환
+    if (sentences.length <= 3) {
+      return cleaned;
+    }
+
+    // 4. 상위 3개 핵심 문장만 스마트 추출하여 요약본 조립
+    const summaryText = sentences.slice(0, 3).join(" ");
+
+    // 5. 시각적 읽기를 유도하는 부드러운 성우 가이드 꼬리표 부착
+    return `${summaryText} 보다 자세한 세부 설명과 표 데이터 분석 내역은 화면의 텍스트를 참고해 주세요.`;
   };
 
   const speakText = (text: string) => {
