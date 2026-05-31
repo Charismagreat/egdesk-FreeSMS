@@ -18,8 +18,20 @@ async function verifySuperAdmin() {
 
   const payload = decodeJwt(token);
   if (payload.role !== 'SUPER_ADMIN') {
-    throw new Error('명함 분석 권한이 없습니다. 최고관리자 계정으로 로그인해주세요.');
+    throw new Error('문서 분석 권한이 없습니다. 최고관리자 계정으로 로그인해주세요.');
   }
+}
+
+/**
+ * 사업자등록번호 포맷 정제 헬퍼 ("000-00-00000")
+ */
+function normalizeBusinessNumber(num: string): string {
+  if (!num) return '';
+  const digits = num.replace(/\D/g, '');
+  if (digits.length === 10) {
+    return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`;
+  }
+  return num;
 }
 
 /**
@@ -39,7 +51,28 @@ function normalizePhone(phone: string): string {
   } else if (digits.length === 9 && digits.startsWith('02')) {
     return `02-${digits.slice(2, 5)}-${digits.slice(5)}`;
   }
-  return phone; // 정형화가 안 되면 원본 반환
+  return phone;
+}
+
+/**
+ * 🛡️ 대한민국 표준 사업자등록번호 10자리 로컬 체크섬 검증 헬퍼 (Modulo 10)
+ */
+function validateBusinessNumberChecksum(num: string): boolean {
+  if (!num) return false;
+  const clean = num.replace(/\D/g, '');
+  if (clean.length !== 10) return false;
+  
+  const keys = [1, 3, 7, 1, 3, 7, 1, 3, 5];
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(clean[i]) * keys[i];
+  }
+  
+  const lastVar = parseInt(clean[8]) * 5;
+  sum += Math.floor(lastVar / 10) + (lastVar % 10);
+  
+  const checkDigit = (10 - (sum % 10)) % 10;
+  return checkDigit === parseInt(clean[9]);
 }
 
 export async function POST(req: Request) {
@@ -52,7 +85,7 @@ export async function POST(req: Request) {
     if (!image) {
       return NextResponse.json({
         success: false,
-        error: '분석할 명함 이미지 데이터(Base64)가 누락되었습니다.'
+        error: '분석할 문서 이미지 또는 PDF 데이터(Base64)가 누락되었습니다.'
       }, { status: 400 });
     }
 
@@ -82,23 +115,49 @@ export async function POST(req: Request) {
       ? modelRes.rows[0].value
       : 'gemini-3.5-flash';
 
-    // 3. Gemini Vision API로 명함 파싱 요청
-    const geminiPrompt = `제공된 명함 이미지에서 다음 정보들을 정확히 추출해 주세요:
-- 성명 (name)
-- 직급/직책 (position)
-- 전화번호/휴대폰 (phone)
-- 이메일 주소 (email)
-- 회사명/소속기관 (companyName)
+    // 3. 지능형 하이브리드 OCR 분류/스캔 통합 프롬프트 설계
+    const geminiPrompt = `제공된 문서(명함 또는 사업자등록증 이미지/PDF)를 보고 다음 지침에 맞춰 처리해 주세요:
+1. 이 문서가 명함인지 사업자등록증인지 스스로 식별하여 fileType 필드에 기입해 주세요. (명함이면 "BUSINESS_CARD", 사업자등록증이면 "BUSINESS_LICENSE")
+2. 만약 명함("BUSINESS_CARD")인 경우, 다음 정보를 추출하여 cardData 객체에 채워 주세요:
+   - name (성명)
+   - position (직급/직책)
+   - phone (전화번호/휴대폰)
+   - email (이메일)
+   - companyName (회사명/소속)
+3. 만약 사업자등록증("BUSINESS_LICENSE")인 경우, 다음 정보를 추출하여 licenseData 객체에 채워 주세요:
+   - businessNumber (등록번호): "000-00-00000" 형태로 반환
+   - companyName (상호/회사명)
+   - representative (대표자 성명)
+   - address (사업장 주소/소재지)
+   - phone (대표전화번호/유선번호)
+   - managerName (실무담당자 성명 - 명시된 경우)
+   - openingDate (개업연월일): "YYYY-MM-DD" 형태로 반환
+   - businessType (업태)
+   - businessItem (종목)
 
-추출한 값들은 반드시 아래 JSON 스키마 규격을 준수하여 순수 JSON 문자열로만 응답해 주세요. 다른 마크다운 백틱(\`\`\`) 기호나 텍스트는 절대 포함하지 마세요.
+추출한 값들은 반드시 아래 JSON 스키마 규격을 빈틈없이 준수하여 순수 JSON 문자열로만 응답해 주세요. 다른 마크다운 백틱(\`\`\`) 기호나 텍스트는 절대 포함하지 마세요.
 
-JSON 규격 예시:
+응답 JSON 스펙 예시:
 {
-  "name": "홍길동",
-  "position": "수석 연구원",
-  "phone": "010-1234-5678",
-  "email": "gildong@company.com",
-  "companyName": "주식회사 이지텍"
+  "fileType": "BUSINESS_CARD" or "BUSINESS_LICENSE",
+  "cardData": {
+    "name": "홍길동",
+    "position": "팀장",
+    "phone": "010-1234-5678",
+    "email": "gildong@easy.com",
+    "companyName": "주식회사 이지텍"
+  },
+  "licenseData": {
+    "businessNumber": "123-45-67890",
+    "companyName": "주식회사 이지텍",
+    "representative": "홍길동",
+    "address": "서울특별시 영등포구 양평로 123",
+    "phone": "02-1234-5678",
+    "managerName": "",
+    "openingDate": "2020-05-15",
+    "businessType": "제조업",
+    "businessItem": "소프트웨어 개발 및 서비스"
+  }
 }`;
 
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
@@ -126,128 +185,237 @@ JSON 규격 예시:
     });
 
     if (!response.ok) {
-      throw new Error(`Gemini Vision OCR API 통신 실패: HTTP ${response.status}`);
+      throw new Error(`Gemini 하이브리드 OCR API 통신 실패: HTTP ${response.status}`);
     }
 
     const aiData = await response.json();
     const rawText = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!rawText) {
-      throw new Error('Gemini Vision으로부터 명함 분석 응답을 수신하지 못했습니다.');
+      throw new Error('Gemini AI로부터 분석 응답을 수신하지 못했습니다.');
     }
 
     // AI 추출 데이터 JSON 파싱
-    let parsedCard;
+    let parsedResult;
     try {
-      parsedCard = JSON.parse(rawText.trim());
+      parsedResult = JSON.parse(rawText.trim());
     } catch (err) {
       const jsonMatch = rawText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        parsedCard = JSON.parse(jsonMatch[0].trim());
+        parsedResult = JSON.parse(jsonMatch[0].trim());
       } else {
-        throw new Error('AI 명함 분석 응답 포맷이 올바르지 않습니다.');
+        throw new Error('AI 하이브리드 분석 응답 포맷이 올바르지 않습니다.');
       }
     }
 
-    // 전화번호 정형화 보정
-    if (parsedCard.phone) {
-      parsedCard.phone = normalizePhone(parsedCard.phone);
-    }
+    const fileType = parsedResult.fileType || 'BUSINESS_CARD';
 
-    const cardName = parsedCard.name || '';
-    const cardCompanyName = parsedCard.companyName || '';
-    const cardPhone = parsedCard.phone || '';
-    const cardEmail = parsedCard.email || '';
+    // ==========================================
+    // 📂 분기 처리 1: 명함 (BUSINESS_CARD) 일 때
+    // ==========================================
+    if (fileType === 'BUSINESS_CARD') {
+      const cardData = parsedResult.cardData || {};
+      const cleanedPhone = normalizePhone(cardData.phone || '');
 
-    // 4. 기존 거래처(crm_partners) 테이블 매칭
-    const partnersResult = await queryTable('crm_partners');
-    const partners = partnersResult.rows || [];
-    let matchedPartner = null;
+      const parsedCard = {
+        name: cardData.name ? cardData.name.trim() : '',
+        position: cardData.position ? cardData.position.trim() : '',
+        phone: cleanedPhone,
+        email: cardData.email ? cardData.email.trim() : '',
+        companyName: cardData.companyName ? cardData.companyName.trim() : ''
+      };
 
-    if (cardCompanyName) {
-      const cleanCompany = cardCompanyName.replace(/\s/g, '').toLowerCase();
-      // 완전 일치 또는 회사명이 DB 거래처 이름에 포함되는 경우 매칭
-      matchedPartner = partners.find((p: any) => {
-        const cleanName = (p.name || '').replace(/\s/g, '').toLowerCase();
-        return cleanName.includes(cleanCompany) || cleanCompany.includes(cleanName);
+      // 기존 명함 이력 및 스마트 이직 판정 알고리즘
+      const partnerRes = await queryTable('crm_partners', { filters: { company_name: parsedCard.companyName } });
+      let partnerId = partnerRes.rows && partnerRes.rows.length > 0 ? partnerRes.rows[0].id : null;
+
+      if (!partnerId && parsedCard.companyName) {
+        const fuzzyRes = await queryTable('crm_partners', {});
+        const match = fuzzyRes.rows.find((p: any) => p.company_name.includes(parsedCard.companyName) || parsedCard.companyName.includes(p.company_name));
+        if (match) partnerId = match.id;
+      }
+
+      let actionType = 'new_contact';
+      let existingContactId = null;
+
+      const contactsRes = await queryTable('crm_partner_contacts', { filters: { name: parsedCard.name, is_active: 1 } });
+      const activeContacts = contactsRes.rows || [];
+
+      if (activeContacts.length > 0) {
+        const contact = activeContacts[0];
+        const contactPartnerRes = await queryTable('crm_partners', { filters: { id: contact.partner_id } });
+        const currentCompanyName = contactPartnerRes.rows && contactPartnerRes.rows.length > 0 ? contactPartnerRes.rows[0].company_name : '';
+
+        if (currentCompanyName === parsedCard.companyName) {
+          actionType = 'update_info';
+          existingContactId = contact.id;
+        } else {
+          actionType = 'career_transition';
+          existingContactId = contact.id;
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        fileType: 'BUSINESS_CARD',
+        data: parsedCard,
+        partnerId,
+        actionType,
+        existingContactId
       });
     }
 
-    const partnerId = matchedPartner ? matchedPartner.id : null;
-    const partnerName = matchedPartner ? matchedPartner.name : cardCompanyName;
+    // ==========================================
+    // 📂 분기 처리 2: 사업자등록증 (BUSINESS_LICENSE) 일 때
+    // ==========================================
+    const licenseData = parsedResult.licenseData || {};
+    const cleanedBizNumber = normalizeBusinessNumber(licenseData.businessNumber || '');
+    const cleanedLicensePhone = normalizePhone(licenseData.phone || '');
 
-    // 5. 기존 명함첩(crm_partner_contacts) 대조 및 이직/정보 변경 자동 인지 판정
-    const contactsResult = await queryTable('crm_partner_contacts');
-    const contacts = contactsResult.rows || [];
+    const ocrInfo = {
+      businessNumber: cleanedBizNumber,
+      companyName: licenseData.companyName ? licenseData.companyName.trim() : '',
+      representative: licenseData.representative ? licenseData.representative.trim() : '',
+      address: licenseData.address ? licenseData.address.trim() : '',
+      phone: cleanedLicensePhone,
+      managerName: licenseData.managerName ? licenseData.managerName.trim() : '',
+      openingDate: licenseData.openingDate || '',
+      businessType: licenseData.businessType || '',
+      businessItem: licenseData.businessItem || ''
+    };
+
+    // 🛡️ 1차 로컬 체크섬 유효성 공식 구동
+    const isChecksumValid = validateBusinessNumberChecksum(ocrInfo.businessNumber);
+
+    // 🛡️ 2차 국세청 실시간 홈택스 가동 상태 API 조회
+    const ntsKeyRes = await queryTable('system_settings', { filters: { key: 'nts_api_key' } });
+    let ntsApiKey = ntsKeyRes.rows && ntsKeyRes.rows.length > 0 ? ntsKeyRes.rows[0].value : null;
     
-    let actionType: 'new_contact' | 'update_info' | 'career_transition' = 'new_contact';
-    let existingContact: any = null;
+    if (!ntsApiKey) {
+      ntsApiKey = process.env.NTS_BUSINESS_API_KEY || null;
+    }
 
-    if (cardName) {
-      // 1순위: 동일 이름이면서 현재 활성화(is_active=1)된 담당자 찾기
-      const sameNameContacts = contacts.filter((c: any) => c.name === cardName && (c.is_active === 1 || c.is_active === undefined));
-      
-      if (sameNameContacts.length > 0) {
-        // 이 중에서 회사 매칭 결과가 같은지 대조
-        const sameCompanyContact = sameNameContacts.find((c: any) => c.partner_id === partnerId && partnerId !== null);
-        
-        if (sameCompanyContact) {
-          // 회사도 같고 이름도 같은데 직책이나 연락처가 변동된 경우 ➡️ 정보 갱신(update_info) 판정
-          if (
-            sameCompanyContact.position !== parsedCard.position ||
-            sameCompanyContact.phone !== cardPhone ||
-            sameCompanyContact.email !== cardEmail
-          ) {
-            actionType = 'update_info';
-            existingContact = sameCompanyContact;
-          } else {
-            // 모든 정보가 완전 일치하면 신규 등록 불필요하지만 업데이트로 안내 처리
-            actionType = 'update_info';
-            existingContact = sameCompanyContact;
-          }
-        } else {
-          // 이름은 같은데 회사가 다른 경우 ➡️ 이직 감지(career_transition) 또는 동명이인 체크
-          // 기존 담당자의 연락처/이메일이 현재 명함 정보와 하나라도 유사하면 이직으로 강력 판정
-          const transitionMatch = sameNameContacts.find((c: any) => {
-            const cleanOldPhone = (c.phone || '').replace(/\D/g, '');
-            const cleanNewPhone = cardPhone.replace(/\D/g, '');
-            return (
-              (cleanOldPhone && cleanNewPhone && cleanOldPhone === cleanNewPhone) ||
-              (c.email && cardEmail && c.email.toLowerCase() === cardEmail.toLowerCase())
-            );
-          });
+    let ntsVerification = {
+      isValidated: false,
+      status: 'UNKNOWN',
+      statusText: '국세청 실시간 조회 보류 (API 키 미등록)',
+      taxType: '',
+      closedDate: ''
+    };
 
-          if (transitionMatch) {
-            actionType = 'career_transition';
-            existingContact = transitionMatch;
-          } else {
-            // 연락처마저 다르면 동명이인일 확률이 높으므로 신규 생성으로 취급
-            actionType = 'new_contact';
+    if (ntsApiKey && isChecksumValid) {
+      try {
+        const rawNum = ocrInfo.businessNumber.replace(/\D/g, '');
+        const ntsUrl = `https://api.odcloud.kr/api/nts-businessman/v1/status?serviceKey=${ntsApiKey}`;
+        const ntsRes = await fetch(ntsUrl, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ b_no: [rawNum] })
+        });
+
+        if (ntsRes.ok) {
+          const ntsResData = await ntsRes.json();
+          const bizStatus = ntsResData.data?.[0];
+
+          if (bizStatus) {
+            let status = 'NOT_FOUND';
+            let statusText = '국세청 미등록 사업자';
+            if (bizStatus.b_stt_cd === '01') {
+              status = 'ACTIVE';
+              statusText = '정상 계속사업자 (가동중)';
+            } else if (bizStatus.b_stt_cd === '02') {
+              status = 'SUSPENDED';
+              statusText = `휴업 사업자 (휴업일: ${bizStatus.end_dt || '미상'})`;
+            } else if (bizStatus.b_stt_cd === '03') {
+              status = 'CLOSED';
+              statusText = `폐업 사업자 (폐업일자: ${bizStatus.end_dt || '미상'})`;
+            }
+
+            ntsVerification = {
+              isValidated: true,
+              status,
+              statusText,
+              taxType: bizStatus.tax_type || '',
+              closedDate: bizStatus.end_dt || ''
+            };
           }
         }
+      } catch (ntsErr) {
+        console.error('NTS API Error in EasyBot Route:', ntsErr);
+        ntsVerification.statusText = '국세청 API 호출 실패 (서버 연결 불안정)';
       }
+    }
+
+    // 3대 핵심 정보 변동 여부 및 중복 대조 판정
+    const existingPartnersRes = await queryTable('crm_partners', {
+      filters: { business_number: ocrInfo.businessNumber }
+    });
+    const rows = existingPartnersRes.rows || [];
+
+    const checksumResult = {
+      isValid: isChecksumValid,
+      message: isChecksumValid ? '체크섬 공식 통과' : '잘못된 사업자번호 형식'
+    };
+
+    if (rows.length === 0) {
+      return NextResponse.json({
+        success: true,
+        fileType: 'BUSINESS_LICENSE',
+        status: 'NEW_PARTNER',
+        data: ocrInfo,
+        checksum: checksumResult,
+        nts: ntsVerification
+      });
+    }
+
+    // 기존 사업자가 존재함
+    const existingPartner = rows[0];
+    const dbCompanyName = (existingPartner.company_name || '').trim();
+    const dbRepresentative = (existingPartner.representative || '').trim();
+    const dbAddress = (existingPartner.address || '').trim();
+
+    const isCompanyNameChanged = ocrInfo.companyName !== '' && dbCompanyName !== ocrInfo.companyName;
+    const isRepresentativeChanged = ocrInfo.representative !== '' && dbRepresentative !== ocrInfo.representative;
+    const isAddressChanged = ocrInfo.address !== '' && dbAddress !== ocrInfo.address;
+
+    const isChanged = isCompanyNameChanged || isRepresentativeChanged || isAddressChanged;
+
+    if (isChanged) {
+      const diff = {
+        companyName: { old: dbCompanyName, new: ocrInfo.companyName, changed: isCompanyNameChanged },
+        representative: { old: dbRepresentative, new: ocrInfo.representative, changed: isRepresentativeChanged },
+        address: { old: dbAddress, new: ocrInfo.address, changed: isAddressChanged }
+      };
+
+      return NextResponse.json({
+        success: true,
+        fileType: 'BUSINESS_LICENSE',
+        status: 'UPDATE_PARTNER',
+        data: ocrInfo,
+        existingId: existingPartner.id,
+        existingType: existingPartner.type,
+        diff,
+        checksum: checksumResult,
+        nts: ntsVerification
+      });
     }
 
     return NextResponse.json({
       success: true,
-      parsedData: {
-        name: cardName,
-        position: parsedCard.position || '',
-        phone: cardPhone,
-        email: cardEmail,
-        companyName: cardCompanyName
-      },
-      actionType,
-      partnerId,
-      partnerName,
-      existingContact
+      fileType: 'BUSINESS_LICENSE',
+      status: 'ALREADY_REGISTERED',
+      data: ocrInfo,
+      existingId: existingPartner.id,
+      existingType: existingPartner.type,
+      checksum: checksumResult,
+      nts: ntsVerification
     });
 
   } catch (error: any) {
-    console.error('명함 OCR 판독 에러:', error);
-    return NextResponse.json({
-      success: false,
-      error: error.message || '명함을 판독하는 도중 내부 예외 오류가 발생했습니다.'
-    }, { status: 500 });
+    console.error("EasyBot OCR Route Error:", error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

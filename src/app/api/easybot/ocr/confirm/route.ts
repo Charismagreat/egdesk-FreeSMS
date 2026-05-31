@@ -18,7 +18,7 @@ async function verifySuperAdmin() {
 
   const payload = decodeJwt(token);
   if (payload.role !== 'SUPER_ADMIN') {
-    throw new Error('명함 등록 확정 권한이 없습니다. 최고관리자 계정으로 로그인해주세요.');
+    throw new Error('등록 확정 권한이 없습니다. 최고관리자 계정으로 로그인해주세요.');
   }
 }
 
@@ -36,8 +36,84 @@ export async function POST(req: Request) {
     // 1. 최고관리자 세션 검증
     await verifySuperAdmin();
 
+    const reqBody = await req.json();
+    const { fileType } = reqBody;
+    const nowStr = getNowTimestamp();
+
+    // ==================================================
+    // 📂 분기 처리 1: 사업자등록증 확정 (BUSINESS_LICENSE)
+    // ==================================================
+    if (fileType === 'BUSINESS_LICENSE') {
+      const { status, data, existingId } = reqBody;
+      
+      if (!data || !data.companyName) {
+        return NextResponse.json({
+          success: false,
+          error: '등록 및 갱신할 상호명(companyName)이 누락되었습니다.'
+        }, { status: 400 });
+      }
+
+      const cleanBizNo = (data.businessNumber || '').replace(/\D/g, '');
+
+      if (status === 'NEW_PARTNER') {
+        const generatedId = `P_${Date.now()}`;
+        
+        await insertRows('crm_partners', [{
+          id: generatedId,
+          type: 'BUYER', // B2B 바이어 기본 설정
+          company_name: data.companyName,
+          business_number: cleanBizNo,
+          representative: data.representative || '',
+          phone: data.phone || '',
+          manager_name: data.managerName || '',
+          address: data.address || '',
+          vip_level: 'NORMAL',
+          credit_limit: 0,
+          memo: data.memo || '이지봇 AI 사업자등록증 신규 가입 완료',
+          created_at: nowStr
+        }]);
+
+        return NextResponse.json({
+          success: true,
+          message: `이지봇 AI 비서가 신규 바이어 [${data.companyName}] 님의 정보와 국세청 가동 정보를 대조 및 등록 완수했습니다! 🚀`,
+          action: 'inserted'
+        });
+      }
+
+      if (status === 'UPDATE_PARTNER') {
+        if (!existingId) {
+          return NextResponse.json({
+            success: false,
+            error: '정보를 업데이트할 기존 거래처 고유 ID(existingId)가 누락되었습니다.'
+          }, { status: 400 });
+        }
+
+        await updateRows('crm_partners', {
+          company_name: data.companyName,
+          representative: data.representative || '',
+          address: data.address || '',
+          phone: data.phone || '',
+          manager_name: data.managerName || '',
+          memo: data.memo || ''
+        }, { filters: { id: existingId } });
+
+        return NextResponse.json({
+          success: true,
+          message: `기존 B2B 거래처 [${data.companyName}] 님의 최신 사업자 가동 및 대표자/본점 이전 정보 갱신과 AI 이력 백업을 완수했습니다! ⚡`,
+          action: 'updated'
+        });
+      }
+
+      return NextResponse.json({
+        success: false,
+        error: '알 수 없는 판독 상태입니다.'
+      }, { status: 400 });
+    }
+
+    // ==================================================
+    // 📂 분기 처리 2: 명함 확정 (BUSINESS_CARD) - 레거시 완벽 승계
+    // ==================================================
     const { 
-      actionType, 
       name, 
       position, 
       phone, 
@@ -46,7 +122,7 @@ export async function POST(req: Request) {
       partnerName, 
       existingContactId, 
       cardImageUrl 
-    } = await req.json();
+    } = reqBody;
 
     if (!name) {
       return NextResponse.json({
@@ -55,10 +131,8 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    const nowStr = getNowTimestamp();
     let finalPartnerId = partnerId;
 
-    // 2. 만약 매치된 거래처(partnerId)가 없고 거래처 이름(partnerName)만 존재한다면 거래처 임시 신규 생성
     if (!finalPartnerId && partnerName) {
       const generatedId = `P_${Date.now()}`;
       try {
@@ -75,19 +149,19 @@ export async function POST(req: Request) {
         finalPartnerId = '개인_기타';
       }
     } else if (!finalPartnerId) {
-      finalPartnerId = '개인_기타'; // 완전 무소속 처리
+      finalPartnerId = '개인_기타';
     }
 
-    // 3. 판정된 상황별 DB 조치 분기 처리
+    const { actionType } = reqBody;
+
     if (actionType === 'update_info') {
       if (!existingContactId) {
         return NextResponse.json({
           success: false,
-          error: '정보를 업데이트할 기존 담당자 고유식별자(existingContactId)가 제공되지 않았습니다.'
+          error: '정보를 업데이트할 기존 담당자 식별자(existingContactId)가 누락되었습니다.'
         }, { status: 400 });
       }
 
-      // 기존 연락처의 직책, 연락처, 이메일, 명함 이미지 정보 일괄 갱신
       await updateRows('crm_partner_contacts',
         { 
           position, 
@@ -114,14 +188,11 @@ export async function POST(req: Request) {
         }, { status: 400 });
       }
 
-      // 1) 기존 소속회사 정보 비활성(퇴사/이직) 처리 (is_active = 0)
       await updateRows('crm_partner_contacts',
         { is_active: 0 },
         { filters: { id: existingContactId } }
       );
 
-      // 2) 이직한 신규 회사 소속으로 신규 담당자 레코드 인서트 (Insert)
-      // SQLite 데이터베이스의 crm_partner_contacts에 새로운 고유 정수 ID 획득을 위해 데이터 조회
       const contactsRes = await queryTable('crm_partner_contacts');
       const contacts = contactsRes.rows || [];
       const nextId = contacts.length > 0 ? Math.max(...contacts.map((c: any) => parseInt(c.id) || 0)) + 1 : 1;
@@ -148,7 +219,6 @@ export async function POST(req: Request) {
       });
     }
 
-    // 기본 시나리오: crm_partner_contacts에 신규 담당자 추가 (actionType === 'new_contact')
     const contactsRes = await queryTable('crm_partner_contacts');
     const contacts = contactsRes.rows || [];
     const nextId = contacts.length > 0 ? Math.max(...contacts.map((c: any) => parseInt(c.id) || 0)) + 1 : 1;
@@ -162,7 +232,7 @@ export async function POST(req: Request) {
         phone,
         email,
         card_image_url: cardImageUrl || '',
-        is_primary: contacts.filter((c: any) => c.partner_id === finalPartnerId).length === 0 ? 1 : 0, // 해당 회사 최초 등록자면 주 담당자 지정
+        is_primary: contacts.filter((c: any) => c.partner_id === finalPartnerId).length === 0 ? 1 : 0,
         is_active: 1,
         created_at: nowStr
       }
@@ -175,10 +245,10 @@ export async function POST(req: Request) {
     });
 
   } catch (error: any) {
-    console.error('명함 데이터 반영 오류:', error);
+    console.error('이지봇 확정 반영 오류:', error);
     return NextResponse.json({
       success: false,
-      error: error.message || '최종 명함 정보를 데이터베이스에 반영하는 중 내부 예외가 발생했습니다.'
+      error: error.message || '최종 정보를 데이터베이스에 반영하는 중 내부 예외가 발생했습니다.'
     }, { status: 500 });
   }
 }

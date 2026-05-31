@@ -14,6 +14,8 @@ interface Message {
   sqlError?: string | null;
   isCardPhoto?: boolean; // 명함 이미지 썸네일 노출 여부
   cardPhotoBase64?: string; // 명함 이미지 Base64 데이터
+  isPdfFile?: boolean; // PDF 파일 노출 여부
+  pdfFileName?: string; // PDF 파일명
 }
 
 // React 19 무의존성 안전 마크다운 렌더러 컴포넌트 (밝은 색 테마 버전)
@@ -434,6 +436,255 @@ function CardPreviewMessage({ tagContent, onConfirmSuccess }: { tagContent: stri
   );
 }
 
+/**
+ * AI 사업자등록증 OCR 구조화 데이터를 파싱하여 인라인 수동 보정 및 국세청 2중 검증 확정 등록을 수행하는 프리미엄 카드 컴포넌트
+ */
+function LicensePreviewMessage({ tagContent, onConfirmSuccess }: { tagContent: string; onConfirmSuccess: (msg: string) => void }) {
+  const [license, setLicense] = useState<any>(null);
+  const [companyName, setCompanyName] = useState('');
+  const [businessNumber, setBusinessNumber] = useState('');
+  const [representative, setRepresentative] = useState('');
+  const [address, setAddress] = useState('');
+  const [phone, setPhone] = useState('');
+  const [managerName, setManagerName] = useState('');
+  const [memo, setMemo] = useState('');
+  
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    try {
+      const parsed = JSON.parse(tagContent);
+      setLicense(parsed);
+      const ocrData = parsed.data || {};
+      setCompanyName(ocrData.companyName || '');
+      setBusinessNumber(ocrData.businessNumber || '');
+      setRepresentative(ocrData.representative || '');
+      setAddress(ocrData.address || '');
+      setPhone(ocrData.phone || '');
+      setManagerName(ocrData.managerName || '');
+      setMemo(ocrData.memo || '');
+    } catch (err) {
+      console.error('사업자등록증 태그 파싱 실패:', err);
+    }
+  }, [tagContent]);
+
+  if (!license) return <div className="text-rose-500 font-bold p-2 text-xs">사업자등록증 데이터를 파싱하지 못했습니다.</div>;
+
+  const status = license.status;
+  const checksum = license.checksum || { isValid: true, message: '' };
+  const nts = license.nts || { isValidated: false, status: 'UNKNOWN', statusText: '' };
+  const existingId = license.existingId;
+
+  const handleConfirmSubmit = async () => {
+    setSaving(true);
+    try {
+      const response = await fetch('/api/easybot/ocr/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileType: 'BUSINESS_LICENSE',
+          status,
+          existingId,
+          data: {
+            companyName,
+            businessNumber,
+            representative,
+            address,
+            phone,
+            managerName,
+            memo
+          }
+        })
+      });
+
+      const resData = await response.json();
+      if (resData.success) {
+        setSaved(true);
+        onConfirmSuccess(resData.message);
+      } else {
+        alert(resData.error || '사업자등록증 DB 저장 처리에 실패했습니다.');
+      }
+    } catch (err: any) {
+      alert('서버 등록 통신 오류: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const isBlocked = !checksum.isValid || nts.status === 'CLOSED' || nts.status === 'NOT_FOUND';
+
+  return (
+    <div className="my-3 border border-indigo-100 rounded-2xl bg-white shadow-md overflow-hidden text-slate-800 max-w-sm animate-in zoom-in-95 duration-200">
+      {/* 카드 헤더 */}
+      <div className="bg-gradient-to-r from-emerald-50/50 to-teal-50/30 px-4 py-3 border-b border-indigo-50 flex items-center gap-2">
+        <Sparkles size={14} className="text-emerald-600 animate-pulse" />
+        <span className="text-xs font-black text-slate-800">이지봇 AI 사업자등록증 리포트</span>
+      </div>
+
+      {/* 2중 국세청 검증 가이드 바 */}
+      <div className="px-4 pt-3 shrink-0">
+        <div className={`p-2.5 rounded-xl border text-[10px] font-bold space-y-1 ${
+          isBlocked
+            ? 'bg-rose-50 border-rose-200 text-rose-800'
+            : nts.status === 'SUSPENDED'
+            ? 'bg-amber-50 border-amber-200 text-amber-800'
+            : nts.status === 'ACTIVE'
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+            : 'bg-slate-50 border-slate-200 text-slate-700'
+        }`}>
+          <div className="flex items-center justify-between pb-1 border-b border-slate-100/50 font-black">
+            <span className="flex items-center gap-1">🛡️ 국세청 실시간 진위 검증</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[8px] font-black uppercase ${
+              isBlocked
+                ? 'bg-rose-500 text-white'
+                : nts.status === 'SUSPENDED'
+                ? 'bg-amber-500 text-white'
+                : nts.status === 'ACTIVE'
+                ? 'bg-emerald-500 text-white'
+                : 'bg-slate-200 text-slate-500'
+            }`}>
+              {!checksum.isValid
+                ? '체크섬 오류'
+                : nts.status === 'CLOSED'
+                ? '폐업'
+                : nts.status === 'SUSPENDED'
+                ? '휴업'
+                : nts.status === 'ACTIVE'
+                ? '정상가동'
+                : '미확인'}
+            </span>
+          </div>
+          <div className="flex justify-between items-center text-[9px] text-slate-450">
+            <span>1차 체계 검증 (Checksum)</span>
+            <span className={checksum.isValid ? 'text-emerald-600 font-extrabold' : 'text-rose-600 font-extrabold'}>{checksum.message}</span>
+          </div>
+          <div className="flex justify-between items-start text-[9px] text-slate-450 gap-2">
+            <span>2차 국세청 실시간 가동 상태</span>
+            <span className={`text-right ${nts.status === 'ACTIVE' ? 'text-emerald-600 font-extrabold' : isBlocked ? 'text-rose-600 font-extrabold' : 'text-slate-650'}`}>{nts.statusText}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 정보 입력 및 보정 양식 */}
+      <div className="p-4 space-y-3 text-[11px]">
+        {/* 상호 및 등록번호 */}
+        <div className="grid grid-cols-2 gap-2.5">
+          <div className="space-y-1">
+            <label className="text-[10px] text-slate-450 font-extrabold flex items-center gap-1">🏢 상호 (회사명)</label>
+            <input 
+              type="text" 
+              value={companyName} 
+              onChange={e => setCompanyName(e.target.value)}
+              disabled={saving || saved || isBlocked}
+              className="w-full px-2 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-slate-50/20 font-bold"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] text-slate-450 font-extrabold flex items-center gap-1">🔢 사업자번호</label>
+            <input 
+              type="text" 
+              value={businessNumber} 
+              onChange={e => setBusinessNumber(e.target.value)}
+              disabled={saving || saved || isBlocked}
+              className="w-full px-2 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-slate-50/20 font-bold font-mono"
+            />
+          </div>
+        </div>
+
+        {/* 대표자 및 주소 */}
+        <div className="grid grid-cols-2 gap-2.5">
+          <div className="space-y-1">
+            <label className="text-[10px] text-slate-450 font-extrabold flex items-center gap-1"><User size={10} />대표자 성함</label>
+            <input 
+              type="text" 
+              value={representative} 
+              onChange={e => setRepresentative(e.target.value)}
+              disabled={saving || saved || isBlocked}
+              className="w-full px-2 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-slate-50/20 font-bold"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] text-slate-450 font-extrabold flex items-center gap-1"><Phone size={10} />대표 연락처</label>
+            <input 
+              type="text" 
+              value={phone} 
+              onChange={e => setPhone(e.target.value)}
+              disabled={saving || saved || isBlocked}
+              className="w-full px-2 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-slate-50/20 font-bold"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] text-slate-450 font-extrabold flex items-center gap-1">📍 본점 소재 주소</label>
+          <input 
+            type="text" 
+            value={address} 
+            onChange={e => setAddress(e.target.value)}
+            disabled={saving || saved || isBlocked}
+            className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-slate-50/20 font-bold text-xs"
+          />
+        </div>
+
+        {/* B2B 매칭 플래그 가이드 */}
+        {status === 'UPDATE_PARTNER' && license.diff && (
+          <div className="bg-amber-50 border border-amber-100 rounded-xl p-2.5 space-y-1.5 text-[9px] text-amber-800 leading-relaxed font-bold">
+            <span className="block font-black text-[10px]">⚠️ 대표자/주소 변동 사항 감지</span>
+            <div className="divide-y divide-amber-100/50">
+              {license.diff.companyName.changed && <div>• 상호명: {license.diff.companyName.old} ➡️ {companyName}</div>}
+              {license.diff.representative.changed && <div>• 대표자: {license.diff.representative.old} ➡️ {representative}</div>}
+              {license.diff.address.changed && <div>• 주소: {license.diff.address.old} ➡️ {address}</div>}
+            </div>
+            <span className="block text-slate-400 mt-1">※ 기존 누적 거래 실적은 100% 보존되며, 메모 열에 옛 정보가 누적 보관됩니다.</span>
+          </div>
+        )}
+
+        {status === 'ALREADY_REGISTERED' && (
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-2 text-[9px] text-blue-700 font-extrabold">
+            🟢 이미 동일 정보로 등록이 완료된 중복 거래처입니다.
+          </div>
+        )}
+      </div>
+
+      {/* 액션 버튼 */}
+      <div className="px-4 pb-4 border-t border-slate-100 pt-3 flex gap-2">
+        {saved ? (
+          <div className="w-full py-2.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-xl font-bold text-center text-[11px]">
+            B2B 거래처 등록 및 2중 검증 완료!
+          </div>
+        ) : (
+          <button
+            type="button"
+            disabled={saving || isBlocked}
+            onClick={handleConfirmSubmit}
+            className={`w-full py-2.5 rounded-xl text-white font-extrabold text-[11px] flex items-center justify-center gap-1.5 transition-all shadow-3xs cursor-pointer ${
+              isBlocked
+                ? 'bg-slate-200 text-slate-400 border-none cursor-not-allowed shadow-none'
+                : status === 'UPDATE_PARTNER'
+                ? 'bg-amber-600 hover:bg-amber-700 shadow-md shadow-amber-600/10'
+                : 'bg-slate-900 hover:bg-slate-800'
+            }`}
+          >
+            {saving ? (
+              <>
+                <RefreshCw size={11} className="animate-spin" />
+                <span>B2B 원터치 가동 중...</span>
+              </>
+            ) : isBlocked ? (
+              <span>부적격 사업자 (등록 불가)</span>
+            ) : status === 'UPDATE_PARTNER' ? (
+              <span>기존 바이어 변동 갱신 승인 ⚡</span>
+            ) : (
+              <span>B2B 신규 바이어 등록 승인 🚀</span>
+            )}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function EasyBot() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
@@ -588,7 +839,7 @@ export default function EasyBot() {
   };
 
   /**
-   * 명함 카메라 전송 및 Base64 스캔 API 파이프라인
+   * 명함 및 사업자등록증 파일(이미지/PDF) 업로드 및 Base64 스캔 API 파이프라인
    */
   const handleCardPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -597,30 +848,49 @@ export default function EasyBot() {
     setIsLoading(true);
     stopSpeaking();
 
-    // 사용자의 명함 이미지 썸네일 버블 추가
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+
+    // 파일 로드 및 Base64 변환
     const reader = new FileReader();
     reader.onload = async () => {
       const base64Str = reader.result as string;
       const timeStr = formatTimestamp();
 
-      // 사용자 대화창에 명함 썸네일 노출
-      setMessages(prev => [
-        ...prev,
-        {
-          role: 'user',
-          content: '📷 이 명함을 명함첩에 등록해 주세요.',
-          timestamp: timeStr,
-          isCardPhoto: true,
-          cardPhotoBase64: base64Str
-        }
-      ]);
+      if (isPdf) {
+        // 사용자 대화창에 PDF 업로드 정보 노출
+        setMessages(prev => [
+          ...prev,
+          {
+            role: 'user',
+            content: `📁 사업자등록증 PDF 문서를 검증하여 등록해 주세요. (${file.name})`,
+            timestamp: timeStr,
+            isCardPhoto: false,
+            isPdfFile: true,
+            pdfFileName: file.name,
+            cardPhotoBase64: base64Str
+          }
+        ]);
+      } else {
+        // 사용자 대화창에 명함 이미지 썸네일 노출
+        setMessages(prev => [
+          ...prev,
+          {
+            role: 'user',
+            content: '📷 명함 이미지를 스캔하여 등록해 주세요.',
+            timestamp: timeStr,
+            isCardPhoto: true,
+            isPdfFile: false,
+            cardPhotoBase64: base64Str
+          }
+        ]);
+      }
 
       // 봇의 분석 중 대기 상태 추가
       setMessages(prev => [
         ...prev,
         {
           role: 'bot',
-          content: '🔄 명함 사진을 지능적으로 스캔하고 있습니다. 잠시만 기다려 주세요... ⚡',
+          content: '🔄 업로드하신 문서를 AI가 정밀 분석 및 국세청 검증을 수행하고 있습니다. 잠시만 기다려 주세요... ⚡',
           timestamp: timeStr
         }
       ]);
@@ -635,32 +905,55 @@ export default function EasyBot() {
         const data = await response.json();
 
         if (data.success) {
-          // 명함 이미지 저장 URL이나 가상 URL 매핑
-          const cardPayload = {
-            ...data.parsedData,
-            actionType: data.actionType,
-            partnerId: data.partnerId,
-            partnerName: data.partnerName,
-            existingContact: data.existingContact,
-            cardImageUrl: base64Str // 프리뷰용 base64 보존
-          };
-
-          // 봇의 로딩 대화를 특수 [CARD_PREVIEW:...] 카드로 치환
-          setMessages(prev => {
-            const updated = [...prev];
-            updated[updated.length - 1] = {
-              role: 'bot',
-              content: `[CARD_PREVIEW:${JSON.stringify(cardPayload)}]`,
-              timestamp: formatTimestamp()
+          if (data.fileType === 'BUSINESS_LICENSE') {
+            const licensePayload = {
+              status: data.status,
+              existingId: data.existingId,
+              existingType: data.existingType,
+              diff: data.diff,
+              checksum: data.checksum,
+              nts: data.nts,
+              data: data.data
             };
-            return updated;
-          });
+
+            // 봇의 로딩 대화를 특수 [LICENSE_PREVIEW:...] 카드로 치환
+            setMessages(prev => {
+              const updated = [...prev];
+              updated[updated.length - 1] = {
+                role: 'bot',
+                content: `[LICENSE_PREVIEW:${JSON.stringify(licensePayload)}]`,
+                timestamp: formatTimestamp()
+              };
+              return updated;
+            });
+          } else {
+            // 명함 이미지 저장 URL이나 가상 URL 매핑
+            const cardPayload = {
+              ...data.data,
+              actionType: data.actionType,
+              partnerId: data.partnerId,
+              partnerName: data.partnerName,
+              existingContact: data.existingContact,
+              cardImageUrl: base64Str // 프리뷰용 base64 보존
+            };
+
+            // 봇의 로딩 대화를 특수 [CARD_PREVIEW:...] 카드로 치환
+            setMessages(prev => {
+              const updated = [...prev];
+              updated[updated.length - 1] = {
+                role: 'bot',
+                content: `[CARD_PREVIEW:${JSON.stringify(cardPayload)}]`,
+                timestamp: formatTimestamp()
+              };
+              return updated;
+            });
+          }
         } else {
           setMessages(prev => {
             const updated = [...prev];
             updated[updated.length - 1] = {
               role: 'bot',
-              content: `❌ 명함 판독 실패: ${data.error || '알 수 없는 판독 오류'}`,
+              content: `❌ 문서 판독 실패: ${data.error || '알 수 없는 판독 오류'}`,
               timestamp: formatTimestamp()
             };
             return updated;
@@ -671,7 +964,7 @@ export default function EasyBot() {
           const updated = [...prev];
           updated[updated.length - 1] = {
             role: 'bot',
-            content: `❌ 명함 스캔 중 통신 오류가 발생했습니다: ${err.message}`,
+            content: `❌ 문서 스캔 중 통신 오류가 발생했습니다: ${err.message}`,
             timestamp: formatTimestamp()
           };
           return updated;
@@ -917,7 +1210,13 @@ export default function EasyBot() {
             <div className="flex-1 min-h-0 overflow-y-auto p-5 pb-6 space-y-6 bg-[#fafafb] custom-scrollbar pt-6">
               {messages.map((msg, index) => {
                 const isCardPreview = msg.role === 'bot' && msg.content.startsWith('[CARD_PREVIEW:');
-                const tagContent = isCardPreview ? msg.content.substring(14, msg.content.length - 1) : '';
+                const isLicensePreview = msg.role === 'bot' && msg.content.startsWith('[LICENSE_PREVIEW:');
+                const tagContent = isCardPreview 
+                  ? msg.content.substring(14, msg.content.length - 1) 
+                  : isLicensePreview 
+                  ? msg.content.substring(17, msg.content.length - 1) 
+                  : '';
+                const isCustomPreview = isCardPreview || isLicensePreview;
 
                 return (
                   <div key={index} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -935,8 +1234,8 @@ export default function EasyBot() {
                         className={`px-4.5 py-3.5 rounded-2xl shadow-[0_3px_6px_rgba(0,0,0,0.015)] text-xs border-0 ${
                           msg.role === 'user'
                             ? 'text-white rounded-tr-none'
-                            : isCardPreview
-                            ? 'p-0 bg-transparent shadow-none border-none rounded-none' // 명함 카드는 말풍선 제거
+                            : isCustomPreview
+                            ? 'p-0 bg-transparent shadow-none border-none rounded-none' // 명함 및 사업자등록증 카드는 말풍선 제거
                             : 'bg-[#efefef] text-[#1c1e21] rounded-tl-none'
                         }`}
                         style={
@@ -955,11 +1254,24 @@ export default function EasyBot() {
                           </div>
                         )}
 
+                        {/* PDF 업로드 정보 렌더링 지원 (유저 메시지용) */}
+                        {msg.isPdfFile && (
+                          <div className="mb-2 p-3 max-w-[220px] rounded-xl border border-white/20 bg-white/10 text-white flex items-center gap-2 font-bold select-none">
+                            <span className="text-lg">📁</span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[10px] truncate leading-tight">{msg.pdfFileName}</p>
+                              <p className="text-[8px] opacity-70">PDF 사업자등록증 문서</p>
+                            </div>
+                          </div>
+                        )}
+
                         {/* 2. 일반 텍스트 렌더링 분기 */}
                         {msg.role === 'user' ? (
                           <UserMarkdown content={msg.content} />
                         ) : isCardPreview ? (
                           <CardPreviewMessage tagContent={tagContent} onConfirmSuccess={handleCardConfirmSuccess} />
+                        ) : isLicensePreview ? (
+                          <LicensePreviewMessage tagContent={tagContent} onConfirmSuccess={handleCardConfirmSuccess} />
                         ) : (
                           <SafeMarkdown content={msg.content} />
                         )}
@@ -1055,7 +1367,7 @@ export default function EasyBot() {
                   type="file"
                   ref={fileInputRef}
                   onChange={handleCardPhotoUpload}
-                  accept="image/*"
+                  accept="image/*,application/pdf"
                   className="hidden"
                 />
 
