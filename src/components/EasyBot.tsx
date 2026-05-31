@@ -469,10 +469,16 @@ export default function EasyBot() {
     // 4. 기본적으로 도입부 상위 3개 핵심 문장을 담습니다.
     const selectedSentences = sentences.slice(0, 3);
 
-    // 5. 도입부 3개 이후의 문장 중 '주의/경고/중요/다만/반드시/필수' 등의 키워드가 포함된 중요 문장을 감지하여 추가
-    const warningKeywords = ['주의', '경고', '중요', '필독', '다만', '하지만', '반드시', '⚠️', '🚨', '금지', '필수', '제한', '유의'];
+    // 5. 도입부 3개 이후의 문장 중 명확한 주의/경고 키워드가 포함된 중요 문장을 감지하여 추가
+    // 일반 설명글에 흔히 남발되는 '하지만', '다만', '반드시', '필수', '유의', '중요' 등은 탐색 키워드에서 배제
+    const warningKeywords = ['주의', '경고', '금지', '제한', '위험', '차단', '잠금', '⚠️', '🚨'];
     
     for (let i = 3; i < sentences.length; i++) {
+      // 요약 음성의 총 길이가 본문과 비슷해지는 것을 원천 차단하기 위해 최대 5문장 하드 리밋 부여 🚨
+      if (selectedSentences.length >= 5) {
+        break;
+      }
+      
       const sentence = sentences[i];
       const hasWarning = warningKeywords.some(keyword => sentence.includes(keyword));
       if (hasWarning) {
