@@ -669,6 +669,7 @@ export default function MyDBManagementPage() {
   const [friendlyAllowCsv, setFriendlyAllowCsv] = React.useState<boolean>(true);
   const [generatedFriendlyShareUrl, setGeneratedFriendlyShareUrl] = React.useState<string>("");
   const [isFriendlySharing, setIsFriendlySharing] = React.useState<boolean>(false);
+  const [isFriendlyRecommendLoading, setIsFriendlyRecommendLoading] = React.useState<boolean>(false);
 
   // 실시간 컬럼 데이터 필터링용 상태 변수
   const [friendlyFilters, setFriendlyFilters] = React.useState<Record<string, string>>({});
@@ -788,6 +789,41 @@ export default function MyDBManagementPage() {
     setFriendlyAllowCsv(true);
     setGeneratedFriendlyShareUrl("");
     setIsFriendlyShareModalOpen(true);
+    // 🤖 모달이 열리는 즉시 백그라운드에서 AI 지능형 자동 추천 및 완성 가동!
+    fetchAIRecommendations(selectedTable, tableSchema);
+  };
+
+  // 👥 AI 기반 데이터 공유 뷰 설정 자동 추천 및 동기화 기동
+  const fetchAIRecommendations = async (tableName: string, schema: any[]) => {
+    if (!tableName || !schema || schema.length === 0) return;
+    setIsFriendlyRecommendLoading(true);
+    try {
+      const res = await fetch('/api/shared-views/recommend', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ tableName, tableSchema: schema })
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (data.friendlyTableName) {
+          setFriendlyShareTableName(data.friendlyTableName);
+        }
+        if (data.columnMappings && Array.isArray(data.columnMappings)) {
+          // AI가 추천한 마스킹, 한글화, 정렬 값을 컬럼 매핑 상태에 교차 세팅
+          setFriendlyColumnMappings(data.columnMappings);
+        }
+        showToast("🤖 AI 지능형 엔진이 최적의 공유 뷰 명세와 보안 마스킹 가이드를 자동 완성해 드렸습니다!", "success");
+      } else {
+        showToast(data.error || "AI 자동 추천 도중 에러가 발생하여 기본 설정으로 대체합니다.", "warn");
+      }
+    } catch (e) {
+      console.error(e);
+      showToast("네트워크 장애로 AI 자동 완성을 완료하지 못했습니다.", "warn");
+    } finally {
+      setIsFriendlyRecommendLoading(false);
+    }
   };
 
   // 👥 임직원 친화형 공유 테이블 뷰 등록 API 호출 핸들러
@@ -3434,6 +3470,19 @@ export default function MyDBManagementPage() {
               // ⚙️ [B방안] 풀스크린 세팅 폼 대시보드
               <div className="max-w-7xl mx-auto space-y-6">
                 
+                {/* 🤖 AI 지능형 실시간 자동 분석/로딩 진행 패널 */}
+                {isFriendlyRecommendLoading && (
+                  <div className="bg-indigo-50/70 border border-indigo-150 rounded-2xl p-4 flex items-center justify-between animate-pulse shadow-3xs text-left">
+                    <div className="flex items-center gap-3 text-xs font-black text-indigo-700">
+                      <RefreshCw className="w-5 h-5 animate-spin text-indigo-600 shrink-0" />
+                      <div className="space-y-0.5 text-left">
+                        <span className="block font-extrabold text-[12px] text-indigo-900">🤖 AI 지능형 가드레일 분석기 가동 중...</span>
+                        <span className="block text-[10px] text-indigo-500 font-medium">테이블의 비즈니스 목적을 파악하고 개인정보 및 민감데이터 4단계 비식별화 필터링 설정을 자동 완성하고 있습니다.</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 {/* 1. 상단 기본 세팅 블록 */}
                 <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-3xs grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* 테이블 한글 명칭 */}
@@ -3487,8 +3536,19 @@ export default function MyDBManagementPage() {
                         컬럼들이 가로 방향으로 나열되며 실제 데이터 행이 실시간 매핑됩니다. 공개 숨김 컬럼은 비주얼 피드백으로 즉각 숨김 마스킹 처리가 시뮬레이션됩니다.
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-150 px-2.5 py-0.5 rounded-full select-none animate-pulse">
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => fetchAIRecommendations(selectedTable, tableSchema)}
+                        disabled={isFriendlyRecommendLoading}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 border-none text-white rounded-xl text-[10px] font-black shadow-3xs cursor-pointer transition-all active:scale-95 disabled:opacity-50 select-none shrink-0"
+                        title="AI를 통해 한글 테이블 명칭, 각 컬럼의 한글 별칭, 민감데이터 숨김 가드레일을 1초 만에 자동 완성합니다."
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-white animate-pulse" />
+                        🤖 AI 지능형 자동 추천 채우기
+                      </button>
+
+                      <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-150 px-2.5 py-0.5 rounded-full select-none animate-pulse animate-fade-in">
                         총 {friendlyColumnMappings.length}개 컬럼
                       </span>
                     </div>
