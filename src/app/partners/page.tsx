@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { 
   Handshake, Plus, Search, Check, X, ShieldAlert, 
   ChevronRight, Building2, Phone, Mail, MapPin, 
-  Coins, Sparkles, Eye, Info, Trash2, Edit2
+  Coins, Sparkles, Eye, Info, Trash2, Edit2, RefreshCw
 } from "lucide-react";
 
 interface Partner {
@@ -52,6 +52,96 @@ export default function PartnersDashboard() {
     credit_limit: 0,
     memo: ""
   });
+
+  // 🤖 AI OCR 및 스마트 매칭 상태 변수
+  const [isOcrAnalyzing, setIsOcrAnalyzing] = useState(false);
+  const [ocrResult, setOcrResult] = useState<any>(null);
+  const [fileDragOver, setFileDragOver] = useState(false);
+
+  // 📂 B2B 사업자등록증 이미지/PDF 파일 업로드 및 AI 스캔 연동
+  const handleFileUpload = async (fileObj: File) => {
+    if (!fileObj) return;
+
+    // 이미지 및 PDF 제한 가드
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+    if (!allowedTypes.includes(fileObj.type)) {
+      alert('⚠️ 지원되지 않는 파일 포맷입니다. 사업자등록증 사진(JPG, PNG) 또는 PDF 문서만 업로드해 주세요.');
+      return;
+    }
+
+    setIsOcrAnalyzing(true);
+    setOcrResult(null);
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64Data = e.target?.result as string;
+        
+        // 백엔드 AI OCR API 호출
+        const res = await fetch('/api/partners/ocr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file: base64Data, mimeType: fileObj.type })
+        });
+
+        const resData = await res.json();
+        
+        if (!resData.success) {
+          throw new Error(resData.error || '사업자등록증 분석에 실패했습니다.');
+        }
+
+        const ocrData = resData.data;
+        setOcrResult(resData);
+
+        // 폼 필드 Prefill 자동 입력 조율
+        setForm(prev => {
+          let updatedMemo = prev.memo;
+          const nowStr = new Date().toISOString().replace('T', ' ').slice(0, 19);
+
+          if (resData.status === 'UPDATE_PARTNER') {
+            // 대표자/본점주소 등 변동사항이 감지된 경우 ➡️ 기존 정보는 유지하며 감사 이력(memo)에 보존 적재
+            const diff = resData.diff;
+            const changes: string[] = [];
+            if (diff.companyName.changed) changes.push(`상호: ${diff.companyName.old} ➡️ ${diff.companyName.new}`);
+            if (diff.representative.changed) changes.push(`대표자: ${diff.representative.old} ➡️ ${diff.representative.new}`);
+            if (diff.address.changed) changes.push(`주소: ${diff.address.old} ➡️ ${diff.address.new}`);
+
+            const auditHeader = `[AI 이력 보존: ${nowStr.substring(0, 10)} 변동 갱신 - ${changes.join(' / ')}]`;
+            updatedMemo = prev.memo ? `${auditHeader}\n${prev.memo}` : auditHeader;
+            
+            // 기존 거래처 수정을 타도록 모달 모드를 동적으로 수정
+            setModalMode('edit');
+            setEditingId(resData.existingId);
+          } else if (resData.status === 'NEW_PARTNER') {
+            const auditHeader = `[AI 사업자등록증 자동 작성 - 스캔일시: ${nowStr}]`;
+            updatedMemo = prev.memo ? `${auditHeader}\n${prev.memo}` : auditHeader;
+          }
+
+          // 사업자번호 필드 포맷 대응용 헬퍼 ("-" 기호 제거하여 프론트 양식 준수)
+          const cleanBusinessNo = (ocrData.businessNumber || "").replace(/\D/g, "");
+
+          return {
+            ...prev,
+            company_name: ocrData.companyName || prev.company_name,
+            business_number: cleanBusinessNo || prev.business_number,
+            representative: ocrData.representative || prev.representative,
+            address: ocrData.address || prev.address,
+            phone: ocrData.phone || prev.phone,
+            manager_name: ocrData.managerName || prev.manager_name,
+            memo: updatedMemo
+          };
+        });
+
+        setIsOcrAnalyzing(false);
+      };
+
+      reader.readAsDataURL(fileObj);
+
+    } catch (err: any) {
+      alert(err.message || '파일 처리 중 오류가 발생했습니다.');
+      setIsOcrAnalyzing(false);
+    }
+  };
 
   // 상세 거래 타임라인 팝업 상태
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -165,6 +255,7 @@ export default function PartnersDashboard() {
   const handleCreateClick = () => {
     setModalMode('create');
     setEditingId(null);
+    setOcrResult(null); // AI 스캔 결과 캐시 초기화
     setForm({
       type: activeTab,
       company_name: "",
@@ -416,6 +507,136 @@ export default function PartnersDashboard() {
 
             <div className="space-y-4 flex-1 overflow-y-auto pr-1">
               
+              {/* 🛠️ AI 사업자등록증 자동 완성 업로더 (이미지 및 PDF 동시 대응) */}
+              {modalMode === 'create' && (
+                <div className="bg-slate-50/50 border border-slate-100 p-4 rounded-2xl space-y-3 shrink-0">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
+                    B2B 바이어 사업자등록증 자동 완성 (AI OCR)
+                  </span>
+
+                  {isOcrAnalyzing ? (
+                    // 🌀 AI 지능형 판독 중 로딩 스켈레톤 및 스캔 이펙트
+                    <div className="border border-indigo-200 bg-indigo-50/20 rounded-xl p-6 flex flex-col items-center justify-center text-center space-y-3 animate-pulse relative overflow-hidden">
+                      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-400 via-indigo-500 to-cyan-400 animate-shimmer"></div>
+                      <RefreshCw className="w-8 h-8 text-indigo-500 animate-spin" />
+                      <div>
+                        <span className="text-xs font-black text-slate-700 block">AI 엔진이 사업자등록증 문서를 정밀 스캔 중입니다...</span>
+                        <span className="text-[10px] text-slate-400 font-bold block mt-1">사진(JPG, PNG) 및 PDF 전자문서의 텍스트와 레이아웃을 고밀도 판독하고 있습니다.</span>
+                      </div>
+                    </div>
+                  ) : (
+                    // 📂 드래그 앤 드롭 파일 업로드 드롭존
+                    <div
+                      onDragOver={(e) => { e.preventDefault(); setFileDragOver(true); }}
+                      onDragLeave={() => setFileDragOver(false)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setFileDragOver(false);
+                        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                          handleFileUpload(e.dataTransfer.files[0]);
+                        }
+                      }}
+                      onClick={() => document.getElementById('business-license-uploader')?.click()}
+                      className={`border-2 border-dashed rounded-xl p-5 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
+                        fileDragOver
+                          ? 'border-emerald-500 bg-emerald-50/30'
+                          : 'border-slate-200 hover:border-slate-350 hover:bg-slate-50'
+                      }`}
+                    >
+                      <Plus className="w-6 h-6 text-slate-400 mb-2 group-hover:scale-110 transition-transform" />
+                      <span className="text-xs font-black text-slate-700 block">이곳에 사업자등록증 파일(이미지/PDF) 드롭 또는 클릭 업로드</span>
+                      <span className="text-[9px] text-slate-400 font-semibold block mt-1.5">
+                        지원 포맷: JPG, PNG, PDF 전자문서 (최대 10MB)
+                      </span>
+                      <input
+                        type="file"
+                        id="business-license-uploader"
+                        accept="image/*,application/pdf"
+                        onChange={(e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            handleFileUpload(e.target.files[0]);
+                          }
+                        }}
+                        className="hidden"
+                      />
+                    </div>
+                  )}
+
+                  {/* 🟢/🟡 AI 분석 및 중복/변경 판정 스마트 피드백 배너 */}
+                  {ocrResult && (
+                    <div className="space-y-2">
+                      {ocrResult.status === 'NEW_PARTNER' && (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-start gap-2.5 text-xs text-emerald-800 font-semibold leading-relaxed">
+                          <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-extrabold block">신규 사업자 스캔 완료</span>
+                            <span className="text-[10px] text-emerald-600 block mt-0.5">등록된 이력이 없는 안전한 신규 바이어입니다. 주입된 상세 폼을 검토하신 후 등록해 주세요.</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {ocrResult.status === 'ALREADY_REGISTERED' && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-start gap-2.5 text-xs text-blue-800 font-semibold leading-relaxed">
+                          <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-extrabold block">완벽 기등록 일치</span>
+                            <span className="text-[10px] text-blue-600 block mt-0.5">이미 데이터베이스에 100% 완전히 동일한 정보로 가입되어 가동 중인 거래처입니다. 중복 가입이 차단됩니다.</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {ocrResult.status === 'UPDATE_PARTNER' && (
+                        <div className="space-y-2 shrink-0">
+                          {/* 경보 배너 */}
+                          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2.5 text-xs text-amber-800 font-semibold leading-relaxed">
+                            <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                            <div>
+                              <span className="font-extrabold block">기등록 사업자 정보 변동 감지</span>
+                              <span className="text-[10px] text-amber-600 block mt-0.5">
+                                이미 등록된 사업자번호이지만, 대표명/본점주소/상호명 변동이 감지되었습니다. <b>기존 누적 실적 이력을 그대로 승계·유지하며 정보를 최신화</b>합니다.
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* 📊 신/구 대조 표 (Diff Viewer) */}
+                          <div className="border border-slate-100 bg-white rounded-xl overflow-hidden shadow-3xs text-[10px] font-bold">
+                            <div className="grid grid-cols-3 bg-slate-50 text-slate-400 p-2 border-b border-slate-100 uppercase tracking-wider text-center">
+                              <div>구분 항목</div>
+                              <div>기존 정보 (기록값)</div>
+                              <div>신규 정보 (등록증 스캔)</div>
+                            </div>
+                            <div className="divide-y divide-slate-50">
+                              <div className="grid grid-cols-3 p-2 text-center items-center">
+                                <div className="text-slate-500">상호 / 회사명</div>
+                                <div className="text-slate-400 truncate">{ocrResult.diff.companyName.old}</div>
+                                <div className={ocrResult.diff.companyName.changed ? "text-amber-600 font-extrabold underline decoration-amber-400" : "text-slate-650"}>
+                                  {ocrResult.diff.companyName.new}
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-3 p-2 text-center items-center">
+                                <div className="text-slate-500">대표자 성함</div>
+                                <div className="text-slate-400 truncate">{ocrResult.diff.representative.old}</div>
+                                <div className={ocrResult.diff.representative.changed ? "text-amber-600 font-extrabold underline decoration-amber-400" : "text-slate-650"}>
+                                  {ocrResult.diff.representative.new}
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-3 p-2 text-center items-center">
+                                <div className="text-slate-500">본점 소재 주소</div>
+                                <div className="text-slate-400 truncate text-left pl-1">{ocrResult.diff.address.old}</div>
+                                <div className={ocrResult.diff.address.changed ? "text-amber-600 font-extrabold text-left pl-1 underline decoration-amber-400" : "text-slate-650 text-left pl-1"}>
+                                  {ocrResult.diff.address.new}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* 구분 필드 */}
               <div>
                 <label className="text-[10px] text-slate-400 font-bold block mb-1">거래처 구분</label>
@@ -582,9 +803,22 @@ export default function PartnersDashboard() {
               </button>
               <button 
                 type="submit"
-                className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl"
+                disabled={ocrResult?.status === 'ALREADY_REGISTERED'}
+                className={`flex-1 py-3 text-white font-bold text-xs rounded-xl transition-all cursor-pointer ${
+                  ocrResult?.status === 'ALREADY_REGISTERED'
+                    ? 'bg-slate-200 text-slate-400 border-none cursor-not-allowed'
+                    : ocrResult?.status === 'UPDATE_PARTNER'
+                    ? 'bg-amber-650 hover:bg-amber-600 shadow-md shadow-amber-650/10'
+                    : 'bg-slate-900 hover:bg-slate-800'
+                }`}
               >
-                {modalMode === 'create' ? '거래처 등록 승인' : '정보 수정 완수'}
+                {ocrResult?.status === 'UPDATE_PARTNER'
+                  ? '기존 거래처 변동 갱신 승인 ⚡'
+                  : ocrResult?.status === 'ALREADY_REGISTERED'
+                  ? '이미 기등록된 거래처 🟢'
+                  : modalMode === 'create'
+                  ? '거래처 등록 승인'
+                  : '정보 수정 완수'}
               </button>
             </div>
           </form>
