@@ -88,8 +88,22 @@ export default function AiUsageMonitor() {
       case 'easybot-sql-generation': return '이지봇 SQL 자동 변환';
       case 'easybot-response': return '이지봇 지능형 응답 답변';
       case 'marketing-content-pack': return '옴니채널 광고 원고 패키지 생성';
+      case 'EASYBOT_OCR_SCAN': return '이지봇 B2B 사업자등록증 스캔';
       default: return p;
     }
+  };
+
+  // 💰 Gemini API 공식 가격 정책 기반 실시간 예상 한화(KRW) 비용 연산 헬퍼
+  const calculateCost = (prompt: number, completion: number, modelName: string = "") => {
+    const model = (modelName || "").toLowerCase();
+    const isPro = model.includes("pro");
+    // 1달러 = 1,400원 환율 기준 (1M 토큰당 가격 기준)
+    // Flash: Prompt $0.075/1M, Completion $0.30/1M -> Prompt 0.000105원, Completion 0.00042원
+    // Pro: Prompt $1.25/1M, Completion $5.00/1M -> Prompt 0.00175원, Completion 0.007원
+    const promptRate = isPro ? 0.00175 : 0.000105;
+    const completionRate = isPro ? 0.00700 : 0.000420;
+    
+    return (prompt * promptRate) + (completion * completionRate);
   };
 
   return (
@@ -140,16 +154,29 @@ export default function AiUsageMonitor() {
         ) : (
           <>
             {/* 2. 핵심 계기판 스코어카드 그리드 */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
               
               {/* 총 토큰 소모량 */}
               <div className="bg-gradient-to-br from-indigo-50/50 to-blue-50/20 border border-indigo-100 rounded-xl p-4 flex items-center justify-between shadow-2xs">
                 <div>
                   <p className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">총 소모 토큰량</p>
-                  <h4 className="text-xl font-black text-slate-800 mt-1">{summary.total_tokens.toLocaleString()} <span className="text-xs font-medium text-slate-400">Tokens</span></h4>
+                  <h4 className="text-xl font-black text-slate-800 mt-1">{summary.total_tokens.toLocaleString()} <span className="text-xs font-medium text-slate-400">t</span></h4>
                 </div>
                 <div className="w-9 h-9 rounded-lg bg-indigo-500/10 text-indigo-600 flex items-center justify-center shrink-0">
                   <Activity className="w-4.5 h-4.5" />
+                </div>
+              </div>
+
+              {/* 예상 비용 */}
+              <div className="bg-gradient-to-br from-amber-50/50 to-yellow-50/20 border border-amber-100 rounded-xl p-4 flex items-center justify-between shadow-2xs col-span-2 sm:col-span-1">
+                <div>
+                  <p className="text-[10px] font-bold text-amber-700 uppercase tracking-wider">예상 API 사용 비용</p>
+                  <h4 className="text-xl font-black text-slate-800 mt-1">
+                    {calculateCost(summary.total_prompt_tokens, summary.total_completion_tokens, models[0]?.model).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span className="text-xs font-medium text-slate-400">원</span>
+                  </h4>
+                </div>
+                <div className="w-9 h-9 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
+                  <span className="text-xs font-extrabold">₩</span>
                 </div>
               </div>
 
@@ -168,7 +195,7 @@ export default function AiUsageMonitor() {
               <div className="bg-gradient-to-br from-blue-50/50 to-sky-50/20 border border-blue-100 rounded-xl p-4 flex items-center justify-between shadow-2xs">
                 <div>
                   <p className="text-[10px] font-bold text-blue-700 uppercase tracking-wider">입력(질문) 토큰량</p>
-                  <h4 className="text-xl font-black text-slate-800 mt-1">{summary.total_prompt_tokens.toLocaleString()} <span className="text-xs font-medium text-slate-400">Tokens</span></h4>
+                  <h4 className="text-xl font-black text-slate-800 mt-1">{summary.total_prompt_tokens.toLocaleString()} <span className="text-xs font-medium text-slate-400">t</span></h4>
                 </div>
                 <div className="w-9 h-9 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
                   <Layers className="w-4.5 h-4.5" />
@@ -179,7 +206,7 @@ export default function AiUsageMonitor() {
               <div className="bg-gradient-to-br from-rose-50/50 to-pink-50/20 border border-rose-100 rounded-xl p-4 flex items-center justify-between shadow-2xs">
                 <div>
                   <p className="text-[10px] font-bold text-rose-700 uppercase tracking-wider">출력(답변) 토큰량</p>
-                  <h4 className="text-xl font-black text-slate-800 mt-1">{summary.total_completion_tokens.toLocaleString()} <span className="text-xs font-medium text-slate-400">Tokens</span></h4>
+                  <h4 className="text-xl font-black text-slate-800 mt-1">{summary.total_completion_tokens.toLocaleString()} <span className="text-xs font-medium text-slate-400">t</span></h4>
                 </div>
                 <div className="w-9 h-9 rounded-lg bg-rose-500/10 text-rose-600 flex items-center justify-center shrink-0">
                   <BarChart3 className="w-4.5 h-4.5" />
@@ -206,8 +233,11 @@ export default function AiUsageMonitor() {
                       return (
                         <div key={p.purpose} className="space-y-1">
                           <div className="flex justify-between text-xs font-semibold text-slate-700">
-                            <span className="truncate max-w-[200px]">{getPurposeLabel(p.purpose)}</span>
-                            <span>{p.tokens.toLocaleString()} Tokens ({pct.toFixed(1)}%)</span>
+                            <span className="truncate max-w-[180px]">{getPurposeLabel(p.purpose)}</span>
+                            <span className="shrink-0 flex items-center gap-1.5">
+                              <span>{p.tokens.toLocaleString()} t ({pct.toFixed(1)}%)</span>
+                              <span className="text-[10px] text-amber-600 font-bold bg-amber-50 px-1.5 py-0.2 rounded-md">약 {(p.tokens * 0.00018).toFixed(1)}원</span>
+                            </span>
                           </div>
                           <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
                             <div className="bg-indigo-500 h-full rounded-full transition-all duration-500" style={{ width: `${pct}%` }}></div>
@@ -235,8 +265,11 @@ export default function AiUsageMonitor() {
                       return (
                         <div key={m.model} className="space-y-1">
                           <div className="flex justify-between text-xs font-bold text-slate-700">
-                            <span className="font-mono text-indigo-650">{m.model}</span>
-                            <span>{m.tokens.toLocaleString()} Tokens ({pct.toFixed(1)}%)</span>
+                            <span className="font-mono text-indigo-650 truncate max-w-[180px]">{m.model}</span>
+                            <span className="shrink-0 flex items-center gap-1.5">
+                              <span>{m.tokens.toLocaleString()} t ({pct.toFixed(1)}%)</span>
+                              <span className="text-[10px] text-amber-650 font-bold bg-amber-50 px-1.5 py-0.2 rounded-md">약 {(m.tokens * (m.model.toLowerCase().includes("pro") ? 0.003 : 0.00018)).toFixed(1)}원</span>
+                            </span>
                           </div>
                           <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
                             <div className="bg-emerald-500 h-full rounded-full transition-all duration-500" style={{ width: `${pct}%` }}></div>
@@ -282,13 +315,14 @@ export default function AiUsageMonitor() {
                         <th className="p-3">수행 목적</th>
                         <th className="p-3 text-right">질문 토큰</th>
                         <th className="p-3 text-right">답변 토큰</th>
-                        <th className="p-3 text-right bg-slate-50/30">총 소모량</th>
+                        <th className="p-3 text-right bg-slate-50/10">총 소모량</th>
+                        <th className="p-3 text-right bg-amber-50/30 text-amber-700">예상 비용 (KRW)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {recentLogs.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="p-8 text-center text-slate-400 font-semibold bg-white">
+                          <td colSpan={7} className="p-8 text-center text-slate-400 font-semibold bg-white">
                             기록된 실시간 AI 호출 이력이 없습니다. 이지봇 대화나 자동 마케팅을 가동해 보세요!
                           </td>
                         </tr>
@@ -300,7 +334,10 @@ export default function AiUsageMonitor() {
                             <td className="p-3 text-slate-650 font-semibold">{getPurposeLabel(log.purpose)}</td>
                             <td className="p-3 text-right text-slate-500 font-semibold">{log.prompt_tokens.toLocaleString()}</td>
                             <td className="p-3 text-right text-slate-500 font-semibold">{log.completion_tokens.toLocaleString()}</td>
-                            <td className="p-3 text-right font-extrabold text-indigo-600 bg-indigo-50/10 font-mono">{log.total_tokens.toLocaleString()} t</td>
+                            <td className="p-3 text-right font-bold text-slate-600 bg-slate-50/20 font-mono">{log.total_tokens.toLocaleString()} t</td>
+                            <td className="p-3 text-right font-extrabold text-amber-600 bg-amber-50/10 font-mono">
+                              {calculateCost(log.prompt_tokens, log.completion_tokens, log.model).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}원
+                            </td>
                           </tr>
                         ))
                       )}
