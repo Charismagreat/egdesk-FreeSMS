@@ -150,8 +150,8 @@ export default function HrAttendancePage() {
       });
       const data = await res.json();
       if (data.success) {
+        await fetchHrData();
         alert(data.message);
-        fetchHrData();
       } else {
         alert(data.error || '출퇴근 스탬프 처리에 실패했습니다.');
       }
