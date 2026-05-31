@@ -366,53 +366,55 @@ export default function HrAttendancePage() {
       <div className="absolute top-0 right-10 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl -z-10 animate-pulse"></div>
       <div className="absolute bottom-10 left-10 w-96 h-96 bg-rose-500/5 rounded-full blur-3xl -z-10"></div>
 
-      {/* 1. 최상단 헤더 카드 */}
-      <div className="w-full bg-white border border-slate-100 p-6 md:p-8 rounded-3xl shadow-sm block relative">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div className="space-y-3">
-            <div className="flex items-center space-x-2">
-              <div className="p-2 bg-indigo-500/10 text-indigo-600 rounded-xl">
-                <Calendar className="w-6 h-6 shrink-0" />
-              </div>
-              <span className="text-[10px] font-black tracking-wider bg-slate-100 text-slate-600 px-2.5 py-0.5 rounded-full uppercase">HR & Work Management</span>
-            </div>
-            <h1 className="text-2xl md:text-3xl font-black text-slate-800 tracking-tight leading-tight">
-              직원 근태 및 전사 캘린더 관제 센터
-            </h1>
-            <p className="text-slate-400 text-sm font-medium leading-relaxed max-w-3xl">
-              실시간 1초 출퇴근 타임스탬프와 주간/월간 전사 공유 캘린더, 그리고 Gemini AI 자율 인사 평가 및 마감 연계형 업무 공백 예보를 정밀 관제합니다.
-            </p>
+      {/* 상단 타이틀 헤더 */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 pb-6 border-b border-slate-200 relative z-10 shrink-0">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold text-slate-800 tracking-tight flex items-center">
+            <Calendar className="w-8 h-8 text-indigo-650 mr-3" />
+            근태 관리 AI
+          </h1>
+          <p className="text-slate-500 mt-2 text-sm">
+            실시간 1초 출퇴근 타임스탬프와 주간/월간 전사 공유 캘린더, 그리고 Gemini AI 자율 인사 평가 및 마감 연계형 업무 공백 예보를 정밀 관제합니다.
+          </p>
+        </div>
+      </div>
+
+      {/* 나의 오늘 출퇴근 기록 간편 스탬프 카드 */}
+      <div className="bg-white border border-slate-100 p-5 rounded-3xl shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-xl -z-10"></div>
+        <div className="flex items-center gap-3">
+          <div className="p-3 bg-indigo-500/10 text-indigo-600 rounded-2xl">
+            <Clock className="w-6 h-6 animate-pulse" />
           </div>
-          
-          {/* 간편 출퇴근 원터치 스탬프 위젯 */}
-          <div className="bg-slate-50 border border-slate-200/60 p-4 rounded-2xl flex flex-col items-center shrink-0 min-w-[200px] shadow-inner">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mb-2.5">
-              <Clock size={11} className="text-indigo-500" />
-              나의 오늘 출퇴근 기록
-            </span>
-            <div className="text-xs font-extrabold text-slate-700 mb-3 bg-white px-3 py-1 rounded-lg border border-slate-100">
-              {currentEmpRecord?.clock_in ? (
-                <span>출근 완료: <b className="text-emerald-600 font-bold">{currentEmpRecord.clock_in}</b></span>
-              ) : (
-                <span className="text-slate-400">출근 기록이 없습니다</span>
-              )}
-            </div>
-            <div className="flex gap-2 w-full">
-              <button
-                disabled={submitLoading || (currentEmpRecord && !!currentEmpRecord.clock_in)}
-                onClick={() => handleClockStamp('CLOCK_IN')}
-                className="flex-1 py-2 text-[11px] font-extrabold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-30 rounded-xl transition-all shadow-md cursor-pointer text-center"
-              >
-                출근 🟢
-              </button>
-              <button
-                disabled={submitLoading || !currentEmpRecord || (currentEmpRecord && !currentEmpRecord.clock_in) || (currentEmpRecord && !!currentEmpRecord.clock_out)}
-                onClick={() => handleClockStamp('CLOCK_OUT')}
-                className="flex-1 py-2 text-[11px] font-extrabold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-30 rounded-xl transition-all shadow-md cursor-pointer text-center"
-              >
-                퇴근 🔴
-              </button>
-            </div>
+          <div>
+            <h4 className="text-sm font-black text-slate-800">나의 오늘 출퇴근 기록</h4>
+            <p className="text-xs text-slate-400 font-semibold mt-1">간편한 원터치 타임스탬프로 실시간 근태 대장에 스탬프를 적재합니다.</p>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="text-xs font-extrabold text-slate-700 bg-slate-50 border border-slate-200/60 px-4 py-2.5 rounded-2xl min-w-[180px] text-center shadow-inner">
+            {currentEmpRecord?.clock_in ? (
+              <span>출근 완료: <b className="text-emerald-650 font-bold">{currentEmpRecord.clock_in}</b></span>
+            ) : (
+              <span className="text-slate-400">출근 기록이 없습니다</span>
+            )}
+          </div>
+          <div className="flex gap-2 min-w-[200px]">
+            <button
+              disabled={submitLoading || (currentEmpRecord && !!currentEmpRecord.clock_in)}
+              onClick={() => handleClockStamp('CLOCK_IN')}
+              className="flex-1 py-2.5 px-5 text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-30 rounded-xl transition-all shadow-md cursor-pointer text-center"
+            >
+              출근 🟢
+            </button>
+            <button
+              disabled={submitLoading || !currentEmpRecord || (currentEmpRecord && !currentEmpRecord.clock_in) || (currentEmpRecord && !!currentEmpRecord.clock_out)}
+              onClick={() => handleClockStamp('CLOCK_OUT')}
+              className="flex-1 py-2.5 px-5 text-xs font-black text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-30 rounded-xl transition-all shadow-md cursor-pointer text-center"
+            >
+              퇴근 🔴
+            </button>
           </div>
         </div>
       </div>
