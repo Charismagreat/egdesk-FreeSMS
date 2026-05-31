@@ -391,7 +391,7 @@ export default function AIBriefingDashboardPage() {
           title="수집된 보고서 목록 최신 동기화"
         >
           <RefreshCw className={`w-3.5 h-3.5 text-white ${isLoading ? 'animate-spin' : ''}`} />
-          브리핑 대시보드 새로고침
+          새로 고침
         </button>
       </div>
 
