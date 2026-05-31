@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
-import { queryTable } from '../../../../../egdesk-helpers';
+import { queryTable, insertRows } from '../../../../../egdesk-helpers';
 
 /**
  * 최고관리자(SUPER_ADMIN) 권한 검증 공통 헬퍼
@@ -193,6 +193,27 @@ export async function POST(req: Request) {
 
     if (!rawText) {
       throw new Error('Gemini AI로부터 분석 응답을 수신하지 못했습니다.');
+    }
+
+    // 🛡️ AI API 토큰 실시간 모니터링 및 호출 토큰 감사록 기록 적재
+    try {
+      const u = aiData.usageMetadata || {};
+      const promptTokens = u.promptTokenCount || 0;
+      const completionTokens = u.candidatesTokenCount || 0;
+      const totalTokens = u.totalTokenCount || 0;
+
+      if (totalTokens > 0) {
+        await insertRows('ai_token_usage_logs', [{
+          model_name: selectedModel,
+          task_purpose: 'EASYBOT_OCR_SCAN',
+          prompt_tokens: promptTokens,
+          completion_tokens: completionTokens,
+          total_tokens: totalTokens,
+          timestamp: new Date().toISOString()
+        }]);
+      }
+    } catch (logErr) {
+      console.error('이지봇 OCR AI 토큰 사용량 감사 로그 적재 실패:', logErr);
     }
 
     // AI 추출 데이터 JSON 파싱
