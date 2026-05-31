@@ -17,6 +17,9 @@ export default function AIBriefingDashboardPage() {
   const [cardSpans, setCardSpans] = React.useState<Record<string, 1 | 2>>({});
   const [openMenuId, setOpenMenuId] = React.useState<string | null>(null);
   
+  // AI 분석 텍스트 숨김 리스트 상태 🎯 (로컬 저장소 자동 영구 동기화)
+  const [hiddenBriefingIds, setHiddenBriefingIds] = React.useState<Record<string, boolean>>({});
+
   const handleToggleCardSpan = (shareId: string) => {
     setCardSpans(prev => ({
       ...prev,
@@ -27,8 +30,27 @@ export default function AIBriefingDashboardPage() {
   React.useEffect(() => {
     const closeMenu = () => setOpenMenuId(null);
     window.addEventListener("click", closeMenu);
+
+    // 로컬스토리지로부터 숨김 텍스트 브리핑 이력 로딩
+    const saved = localStorage.getItem('egdesk_hidden_briefing_ids');
+    if (saved) {
+      try {
+        setHiddenBriefingIds(JSON.parse(saved));
+      } catch (e) {
+        console.error('숨김 브리핑 데이터 파싱 실패:', e);
+      }
+    }
+
     return () => window.removeEventListener("click", closeMenu);
   }, []);
+
+  const handleToggleBriefingVisibility = (shareId: string) => {
+    setHiddenBriefingIds(prev => {
+      const updated = { ...prev, [shareId]: !prev[shareId] };
+      localStorage.setItem('egdesk_hidden_briefing_ids', JSON.stringify(updated));
+      return updated;
+    });
+  };
   
   // 편집 중인 리포트의 타이틀 상태
   const [editingReportId, setEditingReportId] = React.useState<string | null>(null);
@@ -549,6 +571,20 @@ export default function AIBriefingDashboardPage() {
                             onClick={(e) => e.stopPropagation()} 
                             className="absolute right-0 top-10 bg-white/95 backdrop-blur-md border border-slate-150 rounded-2xl shadow-xl px-3 py-1.5 z-40 flex items-center gap-0.5 animate-fade-in min-w-[320px] justify-end"
                           >
+                            {/* 0. AI 분석 텍스트 보이기/숨기기 토글 단추 */}
+                            <button
+                              onClick={() => {
+                                handleToggleBriefingVisibility(board.share_id);
+                                setOpenMenuId(null);
+                              }}
+                              className={`p-2 bg-transparent hover:bg-slate-100 rounded-xl transition-all active:scale-95 flex items-center justify-center cursor-pointer ${
+                                hiddenBriefingIds[board.share_id] ? "text-slate-400" : "text-indigo-600 font-bold"
+                              }`}
+                              title={hiddenBriefingIds[board.share_id] ? "AI 데이터 분석 정보 보기" : "AI 데이터 분석 정보 접기"}
+                            >
+                              <FileText className="w-3.5 h-3.5 shrink-0" />
+                            </button>
+
                             {/* 1. 와이드 보기로 키우는 버튼 */}
                             <button
                               onClick={() => {
@@ -671,6 +707,17 @@ export default function AIBriefingDashboardPage() {
                           title="콤팩트 보기로 축소 (2열 바둑판 배치)"
                         >
                           <Minimize2 className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* 💬 AI 분석 텍스트 보이기/숨기기 토글 단추 */}
+                        <button
+                          onClick={() => handleToggleBriefingVisibility(board.share_id)}
+                          className={`p-2 bg-transparent hover:bg-slate-100 rounded-xl transition-all active:scale-95 flex items-center justify-center cursor-pointer ${
+                            hiddenBriefingIds[board.share_id] ? "text-slate-400" : "text-indigo-600 font-bold"
+                          }`}
+                          title={hiddenBriefingIds[board.share_id] ? "AI 데이터 분석 정보 보기" : "AI 데이터 분석 정보 접기"}
+                        >
+                          <FileText className="w-3.5 h-3.5 shrink-0" />
                         </button>
 
                         {/* 👁️ 공유 활성 토글 */}
@@ -808,7 +855,16 @@ export default function AIBriefingDashboardPage() {
                       {/* 📝 2. AI 비즈니스 통찰 브리핑 요약 영역 */}
                       <div className="space-y-3">
                         
-                        {board.briefing_markdown ? (
+                        {hiddenBriefingIds[board.share_id] ? (
+                          <div 
+                            onClick={() => handleToggleBriefingVisibility(board.share_id)}
+                            className="p-3.5 border border-dashed border-indigo-200 hover:border-indigo-400 bg-indigo-50/20 hover:bg-indigo-50/40 rounded-2xl cursor-pointer text-center text-indigo-650 transition-all select-none animate-fade-in flex items-center justify-center gap-2"
+                            title="AI 데이터 분석 텍스트 펼치기"
+                          >
+                            <FileText className="w-4 h-4 text-indigo-550 shrink-0" />
+                            <span className="text-xs font-bold">AI 분석 텍스트 정보가 접혀 있습니다. (클릭 시 펼치기 💡)</span>
+                          </div>
+                        ) : board.briefing_markdown ? (
                           <div className="bg-emerald-50/30 border border-emerald-100/60 rounded-2xl p-5 shadow-3xs animate-fade-in">
                             <div className="text-xs md:text-sm font-semibold leading-relaxed text-slate-700 whitespace-pre-line font-sans">
                               {board.briefing_markdown}
