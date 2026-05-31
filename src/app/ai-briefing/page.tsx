@@ -666,7 +666,7 @@ export default function AIBriefingDashboardPage() {
                         {/* ↕️ 개별 와이드/콤팩트 크기 조율 */}
                         <button
                           onClick={() => handleToggleCardSpan(board.share_id)}
-                          className="p-2 bg-transparent hover:bg-slate-100 rounded-xl transition-all active:scale-95 flex items-center justify-center cursor-pointer text-slate-400 hover:text-slate-655"
+                          className="p-2 bg-transparent hover:bg-slate-100 rounded-xl transition-all active:scale-95 flex items-center justify-center cursor-pointer text-slate-400 hover:text-slate-600"
                           title="콤팩트 보기로 축소 (2열 바둑판 배치)"
                         >
                           <Minimize2 className="w-3.5 h-3.5" />
@@ -749,16 +749,16 @@ export default function AIBriefingDashboardPage() {
                           className="p-2 bg-transparent hover:bg-slate-100 text-slate-500 rounded-xl transition-all active:scale-95 disabled:opacity-30 flex items-center justify-center cursor-pointer"
                           title="실시간 갱신 (SQL 데이터 재조회 및 AI 브리핑 재스캔)"
                         >
-                          <RefreshCw className={`w-3.5 h-3.5 ${isUpdating ? "animate-spin text-indigo-650" : "text-slate-500"}`} />
+                          <RefreshCw className={`w-3.5 h-3.5 ${isUpdating ? "animate-spin text-indigo-600" : "text-slate-500"}`} />
                         </button>
 
                         {/* 8. 원본 수정 */}
                         <button
                           onClick={() => handleGoToEditQuery(board.sql_query, board.table_name)}
-                          className="p-2 bg-transparent hover:bg-slate-100 text-indigo-555 rounded-xl transition-all active:scale-95 flex items-center justify-center cursor-pointer"
+                          className="p-2 bg-transparent hover:bg-slate-100 text-indigo-600 rounded-xl transition-all active:scale-95 flex items-center justify-center cursor-pointer"
                           title="원본 SQL 플레이그라운드 이동하여 쿼리 정밀 편집"
                         >
-                          <Database className="w-3.5 h-3.5 text-indigo-555" />
+                          <Database className="w-3.5 h-3.5 text-indigo-600" />
                         </button>
 
                         {/* 9. 게시 철회 */}
