@@ -515,42 +515,42 @@ export default function FeedbackManagementCard() {
 
       {/* 동적 플로팅 액션 툴바 (체크 항목 발생 시 슬라이드 업 연동) */}
       {selectedIds.length > 0 && (
-        <div className="absolute bottom-4 left-4 right-4 z-20 bg-slate-900/95 backdrop-blur-md text-white py-3.5 px-6 rounded-2xl shadow-xl border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-bottom-5 duration-300">
+        <div className="absolute bottom-4 left-4 right-4 z-20 bg-white/95 backdrop-blur-md text-slate-800 py-3.5 px-6 rounded-2xl shadow-xl border border-indigo-100 shadow-indigo-100/40 flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-bottom-5 duration-300">
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-650 border border-indigo-100">
               <Sparkles size={14} className="animate-pulse" />
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
-                선택된 항목 <span className="text-indigo-400 font-extrabold text-[13px]">{selectedIds.length}</span>개
+              <p className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                선택된 항목 <span className="text-indigo-650 font-extrabold text-[13px]">{selectedIds.length}</span>개
               </p>
-              <p className="text-[10px] text-slate-400 mt-0.5">선택한 피드백으로 사전 이메일 문의 또는 슬랙/디스코드 발송이 가능합니다.</p>
+              <p className="text-[10px] text-slate-450 mt-0.5">선택한 피드백으로 사전 이메일 문의 또는 슬랙/디스코드 발송이 가능합니다.</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
             <button
               onClick={() => setSelectedIds([])}
-              className="px-3 py-2 text-[11px] font-semibold text-slate-300 hover:text-white transition-colors"
+              className="px-3 py-2 text-[11px] font-semibold text-slate-450 hover:text-slate-700 transition-colors cursor-pointer"
             >
               선택 해제
             </button>
             
-            {/* 이메일 사전 문의 버튼 신규 추가 */}
+            {/* 이메일 사전 문의 버튼 */}
             <button
               onClick={() => {
                 setIsEmailModalOpen(true);
                 handleEmailDraftGenerate(selectedIds);
               }}
-              className="flex items-center gap-1.5 px-4.5 py-2 text-xs font-bold rounded-xl text-slate-100 hover:text-white bg-slate-800 hover:bg-slate-750 border border-slate-700 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm"
+              className="flex items-center gap-1.5 px-4.5 py-2 text-xs font-bold rounded-xl text-indigo-650 hover:text-indigo-750 bg-white hover:bg-slate-50 border border-slate-200 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm cursor-pointer"
             >
-              <Mail size={12} className="text-indigo-400" />
+              <Mail size={12} className="text-indigo-550" />
               이메일 사전 문의 (AI 초안)
             </button>
 
             <button
               onClick={() => setIsExportModalOpen(true)}
-              className="flex items-center gap-1.5 px-4.5 py-2 text-xs font-bold rounded-xl text-white shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all"
+              className="flex items-center gap-1.5 px-4.5 py-2 text-xs font-bold rounded-xl text-white shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
               style={{ backgroundColor: '#4f46e5' }}
             >
               <Send size={12} />
