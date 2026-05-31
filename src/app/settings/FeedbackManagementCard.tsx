@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, AlertCircle, Sparkles, CheckCircle2, Eye, EyeOff, Search, RefreshCw, ChevronRight, ShieldAlert } from 'lucide-react';
+import { MessageSquare, AlertCircle, Sparkles, CheckCircle2, Eye, EyeOff, Search, RefreshCw, ChevronRight, ShieldAlert, Send, X, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 
 interface FeedbackItem {
@@ -23,6 +23,16 @@ export default function FeedbackManagementCard() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
+  // 다중 선택 상태 추가
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  
+  // 전송 모달 및 컨트롤러 상태 추가
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [selectedChannels, setSelectedChannels] = useState<string[]>(['slack']); // 기본값은 슬랙
+  const [exportComment, setExportComment] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const [exportResults, setExportResults] = useState<any[] | null>(null);
+
   const fetchFeedbacks = async () => {
     setLoading(true);
     setError(null);
@@ -38,6 +48,7 @@ export default function FeedbackManagementCard() {
       setError(err.message || '네트워크 통신 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
+      setSelectedIds([]); // 목록 갱신 시 다중 선택 초기화
     }
   };
 
@@ -115,8 +126,75 @@ export default function FeedbackManagementCard() {
     return matchesSearch && matchesType && matchesStatus;
   });
 
+  // 개별 체크박스 토글
+  const handleSelectToggle = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  // 전체 선택/해제 토글
+  const handleSelectAllToggle = () => {
+    if (selectedIds.length === filteredFeedbacks.length) {
+      setSelectedIds([]); // 전체 선택된 상태라면 모두 해제
+    } else {
+      setSelectedIds(filteredFeedbacks.map(item => item.id)); // 필터링된 모든 항목 선택
+    }
+  };
+
+  // 채널 체크박스 토글
+  const handleChannelToggle = (channel: string) => {
+    setSelectedChannels(prev =>
+      prev.includes(channel) ? prev.filter(c => c !== channel) : [...prev, channel]
+    );
+  };
+
+  // 다중 채널 전송 실행
+  const handleExportSubmit = async () => {
+    if (selectedChannels.length === 0) {
+      alert('전송할 채널을 1개 이상 선택해 주세요.');
+      return;
+    }
+    
+    setExporting(true);
+    setExportResults(null);
+    
+    try {
+      const response = await fetch('/api/settings/feedback/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          feedbackIds: selectedIds,
+          channels: selectedChannels,
+          comment: exportComment
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setExportResults(data.results);
+        // 성공 시 1.5초 후 닫기 전 즉각 갱신
+        setTimeout(() => {
+          setIsExportModalOpen(false);
+          setExportComment('');
+          setSelectedIds([]);
+          setExportResults(null);
+          fetchFeedbacks(); // 피드백 상태가 '처리 중'으로 바뀌므로 새로고침
+        }, 2000);
+      } else {
+        alert(data.error || '피드백 전송 과정 중 오류가 발생했습니다.');
+      }
+    } catch (err: any) {
+      alert('네트워크 전송 오류: ' + err.message);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
-    <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden transition-all duration-300">
+    <div className="relative bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden transition-all duration-300">
+      
       {/* 카드 헤더 (Harmonic Indigo 그라데이션) */}
       <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-gradient-to-r from-slate-50 to-indigo-50/20">
         <div className="flex items-center gap-3">
@@ -178,7 +256,7 @@ export default function FeedbackManagementCard() {
                   className={`px-2.5 py-1.5 rounded-lg border font-semibold transition-all text-[11px] shrink-0 ${
                     typeFilter === chip.key
                       ? 'bg-indigo-550 border-indigo-550 text-white shadow-sm'
-                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      : 'bg-white border-slate-200 text-slate-650 hover:bg-slate-50'
                   }`}
                 >
                   {chip.label}
@@ -204,7 +282,7 @@ export default function FeedbackManagementCard() {
                   className={`px-2.5 py-1.5 rounded-lg border font-semibold transition-all text-[11px] shrink-0 ${
                     statusFilter === chip.key
                       ? 'bg-slate-750 border-slate-750 text-white shadow-sm'
-                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      : 'bg-white border-slate-200 text-slate-650 hover:bg-slate-50'
                   }`}
                 >
                   {chip.label}
@@ -240,6 +318,15 @@ export default function FeedbackManagementCard() {
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-slate-55 border-b border-slate-150 text-slate-700 font-bold text-[11px]">
+                    {/* 다중 선택 컬럼 헤더 추가 */}
+                    <th className="p-4 w-12 text-center">
+                      <input 
+                        type="checkbox"
+                        checked={selectedIds.length === filteredFeedbacks.length && filteredFeedbacks.length > 0}
+                        onChange={handleSelectAllToggle}
+                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5 cursor-pointer"
+                      />
+                    </th>
                     <th className="p-4 w-28">제보 유형</th>
                     <th className="p-4">제보 요약 및 내용</th>
                     <th className="p-4 w-36">접수 메뉴</th>
@@ -250,6 +337,7 @@ export default function FeedbackManagementCard() {
                 <tbody className="divide-y divide-slate-100/80">
                   {filteredFeedbacks.map((item) => {
                     const isResolved = item.resolved_status === 'resolved';
+                    const isChecked = selectedIds.includes(item.id);
                     
                     // 유형 뱃지 스타일 정의
                     const badgeStyles = {
@@ -270,9 +358,21 @@ export default function FeedbackManagementCard() {
                       <tr 
                         key={item.id} 
                         className={`hover:bg-slate-50/50 transition-colors ${
+                          isChecked ? 'bg-indigo-50/20' : ''
+                        } ${
                           isResolved ? 'bg-slate-50/30 text-slate-400' : 'text-slate-700'
                         }`}
                       >
+                        {/* 다중 선택 개별 체크박스 셀 */}
+                        <td className="p-4 text-center">
+                          <input 
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => handleSelectToggle(item.id)}
+                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5 cursor-pointer"
+                          />
+                        </td>
+
                         {/* 1. 제보 유형 */}
                         <td className="p-4 whitespace-nowrap">
                           <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold ${badgeStyles[item.detected_type] || badgeStyles.other}`}>
@@ -333,6 +433,205 @@ export default function FeedbackManagementCard() {
           </div>
         )}
       </div>
+
+      {/* 동적 플로팅 액션 툴바 (체크 항목 발생 시 슬라이드 업 연동) */}
+      {selectedIds.length > 0 && (
+        <div className="absolute bottom-4 left-4 right-4 z-20 bg-slate-900/95 backdrop-blur-md text-white py-3.5 px-6 rounded-2xl shadow-xl border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-bottom-5 duration-300">
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+              <Sparkles size={14} className="animate-pulse" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-slate-100 flex items-center gap-1.5">
+                선택된 항목 <span className="text-indigo-400 font-extrabold text-[13px]">{selectedIds.length}</span>개
+              </p>
+              <p className="text-[10px] text-slate-400 mt-0.5">선택한 피드백들을 슬랙 및 디스코드 채널로 실시간 발송할 수 있습니다.</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <button
+              onClick={() => setSelectedIds([])}
+              className="px-3 py-2 text-[11px] font-semibold text-slate-300 hover:text-white transition-colors"
+            >
+              선택 해제
+            </button>
+            <button
+              onClick={() => setIsExportModalOpen(true)}
+              className="flex items-center gap-1.5 px-4.5 py-2 text-xs font-bold rounded-xl text-white shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all"
+              style={{ backgroundColor: '#4f46e5' }}
+            >
+              <Send size={12} />
+              개발사 채널 전송
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 다중 채널 발송 설정 모달 (Modal) */}
+      {isExportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
+            
+            {/* 모달 헤더 */}
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 to-indigo-50/10">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                  <Send size={16} />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800">개발사 피드백 다중 전송 설정</h4>
+                  <p className="text-[10px] text-slate-400 mt-0.5">선택한 {selectedIds.length}개의 건의사항을 지정 채널로 발송합니다.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  if (!exporting) {
+                    setIsExportModalOpen(false);
+                    setExportResults(null);
+                  }
+                }}
+                className="p-1 rounded-lg text-slate-450 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* 모달 본문 */}
+            <div className="p-6 flex-1 overflow-y-auto space-y-5 text-xs">
+              
+              {/* 채널 선택 체크박스 카드 */}
+              <div className="space-y-2">
+                <label className="block text-[11px] font-extrabold text-slate-700">1. 발송 대상 채널 지정 (다중 선택 가능)</label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  
+                  {/* 슬랙 카드 */}
+                  <div 
+                    onClick={() => !exporting && handleChannelToggle('slack')}
+                    className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all flex flex-col justify-between h-20 ${
+                      selectedChannels.includes('slack')
+                        ? 'border-indigo-500 bg-indigo-50/20 text-indigo-900 shadow-sm'
+                        : 'border-slate-150 hover:border-slate-300 bg-white text-slate-600'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-[11px]">💬 Slack</span>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedChannels.includes('slack')}
+                        onChange={() => {}} // 부모 div 클릭 처리
+                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
+                      />
+                    </div>
+                    <span className="text-[9px] text-slate-450">슬랙 Webhook 연동</span>
+                  </div>
+
+                  {/* 디스코드 카드 */}
+                  <div 
+                    onClick={() => !exporting && handleChannelToggle('discord')}
+                    className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all flex flex-col justify-between h-20 ${
+                      selectedChannels.includes('discord')
+                        ? 'border-indigo-500 bg-indigo-50/20 text-indigo-900 shadow-sm'
+                        : 'border-slate-150 hover:border-slate-300 bg-white text-slate-600'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-[11px]">🎮 Discord</span>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedChannels.includes('discord')}
+                        onChange={() => {}} // 부모 div 클릭 처리
+                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
+                      />
+                    </div>
+                    <span className="text-[9px] text-slate-450">디스코드 Webhook 연동</span>
+                  </div>
+
+                  {/* 카카오톡 카드 (비활성) */}
+                  <div 
+                    className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-400 opacity-60 flex flex-col justify-between h-20 cursor-not-allowed"
+                    title="카카오 비즈니스 채널 인증 및 템플릿 심사가 완료되면 잠금해제됩니다."
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-[11px] text-slate-400">💛 카카오톡</span>
+                      <span className="text-[9px] font-extrabold bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded-full">준비 중</span>
+                    </div>
+                    <span className="text-[9px] text-slate-400">알림톡 템플릿 심사 대기</span>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* 관리자 메모 textarea */}
+              <div className="space-y-2">
+                <label htmlFor="export-comment" className="block text-[11px] font-extrabold text-slate-700">2. 최고관리자 추가 메모/코멘트</label>
+                <textarea
+                  id="export-comment"
+                  placeholder="개발팀에 추가로 요청하거나 전달하고 싶은 상세 지시사항을 남겨주세요... (예: '5월 31일 접수된 버그들입니다. 긴급 검토 바랍니다.')"
+                  value={exportComment}
+                  onChange={e => setExportComment(e.target.value)}
+                  disabled={exporting}
+                  rows={3}
+                  className="w-full p-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/40 text-slate-700 leading-relaxed placeholder-slate-400 transition-all text-xs"
+                />
+              </div>
+
+              {/* 알림 가이드 문구 */}
+              <div className="p-3 border border-indigo-50 rounded-xl bg-indigo-50/30 text-indigo-650 flex items-start gap-2.5 leading-relaxed text-[11px]">
+                <AlertCircle size={14} className="shrink-0 mt-0.5 text-indigo-500" />
+                <p>전송이 1개 채널이라도 최종 성공하면, 해당 피드백 항목들의 처리 상태가 자동으로 **'⚙️ 처리 중'**으로 토글 업데이트됩니다.</p>
+              </div>
+
+              {/* 전송 결과 요약 표시 */}
+              {exportResults && (
+                <div className="p-3 border border-emerald-100 rounded-xl bg-emerald-50/30 text-emerald-700 space-y-1.5">
+                  <p className="font-bold flex items-center gap-1.5 text-[11px]">
+                    <CheckCircle2 size={13} className="text-emerald-550" />
+                    전송 완료! 잠시 후 화면이 새로고침됩니다.
+                  </p>
+                  <div className="space-y-1 text-[10px] text-emerald-600/90 pl-4.5 font-medium">
+                    {exportResults.map((r, i) => (
+                      <p key={i}>• {r.channel === 'slack' ? '슬랙' : '디스코드'}: {r.success ? '✅ 전송 성공' : `❌ 전송 실패 (${r.error})`}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            {/* 모달 푸터 */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-2.5">
+              <button
+                onClick={() => setIsExportModalOpen(false)}
+                disabled={exporting}
+                className="px-4 py-2 text-xs font-semibold text-slate-550 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleExportSubmit}
+                disabled={exporting || selectedChannels.length === 0}
+                className="flex items-center gap-1.5 px-5 py-2 text-xs font-bold rounded-xl text-white shadow-sm hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none"
+                style={{ backgroundColor: '#4f46e5' }}
+              >
+                {exporting ? (
+                  <>
+                    <RefreshCw size={12} className="animate-spin" />
+                    내보내는 중...
+                  </>
+                ) : (
+                  <>
+                    <Send size={12} />
+                    전송 실행
+                  </>
+                )}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
