@@ -257,8 +257,8 @@ export default function DBChartRenderer({ spec, rows, onSelectPart }: DBChartRen
           </svg>
         </div>
 
-        {/* 범례 리스트 */}
-        <div className="flex-1 space-y-2 max-h-48 overflow-y-auto pr-1">
+        {/* 범례 리스트 (세로 스크롤 방지를 위해 높이 제한을 max-h-72로 넉넉하게 확장) */}
+        <div className="flex-1 space-y-2 max-h-72 overflow-y-auto pr-1">
           <h3 className="text-xs font-black text-slate-500 mb-2 flex items-center gap-1.5">
             <PieChart className="w-3.5 h-3.5 text-indigo-500" />
             {spec.title}
