@@ -34,10 +34,59 @@ export async function POST(req: Request) {
     const attendanceRes = await queryTable('crm_attendance');
     const attendance = attendanceRes.rows || [];
 
+    // 💡 하이브리드 프로필 스키마 맵 (부서, 백업대행, 역량스펙, 통근거리)
+    const OPERATOR_DETAIL_MAP: Record<string, {
+      department: string;
+      backup_operator_id: string;
+      skills: string;
+      commute_area: string;
+    }> = {
+      "1": {
+        department: "대표이사실",
+        backup_operator_id: "2",
+        skills: "경영지원, SCM 총괄, ERP 시스템 관리",
+        commute_area: "경기도 성남시 분당구 - 자차 통근"
+      },
+      "2": {
+        department: "구매팀",
+        backup_operator_id: "3",
+        skills: "자재 관리, 발주 및 수주 조율, SCM 실무",
+        commute_area: "서울 마포구 - 지하철 통근 (대중교통의존)"
+      },
+      "3": {
+        department: "생산공장",
+        backup_operator_id: "2",
+        skills: "조립 라인 총괄, 자재 조달 조율, 기계 오퍼레이팅",
+        commute_area: "인천 부평구 - 지하철 통근 (원거리대중교통)"
+      },
+      "4": {
+        department: "개발본부",
+        backup_operator_id: "1",
+        skills: "IT 시스템 지원, 재고 전산 관리, 데이터 엔지니어링",
+        commute_area: "경기도 수원시 - 광역버스 통근 (원거리교통)"
+      }
+    };
+
     // JSON RAG 데이터 취합
     const ragContext = {
       total_employees_count: employees.length,
-      employees: employees.map((e: any) => ({ id: e.id, name: e.name, role: e.role })),
+      employees: employees.map((e: any) => {
+        const detail = OPERATOR_DETAIL_MAP[String(e.id)] || {
+          department: "미정",
+          backup_operator_id: "none",
+          skills: "일반 서무",
+          commute_area: "인근 통근"
+        };
+        return {
+          id: e.id,
+          name: e.name,
+          role: e.role,
+          department: detail.department,
+          backup_operator_id: detail.backup_operator_id,
+          skills: detail.skills,
+          commute_area: detail.commute_area
+        };
+      }),
       leaves: leaves.map((l: any) => ({
         operator_id: l.operator_id,
         leave_type: l.leave_type,
@@ -63,20 +112,23 @@ export async function POST(req: Request) {
     };
 
     // 3. RAG 프롬프트 설계
-    const aiPrompt = `당신은 전사 기업 인사(HR) 및 조직 관리 전문 AI 분석가입니다.
-제공된 회사 전사 일정 대장(company_events) 및 직원들의 휴가 신청(leaves), 근태 요약 정보(attendance_summary)를 RAG 컨텍스트로 학습하여:
-1. 회사 중요 행사/납품 마감일 전후로 직원들의 연차 및 휴가 신청이 특정 주간/월간에 극단적으로 쏠려 있는지 정밀 스캔하여 업무 공백 리스크(0 ~ 100 사이의 숫자)를 진단해 주세요.
-2. 만약 특정 마감 일정 부근에 부서 인원 과반의 연차 쏠림이 발견되면 경고성 공백 경보 메시지를 생성해 주세요.
-3. 한 달간 전반적인 전사 근태 종합 평가 리포트를 품격 있고 조리 있는 한국어로 약 4문장 내외로 요약 제안해 주세요.
+    const aiPrompt = `당신은 전사 기업 인사(HR) 및 공급망 관리(SCM) 전문 최고 분석관입니다.
+제공된 임직원 상세 프로필(부서, 백업 대행자, 기술 역량, 거주 통근지)과 회사 전사 일정 대장(company_events), 휴가 신청(leaves), 출퇴근 감사 데이터(attendance_summary)를 RAG 컨텍스트로 복합 학습하여 고밀도 인사 공백 경보를 시뮬레이션해 주세요.
+
+[주요 분석 요구사항]:
+1. **부서 가동률 임계 체크**: 특정 부서원 과반이 동일 기간에 휴가를 신청했는지 판정해 리스크를 계산하세요. 특히, 1명만 있는 단독 부서(예: 구매팀 홍길동 과장)가 휴가일 때 비상 공백 리스크를 매우 높게 산정하세요.
+2. **대체 가능 역량 분석**: 휴가 예정자가 발생했을 때, 조직 내 다른 인원 중 동일 기술 역량(skills)을 가진 대체 지원 가능 임직원 명단을 권고안(briefingText)에 직접 매핑 추천하세요.
+3. **1차 백업 대행자 대조**: 휴가 신청자의 백업 담당자(backup_operator_id)가 해당 일자에 정상 근무 중인지, 혹은 중복 휴가 중인지 대조하여 리스크 가중치를 보정하세요.
+4. **기후-교통 연계 지각 시뮬레이션**: 회사 공통 일정 중 '폭설', '태풍', '집중호우' 등 악천후와 관련된 일정이나 마감 기한이 존재하고 해당 일에 통근 거리(commute_area)가 멀거나 광역버스/대중교통을 타는 직원이 있으면 지각 우려 리스크를 가산하고, 대체 유연 근무(재택 전환 등)를 능동 권고하세요.
 
 반드시 아래 JSON 스키마만을 철저히 준수하여 순수 JSON 문자열로만 응답해 주세요. 다른 마크다운 백틱(\`\`\`) 기호나 텍스트는 절대 포함하지 마세요.
 
 응답 JSON 규격 스펙 예시:
 {
-  "riskScore": 45, // 0~100 사이의 정수
-  "alertTitle": "6월 둘째 주 업무 공백 관심 단계 🟡", // 또는 "정상 🟢", "경고 🔴" 등
-  "alertMessage": "6월 15일 주요 프로젝트 납품일 전후로 전체 부서 인원 중 40%가 반차를 신청했습니다. 대체 리소스 편성을 검토하세요.",
-  "briefingText": "이번 달 전사 근태 지각율은 3% 대로 우수하게 유지되고 있으나, 특정 부서의 연차 쏠림 현상이 일부 포착되었습니다. 업무 연속성을 위해 부서별 순차 연차 사용을 자율 권장해 주시면 더욱 안정적인 매장/회사 관리가 가능해집니다."
+  "riskScore": 65, // 0~100 사이의 정수 (리스크가 크면 높은 점수)
+  "alertTitle": "6월 둘째 주 업무 공백 관심 단계 🟡", // 또는 "정상 🟢", "비상 경고 🔴" 등
+  "alertMessage": "6월 15일 납품일 전날인 14일에 구매팀 홍길동 과장이 휴가를 신청했습니다. 구매 부서에 1인만 소속되어 있어 자재 수급 지연 위험이 있습니다.",
+  "briefingText": "구매팀 홍길동 과장의 휴가 기간 중 1차 백업자인 김철수 과장은 정상 가용 상태입니다. 다만 원활한 조율을 위해 'IT 및 전산 지원' 역량을 갖춘 개발본부 이영희 사원을 임시 전산 대체 자원으로 배치하는 것을 검토하세요. 또한 기상 악화 시 광역버스로 통근하는 이영희 사원의 지각 위험을 완화하기 위해 선제적 재택근무 전환을 자율 권장합니다."
 }
 
 [학습용 실시간 전사 HR 컨텍스트]:
