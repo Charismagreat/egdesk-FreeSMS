@@ -17,7 +17,7 @@ function isSafeSelectQuery(sql: string): boolean {
   ];
   return !dangerousKeywords.some(keyword => {
     // 단어 경계(\b)를 기준으로 위험 키워드가 들어있는지 정규식 검사
-    const regex = new RegExp(`\\b${keyword}\\b`, 'I');
+    const regex = new RegExp(`\\b${keyword}\\b`, 'i');
     return regex.test(normalized);
   });
 }
