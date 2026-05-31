@@ -93,6 +93,13 @@ export async function GET(request: Request) {
           else if (name === 'crm_orders') displayName = '주문 내역 관리';
           else if (name === 'products') displayName = '광고 상품 관리';
           else if (name === 'expense_projects') displayName = '지출 프로젝트 관리';
+          else if (name === 'crm_instagram_posts') displayName = '인스타그램 포스트 관리';
+          else if (name === 'crm_naver_blog_posts') displayName = '네이버 블로그 포스트 관리';
+          else if (name === 'crm_partner_contacts') displayName = '거래처 담당자 명함첩';
+          else if (name === 'crm_payments') displayName = '결제 내역 관리';
+          else if (name === 'crm_point_history') displayName = '포인트 이용 내역';
+          else if (name === 'crm_purchase_orders') displayName = '구매 발주서 관리';
+          else if (name === 'crm_reservations') displayName = '예약 현황 관리';
 
           tablesWithCount.push({
             name,
