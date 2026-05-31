@@ -565,7 +565,81 @@ export default function PartnersDashboard() {
 
                   {/* 🟢/🟡 AI 분석 및 중복/변경 판정 스마트 피드백 배너 */}
                   {ocrResult && (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
+                      
+                      {/* 🛡️ 국세청 & 로컬 체크섬 2중 검증 결과 피드백 패널 */}
+                      <div className={`p-3.5 rounded-xl border text-xs font-semibold space-y-2 shrink-0 ${
+                        !ocrResult.checksum.isValid
+                          ? 'bg-rose-50 border-rose-200 text-rose-800'
+                          : ocrResult.nts.status === 'CLOSED'
+                          ? 'bg-rose-50 border-rose-200 text-rose-800'
+                          : ocrResult.nts.status === 'SUSPENDED'
+                          ? 'bg-amber-50 border-amber-200 text-amber-800'
+                          : ocrResult.nts.status === 'ACTIVE'
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                          : 'bg-slate-50 border-slate-200 text-slate-700'
+                      }`}>
+                        <div className="flex items-center justify-between pb-1.5 border-b border-slate-100/50 font-black">
+                          <span className="flex items-center gap-1.5">
+                            <ShieldAlert className={`w-4 h-4 ${!ocrResult.checksum.isValid || ocrResult.nts.status === 'CLOSED' ? 'text-rose-500' : 'text-slate-500'}`} />
+                            국세청 실시간 가동 및 진위 확인
+                          </span>
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                            !ocrResult.checksum.isValid
+                              ? 'bg-rose-500 text-white border border-rose-500'
+                              : ocrResult.nts.status === 'CLOSED'
+                              ? 'bg-rose-500 text-white border border-rose-500'
+                              : ocrResult.nts.status === 'SUSPENDED'
+                              ? 'bg-amber-500 text-white border border-amber-500'
+                              : ocrResult.nts.status === 'ACTIVE'
+                              ? 'bg-emerald-500 text-white border border-emerald-500'
+                              : 'bg-slate-200 text-slate-500'
+                          }`}>
+                            {!ocrResult.checksum.isValid
+                              ? '체크섬 오류'
+                              : ocrResult.nts.status === 'CLOSED'
+                              ? '폐업 사업자'
+                              : ocrResult.nts.status === 'SUSPENDED'
+                              ? '휴업 사업자'
+                              : ocrResult.nts.status === 'ACTIVE'
+                              ? '정상 가동중'
+                              : '미확인'}
+                          </span>
+                        </div>
+                        
+                        <div className="space-y-1.5 leading-relaxed text-[10px] font-bold">
+                          {/* 1차 체크섬 상태 */}
+                          <div className="flex justify-between items-center text-slate-400">
+                            <span>1차 로컬 무오류 검증 (Checksum)</span>
+                            <span className={ocrResult.checksum.isValid ? 'text-emerald-600 font-extrabold' : 'text-rose-600 font-extrabold'}>
+                              {ocrResult.checksum.message}
+                            </span>
+                          </div>
+
+                          {/* 2차 국세청 상태 */}
+                          <div className="flex justify-between items-start text-slate-400 gap-4">
+                            <span>2차 국세청 실시간 계속사업 여부</span>
+                            <span className={`text-right ${
+                              ocrResult.nts.status === 'ACTIVE'
+                                ? 'text-emerald-600 font-extrabold'
+                                : ocrResult.nts.status === 'CLOSED' || ocrResult.nts.status === 'NOT_FOUND'
+                                ? 'text-rose-600 font-extrabold'
+                                : 'text-slate-650'
+                            }`}>
+                              {ocrResult.nts.statusText}
+                            </span>
+                          </div>
+
+                          {/* 업태 유형 */}
+                          {ocrResult.nts.taxType && (
+                            <div className="flex justify-between items-center text-slate-400 pt-1 border-t border-slate-100/50">
+                              <span>과세 사업 유형</span>
+                              <span className="text-slate-650 font-black">{ocrResult.nts.taxType}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
                       {ocrResult.status === 'NEW_PARTNER' && (
                         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-start gap-2.5 text-xs text-emerald-800 font-semibold leading-relaxed">
                           <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
@@ -803,16 +877,27 @@ export default function PartnersDashboard() {
               </button>
               <button 
                 type="submit"
-                disabled={ocrResult?.status === 'ALREADY_REGISTERED'}
+                disabled={
+                  ocrResult?.status === 'ALREADY_REGISTERED' || 
+                  ocrResult?.checksum?.isValid === false || 
+                  ocrResult?.nts?.status === 'CLOSED' ||
+                  ocrResult?.nts?.status === 'NOT_FOUND'
+                }
                 className={`flex-1 py-3 text-white font-bold text-xs rounded-xl transition-all cursor-pointer ${
-                  ocrResult?.status === 'ALREADY_REGISTERED'
+                  ocrResult?.status === 'ALREADY_REGISTERED' || ocrResult?.checksum?.isValid === false || ocrResult?.nts?.status === 'CLOSED' || ocrResult?.nts?.status === 'NOT_FOUND'
                     ? 'bg-slate-200 text-slate-400 border-none cursor-not-allowed'
                     : ocrResult?.status === 'UPDATE_PARTNER'
                     ? 'bg-amber-650 hover:bg-amber-600 shadow-md shadow-amber-650/10'
                     : 'bg-slate-900 hover:bg-slate-800'
                 }`}
               >
-                {ocrResult?.status === 'UPDATE_PARTNER'
+                {ocrResult?.checksum?.isValid === false
+                  ? '체크섬 오류 (등록 불가)'
+                  : ocrResult?.nts?.status === 'CLOSED'
+                  ? '폐업한 사업자 (등록 불가) 🔴'
+                  : ocrResult?.nts?.status === 'NOT_FOUND'
+                  ? '국세청 미등록 (등록 불가) ❌'
+                  : ocrResult?.status === 'UPDATE_PARTNER'
                   ? '기존 거래처 변동 갱신 승인 ⚡'
                   : ocrResult?.status === 'ALREADY_REGISTERED'
                   ? '이미 기등록된 거래처 🟢'

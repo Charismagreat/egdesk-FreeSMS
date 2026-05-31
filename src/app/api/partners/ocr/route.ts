@@ -54,6 +54,28 @@ function normalizePhone(phone: string): string {
   return phone;
 }
 
+/**
+ * 🛡️ 대한민국 표준 사업자등록번호 10자리 로컬 체크섬 검증 헬퍼 (Modulo 10)
+ */
+function validateBusinessNumberChecksum(num: string): boolean {
+  if (!num) return false;
+  const clean = num.replace(/\D/g, '');
+  if (clean.length !== 10) return false;
+  
+  const keys = [1, 3, 7, 1, 3, 7, 1, 3, 5];
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(clean[i]) * keys[i];
+  }
+  
+  // 9번째 자리에 5를 곱한 값의 십의자리와 일의자리를 각각 연산 합산
+  const lastVar = parseInt(clean[8]) * 5;
+  sum += Math.floor(lastVar / 10) + (lastVar % 10);
+  
+  const checkDigit = (10 - (sum % 10)) % 10;
+  return checkDigit === parseInt(clean[9]);
+}
+
 export async function POST(req: Request) {
   try {
     // 1. 최고관리자 세션 권한 검증
@@ -182,13 +204,84 @@ export async function POST(req: Request) {
       businessItem: parsedData.businessItem || ''
     };
 
+    // 🛡️ 1차 로컬 체크섬(Checksum) 유효성 공식 검사 구동
+    const isChecksumValid = validateBusinessNumberChecksum(ocrInfo.businessNumber);
+
+    // 🛡️ 2차 국세청 실시간 홈택스 가동 상태 API (오픈 API 프록시) 검증 연동
+    // DB의 system_settings 테이블 또는 로컬 환경변수에서 국세청 서비스 키 로드
+    const ntsKeyRes = await queryTable('system_settings', { filters: { key: 'nts_api_key' } });
+    let ntsApiKey = ntsKeyRes.rows && ntsKeyRes.rows.length > 0 ? ntsKeyRes.rows[0].value : null;
+    
+    if (!ntsApiKey) {
+      ntsApiKey = process.env.NTS_BUSINESS_API_KEY || null;
+    }
+
+    let ntsVerification = {
+      isValidated: false,
+      status: 'UNKNOWN', // 'ACTIVE'(계속) | 'SUSPENDED'(휴업) | 'CLOSED'(폐업) | 'NOT_FOUND'(미등록) | 'UNKNOWN'(조회불가)
+      statusText: '국세청 실시간 조회 보류 (API 키 미등록)',
+      taxType: '',
+      closedDate: ''
+    };
+
+    // 체크섬이 맞고 국세청 키가 등록되어 있다면 실시간 조회 실행
+    if (ntsApiKey && isChecksumValid) {
+      try {
+        const rawNum = ocrInfo.businessNumber.replace(/\D/g, '');
+        const ntsUrl = `https://api.odcloud.kr/api/nts-businessman/v1/status?serviceKey=${ntsApiKey}`;
+        const ntsRes = await fetch(ntsUrl, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ b_no: [rawNum] })
+        });
+
+        if (ntsRes.ok) {
+          const ntsResData = await ntsRes.json();
+          const bizStatus = ntsResData.data?.[0];
+
+          if (bizStatus) {
+            let status = 'NOT_FOUND';
+            let statusText = '국세청 미등록 사업자';
+            if (bizStatus.b_stt_cd === '01') {
+              status = 'ACTIVE';
+              statusText = '정상 계속사업자 (가동중)';
+            } else if (bizStatus.b_stt_cd === '02') {
+              status = 'SUSPENDED';
+              statusText = `휴업 사업자 (휴업일: ${bizStatus.end_dt || '미상'})`;
+            } else if (bizStatus.b_stt_cd === '03') {
+              status = 'CLOSED';
+              statusText = `폐업 사업자 (폐업일자: ${bizStatus.end_dt || '미상'})`;
+            }
+
+            ntsVerification = {
+              isValidated: true,
+              status,
+              statusText,
+              taxType: bizStatus.tax_type || '',
+              closedDate: bizStatus.end_dt || ''
+            };
+          }
+        }
+      } catch (ntsErr) {
+        console.error('NTS API verification failure:', ntsErr);
+        ntsVerification.statusText = '국세청 API 호출 장애 (네트워크 불안정)';
+      }
+    }
+
     // 5. DB 중복 대조 및 변경 변동 감지 스마트 매칭 로직
-    // crm_partners 테이블에서 동일 사업자번호가 존재하는지 검색
     const existingPartnersRes = await queryTable('crm_partners', {
       filters: { business_number: ocrInfo.businessNumber }
     });
 
     const rows = existingPartnersRes.rows || [];
+
+    const checksumResult = {
+      isValid: isChecksumValid,
+      message: isChecksumValid ? '수학적 체크섬 검증 통과' : '존재할 수 없는 무효한 사업자번호 형식입니다.'
+    };
 
     if (rows.length === 0) {
       // 케이스 A: 신규 등록 대상
@@ -196,6 +289,8 @@ export async function POST(req: Request) {
         success: true,
         status: 'NEW_PARTNER',
         data: ocrInfo,
+        checksum: checksumResult,
+        nts: ntsVerification,
         message: '등록되지 않은 신규 사업자입니다. 안전하게 신규 거래처로 등록할 수 있습니다.'
       });
     }
@@ -229,6 +324,8 @@ export async function POST(req: Request) {
         existingId: existingPartner.id,
         existingType: existingPartner.type,
         diff,
+        checksum: checksumResult,
+        nts: ntsVerification,
         message: '기존에 이미 가입된 사업자등록번호이나 상호/대표명/주소지 정보의 변동이 감지되었습니다. 기존 이력 유실 없이 갱신 등록하는 것을 권장합니다.'
       });
     }
@@ -240,6 +337,8 @@ export async function POST(req: Request) {
       data: ocrInfo,
       existingId: existingPartner.id,
       existingType: existingPartner.type,
+      checksum: checksumResult,
+      nts: ntsVerification,
       message: '이미 완전히 동일한 정보로 등록이 완료되어 가동 중인 거래처입니다.'
     });
 
