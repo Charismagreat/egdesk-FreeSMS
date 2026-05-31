@@ -446,7 +446,8 @@ export default function EasyBot() {
     }
   };
 
-  // 마크다운 특수문자 및 기호를 정제하고, 긴 텍스트 답변을 청각적으로 쾌적한 2~3문장으로 자동 요약하는 지능형 음성 전용 필터
+  // 마크다운 특수문자 및 기호를 정제하고, 긴 텍스트 답변을 청각적으로 쾌적하게 요약하되
+  // 주의/경고/중요 사항은 누락 없이 포함하여 음성 재생하는 지능형 음성 전용 필터
   const cleanTextForSpeech = (text: string) => {
     // 1. 코드 블록, 표(Table), 리다이렉트 태그 등 시각 전용 원천 요소들 제거
     let cleaned = text
@@ -458,17 +459,32 @@ export default function EasyBot() {
       .trim();
 
     // 2. 문장 종결자(마침표, 물음표, 느낌표) 뒤의 공백을 기준으로 문장 단위 분할
-    const sentences = cleaned.split(/(?<=[.?!])\s+/);
+    const sentences = cleaned.split(/(?<=[.?!])\s+/).filter(s => s.trim().length > 0);
 
     // 3. 만약 문장이 3개 이하로 콤팩트하다면 전체 텍스트 그대로 음성 변환
     if (sentences.length <= 3) {
       return cleaned;
     }
 
-    // 4. 상위 3개 핵심 문장만 스마트 추출하여 요약본 조립
-    const summaryText = sentences.slice(0, 3).join(" ");
+    // 4. 기본적으로 도입부 상위 3개 핵심 문장을 담습니다.
+    const selectedSentences = sentences.slice(0, 3);
 
-    // 5. 시각적 읽기를 유도하는 부드러운 성우 가이드 꼬리표 부착
+    // 5. 도입부 3개 이후의 문장 중 '주의/경고/중요/다만/반드시/필수' 등의 키워드가 포함된 중요 문장을 감지하여 추가
+    const warningKeywords = ['주의', '경고', '중요', '필독', '다만', '하지만', '반드시', '⚠️', '🚨', '금지', '필수', '제한', '유의'];
+    
+    for (let i = 3; i < sentences.length; i++) {
+      const sentence = sentences[i];
+      const hasWarning = warningKeywords.some(keyword => sentence.includes(keyword));
+      if (hasWarning) {
+        selectedSentences.push(sentence);
+      }
+    }
+
+    // 6. 중복된 문장이 추가되지 않도록 고유 문장들만 결합하여 요약본 조립 (순서 보존)
+    const uniqueSentences = Array.from(new Set(selectedSentences));
+    const summaryText = uniqueSentences.join(" ");
+
+    // 7. 시각적 읽기를 유도하는 부드러운 성우 가이드 꼬리표 부착
     return `${summaryText} 보다 자세한 세부 설명과 표 데이터 분석 내역은 화면의 텍스트를 참고해 주세요.`;
   };
 
