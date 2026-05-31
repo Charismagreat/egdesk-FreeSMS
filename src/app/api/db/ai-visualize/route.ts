@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
-import { queryTable } from '../../../../../egdesk-helpers';
+import { queryTable, insertRows, updateRows } from '../../../../../egdesk-helpers';
 
 // 4단계 로컬 보안 비식별화 가드레일 엔진 (PII Masking & Obfuscation)
 function anonymizeData(rows: any[], schema: any[]) {
@@ -308,6 +308,26 @@ ${JSON.stringify(stats, null, 2)}
     }
 
     const geminiData = await response.json();
+    
+    // 💡 실시간 AI 호출 토큰 감사록 로깅 연동
+    try {
+      const promptTokens = geminiData.usageMetadata?.promptTokenCount || 0;
+      const completionTokens = geminiData.usageMetadata?.candidatesTokenCount || 0;
+      const totalTokens = geminiData.usageMetadata?.totalTokenCount || 0;
+      
+      if (totalTokens > 0) {
+        await insertRows('ai_token_usage_logs', [{
+          model: 'gemini-3.5-flash',
+          purpose: 'easybot-response',
+          prompt_tokens: promptTokens,
+          completion_tokens: completionTokens,
+          total_tokens: totalTokens
+        }]);
+      }
+    } catch (e: any) {
+      console.error('⚠️ AI 토큰 소모량 감사 로깅 실패:', e.message);
+    }
+
     const resultText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
     
     if (!resultText) {

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
-import { queryTable } from '../../../../../egdesk-helpers';
+import { queryTable, insertRows } from '../../../../../egdesk-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -100,6 +100,26 @@ ${schemaSummary}
     }
 
     const resData = await response.json();
+    
+    // 💡 실시간 AI 호출 토큰 감사록 로깅 연동
+    try {
+      const promptTokens = resData.usageMetadata?.promptTokenCount || 0;
+      const completionTokens = resData.usageMetadata?.candidatesTokenCount || 0;
+      const totalTokens = resData.usageMetadata?.totalTokenCount || 0;
+      
+      if (totalTokens > 0) {
+        await insertRows('ai_token_usage_logs', [{
+          model: 'gemini-3.5-flash',
+          purpose: 'easybot-sql-generation',
+          prompt_tokens: promptTokens,
+          completion_tokens: completionTokens,
+          total_tokens: totalTokens
+        }]);
+      }
+    } catch (e: any) {
+      console.error('⚠️ AI 토큰 소모량 감사 로깅 실패:', e.message);
+    }
+
     const rawText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
     
     // JSON 안전 분석

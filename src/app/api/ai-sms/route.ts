@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { queryTable } from '../../../../egdesk-helpers';
+import { queryTable, insertRows } from '../../../../egdesk-helpers';
 
 export async function POST(req: Request) {
   try {
@@ -65,6 +65,26 @@ You MUST output your response in valid JSON format ONLY, exactly like this:
     }
 
     const data = await response.json();
+    
+    // 💡 실시간 AI 호출 토큰 감사록 로깅 연동
+    try {
+      const promptTokens = data.usageMetadata?.promptTokenCount || 0;
+      const completionTokens = data.usageMetadata?.candidatesTokenCount || 0;
+      const totalTokens = data.usageMetadata?.totalTokenCount || 0;
+      
+      if (totalTokens > 0) {
+        await insertRows('ai_token_usage_logs', [{
+          model: 'gemini-3.5-flash',
+          purpose: 'marketing-content-pack',
+          prompt_tokens: promptTokens,
+          completion_tokens: completionTokens,
+          total_tokens: totalTokens
+        }]);
+      }
+    } catch (e: any) {
+      console.error('⚠️ AI 토큰 소모량 감사 로깅 실패:', e.message);
+    }
+
     let responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
     const resultJson = JSON.parse(responseText);
 
