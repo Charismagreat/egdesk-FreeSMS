@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
@@ -58,12 +58,66 @@ function YoutubeIcon({ className = "w-5 h-5" }: { className?: string }) {
   );
 }
 
+// 메뉴 메타데이터 정적 맵 정의
+const MENU_STATIC_MAP: Record<string, { label: string; icon: any; color: string }> = {
+  "/": { label: "대시보드", icon: Home, color: "text-blue-400" },
+  "/sms": { label: "무료 문자 발송 AI", icon: MessageSquare, color: "text-purple-400" },
+  "/message-logs": { label: "발송 내역 조회", icon: Send, color: "text-purple-400" },
+  "/automation": { label: "자동 발송 설정", icon: Zap, color: "text-yellow-400" },
+  "/customers": { label: "고객 관리 AI", icon: Users, color: "text-green-400" },
+  "/partners": { label: "거래처 관리 AI", icon: Handshake, color: "text-emerald-400" },
+  "/transactions": { label: "거래 관리 AI", icon: ShoppingCart, color: "text-orange-400" },
+  "/orders": { label: "주문 관리 AI", icon: ClipboardList, color: "text-blue-400" },
+  "/payments": { label: "결제 관리 AI", icon: CreditCard, color: "text-emerald-400" },
+  "/finance": { label: "금융 정보 AI", icon: Landmark, color: "text-sky-400" },
+  "/coupons": { label: "쿠폰 관리 AI", icon: Ticket, color: "text-rose-400" },
+  "/reservations": { label: "예약 관리 AI", icon: CalendarDays, color: "text-indigo-400" },
+  "/deliveries": { label: "배송 관리 AI", icon: Truck, color: "text-amber-400" },
+  "/products": { label: "상품 관리 AI", icon: PackageSearch, color: "text-blue-400" },
+  "/estimates": { label: "견적/발주/수주 AI", icon: ArrowRightLeft, color: "text-indigo-400" },
+  "/snaptasks": { label: "AI 스냅태스크", icon: Sparkles, color: "text-indigo-450" },
+  "/inventory": { label: "재고 관리 AI", icon: Package, color: "text-cyan-400" },
+  "/expenses": { label: "지출 관리 AI", icon: Coins, color: "text-rose-400" },
+  "/price-tracker": { label: "가격 추적 AI", icon: Zap, color: "text-pink-400" },
+  "/website": { label: "홈페이지 빌더 AI", icon: Globe, color: "text-sky-400" },
+  "/recruitment": { label: "채용 매니저 AI", icon: Briefcase, color: "text-rose-400" },
+  "/instagram": { label: "인스타그램 마케팅 AI", icon: InstagramIcon, color: "text-[#ff007f]" },
+  "/naver-blog": { label: "N-BLOG 포스팅 AI", icon: NaverIcon, color: "text-[#2db400]" },
+  "/youtube-shorts": { label: "YOUTUBE 쇼츠 AI", icon: YoutubeIcon, color: "text-[#FF0000]" },
+  "/ai-briefing": { label: "AI 브리핑", icon: Sparkles, color: "text-indigo-400" }
+};
+
 interface SidebarMenuProps {
   userRole: string;
 }
 
+interface MenuSettingItem {
+  menu_href: string;
+  is_enabled: number;
+  sort_order: number;
+}
+
 export default function SidebarMenu({ userRole }: SidebarMenuProps) {
   const pathname = usePathname();
+  
+  // 1. 초기 렌더링 시 깜빡임이나 공백 방지를 위해 정적 기본 배열로 초기값 바인딩
+  const getInitialDefaultItems = () => {
+    const baseItems = Object.entries(MENU_STATIC_MAP).map(([href, meta]) => ({
+      href,
+      label: meta.label,
+      icon: meta.icon,
+      color: meta.color
+    }));
+    // 일반 계정일 경우 AI 브리핑은 제외
+    return baseItems.filter(item => {
+      if (item.href === "/ai-briefing") {
+        return userRole === "SUPER_ADMIN";
+      }
+      return true;
+    });
+  };
+
+  const [displayMenuItems, setDisplayMenuItems] = useState<any[]>(getInitialDefaultItems());
 
   // 활성화 메뉴 감지 도우미
   const isActive = (href: string) => {
@@ -73,40 +127,60 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
     return pathname.startsWith(href);
   };
 
-  const menuItems = [
-    { href: "/", label: "대시보드", icon: Home, color: "text-blue-400" },
-    { href: "/sms", label: "무료 문자 발송 AI", icon: MessageSquare, color: "text-purple-400" },
-    { href: "/message-logs", label: "발송 내역 조회", icon: Send, color: "text-purple-400" },
-    { href: "/automation", label: "자동 발송 설정", icon: Zap, color: "text-yellow-400" },
-    { href: "/customers", label: "고객 관리 AI", icon: Users, color: "text-green-400" },
-    { href: "/partners", label: "거래처 관리 AI", icon: Handshake, color: "text-emerald-400" },
-    { href: "/transactions", label: "거래 관리 AI", icon: ShoppingCart, color: "text-orange-400" },
-    { href: "/orders", label: "주문 관리 AI", icon: ClipboardList, color: "text-blue-400" },
-    { href: "/payments", label: "결제 관리 AI", icon: CreditCard, color: "text-emerald-400" },
-    { href: "/finance", label: "금융 정보 AI", icon: Landmark, color: "text-sky-400" },
-    { href: "/coupons", label: "쿠폰 관리 AI", icon: Ticket, color: "text-rose-400" },
-    { href: "/reservations", label: "예약 관리 AI", icon: CalendarDays, color: "text-indigo-400" },
-    { href: "/deliveries", label: "배송 관리 AI", icon: Truck, color: "text-amber-400" },
-    { href: "/products", label: "상품 관리 AI", icon: PackageSearch, color: "text-blue-400" },
-    { href: "/estimates", label: "견적/발주/수주 AI", icon: ArrowRightLeft, color: "text-indigo-400" },
-    { href: "/snaptasks", label: "AI 스냅태스크", icon: Sparkles, color: "text-indigo-450" },
-    { href: "/inventory", label: "재고 관리 AI", icon: Package, color: "text-cyan-400" },
-    { href: "/expenses", label: "지출 관리 AI", icon: Coins, color: "text-rose-400" },
-    { href: "/price-tracker", label: "가격 추적 AI", icon: Zap, color: "text-pink-400" },
-    { href: "/website", label: "홈페이지 빌더 AI", icon: Globe, color: "text-sky-400" },
-    { href: "/recruitment", label: "채용 매니저 AI", icon: Briefcase, color: "text-rose-400" },
-    { href: "/instagram", label: "인스타그램 마케팅 AI", icon: InstagramIcon, color: "text-[#ff007f]" },
-    { href: "/naver-blog", label: "N-BLOG 포스팅 AI", icon: NaverIcon, color: "text-[#2db400]" },
-    { href: "/youtube-shorts", label: "YOUTUBE 쇼츠 AI", icon: YoutubeIcon, color: "text-[#FF0000]" },
-    ...(userRole === "SUPER_ADMIN" ? [
-      { href: "/ai-briefing", label: "AI 브리핑", icon: Sparkles, color: "text-indigo-400" }
-    ] : [])
-  ];
+  // 2. 동적 메뉴 데이터 가져오기 및 권한별 필터링/정렬 수행 함수
+  const fetchAndApplyMenuSettings = async () => {
+    try {
+      const res = await fetch("/api/settings/menu");
+      const data = await res.json();
+
+      if (data.success && data.menuSettings) {
+        const settings: MenuSettingItem[] = data.menuSettings;
+
+        // DB 설정을 토대로 활성화 및 순서 결합
+        const resolved = settings
+          .filter(setting => {
+            // (1) 비활성화된 메뉴 숨김
+            if (setting.is_enabled !== 1) return false;
+            // (2) AI 브리핑은 데이터베이스에 켜져 있더라도 최고관리자만 노출
+            if (setting.menu_href === "/ai-briefing") {
+              return userRole === "SUPER_ADMIN";
+            }
+            return true;
+          })
+          .map(setting => {
+            const meta = MENU_STATIC_MAP[setting.menu_href] || { label: setting.menu_href, icon: HelpCircle, color: "text-slate-400" };
+            return {
+              href: setting.menu_href,
+              label: meta.label,
+              icon: meta.icon,
+              color: meta.color,
+              sort_order: setting.sort_order
+            };
+          });
+
+        setDisplayMenuItems(resolved);
+      }
+    } catch (e) {
+      console.error("사이드바 메뉴 동적 로딩 실패, 로컬 폴백 유지:", e);
+    }
+  };
+
+  // 3. 마운트 시 동작 및 실시간 이벤트 리스너 등록
+  useEffect(() => {
+    fetchAndApplyMenuSettings();
+
+    // 최고관리자 카드 저장 시 실시간 동기화를 위한 이벤트 청취
+    window.addEventListener("menu-settings-updated", fetchAndApplyMenuSettings);
+
+    return () => {
+      window.removeEventListener("menu-settings-updated", fetchAndApplyMenuSettings);
+    };
+  }, [userRole]);
 
   return (
     <>
       <nav className="p-4 space-y-2 flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800/80 scrollbar-track-transparent">
-        {menuItems.map((item) => {
+        {displayMenuItems.map((item) => {
           const active = isActive(item.href);
           const Icon = item.icon;
 
@@ -126,6 +200,8 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
           );
         })}
       </nav>
+      
+      {/* 하단 고정 메뉴 영역 */}
       <div className="p-4 border-t border-slate-700/80 bg-slate-900/95 backdrop-blur-md space-y-2 shadow-[0_-12px_24px_-8px_rgba(0,0,0,0.8)] relative z-10">
         {userRole === "SUPER_ADMIN" && (
           <>

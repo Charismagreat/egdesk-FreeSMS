@@ -4,6 +4,7 @@ import { Settings } from "lucide-react";
 import AiSettingsCard from "../AiSettingsCard";
 import PointSettingsCard from "../PointSettingsCard";
 import AiUsageMonitor from "../AiUsageMonitor";
+import MenuSettingsCard from "./MenuSettingsCard";
 
 export default function SettingsPage() {
   return (
@@ -20,6 +21,7 @@ export default function SettingsPage() {
         <AiSettingsCard />
         <AiUsageMonitor />
         <PointSettingsCard />
+        <MenuSettingsCard />
       </div>
     </div>
   );
