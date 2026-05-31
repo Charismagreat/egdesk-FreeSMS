@@ -341,7 +341,7 @@ export default function EasyBot() {
   
   // 음성 대화 관련 상태
   const [isListening, setIsListening] = useState(false);
-  const [isTtsEnabled, setIsTtsEnabled] = useState(true);
+  const [isTtsEnabled, setIsTtsEnabled] = useState(false);
   const recognitionRef = useRef<any>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
