@@ -374,8 +374,8 @@ export default function AIBriefingDashboardPage() {
         </div>
       )}
 
-      {/* 🚀 상단 타이틀 섹션 */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2 select-none">
+      {/* 🚀 상단 타이틀 섹션 (좌우 패딩 px-4 sm:px-6 추가로 그리드 라인 정합 맞춤) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2 px-4 sm:px-6 select-none">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold text-slate-800 flex items-center tracking-tight">
             <Sparkles className="w-8 h-8 mr-3 text-indigo-650 animate-pulse shrink-0" />
@@ -387,7 +387,8 @@ export default function AIBriefingDashboardPage() {
         <button
           onClick={fetchReports}
           disabled={isLoading}
-          className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-indigo-650 hover:bg-indigo-600 text-white rounded-xl text-xs font-black shadow-sm border-none cursor-pointer transition-all active:scale-95 disabled:opacity-50 self-start sm:self-auto"
+          className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-white rounded-xl text-xs font-black shadow-sm border border-indigo-700/20 cursor-pointer transition-all active:scale-95 disabled:opacity-50 self-start sm:self-auto hover:bg-indigo-700"
+          style={{ backgroundColor: '#4f46e5', color: '#ffffff' }} // 명시적 인라인 고정으로 100% 완벽한 시인성 확보 🎨
           title="수집된 보고서 목록 최신 동기화"
         >
           <RefreshCw className={`w-3.5 h-3.5 text-white ${isLoading ? 'animate-spin' : ''}`} />
