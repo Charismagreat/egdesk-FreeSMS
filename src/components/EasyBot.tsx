@@ -399,6 +399,16 @@ export default function EasyBot() {
     scrollToBottom();
   }, [messages]);
 
+  // 창을 열 때 (isOpen이 true로 바뀔 때) 대화창 최하단으로 부드럽게 자동 스크롤 이동 🎯
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        scrollToBottom();
+      }, 150); // DOM 렌더링 및 Spring 슬라이딩 애니메이션과의 싱크 타이밍 조율
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
   const initializeWelcomeMessage = () => {
     const welcome: Message = {
       role: 'bot',
