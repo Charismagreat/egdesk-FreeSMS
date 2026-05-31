@@ -358,7 +358,7 @@ export default function HrAttendancePage() {
   const leaveCount = employees.filter(e => e.status === 'LEAVE').length;
   const pendingLeavesCount = leaveRequests.filter(l => l.status === 'PENDING').length;
 
-  const currentEmpRecord = employees.find(e => e.id === currentUser?.id);
+  const currentEmpRecord = employees.find(e => String(e.id) === String(currentUser?.id));
 
   return (
     <div className="space-y-8 animate-fade-in relative pb-16">

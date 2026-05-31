@@ -27,8 +27,8 @@ export async function GET(req: Request) {
 
     // 직원 이름 매핑 매칭
     const mappedLeaves = leavesList.map((leave: any) => {
-      const emp = ops.find((o: any) => o.id === leave.operator_id);
-      const app = ops.find((o: any) => o.id === leave.approver_id);
+      const emp = ops.find((o: any) => String(o.id) === String(leave.operator_id));
+      const app = ops.find((o: any) => String(o.id) === String(leave.approver_id));
       return {
         ...leave,
         employee_name: emp ? emp.name : '알수없음',

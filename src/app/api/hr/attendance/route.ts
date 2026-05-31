@@ -168,8 +168,8 @@ export async function GET(req: Request) {
 
     // 직원 정보와 근태 상태 바인딩
     const mappedEmployees = employees.map((emp: any) => {
-      const att = attendanceList.find((a: any) => a.operator_id === emp.id);
-      const bal = balancesList.find((b: any) => b.operator_id === emp.id);
+      const att = attendanceList.find((a: any) => String(a.operator_id) === String(emp.id));
+      const bal = balancesList.find((b: any) => String(b.operator_id) === String(emp.id));
 
       return {
         id: emp.id,
