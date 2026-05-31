@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, Sparkles, X, Send, RotateCcw, Bot, Terminal, ShieldAlert, Maximize2, Minimize2, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 interface Message {
   role: 'user' | 'bot';
@@ -324,6 +324,7 @@ function UserMarkdown({ content }: { content: string }) {
 
 export default function EasyBot() {
   const pathname = usePathname();
+  const router = useRouter();
 
   // 고객용 모바일/접점 페이지에서는 사장님용 AI 비서인 이지봇을 숨김 🛡️
   const isCustomerPage = 
@@ -564,16 +565,72 @@ export default function EasyBot() {
       const data = await response.json();
 
       if (data.success) {
+        let rawAnswer = data.answer;
+        let redirectPath: string | null = null;
+
+        // [REDIRECT:경로] 패턴 매칭
+        const redirectMatch = rawAnswer.match(/\[REDIRECT:(.*?)\]/);
+        if (redirectMatch) {
+          redirectPath = redirectMatch[1].trim();
+          // 사용자 화면에 태그가 노출되지 않도록 텍스트에서 제거
+          rawAnswer = rawAnswer.replace(/\[REDIRECT:.*?\]/g, '').trim();
+        }
+
         const botMessage: Message = {
           role: 'bot',
-          content: data.answer,
+          content: rawAnswer,
           timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
           sql: data.sql,
           sqlSuccess: data.sqlSuccess,
           sqlError: data.sqlError
         };
         setMessages(prev => [...prev, botMessage]);
-        speakText(data.answer); // TTS 재생
+        speakText(rawAnswer); // TTS 재생
+
+        // 이동 경로가 감지되면 어드민 안전 팝업 확인 후 페이지 자동 이동 가동
+        if (redirectPath) {
+          const pageNames: Record<string, string> = {
+            "/": "대시보드",
+            "/sms": "무료 문자 발송 AI",
+            "/message-logs": "발송 내역 조회",
+            "/automation": "자동 발송 설정",
+            "/customers": "고객 관리 AI",
+            "/partners": "거래처 관리 AI",
+            "/transactions": "거래 관리 AI",
+            "/orders": "주문 관리 AI",
+            "/payments": "결제 관리 AI",
+            "/finance": "금융 정보 AI",
+            "/coupons": "쿠폰 관리 AI",
+            "/reservations": "예약 관리 AI",
+            "/deliveries": "배송 관리 AI",
+            "/products": "상품 관리 AI",
+            "/estimates": "견적/발주/수주 AI",
+            "/snaptasks": "AI 스냅태스크",
+            "/inventory": "재고 관리 AI",
+            "/expenses": "지출 관리 AI",
+            "/price-tracker": "가격 추적 AI",
+            "/website": "홈페이지 빌더 AI",
+            "/recruitment": "채용 매니저 AI",
+            "/instagram": "인스타그램 마케팅 AI",
+            "/naver-blog": "N-BLOG 포스팅 AI",
+            "/youtube-shorts": "YOUTUBE 쇼츠 AI",
+            "/ai-briefing": "AI 브리핑",
+            "/operators": "운영자 관리",
+            "/my-db": "MY DB",
+            "/help": "Q&A 헬프센터",
+            "/settings": "시스템 설정"
+          };
+
+          const targetPageName = pageNames[redirectPath] || redirectPath;
+          const pathToRedirect = redirectPath;
+
+          setTimeout(() => {
+            if (window.confirm(`이동 승인 💡\n\n요청하신 "${targetPageName}" 페이지로 즉시 안전하게 이동하시겠습니까?\n(작성 중이던 데이터는 유실될 수 있으니 미리 저장해 주세요.)`)) {
+              router.push(pathToRedirect);
+              setIsOpen(false);
+            }
+          }, 800);
+        }
       } else {
         const botErrorMessage: Message = {
           role: 'bot',
