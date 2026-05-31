@@ -48,7 +48,20 @@ export async function GET(request: Request) {
     const searchValue = searchParams.get('searchValue') || '';
 
     if (!hash) {
-      return NextResponse.json({ success: false, error: '공유 뷰 해시(hash)가 누락되었습니다.' }, { status: 400 });
+      const { isAuthorized } = await verifySuperAdmin();
+      if (!isAuthorized) {
+        return NextResponse.json({ success: false, error: '공유 뷰 해시(hash)가 누락되었습니다.' }, { status: 400 });
+      }
+
+      db = getDirectDB();
+      const allSharedViews = db.prepare(`
+        SELECT * FROM system_shared_views ORDER BY created_at DESC
+      `).all();
+
+      return NextResponse.json({
+        success: true,
+        sharedViews: allSharedViews || []
+      });
     }
 
     db = getDirectDB();
@@ -279,6 +292,46 @@ export async function POST(request: Request) {
 
   } catch (error: any) {
     console.error("POST Shared View API Error:", error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } finally {
+    if (db) db.close();
+  }
+}
+
+// ✕ [DELETE] 최고관리자가 특정 데이터 공유 뷰를 폐쇄/삭제
+export async function DELETE(request: Request) {
+  let db: any = null;
+  try {
+    const { isAuthorized, operatorName } = await verifySuperAdmin();
+    if (!isAuthorized) {
+      return NextResponse.json({ success: false, error: '권한이 없습니다. 최고관리자 전용 기능입니다.' }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const viewId = searchParams.get('viewId') || '';
+
+    if (!viewId) {
+      return NextResponse.json({ success: false, error: '삭제할 공유 뷰 ID(viewId)가 누락되었습니다.' }, { status: 400 });
+    }
+
+    db = getDirectDB();
+    
+    // 공유 뷰 존재 여부 확인
+    const viewCheck = db.prepare('SELECT friendly_table_name FROM system_shared_views WHERE view_id = ?').get(viewId);
+    if (!viewCheck) {
+      return NextResponse.json({ success: false, error: '존재하지 않거나 이미 폐쇄된 공유 뷰입니다.' }, { status: 400 });
+    }
+
+    // system_shared_views에서 레코드 삭제
+    db.prepare('DELETE FROM system_shared_views WHERE view_id = ?').run(viewId);
+
+    return NextResponse.json({
+      success: true,
+      message: `데이터 공유 뷰 '${viewCheck.friendly_table_name}'(ID: ${viewId})가 최고관리자(${operatorName})에 의해 성공적으로 폐쇄되었습니다.`
+    });
+
+  } catch (error: any) {
+    console.error("DELETE Shared View API Error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   } finally {
     if (db) db.close();
