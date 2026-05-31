@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Cpu, Activity, BarChart3, Clock, AlertTriangle, Layers, CalendarRange } from "lucide-react";
+import { Cpu, Activity, BarChart3, Clock, AlertTriangle, Layers, CalendarRange, ChevronUp, ChevronDown } from "lucide-react";
 
 interface UsageSummary {
   api_calls: number;
@@ -39,6 +39,24 @@ export default function AiUsageMonitor() {
   const [recentLogs, setRecentLogs] = useState<TokenLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // 실시간 AI 감사 테이블 접기/펼치기 상태 (로컬 저장소 영구 기억 연동) 💾
+  const [isTableCollapsed, setIsTableCollapsed] = useState<boolean>(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("egdesk_ai_usage_table_collapsed");
+    if (saved !== null) {
+      setIsTableCollapsed(saved === "true");
+    }
+  }, []);
+
+  const handleToggleTableCollapse = () => {
+    setIsTableCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem("egdesk_ai_usage_table_collapsed", String(next));
+      return next;
+    });
+  };
 
   useEffect(() => {
     fetchStats();
@@ -233,49 +251,63 @@ export default function AiUsageMonitor() {
 
             </div>
 
-            {/* 4. 실시간 AI 감사 내역 테이블 (최근 30건) */}
-            <div className="border border-slate-100 rounded-xl overflow-hidden mt-2">
-              <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+            {/* 4. 실시간 AI 감사 내역 테이블 (최근 30건) (접기/펼치기 및 상태 기억 보존 연동) 🎯 */}
+            <div className="border border-slate-100 rounded-xl overflow-hidden mt-2 transition-all duration-300">
+              <div 
+                onClick={handleToggleTableCollapse}
+                className="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between cursor-pointer hover:bg-slate-100/80 transition-colors select-none"
+                title={isTableCollapsed ? "클릭하여 감사록 테이블 펼치기" : "클릭하여 감사록 테이블 접기"}
+              >
                 <h3 className="text-xs font-extrabold text-slate-700 flex items-center gap-1.5">
                   <CalendarRange className="w-4 h-4 text-slate-500" />
                   실시간 AI 호출 토큰 감사록 (최근 30건)
                 </h3>
-                <span className="text-[10px] font-bold text-slate-400">Real-time AI Auditor</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-slate-400">Real-time AI Auditor</span>
+                  {isTableCollapsed ? (
+                    <ChevronDown className="w-4 h-4 text-slate-400" />
+                  ) : (
+                    <ChevronUp className="w-4 h-4 text-slate-400" />
+                  )}
+                </div>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse whitespace-nowrap">
-                  <thead>
-                    <tr className="bg-slate-50/50 border-b border-slate-100 text-slate-500 font-bold">
-                      <th className="p-3">호출일시</th>
-                      <th className="p-3">사용 모델</th>
-                      <th className="p-3">수행 목적</th>
-                      <th className="p-3 text-right">질문 토큰</th>
-                      <th className="p-3 text-right">답변 토큰</th>
-                      <th className="p-3 text-right bg-slate-50/30">총 소모량</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {recentLogs.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="p-8 text-center text-slate-400 font-semibold bg-white">
-                          기록된 실시간 AI 호출 이력이 없습니다. 이지봇 대화나 자동 마케팅을 가동해 보세요!
-                        </td>
+              
+              {!isTableCollapsed && (
+                <div className="overflow-x-auto animate-fade-in">
+                  <table className="w-full text-left text-xs border-collapse whitespace-nowrap">
+                    <thead>
+                      <tr className="bg-slate-50/50 border-b border-slate-100 text-slate-500 font-bold">
+                        <th className="p-3">호출일시</th>
+                        <th className="p-3">사용 모델</th>
+                        <th className="p-3">수행 목적</th>
+                        <th className="p-3 text-right">질문 토큰</th>
+                        <th className="p-3 text-right">답변 토큰</th>
+                        <th className="p-3 text-right bg-slate-50/30">총 소모량</th>
                       </tr>
-                    ) : (
-                      recentLogs.map(log => (
-                        <tr key={log.id} className="hover:bg-slate-50/50 bg-white transition-colors">
-                          <td className="p-3 text-slate-400 font-medium">{log.created_at}</td>
-                          <td className="p-3 font-mono font-bold text-slate-700">{log.model}</td>
-                          <td className="p-3 text-slate-650 font-semibold">{getPurposeLabel(log.purpose)}</td>
-                          <td className="p-3 text-right text-slate-500 font-semibold">{log.prompt_tokens.toLocaleString()}</td>
-                          <td className="p-3 text-right text-slate-500 font-semibold">{log.completion_tokens.toLocaleString()}</td>
-                          <td className="p-3 text-right font-extrabold text-indigo-600 bg-indigo-50/10 font-mono">{log.total_tokens.toLocaleString()} t</td>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {recentLogs.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="p-8 text-center text-slate-400 font-semibold bg-white">
+                            기록된 실시간 AI 호출 이력이 없습니다. 이지봇 대화나 자동 마케팅을 가동해 보세요!
+                          </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                      ) : (
+                        recentLogs.map(log => (
+                          <tr key={log.id} className="hover:bg-slate-50/50 bg-white transition-colors">
+                            <td className="p-3 text-slate-400 font-medium">{log.created_at}</td>
+                            <td className="p-3 font-mono font-bold text-slate-700">{log.model}</td>
+                            <td className="p-3 text-slate-650 font-semibold">{getPurposeLabel(log.purpose)}</td>
+                            <td className="p-3 text-right text-slate-500 font-semibold">{log.prompt_tokens.toLocaleString()}</td>
+                            <td className="p-3 text-right text-slate-500 font-semibold">{log.completion_tokens.toLocaleString()}</td>
+                            <td className="p-3 text-right font-extrabold text-indigo-600 bg-indigo-50/10 font-mono">{log.total_tokens.toLocaleString()} t</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </>
         )}
