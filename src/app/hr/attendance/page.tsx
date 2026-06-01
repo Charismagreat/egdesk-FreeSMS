@@ -132,6 +132,142 @@ export default function HrAttendancePage() {
     fetchHrData();
   }, []);
 
+  // 🪐 360도 종합 프로필 벌크 로드 API 호출
+  const fetchComprehensiveProfiles = async () => {
+    setComprehensiveLoading(true);
+    try {
+      const res = await fetch('/api/hr/profiles/comprehensive');
+      const data = await res.json();
+      if (data.success) {
+        setComprehensiveProfiles(data.profiles || []);
+        setIsHighPrivilege(data.isHighPrivilege || false);
+
+        // 첫 직원이 로드되었을 때 기본 360도 선택 직원이 비어있다면 자동 바인딩
+        if (data.profiles && data.profiles.length > 0 && !selected360OperatorId) {
+          setSelected360OperatorId(String(data.profiles[0].operator_id));
+        }
+      }
+    } catch (err) {
+      console.error('Comprehensive profiles fetch error:', err);
+    } finally {
+      setComprehensiveLoading(false);
+    }
+  };
+
+  // 🪐 특정 직원의 360도 종합 정보 가져오기 핸들러
+  const handleSelect360Employee = (operatorId: string) => {
+    setSelected360OperatorId(operatorId);
+    // 기본 테이블 에디터 폼 초기화
+    reset360EditForm(editTableName);
+  };
+
+  // 🪐 에디터 대상 테이블 변경 시 폼 입력 데이터 초기화
+  const reset360EditForm = (tableName: string) => {
+    setEditTableName(tableName);
+    
+    // 테이블별 기본 스키마 DTO 바인딩
+    const defaultDataMap: Record<string, Record<string, any>> = {
+      crm_operator_education: { school_name: "", major: "", degree: "학사", entrance_date: "", graduation_date: "", status: "졸업" },
+      crm_operator_licenses: { license_name: "", issuer: "", license_no: "", acquisition_date: "", expiry_date: "없음" },
+      crm_operator_careers: { company_name: "", department: "", job_title: "", join_date: "", retire_date: "", assigned_task: "", leaving_reason: "이직" },
+      crm_operator_salaries: { payment_year_month: new Date().toISOString().substring(0, 7), base_salary: 3000000, bonus_amount: 0, weekly_holiday_allowance: 0, overtime_allowance: 0, meal_allowance: 100000, deduction_amount: 300000, net_salary: 2800000, payment_date: new Date().toISOString().split('T')[0], status: "지급완료" },
+      crm_operator_promotions: { change_date: new Date().toISOString().split('T')[0], prev_dept: "", next_dept: "", prev_role: "", next_role: "", promotion_reason: "" },
+      crm_operator_awards: { record_date: new Date().toISOString().split('T')[0], type: "AWARD", title: "", content: "", authority: "대표이사", remarks: "없음" },
+      crm_operator_family_events: { event_date: new Date().toISOString().split('T')[0], relation: "본인", type: "결혼", congratulation_money: 500000, wreath_provided: 0 },
+      crm_operator_medical: { diagnosis_name: "", treatment_start_date: "", treatment_end_date: "", hospital_name: "", sick_leave_days: 0, work_limitations: "없음" },
+      crm_operator_incidents: { occurred_date: new Date().toISOString().split('T')[0], severity: "LOW", title: "", description: "", status: "진행중", outcome: "조치 예정" },
+      crm_operator_reputations: { evaluation_date: new Date().toISOString().split('T')[0], evaluator_id: "익명", source_type: "INTERNAL", score: 5.0, positive_feedback: "", constructive_feedback: "없음" },
+      crm_operator_families: { relation_type: "자녀", name: "", birth_date: "", phone_number: "N/A", is_dependent: 1, remarks: "없음" },
+      crm_operator_job_history: { assignment_date: new Date().toISOString().split('T')[0], job_description: "", prev_job_description: "없음", is_current: 1 },
+      crm_operator_projects: { project_name: "", role_in_project: "", start_date: "", end_date: "진행중", contribution_rate: 100, performance_score: 90, performance_evaluation: "우수", outcome_link: "없음" }
+    };
+
+    setEditFormData(defaultDataMap[tableName] || {});
+  };
+
+  // 🪐 폼 수정 여부 감지 (수정된 사항이 전혀 없으면 저장 버튼 비활성화)
+  const getIs360Modified = () => {
+    if (!editFormData || Object.keys(editFormData).length === 0) return false;
+    
+    // 각 테이블별 핵심 유효성(공백 검사) 체크
+    if (editTableName === 'crm_operator_education' && !editFormData.school_name) return false;
+    if (editTableName === 'crm_operator_licenses' && !editFormData.license_name) return false;
+    if (editTableName === 'crm_operator_careers' && !editFormData.company_name) return false;
+    if (editTableName === 'crm_operator_projects' && !editFormData.project_name) return false;
+    if (editTableName === 'crm_operator_incidents' && !editFormData.title) return false;
+    if (editTableName === 'crm_operator_reputations' && !editFormData.positive_feedback) return false;
+    if (editTableName === 'crm_operator_families' && !editFormData.name) return false;
+
+    return true;
+  };
+
+  // 🪐 360도 종합 이력 등록 및 수정 전송 핸들러 (POST Upsert)
+  const handleSubmit360Upsert = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selected360OperatorId) {
+      alert('대상 임직원을 먼저 선택해 주세요.');
+      return;
+    }
+
+    setSubmitLoading(true);
+    try {
+      const res = await fetch('/api/hr/profiles/comprehensive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'UPSERT',
+          tableName: editTableName,
+          operator_id: selected360OperatorId,
+          data: editFormData
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message);
+        reset360EditForm(editTableName);
+        await fetchComprehensiveProfiles(); // 실시간 데이터 즉시 리로드
+        triggerAiBriefing(); // AI 분석서도 즉각 재연동
+      } else {
+        alert(data.error || '이력 갱신에 실패했습니다.');
+      }
+    } catch (err: any) {
+      alert('이력 통신 에러: ' + err.message);
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  // 🪐 360도 특정 이력 행 삭제 핸들러 (POST DELETE)
+  const handleDelete360Record = async (tableName: string, recordId: string) => {
+    if (!confirm('선택하신 임직원 이력 레코드를 인사 명부에서 영구 삭제하시겠습니까?')) return;
+
+    setSubmitLoading(true);
+    try {
+      const res = await fetch('/api/hr/profiles/comprehensive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'DELETE',
+          tableName,
+          operator_id: selected360OperatorId,
+          deleteId: recordId
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message);
+        await fetchComprehensiveProfiles(); // 실시간 데이터 즉시 리로드
+        triggerAiBriefing(); // AI 분석서도 즉각 재연동
+      } else {
+        alert(data.error || '이력 삭제에 실패했습니다.');
+      }
+    } catch (err: any) {
+      alert('이력 삭제 통신 에러: ' + err.message);
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
   // 📝 근로계약, 급여정산 및 상세 프로필 리스트 API 조회 함수
   const fetchContractsAndPayroll = async (ym?: string) => {
     const targetYM = ym || payrollYearMonth;
