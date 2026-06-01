@@ -16,6 +16,29 @@ export async function GET(req: Request) {
     // 0. 사업자등록번호로 기존 파트너가 있는지 실시간 조회 (중복 가입 방지)
     // ────────────────────────────────────────────────────────
     if (action === 'check-biz' && business_number) {
+      // 1. system_settings에 저장된 우리 회사 사업자등록번호(company_business_number) 확인
+      const cleanBizNo = business_number.replace(/[^0-9]/g, '');
+      const ourBizRes = await queryTable('system_settings', { filters: { key: 'company_business_number' } });
+      const ourBizVal = ourBizRes.rows?.[0]?.value || '';
+      const cleanOurBizVal = ourBizVal.replace(/[^0-9]/g, '');
+
+      if (cleanOurBizVal && cleanBizNo === cleanOurBizVal) {
+        // 본사 회사명도 조회
+        const ourNameRes = await queryTable('system_settings', { filters: { key: 'company_name' } });
+        const ourNameVal = ourNameRes.rows?.[0]?.value || '우리 회사 (본사)';
+        return NextResponse.json({ 
+          success: true, 
+          exists: true, 
+          is_our_company: true,
+          partner: {
+            company_name: ourNameVal,
+            business_number: ourBizVal,
+            type: 'HEAD_QUARTERS',
+            memo: '시스템에 등록된 본사(우리 회사) 정보입니다.'
+          } 
+        });
+      }
+
       const bizQuery = `SELECT * FROM crm_partners WHERE business_number = '${business_number}' LIMIT 1`;
       const result = await executeSQL(bizQuery) || [];
       const partners = (result && (result as any).rows) ? (result as any).rows : (Array.isArray(result) ? result : []);
