@@ -1,6 +1,6 @@
 /**
  * EGDesk User Data Configuration
- * Generated at: 2026-06-01T07:46:15.335Z
+ * Generated at: 2026-06-01T14:05:24.109Z
  *
  * This file contains type-safe definitions for your EGDesk tables.
  */
@@ -178,7 +178,7 @@ export const TABLES = {
   table23: {
     name: 'system_menu_settings',
     displayName: '시스템 메뉴 설정',
-    rowCount: 26,
+    rowCount: 28,
     columnCount: 4,
     columns: ['id', 'menu_href', 'is_enabled', 'sort_order']
   } as TableDefinition,
@@ -332,7 +332,7 @@ export const TABLES = {
   table45: {
     name: 'crm_partners',
     displayName: '거래처 관리',
-    rowCount: 1,
+    rowCount: 2,
     columnCount: 22,
     columns: ['id', 'type', 'company_name', 'business_number', 'representative', 'phone', 'manager_name', 'manager_phone', 'email', 'address', 'vip_level', 'credit_limit', 'business_license_url', 'memo', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
