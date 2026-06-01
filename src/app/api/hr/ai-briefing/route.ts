@@ -1,10 +1,23 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { decodeJwt } from 'jose';
 import { queryTable, insertRows } from '../../../../../egdesk-helpers';
 
 export async function POST(req: Request) {
   try {
+    // 🛡️ JWT 세션 분석 및 사장님/최고관리자 권한 판별 (개인정보 완벽 수호)
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth_token')?.value;
+
+    if (!token) {
+      return NextResponse.json({ success: false, error: '인증 세션이 만료되었습니다. 다시 로그인해주세요.' }, { status: 401 });
+    }
+
+    const sessionUser = decodeJwt(token);
+    const isHighPrivilege = sessionUser.role === 'SUPER_ADMIN' || sessionUser.role === 'PRESIDENT';
+
     // 1. DB에서 AI 설정 정보 로드
     const settingsRes = await queryTable('system_settings', { filters: { key: 'google_ai_api_key' } });
     const apiKey = settingsRes.rows && settingsRes.rows.length > 0 ? settingsRes.rows[0].value : null;
@@ -21,42 +34,121 @@ export async function POST(req: Request) {
       ? modelRes.rows[0].value
       : 'gemini-3.5-flash';
 
-    // 2. 근태, 연차 신청, 회사 일정 전사 마스터 데이터 수입 (RAG 재료)
+    // 2. 근태, 연차 신청, 회사 일정 전사 마스터 데이터 수입
     const employeesRes = await queryTable('crm_operators', { filters: { is_active: '1' } });
     const employees = employeesRes.rows || [];
 
-    const leavesRes = await queryTable('crm_annual_leaves');
+    const leavesRes = await queryTable('crm_annual_leaves').catch(() => ({ rows: [] }));
     const leaves = leavesRes.rows || [];
 
-    const eventsRes = await queryTable('crm_company_events');
+    const eventsRes = await queryTable('crm_company_events').catch(() => ({ rows: [] }));
     const events = eventsRes.rows || [];
 
-    const attendanceRes = await queryTable('crm_attendance');
+    const attendanceRes = await queryTable('crm_attendance').catch(() => ({ rows: [] }));
     const attendance = attendanceRes.rows || [];
 
-    const contractsRes = await queryTable('crm_operator_contract_settings');
+    const contractsRes = await queryTable('crm_operator_contract_settings').catch(() => ({ rows: [] }));
     const contracts = contractsRes.rows || [];
 
-    // 💡 DB에서 실제 임직원 상세 프로필 로드 (하드코딩 맵 전격 제거 및 DB 연동)
     const profilesRes = await queryTable('crm_operator_profiles').catch(() => ({ rows: [] }));
     const profiles = profilesRes.rows || [];
+
+    // 3. 신규 13대 서브 테이블 정보 로드 (에러 시 빈 배열로 안전 가드)
+    const [
+      educationRes,
+      licensesRes,
+      careersRes,
+      salariesRes,
+      promotionsRes,
+      awardsRes,
+      familyEventsRes,
+      medicalRes,
+      incidentsRes,
+      reputationsRes,
+      familiesRes,
+      jobHistoryRes,
+      projectsRes
+    ] = await Promise.all([
+      queryTable('crm_operator_education').catch(() => ({ rows: [] })),
+      queryTable('crm_operator_licenses').catch(() => ({ rows: [] })),
+      queryTable('crm_operator_careers').catch(() => ({ rows: [] })),
+      queryTable('crm_operator_salaries').catch(() => ({ rows: [] })),
+      queryTable('crm_operator_promotions').catch(() => ({ rows: [] })),
+      queryTable('crm_operator_awards').catch(() => ({ rows: [] })),
+      queryTable('crm_operator_family_events').catch(() => ({ rows: [] })),
+      queryTable('crm_operator_medical').catch(() => ({ rows: [] })),
+      queryTable('crm_operator_incidents').catch(() => ({ rows: [] })),
+      queryTable('crm_operator_reputations').catch(() => ({ rows: [] })),
+      queryTable('crm_operator_families').catch(() => ({ rows: [] })),
+      queryTable('crm_operator_job_history').catch(() => ({ rows: [] })),
+      queryTable('crm_operator_projects').catch(() => ({ rows: [] }))
+    ]);
+
+    const education = educationRes.rows || [];
+    const licenses = licensesRes.rows || [];
+    const careers = careersRes.rows || [];
+    const salaries = salariesRes.rows || [];
+    const promotions = promotionsRes.rows || [];
+    const awards = awardsRes.rows || [];
+    const familyEvents = familyEventsRes.rows || [];
+    const rawMedical = medicalRes.rows || [];
+    const rawIncidents = incidentsRes.rows || [];
+    const reputations = reputationsRes.rows || [];
+    const families = familiesRes.rows || [];
+    const jobHistory = jobHistoryRes.rows || [];
+    const projects = projectsRes.rows || [];
+
+    // 🛡️ 보안 통제 처리 (부운영자(SUB_OPERATOR) 요청 시 민감 항목 마스킹 차단)
+    const medical = rawMedical.map((med: any) => {
+      if (isHighPrivilege) return med;
+      return {
+        ...med,
+        diagnosis_name: '🔒 최고 권한 보안 격리 (블러 처리)',
+        hospital_name: '🔒 격리 대상',
+        work_limitations: '🔒 최고 권한 보안 정보로 암호화되었습니다.'
+      };
+    });
+
+    const incidents = rawIncidents.map((inc: any) => {
+      if (isHighPrivilege) return inc;
+      return {
+        ...inc,
+        title: '🔒 대내외 사건사고 격리 정보',
+        description: '🔒 본 정보는 최고운영자(SUPER_ADMIN) 및 사장님(PRESIDENT) 전용 보안 격리 항목입니다. 일반 부운영자(SUB_OPERATOR)의 접근이 원천 차단됩니다.',
+        outcome: '🔒 암호화 보호 처리'
+      };
+    });
+
+    // RAG에 공급할 무기명 평판 정보
+    const reputationsForRag = reputations.map((rep: any) => ({
+      operator_id: rep.operator_id,
+      evaluation_date: rep.evaluation_date,
+      source_type: rep.source_type,
+      score: rep.score,
+      positive_feedback: rep.positive_feedback,
+      constructive_feedback: rep.constructive_feedback
+    }));
 
     // JSON RAG 데이터 취합
     const ragContext = {
       total_employees_count: employees.length,
+      is_high_privilege_request: isHighPrivilege,
       employees: employees.map((e: any) => {
-        const detail = profiles.find((p: any) => String(p.operator_id) === String(e.id)) || {
+        const empIdStr = String(e.id);
+        const detail = profiles.find((p: any) => String(p.operator_id) === empIdStr) || {
           department: "미정",
           hire_date: e.created_at ? e.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
           backup_operator_id: "none",
           skills: "일반 서무",
           commute_area: "인근 통근"
         };
-        const contract = contracts.find((c: any) => String(c.operator_id) === String(e.id)) || {
+        const contract = contracts.find((c: any) => String(c.operator_id) === empIdStr) || {
           hourly_wage: 10000,
           weekly_hours: 40,
           allow_weekly_holiday_paid: 1
         };
+
+        // 13대 상세 서브 이력 결합
         return {
           id: e.id,
           name: e.name,
@@ -68,7 +160,22 @@ export async function POST(req: Request) {
           commute_area: detail.commute_area,
           hourly_wage: contract.hourly_wage,
           weekly_hours: contract.weekly_hours,
-          allow_weekly_holiday_paid: contract.allow_weekly_holiday_paid
+          allow_weekly_holiday_paid: contract.allow_weekly_holiday_paid,
+          
+          // 상세 13대 서브 리스트 주입
+          education: education.filter((x: any) => String(x.operator_id) === empIdStr),
+          licenses: licenses.filter((x: any) => String(x.operator_id) === empIdStr),
+          careers: careers.filter((x: any) => String(x.operator_id) === empIdStr),
+          salaries: salaries.filter((x: any) => String(x.operator_id) === empIdStr),
+          promotions: promotions.filter((x: any) => String(x.operator_id) === empIdStr),
+          awards: awards.filter((x: any) => String(x.operator_id) === empIdStr),
+          familyEvents: familyEvents.filter((x: any) => String(x.operator_id) === empIdStr),
+          medical: medical.filter((x: any) => String(x.operator_id) === empIdStr),
+          incidents: incidents.filter((x: any) => String(x.operator_id) === empIdStr),
+          reputations: reputationsForRag.filter((x: any) => String(x.operator_id) === empIdStr),
+          families: families.filter((x: any) => String(x.operator_id) === empIdStr),
+          jobHistory: jobHistory.filter((x: any) => String(x.operator_id) === empIdStr),
+          projects: projects.filter((x: any) => String(x.operator_id) === empIdStr)
         };
       }),
       leaves: leaves.map((l: any) => ({
@@ -96,27 +203,36 @@ export async function POST(req: Request) {
     };
 
     // 3. RAG 프롬프트 설계
-    const aiPrompt = `당신은 전사 기업 인사(HR) 및 공급망 관리(SCM) 전문 최고 분석관입니다.
-제공된 임직원 상세 프로필(부서, 백업 대행자, 기술 역량, 거주 통근지, 시급 및 계약시간 정보)과 회사 전사 일정 대장(company_events), 휴가 신청(leaves), 출퇴근 감사 데이터(attendance_summary)를 RAG 컨텍스트로 복합 학습하여 고밀도 인사 공백 경보 및 인건비 효율을 시뮬레이션해 주세요.
+    const aiPrompt = `당신은 전사 기업 인사(HR) 및 공급망 관리(SCM) 전문 최고 분석관이자 사장님의 핵심 경영 참모(HRBP)입니다.
+제공된 임직원들의 360도 종합 마스터 프로필(학력, 경력, 자격증, 승진 이력, 포상/징계, 병력 이력, 참여 프로젝트별 기여도 및 평가 점수, 다차원 평판 피드백, 소득세 부양가족 명단, 대내외 사건사고 이력)과 회사 전사 일정 대장(company_events), 휴가 신청(leaves), 출퇴근 감사 데이터(attendance_summary)를 RAG 컨텍스트로 복합 학습하여 고밀도 인사 공백 경보, 법무/사건사고 리스크에 따른 업무 안배 조율, 그리고 인건비 대비 보상 및 가족 맞춤형 생애주기 복지 정책을 정밀하게 제안해 주세요.
 
 [주요 분석 요구사항]:
-1. **부서 가동률 임계 체크**: 특정 부서원 과반이 동일 기간에 휴가를 신청했는지 판정해 리스크를 계산하세요. 특히, 1명만 있는 단독 부서(예: 구매팀 홍길동 과장)가 휴가일 때 비상 공백 리스크를 매우 높게 산정하세요.
-2. **대체 가능 역량 분석**: 휴가 예정자가 발생했을 때, 조직 내 다른 인원 중 동일 기술 역량(skills)을 가진 대체 지원 가능 임직원 명단을 권고안(briefingText)에 직접 매핑 추천하세요.
-3. **1차 백업 대행자 대조**: 휴가 신청자의 백업 담당자(backup_operator_id)가 해당 일자에 정상 근무 중인지, 혹은 중복 휴가 중인지 대조하여 리스크 가중치를 보정하세요.
-4. **기후-교통 연계 지각 시뮬레이션**: 회사 공통 일정 중 '폭설', '태풍', '집중호우' 등 악천후와 관련된 일정이나 마감 기한이 존재하고 해당 일에 통근 거리(commute_area)가 멀거나 광역버스/대중교통을 타는 직원이 있으면 지각 우려 리스크를 가산하고, 대체 유연 근무(재택 전환 등)를 능동 권고하세요.
-5. **재무 인건비 및 주휴수당 최적화**: 전사 직원들의 계약 시급 및 주당 근로시간을 인지하여, 이번 달 총 소모 인건비 및 주휴수당 지출 규모를 추산하고 "주 15시간 미만 초단기 교대 근무 안배를 통한 주휴수당 지출 최적화 방안" 또는 "인건비 누수 방지 스케줄 편성"에 대한 전략적 정성 피드백을 권고안(briefingText)에 포함하세요.
+1. **평판-기여도-보상(급여)의 교차 대조 및 인재 이탈 경보**:
+   - 직원의 다차원 평판(reputations)이 매우 뛰어나고 프로젝트 기여도 및 성과 점수(projects)도 극도로 우수(예: 90점 이상)하나, 누적 급여 및 상여금 지급 내역(salaries)이 부서 평균 또는 역량 대비 부조화스럽게 낮게 형성된 인재가 있는지 탐색하세요.
+   - 인재 이탈을 방지하기 위한 선제적인 급여 갱신, 격려 상여금 편성 또는 특별 승진 기용 권고를 briefingText에 논리정연하게 작성하십시오.
+2. **사건사고/법무/병력 리스크와 직무 심리적 완충 조율**:
+   - 직원의 대내외 사건사고(incidents - 단순 갈등부터 민형사 법적 공방까지) 또는 과거/현재 메디컬 병력(medical) 내역을 복합 감지하십시오.
+   - 사건사고 위험도(severity)가 MEDIUM 또는 HIGH 이거나, 큰 수술/병력 이력이 있는 직원의 경우 심리적 피로도 및 업무 집중도 저하가 우려됩니다. 중요 프로젝트 참여율(contribution_rate)을 단기적으로 하향 안배하고, 백업 대행자(backup_operator_id)를 적극 연동 가동하여 전사 실무 납품 및 품질 리스크를 사전 방어하는 세련된 대응책을 권장하십시오.
+3. **부양가족 생애주기 분석 및 자율 패밀리 케어 복지 권고**:
+   - 부양가족(families) 리스트 내 구성원들의 생년월일을 기준으로, 만 나이를 역산하여 특이적 복지 캘린더 이벤트를 자율 추론하세요.
+   - 예컨대, 자녀가 만 6~7세가 되어 초등학교 입학 주기를 맞이하거나(홍길동 자녀 등), 영유아 자녀(이영희 자녀 등)가 있어 돌봄 수당 지원이 필요하거나, 노령 부모 부양으로 인한 부양가족 공제 혜택 등이 필요한 경우를 짚어내고, "초등 입학 특별 휴가 및 축하금 발송", "영유아 돌봄 시간 단축 유급 혜택 상신" 등을 사장님께 직접 적극 제안하십시오.
+4. **부서 가동률 임계 및 역량 기반 대체 백업**:
+   - 1인 단독 부서(예: 구매팀 홍길동 과장) 또는 핵심 라인의 연차 쏠림 공백 발생 시, 백업 대행자(backup_operator_id)의 가용성을 진단하십시오.
+   - 백업 담당자가 중복 휴가이거나 없는 경우, 보유 기술 자격증(licenses) 및 역량(skills)이 유사한 타 부서의 인원을 스페어 대체 조율 자원으로 매핑하여 업무 연계성을 제공하십시오.
+5. **재무 인건비 및 주휴수당 최적화**:
+   - 당월 전사 예상 인건비 총액과 실근무 기반 주휴수당의 최적 효율성을 진단하여 보고하십시오.
 
 반드시 아래 JSON 스키마만을 철저히 준수하여 순수 JSON 문자열로만 응답해 주세요. 다른 마크다운 백틱(\`\`\`) 기호나 텍스트는 절대 포함하지 마세요.
 
 응답 JSON 규격 스펙 예시:
 {
-  "riskScore": 65, // 0~100 사이의 정수 (리스크가 크면 높은 점수)
-  "alertTitle": "6월 둘째 주 업무 공백 관심 단계 🟡", // 또는 "정상 🟢", "비상 경고 🔴" 등
-  "alertMessage": "6월 15일 납품일 전날인 14일에 구매팀 홍길동 과장이 휴가를 신청했습니다. 구매 부서에 1인만 소속되어 있어 자재 수급 지연 위험이 있습니다.",
-  "briefingText": "구매팀 홍길동 과장의 휴가 기간 중 1차 백업자인 김철수 과장은 정상 가용 상태입니다. 다만 원활한 조율을 위해 'IT 및 전산 지원' 역량을 갖춘 개발본부 이영희 사원을 임시 전산 대체 자원으로 배치하는 것을 검토하세요. 또한 기상 악화 시 광역버스로 통근하는 이영희 사원의 지각 위험을 완화하기 위해 선제적 재택근무 전환을 자율 권장합니다. 전사 인건비 리스크 분석 결과, 주 15시간 이상 근무자가 밀집하여 예상 주휴수당 총액이 상승세입니다. 초단기 파트타임 교대 조율을 통해 인건비 지출 효율을 추가 확보하실 수 있습니다."
+  "riskScore": 65, // 0~100 사이의 정수 (법무, 공백, 평판 이탈 리스크 통합 지수)
+  "alertTitle": "6월 전사 인사-법무 리스크 주의 단계 🟡", // 또는 "정상 🟢", "심각 위험 🔴"
+  "alertMessage": "구매팀 홍길동 과장의 개인 소송 리스크 혹은 부양 자녀 입학 등 가족 생애주기 변화 및 특정인 연차 쏠림에 따른 업무 연속성 체크가 요구됩니다.",
+  "briefingText": "[직원 평판 및 보상 교차 검증]\\n홍길동 과장의 경우 사내 동료 평판이 4.8점으로 극도로 우수하고 스마트 SCM 프로젝트의 성과가 95점에 달하나, 동 부서 대비 상여 비중이 상대적으로 적습니다. 인재 이탈 방지를 위해 2분기 정기 상여 편성을 권고합니다.\\n\\n[법무/사건사고 및 심리적 완충 케어]\\n생산본부 김철수 반장이 최근 전세 사기 관련 고위험(HIGH) 민사 소송 분쟁을 겪고 있습니다. 심리적 압박으로 인한 생산 라인 오판 리스크를 완화하기 위해 무재해 환경 프로젝트의 업무 기여율을 단기 조율하고 구매팀 홍길동 대리를 1차 백업으로 전격 가동하십시오.\\n\\n[가족 생애주기 맞춤형 복지 상신]\\n홍길동 과장의 자녀(홍진우, 만 6세)가 내년 초등학교 입학 생애주기에 도래합니다. 입학 축하금 30만 원 지원과 돌봄 휴가 결재를 선제 배정하여 애사심을 고취하십시오. 이영희 사원의 경우 영아 자녀(김민우)를 위해 육아 돌봄 단축 시간 단축을 권장합니다.\\n\\n[인건비 최적화]\\n근태와 연동된 실 예상 주휴수당 총액을 대조하여 효율적 예산 안배를 수립하였습니다."
 }
 
-[학습용 실시간 전사 HR 컨텍스트]:
+[학습용 실시간 전사 360도 종합 HR 컨텍스트]:
 ${JSON.stringify(ragContext, null, 2)}`;
 
     // 4. Gemini AI 호출 가동
@@ -146,10 +262,10 @@ ${JSON.stringify(ragContext, null, 2)}`;
     const rawText = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!rawText) {
-      throw new Error('Gemini AI로부터 공백 예보 분석 응답을 수신하지 못했습니다.');
+      throw new Error('Gemini AI로부터 공백 및 360도 종합 인사 분석 응답을 수신하지 못했습니다.');
     }
 
-    // 🛡️ [철저 이행] AI API 사용량 통계 감사 로그 누락 없이 안전하게 실시간 적재 💾
+    // AI API 사용량 통계 감사 로그 누락 없이 안전하게 실시간 적재
     try {
       const u = aiData.usageMetadata || {};
       const promptTokens = u.promptTokenCount || 0;
@@ -159,13 +275,13 @@ ${JSON.stringify(ragContext, null, 2)}`;
       if (totalTokens > 0) {
         await insertRows('ai_token_usage_logs', [{
           model_name: selectedModel,
-          task_purpose: 'HR_AI_BRIEFING',
+          task_purpose: 'HR_AI_BRIEFING_360',
           prompt_tokens: promptTokens,
           completion_tokens: completionTokens,
           total_tokens: totalTokens,
           timestamp: new Date().toISOString()
         }]);
-        console.log('✓ HR AI 공백 분석 API 토큰 감사로그 누락 없이 적재 완료 💰');
+        console.log('✓ 360 ERP AI 분석 API 토큰 감사로그 누락 없이 적재 완료 💰');
       }
     } catch (logErr) {
       console.error('HR AI 토큰 사용량 감사 로그 적재 실패:', logErr);
@@ -197,3 +313,4 @@ ${JSON.stringify(ragContext, null, 2)}`;
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+

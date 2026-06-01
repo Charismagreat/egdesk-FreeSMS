@@ -117,6 +117,17 @@ export default function HrAttendancePage() {
   const [profileBackup, setProfileBackup] = useState("none");
   const [profileLoading, setProfileLoading] = useState(false);
 
+  // 🪐 임직원 360도 종합 프로필 관제 상태 변수 및 에디터 폼 상태 신설
+  const [comprehensiveProfiles, setComprehensiveProfiles] = useState<any[]>([]);
+  const [selected360OperatorId, setSelected360OperatorId] = useState<string>("");
+  const [active360Tab, setActive360Tab] = useState<string>("basic");
+  const [comprehensiveLoading, setComprehensiveLoading] = useState<boolean>(false);
+  const [isHighPrivilege, setIsHighPrivilege] = useState<boolean>(false);
+
+  // 360도 실시간 통합 에디터용 동적 폼 상태
+  const [editTableName, setEditTableName] = useState<string>("crm_operator_education");
+  const [editFormData, setEditFormData] = useState<Record<string, any>>({});
+
   useEffect(() => {
     fetchHrData();
   }, []);
@@ -327,6 +338,9 @@ export default function HrAttendancePage() {
       if (leavesData.success) {
         setLeaveRequests(leavesData.leaves || []);
       }
+
+      // 🪐 360도 종합 프로필 데이터 로드 연계
+      await fetchComprehensiveProfiles();
 
     } catch (err) {
       setError('서버 연결 불안정 또는 네트워크 장애');
@@ -1350,6 +1364,1246 @@ export default function HrAttendancePage() {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ==========================================
+          📂 7. [사장님 전용] 임직원 360도 종합 Dynamic 프로필 관제 보드 (6단 탭 & 수직 라이프사이클 타임라인)
+          ========================================== */}
+      {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'PRESIDENT') && (
+        <div className="bg-white border border-slate-100 p-6 rounded-3xl shadow-sm space-y-6 relative overflow-hidden mt-6">
+          {/* 럭셔리 그라디언트 배경 */}
+          <div className="absolute top-0 right-0 w-48 h-48 bg-indigo-500/5 rounded-full blur-3xl -z-10 animate-pulse"></div>
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-rose-500/5 rounded-full blur-3xl -z-10"></div>
+          
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-indigo-500/10 text-indigo-600 rounded-xl">
+                <Sparkles className="w-5 h-5 animate-spin-slow" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-slate-800 flex items-center gap-1.5">
+                  임직원 360도 Dynamic 프로필 관제 보드
+                  <span className="text-[10px] font-bold text-indigo-650 bg-indigo-50 px-2 py-0.5 rounded-md">CORE ERP 360</span>
+                </h3>
+                <p className="text-[10px] text-slate-400 font-bold mt-1">학력, 경력, 상벌, 프로젝트 기여도, 가족 구성원, 평판 및 법무 사건사고 전방위 분석</p>
+              </div>
+            </div>
+            
+            {/* 360 관제 대상 직원 선택 */}
+            <div className="flex items-center gap-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">360도 관제 임직원</label>
+              <select
+                value={selected360OperatorId}
+                onChange={(e) => handleSelect360Employee(e.target.value)}
+                className="p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-700 outline-none cursor-pointer hover:border-indigo-400 transition-colors"
+              >
+                <option value="">임직원 선택...</option>
+                {employees.map(emp => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.name} ({emp.role} - {profiles.find(p => String(p.operator_id) === String(emp.id))?.department || '미정'})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {selected360OperatorId ? (() => {
+            const current360 = comprehensiveProfiles.find(p => String(p.operator_id) === String(selected360OperatorId));
+            if (!current360) {
+              return (
+                <div className="py-20 text-center border border-dashed border-slate-200 rounded-2xl text-slate-400 font-bold text-xs">
+                  선택된 직원의 360도 프로필 정보를 집계하는 중입니다...
+                </div>
+              );
+            }
+
+            // 타임라인용 정렬된 라이프사이클 이벤트 리스트 연산
+            const timelineEvents: Array<{ date: string; title: string; category: string; type: string; details: string }> = [];
+            
+            // 입사일
+            const pf = profiles.find(p => String(p.operator_id) === String(selected360OperatorId));
+            if (pf?.hire_date) {
+              timelineEvents.push({
+                date: pf.hire_date,
+                title: '공식 입사 💼',
+                category: 'CAREER',
+                type: 'JOIN',
+                details: `${pf.department || '미정'} 부서에 ${current360.role} 직급으로 공식 입사 및 ERP 전산 명부 등록`
+              });
+            }
+
+            // 학력 정보
+            if (current360.education) {
+              current360.education.forEach((edu: any) => {
+                if (edu.graduation_date) {
+                  timelineEvents.push({
+                    date: edu.graduation_date,
+                    title: `${edu.school_name} 졸업 🎓`,
+                    category: 'EDU',
+                    type: 'GRADUATION',
+                    details: `${edu.major} 전공 ${edu.degree} 학위 취득 완료`
+                  });
+                }
+              });
+            }
+
+            // 자격증 취득일
+            if (current360.licenses) {
+              current360.licenses.forEach((lic: any) => {
+                if (lic.acquisition_date) {
+                  timelineEvents.push({
+                    date: lic.acquisition_date,
+                    title: `${lic.license_name} 자격 취득 📜`,
+                    category: 'LICENSE',
+                    type: 'ACQUISITION',
+                    details: `${lic.issuer} 발행 (자격번호: ${lic.license_no})`
+                  });
+                }
+              });
+            }
+
+            // 부서 이동 / 승진 이력
+            if (current360.promotions) {
+              current360.promotions.forEach((pro: any) => {
+                if (pro.change_date) {
+                  timelineEvents.push({
+                    date: pro.change_date,
+                    title: `부서발령 및 승진 🚀`,
+                    category: 'PROMOTION',
+                    type: 'CHANGE',
+                    details: `[이전] ${pro.prev_dept} ${pro.prev_role} ➡️ [변경] ${pro.next_dept} ${pro.next_role} (${pro.promotion_reason})`
+                  });
+                }
+              });
+            }
+
+            // 상벌 이력
+            if (current360.awards) {
+              current360.awards.forEach((awd: any) => {
+                if (awd.record_date) {
+                  timelineEvents.push({
+                    date: awd.record_date,
+                    title: `${awd.title} 수여 🏆`,
+                    category: 'AWARD',
+                    type: awd.type,
+                    details: `${awd.content} (${awd.authority})`
+                  });
+                }
+              });
+            }
+
+            // 사건사고 이력
+            if (current360.incidents) {
+              current360.incidents.forEach((inc: any) => {
+                if (inc.occurred_date) {
+                  timelineEvents.push({
+                    date: inc.occurred_date,
+                    title: `${inc.title} ⚠️`,
+                    category: 'INCIDENT',
+                    type: inc.severity,
+                    details: inc.description
+                  });
+                }
+              });
+            }
+
+            // 프로젝트 시작일
+            if (current360.projects) {
+              current360.projects.forEach((prj: any) => {
+                if (prj.start_date) {
+                  timelineEvents.push({
+                    date: prj.start_date,
+                    title: `${prj.project_name} 프로젝트 참여 🪐`,
+                    category: 'PROJECT',
+                    type: 'START',
+                    details: `역할: ${prj.role_in_project} (기여/참여율: ${prj.contribution_rate}%)`
+                  });
+                }
+              });
+            }
+
+            // 날짜 기준 내림차순 정렬 (최신 이벤트가 위로)
+            timelineEvents.sort((a, b) => b.date.localeCompare(a.date));
+
+            return (
+              <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
+                
+                {/* 6단 스마트 탭 전환형 이력 상세 보드 (8 cols) */}
+                <div className="xl:col-span-8 space-y-6">
+                  
+                  {/* 6단 탭 내비게이션 */}
+                  <div className="flex bg-slate-100 p-1.5 rounded-2xl overflow-x-auto gap-1">
+                    {[
+                      { id: 'basic', label: '📋 기본/학력/경력' },
+                      { id: 'attendance', label: '📅 근무/근태' },
+                      { id: 'salary', label: '💰 급여/상여' },
+                      { id: 'project', label: '🪐 프로젝트/역량' },
+                      { id: 'life', label: '🏥 신상/가족/평판/사건' },
+                      { id: 'edit', label: '✍️ 실시간 에디터' }
+                    ].map(t => (
+                      <button
+                        key={t.id}
+                        onClick={() => setActive360Tab(t.id)}
+                        className={`px-3 py-2 text-[10.5px] font-black rounded-xl cursor-pointer transition-all shrink-0 ${
+                          active360Tab === t.id
+                            ? 'bg-white text-indigo-750 shadow-xs'
+                            : 'text-slate-500 hover:text-slate-800'
+                        }`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* 탭 본문 렌더링 */}
+                  <div className="bg-slate-50/40 border border-slate-100 rounded-2xl p-5 min-h-[400px]">
+                    
+                    {/* TAB 1: 기본/학력/경력 */}
+                    {active360Tab === 'basic' && (
+                      <div className="space-y-6">
+                        
+                        {/* 1. 기본 인적 프로필 요약 */}
+                        <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-3xs space-y-3">
+                          <h5 className="text-xs font-black text-slate-800 flex items-center gap-1.5">
+                            <span className="w-1.5 h-3.5 bg-indigo-500 rounded-full"></span>
+                            임직원 기본 인적정보
+                          </h5>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-semibold text-slate-650">
+                            <div>
+                              <span className="block text-[9px] text-slate-400 font-bold uppercase">부서/직급</span>
+                              <span className="text-slate-800 font-black">{pf?.department || '미정'} / {current360.role}</span>
+                            </div>
+                            <div>
+                              <span className="block text-[9px] text-slate-400 font-bold uppercase">공식 입사일</span>
+                              <span className="text-slate-850 font-black">{pf?.hire_date || '미정'}</span>
+                            </div>
+                            <div>
+                              <span className="block text-[9px] text-slate-400 font-bold uppercase">출퇴근 통근 구역</span>
+                              <span className="text-slate-850 font-black">{pf?.commute_area || '미정'}</span>
+                            </div>
+                            <div>
+                              <span className="block text-[9px] text-slate-400 font-bold uppercase">비상 백업자</span>
+                              <span className="text-slate-850 font-black">
+                                {employees.find(e => String(e.id) === String(pf?.backup_operator_id))?.name || '지정 없음'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 2. 학력사항 리스트 */}
+                        <div className="space-y-3">
+                          <h5 className="text-xs font-black text-slate-800 flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-1.5 h-3.5 bg-indigo-500 rounded-full"></span>
+                              학력사항 (Education)
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-bold">총 {current360.education?.length || 0}건</span>
+                          </h5>
+                          
+                          {(!current360.education || current360.education.length === 0) ? (
+                            <p className="text-center text-[10px] text-slate-400 font-bold py-6 bg-white border border-slate-100 rounded-xl">기록된 학력사항이 없습니다. 에디터 탭에서 추가해 주세요.</p>
+                          ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {current360.education.map((edu: any) => (
+                                <div key={edu.id} className="bg-white border border-slate-100 rounded-xl p-3.5 shadow-3xs flex justify-between items-start group">
+                                  <div className="space-y-1">
+                                    <span className="px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-650 font-black text-[8px]">{edu.degree}</span>
+                                    <h6 className="text-xs font-black text-slate-800 mt-1">{edu.school_name}</h6>
+                                    <p className="text-[10px] text-slate-500 font-bold">전공: {edu.major}</p>
+                                    <p className="text-[9px] text-slate-400 font-bold">기간: {edu.entrance_date} ~ {edu.graduation_date} ({edu.status})</p>
+                                  </div>
+                                  <button
+                                    onClick={() => handleDelete360Record('crm_operator_education', edu.id)}
+                                    className="p-1 text-slate-350 hover:text-rose-500 rounded hover:bg-slate-50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 3. 자격면허 리스트 */}
+                        <div className="space-y-3">
+                          <h5 className="text-xs font-black text-slate-800 flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-1.5 h-3.5 bg-indigo-500 rounded-full"></span>
+                              자격증 및 전문 면허
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-bold">총 {current360.licenses?.length || 0}건</span>
+                          </h5>
+                          
+                          {(!current360.licenses || current360.licenses.length === 0) ? (
+                            <p className="text-center text-[10px] text-slate-400 font-bold py-6 bg-white border border-slate-100 rounded-xl">취득 및 등록된 자격증이 없습니다.</p>
+                          ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              {current360.licenses.map((lic: any) => (
+                                <div key={lic.id} className="bg-white border border-slate-100 rounded-xl p-3.5 shadow-3xs flex justify-between items-start group">
+                                  <div className="space-y-1">
+                                    <h6 className="text-xs font-black text-slate-850">{lic.license_name}</h6>
+                                    <p className="text-[10px] text-slate-500 font-bold">발행기관: {lic.issuer} | 번호: {lic.license_no}</p>
+                                    <p className="text-[9px] text-slate-400 font-bold">취득일: {lic.acquisition_date} (만료일: {lic.expiry_date || '없음'})</p>
+                                  </div>
+                                  <button
+                                    onClick={() => handleDelete360Record('crm_operator_licenses', lic.id)}
+                                    className="p-1 text-slate-350 hover:text-rose-500 rounded hover:bg-slate-50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 4. 이전경력 리스트 */}
+                        <div className="space-y-3">
+                          <h5 className="text-xs font-black text-slate-800 flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-1.5 h-3.5 bg-indigo-500 rounded-full"></span>
+                              이전 회사 경력사항
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-bold">총 {current360.careers?.length || 0}건</span>
+                          </h5>
+                          
+                          {(!current360.careers || current360.careers.length === 0) ? (
+                            <p className="text-center text-[10px] text-slate-400 font-bold py-6 bg-white border border-slate-100 rounded-xl">과거 경력정보가 명부에 기록되지 않았습니다.</p>
+                          ) : (
+                            <div className="space-y-3">
+                              {current360.careers.map((car: any) => (
+                                <div key={car.id} className="bg-white border border-slate-100 rounded-xl p-4 shadow-3xs flex justify-between items-start group">
+                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full text-xs font-semibold text-slate-650">
+                                    <div className="space-y-1">
+                                      <span className="text-[9px] text-slate-400 font-bold uppercase">회사/부서</span>
+                                      <h6 className="text-xs font-black text-slate-800">{car.company_name} <span className="text-[10px] text-slate-450 font-normal">({car.department})</span></h6>
+                                      <p className="text-[9.5px] text-slate-450">최종 직급: {car.job_title}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <span className="text-[9px] text-slate-400 font-bold uppercase">담당업무</span>
+                                      <p className="text-[10.5px] text-slate-755 font-bold leading-normal">{car.assigned_task}</p>
+                                    </div>
+                                    <div className="space-y-1">
+                                      <span className="text-[9px] text-slate-400 font-bold uppercase">재직기간 및 퇴사사유</span>
+                                      <p className="text-[10px] text-slate-800 font-mono">{car.join_date} ~ {car.retire_date}</p>
+                                      <p className="text-[9.5px] text-rose-600">퇴사 사유: {car.leaving_reason}</p>
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={() => handleDelete360Record('crm_operator_careers', car.id)}
+                                    className="p-1 text-slate-355 hover:text-rose-500 rounded hover:bg-slate-50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer shrink-0 ml-2"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                      </div>
+                    )}
+
+                    {/* TAB 2: 근무/근태 */}
+                    {active360Tab === 'attendance' && (
+                      <div className="space-y-6">
+                        
+                        {/* 1. 당월 근태 계기판 및 지각 결근 칩 */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                          <div className="bg-white border border-slate-100 p-4 rounded-xl shadow-3xs text-center">
+                            <span className="block text-[9px] text-slate-400 font-black uppercase tracking-wider">정상 근무 시간</span>
+                            <span className="text-lg font-black text-emerald-600 block mt-1">160시간</span>
+                          </div>
+                          <div className="bg-white border border-slate-100 p-4 rounded-xl shadow-3xs text-center">
+                            <span className="block text-[9px] text-slate-400 font-black uppercase tracking-wider">누적 지각 횟수</span>
+                            <span className="text-lg font-black text-amber-600 block mt-1">1회</span>
+                          </div>
+                          <div className="bg-white border border-slate-100 p-4 rounded-xl shadow-3xs text-center">
+                            <span className="block text-[9px] text-slate-400 font-black uppercase tracking-wider">누적 결근 횟수</span>
+                            <span className="text-lg font-black text-rose-600 block mt-1">0회</span>
+                          </div>
+                          <div className="bg-white border border-slate-100 p-4 rounded-xl shadow-3xs text-center">
+                            <span className="block text-[9px] text-slate-400 font-black uppercase tracking-wider">소모 연차 일수</span>
+                            <span className="text-lg font-black text-indigo-650 block mt-1">3.5일</span>
+                          </div>
+                        </div>
+
+                        {/* 2. 담당 업무 지정 및 변동 이력 */}
+                        <div className="space-y-3">
+                          <h5 className="text-xs font-black text-slate-800 flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-1.5 h-3.5 bg-indigo-500 rounded-full"></span>
+                              담당 업무 변동 이력 (Job Assignment History)
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-bold">총 {current360.jobHistory?.length || 0}건</span>
+                          </h5>
+                          
+                          {(!current360.jobHistory || current360.jobHistory.length === 0) ? (
+                            <p className="text-center text-[10px] text-slate-400 font-bold py-6 bg-white border border-slate-100 rounded-xl">기록된 담당업무 변동이력이 없습니다.</p>
+                          ) : (
+                            <div className="space-y-3">
+                              {current360.jobHistory.map((job: any) => (
+                                <div key={job.id} className="bg-white border border-slate-100 rounded-xl p-4 shadow-3xs flex justify-between items-start group">
+                                  <div className="space-y-2 text-xs font-semibold text-slate-650 w-full">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[9.5px] text-slate-400 font-bold font-mono">발령 지정일: {job.assignment_date}</span>
+                                      {job.is_current === 1 ? (
+                                        <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-650 font-black text-[9px]">현재 담당 업무 🟢</span>
+                                      ) : (
+                                        <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-bold text-[9px]">이전 담당 업무</span>
+                                      )}
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                      <div className="p-2 rounded bg-indigo-50/20 border border-indigo-100/50">
+                                        <span className="block font-black text-[8px] text-indigo-750 uppercase tracking-widest mb-1">지정 담당 업무</span>
+                                        <p className="text-slate-800 font-bold leading-normal">{job.job_description}</p>
+                                      </div>
+                                      <div className="p-2 rounded bg-slate-50 border border-slate-100/50">
+                                        <span className="block font-black text-[8px] text-slate-400 uppercase tracking-widest mb-1">이전 담당 업무 (인수인계)</span>
+                                        <p className="text-slate-500 leading-normal">{job.prev_job_description || '없음 (신규 발령)'}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={() => handleDelete360Record('crm_operator_job_history', job.id)}
+                                    className="p-1 text-slate-355 hover:text-rose-500 rounded hover:bg-slate-50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer shrink-0 ml-2"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                      </div>
+                    )}
+
+                    {/* TAB 3: 급여/상여 */}
+                    {active360Tab === 'salary' && (
+                      <div className="space-y-6">
+                        
+                        {/* 1. 급여 실지급액 추이 미니 CSS 차트 */}
+                        <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-3xs space-y-4">
+                          <h5 className="text-xs font-black text-slate-800 flex items-center justify-between">
+                            <span>📈 월별 실지급액 추이 분석 (최근 6개월)</span>
+                            <span className="text-[9px] text-slate-400 font-bold">비과세 식대 10만 원 자동 공제 연산 반영</span>
+                          </h5>
+                          
+                          {(!current360.salaries || current360.salaries.length === 0) ? (
+                            <p className="text-center text-[10px] text-slate-400 font-bold py-6">급여 지급 이력이 없어 차트를 표현할 수 없습니다.</p>
+                          ) : (
+                            <div className="flex items-end justify-around h-32 pt-4 px-2 border-b border-slate-150">
+                              {current360.salaries.slice(-6).map((sal: any) => {
+                                // 임의 비례 계산 높이 (기본 300만원대 기준 비례)
+                                const heightPercent = Math.min(100, Math.max(10, (sal.net_salary / 5000000) * 100));
+                                return (
+                                  <div key={sal.id} className="flex flex-col items-center gap-1.5 w-12 group relative">
+                                    {/* 툴팁 아우라 */}
+                                    <span className="absolute -top-6 scale-0 group-hover:scale-100 bg-slate-900 text-white font-mono text-[8px] font-black px-1.5 py-0.5 rounded shadow-md transition-all z-20">
+                                      {sal.net_salary?.toLocaleString()}원
+                                    </span>
+                                    
+                                    <div 
+                                      className="w-4 bg-indigo-500 rounded-t group-hover:bg-indigo-650 transition-all shadow-inner"
+                                      style={{ height: `${heightPercent}px` }}
+                                    ></div>
+                                    <span className="text-[9.5px] font-black font-mono text-slate-500 mt-1">{sal.payment_year_month}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 2. 급여상여 리스트 상세 테이블 */}
+                        <div className="space-y-3">
+                          <h5 className="text-xs font-black text-slate-800 flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-1.5 h-3.5 bg-indigo-500 rounded-full"></span>
+                              월별 상세 급여/상여 지급 이력 대장
+                            </span>
+                          </h5>
+
+                          {(!current360.salaries || current360.salaries.length === 0) ? (
+                            <p className="text-center text-[10px] text-slate-400 font-bold py-6 bg-white border border-slate-100 rounded-xl">지급된 월별 급여 명세가 존재하지 않습니다.</p>
+                          ) : (
+                            <div className="overflow-x-auto border border-slate-100 rounded-xl bg-white shadow-3xs">
+                              <table className="w-full text-left border-collapse text-xs font-semibold">
+                                <thead>
+                                  <tr className="bg-slate-50 border-b border-slate-100 text-[9px] text-slate-400 uppercase tracking-widest font-black">
+                                    <th className="py-2.5 px-3">지급 연월</th>
+                                    <th className="py-2.5 px-3 text-right">기본급</th>
+                                    <th className="py-2.5 px-3 text-right text-indigo-600">특별 상여</th>
+                                    <th className="py-2.5 px-3 text-right">주휴 수당</th>
+                                    <th className="py-2.5 px-3 text-right text-rose-500">세금/공제</th>
+                                    <th className="py-2.5 px-3 text-right text-indigo-750 bg-indigo-50/10 font-black">실지급액</th>
+                                    <th className="py-2.5 px-3 text-center">지급일자 (상태)</th>
+                                    <th className="py-2.5 px-2 text-center">작업</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100 text-slate-650 font-mono">
+                                  {current360.salaries.map((sal: any) => (
+                                    <tr key={sal.id} className="hover:bg-slate-50/40 transition-colors">
+                                      <td className="py-2.5 px-3 font-black text-slate-800">{sal.payment_year_month}</td>
+                                      <td className="py-2.5 px-3 text-right">{sal.base_salary?.toLocaleString()}원</td>
+                                      <td className="py-2.5 px-3 text-right font-black text-indigo-650">+{sal.bonus_amount?.toLocaleString()}원</td>
+                                      <td className="py-2.5 px-3 text-right text-slate-500">+{sal.weekly_holiday_allowance?.toLocaleString()}원</td>
+                                      <td className="py-2.5 px-3 text-right text-rose-500">-{sal.deduction_amount?.toLocaleString()}원</td>
+                                      <td className="py-2.5 px-3 text-right font-black text-indigo-750 bg-indigo-50/10">{sal.net_salary?.toLocaleString()}원</td>
+                                      <td className="py-2.5 px-3 text-center font-sans font-bold">
+                                        {sal.payment_date} ({sal.status})
+                                      </td>
+                                      <td className="py-2.5 px-2 text-center">
+                                        <button
+                                          onClick={() => handleDelete360Record('crm_operator_salaries', sal.id)}
+                                          className="p-1 text-slate-350 hover:text-rose-500 rounded transition-all cursor-pointer"
+                                        >
+                                          <Trash2 size={11} />
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+
+                      </div>
+                    )}
+
+                    {/* TAB 4: 프로젝트/역량 */}
+                    {active360Tab === 'project' && (
+                      <div className="space-y-6">
+                        
+                        {/* 1. 보유 역량 기술 칩 */}
+                        <div className="bg-white border border-slate-100 rounded-xl p-4 shadow-3xs space-y-2">
+                          <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">실시간 전산 태그 역량</h5>
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            {pf?.skills ? pf.skills.split(',').map((skill: string, idx: number) => (
+                              <span key={idx} className="px-2.5 py-1 rounded-lg bg-indigo-50 border border-indigo-100/50 text-indigo-750 font-black text-[10px] tracking-tight shadow-3xs">
+                                🌌 {skill.trim()}
+                              </span>
+                            )) : <span className="text-slate-400 font-bold text-xs">등록된 역량 키워드가 없습니다. 명부 폼에서 추가해 주세요.</span>}
+                          </div>
+                        </div>
+
+                        {/* 2. 참여 프로젝트 목록 */}
+                        <div className="space-y-3">
+                          <h5 className="text-xs font-black text-slate-800 flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-1.5 h-3.5 bg-indigo-500 rounded-full"></span>
+                              참여 프로젝트 이력 및 기여도/성과지표
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-bold">총 {current360.projects?.length || 0}건</span>
+                          </h5>
+
+                          {(!current360.projects || current360.projects.length === 0) ? (
+                            <p className="text-center text-[10px] text-slate-400 font-bold py-6 bg-white border border-slate-100 rounded-xl">참여 중이거나 이력이 남은 프로젝트가 없습니다.</p>
+                          ) : (
+                            <div className="space-y-4">
+                              {current360.projects.map((prj: any) => (
+                                <div key={prj.id} className="bg-white border border-slate-100 rounded-xl p-4 shadow-3xs space-y-3 relative group">
+                                  {/* 삭제 단추 */}
+                                  <button
+                                    onClick={() => handleDelete360Record('crm_operator_projects', prj.id)}
+                                    className="absolute top-4 right-4 p-1 text-slate-350 hover:text-rose-500 rounded transition-all cursor-pointer opacity-0 group-hover:opacity-100"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+
+                                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                                    <div className="space-y-1">
+                                      <h6 className="text-xs font-black text-indigo-900">{prj.project_name}</h6>
+                                      <p className="text-[10px] text-slate-450 font-bold">역할: {prj.role_in_project} | 기간: {prj.start_date} ~ {prj.end_date}</p>
+                                    </div>
+                                    
+                                    {/* 성과 점수 칩 */}
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[9px] text-slate-400 font-bold uppercase">성과점수</span>
+                                      <span className="px-2.5 py-0.8 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-650 font-black font-mono text-[10px]">
+                                        {prj.performance_score} / 100
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* 기여율 Progress Bar */}
+                                  <div className="space-y-1 block">
+                                    <div className="flex justify-between text-[9px] font-black text-slate-450">
+                                      <span>업무 기여/참여도</span>
+                                      <span>{prj.contribution_rate}%</span>
+                                    </div>
+                                    <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                      <div 
+                                        className="bg-indigo-650 h-full rounded-full transition-all"
+                                        style={{ width: `${prj.contribution_rate}%` }}
+                                      ></div>
+                                    </div>
+                                  </div>
+
+                                  {/* 정성 평가서 기술 */}
+                                  <div className="p-3 bg-slate-50 border border-slate-100/50 rounded-lg text-[10px] leading-relaxed text-slate-600 font-semibold">
+                                    <span className="block font-black text-[8.5px] text-slate-400 uppercase tracking-widest mb-1">인사 참모 정성적 성과평가 기술서</span>
+                                    {prj.performance_evaluation}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                      </div>
+                    )}
+
+                    {/* TAB 5: 신상/가족/평판/사건사고 */}
+                    {active360Tab === 'life' && (
+                      <div className="space-y-6">
+                        
+                        {/* 1. 부양 가족 목록 */}
+                        <div className="space-y-3">
+                          <h5 className="text-xs font-black text-slate-800 flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-1.5 h-3.5 bg-indigo-500 rounded-full"></span>
+                              비상 연락처 및 부양 가족 명단 (Families)
+                            </span>
+                          </h5>
+
+                          {(!current360.families || current360.families.length === 0) ? (
+                            <p className="text-center text-[10px] text-slate-400 font-bold py-6 bg-white border border-slate-100 rounded-xl">가족 관련 정보가 저장되어 있지 않습니다.</p>
+                          ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              {current360.families.map((fam: any) => {
+                                // 만 나이 계산기 탑재
+                                let ageStr = 'N/A';
+                                if (fam.birth_date && fam.birth_date !== 'N/A') {
+                                  try {
+                                    const birth = new Date(fam.birth_date);
+                                    const today = new Date();
+                                    let age = today.getFullYear() - birth.getFullYear();
+                                    const m = today.getMonth() - birth.getMonth();
+                                    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+                                      age--;
+                                    }
+                                    ageStr = `만 ${age}세`;
+                                  } catch (e) {}
+                                }
+
+                                return (
+                                  <div key={fam.id} className="bg-white border border-slate-100 rounded-xl p-3.5 shadow-3xs flex justify-between items-start group">
+                                    <div className="space-y-1.5">
+                                      <div className="flex items-center gap-2">
+                                        <span className="px-1.5 py-0.2 rounded bg-emerald-50 border border-emerald-100 text-emerald-650 font-black text-[8px]">
+                                          {fam.relation_type}
+                                        </span>
+                                        {fam.is_dependent === 1 && (
+                                          <span className="px-1.5 py-0.2 rounded bg-indigo-50 border border-indigo-100/50 text-indigo-650 font-black text-[8px]">
+                                            소득공제 부양가족 🟢
+                                          </span>
+                                        )}
+                                      </div>
+                                      <h6 className="text-xs font-black text-slate-800">{fam.name} <span className="text-[10px] text-slate-450 font-mono font-normal">({fam.birth_date} / {ageStr})</span></h6>
+                                      <p className="text-[9.5px] text-slate-500 font-bold">📞 비상 연락처: {fam.phone_number}</p>
+                                      {fam.remarks && (
+                                        <p className="text-[9px] text-indigo-600 bg-indigo-50/40 px-2 py-0.5 rounded-md leading-normal font-semibold">💡 특이사항: {fam.remarks}</p>
+                                      )}
+                                    </div>
+                                    <button
+                                      onClick={() => handleDelete360Record('crm_operator_families', fam.id)}
+                                      className="p-1 text-slate-350 hover:text-rose-500 rounded transition-all cursor-pointer opacity-0 group-hover:opacity-100"
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 2. 대내외 사건사고 이력 (★강력 보안 격리 적용 영역) */}
+                        <div className="space-y-3 relative">
+                          <h5 className="text-xs font-black text-slate-800 flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-1.5 h-3.5 bg-rose-500 rounded-full animate-pulse"></span>
+                              🚨 [보안 격리] 대내외 사건사고 및 법무 분쟁 대장
+                            </span>
+                          </h5>
+
+                          {(!current360.incidents || current360.incidents.length === 0) ? (
+                            <p className="text-center text-[10px] text-slate-400 font-bold py-6 bg-white border border-slate-100 rounded-xl">대내외 사건사고 및 법무 징계 이력이 깨끗합니다 ✨</p>
+                          ) : (
+                            <div className="space-y-3">
+                              {current360.incidents.map((inc: any) => {
+                                // 마스킹 여부 판별 (일반 부운영자가 GET 해왔을 경우 백엔드에서 격리되어 text에 '🔒'가 씌워져 있음)
+                                const isMasked = String(inc.title).includes('🔒');
+
+                                return (
+                                  <div 
+                                    key={inc.id} 
+                                    className={`border rounded-xl p-4 shadow-3xs flex justify-between items-start group transition-all relative overflow-hidden ${
+                                      isMasked 
+                                        ? 'bg-slate-100/50 border-slate-200' 
+                                        : inc.severity === 'HIGH' 
+                                        ? 'bg-rose-50/30 border-rose-150' 
+                                        : 'bg-white border-slate-100'
+                                    }`}
+                                  >
+                                    <div className="space-y-2 text-xs font-semibold text-slate-650 w-full">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-[9.5px] text-slate-400 font-bold font-mono">발생일자: {inc.occurred_date}</span>
+                                          <span className={`px-1.5 py-0.2 rounded font-black text-[8px] ${
+                                            inc.severity === 'HIGH' 
+                                              ? 'bg-rose-100 text-rose-700' 
+                                              : inc.severity === 'MEDIUM' 
+                                              ? 'bg-amber-100 text-amber-700' 
+                                              : 'bg-slate-150 text-slate-700'
+                                          }`}>
+                                            위험등급: {inc.severity}
+                                          </span>
+                                        </div>
+                                        <span className="px-2 py-0.5 rounded-full bg-slate-100 border border-slate-200 font-black text-[9px]">
+                                          상태: {inc.status}
+                                        </span>
+                                      </div>
+
+                                      <div>
+                                        <h6 className="text-xs font-black text-slate-800 flex items-center gap-1">
+                                          {isMasked && <span className="text-indigo-650">🔒</span>}
+                                          {inc.title}
+                                        </h6>
+                                        <p className="text-[10px] text-slate-500 font-medium leading-relaxed mt-1">
+                                          {inc.description}
+                                        </p>
+                                      </div>
+
+                                      {!isMasked && (
+                                        <div className="p-2.5 rounded bg-slate-50 border border-slate-100 text-[9.5px] font-semibold text-slate-600">
+                                          <span className="block font-black text-[8px] text-slate-400 uppercase tracking-widest mb-0.5">조치 결과 및 최종 판결</span>
+                                          {inc.outcome}
+                                        </div>
+                                      )}
+                                    </div>
+                                    
+                                    {!isMasked && (
+                                      <button
+                                        onClick={() => handleDelete360Record('crm_operator_incidents', inc.id)}
+                                        className="p-1 text-slate-350 hover:text-rose-500 rounded transition-all cursor-pointer opacity-0 group-hover:opacity-100 shrink-0 ml-2"
+                                      >
+                                        <Trash2 size={12} />
+                                      </button>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* 3. 다차원 평판 피드백 */}
+                        <div className="space-y-3">
+                          <h5 className="text-xs font-black text-slate-800 flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-1.5 h-3.5 bg-indigo-500 rounded-full"></span>
+                              동료 및 부서장 다차원 무기명 평판 피드백 (Reputations)
+                            </span>
+                          </h5>
+
+                          {(!current360.reputations || current360.reputations.length === 0) ? (
+                            <p className="text-center text-[10px] text-slate-400 font-bold py-6 bg-white border border-slate-100 rounded-xl">사내외 피드백 데이터가 존재하지 않습니다.</p>
+                          ) : (
+                            <div className="space-y-3">
+                              {current360.reputations.map((rep: any) => (
+                                <div key={rep.id} className="bg-white border border-slate-100 rounded-xl p-4 shadow-3xs space-y-2.5 relative group">
+                                  <button
+                                    onClick={() => handleDelete360Record('crm_operator_reputations', rep.id)}
+                                    className="absolute top-4 right-4 p-1 text-slate-350 hover:text-rose-500 rounded transition-all cursor-pointer opacity-0 group-hover:opacity-100"
+                                  >
+                                    <Trash2 size={11} />
+                                  </button>
+
+                                  <div className="flex justify-between items-center text-[9.5px]">
+                                    <div className="flex items-center gap-2">
+                                      <span className="px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-650 font-black text-[8px]">
+                                        평가출처: {rep.source_type === 'INTERNAL' ? '사내 동료평가' : rep.source_type === 'MANAGER' ? '인사 부서장평가' : '바이어/외부평가'}
+                                      </span>
+                                      <span className="text-slate-400 font-mono">평가일자: {rep.evaluation_date}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-amber-500 text-[10.5px]">★</span>
+                                      <span className="font-mono font-black text-slate-800">{rep.score?.toFixed(1)} / 5.0</span>
+                                    </div>
+                                  </div>
+
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[10px] leading-relaxed font-semibold">
+                                    <div className="p-2.5 rounded bg-indigo-50/20 border border-indigo-100/50">
+                                      <span className="block font-black text-[8px] text-indigo-750 uppercase tracking-widest mb-0.5">🌟 장점 및 기여 성과</span>
+                                      <p className="text-slate-700">{rep.positive_feedback}</p>
+                                    </div>
+                                    <div className="p-2.5 rounded bg-slate-50 border border-slate-100">
+                                      <span className="block font-black text-[8px] text-slate-400 uppercase tracking-widest mb-0.5">💡 보완 및 개선점 권고</span>
+                                      <p className="text-slate-500">{rep.constructive_feedback || '없음'}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                      </div>
+                    )}
+
+                    {/* TAB 6: 실시간 에디터 (Upsert 폼) */}
+                    {active360Tab === 'edit' && (
+                      <div className="space-y-4">
+                        <h5 className="text-xs font-black text-slate-800 flex items-center gap-1.5 border-b border-slate-200 pb-2">
+                          <span>✍️ 360도 임직원 통합 라이프사이클 정보 Upsert 기기</span>
+                          <span className="text-[9.5px] text-indigo-650 bg-indigo-50 px-2 py-0.5 rounded font-black">트랜잭션 폼</span>
+                        </h5>
+
+                        <form onSubmit={handleSubmit360Upsert} className="space-y-4 text-xs font-bold text-slate-650">
+                          {/* 1. 편집할 테이블 선택 */}
+                          <div className="space-y-1 block">
+                            <label className="text-[10px] text-slate-400 uppercase tracking-widest block">기록 변경/추가 영역 선택</label>
+                            <select
+                              value={editTableName}
+                              onChange={(e) => reset360EditForm(e.target.value)}
+                              className="w-full p-2.5 bg-white border border-slate-200 rounded-xl outline-none font-bold text-slate-800 cursor-pointer"
+                            >
+                              <option value="crm_operator_education">1. 학력사항 (Education)</option>
+                              <option value="crm_operator_licenses">2. 자격증/면허 (Licenses)</option>
+                              <option value="crm_operator_careers">3. 이전경력 (Careers)</option>
+                              <option value="crm_operator_salaries">4. 월 급여상여 지급 내역 (Salaries)</option>
+                              <option value="crm_operator_promotions">5. 부서발령/승진 (Promotions)</option>
+                              <option value="crm_operator_awards">6. 사내 상벌/징계 (Awards)</option>
+                              <option value="crm_operator_family_events">7. 경조사 지원금 (Family Events)</option>
+                              <option value="crm_operator_medical">8. 병가/병력/의료 (Medical)</option>
+                              <option value="crm_operator_incidents">9. 대내외 사건사고 (Incidents) [보안]</option>
+                              <option value="crm_operator_reputations">10. 다차원 평판 피드백 (Reputations)</option>
+                              <option value="crm_operator_families">11. 부양 가족 인적사항 (Families)</option>
+                              <option value="crm_operator_job_history">12. 담당 실무 변경이력 (Job History)</option>
+                              <option value="crm_operator_projects">13. 참여 프로젝트 실적 (Projects)</option>
+                            </select>
+                          </div>
+
+                          {/* 2. 테이블 선택에 따른 동적 렌더링 입력 필드 */}
+                          <div className="bg-white border border-slate-100 p-4 rounded-xl shadow-3xs space-y-3.5">
+                            
+                            {/* 학력 편집 폼 */}
+                            {editTableName === 'crm_operator_education' && (
+                              <div className="space-y-3">
+                                <div className="grid grid-cols-2 gap-3 block">
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">학교명</label>
+                                    <input type="text" value={editFormData.school_name || ''} onChange={(e) => setEditFormData({...editFormData, school_name: e.target.value})} className="w-full p-2 border rounded-lg" placeholder="예: 서울대학교" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">전공학과</label>
+                                    <input type="text" value={editFormData.major || ''} onChange={(e) => setEditFormData({...editFormData, major: e.target.value})} className="w-full p-2 border rounded-lg" placeholder="예: 경영학" />
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 block">
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">학위 구분</label>
+                                    <select value={editFormData.degree || '학사'} onChange={(e) => setEditFormData({...editFormData, degree: e.target.value})} className="w-full p-2 border rounded-lg">
+                                      <option value="고졸">고졸</option>
+                                      <option value="전문학사">전문학사</option>
+                                      <option value="학사">학사</option>
+                                      <option value="석사">석사</option>
+                                      <option value="박사">박사</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">졸업 상태</label>
+                                    <select value={editFormData.status || '졸업'} onChange={(e) => setEditFormData({...editFormData, status: e.target.value})} className="w-full p-2 border rounded-lg">
+                                      <option value="졸업">졸업</option>
+                                      <option value="수료">수료</option>
+                                      <option value="중퇴">중퇴</option>
+                                      <option value="재학">재학</option>
+                                    </select>
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 block">
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">입학일자</label>
+                                    <input type="date" value={editFormData.entrance_date || ''} onChange={(e) => setEditFormData({...editFormData, entrance_date: e.target.value})} className="w-full p-2 border rounded-lg" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">졸업일자</label>
+                                    <input type="date" value={editFormData.graduation_date || ''} onChange={(e) => setEditFormData({...editFormData, graduation_date: e.target.value})} className="w-full p-2 border rounded-lg" />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 자격증 편집 폼 */}
+                            {editTableName === 'crm_operator_licenses' && (
+                              <div className="space-y-3">
+                                <div>
+                                  <label className="text-[9.5px] text-slate-400 block mb-1">자격 및 면허명</label>
+                                  <input type="text" value={editFormData.license_name || ''} onChange={(e) => setEditFormData({...editFormData, license_name: e.target.value})} className="w-full p-2 border rounded-lg" placeholder="예: 정보처리기사" />
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 block">
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">발행/발급 기관</label>
+                                    <input type="text" value={editFormData.issuer || ''} onChange={(e) => setEditFormData({...editFormData, issuer: e.target.value})} className="w-full p-2 border rounded-lg" placeholder="예: 한국산업인력공단" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">자격 및 면허 일련번호</label>
+                                    <input type="text" value={editFormData.license_no || ''} onChange={(e) => setEditFormData({...editFormData, license_no: e.target.value})} className="w-full p-2 border rounded-lg" placeholder="예: 20-4455-98" />
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 block">
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">취득 연월일</label>
+                                    <input type="date" value={editFormData.acquisition_date || ''} onChange={(e) => setEditFormData({...editFormData, acquisition_date: e.target.value})} className="w-full p-2 border rounded-lg" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">자격 만료일</label>
+                                    <input type="text" value={editFormData.expiry_date || '없음'} onChange={(e) => setEditFormData({...editFormData, expiry_date: e.target.value})} className="w-full p-2 border rounded-lg" placeholder="없음 또는 YYYY-MM-DD" />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 이전 경력 편집 폼 */}
+                            {editTableName === 'crm_operator_careers' && (
+                              <div className="space-y-3">
+                                <div className="grid grid-cols-2 gap-3 block">
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">직전 직장회사명</label>
+                                    <input type="text" value={editFormData.company_name || ''} onChange={(e) => setEditFormData({...editFormData, company_name: e.target.value})} className="w-full p-2 border rounded-lg" placeholder="예: CJ대한통운" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">소속 부서</label>
+                                    <input type="text" value={editFormData.department || ''} onChange={(e) => setEditFormData({...editFormData, department: e.target.value})} className="w-full p-2 border rounded-lg" placeholder="예: 물류기획팀" />
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 block">
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">최종 직급</label>
+                                    <input type="text" value={editFormData.job_title || ''} onChange={(e) => setEditFormData({...editFormData, job_title: e.target.value})} className="w-full p-2 border rounded-lg" placeholder="예: 대리, 과장" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">퇴사 사유</label>
+                                    <input type="text" value={editFormData.leaving_reason || '이직'} onChange={(e) => setEditFormData({...editFormData, leaving_reason: e.target.value})} className="w-full p-2 border rounded-lg" />
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 block">
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">입사 연월일</label>
+                                    <input type="date" value={editFormData.join_date || ''} onChange={(e) => setEditFormData({...editFormData, join_date: e.target.value})} className="w-full p-2 border rounded-lg" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">퇴사 연월일</label>
+                                    <input type="date" value={editFormData.retire_date || ''} onChange={(e) => setEditFormData({...editFormData, retire_date: e.target.value})} className="w-full p-2 border rounded-lg" />
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="text-[9.5px] text-slate-400 block mb-1">과거 주력 담당업무 기술</label>
+                                  <input type="text" value={editFormData.assigned_task || ''} onChange={(e) => setEditFormData({...editFormData, assigned_task: e.target.value})} className="w-full p-2 border rounded-lg" placeholder="예: SCM 물류 전산 기획 및 재고관리" />
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 급여 편집 폼 */}
+                            {editTableName === 'crm_operator_salaries' && (
+                              <div className="space-y-3">
+                                <div className="grid grid-cols-2 gap-3 block">
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">지급 연월</label>
+                                    <input type="month" value={editFormData.payment_year_month || ''} onChange={(e) => setEditFormData({...editFormData, payment_year_month: e.target.value})} className="w-full p-2 border rounded-lg" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">실지급일자</label>
+                                    <input type="date" value={editFormData.payment_date || ''} onChange={(e) => setEditFormData({...editFormData, payment_date: e.target.value})} className="w-full p-2 border rounded-lg" />
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-3 block">
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">기본급 (원)</label>
+                                    <input type="number" value={editFormData.base_salary || 0} onChange={(e) => setEditFormData({...editFormData, base_salary: parseInt(e.target.value) || 0})} className="w-full p-2 border rounded-lg" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">상여금 (원)</label>
+                                    <input type="number" value={editFormData.bonus_amount || 0} onChange={(e) => setEditFormData({...editFormData, bonus_amount: parseInt(e.target.value) || 0})} className="w-full p-2 border rounded-lg" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">주휴수당 (원)</label>
+                                    <input type="number" value={editFormData.weekly_holiday_allowance || 0} onChange={(e) => setEditFormData({...editFormData, weekly_holiday_allowance: parseInt(e.target.value) || 0})} className="w-full p-2 border rounded-lg" />
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-3 gap-3 block">
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">연장근무수당</label>
+                                    <input type="number" value={editFormData.overtime_allowance || 0} onChange={(e) => setEditFormData({...editFormData, overtime_allowance: parseInt(e.target.value) || 0})} className="w-full p-2 border rounded-lg" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">비과세식대 (원)</label>
+                                    <input type="number" value={editFormData.meal_allowance || 100000} onChange={(e) => setEditFormData({...editFormData, meal_allowance: parseInt(e.target.value) || 0})} className="w-full p-2 border rounded-lg" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">4대보험 공제 (원)</label>
+                                    <input type="number" value={editFormData.deduction_amount || 0} onChange={(e) => setEditFormData({...editFormData, deduction_amount: parseInt(e.target.value) || 0})} className="w-full p-2 border rounded-lg" />
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 block">
+                                  <div>
+                                    <label className="text-[9.5px] text-indigo-750 font-black block mb-1">최종 예상 실지급액 (원)</label>
+                                    <input type="number" value={editFormData.net_salary || 0} onChange={(e) => setEditFormData({...editFormData, net_salary: parseInt(e.target.value) || 0})} className="w-full p-2 border border-indigo-300 rounded-lg bg-indigo-50/20 font-black" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">지급 상태</label>
+                                    <select value={editFormData.status || '지급완료'} onChange={(e) => setEditFormData({...editFormData, status: e.target.value})} className="w-full p-2 border rounded-lg">
+                                      <option value="지급완료">지급완료</option>
+                                      <option value="지급대기">지급대기</option>
+                                    </select>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 대내외 사건사고 편집 폼 (★보안 가드 대상) */}
+                            {editTableName === 'crm_operator_incidents' && (
+                              <div className="space-y-3">
+                                <div className="grid grid-cols-2 gap-3 block">
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">발생 일자</label>
+                                    <input type="date" value={editFormData.occurred_date || ''} onChange={(e) => setEditFormData({...editFormData, occurred_date: e.target.value})} className="w-full p-2 border rounded-lg" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">위험 등급 분류</label>
+                                    <select value={editFormData.severity || 'LOW'} onChange={(e) => setEditFormData({...editFormData, severity: e.target.value})} className="w-full p-2 border rounded-lg font-black">
+                                      <option value="LOW">LOW (단순 갈등 및 업무적 애로)</option>
+                                      <option value="MEDIUM">MEDIUM (회사 이미지/영업 손실 우려)</option>
+                                      <option value="HIGH">HIGH (민형사 소송 및 법무 분쟁 리스크)</option>
+                                    </select>
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="text-[9.5px] text-slate-400 block mb-1">사건사고 타이틀</label>
+                                  <input type="text" value={editFormData.title || ''} onChange={(e) => setEditFormData({...editFormData, title: e.target.value})} className="w-full p-2 border rounded-lg font-bold" placeholder="예: 계약 보증 분쟁 해결 지원" />
+                                </div>
+                                <div>
+                                  <label className="text-[9.5px] text-slate-400 block mb-1">구체적 발생 경위 및 상황 설명 (민감)</label>
+                                  <textarea value={editFormData.description || ''} onChange={(e) => setEditFormData({...editFormData, description: e.target.value})} rows={3} className="w-full p-2.5 border rounded-lg resize-none leading-relaxed" placeholder=" RAG와 최고운영자만 공유 가능한 세부 경위를 상세히 기입합니다." />
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 block">
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">현재 진행 상태</label>
+                                    <select value={editFormData.status || '진행중'} onChange={(e) => setEditFormData({...editFormData, status: e.target.value})} className="w-full p-2 border rounded-lg">
+                                      <option value="진행중">진행중</option>
+                                      <option value="합의완료">합의완료</option>
+                                      <option value="종결">종결</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">최종 조치 및 판결 결과</label>
+                                    <input type="text" value={editFormData.outcome || '조치 예정'} onChange={(e) => setEditFormData({...editFormData, outcome: e.target.value})} className="w-full p-2 border rounded-lg" placeholder="예: 상호 대화로 합의 종결" />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 다차원 평판 피드백 편집 폼 */}
+                            {editTableName === 'crm_operator_reputations' && (
+                              <div className="space-y-3">
+                                <div className="grid grid-cols-3 gap-3 block">
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">평가 일자</label>
+                                    <input type="date" value={editFormData.evaluation_date || ''} onChange={(e) => setEditFormData({...editFormData, evaluation_date: e.target.value})} className="w-full p-2 border rounded-lg" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">평가자 식별 (익명 권장)</label>
+                                    <input type="text" value={editFormData.evaluator_id || '익명'} onChange={(e) => setEditFormData({...editFormData, evaluator_id: e.target.value})} className="w-full p-2 border rounded-lg font-bold" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">평가 출처 구분</label>
+                                    <select value={editFormData.source_type || 'INTERNAL'} onChange={(e) => setEditFormData({...editFormData, source_type: e.target.value})} className="w-full p-2 border rounded-lg">
+                                      <option value="INTERNAL">동료 평판 (INTERNAL)</option>
+                                      <option value="MANAGER">부서장/인사평가 (MANAGER)</option>
+                                      <option value="EXTERNAL">바이어/외부고객 (EXTERNAL)</option>
+                                    </select>
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="text-[9.5px] text-slate-400 block mb-1">정량적 평점 (1.0 ~ 5.0)</label>
+                                  <input type="number" step="0.1" min="1" max="5" value={editFormData.score || 5.0} onChange={(e) => setEditFormData({...editFormData, score: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded-lg text-amber-600 font-mono font-black" />
+                                </div>
+                                <div>
+                                  <label className="text-[9.5px] text-slate-400 block mb-1">🌟 사내외 평판 장점 및 강점 기술</label>
+                                  <textarea value={editFormData.positive_feedback || ''} onChange={(e) => setEditFormData({...editFormData, positive_feedback: e.target.value})} rows={2} className="w-full p-2 border rounded-lg resize-none" placeholder="실제 동료들의 칭찬이나 수수료 절감 기여 공헌을 입력합니다." />
+                                </div>
+                                <div>
+                                  <label className="text-[9.5px] text-slate-400 block mb-1">💡 보완할 점 및 개선 권고사항</label>
+                                  <textarea value={editFormData.constructive_feedback || '없음'} onChange={(e) => setEditFormData({...editFormData, constructive_feedback: e.target.value})} rows={2} className="w-full p-2 border rounded-lg resize-none" />
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 부양가족 편집 폼 */}
+                            {editTableName === 'crm_operator_families' && (
+                              <div className="space-y-3">
+                                <div className="grid grid-cols-2 gap-3 block">
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">대상 관계</label>
+                                    <select value={editFormData.relation_type || '자녀'} onChange={(e) => setEditFormData({...editFormData, relation_type: e.target.value})} className="w-full p-2 border rounded-lg font-black">
+                                      <option value="배우자">배우자</option>
+                                      <option value="자녀">자녀 (가족수당 연동)</option>
+                                      <option value="부친">부친</option>
+                                      <option value="모친">모친</option>
+                                      <option value="형제자매">형제자매</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">가족 성명</label>
+                                    <input type="text" value={editFormData.name || ''} onChange={(e) => setEditFormData({...editFormData, name: e.target.value})} className="w-full p-2 border rounded-lg font-bold" placeholder="성함을 기입하세요" />
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 block">
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">생년월일 (YYYY-MM-DD)</label>
+                                    <input type="date" value={editFormData.birth_date || ''} onChange={(e) => setEditFormData({...editFormData, birth_date: e.target.value})} className="w-full p-2 border rounded-lg" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">비상 연락처</label>
+                                    <input type="text" value={editFormData.phone_number || 'N/A'} onChange={(e) => setEditFormData({...editFormData, phone_number: e.target.value})} className="w-full p-2 border rounded-lg" />
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 block">
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">소득세 부양 여부</label>
+                                    <select value={editFormData.is_dependent || 1} onChange={(e) => setEditFormData({...editFormData, is_dependent: parseInt(e.target.value)})} className="w-full p-2 border rounded-lg">
+                                      <option value={1}>부양가족 적용 (연말정산 혜택)</option>
+                                      <option value={0}>비부양가족</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">비고 및 생애주기 메모</label>
+                                    <input type="text" value={editFormData.remarks || '없음'} onChange={(e) => setEditFormData({...editFormData, remarks: e.target.value})} className="w-full p-2 border rounded-lg" placeholder="예: 초등학교 입학 주기 도래" />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 프로젝트 편집 폼 */}
+                            {editTableName === 'crm_operator_projects' && (
+                              <div className="space-y-3">
+                                <div>
+                                  <label className="text-[9.5px] text-slate-400 block mb-1">참여 프로젝트명</label>
+                                  <input type="text" value={editFormData.project_name || ''} onChange={(e) => setEditFormData({...editFormData, project_name: e.target.value})} className="w-full p-2 border rounded-lg font-bold" placeholder="예: 전사 SCM 인벤토리 최적화" />
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 block">
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">프로젝트 내 역할</label>
+                                    <input type="text" value={editFormData.role_in_project || ''} onChange={(e) => setEditFormData({...editFormData, role_in_project: e.target.value})} className="w-full p-2 border rounded-lg" placeholder="예: 데이터베이스 엔지니어링" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">산출물 증빙 링크</label>
+                                    <input type="text" value={editFormData.outcome_link || '없음'} onChange={(e) => setEditFormData({...editFormData, outcome_link: e.target.value})} className="w-full p-2 border rounded-lg" />
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 block">
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">기여율/참여율 (%)</label>
+                                    <input type="number" min="0" max="100" value={editFormData.contribution_rate || 100} onChange={(e) => setEditFormData({...editFormData, contribution_rate: parseInt(e.target.value) || 0})} className="w-full p-2 border rounded-lg" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">정량적 성과 점수 (1 ~ 100)</label>
+                                    <input type="number" min="0" max="100" value={editFormData.performance_score || 90} onChange={(e) => setEditFormData({...editFormData, performance_score: parseInt(e.target.value) || 0})} className="w-full p-2 border rounded-lg font-mono font-black" />
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-3 block">
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">참여 시작일</label>
+                                    <input type="date" value={editFormData.start_date || ''} onChange={(e) => setEditFormData({...editFormData, start_date: e.target.value})} className="w-full p-2 border rounded-lg" />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9.5px] text-slate-400 block mb-1">참여 종료일 (진행중 가능)</label>
+                                    <input type="text" value={editFormData.end_date || '진행중'} onChange={(e) => setEditFormData({...editFormData, end_date: e.target.value})} className="w-full p-2 border rounded-lg" />
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="text-[9.5px] text-slate-400 block mb-1">정성적 기여도 상세 기술서</label>
+                                  <textarea value={editFormData.performance_evaluation || ''} onChange={(e) => setEditFormData({...editFormData, performance_evaluation: e.target.value})} rows={3} className="w-full p-2.5 border rounded-lg resize-none leading-relaxed" />
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 다른 테이블들의 간단 DTO 폴백 렌더러 */}
+                            {!['crm_operator_education', 'crm_operator_licenses', 'crm_operator_careers', 'crm_operator_salaries', 'crm_operator_incidents', 'crm_operator_reputations', 'crm_operator_families', 'crm_operator_projects'].includes(editTableName) && (
+                              <div className="p-4 bg-slate-50 rounded text-center text-slate-400 text-xs">
+                                🛠️ 이 테이블은 360 기본 연산에 따른 기본값 자동 Upsert를 지원합니다. 변경이 필요하실 경우 데이터 필드를 입력해 주세요.
+                                <textarea 
+                                  value={JSON.stringify(editFormData, null, 2)} 
+                                  onChange={(e) => {
+                                    try { setEditFormData(JSON.parse(e.target.value)); } catch(err) {}
+                                  }} 
+                                  rows={5} 
+                                  className="w-full p-2 bg-white border border-slate-200 mt-2 font-mono text-[10px] text-slate-800 rounded" 
+                                />
+                              </div>
+                            )}
+
+                          </div>
+
+                          <button
+                            type="submit"
+                            disabled={submitLoading || !getIs360Modified()}
+                            className="w-full py-3 bg-indigo-650 hover:bg-indigo-700 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-xl text-xs font-black shadow-md cursor-pointer transition-all flex items-center justify-center gap-1.5"
+                          >
+                            <Send size={12} />
+                            360도 인사 이력 저장 및 AI RAG 실시간 융합
+                          </button>
+                        </form>
+                      </div>
+                    )}
+
+                  </div>
+
+                </div>
+
+                {/* 우측: 임직원 연대기적 라이프사이클 수직 타임라인 (4 cols) */}
+                <div className="xl:col-span-4 bg-slate-50/50 border border-slate-100 p-5 rounded-2xl space-y-4">
+                  <h4 className="text-xs font-black text-slate-700 flex items-center gap-1.5 border-b border-slate-200/60 pb-2">
+                    ⏳ 연대기적 임직원 라이프사이클 타임라인
+                  </h4>
+                  
+                  {timelineEvents.length === 0 ? (
+                    <p className="text-center text-[10px] text-slate-400 font-bold py-16">등록된 역사적 라이프사이클 이벤트가 없습니다.</p>
+                  ) : (
+                    <div className="relative pl-4 border-l-2 border-indigo-100 space-y-5 py-2 max-h-[500px] overflow-y-auto custom-scrollbar">
+                      {timelineEvents.map((evt, eIdx) => (
+                        <div key={eIdx} className="relative space-y-1 text-xs">
+                          {/* 타임라인 노드 닷 */}
+                          <span className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-indigo-600 border-2 border-white shadow-xs"></span>
+                          
+                          <div className="flex justify-between items-center text-[9px] font-black font-mono">
+                            <span className="text-indigo-650">{evt.date}</span>
+                            <span className="px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700 font-bold scale-90">{evt.category}</span>
+                          </div>
+                          
+                          <h6 className="text-[10.5px] font-black text-slate-800">{evt.title}</h6>
+                          <p className="text-[9.5px] text-slate-500 font-semibold leading-relaxed">
+                            {evt.details}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            );
+          })() : (
+            <div className="py-20 text-center border border-dashed border-slate-200 rounded-3xl text-slate-400 font-bold text-xs">
+              임직원을 선택하시면 6단 탭 기반의 360도 종합 이력 관제 보드와 타임라인이 활성화됩니다 🪐
+            </div>
+          )}
+
         </div>
       )}
 
