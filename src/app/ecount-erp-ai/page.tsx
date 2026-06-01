@@ -17,7 +17,8 @@ import {
   FileText,
   Lock,
   ExternalLink,
-  HelpCircle
+  HelpCircle,
+  Trash2
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -55,6 +56,18 @@ export default function EcountErpAiPage() {
   const [executionSuccess, setExecutionSuccess] = useState<boolean>(false);
   const [isSimulation, setIsSimulation] = useState<boolean>(false);
 
+  // 스케줄러 및 테이블 생성 상태 ⏰
+  const [schedules, setSchedules] = useState<any[]>([]);
+  const [schedulesLoading, setSchedulesLoading] = useState<boolean>(false);
+  const [periodPreset, setPeriodPreset] = useState<string>('daily');
+  const [runTime, setRunTime] = useState<string>('09:00');
+  const [creatingTable, setCreatingTable] = useState<string | null>(null);
+
+  // 스케줄 세부 예약 옵션 상태
+  const [selectedWeekDays, setSelectedWeekDays] = useState<number[]>([1, 2, 3, 4, 5]); // 평일 기본
+  const [selectedMonthDay, setSelectedMonthDay] = useState<number>(1);
+  const [syncDaysRange, setSyncDaysRange] = useState<number>(30); // 기본 30일
+
   // 1. API 데이터 패치 (이카운트 스크립트 목록 조회)
   const fetchScripts = async () => {
     setLoading(true);
@@ -63,10 +76,15 @@ export default function EcountErpAiPage() {
       const data = await res.json();
       if (data.success && Array.isArray(data.scripts)) {
         setScripts(data.scripts);
-        // 기본값으로 첫 번째 스크립트 선택
+        // 기존에 선택된 스크립트가 있다면 상태 유지, 없다면 첫 번째 선택
         if (data.scripts.length > 0) {
-          setSelectedScript(data.scripts[0]);
-          applyQuickRange(data.scripts[0].defaultDaysRange.toString());
+          const currentSelected = selectedScript ? data.scripts.find(s => s.fileName === selectedScript.fileName) : null;
+          if (currentSelected) {
+            setSelectedScript(currentSelected);
+          } else {
+            setSelectedScript(data.scripts[0]);
+            applyQuickRange(data.scripts[0].defaultDaysRange.toString());
+          }
         }
       }
     } catch (error) {
@@ -78,6 +96,7 @@ export default function EcountErpAiPage() {
 
   useEffect(() => {
     fetchScripts();
+    fetchSchedules();
   }, []);
 
   // 2. 빠른 날짜 선택기 적용
@@ -164,6 +183,124 @@ export default function EcountErpAiPage() {
         ...prev, 
         `[오류] 동기화 중단: ${err.message || '이지데스크서버와의 세션 연결 상태를 다시 점검해 주십시오.'} ❌`
       ]);
+    }
+  };
+
+  // 4. SQLite 물리 테이블 원클릭 강제 신설 함수
+  const handleCreateTable = async (targetTable: string, columns: string[]) => {
+    setCreatingTable(targetTable);
+    try {
+      const res = await fetch('/api/ecount-erp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'CREATE_TABLE',
+          targetTable,
+          columns
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`물리 테이블 [${targetTable}]이 SQLite 데이터베이스에 성공적으로 신설되었습니다.`);
+        await fetchScripts();
+        window.dispatchEvent(new CustomEvent('menu-settings-updated'));
+      } else {
+        alert(`테이블 생성 실패: ${data.error}`);
+      }
+    } catch (error: any) {
+      alert(`테이블 생성 중 오류 발생: ${error.message}`);
+    } finally {
+      setCreatingTable(null);
+    }
+  };
+
+  // 5. 스케줄 관련 비동기 함수 대장
+  const fetchSchedules = async () => {
+    setSchedulesLoading(true);
+    try {
+      const res = await fetch('/api/ecount-erp/schedule');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.schedules)) {
+        setSchedules(data.schedules);
+      }
+    } catch (error) {
+      console.error('스케줄 목록 로드 실패:', error);
+    } finally {
+      setSchedulesLoading(false);
+    }
+  };
+
+  const handleCreateSchedule = async () => {
+    if (!selectedScript) return;
+    try {
+      const res = await fetch('/api/ecount-erp/schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'CREATE',
+          scriptFile: selectedScript.fileName,
+          scriptTitle: selectedScript.title,
+          targetTable: selectedScript.targetTable,
+          periodPreset,
+          runTime,
+          weekDays: selectedWeekDays.join(','),
+          monthDay: selectedMonthDay,
+          syncDaysRange
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('자동화 동기화 스케줄이 성공적으로 등록되었습니다.');
+        fetchSchedules();
+      } else {
+        alert(`스케줄 등록 실패: ${data.error}`);
+      }
+    } catch (error: any) {
+      alert(`스케줄 등록 중 오류 발생: ${error.message}`);
+    }
+  };
+
+  const handleToggleSchedule = async (id: string, currentActive: number) => {
+    try {
+      const res = await fetch('/api/ecount-erp/schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'TOGGLE',
+          id,
+          isActive: currentActive === 1 ? 0 : 1
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchSchedules();
+      } else {
+        alert(`스케줄 활성화 전환 실패: ${data.error}`);
+      }
+    } catch (error: any) {
+      alert(`스케줄 토글 중 오류 발생: ${error.message}`);
+    }
+  };
+
+  const handleDeleteSchedule = async (id: string) => {
+    if (!confirm('정말로 이 스케줄을 삭제하시겠습니까?')) return;
+    try {
+      const res = await fetch('/api/ecount-erp/schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'DELETE',
+          id
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchSchedules();
+      } else {
+        alert(`스케줄 삭제 실패: ${data.error}`);
+      }
+    } catch (error: any) {
+      alert(`스케줄 삭제 중 오류 발생: ${error.message}`);
     }
   };
 
@@ -326,6 +463,30 @@ export default function EcountErpAiPage() {
                       </div>
                     </div>
 
+                    {/* 테이블 미생성 시, 원클릭 테이블 강제 생성 버튼 마운트 */}
+                    {!script.isTableCreated && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCreateTable(script.targetTable, script.columns);
+                        }}
+                        disabled={creatingTable === script.targetTable}
+                        className="w-full mt-2.5 py-1.5 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-350 text-white rounded-lg text-[10px] font-bold transition-all shadow-xs flex items-center justify-center space-x-1"
+                      >
+                        {creatingTable === script.targetTable ? (
+                          <>
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            <span>생성 중...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Database className="w-3 h-3" />
+                            <span>물리 테이블 강제 생성</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+
                     {/* 선택 표시 우측 상단 선명 아이콘 */}
                     {isSelected && (
                       <div className="absolute top-0 right-0 bg-blue-500 text-white p-1 rounded-bl-xl">
@@ -337,6 +498,105 @@ export default function EcountErpAiPage() {
               })}
             </div>
           )}
+
+          {/* 3. 실시간 자동화 스케줄 감시 피드 */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Calendar className="w-5 h-5 text-blue-600 animate-pulse" />
+                <h3 className="text-base font-bold text-slate-800">실시간 자동화 스케줄 감시 피드 (Autopilot Watch Feed)</h3>
+              </div>
+              <button 
+                onClick={fetchSchedules}
+                className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 transition-all text-slate-500 hover:text-slate-800 flex items-center gap-1"
+                title="스케줄 새로고침"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${schedulesLoading ? 'animate-spin' : ''}`} />
+                <span className="text-[10px] font-bold text-slate-500">새로고침</span>
+              </button>
+            </div>
+
+            {schedulesLoading && schedules.length === 0 ? (
+              <div className="flex justify-center items-center py-10 bg-slate-50 rounded-xl">
+                <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
+              </div>
+            ) : schedules.length === 0 ? (
+              <div className="text-center py-10 border border-dashed border-slate-200 rounded-xl bg-slate-50/30">
+                <p className="text-xs text-slate-400 font-medium">등록된 백그라운드 자동 동기화 스케줄이 없습니다.</p>
+                <p className="text-[10px] text-slate-400 mt-1 font-semibold">우측 Autopilot 설정 패널에서 첫 번째 주기 스케줄을 추가해 보세요.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-250 text-slate-500 font-bold bg-slate-50">
+                      <th className="py-2.5 px-3">RPA 동기화 시나리오</th>
+                      <th className="py-2.5 px-3">SQLite 적재지 물리명</th>
+                      <th className="py-2.5 px-3">동기화 주기</th>
+                      <th className="py-2.5 px-3">차기 예정 시각</th>
+                      <th className="py-2.5 px-3">최종 구동시각</th>
+                      <th className="py-2.5 px-3 text-center">활성 스위치</th>
+                      <th className="py-2.5 px-3 text-right">제어</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-150">
+                    {schedules.map((sched) => (
+                      <tr key={sched.id} className="hover:bg-slate-50/50 transition-all font-medium text-slate-700">
+                        <td className="py-3 px-3 font-bold text-slate-800">{sched.script_title}</td>
+                        <td className="py-3 px-3 font-mono text-[10px] text-slate-500">{sched.target_table}</td>
+                        <td className="py-3 px-3">
+                          <div className="flex flex-col space-y-0.5">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-100 w-fit">
+                              {sched.period_preset === 'hour' ? '매시간' :
+                               sched.period_preset === 'daily' ? `매일 [${sched.run_time}]` :
+                               sched.period_preset === 'weekly' ? `매주 [${sched.week_days ? sched.week_days.split(',').map((d: string) => ['월','화','수','목','금','토','일'][parseInt(d, 10)-1]).join(',') : '평일'}] [${sched.run_time}]` :
+                               `매월 [${sched.month_day || 1}일] [${sched.run_time}]`}
+                            </span>
+                            <span className="text-[9px] text-slate-400 font-semibold pl-0.5">
+                              동기화 범위: 최근 {sched.sync_days_range || 30}일간
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-3 text-[10px] font-bold text-slate-655">
+                          {sched.is_active === 1 ? new Date(sched.next_run_at).toLocaleString('ko-KR', {
+                            month: 'numeric',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          }) : <span className="text-slate-400 font-normal">대기 일시중단</span>}
+                        </td>
+                        <td className="py-3 px-3 text-[10px] text-slate-400">
+                          {sched.last_run_at ? new Date(sched.last_run_at).toLocaleString() : '미실행'}
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          <button
+                            onClick={() => handleToggleSchedule(sched.id, sched.is_active)}
+                            className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                              sched.is_active === 1 ? 'bg-blue-600' : 'bg-slate-200'
+                            }`}
+                          >
+                            <span
+                              className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                                sched.is_active === 1 ? 'translate-x-5' : 'translate-x-0'
+                              }`}
+                            />
+                          </button>
+                        </td>
+                        <td className="py-3 px-3 text-right">
+                          <button
+                            onClick={() => handleDeleteSchedule(sched.id)}
+                            className="px-2.5 py-1 rounded bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100 hover:text-rose-700 transition-all text-[10px] font-bold"
+                          >
+                            일정 삭제
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
 
         </div>
 
@@ -429,6 +689,38 @@ export default function EcountErpAiPage() {
                 </div>
               </div>
 
+              {/* 물리 테이블 미생성 상태 시 강제 신설 경고 카드 */}
+              {!selectedScript.isTableCreated && (
+                <div className="bg-rose-50 border border-rose-100 rounded-xl p-4.5 space-y-3">
+                  <div className="flex items-start space-x-2.5">
+                    <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-xs font-bold text-rose-950">물리 테이블 미생성 상태</h4>
+                      <p className="text-[10px] text-rose-700/80 leading-relaxed mt-0.5">
+                        RPA가 수집할 데이터를 영구 보관할 SQLite 데이터베이스의 물리 테이블이 구축되지 않았습니다. 동기화를 진행하기 전에 테이블 스키마를 신설하십시오.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleCreateTable(selectedScript.targetTable, selectedScript.columns)}
+                    disabled={creatingTable === selectedScript.targetTable}
+                    className="w-full flex items-center justify-center space-x-1.5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm"
+                  >
+                    {creatingTable === selectedScript.targetTable ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>테이블 스키마 빌드 중...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Database className="w-3.5 h-3.5" />
+                        <span>SQLite 물리 테이블 즉시 신설</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+
               {/* ⚡ 기동 버튼 */}
               <button
                 onClick={handleExecuteRpa}
@@ -447,6 +739,143 @@ export default function EcountErpAiPage() {
                   </>
                 )}
               </button>
+
+              {/* ⏰ 백그라운드 자동 동기화 예약 카드 (상세 설정) */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4.5 space-y-3 shadow-xs">
+                <div className="flex items-center space-x-2 text-xs font-bold text-slate-700">
+                  <Calendar className="w-4 h-4 text-blue-600 animate-pulse" />
+                  <span>백그라운드 자동 동기화 예약 (상세 설정)</span>
+                </div>
+                
+                <div className="space-y-3">
+                  {/* 주기 Preset */}
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-400 mb-1 uppercase tracking-wider">실행 주기 Preset</label>
+                    <div className="grid grid-cols-4 gap-1">
+                      {[
+                        { label: '매시간', value: 'hour' },
+                        { label: '매일', value: 'daily' },
+                        { label: '매주', value: 'weekly' },
+                        { label: '매월', value: 'monthly' }
+                      ].map((item) => (
+                        <button
+                          key={item.value}
+                          type="button"
+                          onClick={() => setPeriodPreset(item.value)}
+                          className={`py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
+                            periodPreset === item.value
+                              ? 'bg-blue-50 border-blue-200 text-blue-600 font-extrabold'
+                              : 'bg-white border-slate-200 text-slate-650 hover:bg-slate-100'
+                          }`}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 1. 매주일 때 특정 요일 다중 선택 */}
+                  {periodPreset === 'weekly' && (
+                    <div className="space-y-1">
+                      <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">동기화 요일 선택 (중복가능)</label>
+                      <div className="flex gap-1 justify-between">
+                        {[
+                          { label: '월', val: 1 },
+                          { label: '화', val: 2 },
+                          { label: '수', val: 3 },
+                          { label: '목', val: 4 },
+                          { label: '금', val: 5 },
+                          { label: '토', val: 6 },
+                          { label: '일', val: 7 }
+                        ].map((day) => {
+                          const isSelected = selectedWeekDays.includes(day.val);
+                          return (
+                            <button
+                              key={day.val}
+                              type="button"
+                              onClick={() => {
+                                if (isSelected) {
+                                  setSelectedWeekDays(selectedWeekDays.filter(d => d !== day.val));
+                                } else {
+                                  setSelectedWeekDays([...selectedWeekDays, day.val].sort());
+                                }
+                              }}
+                              className={`w-7 h-7 rounded-lg text-[10px] font-bold transition-all border ${
+                                isSelected 
+                                  ? 'bg-blue-600 border-blue-650 text-white shadow-xs' 
+                                  : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+                              }`}
+                            >
+                              {day.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 2. 매월일 때 특정 일 선택 (1일~31일) */}
+                  {periodPreset === 'monthly' && (
+                    <div>
+                      <label className="block text-[9px] font-bold text-slate-400 mb-1 uppercase tracking-wider">매월 실행일 지정 (1일~31일)</label>
+                      <div className="relative">
+                        <input 
+                          type="number"
+                          min="1"
+                          max="31"
+                          value={selectedMonthDay}
+                          onChange={(e) => setSelectedMonthDay(Math.max(1, Math.min(31, parseInt(e.target.value, 10) || 1)))}
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-blue-500/20 focus:outline-none"
+                          placeholder="실행 일자 선택"
+                        />
+                        <span className="absolute right-3 top-2.5 text-[10px] font-bold text-slate-400">일</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 3. 실행 시각 (매시간 아닐 때 노출) */}
+                  {periodPreset !== 'hour' && (
+                    <div>
+                      <label className="block text-[9px] font-bold text-slate-400 mb-1 uppercase tracking-wider">실행 시각 (HH:MM)</label>
+                      <input 
+                        type="time" 
+                        value={runTime}
+                        onChange={(e) => setRunTime(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-blue-500/20 focus:outline-none bg-white"
+                      />
+                    </div>
+                  )}
+
+                  {/* 4. 동기화 데이터 수집 일자 범위 지정 */}
+                  <div>
+                    <label className="block text-[9px] font-bold text-slate-400 mb-1 uppercase tracking-wider">데이터 수집 조회 범위 지정</label>
+                    <div className="relative">
+                      <select
+                        value={syncDaysRange}
+                        onChange={(e) => setSyncDaysRange(parseInt(e.target.value, 10))}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-blue-500/20 focus:outline-none bg-white appearance-none"
+                      >
+                        <option value="0">실시간 (당일 데이터만 수집)</option>
+                        <option value="7">최근 7일간 데이터 동기화</option>
+                        <option value="30">최근 30일간 데이터 동기화</option>
+                        <option value="90">최근 90일간 데이터 동기화</option>
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400">
+                        <ChevronRight className="w-3.5 h-3.5 rotate-90" />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <button
+                    type="button"
+                    onClick={handleCreateSchedule}
+                    className="w-full flex items-center justify-center space-x-1.5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs"
+                  >
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>동기화 스케줄 등록하기</span>
+                  </button>
+                </div>
+              </div>
 
             </div>
           ) : (

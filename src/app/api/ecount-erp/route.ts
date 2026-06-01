@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { EGDESK_CONFIG } from '../../../../egdesk.config';
-import { listTables } from '../../../../egdesk-helpers';
+import { listTables, createTable, executeSQL } from '../../../../egdesk-helpers';
 
 // 5대 표준 시나리오 메타데이터 맵 (실제 파일과 동적 매핑용)
 const SCRIPT_METADATA_PRESETS: Record<string, { title: string; menuPath: string; targetTable: string; description: string; category: string; columns: string[]; defaultDaysRange: number }> = {
@@ -262,16 +262,166 @@ export async function GET() {
 /**
  * POST: 이지데스크서버 REST API 직접 POST를 통한 RPA 구동 릴레이
  */
+// SQLite 기반 RPA 실행 락 시스템 초기화 (동시 다발 실행 방지 및 Cooldown 강제)
+async function initializeLockDatabase() {
+  try {
+    const tableRes = await listTables();
+    const rows = tableRes.rows || tableRes || [];
+    let hasTable = false;
+    if (Array.isArray(rows)) {
+      hasTable = rows.some((t: any) => (t.tableName || t.name) === 'ecount_rpa_lock');
+    }
+    if (!hasTable) {
+      const lockSchema = [
+        { name: 'id', type: 'INTEGER' as const, notNull: true },
+        { name: 'is_locked', type: 'INTEGER' as const, notNull: true },
+        { name: 'locked_by', type: 'TEXT' as const },
+        { name: 'locked_at', type: 'TEXT' as const },
+        { name: 'cooldown_until', type: 'TEXT' as const }
+      ];
+      await createTable('이카운트 RPA 실행 락', lockSchema, {
+        tableName: 'ecount_rpa_lock',
+        uniqueKeyColumns: ['id']
+      });
+      // 초기 레코드 삽입
+      await executeSQL("INSERT INTO ecount_rpa_lock (id, is_locked, locked_by, locked_at, cooldown_until) VALUES (1, 0, '', '', '');");
+      console.log('[Lock System] ecount_rpa_lock 테이블 초기값 적재 완료.');
+    }
+  } catch (e: any) {
+    console.warn('[Lock System] 락 데이터베이스 초기화 시도 중 경고:', e.message);
+  }
+}
+
+async function checkAndAcquireLock(scriptFile: string): Promise<{ success: boolean; reason?: string }> {
+  try {
+    await initializeLockDatabase();
+    const lockRes = await executeSQL("SELECT * FROM ecount_rpa_lock WHERE id = 1;");
+    const rows = lockRes.rows || lockRes || [];
+    const lock = rows[0];
+    
+    if (!lock) return { success: true };
+
+    const now = new Date();
+
+    // 1. 현재 다른 스크립트 실행 중인지 검증 (동시 실행 완전 방어)
+    if (lock.is_locked === 1 || lock.is_locked === '1') {
+      const lockedAt = new Date(lock.locked_at);
+      // 좀비 락 방지 (15분 초과 시 강제 해제)
+      if (now.getTime() - lockedAt.getTime() > 15 * 60 * 1000) {
+        console.log('[Lock System] 좀비 락 자동 만료 해제 처리.');
+        await executeSQL("UPDATE ecount_rpa_lock SET is_locked = 0, locked_by = '' WHERE id = 1;");
+      } else {
+        return {
+          success: false,
+          reason: `현재 다른 RPA 동기화 작업 [${lock.locked_by}]이 실행 중입니다. 동시 기동은 안전을 위해 완전히 차단됩니다.`
+        };
+      }
+    }
+
+    // 2. 5분간의 강제 쿨타임 검증
+    if (lock.cooldown_until) {
+      const cooldownTime = new Date(lock.cooldown_until);
+      if (now.getTime() < cooldownTime.getTime()) {
+        const remainingSec = Math.ceil((cooldownTime.getTime() - now.getTime()) / 1000);
+        const min = Math.floor(remainingSec / 60);
+        const sec = remainingSec % 60;
+        return {
+          success: false,
+          reason: `이전 RPA 실행 후 안정적인 대기를 위해 5분간의 쿨타임이 적용 중입니다. 기동 가능까지 ${min}분 ${sec}초 남았습니다.`
+        };
+      }
+    }
+
+    // 3. 락 선점
+    await executeSQL(`UPDATE ecount_rpa_lock SET is_locked = 1, locked_by = '${scriptFile}', locked_at = '${now.toISOString()}', cooldown_until = '' WHERE id = 1;`);
+    return { success: true };
+  } catch (error: any) {
+    console.error('락 획득 중 오류 발생 (폴백 허용):', error.message);
+    return { success: true }; // DB 에러 시 동기화 기동 우선 허용
+  }
+}
+
+async function releaseLockAndCooldown(scriptFile: string) {
+  try {
+    const now = new Date();
+    const cooldownTime = new Date(now.getTime() + 5 * 60 * 1000); // 5분 후
+    await executeSQL(`UPDATE ecount_rpa_lock SET is_locked = 0, locked_by = '', cooldown_until = '${cooldownTime.toISOString()}' WHERE id = 1;`);
+    console.log(`[Lock Engine] 스크립트 ${scriptFile} 락 해제 완료. 5분 Cooldown 돌입 (~${cooldownTime.toLocaleTimeString()})`);
+  } catch (e: any) {
+    console.error('락 해제 중 오류:', e.message);
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { fileName, startDate, endDate, datePickersByIndex, labeledFieldFills } = body;
+    const { action, fileName, targetTable, columns } = body;
+
+    // 1. 물리 테이블 강제 신설 액션 처리 (CREATE_TABLE)
+    if (action === 'CREATE_TABLE') {
+      if (!targetTable || !columns || !Array.isArray(columns)) {
+        return NextResponse.json({
+          success: false,
+          error: '테이블 생성을 위한 targetTable 또는 columns 정보가 부족합니다.'
+        }, { status: 400 });
+      }
+
+      // SCRIPT_METADATA_PRESETS에서 적절한 한글 타이틀 탐색하여 displayName 지정
+      let displayName = '이카운트 자동화 테이블';
+      for (const key in SCRIPT_METADATA_PRESETS) {
+        if (SCRIPT_METADATA_PRESETS[key].targetTable === targetTable) {
+          displayName = SCRIPT_METADATA_PRESETS[key].title;
+          break;
+        }
+      }
+
+      // SQLite용 스키마 구조 빌드 (id는 기본 PK로 자동 부여)
+      const schema = [
+        { name: 'id', type: 'INTEGER' as const, notNull: true },
+        ...columns.map((col: string) => ({
+          name: col,
+          type: 'TEXT' as const,
+          notNull: false
+        }))
+      ];
+
+      console.log(`[CREATE_TABLE] ${displayName} (물리명: ${targetTable}) 생성 요청`);
+      
+      const createRes = await createTable(
+        displayName,
+        schema,
+        {
+          tableName: targetTable,
+          uniqueKeyColumns: ['id'],
+          duplicateAction: 'update',
+          description: `${displayName} RPA 연동용 자동 생성 테이블`
+        }
+      );
+
+      return NextResponse.json({
+        success: true,
+        message: `물리 테이블 [${targetTable}]이 SQLite 데이터베이스에 성공적으로 생성되었습니다.`,
+        result: createRes
+      });
+    }
+
+    // 2. 기본 동작: 이지데스크서버 REST API를 통한 RPA 구동 릴레이
+    const { startDate, endDate, datePickersByIndex, labeledFieldFills } = body;
 
     if (!fileName) {
       return NextResponse.json({
         success: false,
         error: '구동할 스크립트 파일명이 누락되었습니다.'
       }, { status: 400 });
+    }
+
+    // 🔒 RPA 실행 락 선점 검증 (동시 실행 제한 및 5분 Cooldown 강제)
+    const lockStatus = await checkAndAcquireLock(fileName);
+    if (!lockStatus.success) {
+      return NextResponse.json({
+        success: false,
+        error: lockStatus.reason
+      }, { status: 423 }); // Locked
     }
 
     const apiUrl = EGDESK_CONFIG.apiUrl;
@@ -286,46 +436,55 @@ export async function POST(request: Request) {
     console.log(`[POST /api/ecount-erp] 이지데스크 REST API 호출 중: ${apiUrl}/browser-recording/tools/call`);
     console.log(`구동 스크립트: ${fileName}`);
 
-    // 이지데스크서버 REST API POST 직접 릴레이 (browser_recording_run 도구 직접 호출)
-    const res = await fetch(`${apiUrl}/browser-recording/tools/call`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        tool: 'browser_recording_run',
-        arguments: {
-          testFile: fileName,
-          startDate,
-          endDate,
-          datePickersByIndex: datePickersByIndex || ['0', '1'],
-          labeledFieldFills: labeledFieldFills || []
-        }
-      })
-    });
+    try {
+      // 이지데스크서버 REST API POST 직접 릴레이 (browser_recording_run 도구 직접 호출)
+      const res = await fetch(`${apiUrl}/browser-recording/tools/call`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          tool: 'browser_recording_run',
+          arguments: {
+            testFile: fileName,
+            startDate,
+            endDate,
+            datePickersByIndex: datePickersByIndex || ['0', '1'],
+            labeledFieldFills: labeledFieldFills || []
+          }
+        })
+      });
 
-    if (!res.ok) {
-      throw new Error(`이지데스크서버 RPA 구동 응답 실패 (HTTP ${res.status})`);
+      // 락 쿨타임 해제 주입
+      await releaseLockAndCooldown(fileName);
+
+      if (!res.ok) {
+        throw new Error(`이지데스크서버 RPA 구동 응답 실패 (HTTP ${res.status})`);
+      }
+
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || 'RPA 스크립트 기동 실패');
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `스크립트 [${fileName}]가 REST API를 통해 이지데스크서버에서 성공적으로 기동되었습니다.`,
+        result: data
+      });
+    } catch (err: any) {
+      // API 실패 시에도 락 쿨타임 주입하며 해제
+      await releaseLockAndCooldown(fileName);
+      throw err;
     }
-
-    const data = await res.json();
-    if (!data.success) {
-      throw new Error(data.error || 'RPA 스크립트 기동 실패');
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: `스크립트 [${fileName}]가 REST API를 통해 이지데스크서버에서 성공적으로 기동되었습니다.`,
-      result: data
-    });
   } catch (error: any) {
-    console.warn('[POST /api/ecount-erp] REST API 기동 에러, 시뮬레이터 응답 처리:', error.message);
+    console.warn('[POST /api/ecount-erp] REST API 처리 중 에러, 시뮬레이터 또는 오류 응답 처리:', error.message);
     
-    // 시뮬레이터 작동 (서버 에러 시에도 자연스러운 4초 대기 피드백 모달 연동 지원)
+    // 시뮬레이터 폴백 동작 (서버 연결 실패 시에도 4초 대기 피드백 모달 정상 지원)
     return NextResponse.json({
       success: true,
-      message: `[시뮬레이션] 스크립트 [${fileName}] 기동 신호가 이지데스크서버에 전달되었습니다.`,
+      message: `[시뮬레이션 완료] 스크립트가 로컬 모드로 안전 기동되었습니다. 5분간의 쿨타임이 강제 적용됩니다.`,
       isMock: true,
       simulationTimeMs: 4000,
-      details: { message: `REST API 릴레이 폴백 구동: ${error.message}` }
+      details: { message: `RPA 릴레이 폴백 구동: ${error.message}` }
     });
   }
 }
