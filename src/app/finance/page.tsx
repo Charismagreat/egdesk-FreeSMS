@@ -95,6 +95,32 @@ export default function FinancePage() {
   // 메인 탭 상태: accounts (은행 계좌 & 거래), cards (신용카드), hometax (국세청 자료), sync (동기화 역사)
   const [activeTab, setActiveTab] = useState<"accounts" | "cards" | "hometax" | "sync">("accounts");
   
+  // 엑셀 수동 업로드 모달 관련 상태
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [uploadBankId, setUploadBankId] = useState("shinhan");
+  const [uploadAccountId, setUploadAccountId] = useState("");
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // 홈택스 엑셀 수동 업로드 모달 관련 상태
+  const [isHometaxModalOpen, setIsHometaxModalOpen] = useState(false);
+  const [hometaxKind, setHometaxKind] = useState("sales");
+  const [hometaxBusinessNumber, setHometaxBusinessNumber] = useState("");
+  const [hometaxFile, setHometaxFile] = useState<File | null>(null);
+  const [isHometaxUploading, setIsHometaxUploading] = useState(false);
+  const [hometaxUploadMessage, setHometaxUploadMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // 카드 엑셀 수동 업로드 모달 관련 상태
+  const [isCardModalOpen, setIsCardModalOpen] = useState(false);
+  const [cardCompanyId, setCardCompanyId] = useState("shinhan-card");
+  const [cardAccountId, setCardAccountId] = useState("CARD-IMPORT");
+  const [cardFile, setCardFile] = useState<File | null>(null);
+  const [isCardUploading, setIsCardUploading] = useState(false);
+  const [cardUploadMessage, setCardUploadMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+
+  
   // 국세청 서브 탭: invoice (세금계산서), exempt (계산서/면세), cash (현금영수증)
   const [hometaxSubTab, setHometaxSubTab] = useState<"invoice" | "exempt" | "cash">("invoice");
 
@@ -243,6 +269,185 @@ export default function FinancePage() {
     }
   }, [activeTab, hometaxSubTab, currentPage, pageSize, startDate, endDate, searchText, invoiceType]);
 
+  // 은행 선택 변경 시 해당 은행의 계좌 자동 매칭 및 첫 번째 계좌 선택
+  useEffect(() => {
+    if (uploadBankId === "serp") {
+      setUploadAccountId("");
+    } else {
+      const filtered = accounts.filter((acc) => acc.bankId === uploadBankId);
+      if (filtered.length > 0) {
+        setUploadAccountId(filtered[0].id);
+      } else {
+        setUploadAccountId("");
+      }
+    }
+  }, [uploadBankId, accounts]);
+
+  // 엑셀 업로드 요청 핸들러
+  const handleExcelUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!uploadFile) {
+      setUploadMessage({ type: "error", text: "업로드할 엑셀 파일을 선택해 주세요." });
+      return;
+    }
+    if (uploadBankId !== "serp" && !uploadAccountId) {
+      setUploadMessage({ type: "error", text: "해당 엑셀 거래 내역을 저장할 계좌를 선택해 주세요." });
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadMessage(null);
+
+    try {
+      const fd = new FormData();
+      fd.append("file", uploadFile);
+      fd.append("bankId", uploadBankId);
+      fd.append("accountId", uploadAccountId);
+
+      const res = await fetch("/api/finance/upload", {
+        method: "POST",
+        body: fd
+      });
+      
+      if (!res.ok) {
+        const errResult = await res.json().catch(() => ({}));
+        throw new Error(errResult.error || `HTTP 에러 ${res.status}`);
+      }
+
+      const result = await res.json();
+
+      if (result.success) {
+        setUploadMessage({
+          type: "success",
+          text: `성공! 총 ${result.data?.parsedCount}건의 거래 내역이 이지데스크 금융 데이터베이스에 매핑 및 저장되었습니다.`
+        });
+        setUploadFile(null);
+        // 성공 시 잠시 대기 후 모달을 닫고 데이터 리프레시 진행
+        setTimeout(() => {
+          setIsUploadModalOpen(false);
+          setUploadMessage(null);
+          handleRefresh();
+        }, 2000);
+      } else {
+        setUploadMessage({ type: "error", text: result.error || "파일 가공 중 에러가 발생했습니다." });
+      }
+    } catch (err: any) {
+      setUploadMessage({ type: "error", text: err.message || "서버 통신 중 시스템 에러가 발생했습니다." });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // 홈택스 엑셀 업로드 요청 핸들러
+  const handleHometaxUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!hometaxFile) {
+      setHometaxUploadMessage({ type: "error", text: "업로드할 국세청 엑셀 파일을 선택해 주세요." });
+      return;
+    }
+    if (hometaxKind === "cash-receipt" && !hometaxBusinessNumber) {
+      setHometaxUploadMessage({ type: "error", text: "현금영수증 적재를 위해 사업자등록번호를 기입해 주세요." });
+      return;
+    }
+
+    setIsHometaxUploading(true);
+    setHometaxUploadMessage(null);
+
+    try {
+      const fd = new FormData();
+      fd.append("file", hometaxFile);
+      fd.append("kind", hometaxKind);
+      fd.append("businessNumber", hometaxBusinessNumber);
+
+      const res = await fetch("/api/finance/hometax-upload", {
+        method: "POST",
+        body: fd
+      });
+      
+      if (!res.ok) {
+        const errResult = await res.json().catch(() => ({}));
+        throw new Error(errResult.error || `HTTP 에러 ${res.status}`);
+      }
+
+      const result = await res.json();
+
+      if (result.success) {
+        const { insertedCount, duplicateCount, totalCount } = result.data || {};
+        setHometaxUploadMessage({
+          type: "success",
+          text: `성공! 총 ${totalCount}건의 자료 중 신규 ${insertedCount}건 적재 완료 (중복 ${duplicateCount}건 제외).`
+        });
+        setHometaxFile(null);
+        // 성공 시 대기 후 새로고침 및 모달 닫기
+        setTimeout(() => {
+          setIsHometaxModalOpen(false);
+          setHometaxUploadMessage(null);
+          handleRefresh();
+        }, 2200);
+      } else {
+        setHometaxUploadMessage({ type: "error", text: result.error || "파일 가공 중 에러가 발생했습니다." });
+      }
+    } catch (err: any) {
+      setHometaxUploadMessage({ type: "error", text: err.message || "서버 통신 중 에러가 발생했습니다." });
+    } finally {
+      setIsHometaxUploading(false);
+    }
+  };
+
+  // 카드 엑셀 업로드 요청 핸들러
+  const handleCardUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cardFile) {
+      setCardUploadMessage({ type: "error", text: "업로드할 신용카드 엑셀 파일을 선택해 주세요." });
+      return;
+    }
+
+    setIsCardUploading(true);
+    setCardUploadMessage(null);
+
+    try {
+      const fd = new FormData();
+      fd.append("file", cardFile);
+      fd.append("cardCompanyId", cardCompanyId);
+      fd.append("accountId", cardAccountId);
+
+      const res = await fetch("/api/finance/card-upload", {
+        method: "POST",
+        body: fd
+      });
+      
+      if (!res.ok) {
+        const errResult = await res.json().catch(() => ({}));
+        throw new Error(errResult.error || `HTTP 에러 ${res.status}`);
+      }
+
+      const result = await res.json();
+
+      if (result.success) {
+        setCardUploadMessage({
+          type: "success",
+          text: `성공! 총 ${result.data?.insertedCount}건의 카드 거래 내역이 이지데스크 금융 데이터베이스에 등록되었습니다.`
+        });
+        setCardFile(null);
+        // 성공 시 대기 후 새로고침 및 모달 닫기
+        setTimeout(() => {
+          setIsCardModalOpen(false);
+          setCardUploadMessage(null);
+          handleRefresh();
+        }, 2200);
+      } else {
+        setCardUploadMessage({ type: "error", text: result.error || "파일 가공 중 에러가 발생했습니다." });
+      }
+    } catch (err: any) {
+      setCardUploadMessage({ type: "error", text: err.message || "서버 통신 중 에러가 발생했습니다." });
+    } finally {
+      setIsCardUploading(false);
+    }
+  };
+
+
+
+
   // 실시간 동기화 강제 새로고침 시 트리거
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -324,9 +529,45 @@ export default function FinancePage() {
 
         <div className="flex items-center gap-3">
           <button
+            onClick={() => {
+              setIsUploadModalOpen(true);
+              setUploadFile(null);
+              setUploadMessage(null);
+            }}
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 border border-transparent rounded-xl text-xs font-bold shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            인터넷뱅킹 엑셀 가져오기
+          </button>
+
+          <button
+            onClick={() => {
+              setIsCardModalOpen(true);
+              setCardFile(null);
+              setCardUploadMessage(null);
+            }}
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:from-amber-600 hover:to-orange-700 border border-transparent rounded-xl text-xs font-bold shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer"
+          >
+            <CreditCard className="w-4 h-4" />
+            신용카드 엑셀 가져오기
+          </button>
+
+          <button
+            onClick={() => {
+              setIsHometaxModalOpen(true);
+              setHometaxFile(null);
+              setHometaxUploadMessage(null);
+            }}
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-700 hover:to-teal-700 border border-transparent rounded-xl text-xs font-bold shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer"
+          >
+            <Receipt className="w-4 h-4" />
+            국세청 홈택스 가져오기
+          </button>
+          
+          <button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 hover:text-slate-900 border border-slate-200 rounded-xl text-sm font-semibold shadow-sm hover:shadow-md transition-all active:scale-95 disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2.5 bg-white text-slate-700 hover:text-slate-900 border border-slate-200 rounded-xl text-xs font-bold shadow-sm hover:shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
           >
             <RefreshCw className={`w-4 h-4 text-slate-500 ${refreshing ? "animate-spin" : ""}`} />
             {refreshing ? "동기화 중..." : "금융자료 실시간 동기화"}
@@ -1228,9 +1469,493 @@ export default function FinancePage() {
           )}
         </motion.div>
       </AnimatePresence>
+
+      {/* 6. 인터넷뱅킹 수동 엑셀 업로드 프리미엄 모달 UI */}
+      <AnimatePresence>
+        {isUploadModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md bg-slate-900/60"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 15 }}
+              transition={{ type: "spring", duration: 0.4 }}
+              className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl border border-slate-100 relative overflow-hidden"
+            >
+              {/* 모달 내부 장식용 블러 구체 */}
+              <div className="absolute -top-10 -left-10 w-28 h-28 bg-blue-500/5 rounded-full blur-2xl"></div>
+              
+              <div className="flex justify-between items-start pb-4 border-b border-slate-100">
+                <div>
+                  <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                    <FileSpreadsheet className="w-5 h-5 text-blue-600" />
+                    인터넷뱅킹 엑셀 파일 가져오기
+                  </h3>
+                  <p className="text-xs text-slate-400 font-medium mt-1">
+                    인터넷뱅킹에서 내려받은 원본 엑셀을 공통 규격으로 자동 변환 적재합니다.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsUploadModalOpen(false)}
+                  className="p-1.5 hover:bg-slate-100 rounded-xl transition-all cursor-pointer text-slate-400 hover:text-slate-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleExcelUpload} className="mt-5 space-y-5">
+                {/* 1. 은행 선택 */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-600 block">발행 은행 및 매핑 포맷</label>
+                  <select
+                    value={uploadBankId}
+                    onChange={(e) => setUploadBankId(e.target.value)}
+                    className="w-full border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-blue-500 transition-all cursor-pointer"
+                  >
+                    <option value="shinhan">신한은행 (Shinhan)</option>
+                    <option value="hana">하나은행 (Hana)</option>
+                    <option value="kookmin">KB국민은행 (Kookmin)</option>
+                    <option value="ibk">IBK기업은행 (IBK)</option>
+                    <option value="woori">우리은행 (Woori)</option>
+                    <option value="nh">NH농협은행 (NH)</option>
+                    <option value="serp">SERP 통합 엑셀 포맷 (계좌 정보 자동 분류)</option>
+                  </select>
+                </div>
+
+                {/* 2. 대상 계좌 선택 (SERP는 계좌번호 열로 자동 매핑되므로 미노출) */}
+                {uploadBankId !== "serp" && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 block">업로드 대상 계좌 지정</label>
+                    <select
+                      value={uploadAccountId}
+                      onChange={(e) => setUploadAccountId(e.target.value)}
+                      className="w-full border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-blue-500 transition-all cursor-pointer"
+                    >
+                      {accounts.filter(acc => acc.bankId === uploadBankId).length === 0 ? (
+                        <option value="">-- 해당 은행에 등록된 활성 계좌가 없습니다 --</option>
+                      ) : (
+                        accounts
+                          .filter((acc) => acc.bankId === uploadBankId)
+                          .map((acc) => (
+                            <option key={acc.id} value={acc.id}>
+                              {acc.accountName} | {acc.accountNumber} (잔액: ₩{acc.balance?.toLocaleString()})
+                            </option>
+                          ))
+                      )}
+                    </select>
+                  </div>
+                )}
+
+                {/* 3. 파일 드롭존 및 업로드 */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-600 block">엑셀 파일 업로드 (.xls, .xlsx)</label>
+                  <div className="relative group">
+                    <input
+                      type="file"
+                      accept=".xls,.xlsx"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          setUploadFile(e.target.files[0]);
+                          setUploadMessage(null);
+                        }
+                      }}
+                      className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer"
+                    />
+                    <div className="border-dashed border-2 border-slate-200 group-hover:border-blue-500 rounded-2xl p-6 text-center bg-slate-50/50 group-hover:bg-blue-50/20 transition-all flex flex-col items-center justify-center gap-2">
+                      <FileSpreadsheet className="w-10 h-10 text-slate-400 group-hover:text-blue-500 transition-all" />
+                      
+                      {uploadFile ? (
+                        <div className="space-y-1">
+                          <p className="text-xs font-extrabold text-blue-600 truncate max-w-[280px]">
+                            {uploadFile.name}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-bold">
+                            {(uploadFile.size / 1024).toFixed(1)} KB | 가져올 준비 완료
+                          </p>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-xs font-bold text-slate-700">
+                            여기에 엑셀 파일을 드래그하여 놓거나 클릭하세요.
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-1 font-semibold">
+                            변조되지 않은 인터넷뱅킹 원본 엑셀 형식만 지원합니다.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. 성공/에러 피드백 알림 메시지 영역 */}
+                {uploadMessage && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`p-3 rounded-2xl text-xs font-bold border flex items-start gap-2 ${
+                      uploadMessage.type === "success"
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                        : "bg-rose-50 text-rose-600 border-rose-100"
+                    }`}
+                  >
+                    {uploadMessage.type === "success" ? (
+                      <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    )}
+                    <span>{uploadMessage.text}</span>
+                  </motion.div>
+                )}
+
+                {/* 5. 하단 버튼들 */}
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsUploadModalOpen(false)}
+                    disabled={isUploading}
+                    className="flex-1 py-2.5 border border-slate-200 text-slate-500 hover:bg-slate-50 text-xs font-bold rounded-xl active:scale-95 transition-all disabled:opacity-50 cursor-pointer text-center"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isUploading || (!uploadFile) || (uploadBankId !== "serp" && !uploadAccountId)}
+                    className="flex-1 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 text-xs font-bold rounded-xl shadow-md hover:shadow-lg active:scale-95 transition-all disabled:from-slate-200 disabled:to-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:pointer-events-none cursor-pointer"
+                  >
+                    {isUploading ? "데이터 분석 및 전송 중..." : "매핑 데이터 전송"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 7. 국세청 홈택스 수동 엑셀 업로드 모달 UI */}
+      <AnimatePresence>
+        {isHometaxModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md bg-slate-900/60"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 15 }}
+              transition={{ type: "spring", duration: 0.4 }}
+              className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl border border-slate-100 relative overflow-hidden"
+            >
+              {/* 모달 내부 장식용 블러 구체 */}
+              <div className="absolute -top-10 -left-10 w-28 h-28 bg-emerald-500/5 rounded-full blur-2xl"></div>
+              
+              <div className="flex justify-between items-start pb-4 border-b border-slate-100">
+                <div>
+                  <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                    <Receipt className="w-5 h-5 text-emerald-600" />
+                    국세청 홈택스 세무 자료 가져오기
+                  </h3>
+                  <p className="text-xs text-slate-400 font-medium mt-1">
+                    홈택스에서 내려받은 정식 엑셀 원본 파일을 데이터베이스에 병합합니다.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsHometaxModalOpen(false)}
+                  className="p-1.5 hover:bg-slate-100 rounded-xl transition-all cursor-pointer text-slate-400 hover:text-slate-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleHometaxUpload} className="mt-5 space-y-5">
+                {/* 1. 증빙 형태 선택 */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-600 block">세무 증빙 자료 종류</label>
+                  <select
+                    value={hometaxKind}
+                    onChange={(e) => setHometaxKind(e.target.value)}
+                    className="w-full border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-blue-500 transition-all cursor-pointer"
+                  >
+                    <option value="sales">과세 전자세금계산서 (매출)</option>
+                    <option value="purchase">과세 전자세금계산서 (매입)</option>
+                    <option value="tax-exempt-sales">면세 전자계산서 (매출)</option>
+                    <option value="tax-exempt-purchase">면세 전자계산서 (매입)</option>
+                    <option value="cash-receipt">현금영수증 승인 내역 (매출)</option>
+                  </select>
+                </div>
+
+                {/* 2. 사업자등록번호 입력 (현금영수증은 필수, 나머지는 옵션) */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-600 block">
+                    사업자등록번호
+                    {hometaxKind === "cash-receipt" ? (
+                      <span className="text-rose-500 ml-1 font-bold">(현금영수증 필수)</span>
+                    ) : (
+                      <span className="text-slate-400 ml-1 font-medium">(공백 시 엑셀에서 자동 추출)</span>
+                    )}
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="예: 123-45-67890 (숫자만 입력)"
+                    value={hometaxBusinessNumber}
+                    onChange={(e) => setHometaxBusinessNumber(e.target.value.replace(/\D/g, ""))}
+                    className="w-full border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-blue-500 transition-all placeholder:text-slate-400"
+                  />
+                </div>
+
+                {/* 3. 파일 드롭존 */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-600 block">홈택스 엑셀 파일 업로드 (.xls, .xlsx)</label>
+                  <div className="relative group">
+                    <input
+                      type="file"
+                      accept=".xls,.xlsx"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          setHometaxFile(e.target.files[0]);
+                          setHometaxUploadMessage(null);
+                        }
+                      }}
+                      className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer"
+                    />
+                    <div className="border-dashed border-2 border-slate-200 group-hover:border-emerald-500 rounded-2xl p-6 text-center bg-slate-50/50 group-hover:bg-emerald-50/10 transition-all flex flex-col items-center justify-center gap-2">
+                      <FileSpreadsheet className="w-10 h-10 text-slate-400 group-hover:text-emerald-500 transition-all" />
+                      
+                      {hometaxFile ? (
+                        <div className="space-y-1">
+                          <p className="text-xs font-extrabold text-emerald-600 truncate max-w-[280px]">
+                            {hometaxFile.name}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-bold">
+                            {(hometaxFile.size / 1024).toFixed(1)} KB | 가져올 준비 완료
+                          </p>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-xs font-bold text-slate-700">
+                            여기에 국세청 엑셀 파일을 끌어다 놓거나 클릭해 주세요.
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-1 font-semibold">
+                            변형하지 않은 홈택스 원본 그대로 업로드하셔야 분석이 가능합니다.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. 성공/에러 메시지 토스트 영역 */}
+                {hometaxUploadMessage && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`p-3 rounded-2xl text-xs font-bold border flex items-start gap-2 ${
+                      hometaxUploadMessage.type === "success"
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                        : "bg-rose-50 text-rose-600 border-rose-100"
+                    }`}
+                  >
+                    {hometaxUploadMessage.type === "success" ? (
+                      <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    )}
+                    <span>{hometaxUploadMessage.text}</span>
+                  </motion.div>
+                )}
+
+                {/* 5. 하단 버튼군 */}
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsHometaxModalOpen(false)}
+                    disabled={isHometaxUploading}
+                    className="flex-1 py-2.5 border border-slate-200 text-slate-500 hover:bg-slate-50 text-xs font-bold rounded-xl active:scale-95 transition-all disabled:opacity-50 cursor-pointer text-center"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isHometaxUploading || (!hometaxFile) || (hometaxKind === "cash-receipt" && !hometaxBusinessNumber)}
+                    className="flex-1 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-700 hover:to-teal-700 text-xs font-bold rounded-xl shadow-md hover:shadow-lg active:scale-95 transition-all disabled:from-slate-200 disabled:to-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:pointer-events-none cursor-pointer"
+                  >
+                    {isHometaxUploading ? "증빙 대조 및 저장 중..." : "매핑 데이터 전송"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 8. 신용카드 수동 엑셀 업로드 모달 UI */}
+      <AnimatePresence>
+        {isCardModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md bg-slate-900/60"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 15 }}
+              transition={{ type: "spring", duration: 0.4 }}
+              className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl border border-slate-100 relative overflow-hidden"
+            >
+              {/* 모달 내부 장식용 블러 구체 */}
+              <div className="absolute -top-10 -left-10 w-28 h-28 bg-amber-500/5 rounded-full blur-2xl"></div>
+              
+              <div className="flex justify-between items-start pb-4 border-b border-slate-100">
+                <div>
+                  <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-amber-500" />
+                    법인 신용카드 승인 내역 가져오기
+                  </h3>
+                  <p className="text-xs text-slate-400 font-medium mt-1">
+                    신용카드사 비즈니스 포털에서 내려받은 정식 엑셀 원본 파일을 연동합니다.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsCardModalOpen(false)}
+                  className="p-1.5 hover:bg-slate-100 rounded-xl transition-all cursor-pointer text-slate-400 hover:text-slate-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleCardUpload} className="mt-5 space-y-5">
+                {/* 1. 카드사 선택 */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-600 block">카드 발급사</label>
+                  <select
+                    value={cardCompanyId}
+                    onChange={(e) => setCardCompanyId(e.target.value)}
+                    className="w-full border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-amber-500 transition-all cursor-pointer"
+                  >
+                    <option value="shinhan-card">신한카드 (Shinhan Card)</option>
+                    <option value="kb-card">KB국민카드 (KB Card)</option>
+                    <option value="nh-card">NH농협카드 (NH Card)</option>
+                    <option value="bc-card">BC카드 (BC Card)</option>
+                    <option value="hana-card">하나카드 (Hana Card)</option>
+                  </select>
+                </div>
+
+                {/* 2. 대상 결제 계좌(프로필) 연결 */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-600 block">적재 대상 결제 계정</label>
+                  <select
+                    value={cardAccountId}
+                    onChange={(e) => setCardAccountId(e.target.value)}
+                    className="w-full border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-amber-500 transition-all cursor-pointer"
+                  >
+                    <option value="CARD-IMPORT">수동 임포트 카드사 대장 (기본)</option>
+                    {accounts
+                      .filter(acc => acc.accountType === "card" || acc.accountName.includes("카드"))
+                      .map((acc) => (
+                        <option key={acc.id} value={acc.id}>
+                          {acc.bankName} | {acc.accountName} (번호: {acc.accountNumber})
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                {/* 3. 파일 드롭존 */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-600 block">카드 승인 엑셀 파일 업로드 (.xls, .xlsx)</label>
+                  <div className="relative group">
+                    <input
+                      type="file"
+                      accept=".xls,.xlsx"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          setCardFile(e.target.files[0]);
+                          setCardUploadMessage(null);
+                        }
+                      }}
+                      className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer"
+                    />
+                    <div className="border-dashed border-2 border-slate-200 group-hover:border-amber-500 rounded-2xl p-6 text-center bg-slate-50/50 group-hover:bg-amber-50/10 transition-all flex flex-col items-center justify-center gap-2">
+                      <FileSpreadsheet className="w-10 h-10 text-slate-400 group-hover:text-amber-500 transition-all" />
+                      
+                      {cardFile ? (
+                        <div className="space-y-1">
+                          <p className="text-xs font-extrabold text-amber-600 truncate max-w-[280px]">
+                            {cardFile.name}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-bold">
+                            {(cardFile.size / 1024).toFixed(1)} KB | 가져올 준비 완료
+                          </p>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-xs font-bold text-slate-700">
+                            여기에 카드사 엑셀 파일을 드롭하거나 클릭해 주세요.
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-1 font-semibold">
+                            암호가 해제된 깨끗한 원본 엑셀 형식만 가공이 가능합니다.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. 성공/에러 메시지 알림 영역 */}
+                {cardUploadMessage && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`p-3 rounded-2xl text-xs font-bold border flex items-start gap-2 ${
+                      cardUploadMessage.type === "success"
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                        : "bg-rose-50 text-rose-600 border-rose-100"
+                    }`}
+                  >
+                    {cardUploadMessage.type === "success" ? (
+                      <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    )}
+                    <span>{cardUploadMessage.text}</span>
+                  </motion.div>
+                )}
+
+                {/* 5. 하단 버튼군 */}
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsCardModalOpen(false)}
+                    disabled={isCardUploading}
+                    className="flex-1 py-2.5 border border-slate-200 text-slate-500 hover:bg-slate-50 text-xs font-bold rounded-xl active:scale-95 transition-all disabled:opacity-50 cursor-pointer text-center"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isCardUploading || (!cardFile)}
+                    className="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:from-amber-600 hover:to-orange-700 text-xs font-bold rounded-xl shadow-md hover:shadow-lg active:scale-95 transition-all disabled:from-slate-200 disabled:to-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:pointer-events-none cursor-pointer"
+                  >
+                    {isCardUploading ? "신용카드 데이터 대조 중..." : "매핑 데이터 전송"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+
+
+
 
 // 펄싱(Pulsing) 스켈레톤 UI 컴포넌트
 function TableSkeleton({ cols, rows }: { cols: number; rows: number }) {

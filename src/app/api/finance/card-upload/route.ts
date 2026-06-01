@@ -1,0 +1,469 @@
+export const dynamic = 'force-dynamic';
+import { NextRequest, NextResponse } from "next/server";
+import * as xlsx from "xlsx";
+import Database from "better-sqlite3";
+import os from "os";
+import path from "path";
+import fs from "fs";
+import crypto from "crypto";
+
+// 금액 및 정수 파싱 헬퍼
+function parseAmount(val: any): number {
+  if (val === null || val === undefined || val === "") return 0;
+  if (typeof val === "number") return val;
+  const cleaned = String(val).replace(/,/g, "").trim();
+  const num = Number(cleaned);
+  return isNaN(num) ? 0 : num;
+}
+
+// 문자열 공백 정제 헬퍼
+function cleanStr(val: any): string {
+  if (val === null || val === undefined) return "";
+  return String(val).trim();
+}
+
+// 카드번호 정화 헬퍼 (카드사 한글 프리픽스 제거 및 대시 기호 제거)
+function cleanCardNumber(str: string): string {
+  if (!str) return "";
+  const cleaned = str.replace(/(BC카드|KB국민카드|KB카드|NH농협카드|NH카드|신한카드|삼성카드|현대카드|롯데카드|하나카드|\s)/g, "");
+  return cleaned.replace(/-/g, "");
+}
+
+// 로컬 financehub.db 연결 객체 획득 헬퍼
+function getFinanceHubDb() {
+  const homeDir = os.homedir();
+  const appData = process.env.APPDATA || path.join(homeDir, "AppData/Roaming");
+  
+  const paths = [
+    path.join(appData, "EGDesk/database/financehub.db"),
+    path.join(appData, "egdesk/database/financehub.db")
+  ];
+  
+  let targetPath = "";
+  for (const p of paths) {
+    if (fs.existsSync(p)) {
+      targetPath = p;
+      break;
+    }
+  }
+
+  if (!targetPath) {
+    targetPath = paths[0];
+    const parentDir = path.dirname(targetPath);
+    if (!fs.existsSync(parentDir)) {
+      fs.mkdirSync(parentDir, { recursive: true });
+    }
+  }
+
+  return new Database(targetPath);
+}
+
+// 헤더 정규화 헬퍼
+function normalizeHeader(str: any): string {
+  if (str === null || str === undefined) return "";
+  return String(str).replace(/\s+/g, "").replace(/·/g, "");
+}
+
+export async function POST(request: NextRequest) {
+  let db: Database.Database | null = null;
+  try {
+    const formData = await request.formData();
+    const file = formData.get("file") as File;
+    const cardCompanyId = formData.get("cardCompanyId") as string; // 'shinhan-card', 'kb-card', 'nh-card', 'bc-card', 'hana-card'
+    const accountId = formData.get("accountId") as string; // 연동할 카드/계좌 아이디
+
+    if (!file) {
+      return NextResponse.json(
+        { success: false, error: "업로드된 카드 엑셀 파일이 없습니다." },
+        { status: 400 }
+      );
+    }
+
+    if (!cardCompanyId) {
+      return NextResponse.json(
+        { success: false, error: "카드사가 선택되지 않았습니다." },
+        { status: 400 }
+      );
+    }
+
+    // 1. 엑셀 로딩 및 버퍼 변환
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const workbook = xlsx.read(buffer, { type: "buffer" });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+
+    if (!sheet) {
+      return NextResponse.json(
+        { success: false, error: "엑셀 시트 데이터를 읽을 수 없습니다." },
+        { status: 400 }
+      );
+    }
+
+    const rawRows = xlsx.utils.sheet_to_json<any[]>(sheet, { header: 1, raw: false });
+    if (rawRows.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "엑셀 시트가 비어 있습니다." },
+        { status: 400 }
+      );
+    }
+
+    // 2. 카드사별 헤더 행 위치 스캔 및 식별자 초기화
+    let headerRowIndex = -1;
+    let dataRows: any[][] = [];
+
+    // 신한, 국민, BC는 첫 10개 행 내에서 특정 고유 키워드를 매치해 헤더 행을 동적으로 오토스캔합니다.
+    if (cardCompanyId === "shinhan-card") {
+      for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
+        const row = rawRows[i];
+        if (row && row.some(cell => {
+          const h = normalizeHeader(cell);
+          return h === "카드번호" || h === "승인일" || h === "이용일" || h === "승인금액" || h === "이용카드";
+        })) {
+          headerRowIndex = i;
+          break;
+        }
+      }
+    } 
+    else if (cardCompanyId === "kb-card") {
+      for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
+        const row = rawRows[i];
+        if (row && row.some(cell => normalizeHeader(cell) === "승인일") && row.some(cell => normalizeHeader(cell) === "카드번호")) {
+          headerRowIndex = i;
+          break;
+        }
+      }
+    } 
+    else if (cardCompanyId === "nh-card") {
+      headerRowIndex = 10 - 1; // 농협은 고정 10행 (0-based 9)
+    } 
+    else if (cardCompanyId === "bc-card") {
+      for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
+        const row = rawRows[i];
+        if (row && row.some(cell => normalizeHeader(cell) === "카드번호") && row.some(cell => normalizeHeader(cell) === "승인금액")) {
+          headerRowIndex = i;
+          break;
+        }
+      }
+    } 
+    else if (cardCompanyId === "hana-card") {
+      headerRowIndex = 6 - 1; // 하나는 고정 6행 (0-based 5)
+    }
+
+    if (headerRowIndex === -1) {
+      // fallback
+      headerRowIndex = 0;
+    }
+
+    const headerRow = rawRows[headerRowIndex];
+    if (!headerRow || !Array.isArray(headerRow)) {
+      return NextResponse.json(
+        { success: false, error: "카드 엑셀 헤더 행을 감지할 수 없습니다." },
+        { status: 400 }
+      );
+    }
+
+    const headersNormalized = headerRow.map(h => normalizeHeader(h));
+    const headerIndices: Record<string, number> = {};
+    headersNormalized.forEach((header, index) => {
+      if (header) {
+        headerIndices[header] = index;
+      }
+    });
+
+    dataRows = rawRows.slice(headerRowIndex + 1);
+    db = getFinanceHubDb();
+
+    // 3. 데이터 삽입 쿼리 준비
+    const stmt = db.prepare(`
+      INSERT OR REPLACE INTO card_transactions (
+        id, account_id, card_company_id, headquarters_name, department_name,
+        card_number, card_type, cardholder_name, transaction_bank, usage_type,
+        sales_type, approval_datetime, approval_date, billing_date, approval_number,
+        merchant_name, amount, foreign_amount_usd, memo, category, is_cancelled,
+        created_at, updated_at
+      ) VALUES (
+        ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?,
+        ?, ?, ?, ?, ?, ?,
+        datetime('now'), datetime('now')
+      )
+    `);
+
+    let insertedCount = 0;
+    const targetAccountId = accountId || "CARD-IMPORT";
+
+    // 트랜잭션 구동
+    const transaction = db.transaction((rows) => {
+      for (const row of rows) {
+        if (!row || !Array.isArray(row) || row.length === 0) continue;
+
+        // 행의 유효성 검사 (모두 비어있는 경우 스킵)
+        const rowHasData = row.some((val) => val !== null && val !== undefined && String(val).trim() !== "");
+        if (!rowHasData) continue;
+
+        const getVal = (colName: string): string => {
+          const idx = headerIndices[colName];
+          if (idx === undefined || idx >= row.length) return "";
+          const v = row[idx];
+          return v === null || v === undefined ? "" : String(v).trim();
+        };
+
+        let headquartersName = "";
+        let departmentName = "";
+        let cardNumber = "";
+        let cardType = "법인";
+        let cardholderName = "";
+        let transactionBank = "";
+        let usageType = "";
+        let salesType = "";
+        let approvalDatetime = "";
+        let approvalDate = "";
+        let billingDate = "";
+        let approvalNumber = "";
+        let merchantName = "";
+        let amount = 0;
+        let foreignAmountUsd = 0;
+        let memo = "";
+        let isCancelled = 0;
+
+        // ==========================================
+        // CARD A. 신한카드 (shinhan-card)
+        // ==========================================
+        if (cardCompanyId === "shinhan-card") {
+          const dtVal = getVal("이용일시") || getVal("승인일시");
+          if (!dtVal) continue;
+          
+          // 이용일시 YYYY.MM.DD HH:MM:SS -> 가공
+          const cleanedDt = dtVal.replace(/\./g, "-");
+          approvalDatetime = cleanedDt;
+          approvalDate = cleanedDt.split(" ")[0] || "";
+
+          cardNumber = cleanCardNumber(getVal("이용카드") || getVal("카드번호"));
+          if (!cardNumber) continue;
+
+          approvalNumber = getVal("승인번호");
+          merchantName = getVal("가맹점명");
+          amount = parseAmount(getVal("이용금액") || getVal("승인금액"));
+          cardholderName = getVal("이용자명");
+          usageType = getVal("이용구분");
+          cardType = getVal("카드구분") || "법인";
+          billingDate = getVal("결제예정일").replace(/\./g, "-");
+
+          const cancelDate = getVal("취소일자");
+          if (cancelDate || usageType.includes("취소")) {
+            isCancelled = 1;
+            amount = -Math.abs(amount); // 취소는 음수 처리
+          }
+
+          memo = getVal("할부개월수") ? `${getVal("할부개월수")}개월 할부` : "";
+        }
+        // ==========================================
+        // CARD B. KB국민카드 (kb-card)
+        // ==========================================
+        else if (cardCompanyId === "kb-card") {
+          const rawDate = getVal("승인일").replace(/\./g, "-");
+          const rawTime = getVal("승인시간") || "00:00:00";
+          if (!rawDate) continue;
+
+          approvalDate = rawDate;
+          approvalDatetime = `${rawDate} ${rawTime}`;
+
+          cardNumber = cleanCardNumber(getVal("카드번호"));
+          if (!cardNumber) continue;
+
+          approvalNumber = getVal("승인번호");
+          merchantName = getVal("가맹점명");
+          amount = parseAmount(getVal("승인금액"));
+          departmentName = getVal("부서명");
+          
+          // 국민은 대표자성명이 이용자 성격
+          cardholderName = getVal("대표자성명") || getVal("이용자명");
+          usageType = getVal("승인구분");
+          billingDate = getVal("결제예정일") ? getVal("결제예정일").replace(/\./g, "-") : "";
+
+          if (usageType.includes("취소") || getVal("상태").includes("취소")) {
+            isCancelled = 1;
+            amount = -Math.abs(amount);
+          }
+
+          memo = getVal("할부개월수") ? `${getVal("할부개월수")}개월 할부` : "";
+        }
+        // ==========================================
+        // CARD C. NH농협카드 (nh-card)
+        // ==========================================
+        else if (cardCompanyId === "nh-card") {
+          const dtVal = getVal("이용일시");
+          if (!dtVal) continue;
+
+          const cleanedDt = dtVal.replace(/\./g, "-");
+          approvalDatetime = cleanedDt;
+          approvalDate = cleanedDt.split(" ")[0] || "";
+
+          cardNumber = cleanCardNumber(getVal("이용카드"));
+          if (!cardNumber) continue;
+
+          approvalNumber = getVal("승인번호");
+          merchantName = getVal("가맹점명");
+          
+          const domesticAmt = parseAmount(getVal("국내이용금액(원)") || getVal("승인금액"));
+          const cancelAmt = parseAmount(getVal("취소금액"));
+          
+          if (cancelAmt > 0 || getVal("취소여부") === "Y" || getVal("취소여부") === "취소") {
+            isCancelled = 1;
+            amount = -Math.abs(cancelAmt || domesticAmt);
+          } else {
+            amount = domesticAmt;
+          }
+
+          cardholderName = getVal("사용자명") || getVal("이용자명");
+          salesType = getVal("매출종류");
+          billingDate = getVal("결제일") ? getVal("결제일").replace(/\./g, "-") : "";
+        }
+        // ==========================================
+        // CARD D. BC카드 (bc-card)
+        // ==========================================
+        else if (cardCompanyId === "bc-card") {
+          const rawDate = getVal("승인일자");
+          const rawTime = getVal("승인시간");
+          if (!rawDate) continue;
+
+          // YYYYMMDD -> YYYY-MM-DD
+          let formattedDate = rawDate;
+          if (rawDate.length === 8) {
+            formattedDate = `${rawDate.substring(0, 4)}-${rawDate.substring(4, 6)}-${rawDate.substring(6, 8)}`;
+          }
+          approvalDate = formattedDate;
+
+          let formattedTime = "00:00:00";
+          if (rawTime.length === 6) {
+            formattedTime = `${rawTime.substring(0, 2)}:${rawTime.substring(2, 4)}:${rawTime.substring(4, 6)}`;
+          }
+          approvalDatetime = `${formattedDate} ${formattedTime}`;
+
+          cardNumber = cleanCardNumber(getVal("카드번호"));
+          if (!cardNumber) continue;
+
+          headquartersName = getVal("본부명");
+          departmentName = getVal("부서명");
+          cardType = getVal("카드구분") || "법인";
+          cardholderName = getVal("카드소지자") || getVal("카드소지자명");
+          transactionBank = getVal("거래은행");
+          usageType = getVal("사용구분");
+          salesType = getVal("매출종류");
+          approvalNumber = getVal("승인번호");
+          merchantName = getVal("가맹점명/국가명") || getVal("가맹점명");
+          
+          amount = parseAmount(getVal("승인금액") || getVal("이용금액"));
+
+          if (salesType.includes("취소") || salesType.includes("매입취소")) {
+            isCancelled = 1;
+            amount = -Math.abs(amount);
+          }
+
+          // 해외 이용금액 환산
+          const usdVal = parseAmount(getVal("해외승인원화금액"));
+          if (usdVal > 0) {
+            const exRate = parseAmount(getVal("환율")) || 1350;
+            foreignAmountUsd = usdVal / exRate;
+          }
+        }
+        // ==========================================
+        // CARD E. 하나카드 (hana-card)
+        // ==========================================
+        else if (cardCompanyId === "hana-card") {
+          const rawDate = getVal("이용일");
+          const rawTime = getVal("이용시간");
+          if (!rawDate) continue;
+
+          let formattedDate = rawDate.replace(/\./g, "-");
+          if (rawDate.length === 8 && !rawDate.includes("-")) {
+            formattedDate = `${rawDate.substring(0, 4)}-${rawDate.substring(4, 6)}-${rawDate.substring(6, 8)}`;
+          }
+          approvalDate = formattedDate;
+
+          let formattedTime = "00:00:00";
+          if (rawTime.length === 6) {
+            formattedTime = `${rawTime.substring(0, 2)}:${rawTime.substring(2, 4)}:${rawTime.substring(4, 6)}`;
+          }
+          approvalDatetime = `${formattedDate} ${formattedTime}`;
+
+          cardNumber = cleanCardNumber(getVal("카드번호"));
+          if (!cardNumber) continue;
+
+          approvalNumber = getVal("승인번호");
+          merchantName = getVal("가맹점명");
+          amount = parseAmount(getVal("승인금액"));
+          usageType = getVal("이용구분");
+          
+          const cancelAmt = parseAmount(getVal("승인취소금액"));
+          const status = getVal("상태");
+
+          if (cancelAmt > 0 || status.includes("취소") || status.includes("승인취소")) {
+            isCancelled = 1;
+            amount = -Math.abs(cancelAmt || amount);
+          }
+        }
+
+        // 고유 식별 MD5 해시 아이디 생성 (카드번호 + 승인날짜 + 승인번호 + 이용금액 + 가맹점명 조합)
+        const hashSeed = `${cardNumber}_${approvalDate}_${approvalNumber}_${amount}_${merchantName}`;
+        const uniqueId = crypto.createHash("md5").update(hashSeed).digest("hex");
+
+        // DB Upsert 수행
+        stmt.run(
+          uniqueId,
+          targetAccountId,
+          cardCompanyId,
+          headquartersName,
+          departmentName,
+          cardNumber,
+          cardType,
+          cardholderName,
+          transactionBank,
+          usageType,
+          salesType,
+          approvalDatetime,
+          approvalDate,
+          billingDate,
+          approvalNumber,
+          merchantName,
+          amount,
+          foreignAmountUsd,
+          memo,
+          "", // category
+          isCancelled
+        );
+
+        insertedCount++;
+      }
+    });
+
+    transaction(dataRows);
+
+    return NextResponse.json({
+      success: true,
+      message: "성공적으로 카드 이용 내역을 매핑 및 적재 처리하였습니다.",
+      data: {
+        cardCompanyId,
+        accountId: targetAccountId,
+        parsedCount: dataRows.length,
+        insertedCount
+      }
+    });
+  } catch (error: any) {
+    console.error("Card Excel Upload API Error:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: error.message || "카드 엑셀 파싱 및 이지데스크 서버 전송 중 시스템 오류가 발생했습니다."
+      },
+      { status: 500 }
+    );
+  } finally {
+    if (db) {
+      try {
+        db.close();
+      } catch (e) {}
+    }
+  }
+}
