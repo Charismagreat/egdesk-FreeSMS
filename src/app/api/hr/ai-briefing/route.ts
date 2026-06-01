@@ -37,45 +37,17 @@ export async function POST(req: Request) {
     const contractsRes = await queryTable('crm_operator_contract_settings');
     const contracts = contractsRes.rows || [];
 
-    // 💡 하이브리드 프로필 스키마 맵 (부서, 백업대행, 역량스펙, 통근거리)
-    const OPERATOR_DETAIL_MAP: Record<string, {
-      department: string;
-      backup_operator_id: string;
-      skills: string;
-      commute_area: string;
-    }> = {
-      "1": {
-        department: "대표이사실",
-        backup_operator_id: "2",
-        skills: "경영지원, SCM 총괄, ERP 시스템 관리",
-        commute_area: "경기도 성남시 분당구 - 자차 통근"
-      },
-      "2": {
-        department: "구매팀",
-        backup_operator_id: "3",
-        skills: "자재 관리, 발주 및 수주 조율, SCM 실무",
-        commute_area: "서울 마포구 - 지하철 통근 (대중교통의존)"
-      },
-      "3": {
-        department: "생산공장",
-        backup_operator_id: "2",
-        skills: "조립 라인 총괄, 자재 조달 조율, 기계 오퍼레이팅",
-        commute_area: "인천 부평구 - 지하철 통근 (원거리대중교통)"
-      },
-      "4": {
-        department: "개발본부",
-        backup_operator_id: "1",
-        skills: "IT 시스템 지원, 재고 전산 관리, 데이터 엔지니어링",
-        commute_area: "경기도 수원시 - 광역버스 통근 (원거리교통)"
-      }
-    };
+    // 💡 DB에서 실제 임직원 상세 프로필 로드 (하드코딩 맵 전격 제거 및 DB 연동)
+    const profilesRes = await queryTable('crm_operator_profiles').catch(() => ({ rows: [] }));
+    const profiles = profilesRes.rows || [];
 
     // JSON RAG 데이터 취합
     const ragContext = {
       total_employees_count: employees.length,
       employees: employees.map((e: any) => {
-        const detail = OPERATOR_DETAIL_MAP[String(e.id)] || {
+        const detail = profiles.find((p: any) => String(p.operator_id) === String(e.id)) || {
           department: "미정",
+          hire_date: e.created_at ? e.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
           backup_operator_id: "none",
           skills: "일반 서무",
           commute_area: "인근 통근"
@@ -90,6 +62,7 @@ export async function POST(req: Request) {
           name: e.name,
           role: e.role,
           department: detail.department,
+          hire_date: detail.hire_date,
           backup_operator_id: detail.backup_operator_id,
           skills: detail.skills,
           commute_area: detail.commute_area,
