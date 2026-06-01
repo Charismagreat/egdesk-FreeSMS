@@ -7,7 +7,7 @@ import {
   Home, Users, MessageSquare, Settings, ShoppingCart, 
   ClipboardList, CreditCard, CalendarDays, Truck, Send, 
   PackageSearch, Package, UserCog, Zap, Ticket, Landmark, Globe, Briefcase, HelpCircle,
-  ArrowRightLeft, Handshake, Sparkles, Coins, Database
+  ArrowRightLeft, Handshake, Sparkles, Coins, Database, Compass
 } from "lucide-react";
 
 // 커스텀 인스타그램 아이콘 SVG
@@ -85,6 +85,7 @@ const MENU_STATIC_MAP: Record<string, { label: string; icon: any; color: string 
   "/instagram": { label: "인스타그램 마케팅 AI", icon: InstagramIcon, color: "text-[#ff007f]" },
   "/naver-blog": { label: "N-BLOG 포스팅 AI", icon: NaverIcon, color: "text-[#2db400]" },
   "/youtube-shorts": { label: "YOUTUBE 쇼츠 AI", icon: YoutubeIcon, color: "text-[#FF0000]" },
+  "/knowledge-ai": { label: "AI 문서지식 관리", icon: Compass, color: "text-indigo-400" },
   "/ai-briefing": { label: "AI 브리핑", icon: Sparkles, color: "text-indigo-400" }
 };
 
