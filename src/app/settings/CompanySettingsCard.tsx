@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Building2, Save, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Building2, Save, CheckCircle2, AlertCircle, RefreshCw, Sparkles } from 'lucide-react';
 
 interface CompanyProfile {
   companyName: string;
@@ -25,6 +25,10 @@ export default function CompanySettingsCard() {
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // AI OCR 및 드래그 앤 드롭 업로드 상태
+  const [isOcrAnalyzing, setIsOcrAnalyzing] = useState<boolean>(false);
+  const [fileDragOver, setFileDragOver] = useState<boolean>(false);
 
   // 1. 회사 정보 로드
   useEffect(() => {
@@ -57,7 +61,64 @@ export default function CompanySettingsCard() {
     fetchCompanyProfile();
   }, []);
 
-  // 2. 회사 정보 저장
+  // 2. 사업자등록증 파일 업로드 및 AI 스캔 연동
+  const handleFileUpload = async (fileObj: File) => {
+    if (!fileObj) return;
+
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+    if (!allowedTypes.includes(fileObj.type)) {
+      alert('⚠️ 지원되지 않는 파일 포맷입니다. 사업자등록증 사진(JPG, PNG) 또는 PDF 문서만 업로드해 주세요.');
+      return;
+    }
+
+    setIsOcrAnalyzing(true);
+    setMessage(null);
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64Data = e.target?.result as string;
+        
+        // 백엔드 AI OCR API 호출 (crm_partners OCR과 동일 엔드포인트 공용 활용)
+        const res = await fetch('/api/partners/ocr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file: base64Data, mimeType: fileObj.type })
+        });
+
+        const resData = await res.json();
+        
+        if (!resData.success) {
+          throw new Error(resData.error || '사업자등록증 분석에 실패했습니다.');
+        }
+
+        const ocrData = resData.data;
+
+        // 폼 필드 자동 입력 (기존 입력 유지하며 덮어쓰기 보완)
+        setProfile(prev => ({
+          companyName: ocrData.companyName || prev.companyName,
+          representative: ocrData.representative || prev.representative,
+          businessNumber: (ocrData.businessNumber || '').replace(/\D/g, '') || prev.businessNumber,
+          address: ocrData.address || prev.address,
+          phone: ocrData.phone || prev.phone,
+          email: prev.email, // 이메일은 보통 스캔 데이터가 미흡하므로 보존
+        }));
+
+        setMessage({ type: 'success', text: 'AI가 사업자등록증을 분석하여 본사 정보를 양식에 자동 입력했습니다! ⚡' });
+        setTimeout(() => setMessage(null), 5000);
+      };
+
+      reader.readAsDataURL(fileObj);
+
+    } catch (err: any) {
+      console.error('본사 OCR 에러:', err);
+      setMessage({ type: 'error', text: err.message || '파일 처리 중 오류가 발생했습니다.' });
+    } finally {
+      setIsOcrAnalyzing(false);
+    }
+  };
+
+  // 3. 회사 정보 저장
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -158,6 +219,61 @@ export default function CompanySettingsCard() {
 
       {/* 설정 폼 */}
       <form onSubmit={handleSave} className="p-6 space-y-6">
+
+        {/* 🛠️ AI 본사 사업자등록증 자동 완성 업로더 드롭존 */}
+        <div className="bg-slate-50/50 border border-slate-100 p-4.5 rounded-2xl space-y-3 shrink-0">
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
+            우리 회사 사업자등록증 자동 스냅 채우기 (AI OCR)
+          </span>
+
+          {isOcrAnalyzing ? (
+            <div className="border border-indigo-200 bg-indigo-50/20 rounded-xl p-6 flex flex-col items-center justify-center text-center space-y-3 animate-pulse relative overflow-hidden">
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-400 via-indigo-500 to-cyan-400 animate-shimmer"></div>
+              <RefreshCw className="w-8 h-8 text-indigo-500 animate-spin" />
+              <div>
+                <span className="text-xs font-black text-slate-700 block">AI 엔진이 본사 사업자등록증 문서를 스캔 중입니다...</span>
+                <span className="text-[10px] text-slate-400 font-bold block mt-1">상호, 대표자명, 주소, 번호를 고해상도로 판독하여 폼에 자동 입력합니다.</span>
+              </div>
+            </div>
+          ) : (
+            <div
+              onDragOver={(e) => { e.preventDefault(); setFileDragOver(true); }}
+              onDragLeave={() => setFileDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setFileDragOver(false);
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                  handleFileUpload(e.dataTransfer.files[0]);
+                }
+              }}
+              onClick={() => document.getElementById('company-license-uploader')?.click()}
+              className={`border-2 border-dashed rounded-xl p-5 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
+                fileDragOver
+                  ? 'border-indigo-500 bg-indigo-50/30'
+                  : 'border-slate-200 hover:border-indigo-350 hover:bg-slate-50/50'
+              }`}
+            >
+              <Building2 className="w-6 h-6 text-slate-400 mb-2 group-hover:scale-110 transition-transform" />
+              <span className="text-xs font-black text-slate-700 block">이곳에 본사 사업자등록증 파일(이미지/PDF) 드롭 또는 클릭 업로드</span>
+              <span className="text-[9px] text-slate-400 font-semibold block mt-1.5">
+                지원 포맷: JPG, PNG, PDF (Gemini AI 자동 필드 주입)
+              </span>
+              <input
+                type="file"
+                id="company-license-uploader"
+                accept="image/*,application/pdf"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    handleFileUpload(e.target.files[0]);
+                  }
+                }}
+                className="hidden"
+              />
+            </div>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
           
           {/* 1. 회사명 */}
@@ -233,16 +349,6 @@ export default function CompanySettingsCard() {
             />
           </div>
 
-        </div>
-
-        {/* 안내 팁 박스 */}
-        <div className="flex gap-2.5 bg-indigo-50/30 border border-indigo-100 p-3.5 rounded-2xl">
-          <AlertCircle className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
-          <div className="text-xs text-indigo-700 leading-relaxed font-medium">
-            <p className="font-bold mb-0.5">💡 본사 정보 등록의 장점</p>
-            <p>1. **자동 거래처 가드**: 모바일 견적 요청서 등에서 본사 사업자등록번호가 접수될 경우, 외부 파트너로 잘못 오인 가입되는 중복 데이터 누수를 차단합니다.</p>
-            <p className="mt-1">2. **AI 자율 비서 학습**: AI RAG가 문서 분석 및 명함 인식을 수행할 때 본사의 회사명을 대조 인지하여, 회사 내/외부 이해관계자를 고도로 정밀하게 분류해 줍니다.</p>
-          </div>
         </div>
 
         {/* 저장 알림 메시지 */}
