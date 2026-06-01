@@ -88,9 +88,111 @@ export default function HrAttendancePage() {
   });
   const [aiLoading, setAiLoading] = useState(false);
 
+  // 📝 근로계약 & 급여정산 관리 상태 추가
+  const [contracts, setContracts] = useState<any[]>([]);
+  const [payroll, setPayroll] = useState<any[]>([]);
+  const [payrollYearMonth, setPayrollYearMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [payrollLoading, setPayrollLoading] = useState(false);
+
+  // 계약 직접 편집 폼 상태 추가
+  const [selectedContractOperatorId, setSelectedContractOperatorId] = useState("");
+  const [hourlyWage, setHourlyWage] = useState(10000);
+  const [weeklyHours, setWeeklyHours] = useState(40);
+  const [allowHolidayPay, setAllowHolidayPay] = useState(1); // 1: 적용, 0: 미적용
+  const [workDays, setWorkDays] = useState("월,화,수,목,금");
+  const [contractMemo, setContractMemo] = useState("");
+
   useEffect(() => {
     fetchHrData();
   }, []);
+
+  // 📝 근로계약 및 급여정산 리스트 API 조회 함수
+  const fetchContractsAndPayroll = async (ym?: string) => {
+    const targetYM = ym || payrollYearMonth;
+    setPayrollLoading(true);
+    try {
+      const contractsRes = await fetch('/api/hr/contracts');
+      const contractsData = await contractsRes.json();
+      if (contractsData.success) {
+        setContracts(contractsData.contracts || []);
+      }
+
+      const payrollRes = await fetch(`/api/hr/contracts/calc?year_month=${targetYM}`);
+      const payrollData = await payrollRes.json();
+      if (payrollData.success) {
+        setPayroll(payrollData.payroll || []);
+      }
+    } catch (err) {
+      console.error('근로계약 및 급여정산 데이터를 불러오는데 실패했습니다:', err);
+    } finally {
+      setPayrollLoading(false);
+    }
+  };
+
+  // 📝 연월 또는 관리자 권한 갱신 시 실시간 연동
+  useEffect(() => {
+    if (currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'PRESIDENT') {
+      fetchContractsAndPayroll();
+    }
+  }, [currentUser, payrollYearMonth]);
+
+  // 📝 특정 직원의 기존 계약 조건 불러오기 핸들러
+  const handleSelectEmployeeContract = (operatorId: string) => {
+    setSelectedContractOperatorId(operatorId);
+    const matched = contracts.find(c => String(c.operator_id) === String(operatorId));
+    if (matched) {
+      setHourlyWage(matched.hourly_wage || 10000);
+      setWeeklyHours(matched.weekly_hours || 40);
+      setAllowHolidayPay(matched.allow_weekly_holiday_paid !== undefined ? matched.allow_weekly_holiday_paid : 1);
+      setWorkDays(matched.work_days || "월,화,수,목,금");
+      setContractMemo(matched.contract_memo || "");
+    } else {
+      setHourlyWage(10000);
+      setWeeklyHours(40);
+      setAllowHolidayPay(1);
+      setWorkDays("월,화,수,목,금");
+      setContractMemo("");
+    }
+  };
+
+  // 📝 근로계약 폼 제출 핸들러 (Upsert)
+  const handleSubmitContract = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedContractOperatorId) {
+      alert('근무 조건을 변경할 직원을 선택해주세요.');
+      return;
+    }
+
+    setSubmitLoading(true);
+    try {
+      const res = await fetch('/api/hr/contracts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          operator_id: selectedContractOperatorId,
+          hourly_wage: hourlyWage,
+          weekly_hours: weeklyHours,
+          allow_weekly_holiday_paid: allowHolidayPay,
+          work_days: workDays,
+          contract_memo: contractMemo
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message);
+        await fetchContractsAndPayroll();
+      } else {
+        alert(data.error || '근로계약 갱신에 실패했습니다.');
+      }
+    } catch (err: any) {
+      alert('통신 오류: ' + err.message);
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
 
   const fetchHrData = async () => {
     setLoading(true);
@@ -763,6 +865,193 @@ export default function HrAttendancePage() {
         </div>
 
       </div>
+
+      {/* ==========================================
+          📂 5. [사장님 전용] 임직원 근로 계약 조건 관리 및 실시간 급여 정산 현황판 (2열 와이드 관제 보드)
+          ========================================== */}
+      {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'PRESIDENT') && (
+        <div className="bg-white border border-slate-100 p-6 rounded-3xl shadow-sm space-y-6 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-2xl -z-10"></div>
+          
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-3">
+              <span className="w-1.5 h-4.5 bg-indigo-650 rounded-full"></span>
+              <h3 className="text-sm font-black text-slate-800 flex items-center gap-1.5">
+                근로계약 & 실시간 급여 정산 AI 관제
+                <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">SUPER OWNER</span>
+              </h3>
+            </div>
+            
+            {/* 정산 연월 선택 */}
+            <div className="flex items-center gap-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">정산 대상 연월</label>
+              <input
+                type="month"
+                value={payrollYearMonth}
+                onChange={(e) => setPayrollYearMonth(e.target.value)}
+                className="p-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-700 outline-none cursor-pointer"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+            {/* 좌측: 계약 조건 직접 편집 폼 (4 cols) */}
+            <div className="xl:col-span-4 bg-slate-50/50 border border-slate-100 p-5 rounded-2xl space-y-4">
+              <h4 className="text-xs font-black text-slate-700 flex items-center gap-1.5 border-b border-slate-200/60 pb-2">
+                ✍️ 근로계약 변경 및 모바일 발송
+              </h4>
+              
+              <form onSubmit={handleSubmitContract} className="space-y-4 text-xs font-bold text-slate-600">
+                {/* 대상 직원 선택 */}
+                <div className="space-y-1 block">
+                  <label className="text-[10px] text-slate-400 uppercase tracking-widest block">대상 직원</label>
+                  <select
+                    value={selectedContractOperatorId}
+                    onChange={(e) => handleSelectEmployeeContract(e.target.value)}
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl outline-none font-bold text-slate-800 cursor-pointer"
+                  >
+                    <option value="">직원을 선택하세요...</option>
+                    {employees.map(emp => (
+                      <option key={emp.id} value={emp.id}>
+                        {emp.name} ({emp.role})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 계약 시급 */}
+                <div className="space-y-1 block">
+                  <label className="text-[10px] text-slate-400 uppercase tracking-widest block">계약 시급 (원)</label>
+                  <input
+                    type="number"
+                    value={hourlyWage}
+                    onChange={(e) => setHourlyWage(parseInt(e.target.value) || 0)}
+                    placeholder="예: 10000"
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl outline-none font-bold text-slate-800"
+                  />
+                </div>
+
+                {/* 소정 근로시간 */}
+                <div className="space-y-1 block">
+                  <label className="text-[10px] text-slate-400 uppercase tracking-widest block">주당 소정 근로시간 (시간)</label>
+                  <input
+                    type="number"
+                    value={weeklyHours}
+                    onChange={(e) => setWeeklyHours(parseFloat(e.target.value) || 0)}
+                    placeholder="예: 40"
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl outline-none font-bold text-slate-800"
+                  />
+                </div>
+
+                {/* 주휴수당 여부 */}
+                <div className="space-y-1 block">
+                  <label className="text-[10px] text-slate-400 uppercase tracking-widest block">주휴수당 적용 여부</label>
+                  <select
+                    value={allowHolidayPay}
+                    onChange={(e) => setAllowHolidayPay(parseInt(e.target.value))}
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl outline-none font-bold text-slate-800 cursor-pointer"
+                  >
+                    <option value={1}>적용 (주 15시간 이상 근무 시 자동 계산)</option>
+                    <option value={0}>미적용 (초단기 근무 또는 주휴 배제)</option>
+                  </select>
+                </div>
+
+                {/* 근무 요일 */}
+                <div className="space-y-1 block">
+                  <label className="text-[10px] text-slate-400 uppercase tracking-widest block">약정 근무 요일</label>
+                  <input
+                    type="text"
+                    value={workDays}
+                    onChange={(e) => setWorkDays(e.target.value)}
+                    placeholder="예: 월,화,수"
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl outline-none font-bold text-slate-800"
+                  />
+                </div>
+
+                {/* 계약 메모 */}
+                <div className="space-y-1 block">
+                  <label className="text-[10px] text-slate-400 uppercase tracking-widest block">계약 특이사항 및 메모</label>
+                  <textarea
+                    value={contractMemo}
+                    onChange={(e) => setContractMemo(e.target.value)}
+                    placeholder="근로조건 변동 사유나 이력을 보존합니다."
+                    rows={2}
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl outline-none font-bold text-slate-800 resize-none leading-relaxed"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={submitLoading || !selectedContractOperatorId}
+                  className="w-full py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-md cursor-pointer transition-all flex items-center justify-center gap-1.5 disabled:opacity-40"
+                >
+                  <Send size={12} />
+                  계약 조건 갱신 및 합의서 발송
+                </button>
+              </form>
+            </div>
+
+            {/* 우측: 실시간 월별 급여 정산 대장 (8 cols) */}
+            <div className="xl:col-span-8 space-y-4">
+              <h4 className="text-xs font-black text-slate-700 flex items-center justify-between border-b border-slate-100 pb-2">
+                <span>📊 {payrollYearMonth.split('-')[0]}년 {payrollYearMonth.split('-')[1]}월 예상 급여 대장 (실제 근태 연동)</span>
+                <span className="text-[10px] text-slate-450 font-bold">주휴수당 자동 비례 정산</span>
+              </h4>
+
+              {payrollLoading ? (
+                <div className="py-20 text-center animate-pulse flex flex-col items-center justify-center gap-2">
+                  <RefreshCw className="w-6 h-6 text-indigo-500 animate-spin" />
+                  <span className="text-xs text-slate-400 font-bold">정밀 급여 및 주휴 연산 대장을 불러오는 중...</span>
+                </div>
+              ) : payroll.length === 0 ? (
+                <div className="py-20 text-center border border-dashed border-slate-200 rounded-2xl text-slate-400 font-bold text-xs">
+                  당월 근태 및 계약 데이터가 없습니다.
+                </div>
+              ) : (
+                <div className="overflow-x-auto border border-slate-100 rounded-2xl bg-white shadow-2xs">
+                  <table className="w-full text-left border-collapse text-xs font-bold">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-100 text-[10px] text-slate-450 uppercase tracking-widest">
+                        <th className="py-3 px-4">임직원명</th>
+                        <th className="py-3 px-4">직급/부서</th>
+                        <th className="py-3 px-4 text-center">당월 실근무 (시간)</th>
+                        <th className="py-3 px-4 text-center">주당 평균 (시간)</th>
+                        <th className="py-3 px-4 text-center">주휴 대상</th>
+                        <th className="py-3 px-4 text-right">계약 시급 (원)</th>
+                        <th className="py-3 px-4 text-right">누적 주휴수당</th>
+                        <th className="py-3 px-4 text-right text-indigo-650">예상 지급총액</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-slate-700">
+                      {payroll.map((pay: any) => (
+                        <tr key={pay.operator_id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="py-3.5 px-4 font-black text-slate-800">{pay.name}</td>
+                          <td className="py-3.5 px-4">
+                            <span className="block text-[10px] text-slate-400 font-bold">{pay.department}</span>
+                            <span>{pay.role}</span>
+                          </td>
+                          <td className="py-3.5 px-4 text-center font-mono text-slate-800">{pay.total_hours}h</td>
+                          <td className="py-3.5 px-4 text-center font-mono text-slate-650">{pay.avg_weekly_hours}h/주</td>
+                          <td className="py-3.5 px-4 text-center">
+                            {pay.is_holiday_paid_eligible ? (
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-650 font-black text-[9px]">적격 🟢</span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full bg-rose-50 text-rose-650 font-black text-[9px]">제외 🔴</span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 text-right font-mono">{pay.hourly_wage?.toLocaleString()}원</td>
+                          <td className="py-3.5 px-4 text-right font-mono text-slate-500">+{pay.total_holiday_pay?.toLocaleString()}원</td>
+                          <td className="py-3.5 px-4 text-right font-mono font-black text-indigo-650 bg-indigo-50/20">{pay.total_payroll?.toLocaleString()}원</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ==========================================
           📂 모달 1: 연차 신청 폼 모달

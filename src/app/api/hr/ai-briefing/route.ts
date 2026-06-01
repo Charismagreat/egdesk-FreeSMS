@@ -34,6 +34,9 @@ export async function POST(req: Request) {
     const attendanceRes = await queryTable('crm_attendance');
     const attendance = attendanceRes.rows || [];
 
+    const contractsRes = await queryTable('crm_operator_contract_settings');
+    const contracts = contractsRes.rows || [];
+
     // 💡 하이브리드 프로필 스키마 맵 (부서, 백업대행, 역량스펙, 통근거리)
     const OPERATOR_DETAIL_MAP: Record<string, {
       department: string;
@@ -77,6 +80,11 @@ export async function POST(req: Request) {
           skills: "일반 서무",
           commute_area: "인근 통근"
         };
+        const contract = contracts.find((c: any) => String(c.operator_id) === String(e.id)) || {
+          hourly_wage: 10000,
+          weekly_hours: 40,
+          allow_weekly_holiday_paid: 1
+        };
         return {
           id: e.id,
           name: e.name,
@@ -84,7 +92,10 @@ export async function POST(req: Request) {
           department: detail.department,
           backup_operator_id: detail.backup_operator_id,
           skills: detail.skills,
-          commute_area: detail.commute_area
+          commute_area: detail.commute_area,
+          hourly_wage: contract.hourly_wage,
+          weekly_hours: contract.weekly_hours,
+          allow_weekly_holiday_paid: contract.allow_weekly_holiday_paid
         };
       }),
       leaves: leaves.map((l: any) => ({
@@ -113,13 +124,14 @@ export async function POST(req: Request) {
 
     // 3. RAG 프롬프트 설계
     const aiPrompt = `당신은 전사 기업 인사(HR) 및 공급망 관리(SCM) 전문 최고 분석관입니다.
-제공된 임직원 상세 프로필(부서, 백업 대행자, 기술 역량, 거주 통근지)과 회사 전사 일정 대장(company_events), 휴가 신청(leaves), 출퇴근 감사 데이터(attendance_summary)를 RAG 컨텍스트로 복합 학습하여 고밀도 인사 공백 경보를 시뮬레이션해 주세요.
+제공된 임직원 상세 프로필(부서, 백업 대행자, 기술 역량, 거주 통근지, 시급 및 계약시간 정보)과 회사 전사 일정 대장(company_events), 휴가 신청(leaves), 출퇴근 감사 데이터(attendance_summary)를 RAG 컨텍스트로 복합 학습하여 고밀도 인사 공백 경보 및 인건비 효율을 시뮬레이션해 주세요.
 
 [주요 분석 요구사항]:
 1. **부서 가동률 임계 체크**: 특정 부서원 과반이 동일 기간에 휴가를 신청했는지 판정해 리스크를 계산하세요. 특히, 1명만 있는 단독 부서(예: 구매팀 홍길동 과장)가 휴가일 때 비상 공백 리스크를 매우 높게 산정하세요.
 2. **대체 가능 역량 분석**: 휴가 예정자가 발생했을 때, 조직 내 다른 인원 중 동일 기술 역량(skills)을 가진 대체 지원 가능 임직원 명단을 권고안(briefingText)에 직접 매핑 추천하세요.
 3. **1차 백업 대행자 대조**: 휴가 신청자의 백업 담당자(backup_operator_id)가 해당 일자에 정상 근무 중인지, 혹은 중복 휴가 중인지 대조하여 리스크 가중치를 보정하세요.
 4. **기후-교통 연계 지각 시뮬레이션**: 회사 공통 일정 중 '폭설', '태풍', '집중호우' 등 악천후와 관련된 일정이나 마감 기한이 존재하고 해당 일에 통근 거리(commute_area)가 멀거나 광역버스/대중교통을 타는 직원이 있으면 지각 우려 리스크를 가산하고, 대체 유연 근무(재택 전환 등)를 능동 권고하세요.
+5. **재무 인건비 및 주휴수당 최적화**: 전사 직원들의 계약 시급 및 주당 근로시간을 인지하여, 이번 달 총 소모 인건비 및 주휴수당 지출 규모를 추산하고 "주 15시간 미만 초단기 교대 근무 안배를 통한 주휴수당 지출 최적화 방안" 또는 "인건비 누수 방지 스케줄 편성"에 대한 전략적 정성 피드백을 권고안(briefingText)에 포함하세요.
 
 반드시 아래 JSON 스키마만을 철저히 준수하여 순수 JSON 문자열로만 응답해 주세요. 다른 마크다운 백틱(\`\`\`) 기호나 텍스트는 절대 포함하지 마세요.
 
@@ -128,7 +140,7 @@ export async function POST(req: Request) {
   "riskScore": 65, // 0~100 사이의 정수 (리스크가 크면 높은 점수)
   "alertTitle": "6월 둘째 주 업무 공백 관심 단계 🟡", // 또는 "정상 🟢", "비상 경고 🔴" 등
   "alertMessage": "6월 15일 납품일 전날인 14일에 구매팀 홍길동 과장이 휴가를 신청했습니다. 구매 부서에 1인만 소속되어 있어 자재 수급 지연 위험이 있습니다.",
-  "briefingText": "구매팀 홍길동 과장의 휴가 기간 중 1차 백업자인 김철수 과장은 정상 가용 상태입니다. 다만 원활한 조율을 위해 'IT 및 전산 지원' 역량을 갖춘 개발본부 이영희 사원을 임시 전산 대체 자원으로 배치하는 것을 검토하세요. 또한 기상 악화 시 광역버스로 통근하는 이영희 사원의 지각 위험을 완화하기 위해 선제적 재택근무 전환을 자율 권장합니다."
+  "briefingText": "구매팀 홍길동 과장의 휴가 기간 중 1차 백업자인 김철수 과장은 정상 가용 상태입니다. 다만 원활한 조율을 위해 'IT 및 전산 지원' 역량을 갖춘 개발본부 이영희 사원을 임시 전산 대체 자원으로 배치하는 것을 검토하세요. 또한 기상 악화 시 광역버스로 통근하는 이영희 사원의 지각 위험을 완화하기 위해 선제적 재택근무 전환을 자율 권장합니다. 전사 인건비 리스크 분석 결과, 주 15시간 이상 근무자가 밀집하여 예상 주휴수당 총액이 상승세입니다. 초단기 파트타임 교대 조율을 통해 인건비 지출 효율을 추가 확보하실 수 있습니다."
 }
 
 [학습용 실시간 전사 HR 컨텍스트]:

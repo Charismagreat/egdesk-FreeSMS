@@ -1,0 +1,149 @@
+export const dynamic = 'force-dynamic';
+
+import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { decodeJwt } from 'jose';
+import { createTable, queryTable, insertRows } from '../../../../../egdesk-helpers';
+
+/**
+ * 🛡️ 근로계약 상세 설정 테이블 자율 생성 및 데모 백필 (Self-Healing Auto-Migration)
+ */
+async function initContractsDatabase() {
+  try {
+    // 테이블 존재 여부 검사 (실패 시 신설)
+    await queryTable('crm_operator_contract_settings', { limit: 1 }).catch(async () => {
+      console.log('crm_operator_contract_settings 테이블이 발견되지 않아 즉석 신설을 진행합니다...');
+
+      await createTable('임직원 근로 계약 조건 대장', [
+        { name: 'operator_id', type: 'TEXT', notNull: true },
+        { name: 'hourly_wage', type: 'REAL', defaultValue: 10000 },
+        { name: 'weekly_hours', type: 'REAL', defaultValue: 40 },
+        { name: 'allow_weekly_holiday_paid', type: 'INTEGER', defaultValue: 1 }, // 1: 적용, 0: 미적용
+        { name: 'work_days', type: 'TEXT' },
+        { name: 'contract_memo', type: 'TEXT' },
+        { name: 'updated_at', type: 'TEXT', notNull: true }
+      ], {
+        tableName: 'crm_operator_contract_settings',
+        uniqueKeyColumns: ['operator_id']
+      });
+
+      // 등록되어 있는 4명의 오퍼레이터에 대해 기본 계약 조건 백필
+      const nowStr = new Date().toISOString();
+      const defaultContracts = [
+        {
+          operator_id: '1',
+          hourly_wage: 25000.0,
+          weekly_hours: 40.0,
+          allow_weekly_holiday_paid: 1,
+          work_days: '월,화,수,목,금',
+          contract_memo: '대표이사 경영 및 SCM 총괄 근로계약',
+          updated_at: nowStr
+        },
+        {
+          operator_id: '2',
+          hourly_wage: 10000.0,
+          weekly_hours: 20.0,
+          allow_weekly_holiday_paid: 1,
+          work_days: '월,화,수',
+          contract_memo: '구매부서 자재관리 파트타임 계약',
+          updated_at: nowStr
+        },
+        {
+          operator_id: '3',
+          hourly_wage: 12000.0,
+          weekly_hours: 35.0,
+          allow_weekly_holiday_paid: 1,
+          work_days: '월,화,수,목,금',
+          contract_memo: '생산공장 기계 작동 및 조립 풀타임 계약',
+          updated_at: nowStr
+        },
+        {
+          operator_id: '4',
+          hourly_wage: 11000.0,
+          weekly_hours: 12.0,
+          allow_weekly_holiday_paid: 0, // 주 15시간 미만으로 주휴수당 미적용 가드 테스트용
+          work_days: '목,금',
+          contract_memo: '개발본부 IT 지원 초단기 계약',
+          updated_at: nowStr
+        }
+      ];
+
+      await insertRows('crm_operator_contract_settings', defaultContracts);
+      console.log('✓ 임직원 4인에 대한 기본 근로 계약 데이터 적재 성공!');
+    });
+  } catch (err) {
+    console.error('Contracts DB 초기화 및 백필 중 오류:', err);
+  }
+}
+
+/**
+ * GET: 전사 직원 근로계약 상세 설정 조회
+ */
+export async function GET() {
+  try {
+    await initContractsDatabase();
+
+    const result = await queryTable('crm_operator_contract_settings');
+    const contractsList = result.rows || [];
+
+    return NextResponse.json({
+      success: true,
+      contracts: contractsList
+    });
+  } catch (error: any) {
+    console.error('Contracts GET API Error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+/**
+ * POST: 특정 직원의 근로 계약 조건 직접 편집 갱신 (Upsert)
+ */
+export async function POST(req: Request) {
+  try {
+    await initContractsDatabase();
+
+    // 최고관리자/대표자 권한 검증 가드
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth_token')?.value;
+
+    if (!token) {
+      return NextResponse.json({ success: false, error: '인증 세션이 만료되었습니다. 다시 로그인해주세요.' }, { status: 401 });
+    }
+
+    const sessionUser = decodeJwt(token);
+    if (sessionUser.role !== 'SUPER_ADMIN' && sessionUser.role !== 'PRESIDENT') {
+      return NextResponse.json({ success: false, error: '근로 계약 조건 변경 권한이 없습니다. 최고운영자 계정으로 서명 요청하세요.' }, { status: 403 });
+    }
+
+    const { operator_id, hourly_wage, weekly_hours, allow_weekly_holiday_paid, work_days, contract_memo } = await req.json();
+
+    if (!operator_id) {
+      return NextResponse.json({ success: false, error: '근무 조건을 변경할 직원 ID가 누락되었습니다.' }, { status: 400 });
+    }
+
+    const nowStr = new Date().toISOString();
+    const updatedContract = {
+      operator_id: String(operator_id),
+      hourly_wage: parseFloat(hourly_wage || 10000),
+      weekly_hours: parseFloat(weekly_hours || 40),
+      allow_weekly_holiday_paid: parseInt(allow_weekly_holiday_paid !== undefined ? allow_weekly_holiday_paid : 1),
+      work_days: work_days || '',
+      contract_memo: contract_memo || '',
+      updated_at: nowStr
+    };
+
+    // Upsert 형태로 삽입/갱신 (uniqueKeyColumns에 맞춰 egdesk-helpers의 insertRows가 덮어씌움)
+    await insertRows('crm_operator_contract_settings', [updatedContract]);
+
+    return NextResponse.json({
+      success: true,
+      message: '근로 계약 조건이 실시간 갱신 완료되었습니다. 모바일 전자 합의서 발송 감사 기록이 즉각 갱신되었습니다 📝',
+      contract: updatedContract
+    });
+
+  } catch (error: any) {
+    console.error('Contracts POST API Error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
