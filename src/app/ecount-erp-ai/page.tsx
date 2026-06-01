@@ -179,37 +179,26 @@ export default function EcountErpAiPage() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8 text-slate-800">
+    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800">
       
-      {/* 1. 상단 헤더 영역 (밝은 테마 30px 타이틀 여백 통일) */}
-      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between border-b border-slate-200 pb-6">
-        <div>
-          <div className="flex items-center space-x-2">
-            <span className="flex h-2 w-2 rounded-full bg-sky-500 animate-pulse"></span>
-            <span className="text-xs font-semibold uppercase tracking-wider text-sky-600">EGDESK ERP CONNECTOR</span>
-          </div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 mt-1 flex items-center">
-            이카운트 ERP AI <Sparkles className="w-6 h-6 ml-2 text-sky-500 animate-bounce" />
-          </h1>
-          <p className="text-sm text-slate-500 mt-2">
-            이지데스크서버의 로컬 RPA 스크립트를 동적으로 원격 기동하여 이카운트 엑셀 원장을 SQLite DB 물리 테이블에 안전하게 자동 이식합니다.
-          </p>
-        </div>
+      {/* 1. 상단 헤더 영역 (다른 메뉴와 완벽 통일) */}
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold text-slate-800">이카운트 ERP AI</h1>
         
         {/* 우측 퀵 액션 */}
-        <div className="mt-4 md:mt-0 flex items-center space-x-3">
+        <div className="flex items-center space-x-2">
           <button 
             onClick={fetchScripts}
-            className="flex items-center space-x-1 px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-950 transition-all shadow-sm"
+            className="flex items-center space-x-1 px-3.5 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all shadow-xs"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className="w-3.5 h-3.5" />
             <span>새로고침</span>
           </button>
           <Link 
             href="/my-db"
-            className="flex items-center space-x-1 px-4 py-2 bg-blue-600 rounded-lg text-sm text-white hover:bg-blue-700 transition-all shadow-md shadow-blue-500/10"
+            className="flex items-center space-x-1 px-4 py-2 bg-blue-600 rounded-lg text-xs font-bold text-white hover:bg-blue-700 transition-all shadow-sm shadow-blue-500/10"
           >
-            <Database className="w-4 h-4" />
+            <Database className="w-3.5 h-3.5" />
             <span>MY DB 바로가기</span>
           </Link>
         </div>
