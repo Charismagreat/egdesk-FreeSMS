@@ -31,6 +31,7 @@ interface EcountScript {
   defaultDaysRange: number;
   columns: string[];
   isRealFileAvailable?: boolean;
+  isTableCreated?: boolean;
 }
 
 export default function EcountErpAiPage() {
@@ -268,16 +269,25 @@ export default function EcountErpAiPage() {
                   >
                     {/* 카테고리 뱃지 및 상태 LED */}
                     <div className="flex items-center justify-between mb-3.5">
-                      <span className={`px-2.5 py-0.5 rounded-lg text-[9px] font-bold tracking-wider uppercase ${
-                        script.category === '매출' ? 'bg-emerald-100 text-emerald-700' :
-                        script.category === '매입' ? 'bg-rose-100 text-rose-700' :
-                        script.category === '재고' ? 'bg-cyan-100 text-cyan-700' :
-                        script.category === '거래처' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-700'
-                      }`}>
-                        {script.category}
-                      </span>
+                      <div className="flex items-center space-x-1.5 min-w-0">
+                        <span className={`px-2.5 py-0.5 rounded-lg text-[9px] font-bold tracking-wider uppercase shrink-0 ${
+                          script.category === '매출' ? 'bg-emerald-100 text-emerald-700' :
+                          script.category === '매입' ? 'bg-rose-100 text-rose-700' :
+                          script.category === '재고' ? 'bg-cyan-100 text-cyan-700' :
+                          script.category === '거래처' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-700'
+                        }`}>
+                          {script.category}
+                        </span>
+                        
+                        {!script.isTableCreated && (
+                          <span className="px-1.5 py-0.5 rounded-lg text-[9px] font-bold bg-amber-50 text-amber-600 border border-amber-200 shrink-0 flex items-center gap-0.5" title="데이터베이스에 이 테이블이 존재하지 않습니다. RPA 동기화를 구동하세요.">
+                            <span>⚠️</span>
+                            <span>테이블 미생성</span>
+                          </span>
+                        )}
+                      </div>
                       
-                      <div className="flex items-center space-x-1">
+                      <div className="flex items-center space-x-1 shrink-0">
                         <span className={`h-1.5 w-1.5 rounded-full ${script.isRealFileAvailable ? 'bg-green-500 animate-pulse' : 'bg-blue-400'}`}></span>
                         <span className="text-[9px] font-semibold text-slate-500">
                           {script.isRealFileAvailable ? '연동됨' : '시뮬'}
@@ -303,9 +313,16 @@ export default function EcountErpAiPage() {
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-slate-500">DB 테이블:</span>
-                        <code className="px-1.5 py-0.5 bg-slate-100 text-slate-800 rounded font-mono text-[9px] font-semibold border border-slate-200 truncate max-w-[100px]" title={script.targetTable}>
-                          {script.targetTable}
-                        </code>
+                        <div className="flex items-center space-x-1.5">
+                          <span className={`h-1.5 w-1.5 rounded-full ${script.isTableCreated ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
+                          <code className={`px-1.5 py-0.5 rounded font-mono text-[9px] font-semibold border transition-all ${
+                            script.isTableCreated 
+                              ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+                              : 'bg-rose-50/50 border-rose-200 text-rose-700/80 line-through opacity-70'
+                          }`} title={script.isTableCreated ? `물리 테이블 연동 완료: ${script.targetTable}` : `테이블 미생성 (RPA 구동 필요): ${script.targetTable}`}>
+                            {script.targetTable}
+                          </code>
+                        </div>
                       </div>
                     </div>
 

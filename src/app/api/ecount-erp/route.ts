@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { EGDESK_CONFIG } from '../../../../egdesk.config';
+import { listTables } from '../../../../egdesk-helpers';
 
 // 5대 표준 시나리오 메타데이터 맵 (실제 파일과 동적 매핑용)
 const SCRIPT_METADATA_PRESETS: Record<string, { title: string; menuPath: string; targetTable: string; description: string; category: string; columns: string[]; defaultDaysRange: number }> = {
@@ -79,7 +80,8 @@ const FALLBACK_SCRIPTS = [
     category: '매출',
     defaultDaysRange: 30,
     columns: ['거래일자', '전표번호', '거래처명', '공급가액', '부가세', '합계금액', '적요'],
-    isRealFileAvailable: false
+    isRealFileAvailable: false,
+    isTableCreated: false
   },
   {
     fileName: 'ecount_purchase_ledger.spec.js',
@@ -90,7 +92,8 @@ const FALLBACK_SCRIPTS = [
     category: '매입',
     defaultDaysRange: 30,
     columns: ['거래일자', '전표번호', '공급처명', '공급가액', '부가세', '합계금액', '계정과목'],
-    isRealFileAvailable: false
+    isRealFileAvailable: false,
+    isTableCreated: false
   },
   {
     fileName: 'ecount_inventory_status.spec.js',
@@ -101,12 +104,13 @@ const FALLBACK_SCRIPTS = [
     category: '재고',
     defaultDaysRange: 0,
     columns: ['품목코드', '품목명', '규격', '창고명', '현재고수량', '안전재고수량', '재고상태'],
-    isRealFileAvailable: false
+    isRealFileAvailable: false,
+    isTableCreated: false
   }
 ];
 
 /**
- * GET: 이지데스크서버 REST API 직접 연동을 통한 실제 스크립트 동적 매핑 조회
+ * GET: 이지데스크서버 REST API 직접 연동을 통한 실제 스크립트 동적 매핑 및 SQLite 물리 테이블 존재 진단
  */
 export async function GET() {
   try {
@@ -121,7 +125,20 @@ export async function GET() {
 
     console.log(`[GET /api/ecount-erp] 이지데스크 REST API 호출 중: ${apiUrl}/browser-recording/tools/call`);
 
-    // 1. 이지데스크서버 REST API 직접 POST 호출 (list_saved_tests 도구 직접 실행)
+    // 1. SQLite 데이터베이스에 생성되어 존재하는 물리 테이블 목록 조회 🔒
+    let dbTables: string[] = [];
+    try {
+      const tablesRes = await listTables();
+      const rows = tablesRes.rows || tablesRes || [];
+      if (Array.isArray(rows)) {
+        dbTables = rows.map((t: any) => t.tableName || t.name || '').filter(Boolean);
+      }
+      console.log('SQLite 실제 감지된 테이블 목록:', dbTables);
+    } catch (err: any) {
+      console.warn('이지데스크 DB 테이블 목록 조회 실패폴백 적용:', err.message);
+    }
+
+    // 2. 이지데스크서버 REST API 직접 POST 호출 (list_saved_tests 도구 직접 실행)
     const res = await fetch(`${apiUrl}/browser-recording/tools/call`, {
       method: 'POST',
       headers,
@@ -145,14 +162,19 @@ export async function GET() {
     const tests = mcpData.tests || [];
 
     if (!Array.isArray(tests) || tests.length === 0) {
+      // 폴백 스크립트에도 실시간 테이블 생성 체크 동적 반영
+      const mappedFallback = FALLBACK_SCRIPTS.map(mock => ({
+        ...mock,
+        isTableCreated: dbTables.includes(mock.targetTable)
+      }));
       return NextResponse.json({
         success: true,
-        scripts: FALLBACK_SCRIPTS,
+        scripts: mappedFallback,
         message: '이지데스크서버와 연결되었으나 저장된 RPA 스크립트 파일이 없습니다.'
       });
     }
 
-    // 2. 이지데스크서버에 실제로 존재하는 파일 목록(.spec.js)을 가공 및 이카운트 메타데이터 동적 매핑
+    // 3. 이지데스크서버에 실제로 존재하는 파일 목록(.spec.js)을 가공 및 이카운트 메타데이터 동적 매핑
     const resolvedScripts = tests.map((test: any) => {
       const fileName = test.name;
       const lowerName = fileName.toLowerCase();
@@ -205,6 +227,9 @@ export async function GET() {
         title = '이카운트 발주 대장 동기화';
       }
 
+      // SQLite DB에 실제로 해당 물리 테이블이 생성되어 있는지 유효성 진단
+      const isTableCreated = dbTables.includes(preset.targetTable);
+
       return {
         fileName,
         title,
@@ -214,7 +239,8 @@ export async function GET() {
         category: preset.category,
         defaultDaysRange: preset.defaultDaysRange,
         columns: preset.columns,
-        isRealFileAvailable: true // 100% 이지데스크서버 물리 디렉토리에서 읽은 파일이므로 무조건 true!
+        isRealFileAvailable: true,
+        isTableCreated // 테이블 생성 여부 플래그
       };
     });
 
@@ -226,7 +252,7 @@ export async function GET() {
   } catch (error: any) {
     console.error('[GET /api/ecount-erp] REST API 바인딩 에러, FALLBACK 제공:', error.message);
     return NextResponse.json({
-      success: true, // 에러 대신 폴백 리스트 반환하여 페이지 깨짐 방지
+      success: true,
       scripts: FALLBACK_SCRIPTS,
       message: `이지데스크 서버 REST API 조회 중 경고: ${error.message}`
     });
