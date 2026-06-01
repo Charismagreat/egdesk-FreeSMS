@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { 
   ShieldAlert, Shield, UploadCloud, Lock, 
   Send, Bot, Mic, Compass, Cpu, CheckCircle2, AlertCircle, 
-  X, Layers, Play, UserCheck, RefreshCw,
+  X, Layers, Play, UserCheck, RefreshCw, Settings, Trash2, Plus,
   GitBranch, HelpCircle, ArrowRight
 } from "lucide-react";
 
@@ -38,12 +38,26 @@ interface KnowledgeDocument {
   approvals?: DocumentApproval[];
 }
 
+interface AssetType {
+  id: string;
+  type_name: string;
+  created_at: string;
+  created_by: string;
+}
+
 export default function KnowledgeAiDashboard() {
   // 상태 변수
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDoc, setSelectedDoc] = useState<KnowledgeDocument | null>(null);
   
+  // 동적 자산 종류 목록 상태
+  const [assetTypes, setAssetTypes] = useState<AssetType[]>([]);
+  const [isAssetTypesLoading, setIsAssetTypesLoading] = useState(true);
+  const [isTypeVaultOpen, setIsTypeVaultOpen] = useState(false);
+  const [newAssetTypeName, setNewAssetTypeName] = useState("");
+  const [vaultError, setVaultError] = useState<string | null>(null);
+
   // 모의 세션 권한 (Zero-Trust 데모용 토글 지원)
   const [currentUser, setCurrentUser] = useState("ceo_park");
   const [currentRole, setCurrentRole] = useState<"SUPER_ADMIN" | "PRESIDENT" | "SUB_OPERATOR">("SUPER_ADMIN");
@@ -51,7 +65,7 @@ export default function KnowledgeAiDashboard() {
   
   // 업로드 관련 상태
   const [uploadTitle, setUploadTitle] = useState("");
-  const [uploadType, setUploadType] = useState("CAD_BLUEPRINT");
+  const [uploadType, setUploadType] = useState(""); // 동적 바인딩을 위해 공백으로 초기화
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -79,7 +93,87 @@ export default function KnowledgeAiDashboard() {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [audioProgress, setAudioProgress] = useState(0);
 
-  // 데이터 로드
+  // 1. 자산 종류(Category) 리스트 가져오기
+  const fetchAssetTypes = async () => {
+    setIsAssetTypesLoading(true);
+    try {
+      const res = await fetch("/api/knowledge-ai/types");
+      const data = await res.json();
+      if (data.success && data.assetTypes) {
+        setAssetTypes(data.assetTypes);
+        // 기본 기안 상신용 자산 종류 디폴트값 설정
+        if (data.assetTypes.length > 0 && !uploadType) {
+          setUploadType(data.assetTypes[0].type_name);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load asset types:", err);
+    } finally {
+      setIsAssetTypesLoading(false);
+    }
+  };
+
+  // 2. 신규 자산 종류 등록 (최고관리자 권한 필요)
+  const handleCreateAssetType = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAssetTypeName.trim()) return;
+    setVaultError(null);
+
+    try {
+      const res = await fetch("/api/knowledge-ai/types", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "CREATE",
+          type_name: newAssetTypeName,
+          user_role: currentRole,
+          user_id: currentUser
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAssetTypes(data.assetTypes);
+        setNewAssetTypeName("");
+      } else {
+        setVaultError(data.error);
+      }
+    } catch (err) {
+      console.error(err);
+      setVaultError("네트워크 오류가 발생했습니다.");
+    }
+  };
+
+  // 3. 자산 종류 삭제 (최고관리자 권한 & 사용량 무결성 락 작동)
+  const handleDeleteAssetType = async (id: string) => {
+    setVaultError(null);
+    try {
+      const res = await fetch("/api/knowledge-ai/types", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "DELETE",
+          id,
+          user_role: currentRole,
+          user_id: currentUser
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAssetTypes(data.assetTypes);
+        // 혹시 업로드 선택된 상태였으면 첫번째로 재조정
+        if (data.assetTypes.length > 0) {
+          setUploadType(data.assetTypes[0].type_name);
+        }
+      } else {
+        setVaultError(data.error);
+      }
+    } catch (err) {
+      console.error(err);
+      setVaultError("네트워크 오류가 발생했습니다.");
+    }
+  };
+
+  // 지식 문서 데이터 로드
   const fetchDocuments = async () => {
     setIsLoading(true);
     try {
@@ -91,7 +185,6 @@ export default function KnowledgeAiDashboard() {
         if (data.documents.length > 0 && !selectedDoc) {
           setSelectedDoc(data.documents[0]);
         } else if (selectedDoc) {
-          // 기존 선택된 문서 갱신
           const updated = data.documents.find((d: any) => d.document_id === selectedDoc.document_id);
           if (updated) setSelectedDoc(updated);
         }
@@ -104,6 +197,7 @@ export default function KnowledgeAiDashboard() {
   };
 
   useEffect(() => {
+    fetchAssetTypes();
     fetchDocuments();
   }, [currentUser, currentRole, currentDept]);
 
@@ -161,11 +255,11 @@ export default function KnowledgeAiDashboard() {
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!uploadTitle.trim()) return alert("기안 문서 제목을 입력하십시오.");
+    if (!uploadType) return alert("자산 종류를 지정하십시오.");
 
     setIsUploading(true);
     setUploadProgress(10);
 
-    // 업로드 모션 시뮬레이션
     const interval = setInterval(() => {
       setUploadProgress(prev => {
         if (prev >= 90) {
@@ -179,10 +273,17 @@ export default function KnowledgeAiDashboard() {
     setTimeout(async () => {
       try {
         const dummyFileName = 
-          uploadType === "CAD_BLUEPRINT" ? "engine_casing_v4.dwg" :
-          uploadType === "B_CARD" ? "partner_ceo_card.jpg" :
-          uploadType === "AUDIO_RECORDING" ? "board_meeting_0601.mp3" :
+          uploadType.includes("도면") ? "engine_casing_v4.dwg" :
+          uploadType.includes("녹음") || uploadType.includes("영상") ? "board_meeting_0601.mp3" :
+          uploadType.includes("명함") ? "partner_ceo_card.jpg" :
           "office_supplies_request.xlsx";
+
+        // 파서용 매핑 명칭
+        const internalDocType = 
+          uploadType.includes("도면") ? "CAD_BLUEPRINT" :
+          uploadType.includes("명함") ? "B_CARD" :
+          uploadType.includes("녹음") || uploadType.includes("영상") ? "AUDIO_RECORDING" :
+          uploadType.includes("회의록") ? "MINUTES" : "PROPOSAL";
 
         const res = await fetch("/api/knowledge-ai", {
           method: "POST",
@@ -190,7 +291,7 @@ export default function KnowledgeAiDashboard() {
           body: JSON.stringify({
             action: "UPLOAD",
             title: uploadTitle,
-            doc_type: uploadType,
+            doc_type: uploadType, // 최고관리자가 정의한 한글 분류명 그대로 적재
             creator_id: currentUser,
             dept_code: currentDept,
             file_name: dummyFileName,
@@ -204,7 +305,6 @@ export default function KnowledgeAiDashboard() {
           setAutopilotResult(data.document);
           setShowAutopilotModal(true);
           
-          // 게이지 상승 모션
           let currentScore = 0;
           const target = data.document.autopilot_score;
           const scoreInterval = setInterval(() => {
@@ -217,7 +317,6 @@ export default function KnowledgeAiDashboard() {
             }
           }, 30);
 
-          // 데이터 갱신
           setUploadTitle("");
           setUploadFile(null);
           fetchDocuments();
@@ -239,7 +338,6 @@ export default function KnowledgeAiDashboard() {
     setChatMessages(prev => [...prev, { sender: "user", text: userText }]);
     setChatInput("");
 
-    // RAG 지능형 지식 분석 답변 시뮬레이션
     setTimeout(() => {
       let responseText = "";
       let responseTable: any[] | undefined = undefined;
@@ -248,7 +346,6 @@ export default function KnowledgeAiDashboard() {
       const lower = userText.toLowerCase();
 
       if (lower.includes("배터리") || lower.includes("cad") || lower.includes("도면")) {
-        // A등급 기밀 (최고관리자/대표이사일때만 결과 반환)
         if (currentRole === "SUPER_ADMIN" || currentRole === "PRESIDENT") {
           responseText = "차세대 초경량 배터리팩 3D 설계도(doc-cad-001)에 따르면, 에너지 밀도 개선을 위해 핵심 다이캐스팅 압착 프레임 설계와 냉각 통로가 탑재되어 있습니다. 분석된 핵심 자재 BOM 리스트는 다음과 같습니다.";
           responseTable = [
@@ -492,24 +589,43 @@ export default function KnowledgeAiDashboard() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
+              <div className="grid grid-cols-12 gap-3">
+                <div className="col-span-8">
                   <label className="block text-xs text-slate-500 mb-1.5 font-medium">자산 종류</label>
-                  <select 
-                    value={uploadType}
-                    onChange={(e) => setUploadType(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-blue-500 text-slate-700"
-                  >
-                    <option value="CAD_BLUEPRINT">CAD 도면 (.dwg)</option>
-                    <option value="B_CARD">명함 이미지 (.jpg)</option>
-                    <option value="AUDIO_RECORDING">오디오 녹취 (.mp3)</option>
-                    <option value="PROPOSAL">일반 소액 품의서</option>
-                  </select>
+                  <div className="flex gap-1.5">
+                    {/* 동적 자산 분류 리스트 연동 */}
+                    <select 
+                      value={uploadType}
+                      onChange={(e) => setUploadType(e.target.value)}
+                      className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-blue-500 text-slate-700"
+                    >
+                      {isAssetTypesLoading ? (
+                        <option>분류 로딩 중...</option>
+                      ) : assetTypes.map(item => (
+                        <option key={item.id} value={item.type_name}>
+                          {item.type_name}
+                        </option>
+                      ))}
+                    </select>
+
+                    {/* 최고관리자/대표자용 자산 종류 동적 관리 톱니바퀴 이식 */}
+                    {(currentRole === "SUPER_ADMIN" || currentRole === "PRESIDENT") && (
+                      <button
+                        type="button"
+                        onClick={() => { setVaultError(null); setIsTypeVaultOpen(true); }}
+                        className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl border border-slate-200 text-slate-500 transition-colors flex items-center justify-center"
+                        title="자산 종류 동적 편집 및 무결성 락 관리"
+                      >
+                        <Settings className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div>
+                
+                <div className="col-span-4">
                   <label className="block text-xs text-slate-500 mb-1.5 font-medium">기안자 및 소속</label>
-                  <div className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-500 font-mono select-none">
-                    {currentUser} ({currentDept})
+                  <div className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-500 font-mono select-none truncate">
+                    {currentUser}
                   </div>
                 </div>
               </div>
@@ -583,7 +699,7 @@ export default function KnowledgeAiDashboard() {
                   </div>
 
                   <div className="flex flex-col items-end justify-between self-stretch font-mono">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-sans ${doc.status === "APPROVED_AUTO" ? "bg-emerald-50 text-emerald-600 border border-emerald-200" : doc.status === "APPROVED_MANUAL" ? "bg-cyan-50 text-cyan-600 border border-cyan-200" : doc.status === "REJECTED" ? "bg-rose-50 text-rose-600 border border-rose-200" : "bg-yellow-50 text-yellow-600 border border-yellow-200"}`}>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full font-sans ${doc.status === "APPROVED_AUTO" ? "bg-emerald-50 text-emerald-600 border border-emerald-200" : doc.status === "APPROVED_MANUAL" ? "bg-cyan-50 text-cyan-600 border border-cyan-200" : doc.status === "REJECTED" ? "bg-rose-50 text-rose-600 border-rose-200" : "bg-yellow-50 text-yellow-600 border border-yellow-200"}`}>
                       {doc.status === "APPROVED_AUTO" ? "자동전결" : doc.status === "APPROVED_MANUAL" ? "수동승인" : doc.status === "REJECTED" ? "반려됨" : "결재중"}
                     </span>
                     {doc.autopilot_score > 0 && (
@@ -629,13 +745,12 @@ export default function KnowledgeAiDashboard() {
 
               {/* 비정형 유형별 시각적 프리뷰 영역 */}
               <div className="mb-4">
-                {selectedDoc.doc_type === "CAD_BLUEPRINT" && (
+                {(selectedDoc.doc_type.includes("도면") || selectedDoc.doc_type === "CAD_BLUEPRINT") && (
                   <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden relative select-none">
                     <div className="flex justify-between items-center bg-slate-950 px-3 py-1.5 text-[10px] text-slate-400 font-mono border-b border-slate-800">
                       <span>2D/3D Vector Engine CAD Viewer ({cadZoom.toFixed(1)}x)</span>
                       <span>BOM List Auto-Linked</span>
                     </div>
-                    {/* CAD Canvas */}
                     <div 
                       onMouseDown={handleCadMouseDown}
                       onMouseMove={handleCadMouseMove}
@@ -663,7 +778,6 @@ export default function KnowledgeAiDashboard() {
                         
                         <text x="35" y="125" fill="#22c55e" fontSize="7" fontFamily="monospace">FRAME MODEL V4.0 (AL-6061)</text>
                       </svg>
-                      {/* 컨트롤 줌 단추 */}
                       <div className="absolute right-3 bottom-3 flex flex-col gap-1 z-10">
                         <button 
                           onClick={() => setCadZoom(z => Math.min(z + 0.2, 3))}
@@ -688,13 +802,12 @@ export default function KnowledgeAiDashboard() {
                   </div>
                 )}
 
-                {selectedDoc.doc_type === "B_CARD" && (
+                {(selectedDoc.doc_type.includes("명함") || selectedDoc.doc_type === "B_CARD") && (
                   <div className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden">
                     <div className="bg-slate-100 px-3 py-1.5 text-[10px] text-slate-500 font-mono border-b border-slate-200">
                       B2B 명함 실물 이미지 & AI OCR 정밀 해독 매핑
                     </div>
                     <div className="p-3 grid grid-cols-2 gap-4">
-                      {/* 명함 렌더링 */}
                       <div className="bg-slate-800 border border-slate-700 p-4 rounded-lg flex flex-col justify-between h-32 text-slate-200 shadow-md select-none">
                         <div>
                           <div className="text-[9px] tracking-widest text-slate-400 font-semibold mb-2">M M I N N O V A T I O N</div>
@@ -706,7 +819,6 @@ export default function KnowledgeAiDashboard() {
                         </div>
                       </div>
                       
-                      {/* OCR 파싱 맵 */}
                       <div className="text-xs flex flex-col justify-center space-y-2 border-l border-slate-200 pl-4 font-mono">
                         <div className="flex justify-between border-b border-slate-100 pb-1">
                           <span className="text-slate-400">회사명:</span>
@@ -729,7 +841,7 @@ export default function KnowledgeAiDashboard() {
                   </div>
                 )}
 
-                {selectedDoc.doc_type === "AUDIO_RECORDING" && (
+                {(selectedDoc.doc_type.includes("녹음") || selectedDoc.doc_type.includes("영상") || selectedDoc.doc_type === "AUDIO_RECORDING") && (
                   <div className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden">
                     <div className="bg-slate-100 px-3 py-1.5 text-[10px] text-slate-500 font-mono border-b border-slate-200">
                       AI 화자분할 회의 오디오 비주얼라이저
@@ -743,7 +855,6 @@ export default function KnowledgeAiDashboard() {
                           <Play className="w-4 h-4 fill-white" />
                         </button>
                         
-                        {/* 파형 시각화 */}
                         <div className="flex items-end gap-1.5 flex-1 h-9 select-none">
                           {[15, 30, 20, 45, 10, 25, 40, 50, 15, 35, 20, 48, 10, 30, 45, 15, 25, 40, 20].map((h, i) => (
                             <div 
@@ -762,7 +873,6 @@ export default function KnowledgeAiDashboard() {
                         </span>
                       </div>
                       
-                      {/* 타임라인 실시간 STT 자막 시뮬레이션 */}
                       <div className="bg-slate-900 border border-slate-850 p-2.5 rounded-lg text-xs font-mono max-h-16 overflow-y-auto scrollbar-thin select-none text-slate-300">
                         <div className={`transition-all duration-300 ${audioProgress < 40 ? "text-cyan-400 font-bold" : "text-slate-400"}`}>
                           <span className="text-slate-500">[00:02 최윤석 부사장]:</span> 북미 시장 벤처 기업 M&A를 적극 타진하겠습니다.
@@ -879,7 +989,6 @@ export default function KnowledgeAiDashboard() {
                 <Bot className="w-4 h-4 text-blue-500" />
                 지식 비서 EasyBot
               </h2>
-              {/* 보안 등급 LED */}
               <div className="flex items-center gap-1.5">
                 <div className={`w-2.5 h-2.5 rounded-full animate-pulse ${currentRole === "SUPER_ADMIN" ? "bg-rose-500" : "bg-emerald-500"}`} />
                 <span className="text-[9px] text-slate-500 font-semibold">{currentRole}</span>
@@ -893,7 +1002,6 @@ export default function KnowledgeAiDashboard() {
                   <div className={`p-2.5 rounded-xl max-w-[90%] leading-relaxed ${msg.sender === "user" ? "bg-blue-600 text-white rounded-tr-none" : "bg-slate-50 border border-slate-250 text-slate-700 rounded-tl-none font-sans"}`}>
                     {msg.text}
                     
-                    {/* 데이터 요약 테이블 출력 */}
                     {msg.tableData && (
                       <div className="mt-2.5 overflow-x-auto border-t border-slate-200 pt-2 font-sans select-none">
                         <table className="w-full text-[10px] text-left border-collapse text-slate-750">
@@ -918,7 +1026,6 @@ export default function KnowledgeAiDashboard() {
                     )}
                   </div>
 
-                  {/* 출처 결재문서 링크 */}
                   {msg.docLink && (
                     <button 
                       onClick={() => {
@@ -968,7 +1075,6 @@ export default function KnowledgeAiDashboard() {
               </h2>
             </div>
             
-            {/* Dynamic 2D Node Network Map Simulation */}
             <div className="flex-1 bg-slate-50 border border-slate-200 rounded-xl relative overflow-hidden flex items-center justify-center select-none">
               <svg width="100%" height="100%" className="absolute">
                 <circle cx="100" cy="90" r="70" fill="none" stroke="#e2e8f0" strokeWidth="0.8" />
@@ -983,25 +1089,25 @@ export default function KnowledgeAiDashboard() {
                 <circle cx="100" cy="90" r="6" fill="#2563eb" />
                 
                 <circle cx="60" cy="50" r="5" fill="#f43f5e" className="cursor-pointer" onClick={() => {
-                  const d = documents.find(doc => doc.doc_type === "CAD_BLUEPRINT");
+                  const d = documents.find(doc => doc.doc_type.includes("도면") || doc.doc_type === "CAD_BLUEPRINT");
                   if (d) setSelectedDoc(d);
                 }} />
                 <text x="35" y="42" fill="#e11d48" fontSize="6" fontFamily="monospace" fontWeight="bold">BATTERY_CAD(A)</text>
                 
                 <circle cx="140" cy="50" r="5" fill="#f43f5e" className="cursor-pointer" onClick={() => {
-                  const d = documents.find(doc => doc.doc_type === "AUDIO_RECORDING");
+                  const d = documents.find(doc => doc.doc_type.includes("녹음") || doc.doc_type.includes("영상") || doc.doc_type === "AUDIO_RECORDING");
                   if (d) setSelectedDoc(d);
                 }} />
                 <text x="125" y="42" fill="#e11d48" fontSize="6" fontFamily="monospace" fontWeight="bold">M&A_STRATEGY(A)</text>
 
                 <circle cx="50" cy="120" r="5" fill="#d97706" className="cursor-pointer" onClick={() => {
-                  const d = documents.find(doc => doc.doc_type === "REPORT");
+                  const d = documents.find(doc => doc.doc_type.includes("보고서") || doc.doc_type === "REPORT");
                   if (d) setSelectedDoc(d);
                 }} />
                 <text x="20" y="132" fill="#b45309" fontSize="6" fontFamily="monospace" fontWeight="bold">SALES_Q2(B)</text>
 
                 <circle cx="150" cy="125" r="5" fill="#059669" className="cursor-pointer" onClick={() => {
-                  const d = documents.find(doc => doc.doc_type === "PROPOSAL");
+                  const d = documents.find(doc => doc.doc_type.includes("품의서") || doc.doc_type === "PROPOSAL");
                   if (d) setSelectedDoc(d);
                 }} />
                 <text x="135" y="137" fill="#047857" fontSize="6" fontFamily="monospace" fontWeight="bold">GAS_BILL(C)</text>
@@ -1035,7 +1141,6 @@ export default function KnowledgeAiDashboard() {
               <p className="text-xs text-slate-400 mt-1">상신 문서를 정밀 채점하여 전결 적합도를 계산합니다.</p>
             </div>
 
-            {/* 네온 게이지 채점 바 */}
             <div className="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
               <div className="flex justify-between text-xs font-mono">
                 <span className="text-slate-450">결재 적합성 점수:</span>
@@ -1056,14 +1161,13 @@ export default function KnowledgeAiDashboard() {
               </div>
             </div>
 
-            {/* 채점 최종 분석 */}
             <div className="mt-4 text-xs font-mono leading-relaxed space-y-3 bg-slate-50 p-3 rounded-lg border border-slate-200">
               {autopilotResult.status === "APPROVED_AUTO" ? (
                 <>
                   <div className="text-emerald-600 font-bold flex items-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5" /> AI 자동 파일럿 전결 승인 완료!
                   </div>
-                  <p className="text-slate-600 text-[11px] font-sans">
+                  <p className="text-slate-650 text-[11px] font-sans">
                     소액 품의 금액 기준 만족 및 서식 일치성 98.7%로 전결 요건을 완수하여 즉시 최종 승인되었습니다.
                   </p>
                   <div className="text-[10px] bg-rose-50 text-rose-600 p-2.5 rounded border border-rose-200 font-semibold font-sans mt-2 flex items-start gap-1.5">
@@ -1088,6 +1192,84 @@ export default function KnowledgeAiDashboard() {
               className="w-full mt-5 bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-xl text-xs transition-all active:scale-98"
             >
               닫기 및 관제판 확인
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* [신규 추가 ⚙️] 자산 종류 동적 Vault 모달 (최고관리자용) */}
+      {isTypeVaultOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in select-none">
+          <div className="bg-white border border-slate-200 p-6 rounded-2xl max-w-md w-full shadow-2xl relative">
+            <button 
+              onClick={() => { setIsTypeVaultOpen(false); setVaultError(null); }}
+              className="absolute right-4 top-4 text-slate-400 hover:text-slate-800"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="mb-4">
+              <h3 className="text-md font-bold text-slate-850 flex items-center gap-1.5">
+                <Settings className="w-5 h-5 text-indigo-500 animate-spin-slow" />
+                동적 자산 분류 Vault (최고관리자 전용)
+              </h3>
+              <p className="text-xs text-slate-400 mt-1">
+                사내 지식 자산의 분류 카테고리를 실시간 신설/제거합니다.
+              </p>
+            </div>
+
+            {/* 에러 경고 배너 피드백 */}
+            {vaultError && (
+              <div className="mb-4 p-3 bg-rose-50 text-rose-600 border border-rose-200 rounded-xl text-xs flex items-start gap-1.5 font-sans animate-shake">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{vaultError}</span>
+              </div>
+            )}
+
+            {/* 신규 자산 추가 폼 */}
+            <form onSubmit={handleCreateAssetType} className="flex gap-2 mb-4">
+              <input 
+                type="text" 
+                value={newAssetTypeName}
+                onChange={(e) => setNewAssetTypeName(e.target.value)}
+                placeholder="신규 자산 분류명 기입... (예: 기밀특허)"
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 text-slate-800 font-mono"
+              />
+              <button 
+                type="submit"
+                className="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1"
+              >
+                <Plus className="w-4 h-4" /> 추가
+              </button>
+            </form>
+
+            {/* 저장된 분류 리스트 (삭제 버튼 및 무결성 락 작동) */}
+            <div className="max-h-56 overflow-y-auto bg-slate-50 rounded-xl border border-slate-200 p-3 space-y-2 scrollbar-thin">
+              {assetTypes.map(item => (
+                <div 
+                  key={item.id}
+                  className="bg-white border border-slate-200 px-3 py-2 rounded-lg flex items-center justify-between text-xs font-mono hover:bg-slate-50 transition-all group"
+                >
+                  <span className="text-slate-800 font-bold font-sans">{item.type_name}</span>
+                  
+                  {/* 삭제 버튼 (기본 유형 보호가 아닌, 사용량 락 기반 자동 통제) */}
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteAssetType(item.id)}
+                    className="text-slate-400 hover:text-rose-600 p-1 rounded hover:bg-rose-50 transition-all"
+                    title="해당 자산 분류 영구 삭제"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <button 
+              onClick={() => { setIsTypeVaultOpen(false); setVaultError(null); }}
+              className="w-full mt-4 bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-xl text-xs transition-all active:scale-98"
+            >
+              닫기 및 변경 사항 반영
             </button>
           </div>
         </div>
