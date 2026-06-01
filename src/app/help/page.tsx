@@ -3,18 +3,18 @@
 import { useState } from "react";
 import { 
   HelpCircle, Search, ChevronDown, MessageSquare, 
-  Bot, Sparkles, BookOpen, Ticket, Coins, Zap, TrendingUp
+  Bot, Sparkles, BookOpen, Ticket, Coins, Zap, TrendingUp, CalendarDays
 } from "lucide-react";
 
 // FAQ 데이터 아이템 구조 정의
 interface FAQItem {
   id: string;
-  category: "sms" | "rpa" | "point" | "coupon" | "order" | "price";
+  category: "sms" | "rpa" | "point" | "coupon" | "order" | "price" | "hr";
   question: string;
   answer: string;
 }
 
-// 5대 핵심 카테고리 정의
+// 핵심 카테고리 정의
 const CATEGORIES = [
   { id: "all", label: "전체 가이드 📖", icon: BookOpen, color: "text-slate-400" },
   { id: "sms", label: "무료문자 & 자동화 💬", icon: MessageSquare, color: "text-indigo-400" },
@@ -22,7 +22,8 @@ const CATEGORIES = [
   { id: "point", label: "단골적립 & 지출관리 AI 🪙", icon: Coins, color: "text-amber-400" },
   { id: "coupon", label: "쿠폰 & 주문/예약 📦", icon: Ticket, color: "text-rose-400" },
   { id: "order", label: "전사 협업 & 견적/수주 AI 🪐", icon: Zap, color: "text-cyan-400" },
-  { id: "price", label: "가격 & 마진 추적 AI 📈", icon: TrendingUp, color: "text-pink-400" }
+  { id: "price", label: "가격 & 마진 추적 AI 📈", icon: TrendingUp, color: "text-pink-400" },
+  { id: "hr", label: "근태 & 급여/인사 AI 📅", icon: CalendarDays, color: "text-indigo-600" }
 ];
 
 // FAQ 데이터베이스 (AI 자율 경영 파트너 Q&A 완전 실장)
@@ -321,6 +322,30 @@ const FAQ_DATABASE: FAQItem[] = [
     category: "rpa",
     question: "이미 등록된 사업자이거나 대표자명, 본점 주소 등이 변경된 경우 이지봇에서 어떻게 처리해 주나요?",
     answer: "이지봇은 거래처 데이터의 무결성을 완벽하게 수호합니다! 기존 등록된 사업자번호와 비교하여 대표자 성함, 상호, 혹은 본점 주소지 등의 주요 변동이 있을 시, 이지봇이 주황색 경고 배지와 함께 이전 정보 대비 신규 정보의 변경 내역(Diff)을 한 눈에 비교해 주는 리포트를 출력합니다. 이후 관리자님이 [기존 바이어 변동 갱신 승인 ⚡] 버튼을 누르는 순간, 기존에 쌓여 있던 수주/발주 히스토리와 거래 대금 등의 거래 무결성은 100% 온전히 유지·승계되며, 구(舊) 정보는 memo 열에 감사 로그 타임스탬프와 함께 자동 아카이빙 적재됩니다."
+  },
+  {
+    id: "hr-1",
+    category: "hr",
+    question: "근태 관리 AI의 실시간 원터치 출퇴근 타임스탬프와 지각/조퇴 판정 기준은 어떻게 되나요?",
+    answer: "직원이 본문 가로형 카드에서 [출근 🟢] 버튼을 클릭하면 실시간 1초 타임스탬프가 데이터베이스(`crm_attendance`)에 기록됩니다. 출근 지각 판정 기준은 오전 09:00:00을 초과하면 자동으로 '⚠️ 지각(LATE)'으로 분류되며, 퇴근 시 오후 18:00:00 이전에 퇴근을 기록하면 자동으로 '조퇴(EARLY_LEAVE)' 상태로 변환됩니다. 하루 정상 근무 시 실 근무 시간(H)은 출퇴근 초 단위 차이를 정밀 연산하여 소수점 첫째 자리까지 정확하게 집계 처리됩니다."
+  },
+  {
+    id: "hr-2",
+    category: "hr",
+    question: "'근로계약 & 실시간 급여 정산 AI' 기능은 어디에 있으며 어떻게 사용하나요?",
+    answer: "이 기능은 사장님(SUPER_ADMIN / PRESIDENT) 계정으로 로그인했을 때만 [근태 관리 AI] 페이지 본문의 최하단 관제 보드 형태로 나타납니다. 좌측의 폼에서 직원을 드롭다운으로 선택해 계약 시급, 소정 근로시간, 주휴수당 적용 여부, 근무 요일을 직접 기입 및 즉각 갱신(Upsert)할 수 있으며, 이와 연동되어 우측 표에는 직원의 당월 실제 누적 출퇴근 시간과 주당 평균 시간을 대조하여 비례 주휴수당까지 포함한 월 예상 지급 총액이 실시간으로 정산되어 노출됩니다."
+  },
+  {
+    id: "hr-3",
+    category: "hr",
+    question: "주휴수당 비례 계산과 초단기 근로자(주 15시간 미만) 제외 룰은 어떻게 연산되나요?",
+    answer: "근태 대장 실제 근무 시간과 정산 대상 월의 총 주차(weeks) 수(예: 31일이면 4.43주)를 바탕으로, 해당 직원의 주당 평균 근무 시간을 정밀 연산합니다. 주휴수당 적용이 켜져 있고 주당 평균 실 근무시간이 15.0시간 이상인 경우에만 주휴수당 지급 대상(적격 🟢)으로 판정되며, 주휴수당은 법정 최대 한도인 40시간을 캡(Cap)으로 하여 '(주당 평균 근무시간 / 40) * 8 * 시급 * 당월 주차 수' 공식을 수학적으로 자동 계산합니다. 주당 평균 15시간 미만인 초단기 계약자(예: 이영희 사원)의 경우 주휴수당은 0원으로 자동 제외(제외 🔴) 처리됩니다."
+  },
+  {
+    id: "hr-4",
+    category: "hr",
+    question: "'임직원 상세 인적사항 명부 대장'의 조회 및 웹 실시간 수정 기능은 어떻게 가동하나요?",
+    answer: "이지데스크의 스마트 HR 3단계 기능으로, [근태 관리 AI] 페이지 최하단의 [임직원 상세 인적사항 명부 대장] 2열 보드에서 작동합니다. 사장님이 웹 화면의 좌측 폼에서 직원을 선택해 소속 부서, 공식 입사일, 거주지 및 교통수단 텍스트, 주요 보유 기술 태그, 그리고 비상 백업 담당자를 직접 입력하고 저장할 수 있습니다. 저장 즉시 우측의 상세 인적 명부 표와 SQLite 데이터베이스(`crm_operator_profiles`)에 실시간 Upsert 저장되며, 동시에 우측 AI 실시간 업무 공백 예보(RAG) 엔진에 원본 데이터로 즉시 공급되어 기상 악화 시 지각 리스크나 대체 가능 인력 매핑 브리핑 리포트를 Gemini AI가 완벽히 재창출하게 됩니다."
   }
 ];
 
@@ -361,6 +386,9 @@ export default function FAQHelpCenterPage() {
         if (q === "ㅋㅍ" && str.includes("쿠폰")) return true;
         if (q === "ㅅㅇㅈ" && (str.includes("사업자") || str.includes("등록증"))) return true;
         if (q === "ㅇㅈㅂ" && str.includes("이지봇")) return true;
+        if (q === "ㄱㅌ" && str.includes("근태")) return true;
+        if (q === "ㄱㅇ" && str.includes("급여")) return true;
+        if (q === "ㅇㅅ" && str.includes("인사")) return true;
         return false;
       };
 
