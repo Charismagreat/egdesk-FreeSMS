@@ -86,6 +86,7 @@ const MENU_STATIC_MAP: Record<string, { label: string; icon: any; color: string 
   "/naver-blog": { label: "N-BLOG 포스팅 AI", icon: NaverIcon, color: "text-[#2db400]" },
   "/youtube-shorts": { label: "YOUTUBE 쇼츠 AI", icon: YoutubeIcon, color: "text-[#FF0000]" },
   "/knowledge-ai": { label: "지식 관리 AI", icon: Compass, color: "text-indigo-400" },
+  "/ecount-erp-ai": { label: "이카운트 ERP AI", icon: ArrowRightLeft, color: "text-sky-400" },
   "/ai-briefing": { label: "AI 브리핑", icon: Sparkles, color: "text-indigo-400" }
 };
 

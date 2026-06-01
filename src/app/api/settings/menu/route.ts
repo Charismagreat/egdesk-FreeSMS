@@ -33,6 +33,7 @@ const DEFAULT_MENU_ITEMS = [
   { href: "/naver-blog", label: "N-BLOG 포스팅 AI" },
   { href: "/youtube-shorts", label: "YOUTUBE 쇼츠 AI" },
   { href: "/knowledge-ai", label: "지식 관리 AI" },
+  { href: "/ecount-erp-ai", label: "이카운트 ERP AI" },
   { href: "/ai-briefing", label: "AI 브리핑" }
 ];
 
