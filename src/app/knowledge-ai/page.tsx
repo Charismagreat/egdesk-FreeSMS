@@ -371,7 +371,7 @@ export default function KnowledgeAiDashboard() {
         <div>
           <h1 className="text-3xl font-bold text-slate-800 flex items-center">
             <Compass className="w-8 h-8 text-slate-500 mr-3 animate-spin-slow" />
-            AI 문서지식 관리
+            지식 관리 AI
           </h1>
           <p className="text-slate-500 mt-2">비정형 문서의 결재 이력 감사 및 Zero-Trust 사내 지식 RAG 분석을 관제합니다.</p>
         </div>
