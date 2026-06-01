@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { 
   listBrowserRecordingTests, 
   runBrowserRecording 
-} from '../../../egdesk-helpers';
+} from '../../../../egdesk-helpers';
 
 // 기본 제공되는 이카운트 스크립트 메타데이터 폴백 (이지데스크서버에 관련 파일이 부재할 시에도 데모 구동이 가능하도록 보장)
 const MOCK_ECOUNT_SCRIPTS = [
