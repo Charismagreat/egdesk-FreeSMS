@@ -5,7 +5,7 @@ import {
   Home, Users, MessageSquare, Settings, ShoppingCart, 
   ClipboardList, CreditCard, CalendarDays, Truck, Send, 
   PackageSearch, Package, UserCog, Zap, Ticket, Landmark, Globe, Briefcase, HelpCircle,
-  ArrowRightLeft, Handshake, Sparkles, Coins, Database,
+  ArrowRightLeft, Handshake, Sparkles, Coins, Database, Compass,
   ChevronUp, ChevronDown, Check, Save, ShieldAlert, GripVertical
 } from "lucide-react";
 
@@ -84,6 +84,8 @@ const MENU_METADATA_MAP: Record<string, { label: string; icon: any; color: strin
   "/instagram": { label: "인스타그램 마케팅 AI", icon: InstagramIcon, color: "text-[#ff007f]" },
   "/naver-blog": { label: "N-BLOG 포스팅 AI", icon: NaverIcon, color: "text-[#2db400]" },
   "/youtube-shorts": { label: "YOUTUBE 쇼츠 AI", icon: YoutubeIcon, color: "text-[#FF0000]" },
+  "/knowledge-ai": { label: "지식 관리 AI", icon: Compass, color: "text-indigo-550" },
+  "/ecount-erp-ai": { label: "이카운트 ERP AI", icon: ArrowRightLeft, color: "text-sky-550" },
   "/ai-briefing": { label: "AI 브리핑", icon: Sparkles, color: "text-indigo-550" }
 };
 

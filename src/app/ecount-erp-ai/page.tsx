@@ -264,22 +264,22 @@ export default function EcountErpAiPage() {
               <p className="text-slate-500 text-sm mt-1 max-w-md">검색어나 카테고리 필터를 변경하여 다시 시도해 주십시오.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
               {filteredScripts.map((script) => {
                 const isSelected = selectedScript?.fileName === script.fileName;
                 return (
                   <div
                     key={script.fileName}
                     onClick={() => handleSelectScript(script)}
-                    className={`group cursor-pointer rounded-2xl border transition-all duration-200 p-6 flex flex-col justify-between relative overflow-hidden ${
+                    className={`group cursor-pointer rounded-2xl border transition-all duration-200 p-4.5 flex flex-col justify-between relative overflow-hidden ${
                       isSelected
                         ? 'border-blue-500 bg-blue-50/20 shadow-md shadow-blue-500/5 ring-1 ring-blue-500'
                         : 'border-slate-200 bg-white hover:border-slate-350 hover:shadow-md'
                     }`}
                   >
                     {/* 카테고리 뱃지 및 상태 LED */}
-                    <div className="flex items-center justify-between mb-4">
-                      <span className={`px-2.5 py-0.5 rounded-lg text-[10px] font-bold tracking-wider uppercase ${
+                    <div className="flex items-center justify-between mb-3.5">
+                      <span className={`px-2.5 py-0.5 rounded-lg text-[9px] font-bold tracking-wider uppercase ${
                         script.category === '매출' ? 'bg-emerald-100 text-emerald-700' :
                         script.category === '매입' ? 'bg-rose-100 text-rose-700' :
                         script.category === '재고' ? 'bg-cyan-100 text-cyan-700' :
@@ -288,33 +288,33 @@ export default function EcountErpAiPage() {
                         {script.category}
                       </span>
                       
-                      <div className="flex items-center space-x-1.5">
-                        <span className={`h-2 w-2 rounded-full ${script.isRealFileAvailable ? 'bg-green-500 animate-pulse' : 'bg-blue-400'}`}></span>
-                        <span className="text-[10px] font-semibold text-slate-500">
-                          {script.isRealFileAvailable ? '실제 연동 완료' : '시뮬레이터'}
+                      <div className="flex items-center space-x-1">
+                        <span className={`h-1.5 w-1.5 rounded-full ${script.isRealFileAvailable ? 'bg-green-500 animate-pulse' : 'bg-blue-400'}`}></span>
+                        <span className="text-[9px] font-semibold text-slate-500">
+                          {script.isRealFileAvailable ? '연동됨' : '시뮬'}
                         </span>
                       </div>
                     </div>
 
                     {/* 카드 텍스트 정보 */}
-                    <div className="space-y-2 flex-1">
-                      <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors text-base">
+                    <div className="space-y-1.5 flex-1">
+                      <h3 className="font-extrabold text-slate-900 group-hover:text-blue-600 transition-colors text-sm leading-snug">
                         {script.title}
                       </h3>
-                      <p className="text-xs text-slate-500 line-clamp-2">
+                      <p className="text-[11px] text-slate-500 line-clamp-3 leading-relaxed">
                         {script.description}
                       </p>
                     </div>
 
                     {/* ERP 메뉴 주소 및 적재 테이블 */}
-                    <div className="mt-5 pt-4 border-t border-slate-100 space-y-2 text-xs">
+                    <div className="mt-4 pt-3.5 border-t border-slate-100 space-y-1.5 text-[11px]">
                       <div className="flex justify-between items-center text-slate-500">
-                        <span>타깃 ERP 경로:</span>
-                        <span className="font-medium text-slate-700">{script.menuPath}</span>
+                        <span>ERP 경로:</span>
+                        <span className="font-semibold text-slate-700 truncate max-w-[100px] text-right" title={script.menuPath}>{script.menuPath.split(' > ').pop()}</span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-slate-500">SQLite 테이블:</span>
-                        <code className="px-1.5 py-0.5 bg-slate-100 text-slate-800 rounded font-mono text-[10px] font-semibold border border-slate-200">
+                        <span className="text-slate-500">DB 테이블:</span>
+                        <code className="px-1.5 py-0.5 bg-slate-100 text-slate-800 rounded font-mono text-[9px] font-semibold border border-slate-200 truncate max-w-[100px]" title={script.targetTable}>
                           {script.targetTable}
                         </code>
                       </div>
