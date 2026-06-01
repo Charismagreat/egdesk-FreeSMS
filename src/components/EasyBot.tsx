@@ -701,6 +701,13 @@ export default function EasyBot() {
   const [speechSupported, setSpeechSupported] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
 
+  // 💬 개발사 피드백 실시간 연동 상태 변수
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [feedbackText, setFeedbackText] = useState("");
+  const [feedbackContact, setFeedbackContact] = useState("");
+  const [feedbackType, setFeedbackType] = useState<"suggest" | "bug" | "other">("suggest");
+  const [isSendingFeedback, setIsSendingFeedback] = useState(false);
+
   const pathname = usePathname();
   const router = useRouter();
 
@@ -826,6 +833,44 @@ export default function EasyBot() {
       ttsSynthesisRef.current.speak(utterance);
     } catch (speechErr) {
       console.error('TTS 구동 에러:', speechErr);
+    }
+  };
+
+  // 💬 개발사 피드백 전송 API 호출 핸들러
+  const handleSubmitFeedback = async () => {
+    if (!feedbackText.trim()) {
+      alert("피드백 내용을 입력해 주세요.");
+      return;
+    }
+
+    setIsSendingFeedback(true);
+    try {
+      const res = await fetch("/api/support/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companyName: "이지데스크 B2B 회원사", // 챗봇이 탑재되는 고객사 정보 대리 매핑
+          senderName: "운영자 사장님",
+          contact: feedbackContact || "미기입",
+          feedbackType: feedbackType === "bug" ? "버그 제보" : feedbackType === "suggest" ? "기능 제안" : "기타 문의",
+          feedbackText: feedbackText
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert("개발사로 피드백이 실시간으로 전송 완료되었습니다! 🚀\n신속하게 확인하여 카카오톡 채널로 대응해 드리겠습니다.");
+        setFeedbackText("");
+        setFeedbackContact("");
+        setIsFeedbackOpen(false);
+      } else {
+        alert(data.error || "피드백 전송에 실패했습니다. 대행사 설정을 확인하세요.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert("통신 중 오류가 발생했습니다: " + err.message);
+    } finally {
+      setIsSendingFeedback(false);
     }
   };
 
@@ -1371,6 +1416,17 @@ export default function EasyBot() {
                   className="hidden"
                 />
 
+                {/* 💬 개발사 실시간 피드백 전송 단추 */}
+                <button
+                  type="button"
+                  onClick={() => setIsFeedbackOpen(true)}
+                  disabled={isLoading}
+                  className="shrink-0 mr-1 p-1.5 rounded-full text-slate-400 hover:bg-slate-100 hover:text-indigo-600 transition-all flex items-center justify-center disabled:opacity-50 cursor-pointer"
+                  title="개발사에 건의/피드백 보내기"
+                >
+                  <MessageSquare size={17} />
+                </button>
+
                 {/* 2. 기존 마이크 버튼 */}
                 <button
                   type="button"
@@ -1425,6 +1481,112 @@ export default function EasyBot() {
               </button>
             </form>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 💬 개발사 피드백 실시간 접수 모달 (Vibrant Glassmorphism & Micro-animations) */}
+      <AnimatePresence>
+        {isFeedbackOpen && (
+          <div className="fixed inset-0 bg-black/45 backdrop-blur-3xs flex items-center justify-center z-[100] p-4 text-slate-800">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 border border-slate-100 shadow-2xl relative block"
+            >
+              <button 
+                onClick={() => {
+                  setIsFeedbackOpen(false);
+                  setFeedbackText("");
+                  setFeedbackContact("");
+                }} 
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="space-y-1 block">
+                <h4 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                  💬 개발사 실시간 피드백 전송
+                </h4>
+                <p className="text-[10px] text-slate-400 font-bold">
+                  프로그램 사용 중 발생하는 에러/기능 제안을 즉시 개발사 카카오톡 채널로 제보합니다.
+                </p>
+              </div>
+
+              {/* 입력 양식 block */}
+              <div className="space-y-3 text-xs font-bold block">
+                {/* 유형 선택 */}
+                <div className="space-y-1 block">
+                  <label className="text-[10px] text-slate-455 uppercase tracking-widest block font-extrabold">문의/제보 유형</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { key: 'suggest', label: '💡 기능 제안' },
+                      { key: 'bug', label: '⚠️ 버그 제보' },
+                      { key: 'other', label: '❓ 기타 문의' }
+                    ].map((type) => (
+                      <button
+                        key={type.key}
+                        type="button"
+                        onClick={() => setFeedbackType(type.key as any)}
+                        className={`py-2 rounded-xl border text-[10px] font-black transition-all cursor-pointer ${
+                          feedbackType === type.key
+                            ? 'bg-indigo-50 border-indigo-200 text-indigo-700 shadow-3xs'
+                            : 'bg-slate-50/50 border-slate-100 text-slate-500 hover:bg-slate-50'
+                        }`}
+                      >
+                        {type.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 연락처 */}
+                <div className="space-y-1 block">
+                  <label className="text-[10px] text-slate-455 uppercase tracking-widest block font-extrabold">회신받으실 연락처 (선택)</label>
+                  <input
+                    type="text"
+                    value={feedbackContact}
+                    onChange={(e) => setFeedbackContact(e.target.value)}
+                    placeholder="예: 010-1234-5678 또는 이메일 주소"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs"
+                  />
+                </div>
+
+                {/* 내용 */}
+                <div className="space-y-1 block">
+                  <label className="text-[10px] text-slate-455 uppercase tracking-widest block font-extrabold">건의 및 버그 설명 (필수)</label>
+                  <textarea
+                    value={feedbackText}
+                    onChange={(e) => setFeedbackText(e.target.value)}
+                    placeholder="접수 즉시 개발사 카카오톡 채널로 실시간 알림 전송되며, 상세 접수 후 신속히 패치해 드리겠습니다."
+                    rows={4}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-semibold resize-none leading-relaxed text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* 전송 버튼 */}
+              <button
+                type="button"
+                onClick={handleSubmitFeedback}
+                disabled={isSendingFeedback || !feedbackText.trim()}
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-md cursor-pointer transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+              >
+                {isSendingFeedback ? (
+                  <>
+                    <RefreshCw size={12} className="animate-spin" />
+                    피드백 실시간 전송 중...
+                  </>
+                ) : (
+                  <>
+                    <Send size={12} />
+                    개발사 카카오톡으로 전송하기
+                  </>
+                )}
+              </button>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </>

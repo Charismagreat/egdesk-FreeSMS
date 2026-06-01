@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { 
   Calendar, Clock, UserCheck, Users, UserMinus, ShieldAlert, 
-  Sparkles, Check, X, RefreshCw, Send, Plus, Trash2, ChevronLeft, ChevronRight, AlertTriangle 
+  Sparkles, Check, X, RefreshCw, Send, Plus, Trash2, ChevronLeft, ChevronRight, AlertTriangle, Maximize2, Copy
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -26,7 +26,7 @@ interface CompanyEvent {
   title: string;
   start_date: string;
   end_date: string;
-  event_type: 'COMPANY_EVENT' | 'HOLIDAY' | 'DEPT_EVENT';
+  event_type: 'COMPANY_EVENT' | 'HOLIDAY' | 'DEPT_EVENT' | 'DEADLINE' | 'LEGAL' | 'EDUCATION';
   description: string;
 }
 
@@ -71,11 +71,58 @@ export default function HrAttendancePage() {
   const [leaveEnd, setLeaveEnd] = useState("");
   const [leaveReason, setLeaveReason] = useState("");
 
+  // 🏛️ Premium 3단계 Step & 임시저장 상태 탑재
+  const [leaveStep, setLeaveStep] = useState<number>(1);
+  const [halfTimeType, setHalfTimeType] = useState<'AM' | 'PM'>('AM');
+  const [attachedFileName, setAttachedFileName] = useState<string>("");
+  const [isTempSaved, setIsTempSaved] = useState(false);
+
+  const handleTempSaveLeave = () => {
+    const tempObj = {
+      leaveType,
+      leaveStart,
+      leaveEnd,
+      leaveReason,
+      halfTimeType,
+      attachedFileName
+    };
+    localStorage.setItem('temp_leave_request', JSON.stringify(tempObj));
+    setIsTempSaved(true);
+    setTimeout(() => setIsTempSaved(false), 2000);
+  };
+
+  const handleLoadTempLeave = () => {
+    try {
+      const saved = localStorage.getItem('temp_leave_request');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setLeaveType(parsed.leaveType || 'ANNUAL');
+        setLeaveStart(parsed.leaveStart || '');
+        setLeaveEnd(parsed.leaveEnd || '');
+        setLeaveReason(parsed.leaveReason || '');
+        setHalfTimeType(parsed.halfTimeType || 'AM');
+        setAttachedFileName(parsed.attachedFileName || '');
+        alert('임시 저장된 신청서를 성공적으로 불러왔습니다! 📂');
+      } else {
+        alert('임시 저장된 내역이 존재하지 않습니다.');
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const [eventTitle, setEventTitle] = useState("");
   const [eventStart, setEventStart] = useState("");
   const [eventEnd, setEventEnd] = useState("");
-  const [eventType, setEventType] = useState<'COMPANY_EVENT' | 'HOLIDAY' | 'DEPT_EVENT'>('COMPANY_EVENT');
+  const [eventType, setEventType] = useState<string>('COMPANY_EVENT');
   const [eventDesc, setEventDesc] = useState("");
+
+  // 🎨 일정 유형 동적 마스터 관리 상태 변수
+  const [eventTypes, setEventTypes] = useState<any[]>([]);
+  const [isTypeManagerOpen, setIsTypeManagerOpen] = useState(false);
+  const [newTypeName, setNewTypeName] = useState("");
+  const [newTypeColor, setNewTypeColor] = useState("Indigo");
+  const [typeError, setTypeError] = useState<string | null>(null);
 
   const [rejectReason, setRejectReason] = useState("");
 
@@ -87,6 +134,28 @@ export default function HrAttendancePage() {
     briefingText: '데이터를 분석하여 업무 공백 보고서를 자동 작성하고 있습니다.'
   });
   const [aiLoading, setAiLoading] = useState(false);
+  const [isBriefingZoomed, setIsBriefingZoomed] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // 🏛️ Premium History Vault 상태 변수 탑재
+  const [briefingHistories, setBriefingHistories] = useState<any[]>([]);
+  const [selectedHistoryId, setSelectedHistoryId] = useState<string>("");
+  const [latestBriefing, setLatestBriefing] = useState<any>({
+    riskScore: 0,
+    alertTitle: '로딩 중...',
+    alertMessage: 'AI가 부서별 일정을 교차 예측하고 있습니다.',
+    briefingText: '데이터를 분석하여 업무 공백 보고서를 자동 작성하고 있습니다.'
+  });
+
+  const handleCopyBriefing = () => {
+    if (!aiBriefing.briefingText) return;
+    navigator.clipboard.writeText(aiBriefing.briefingText).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch((err) => {
+      console.error("복사 실패:", err);
+    });
+  };
 
   // 📝 근로계약 & 급여정산 관리 상태 추가
   const [contracts, setContracts] = useState<any[]>([]);
@@ -451,9 +520,65 @@ export default function HrAttendancePage() {
     );
   };
 
+  // 📜 과거 분석 이력 조회 및 최신 분석 결과 자동 바인딩
+  const fetchBriefingHistories = async (autoBindFirst: boolean = false) => {
+    try {
+      const res = await fetch('/api/hr/ai-briefing');
+      const data = await res.json();
+      if (data.success) {
+        const histories = data.histories || [];
+        setBriefingHistories(histories);
+        
+        // autoBindFirst가 true이고 현재 이력이 존재하는 경우, 가장 최근 분석을 기본값으로 설정
+        if (autoBindFirst && histories.length > 0) {
+          const latest = histories[0];
+          const latestState = {
+            riskScore: latest.risk_score,
+            alertTitle: latest.alert_title,
+            alertMessage: latest.alert_message,
+            briefingText: latest.briefing_text
+          };
+          setAiBriefing(latestState);
+          setLatestBriefing(latestState);
+        } else if (autoBindFirst && histories.length === 0) {
+          // 이력이 한 건도 없으면 실시간 연산 가동
+          triggerAiBriefing();
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch briefing histories:', e);
+    }
+  };
+
+  // 📜 과거 이력 선택 시 동적 스위칭 핸들러
+  const handleSelectHistory = (historyId: string) => {
+    setSelectedHistoryId(historyId);
+    if (!historyId) {
+      // '현재 실시간 분석' 복귀
+      if (latestBriefing) {
+        setAiBriefing(latestBriefing);
+      }
+      return;
+    }
+    const matched = briefingHistories.find(h => String(h.id) === String(historyId));
+    if (matched) {
+      setAiBriefing({
+        riskScore: matched.risk_score,
+        alertTitle: matched.alert_title,
+        alertMessage: matched.alert_message,
+        briefingText: matched.briefing_text,
+        isHistory: true,
+        createdAt: matched.created_at
+      });
+      // 과거 이력 선택 시 대형 돋보기 모달창으로 자동 연동 줌인
+      setIsBriefingZoomed(true);
+    }
+  };
+
   const fetchHrData = async () => {
     setLoading(true);
     setError(null);
+    let loadedUser: any = null;
     try {
       // 1. 근태 대장 API 호출
       const todayStr = new Date().toISOString().split('T')[0];
@@ -464,6 +589,7 @@ export default function HrAttendancePage() {
         setEmployees(data.employees || []);
         setCompanyEvents(data.companyEvents || []);
         setCurrentUser(data.currentUser);
+        loadedUser = data.currentUser;
       } else {
         setError(data.error || '인사 데이터를 불러오지 못했습니다.');
       }
@@ -478,11 +604,25 @@ export default function HrAttendancePage() {
       // 🪐 360도 종합 프로필 데이터 로드 연계
       await fetchComprehensiveProfiles();
 
+      // 🎨 일정 유형 데이터 로드 연계
+      await fetchEventTypes();
+
     } catch (err) {
       setError('서버 연결 불안정 또는 네트워크 장애');
     } finally {
       setLoading(false);
-      triggerAiBriefing(); // 백그라운드로 AI RAG 예보 시뮬레이션
+      // 최고운영자 권한 세션일 때만 RAG 분석서 및 이력 조회 가동 (일반 부운영자 철저 격리)
+      const hasPrivilege = loadedUser?.role === 'SUPER_ADMIN' || loadedUser?.role === 'PRESIDENT' || isHighPrivilege;
+      if (hasPrivilege) {
+        fetchBriefingHistories(true);
+      } else {
+        setAiBriefing({
+          riskScore: 0,
+          alertTitle: "🔒 인사-법무 리스크 차단",
+          alertMessage: "본 영역은 최고운영자(SUPER_ADMIN) 및 사장님(PRESIDENT) 전용 보안 격리 항목입니다. 일반 부운영자(SUB_OPERATOR)의 접근이 원천 차단됩니다.",
+          briefingText: "보안 가이드에 따라 상세 분석안 열람 권한이 존재하지 않습니다."
+        });
+      }
     }
   };
 
@@ -492,12 +632,109 @@ export default function HrAttendancePage() {
       const res = await fetch('/api/hr/ai-briefing', { method: 'POST' });
       const data = await res.json();
       if (data.success) {
-        setAiBriefing(data);
+        const resultState = {
+          riskScore: data.riskScore || 0,
+          alertTitle: data.alertTitle || '정상 가동중 🟢',
+          alertMessage: data.alertMessage || '업무 공백 리스크가 극히 낮습니다.',
+          briefingText: data.briefingText || '안정적인 전사 인사 근태 환경이 유지되고 있습니다.'
+        };
+        setAiBriefing(resultState);
+        setLatestBriefing(resultState);
+        setSelectedHistoryId(""); // 드롭다운을 '현재 실시간 분석'으로 초기화
+        
+        // 새로 저장된 스냅샷 반영을 위해 목록 다시 불러오기
+        await fetchBriefingHistories(false);
       }
     } catch (e) {
       console.error('AI Briefing load failed:', e);
     } finally {
       setAiLoading(false);
+    }
+  };
+
+  // 🎨 일정 유형 동적 마스터 관리 CRUD 연계 함수군
+  const fetchEventTypes = async () => {
+    try {
+      const res = await fetch('/api/hr/events/types');
+      const data = await res.json();
+      if (data.success) {
+        setEventTypes(data.types || []);
+      }
+    } catch (err) {
+      console.error('일정 유형을 가져오는 중 오류가 발생했습니다:', err);
+    }
+  };
+
+  // 🎨 새로운 일정 유형 추가
+  const handleCreateEventType = async () => {
+    if (!newTypeName.trim()) {
+      alert('일정 유형 이름을 기입해 주세요.');
+      return;
+    }
+
+    setSubmitLoading(true);
+    setTypeError(null);
+    try {
+      const res = await fetch('/api/hr/events/types', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'CREATE',
+          type_name: newTypeName,
+          color_theme: newTypeColor
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message);
+        setNewTypeName("");
+        setNewTypeColor("Indigo");
+        await fetchEventTypes(); // 목록 리프레시
+      } else {
+        setTypeError(data.error || '유형 추가에 실패했습니다.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      setTypeError('통신 중 오류가 발생했습니다: ' + err.message);
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  // 🗑️ 일정 유형 삭제 (무결성 락 검증 거침)
+  const handleDeleteEventType = async (typeKey: string) => {
+    if (!confirm('이 일정 유형을 마스터 대장에서 삭제하시겠습니까?\n시스템 제공 기본 유형을 삭제하더라도 이미 등록된 일정이나 동일 키 등록 시의 무결성이 보존됩니다.')) {
+      return;
+    }
+
+    setSubmitLoading(true);
+    setTypeError(null);
+    try {
+      const res = await fetch('/api/hr/events/types', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'DELETE',
+          type_key: typeKey
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message);
+        await fetchEventTypes(); // 목록 리프레시
+        // 만약 선택된 일정 유형이 삭제된 유형이라면 기본값 'COMPANY_EVENT'로 재설정
+        if (eventType === typeKey) {
+          setEventType('COMPANY_EVENT');
+        }
+      } else {
+        // 무결성 락 작동 시 경고 배너로 알림
+        setTypeError(data.error);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setTypeError('통신 중 오류가 발생했습니다: ' + err.message);
+    } finally {
+      setSubmitLoading(false);
     }
   };
 
@@ -556,9 +793,16 @@ export default function HrAttendancePage() {
   };
 
   // 연차 휴가 신규 신청 접수
-  const handleApplyLeave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!leaveStart || !leaveEnd || !leaveReason) {
+  const handleApplyLeave = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    
+    // 반차의 경우 시작일과 종료일을 강제 동기화
+    let finalEnd = leaveEnd;
+    if (leaveType === 'HALF') {
+      finalEnd = leaveStart;
+    }
+
+    if (!leaveStart || !finalEnd || !leaveReason) {
       alert('신청 기간 및 휴가 사유를 명확히 입력해 주세요.');
       return;
     }
@@ -567,10 +811,19 @@ export default function HrAttendancePage() {
     try {
       // 날짜 계산 (일수 소모량 자동 계산)
       const start = new Date(leaveStart);
-      const end = new Date(leaveEnd);
+      const end = new Date(finalEnd);
       const diffTime = Math.abs(end.getTime() - start.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
       const daysSpent = leaveType === 'HALF' ? 0.5 : diffDays;
+
+      // 사유 텍스트 결합 (반차 종류, 첨부 파일명 정보 융합)
+      let finalReason = leaveReason;
+      if (leaveType === 'HALF') {
+        finalReason = `[반차 구분: ${halfTimeType === 'AM' ? '오전 반차' : '오후 반차'}] ${leaveReason}`;
+      }
+      if (attachedFileName) {
+        finalReason = `${finalReason}\n(📎 첨부 증빙: ${attachedFileName})`;
+      }
 
       const res = await fetch('/api/hr/leaves', {
         method: 'POST',
@@ -579,9 +832,9 @@ export default function HrAttendancePage() {
           action: 'APPLY',
           leave_type: leaveType,
           start_date: leaveStart,
-          end_date: leaveEnd,
+          end_date: finalEnd,
           days_spent: daysSpent,
-          reason: leaveReason
+          reason: finalReason
         })
       });
       const data = await res.json();
@@ -592,6 +845,9 @@ export default function HrAttendancePage() {
         setLeaveStart("");
         setLeaveEnd("");
         setLeaveReason("");
+        setAttachedFileName("");
+        // 전사 신청 완료 시 임시저장 내역 삭제
+        localStorage.removeItem('temp_leave_request');
         fetchHrData();
       } else {
         alert(data.error || '연차 신청서 전송에 실패했습니다.');
@@ -676,31 +932,59 @@ export default function HrAttendancePage() {
   };
 
   const { firstDay, totalDays, year, month } = getDaysInMonth(currentCalendarDate);
-  const calendarTitle = `${year}년 ${month + 1}월`;
 
-  // 이전/다음 달 전환
+  // 📅 주별 보기용 일요일 ~ 토요일 계산 헬퍼 함수
+  const getDaysInWeek = (date: Date) => {
+    const current = new Date(date);
+    const dayOfWeek = current.getDay(); // 0: 일요일, 1: 월요일, ...
+    
+    // 이번 주 일요일의 날짜 계산
+    const startOfWeek = new Date(current);
+    startOfWeek.setDate(current.getDate() - dayOfWeek);
+    
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(startOfWeek);
+      d.setDate(startOfWeek.getDate() + i);
+      days.push(d);
+    }
+    return days;
+  };
+
+  const weekDays = getDaysInWeek(currentCalendarDate);
+  const weekStartStr = `${weekDays[0].getFullYear()}.${String(weekDays[0].getMonth() + 1).padStart(2, '0')}.${String(weekDays[0].getDate()).padStart(2, '0')}`;
+  const weekEndStr = `${weekDays[6].getFullYear()}.${String(weekDays[6].getMonth() + 1).padStart(2, '0')}.${String(weekDays[6].getDate()).padStart(2, '0')}`;
+
+  const calendarTitle = calendarView === 'month'
+    ? `${year}년 ${month + 1}월`
+    : `${weekStartStr} ~ ${weekEndStr}`;
+
+  // 이전/다음 달 또는 주간 전환
   const handlePrevMonth = () => {
-    setCurrentCalendarDate(new Date(year, month - 1, 1));
+    if (calendarView === 'month') {
+      setCurrentCalendarDate(new Date(year, month - 1, 1));
+    } else {
+      const prevWeek = new Date(currentCalendarDate);
+      prevWeek.setDate(currentCalendarDate.getDate() - 7);
+      setCurrentCalendarDate(prevWeek);
+    }
   };
   const handleNextMonth = () => {
-    setCurrentCalendarDate(new Date(year, month + 1, 1));
+    if (calendarView === 'month') {
+      setCurrentCalendarDate(new Date(year, month + 1, 1));
+    } else {
+      const nextWeek = new Date(currentCalendarDate);
+      nextWeek.setDate(currentCalendarDate.getDate() + 7);
+      setCurrentCalendarDate(nextWeek);
+    }
   };
 
-  // 특정 일자의 전사 근태 뱃지 및 회사 이벤트 추출기 🟢🟡🔴
-  const getDayMetadata = (day: number) => {
+  // 특정 일자의 전사 근태 뱃지 및 회사 이벤트 추출기 🟢🟡🔴 (년, 월 매핑 확장형)
+  const getDayMetadata = (day: number, cellYear: number = year, cellMonth: number = month) => {
     const formattedDay = String(day).padStart(2, '0');
-    const targetDate = `${year}-${String(month + 1).padStart(2, '0')}-${formattedDay}`;
-
-    // 당일 전사 근태 카운트
-    // crm_attendance 대장과 Approved leaves 기준
-    const attList = employees.map(emp => {
-      // 1. 이미 오늘자 근태가 올라와 있는가
-      const hasAtt = employees.find(e => e.id === emp.id);
-      return hasAtt; // 단순 가이드 매핑
-    });
+    const targetDate = `${cellYear}-${String(cellMonth + 1).padStart(2, '0')}-${formattedDay}`;
 
     // 실제로는 당일 출퇴근 대장이나 승인된 휴가 데이터를 조회합니다
-    // approvedLeaves 정보 매핑
     const leavesToday = leaveRequests.filter(l => l.status === 'APPROVED' && targetDate >= l.start_date && targetDate <= l.end_date);
     
     // 데모용/실제용 회사 공유 일정 매핑
@@ -711,6 +995,131 @@ export default function HrAttendancePage() {
       leavesCount: leavesToday.length,
       leavesList: leavesToday
     };
+  };
+
+  // 📅 월별/주별 달력 공용 날짜 셀 렌더러 함수 (에스테틱 일체화 및 재사용)
+  const renderDayCell = (day: number, cellYear: number, cellMonth: number, isWeekView: boolean = false) => {
+    const metadata = getDayMetadata(day, cellYear, cellMonth);
+    const hasHoliday = metadata.events.some(e => e.event_type === 'HOLIDAY');
+
+    // 🚨 AI 비상 공백 감지 시 캘린더 날짜 셀에 붉은색 파동 펄스 쉴드 이펙트 이식!
+    const targetDayStr = `${cellYear}-${String(cellMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const isProjectDeliveryNear = targetDayStr === '2026-06-15' && metadata.leavesCount > 0; 
+    
+    // ⚡ 오늘 날짜 자동 포커스 계산
+    const today = new Date();
+    const isToday = 
+      today.getFullYear() === cellYear && 
+      today.getMonth() === cellMonth && 
+      today.getDate() === day;
+
+    const minHeightClass = isWeekView ? 'min-h-[165px]' : 'min-h-[95px]';
+
+    return (
+      <div 
+        key={`day-${cellYear}-${cellMonth}-${day}`} 
+        className={`${minHeightClass} p-2.5 rounded-xl border flex flex-col justify-between transition-all group hover:bg-slate-50/50 hover:shadow-xs relative overflow-hidden ${
+          isToday
+            ? 'border-indigo-500 ring-2 ring-indigo-500/25 bg-indigo-50/[0.15] shadow-xs z-20'
+            : isProjectDeliveryNear 
+            ? 'border-rose-300 ring-2 ring-rose-500/10 shadow-inner bg-white' 
+            : 'border-slate-100 hover:border-slate-200 bg-white'
+        }`}
+      >
+        {/* 비상 파동 효과 마운트 */}
+        {isProjectDeliveryNear && (
+          <div className="absolute inset-0 bg-rose-500/5 animate-pulse -z-0"></div>
+        )}
+        {/* 오늘 날짜 잔물결 파동 효과 마운트 */}
+        {isToday && (
+          <div className="absolute inset-0 bg-indigo-500/[0.03] animate-pulse -z-0"></div>
+        )}
+
+        <div className="flex justify-between items-start z-10 w-full">
+          <div className="flex items-center gap-1">
+            <span className={`text-[11px] font-black px-1.5 py-0.2 rounded-md ${
+              isToday
+                ? 'text-indigo-650 bg-indigo-100/75'
+                : hasHoliday
+                ? 'text-rose-500' 
+                : 'text-slate-700'
+            }`}>
+              {day}
+            </span>
+            {isToday && (
+              <span className="text-[7.5px] font-black bg-indigo-600 text-white px-1 py-0.2 rounded-sm shrink-0 shadow-2xs tracking-tighter">
+                TODAY ⚡
+              </span>
+            )}
+          </div>
+
+          {/* 근태 요약 신호등 뱃지 동적 표기 */}
+          {metadata.leavesCount > 0 && (
+            <span className="px-1.5 py-0.2 rounded bg-rose-50 text-rose-600 font-extrabold text-[8px]">
+              휴가 {metadata.leavesCount}명 🔴
+            </span>
+          )}
+        </div>
+
+        {/* 일정 칩스 & 근태 요약 요약 */}
+        <div className="space-y-1 mt-1.5 z-10">
+          {metadata.events.map(ev => {
+            const matchedType = eventTypes.find(t => t.type_key === ev.event_type);
+            const colorTheme = matchedType ? matchedType.color_theme : 'Slate';
+
+            let chipStyle = 'bg-slate-50 border border-slate-200 text-slate-700 font-bold';
+            if (colorTheme === 'Indigo') {
+              chipStyle = 'bg-indigo-50 border border-indigo-100 text-indigo-700 font-bold';
+            } else if (colorTheme === 'Rose') {
+              chipStyle = 'bg-rose-50 border border-rose-100 text-rose-600 font-bold';
+            } else if (colorTheme === 'Amber') {
+              chipStyle = 'bg-amber-50 border border-amber-100 text-amber-700 font-bold';
+            } else if (colorTheme === 'Purple') {
+              chipStyle = 'bg-purple-50 border border-purple-100 text-purple-700 font-bold';
+            } else if (colorTheme === 'Emerald') {
+              chipStyle = 'bg-emerald-50 border border-emerald-100 text-emerald-700 font-bold';
+            } else if (colorTheme === 'Cyan') {
+              chipStyle = 'bg-cyan-50 border border-cyan-100 text-cyan-700 font-bold';
+            } else if (colorTheme === 'Lime') {
+              chipStyle = 'bg-lime-50 border border-lime-100 text-lime-700 font-bold';
+            } else if (colorTheme === 'Teal') {
+              chipStyle = 'bg-teal-50 border border-teal-100 text-teal-700 font-bold';
+            } else if (colorTheme === 'Pink') {
+              chipStyle = 'bg-pink-50 border border-pink-100 text-pink-700 font-bold';
+            } else if (colorTheme === 'Slate') {
+              chipStyle = 'bg-slate-50 border border-slate-200 text-slate-700 font-bold';
+            }
+
+            return (
+              <div 
+                key={ev.id} 
+                className={`px-1.5 py-0.8 rounded-md text-[9px] font-black truncate relative flex items-center justify-between gap-1 group-hover:pr-6 ${chipStyle}`}
+                title={`${ev.title}: ${ev.description}`}
+              >
+                <span className="truncate">{ev.title}</span>
+                
+                {/* 최고운영자 전용 원터치 일정 삭제 단추 */}
+                {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'PRESIDENT') && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeleteEvent(ev.id); }}
+                    className="absolute right-1 opacity-0 group-hover:opacity-100 text-rose-500 hover:text-rose-700 p-0.5 rounded transition-all cursor-pointer bg-white border border-slate-100 shrink-0"
+                  >
+                    <Trash2 size={9} />
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* 비상 공백 경고 Alert 텍스트 소형 렌더링 */}
+        {isProjectDeliveryNear && (
+          <div className="text-[7.5px] font-extrabold text-rose-500 mt-1 block leading-tight flex items-center gap-0.5 z-10">
+            <span>🚨 AI 공백 비상 경보</span>
+          </div>
+        )}
+      </div>
+    );
   };
 
   // 당일 출퇴근 현황판 계산
@@ -736,7 +1145,7 @@ export default function HrAttendancePage() {
             근태 관리 AI
           </h1>
           <p className="text-slate-500 mt-2 text-sm">
-            실시간 1초 출퇴근 타임스탬프와 주간/월간 전사 공유 캘린더, 그리고 Gemini AI 자율 인사 평가 및 마감 연계형 업무 공백 예보를 정밀 관제합니다.
+            실시간 1초 출퇴근 타임스탬프와 주간/월간 전사 공유 캘린더, 그리고 Gemini AI 자율 인사 평가 및 마감 연계형 실시간 AI 전사 업무 분석 예보를 정밀 관제합니다.
           </p>
         </div>
       </div>
@@ -762,20 +1171,30 @@ export default function HrAttendancePage() {
               <span className="text-slate-400">출근 기록이 없습니다</span>
             )}
           </div>
-          <div className="flex gap-2 min-w-[200px]">
+          <div className="flex gap-2 items-center flex-wrap">
             <button
               disabled={submitLoading || (currentEmpRecord && !!currentEmpRecord.clock_in)}
               onClick={() => handleClockStamp('CLOCK_IN')}
-              className="flex-1 py-2.5 px-5 text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-30 rounded-xl transition-all shadow-md cursor-pointer text-center"
+              className="py-2.5 px-5 text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-30 rounded-xl transition-all shadow-md cursor-pointer text-center border-0"
             >
               출근 🟢
             </button>
             <button
               disabled={submitLoading || !currentEmpRecord || (currentEmpRecord && !currentEmpRecord.clock_in) || (currentEmpRecord && !!currentEmpRecord.clock_out)}
               onClick={() => handleClockStamp('CLOCK_OUT')}
-              className="flex-1 py-2.5 px-5 text-xs font-black text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-30 rounded-xl transition-all shadow-md cursor-pointer text-center"
+              className="py-2.5 px-5 text-xs font-black text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-30 rounded-xl transition-all shadow-md cursor-pointer text-center border-0"
             >
               퇴근 🔴
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLeaveStep(1); // 1단계 강제 초기화
+                setIsLeaveModalOpen(true);
+              }}
+              className="py-2.5 px-5 text-xs font-black text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all shadow-md cursor-pointer text-center flex items-center gap-1 border-0"
+            >
+              휴가 신청 🏖️
             </button>
           </div>
         </div>
@@ -910,87 +1329,30 @@ export default function HrAttendancePage() {
 
             {/* 날짜 셀 그리드 */}
             <div className="grid grid-cols-7 gap-1.5">
-              {/* 빈 칸 렌더링 */}
-              {Array.from({ length: firstDay }).map((_, idx) => (
-                <div key={`empty-${idx}`} className="min-h-[85px] bg-slate-50/20 rounded-xl border border-slate-100/30"></div>
-              ))}
+              {calendarView === 'month' ? (
+                <>
+                  {/* 빈 칸 렌더링 */}
+                  {Array.from({ length: firstDay }).map((_, idx) => (
+                    <div key={`empty-${idx}`} className="min-h-[85px] bg-slate-50/20 rounded-xl border border-slate-100/30"></div>
+                  ))}
 
-              {/* 일자 렌더링 */}
-              {Array.from({ length: totalDays }).map((_, idx) => {
-                const day = idx + 1;
-                const metadata = getDayMetadata(day);
-                const hasHoliday = metadata.events.some(e => e.event_type === 'HOLIDAY');
-
-                // 🚨 AI 비상 공백 감지 시 캘린더 날짜 셀에 붉은색 파동 펄스 쉴드 이펙트 이식!
-                const targetDayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const isProjectDeliveryNear = targetDayStr === '2026-06-15' && metadata.leavesCount > 0; 
-                
-                return (
-                  <div 
-                    key={`day-${day}`} 
-                    className={`min-h-[95px] p-2 rounded-xl border flex flex-col justify-between transition-all group hover:bg-slate-50/50 hover:shadow-xs relative overflow-hidden bg-white ${
-                      isProjectDeliveryNear 
-                        ? 'border-rose-300 ring-2 ring-rose-500/10 shadow-inner' 
-                        : 'border-slate-100 hover:border-slate-200'
-                    }`}
-                  >
-                    {/* 비상 파동 효과 마운트 */}
-                    {isProjectDeliveryNear && (
-                      <div className="absolute inset-0 bg-rose-500/5 animate-pulse -z-0"></div>
-                    )}
-
-                    <div className="flex justify-between items-start z-10">
-                      <span className={`text-[11px] font-black ${hasHoliday || (firstDay + day - 1) % 7 === 0 ? 'text-rose-500' : (firstDay + day - 1) % 7 === 6 ? 'text-indigo-500' : 'text-slate-700'}`}>
-                        {day}
-                      </span>
-
-                      {/* 근태 요약 신호등 뱃지 동적 표기 */}
-                      {metadata.leavesCount > 0 && (
-                        <span className="px-1.5 py-0.2 rounded bg-rose-50 text-rose-600 font-extrabold text-[8px]">
-                          휴가 {metadata.leavesCount}명 🔴
-                        </span>
-                      )}
-                    </div>
-
-                    {/* 일정 칩스 & 근태 요약 요약 */}
-                    <div className="space-y-1 mt-1.5 z-10">
-                      {metadata.events.map(ev => (
-                        <div 
-                          key={ev.id} 
-                          className={`px-1.5 py-0.8 rounded-md text-[9px] font-black truncate relative flex items-center justify-between gap-1 group-hover:pr-6 ${
-                            ev.event_type === 'HOLIDAY' 
-                              ? 'bg-rose-50 border border-rose-100 text-rose-600 font-bold' 
-                              : ev.event_type === 'COMPANY_EVENT' 
-                              ? 'bg-indigo-50 border border-indigo-100 text-indigo-700 font-bold' 
-                              : 'bg-slate-100 text-slate-700 font-bold'
-                          }`}
-                          title={`${ev.title}: ${ev.description}`}
-                        >
-                          <span className="truncate">{ev.title}</span>
-                          
-                          {/* 최고운영자 전용 원터치 일정 삭제 단추 */}
-                          {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'PRESIDENT') && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleDeleteEvent(ev.id); }}
-                              className="absolute right-1 opacity-0 group-hover:opacity-100 text-rose-500 hover:text-rose-700 p-0.5 rounded transition-all cursor-pointer bg-white border border-slate-100 shrink-0"
-                            >
-                              <Trash2 size={9} />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* 비상 공백 경고 Alert 텍스트 소형 렌더링 */}
-                    {isProjectDeliveryNear && (
-                      <div className="text-[7.5px] font-bold text-rose-600 leading-tight border border-rose-100 bg-rose-50 rounded p-1 shrink-0 z-10 animate-bounce-subtle mt-1">
-                        ⚠️ 인원공백 경고
-                      </div>
-                    )}
-
-                  </div>
-                );
-              })}
+                  {/* 일자 렌더링 */}
+                  {Array.from({ length: totalDays }).map((_, idx) => {
+                    const day = idx + 1;
+                    return renderDayCell(day, year, month);
+                  })}
+                </>
+              ) : (
+                <>
+                  {/* 주별 보기: 해당 주의 7일간의 셀 렌더링 */}
+                  {weekDays.map((dateItem) => {
+                    const dYear = dateItem.getFullYear();
+                    const dMonth = dateItem.getMonth();
+                    const dDay = dateItem.getDate();
+                    return renderDayCell(dDay, dYear, dMonth, true);
+                  })}
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -1003,9 +1365,18 @@ export default function HrAttendancePage() {
             {/* 오로라 배경 */}
             <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-full blur-xl -z-10"></div>
             
-            <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-              <Sparkles size={16} className="text-indigo-600 animate-pulse" />
-              <h3 className="text-xs font-black text-slate-800">AI 실시간 전사 업무 공백 예보</h3>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <Sparkles size={16} className="text-indigo-600 animate-pulse" />
+                <h3 className="text-xs font-black text-slate-800">실시간 AI 전사 업무 분석 예보</h3>
+              </div>
+              <button
+                onClick={() => setIsBriefingZoomed(true)}
+                className="p-1 text-slate-400 hover:text-indigo-650 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer flex items-center justify-center border border-transparent hover:border-indigo-100"
+                title="크게 확대해서 보기"
+              >
+                <Maximize2 size={13} />
+              </button>
             </div>
 
             {aiLoading ? (
@@ -1029,17 +1400,54 @@ export default function HrAttendancePage() {
                   </div>
                 </div>
 
-                <div className="p-3.5 rounded-xl border border-slate-100 bg-slate-50/40 text-[10px] font-medium leading-relaxed text-slate-600">
-                  <span className="block font-extrabold text-[10.5px] text-indigo-750 mb-1">💡 AI 마스터 종합 권고안</span>
+                <div className="p-3.5 rounded-xl border border-slate-100 bg-slate-50/40 text-[10px] font-medium leading-relaxed text-slate-650">
+                  <div className="flex items-center justify-between mb-1.5 border-b border-indigo-50/50 pb-1">
+                    <span className="font-extrabold text-[10.5px] text-indigo-750">💡 AI 마스터 종합 권고안</span>
+                    <button
+                      type="button"
+                      onClick={handleCopyBriefing}
+                      className="text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer flex items-center justify-center p-0.5"
+                      title="클립보드로 복사"
+                    >
+                      {copied ? (
+                        <Check size={11} className="text-emerald-500 animate-pulse" />
+                      ) : (
+                        <Copy size={11} />
+                      )}
+                    </button>
+                  </div>
                   {aiBriefing.briefingText}
                 </div>
                 
+                {/* 🏛️ 사장님 전용 Premium History Vault 드롭다운 피커 */}
+                {(isHighPrivilege || currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'PRESIDENT') && (
+                  <div className="space-y-1 block">
+                    <div className="flex items-center justify-between text-[8px] font-black text-slate-400 uppercase tracking-widest px-1">
+                      <span>History Vault</span>
+                      <span>과거 아카이브</span>
+                    </div>
+                    <select
+                      value={selectedHistoryId}
+                      onChange={(e) => handleSelectHistory(e.target.value)}
+                      className="w-full p-2 bg-slate-50 border border-slate-200 hover:border-indigo-300 rounded-xl text-[10px] font-extrabold text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer transition-all shadow-3xs"
+                    >
+                      <option value="">✨ 실시간 분석 모드로 복귀...</option>
+                      {briefingHistories.map((hist) => (
+                        <option key={hist.id} value={hist.id}>
+                          📜 [{hist.target_year_month}] {hist.alert_title.slice(0, 15)}... (Risk: {hist.risk_score}%)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 <button
                   onClick={triggerAiBriefing}
                   className="w-full py-1.5 border border-slate-200 hover:border-indigo-400 text-slate-500 hover:text-indigo-600 rounded-xl text-[9px] font-extrabold flex items-center justify-center gap-1 bg-white cursor-pointer transition-all shadow-3xs"
+                  disabled={aiLoading}
                 >
-                  <RefreshCw size={10} />
-                  실시간 AI 공백 통계 재연산
+                  <RefreshCw size={10} className={aiLoading ? "animate-spin" : ""} />
+                  실시간 AI 재분석
                 </button>
               </div>
             )}
@@ -1051,7 +1459,7 @@ export default function HrAttendancePage() {
               <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
                 <span className="w-1.5 h-3.5 bg-indigo-500 rounded-full"></span>
                 <h3 className="text-xs font-black text-slate-800 flex items-center justify-between w-full">
-                  <span>휴가 결재 대기 대기함</span>
+                  <span>휴가 결재 대기함</span>
                   <span className="px-1.5 py-0.2 rounded-full bg-indigo-50 text-indigo-650 font-black text-[9px]">{pendingLeavesCount}건</span>
                 </h3>
               </div>
@@ -1099,26 +1507,16 @@ export default function HrAttendancePage() {
             </div>
           )}
 
-          {/* 직원용: 나의 휴가/연차 신청 위젯 */}
+          {/* 직원용 잔여 연차 보드 단독 노출 (카드형으로 슬림화하여 사장님 비서 감성 제공) */}
           <div className="bg-white border border-slate-100 p-5 rounded-3xl shadow-sm block">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-xs font-black text-slate-800">나의 휴가 신청서 작성</h3>
-              <button
-                onClick={() => setIsLeaveModalOpen(true)}
-                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-850 text-white rounded-xl text-[10px] font-extrabold flex items-center gap-1 cursor-pointer transition-all shadow-sm"
-              >
-                <Plus size={11} />
-                연차 신청서
-              </button>
-            </div>
-            
-            <div className="pt-4 block">
-              <div className="flex justify-between items-center bg-slate-50 border p-3 rounded-2xl">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">나의 잔여 연차</span>
-                <span className="text-base font-black text-indigo-700 font-mono">
-                  {employees.find(e => e.id === currentUser?.id)?.remaining_leaves || 15} <span className="text-xs font-bold text-slate-400">일</span>
-                </span>
+            <div className="flex justify-between items-center bg-indigo-50/40 border border-indigo-105 p-4 rounded-2xl">
+              <div className="space-y-0.5">
+                <span className="text-[10px] font-black text-indigo-750 uppercase tracking-wider block">나의 잔여 연차</span>
+                <p className="text-[9px] text-slate-400 font-bold">올해 사용 가능한 유급 연차 잔액입니다.</p>
               </div>
+              <span className="text-xl font-black text-indigo-700 font-mono flex items-baseline gap-0.5">
+                {employees.find(e => e.id === currentUser?.id)?.remaining_leaves ?? 15} <span className="text-xs font-bold text-slate-400">일</span>
+              </span>
             </div>
           </div>
 
@@ -2755,70 +3153,285 @@ export default function HrAttendancePage() {
               exit={{ opacity: 0, scale: 0.95 }}
               className="bg-white rounded-3xl max-w-sm w-full p-6 space-y-4 border border-slate-100 shadow-2xl relative block text-slate-800"
             >
-              <button onClick={() => setIsLeaveModalOpen(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 cursor-pointer">
+              <button 
+                onClick={() => setIsLeaveModalOpen(false)} 
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 cursor-pointer animate-none bg-transparent border-0 p-0"
+                type="button"
+              >
                 <X size={18} />
               </button>
 
-              <h4 className="text-sm font-black text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
-                📄 신규 휴가 신청서 작성
-              </h4>
+              <div className="border-b border-slate-100 pb-2 flex items-center justify-between">
+                <h4 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                  📄 신규 휴가 신청서
+                </h4>
+                <div className="flex gap-1 mr-6">
+                  <span className={`h-1.5 w-4 rounded-full transition-all duration-300 ${leaveStep >= 1 ? 'bg-indigo-600' : 'bg-slate-200'}`}></span>
+                  <span className={`h-1.5 w-4 rounded-full transition-all duration-300 ${leaveStep >= 2 ? 'bg-indigo-600' : 'bg-slate-200'}`}></span>
+                  <span className={`h-1.5 w-4 rounded-full transition-all duration-300 ${leaveStep >= 3 ? 'bg-indigo-600' : 'bg-slate-200'}`}></span>
+                </div>
+              </div>
 
-              <form onSubmit={handleApplyLeave} className="space-y-3.5 text-xs font-bold">
-                <div className="space-y-1 block">
-                  <label className="text-[10px] text-slate-450 uppercase tracking-widest block">휴가 구분</label>
-                  <select
-                    value={leaveType}
-                    onChange={(e: any) => setLeaveType(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold"
+              {/* 임시저장 불러오기 패널 (스텝 1에서 노출) */}
+              {leaveStep === 1 && typeof window !== 'undefined' && localStorage.getItem('temp_leave_request') && (
+                <div className="p-2.5 bg-indigo-50/50 border border-indigo-100 rounded-xl flex items-center justify-between text-[10px]">
+                  <span className="text-slate-600 font-extrabold flex items-center gap-1">
+                    📂 작성 중이던 신청서가 있습니다.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleLoadTempLeave}
+                    className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-black cursor-pointer shadow-3xs transition-colors border-0"
                   >
-                    <option value="ANNUAL">연차 휴가 (1일 소모)</option>
-                    <option value="HALF">오전/오후 반차 (0.5일 소모)</option>
-                    <option value="SICK">병가 (유급/무급)</option>
-                    <option value="SPECIAL">경조 휴가 (경조사 특별)</option>
-                  </select>
+                    불러오기
+                  </button>
                 </div>
+              )}
 
-                <div className="grid grid-cols-2 gap-2.5 block">
-                  <div className="space-y-1">
-                    <label className="text-[10px] text-slate-455 uppercase tracking-widest block">시작 일자</label>
-                    <input
-                      type="date"
-                      value={leaveStart}
-                      onChange={(e) => setLeaveStart(e.target.value)}
-                      className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl font-bold"
+              {/* 1단계: 근태종류 선택 */}
+              {leaveStep === 1 && (
+                <div className="space-y-4">
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+                    Step 1. 근태종류 선택
+                  </div>
+
+                  <div className="space-y-1 block">
+                    <label className="text-[10px] text-slate-450 uppercase tracking-widest block font-extrabold">휴가 구분</label>
+                    <select
+                      value={leaveType}
+                      onChange={(e: any) => setLeaveType(e.target.value)}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-black text-slate-700 cursor-pointer"
+                    >
+                      <option value="ANNUAL">연차 휴가 (1일 소모)</option>
+                      <option value="HALF">오전/오후 반차 (0.5일 소모)</option>
+                      <option value="SICK">병가 (유급/무급)</option>
+                      <option value="SPECIAL">경조 휴가 (경조사 특별)</option>
+                    </select>
+                  </div>
+
+                  <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-2xl flex justify-between items-center shadow-inner">
+                    <span className="text-[9.5px] font-black text-slate-400 uppercase tracking-widest">나의 잔여 연차</span>
+                    <span className="text-base font-black text-indigo-700 font-mono">
+                      {employees.find(e => e.id === currentUser?.id)?.remaining_leaves ?? 15} <span className="text-xs font-bold text-slate-400">일</span>
+                    </span>
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsLeaveModalOpen(false)}
+                      className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-655 rounded-xl text-xs font-black cursor-pointer transition-all border border-slate-250 text-center"
+                    >
+                      취소
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLeaveStep(2)}
+                      className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black cursor-pointer shadow-md transition-all text-center border-0"
+                    >
+                      다음 단계 →
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 2단계: 기간 및 시간, 사유, 증빙 */}
+              {leaveStep === 2 && (
+                <div className="space-y-4">
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+                    Step 2. 기간, 사유 및 증빙 입력
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5 block">
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-slate-455 uppercase tracking-widest block font-extrabold">시작 일자</label>
+                      <input
+                        type="date"
+                        value={leaveStart}
+                        onChange={(e) => setLeaveStart(e.target.value)}
+                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl font-black text-slate-700 cursor-pointer text-[11px]"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] text-slate-455 uppercase tracking-widest block font-extrabold">종료 일자</label>
+                      <input
+                        type="date"
+                        value={leaveType === 'HALF' ? leaveStart : leaveEnd}
+                        onChange={(e) => setLeaveEnd(e.target.value)}
+                        disabled={leaveType === 'HALF'}
+                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl font-black text-slate-700 disabled:opacity-50 text-[11px] cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  {/* 반차 종류 선택 (오전/오후 분기 노출) */}
+                  {leaveType === 'HALF' && (
+                    <div className="space-y-1 block">
+                      <label className="text-[10px] text-slate-455 uppercase tracking-widest block font-extrabold">반차 구분 시간</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setHalfTimeType('AM')}
+                          className={`py-2 text-[10.5px] font-black rounded-xl transition-all cursor-pointer border-0 ${halfTimeType === 'AM' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}
+                        >
+                          오전 반차 (09~13시)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setHalfTimeType('PM')}
+                          className={`py-2 text-[10.5px] font-black rounded-xl transition-all cursor-pointer border-0 ${halfTimeType === 'PM' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}
+                        >
+                          오후 반차 (14~18시)
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-1 block">
+                    <label className="text-[10px] text-slate-455 uppercase tracking-widest block font-extrabold">휴가 신청 구체적 사유</label>
+                    <textarea
+                      value={leaveReason}
+                      onChange={(e) => setLeaveReason(e.target.value)}
+                      placeholder="인사 평가 및 결재 보존용 신청 사유를 기입하세요."
+                      rows={2}
+                      className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-extrabold text-[10.5px] resize-none leading-relaxed text-slate-700"
                     />
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] text-slate-455 uppercase tracking-widest block">종료 일자</label>
-                    <input
-                      type="date"
-                      value={leaveEnd}
-                      onChange={(e) => setLeaveEnd(e.target.value)}
-                      className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl font-bold"
-                    />
+
+                  {/* 증빙 서류 첨부 시뮬레이션 */}
+                  <div className="space-y-1 block">
+                    <label className="text-[10px] text-slate-455 uppercase tracking-widest block font-extrabold">증빙서류 파일 첨부 (선택)</label>
+                    <div className="relative border border-dashed border-slate-350 rounded-xl p-3 bg-slate-50/50 flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:bg-slate-50 transition-colors">
+                      <input
+                        type="file"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setAttachedFileName(file.name);
+                          }
+                        }}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      />
+                      <span className="text-[9.5px] font-black text-indigo-650 flex items-center gap-1">
+                        📎 {attachedFileName ? attachedFileName : '증빙 자료 업로드 (PDF, JPG, PNG)'}
+                      </span>
+                      {attachedFileName && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAttachedFileName("");
+                          }}
+                          className="text-[7.5px] font-black text-rose-500 underline z-10 hover:text-rose-650 border-0 bg-transparent p-0 cursor-pointer"
+                        >
+                          파일 제거
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setLeaveStep(1)}
+                      className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-650 rounded-xl text-xs font-black cursor-pointer transition-all border border-slate-250 text-center"
+                    >
+                      ← 이전
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!leaveStart || (leaveType !== 'HALF' && !leaveEnd) || !leaveReason) {
+                          alert('휴가 기간 및 사유를 명확히 입력 주십시오.');
+                          return;
+                        }
+                        setLeaveStep(3);
+                      }}
+                      className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black cursor-pointer shadow-md transition-all text-center border-0"
+                    >
+                      다음 단계 →
+                    </button>
                   </div>
                 </div>
+              )}
 
-                <div className="space-y-1 block">
-                  <label className="text-[10px] text-slate-455 uppercase tracking-widest block">휴가 신청 구체적 사유</label>
-                  <textarea
-                    value={leaveReason}
-                    onChange={(e) => setLeaveReason(e.target.value)}
-                    placeholder="인사 평가 및 결재 보존용 신청 사유를 기입하세요."
-                    rows={3}
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold resize-none leading-relaxed"
-                  />
+              {/* 3단계: 신청 / 취소 / 임시저장 */}
+              {leaveStep === 3 && (
+                <div className="space-y-4">
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">
+                    Step 3. 신청서 최종 요약 및 제출
+                  </div>
+
+                  {/* 최종 검수 상세 요약 명세서 */}
+                  <div className="p-4 rounded-2xl bg-indigo-50/40 border border-indigo-100 space-y-2.5 text-[10.5px] font-extrabold text-slate-700">
+                    <div className="flex justify-between items-center border-b border-indigo-100/50 pb-1.5">
+                      <span className="text-[9.5px] text-slate-400 font-extrabold">신청 항목</span>
+                      <span className="font-black text-indigo-750 text-[11px]">
+                        {leaveType === 'ANNUAL' ? '🏖️ 연차 휴가' : leaveType === 'HALF' ? `🌗 반차 휴가 (${halfTimeType === 'AM' ? '오전' : '오후'})` : leaveType === 'SICK' ? '🤒 병가' : '🎉 경조사 휴가'}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center border-b border-indigo-100/50 pb-1.5">
+                      <span className="text-[9.5px] text-slate-400 font-extrabold">신청 기간</span>
+                      <span className="font-black font-mono">
+                        {leaveStart} {leaveType !== 'HALF' && `~ ${leaveEnd}`}
+                      </span>
+                    </div>
+
+                    <div className="border-b border-indigo-100/50 pb-1.5 block">
+                      <span className="text-[9.5px] text-slate-400 font-extrabold block mb-1">상세 사유</span>
+                      <p className="text-slate-655 bg-white p-2 rounded-lg border border-slate-100 text-[10px] max-h-[60px] overflow-y-auto leading-relaxed">
+                        {leaveReason}
+                      </p>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      <span className="text-[9.5px] text-slate-400 font-extrabold">증빙 자료</span>
+                      <span className="font-extrabold text-[9.5px] text-indigo-600">
+                        {attachedFileName ? `📎 ${attachedFileName}` : '증빙 자료 없음'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 신청 / 취소 / 임시저장 3대 액션 버튼 정렬 */}
+                  <div className="space-y-2 pt-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={handleTempSaveLeave}
+                        className={`py-2 text-[10.5px] font-black rounded-xl cursor-pointer transition-all border flex items-center justify-center gap-1 ${isTempSaved ? 'bg-emerald-50 text-emerald-605 border-emerald-250' : 'bg-white hover:bg-slate-50 text-slate-650 border-slate-250'}`}
+                      >
+                        {isTempSaved ? '💾 저장완료! ✨' : '💾 임시저장'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsLeaveModalOpen(false)}
+                        className="py-2 text-[10.5px] font-black bg-slate-100 hover:bg-slate-200 text-slate-655 border border-slate-250 rounded-xl cursor-pointer transition-all text-center"
+                      >
+                        ❌ 신청 취소
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleApplyLeave()}
+                      disabled={submitLoading}
+                      className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-md cursor-pointer transition-all flex items-center justify-center gap-1.5 border-0"
+                    >
+                      <Send size={12} className={submitLoading ? "animate-spin" : ""} />
+                      ⚡ 신청서 최종 제출 및 상신
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setLeaveStep(2)}
+                      className="w-full py-1 text-[9.5px] text-slate-450 hover:text-indigo-650 font-black cursor-pointer transition-colors text-center bg-transparent border-0"
+                    >
+                      ← 기간 및 사유 수정하러 가기
+                    </button>
+                  </div>
                 </div>
-
-                <button
-                  type="submit"
-                  disabled={submitLoading}
-                  className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black shadow-md cursor-pointer transition-all flex items-center justify-center gap-1.5"
-                >
-                  <Send size={12} />
-                  휴가 신청서 접수 발송
-                </button>
-              </form>
+              )}
             </motion.div>
           </div>
         )}
@@ -2857,15 +3470,44 @@ export default function HrAttendancePage() {
                 </div>
 
                 <div className="space-y-1 block">
-                  <label className="text-[10px] text-slate-455 uppercase tracking-widest block">일정 유형</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] text-slate-455 uppercase tracking-widest block font-extrabold">일정 유형</label>
+                    {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'PRESIDENT') && (
+                      <button
+                        type="button"
+                        onClick={() => setIsTypeManagerOpen(true)}
+                        className="text-[9px] text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer transition-all hover:underline font-bold"
+                      >
+                        ⚙️ 유형 관리
+                      </button>
+                    )}
+                  </div>
                   <select
                     value={eventType}
                     onChange={(e: any) => setEventType(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-black text-slate-700 cursor-pointer"
                   >
-                    <option value="COMPANY_EVENT">회사 공동 행사 (COMPANY)</option>
-                    <option value="HOLIDAY">공식 휴일 (HOLIDAY)</option>
-                    <option value="DEPT_EVENT">부서별 특정 일정 (DEPT)</option>
+                    {eventTypes.map((t) => (
+                      <option key={t.type_key} value={t.type_key}>
+                        {t.type_key === 'COMPANY_EVENT' ? '🏢 ' :
+                         t.type_key === 'HOLIDAY' ? '🔴 ' :
+                         t.type_key === 'DEPT_EVENT' ? '👥 ' :
+                         t.type_key === 'DEADLINE' ? '⚠️ ' :
+                         t.type_key === 'LEGAL' ? '⚖️ ' :
+                         t.type_key === 'EDUCATION' ? '📚 ' : '🎨 '}
+                        {t.type_name}
+                      </option>
+                    ))}
+                    {eventTypes.length === 0 && (
+                      <>
+                        <option value="COMPANY_EVENT">🏢 회사 공동 행사 (COMPANY)</option>
+                        <option value="HOLIDAY">🔴 공식 휴일 (HOLIDAY)</option>
+                        <option value="DEPT_EVENT">👥 부서별 특정 일정 (DEPT)</option>
+                        <option value="DEADLINE">⚠️ 마감 및 납품 기일 (DEADLINE)</option>
+                        <option value="LEGAL">⚖️ 대외 법무 및 감사 일정 (LEGAL)</option>
+                        <option value="EDUCATION">📚 필수 산업 교육 및 세미나 (EDUCATION)</option>
+                      </>
+                    )}
                   </select>
                 </div>
 
@@ -2904,12 +3546,187 @@ export default function HrAttendancePage() {
                 <button
                   type="submit"
                   disabled={submitLoading}
-                  className="w-full py-3 bg-indigo-650 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-md cursor-pointer transition-all flex items-center justify-center gap-1.5"
+                  className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-md cursor-pointer transition-all flex items-center justify-center gap-1.5"
                 >
                   <Plus size={12} />
                   캘린더 일정 배포 등록
                 </button>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ==========================================
+          📂 모달 4: 일정 유형 동적 관리자 (Master Vault)
+          ========================================== */}
+      <AnimatePresence>
+        {isTypeManagerOpen && (
+          <div className="fixed inset-0 bg-black/45 backdrop-blur-3xs flex items-center justify-center z-[60] p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 border border-slate-100 shadow-2xl relative block text-slate-800"
+            >
+              <button 
+                onClick={() => {
+                  setIsTypeManagerOpen(false);
+                  setNewTypeName("");
+                  setNewTypeColor("Indigo");
+                  setTypeError(null);
+                }} 
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="space-y-1">
+                <h4 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                  ⚙️ 일정 유형 동적 마스터 관리
+                </h4>
+                <p className="text-[10px] text-slate-400 font-bold">
+                  최고관리자가 실시간으로 일정을 분류하는 마스터 유형을 무제한 생성/삭제 제어합니다.
+                </p>
+              </div>
+
+              {/* 안전 가이드 경고 배너 및 에러 메시지 */}
+              {typeError && (
+                <motion.div
+                  initial={{ opacity: 0, y: -5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-3 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 text-2xs font-bold leading-relaxed flex flex-col gap-1"
+                >
+                  <span className="flex items-center gap-1 font-black text-[10px] text-rose-700">
+                    ⚠️ 무결성 락 검증 안내
+                  </span>
+                  <span>{typeError}</span>
+                </motion.div>
+              )}
+
+              {/* 1. 현재 등록된 유형 목록 */}
+              <div className="space-y-2">
+                <label className="text-[10px] text-slate-455 uppercase tracking-widest block font-extrabold">현재 등록된 일정 유형 리스트 ({eventTypes.length}개)</label>
+                <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1 border border-slate-100 rounded-xl p-2 bg-slate-50/50">
+                  {eventTypes.map((t) => {
+                    let badgeStyle = "bg-slate-50 border-slate-200 text-slate-700";
+                    if (t.color_theme === 'Indigo') badgeStyle = "bg-indigo-50 border-indigo-100 text-indigo-700";
+                    else if (t.color_theme === 'Rose') badgeStyle = "bg-rose-50 border-rose-100 text-rose-600";
+                    else if (t.color_theme === 'Amber') badgeStyle = "bg-amber-50 border-amber-100 text-amber-700";
+                    else if (t.color_theme === 'Purple') badgeStyle = "bg-purple-50 border-purple-100 text-purple-700";
+                    else if (t.color_theme === 'Emerald') badgeStyle = "bg-emerald-50 border-emerald-100 text-emerald-700";
+                    else if (t.color_theme === 'Cyan') badgeStyle = "bg-cyan-50 border-cyan-100 text-cyan-700";
+                    else if (t.color_theme === 'Lime') badgeStyle = "bg-lime-50 border-lime-100 text-lime-700";
+                    else if (t.color_theme === 'Teal') badgeStyle = "bg-teal-50 border-teal-100 text-teal-700";
+                    else if (t.color_theme === 'Pink') badgeStyle = "bg-pink-50 border-pink-100 text-pink-700";
+                    else if (t.color_theme === 'Slate') badgeStyle = "bg-slate-50 border-slate-200 text-slate-700";
+
+                    return (
+                      <div key={t.id} className="flex items-center justify-between p-2 bg-white border border-slate-100 rounded-xl">
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black border ${badgeStyle}`}>
+                            {t.type_name}
+                          </span>
+                          <span className="text-[9px] text-slate-400 font-mono font-bold">
+                            {t.type_key.replace('CUSTOM_TYPE_', 'CUSTOM_')}
+                          </span>
+                          {t.is_system === 1 && (
+                            <span className="text-[8px] bg-slate-100 text-slate-500 px-1 py-0.2 rounded font-bold">
+                              기본
+                            </span>
+                          )}
+                        </div>
+
+                        {/* 삭제 버튼 */}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteEventType(t.type_key)}
+                          className="text-rose-500 hover:text-rose-700 p-1 hover:bg-rose-50 rounded-lg cursor-pointer transition-all shrink-0"
+                          title="일정 유형 삭제"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                  {eventTypes.length === 0 && (
+                    <div className="text-center py-6 text-[10px] text-slate-400 font-bold">
+                      등록된 일정 유형이 없습니다.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 2. 신규 일정 유형 생성 폼 */}
+              <div className="border-t border-slate-100 pt-3 space-y-3">
+                <label className="text-[10px] text-slate-455 uppercase tracking-widest block font-extrabold">🎨 신규 일정 유형 신설</label>
+                
+                <div className="space-y-1 block">
+                  <input
+                    type="text"
+                    value={newTypeName}
+                    onChange={(e) => setNewTypeName(e.target.value)}
+                    placeholder="유형 이름 입력 (예: 창립 기념 휴무일, 워크숍)"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-xs"
+                  />
+                </div>
+
+                {/* 10대 파스텔 프리미엄 컬러 피커 */}
+                <div className="space-y-1 block">
+                  <label className="text-[9px] text-slate-450 block font-bold">색상 테마 선택</label>
+                  <div className="grid grid-cols-5 gap-1.5 pt-1">
+                    {['Indigo', 'Rose', 'Amber', 'Purple', 'Emerald', 'Cyan', 'Lime', 'Teal', 'Pink', 'Slate'].map((color) => {
+                      let btnColor = "bg-slate-100 border-slate-200";
+                      if (color === 'Indigo') btnColor = "bg-indigo-500 border-indigo-600";
+                      else if (color === 'Rose') btnColor = "bg-rose-500 border-rose-600";
+                      else if (color === 'Amber') btnColor = "bg-amber-500 border-amber-600";
+                      else if (color === 'Purple') btnColor = "bg-purple-500 border-purple-600";
+                      else if (color === 'Emerald') btnColor = "bg-emerald-500 border-emerald-600";
+                      else if (color === 'Cyan') btnColor = "bg-cyan-500 border-cyan-600";
+                      else if (color === 'Lime') btnColor = "bg-lime-500 border-lime-600";
+                      else if (color === 'Teal') btnColor = "bg-teal-500 border-teal-600";
+                      else if (color === 'Pink') btnColor = "bg-pink-500 border-pink-600";
+                      else if (color === 'Slate') btnColor = "bg-slate-500 border-slate-600";
+
+                      const isSelected = newTypeColor === color;
+
+                      return (
+                        <button
+                          key={color}
+                          type="button"
+                          onClick={() => setNewTypeColor(color)}
+                          className={`h-7 rounded-xl border relative cursor-pointer flex items-center justify-center transition-all ${
+                            isSelected ? 'ring-2 ring-indigo-500 scale-105 border-white shadow-sm' : 'border-transparent opacity-85 hover:opacity-100'
+                          } ${btnColor}`}
+                          title={color}
+                        >
+                          <span className="text-[8px] text-white font-extrabold select-none truncate px-0.5">
+                            {color === 'Indigo' ? '인디고' :
+                             color === 'Rose' ? '로즈' :
+                             color === 'Amber' ? '앰버' :
+                             color === 'Purple' ? '퍼플' :
+                             color === 'Emerald' ? '에메랄드' :
+                             color === 'Cyan' ? '시안' :
+                             color === 'Lime' ? '라임' :
+                             color === 'Teal' ? '민트' :
+                             color === 'Pink' ? '핑크' : '슬레이트'}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleCreateEventType}
+                  disabled={submitLoading}
+                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-md cursor-pointer transition-all flex items-center justify-center gap-1.5 mt-2"
+                >
+                  <Plus size={12} />
+                  새로운 일정 유형 마스터 등록
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
@@ -2955,6 +3772,262 @@ export default function HrAttendancePage() {
                 >
                   <X size={12} />
                   이 연차 신청을 공식 반려합니다
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ==========================================
+          📂 모달 4: 실시간 AI 전사 업무 분석 예보 확대 팝업 모달
+          ========================================== */}
+      <AnimatePresence>
+        {isBriefingZoomed && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+            <motion.div
+              initial={{ scale: 0.95, y: 15, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 15, opacity: 0 }}
+              transition={{ type: "spring", duration: 0.4 }}
+              className="bg-white border border-slate-100 w-full max-w-2xl rounded-3xl shadow-2xl p-7 space-y-6 relative overflow-hidden max-h-[85vh] overflow-y-auto block text-slate-800 custom-scrollbar"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* 배경 장식 오로라 */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 animate-pulse"></div>
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-rose-500/5 rounded-full blur-3xl -z-10"></div>
+
+              {/* 모달 헤더 */}
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-indigo-500/10 text-indigo-600 rounded-xl">
+                    <Sparkles className="w-5 h-5 animate-pulse" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-800 flex items-center gap-1.5">
+                      실시간 AI 전사 업무 분석 예보
+                      <span className="text-[9px] font-bold text-indigo-650 bg-indigo-50 px-2 py-0.5 rounded-md">SCM RAG 분석 대장</span>
+                    </h3>
+                    <p className="text-[10px] text-slate-400 font-bold mt-0.5">전체 부서 일정 교차 검증 및 지능형 가동율 분석</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsBriefingZoomed(false)}
+                  className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all cursor-pointer flex items-center justify-center border border-slate-100"
+                  title="닫기"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              {/* 모달 콘텐츠 */}
+              <div className="space-y-6">
+                {/* 비상 리스크 스코어 게이지 & 알림 요약 */}
+                <div className="flex items-center gap-6 p-4 rounded-2xl bg-slate-50/50 border border-slate-100">
+                  <div className="relative w-20 h-20 shrink-0 flex items-center justify-center rounded-full border bg-white shadow-xs">
+                    <span className={`text-2xl font-black font-mono ${aiBriefing.riskScore > 60 ? 'text-rose-600' : aiBriefing.riskScore > 30 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                      {aiBriefing.riskScore}%
+                    </span>
+                    <span className="absolute bottom-2.5 text-[7px] font-black text-slate-400 uppercase tracking-widest">Risk</span>
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <h4 className="text-sm font-black text-slate-800 leading-tight">{aiBriefing.alertTitle}</h4>
+                    <p className="text-xs text-slate-500 font-semibold leading-normal">{aiBriefing.alertMessage}</p>
+                  </div>
+                </div>
+
+                {/* 📈 사장님 전용 리스크 시계열 트렌드 Vanilla SVG 차트 */}
+                {(isHighPrivilege || currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'PRESIDENT') && briefingHistories.length >= 2 && (
+                  <div className="bg-slate-50/60 border border-slate-100 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10.5px] font-black text-slate-700 flex items-center gap-1.5">
+                        <Calendar size={12} className="text-indigo-600" />
+                        📈 전사 인사-법무 리스크 시계열 트렌드 (최근 {Math.min(6, briefingHistories.length)}회 분석 흐름)
+                      </span>
+                      <span className="text-[9px] font-bold text-slate-400">최대 위험도: 100%</span>
+                    </div>
+
+                    <div className="w-full overflow-x-auto custom-scrollbar">
+                      {(() => {
+                        const chartData = [...briefingHistories]
+                          .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                          .slice(-6);
+
+                        const width = 560;
+                        const height = 120;
+                        const paddingX = 40;
+                        const paddingY = 20;
+
+                        const chartWidth = width - paddingX * 2;
+                        const chartHeight = height - paddingY * 2;
+
+                        // 좌표 계산
+                        const points = chartData.map((d, i) => {
+                          const x = paddingX + (i * chartWidth) / (chartData.length - 1);
+                          const y = height - paddingY - (d.risk_score / 100) * chartHeight;
+                          return { x, y, score: d.risk_score, date: d.target_year_month || d.created_at.slice(5, 10) };
+                        });
+
+                        // 선 경로 생성
+                        const pathD = points.reduce((acc, p, i) => {
+                          return i === 0 ? `M ${p.x} ${p.y}` : `${acc} L ${p.x} ${p.y}`;
+                        }, "");
+
+                        // 그라데이션 채우기 영역 경로 생성
+                        const areaD = chartData.length > 0 
+                          ? `${pathD} L ${points[points.length - 1].x} ${height - paddingY} L ${points[0].x} ${height - paddingY} Z`
+                          : "";
+
+                        return (
+                          <svg viewBox={`0 0 ${width} ${height}`} className="w-full min-w-[500px] h-auto overflow-visible">
+                            <defs>
+                              <linearGradient id="chartAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#6366f1" stopOpacity="0.2" />
+                                <stop offset="100%" stopColor="#6366f1" stopOpacity="0.00" />
+                              </linearGradient>
+                              <linearGradient id="chartLineGrad" x1="0" y1="0" x2="1" y2="0">
+                                <stop offset="0%" stopColor="#818cf8" />
+                                <stop offset="50%" stopColor="#6366f1" />
+                                <stop offset="100%" stopColor="#4f46e5" />
+                              </linearGradient>
+                            </defs>
+
+                            {/* 가로 보조선 3개 */}
+                            {[0, 50, 100].map((val) => {
+                              const y = height - paddingY - (val / 100) * chartHeight;
+                              return (
+                                <g key={val} className="opacity-40">
+                                  <line
+                                    x1={paddingX}
+                                    y1={y}
+                                    x2={width - paddingX}
+                                    y2={y}
+                                    stroke="#e2e8f0"
+                                    strokeWidth="1"
+                                    strokeDasharray="4 4"
+                                  />
+                                  <text
+                                    x={paddingX - 8}
+                                    y={y + 3}
+                                    textAnchor="end"
+                                    className="fill-slate-400 font-mono text-[8px] font-extrabold"
+                                  >
+                                    {val}%
+                                  </text>
+                                </g>
+                              );
+                            })}
+
+                            {/* 채우기 면적 */}
+                            <path d={areaD} fill="url(#chartAreaGrad)" />
+
+                            {/* 메인 꺾은선 */}
+                            <path
+                              d={pathD}
+                              fill="none"
+                              stroke="url(#chartLineGrad)"
+                              strokeWidth="2.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+
+                            {/* 포인트 점들과 텍스트 값 표시 */}
+                            {points.map((p, i) => (
+                              <g key={i} className="group cursor-pointer">
+                                <circle
+                                  cx={p.x}
+                                  cy={p.y}
+                                  r="7"
+                                  className="fill-indigo-500/10 stroke-indigo-500/30 opacity-0 group-hover:opacity-100 transition-opacity"
+                                />
+                                <circle
+                                  cx={p.x}
+                                  cy={p.y}
+                                  r="4"
+                                  className={`${
+                                    p.score > 60
+                                      ? 'fill-rose-500 stroke-rose-200'
+                                      : p.score > 30
+                                      ? 'fill-amber-500 stroke-amber-200'
+                                      : 'fill-emerald-500 stroke-emerald-200'
+                                  } stroke-[1.5px] shadow-sm`}
+                                />
+                                <text
+                                  x={p.x}
+                                  y={p.y - 8}
+                                  textAnchor="middle"
+                                  className={`font-mono text-[9px] font-black ${
+                                    p.score > 60 ? 'text-rose-600 fill-rose-600' : p.score > 30 ? 'text-amber-600 fill-amber-600' : 'text-emerald-600 fill-emerald-600'
+                                  }`}
+                                >
+                                  {p.score}%
+                                </text>
+                                <text
+                                  x={p.x}
+                                  y={height - 4}
+                                  textAnchor="middle"
+                                  className="fill-slate-400 text-[8px] font-bold"
+                                >
+                                  {p.date}
+                                </text>
+                              </g>
+                            ))}
+                          </svg>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                )}
+
+                {/* AI 마스터 종합 권고안 상세 리포트 */}
+                <div className="p-5 rounded-2xl border border-slate-100 bg-slate-50/40 leading-relaxed text-slate-700 space-y-3">
+                  <div className="flex items-center justify-between border-b border-indigo-100/50 pb-2">
+                    <span className="font-black text-indigo-750">💡 AI 마스터 종합 권고안 상세 리포트</span>
+                    <button
+                      type="button"
+                      onClick={handleCopyBriefing}
+                      className={`px-2 py-1 rounded-lg text-[9px] font-black cursor-pointer transition-all flex items-center gap-1 border ${
+                        copied
+                          ? "bg-emerald-50 text-emerald-600 border-emerald-200"
+                          : "bg-white hover:bg-slate-50 text-slate-500 hover:text-indigo-600 border-slate-200"
+                      }`}
+                      title="클립보드로 복사"
+                    >
+                      {copied ? (
+                        <>
+                          <Check size={10} className="text-emerald-600 animate-pulse" />
+                          복사 완료!
+                        </>
+                      ) : (
+                        <>
+                          <Copy size={10} />
+                          텍스트 복사
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <div className="text-xs font-medium leading-loose text-slate-650 whitespace-pre-wrap max-h-[350px] overflow-y-auto custom-scrollbar pr-1">
+                    {aiBriefing.briefingText}
+                  </div>
+                </div>
+              </div>
+
+              {/* 모달 하단 버튼바 */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={async () => {
+                    await triggerAiBriefing();
+                  }}
+                  className="flex-1 py-3 border border-indigo-200 hover:border-indigo-400 text-indigo-600 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 bg-indigo-50/50 hover:bg-indigo-50 cursor-pointer transition-all shadow-3xs"
+                >
+                  <RefreshCw size={12} className={aiLoading ? "animate-spin" : ""} />
+                  실시간 AI 재분석
+                </button>
+                <button
+                  onClick={() => setIsBriefingZoomed(false)}
+                  className="px-6 py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-black cursor-pointer transition-colors shadow-sm"
+                >
+                  닫기
                 </button>
               </div>
             </motion.div>

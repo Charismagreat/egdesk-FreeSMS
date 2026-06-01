@@ -1,7 +1,9 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, AlertCircle, Sparkles, CheckCircle2, Eye, EyeOff, Search, RefreshCw, ChevronRight, ShieldAlert, Send, X, AlertTriangle, Mail } from 'lucide-react';
+import { MessageSquare, AlertCircle, Sparkles, CheckCircle2, Eye, EyeOff, Search, RefreshCw, ChevronRight, ShieldAlert, Send, X, AlertTriangle, Mail, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
 interface FeedbackItem {
@@ -22,6 +24,12 @@ export default function FeedbackManagementCard() {
   // 필터 상태
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+
+  // 페이지네이션 상태 추가
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const limit = 10;
 
   // 다중 선택 상태
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -45,10 +53,12 @@ export default function FeedbackManagementCard() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/settings/feedback');
+      const response = await fetch(`/api/settings/feedback?page=${currentPage}&limit=${limit}&type=${typeFilter}&status=${statusFilter}&search=${encodeURIComponent(searchQuery)}`);
       const data = await response.json();
       if (data.success) {
-        setFeedbacks(data.feedbacks);
+        setFeedbacks(data.feedbacks || []);
+        setTotalPages(data.totalPages || 1);
+        setTotalCount(data.totalCount || 0);
       } else {
         setError(data.error || '피드백 목록을 가져오지 못했습니다.');
       }
@@ -60,9 +70,62 @@ export default function FeedbackManagementCard() {
     }
   };
 
+  // 🗑️ 선택된 다중 피드백 일괄 삭제
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`선택한 ${selectedIds.length}개의 피드백을 영구 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/settings/feedback', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedIds })
+      });
+      const data = await response.json();
+      if (data.success) {
+        alert(data.message || '성공적으로 삭제되었습니다. 🟢');
+        setSelectedIds([]);
+        fetchFeedbacks();
+      } else {
+        alert(data.error || '삭제 처리에 실패했습니다.');
+      }
+    } catch (err: any) {
+      alert('삭제 중 통신 오류: ' + err.message);
+    }
+  };
+
+  // 🗑️ 단일 피드백 삭제
+  const handleSingleDelete = async (id: string) => {
+    if (!confirm('본 피드백을 영구 삭제하시겠습니까?')) return;
+
+    try {
+      const response = await fetch('/api/settings/feedback', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [id] })
+      });
+      const data = await response.json();
+      if (data.success) {
+        fetchFeedbacks();
+      } else {
+        alert(data.error || '삭제 실패');
+      }
+    } catch (err: any) {
+      alert('통신 오류: ' + err.message);
+    }
+  };
+
+  // 필터 및 검색어 변경 시 페이지를 1페이지로 리셋하고 즉시 fetch 실행
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [typeFilter, statusFilter, searchQuery]);
+
+  // 페이지 또는 검색/필터 조건 바인딩 후 최종 fetch 호출
   useEffect(() => {
     fetchFeedbacks();
-  }, []);
+  }, [currentPage, typeFilter, statusFilter, searchQuery]);
 
   const handleStatusChange = async (id: string, newStatus: string) => {
     try {
@@ -123,17 +186,6 @@ export default function FeedbackManagementCard() {
     return pageNames[url] || url;
   };
 
-  // 검색 및 필터칩 필터링 연산
-  const filteredFeedbacks = feedbacks.filter(item => {
-    const matchesSearch = item.user_prompt.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          getPageName(item.current_url).toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesType = typeFilter === 'all' || item.detected_type === typeFilter;
-    const matchesStatus = statusFilter === 'all' || item.resolved_status === statusFilter;
-
-    return matchesSearch && matchesType && matchesStatus;
-  });
-
   // 개별 체크박스 토글
   const handleSelectToggle = (id: string) => {
     setSelectedIds(prev => 
@@ -143,10 +195,10 @@ export default function FeedbackManagementCard() {
 
   // 전체 선택/해제 토글
   const handleSelectAllToggle = () => {
-    if (selectedIds.length === filteredFeedbacks.length) {
+    if (selectedIds.length === feedbacks.length) {
       setSelectedIds([]); // 전체 선택된 상태라면 모두 해제
     } else {
-      setSelectedIds(filteredFeedbacks.map(item => item.id)); // 필터링된 모든 항목 선택
+      setSelectedIds(feedbacks.map(item => item.id)); // 필터링된 모든 항목 선택
     }
   };
 
@@ -285,7 +337,7 @@ export default function FeedbackManagementCard() {
           <div>
             <h3 className="text-[16px] font-bold text-slate-800 flex items-center gap-2">
               이지봇 실시간 피드백 보드
-              <span className="text-[10px] font-extrabold bg-indigo-50 text-indigo-650 px-2 py-0.5 rounded-full border border-indigo-100">
+              <span className="text-[10px] font-extrabold bg-indigo-550/10 text-indigo-600 px-2 py-0.5 rounded-full border border-indigo-100">
                 수집 자동화
               </span>
             </h3>
@@ -297,7 +349,7 @@ export default function FeedbackManagementCard() {
         <button
           onClick={fetchFeedbacks}
           disabled={loading}
-          className="self-start md:self-auto flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-650 hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50"
+          className="self-start md:self-auto flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50"
         >
           <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
           새로고침
@@ -336,8 +388,8 @@ export default function FeedbackManagementCard() {
                   onClick={() => setTypeFilter(chip.key)}
                   className={`px-2.5 py-1.5 rounded-lg border font-semibold transition-all text-[11px] shrink-0 ${
                     typeFilter === chip.key
-                      ? 'bg-indigo-550 border-indigo-550 text-white shadow-sm'
-                      : 'bg-white border-slate-200 text-slate-650 hover:bg-slate-50'
+                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                   }`}
                 >
                   {chip.label}
@@ -362,8 +414,8 @@ export default function FeedbackManagementCard() {
                   onClick={() => setStatusFilter(chip.key)}
                   className={`px-2.5 py-1.5 rounded-lg border font-semibold transition-all text-[11px] shrink-0 ${
                     statusFilter === chip.key
-                      ? 'bg-slate-750 border-slate-750 text-white shadow-sm'
-                      : 'bg-white border-slate-200 text-slate-650 hover:bg-slate-50'
+                      ? 'bg-slate-700 border-slate-700 text-white shadow-sm'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                   }`}
                 >
                   {chip.label}
@@ -387,7 +439,7 @@ export default function FeedbackManagementCard() {
             <p className="text-xs font-bold text-rose-600">피드백 데이터를 로드하지 못했습니다.</p>
             <p className="text-[11px] text-rose-450">{error}</p>
           </div>
-        ) : filteredFeedbacks.length === 0 ? (
+        ) : feedbacks.length === 0 ? (
           <div className="py-16 text-center border border-dashed border-slate-200 rounded-2xl bg-slate-50/30">
             <AlertCircle size={28} className="text-slate-350 mx-auto mb-2" />
             <p className="text-xs font-bold text-slate-700">접수된 피드백이 존재하지 않습니다.</p>
@@ -402,7 +454,7 @@ export default function FeedbackManagementCard() {
                     <th className="p-4 w-12 text-center">
                       <input 
                         type="checkbox"
-                        checked={selectedIds.length === filteredFeedbacks.length && filteredFeedbacks.length > 0}
+                        checked={selectedIds.length === feedbacks.length && feedbacks.length > 0}
                         onChange={handleSelectAllToggle}
                         className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5 cursor-pointer"
                       />
@@ -411,11 +463,11 @@ export default function FeedbackManagementCard() {
                     <th className="p-4">제보 요약 및 내용</th>
                     <th className="p-4 w-36">접수 메뉴</th>
                     <th className="p-4 w-32">접수 일시</th>
-                    <th className="p-4 w-36 text-center">처리 상태</th>
+                    <th className="p-4 w-44 text-center">처리 상태 & 관리</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100/80">
-                  {filteredFeedbacks.map((item) => {
+                  {feedbacks.map((item) => {
                     const isResolved = item.resolved_status === 'resolved';
                     const isChecked = selectedIds.includes(item.id);
                     
@@ -470,7 +522,7 @@ export default function FeedbackManagementCard() {
                         <td className="p-4 whitespace-nowrap font-semibold">
                           <Link 
                             href={item.current_url}
-                            className="inline-flex items-center gap-1 text-indigo-550 hover:underline hover:text-indigo-650"
+                            className="inline-flex items-center gap-1 text-indigo-600 hover:underline hover:text-indigo-700"
                           >
                             {getPageName(item.current_url)}
                             <ChevronRight size={11} />
@@ -482,8 +534,8 @@ export default function FeedbackManagementCard() {
                           {item.created_at}
                         </td>
 
-                        {/* 5. 처리 상태 변경 드롭다운/버튼 */}
-                        <td className="p-4 whitespace-nowrap text-center">
+                        {/* 5. 처리 상태 변경 및 삭제 액션 셀 */}
+                        <td className="p-4 whitespace-nowrap text-center flex items-center justify-center gap-2">
                           <select
                             value={item.resolved_status}
                             onChange={(e) => handleStatusChange(item.id, e.target.value)}
@@ -502,6 +554,15 @@ export default function FeedbackManagementCard() {
                             <option value="resolved">✅ 해결 완료</option>
                             <option value="ignored">⏸️ 보류/기타</option>
                           </select>
+
+                          {/* 단일 행 삭제 휴지통 아이콘 */}
+                          <button
+                            onClick={() => handleSingleDelete(item.id)}
+                            className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-700 transition-colors shadow-2xs border border-transparent hover:border-rose-100 cursor-pointer"
+                            title="이 피드백 항목 영구 삭제"
+                          >
+                            <Trash2 size={12} />
+                          </button>
                         </td>
                       </tr>
                     );
@@ -509,31 +570,85 @@ export default function FeedbackManagementCard() {
                 </tbody>
               </table>
             </div>
+
+            {/* 📄 페이지네이션 컨트롤 위젯 (HSL Indigo Harmonic) */}
+            <div className="px-6 py-4 bg-slate-50/60 border-t border-slate-100 flex items-center justify-between gap-4">
+              <span className="text-xs text-slate-500 font-medium">
+                총 <span className="text-indigo-600 font-bold">{totalCount}</span>건 중 {(currentPage - 1) * limit + 1}~{Math.min(currentPage * limit, totalCount)}건 표시
+              </span>
+              
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none transition-colors text-[11px] font-bold cursor-pointer"
+                  >
+                    이전
+                  </button>
+                  
+                  {Array.from({ length: totalPages }).map((_, idx) => {
+                    const pageNum = idx + 1;
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`w-8 h-8 rounded-lg border text-[11px] font-extrabold transition-all cursor-pointer ${
+                          currentPage === pageNum
+                            ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none transition-colors text-[11px] font-bold cursor-pointer"
+                  >
+                    다음
+                  </button>
+                </div>
+              )}
+            </div>
+
           </div>
         )}
       </div>
 
-      {/* 동적 플로팅 액션 툴바 (체크 항목 발생 시 슬라이드 업 연동) */}
+      {/* 동적 플로팅 액션 툴바 */}
       {selectedIds.length > 0 && (
         <div className="absolute bottom-4 left-4 right-4 z-20 bg-white/95 backdrop-blur-md text-slate-800 py-3.5 px-6 rounded-2xl shadow-xl border border-indigo-100 shadow-indigo-100/40 flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-bottom-5 duration-300">
           <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-50 text-indigo-650 border border-indigo-100">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600 border border-indigo-200">
               <Sparkles size={14} className="animate-pulse" />
             </div>
             <div>
               <p className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                선택된 항목 <span className="text-indigo-650 font-extrabold text-[13px]">{selectedIds.length}</span>개
+                선택된 항목 <span className="text-indigo-600 font-extrabold text-[13px]">{selectedIds.length}</span>개
               </p>
-              <p className="text-[10px] text-slate-450 mt-0.5">선택한 피드백으로 사전 이메일 문의 또는 슬랙/디스코드 발송이 가능합니다.</p>
+              <p className="text-[10px] text-slate-400 mt-0.5">선택한 피드백으로 사전 이메일 문의 또는 슬랙/디스코드 발송이 가능합니다.</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
             <button
               onClick={() => setSelectedIds([])}
-              className="px-3 py-2 text-[11px] font-semibold text-slate-450 hover:text-slate-700 transition-colors cursor-pointer"
+              className="px-3 py-2 text-[11px] font-semibold text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
             >
               선택 해제
+            </button>
+
+            {/* 선택 삭제 버튼 */}
+            <button
+              onClick={handleBulkDelete}
+              className="flex items-center gap-1.5 px-4.5 py-2 text-xs font-bold rounded-xl text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm cursor-pointer"
+            >
+              <Trash2 size={12} />
+              선택 삭제
             </button>
             
             {/* 이메일 사전 문의 버튼 */}
@@ -542,9 +657,9 @@ export default function FeedbackManagementCard() {
                 setIsEmailModalOpen(true);
                 handleEmailDraftGenerate(selectedIds);
               }}
-              className="flex items-center gap-1.5 px-4.5 py-2 text-xs font-bold rounded-xl text-indigo-650 hover:text-indigo-750 bg-white hover:bg-slate-50 border border-slate-200 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm cursor-pointer"
+              className="flex items-center gap-1.5 px-4.5 py-2 text-xs font-bold rounded-xl text-indigo-600 hover:text-indigo-700 bg-white hover:bg-slate-50 border border-slate-200 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm cursor-pointer"
             >
-              <Mail size={12} className="text-indigo-550" />
+              <Mail size={12} className="text-indigo-600" />
               이메일 사전 문의 (AI 초안)
             </button>
 
@@ -560,7 +675,7 @@ export default function FeedbackManagementCard() {
         </div>
       )}
 
-      {/* 1. 다중 채널 발송 설정 모달 (Modal) */}
+      {/* 1. 다중 채널 발송 설정 모달 */}
       {isExportModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-200">
           <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col">
@@ -582,7 +697,7 @@ export default function FeedbackManagementCard() {
                     setExportResults(null);
                   }
                 }}
-                className="p-1 rounded-lg text-slate-450 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
               >
                 <X size={16} />
               </button>
@@ -599,7 +714,7 @@ export default function FeedbackManagementCard() {
                     className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all flex flex-col justify-between h-20 ${
                       selectedChannels.includes('slack')
                         ? 'border-indigo-500 bg-indigo-50/20 text-indigo-900 shadow-sm'
-                        : 'border-slate-150 hover:border-slate-300 bg-white text-slate-650'
+                        : 'border-slate-100 hover:border-slate-300 bg-white text-slate-600'
                     }`}
                   >
                     <div className="flex items-center justify-between">
@@ -611,7 +726,7 @@ export default function FeedbackManagementCard() {
                         className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
                       />
                     </div>
-                    <span className="text-[9px] text-slate-450">슬랙 Webhook 연동</span>
+                    <span className="text-[9px] text-slate-400">슬랙 Webhook 연동</span>
                   </div>
 
                   <div 
@@ -619,7 +734,7 @@ export default function FeedbackManagementCard() {
                     className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all flex flex-col justify-between h-20 ${
                       selectedChannels.includes('discord')
                         ? 'border-indigo-500 bg-indigo-50/20 text-indigo-900 shadow-sm'
-                        : 'border-slate-150 hover:border-slate-300 bg-white text-slate-650'
+                        : 'border-slate-100 hover:border-slate-300 bg-white text-slate-600'
                     }`}
                   >
                     <div className="flex items-center justify-between">
@@ -631,18 +746,27 @@ export default function FeedbackManagementCard() {
                         className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
                       />
                     </div>
-                    <span className="text-[9px] text-slate-450">디스코드 Webhook 연동</span>
+                    <span className="text-[9px] text-slate-400">디스코드 Webhook 연동</span>
                   </div>
 
                   <div 
-                    className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-450 opacity-60 flex flex-col justify-between h-20 cursor-not-allowed"
-                    title="카카오 비즈니스 채널 인증 및 템플릿 심사가 완료되면 잠금해제됩니다."
+                    onClick={() => !exporting && handleChannelToggle('egdesk_cloud')}
+                    className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all flex flex-col justify-between h-20 ${
+                      selectedChannels.includes('egdesk_cloud')
+                        ? 'border-indigo-500 bg-indigo-50/20 text-indigo-900 shadow-sm'
+                        : 'border-slate-100 hover:border-slate-300 bg-white text-slate-600'
+                    }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-extrabold text-[11px] text-slate-450">💛 카카오톡</span>
-                      <span className="text-[9px] font-extrabold bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded-full">준비 중</span>
+                      <span className="font-extrabold text-[11px]">🌐 egdesk.cloud 사이트</span>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedChannels.includes('egdesk_cloud')}
+                        onChange={() => {}} 
+                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
+                      />
                     </div>
-                    <span className="text-[9px] text-slate-400">알림톡 템플릿 심사 대기</span>
+                    <span className="text-[9px] text-slate-450">Supabase 원격 동기화</span>
                   </div>
 
                 </div>
@@ -661,7 +785,7 @@ export default function FeedbackManagementCard() {
                 />
               </div>
 
-              <div className="p-3 border border-indigo-55 rounded-xl bg-indigo-50/30 text-indigo-650 flex items-start gap-2.5 leading-relaxed text-[11px]">
+              <div className="p-3 border border-indigo-100 rounded-xl bg-indigo-50/30 text-indigo-600 flex items-start gap-2.5 leading-relaxed text-[11px]">
                 <AlertCircle size={14} className="shrink-0 mt-0.5 text-indigo-500" />
                 <p>전송이 1개 채널이라도 최종 성공하면, 해당 피드백 항목들의 처리 상태가 자동으로 **'⚙️ 처리 중'**으로 토글 업데이트됩니다.</p>
               </div>
@@ -669,12 +793,12 @@ export default function FeedbackManagementCard() {
               {exportResults && (
                 <div className="p-3 border border-emerald-100 rounded-xl bg-emerald-50/30 text-emerald-700 space-y-1.5">
                   <p className="font-bold flex items-center gap-1.5 text-[11px]">
-                    <CheckCircle2 size={13} className="text-emerald-550" />
+                    <CheckCircle2 size={13} className="text-emerald-600" />
                     전송 완료! 잠시 후 화면이 새로고침됩니다.
                   </p>
                   <div className="space-y-1 text-[10px] text-emerald-600/90 pl-4.5 font-medium">
                     {exportResults.map((r, i) => (
-                      <p key={i}>• {r.channel === 'slack' ? '슬랙' : '디스코드'}: {r.success ? '✅ 전송 성공' : `❌ 전송 실패 (${r.error})`}</p>
+                      <p key={i}>• {r.channel === 'slack' ? '슬랙' : r.channel === 'discord' ? '디스코드' : 'egdesk.cloud 사이트'}: {r.success ? '✅ 전송 성공' : `❌ 전송 실패 (${r.error})`}</p>
                     ))}
                   </div>
                 </div>
@@ -686,7 +810,7 @@ export default function FeedbackManagementCard() {
               <button
                 onClick={() => setIsExportModalOpen(false)}
                 disabled={exporting}
-                className="px-4 py-2 text-xs font-semibold text-slate-550 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50"
+                className="px-4 py-2 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50"
               >
                 취소
               </button>
@@ -722,7 +846,7 @@ export default function FeedbackManagementCard() {
             {/* 이메일 모달 헤더 */}
             <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 to-indigo-50/10">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 bg-indigo-50 text-indigo-650 rounded-lg">
+                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
                   <Mail size={16} />
                 </div>
                 <div>
@@ -749,7 +873,7 @@ export default function FeedbackManagementCard() {
               {/* 로딩 화면 (AI 초안 구성 시) */}
               {generatingEmail ? (
                 <div className="py-20 text-center flex flex-col items-center justify-center gap-3.5">
-                  <RefreshCw size={28} className="animate-spin text-indigo-550" />
+                  <RefreshCw size={28} className="animate-spin text-indigo-600" />
                   <div className="space-y-1">
                     <p className="font-bold text-slate-700 text-xs">AI 이메일 비서가 초안을 조립하고 있습니다...</p>
                     <p className="text-[10px] text-slate-400">선택된 피드백 목록을 취합하여 완벽한 비즈니스 톤앤매너로 작성 중입니다. ⚡</p>
@@ -763,7 +887,7 @@ export default function FeedbackManagementCard() {
                       <p className="text-[10px] text-slate-450 font-bold">RECIPIENT (수신처 고정)</p>
                       <p className="text-xs font-black text-slate-800 tracking-wider">CHACHOGREAT@GMAIL.COM</p>
                     </div>
-                    <span className="self-start sm:self-auto text-[9.5px] font-extrabold text-indigo-650 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full">
+                    <span className="self-start sm:self-auto text-[9.5px] font-extrabold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full">
                       개발진 수신 이메일
                     </span>
                   </div>
@@ -792,7 +916,7 @@ export default function FeedbackManagementCard() {
                       onChange={e => setEmailBody(e.target.value)}
                       disabled={sendingEmail}
                       rows={10}
-                      className="w-full p-3.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/20 text-slate-750 leading-relaxed font-medium transition-all text-xs"
+                      className="w-full p-3.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/20 text-slate-700 leading-relaxed font-medium transition-all text-xs"
                     />
                   </div>
 
@@ -800,7 +924,7 @@ export default function FeedbackManagementCard() {
                   {emailSendResult && (
                     <div className="p-3.5 border border-emerald-100 rounded-xl bg-emerald-50/30 text-emerald-700 flex flex-col gap-1">
                       <p className="font-extrabold flex items-center gap-1.5 text-[11.5px]">
-                        <CheckCircle2 size={14} className="text-emerald-550 shrink-0" />
+                        <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />
                         문의 이메일 전송 처리 성공!
                       </p>
                       <p className="text-[10px] text-emerald-600/90 pl-5.5 font-medium leading-relaxed">{emailSendResult}</p>
@@ -819,7 +943,7 @@ export default function FeedbackManagementCard() {
                 <button
                   onClick={() => handleEmailDraftGenerate(selectedIds)}
                   disabled={sendingEmail}
-                  className="flex items-center gap-1 text-[10px] font-bold text-indigo-650 hover:underline disabled:opacity-50 disabled:pointer-events-none"
+                  className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:underline disabled:opacity-50 disabled:pointer-events-none"
                 >
                   <Sparkles size={11} className="animate-pulse" />
                   AI에게 다시 쓰기 요청
@@ -829,7 +953,7 @@ export default function FeedbackManagementCard() {
                 <button
                   onClick={() => setIsEmailModalOpen(false)}
                   disabled={sendingEmail || generatingEmail}
-                  className="px-4 py-2 text-xs font-semibold text-slate-550 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50"
+                  className="px-4 py-2 text-xs font-semibold text-slate-650 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm disabled:opacity-50"
                 >
                   닫기
                 </button>

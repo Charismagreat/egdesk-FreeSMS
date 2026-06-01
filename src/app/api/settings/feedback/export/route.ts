@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
-import { queryTable, updateRows } from '../../../../../egdesk-helpers';
+import { queryTable, updateRows } from '../../../../../../egdesk-helpers';
 
 /**
  * 최고관리자(SUPER_ADMIN) 권한 검증 공통 헬퍼
@@ -254,6 +254,47 @@ export async function POST(req: Request) {
           return { channel: 'discord', success: true };
         } catch (err: any) {
           return { channel: 'discord', success: false, error: err.message };
+        }
+      }
+
+      if (channel === 'egdesk_cloud') {
+        try {
+          const supabaseUrl = 'https://cbptgzaubhcclkmvkiua.supabase.co/rest/v1/feedback';
+          
+          // Supabase REST API 스펙에 따라 단일 레코드 단위로 병렬 다중 전송 실행
+          const uploadPromises = targetFeedbacks.map(async (item: any) => {
+            const payload = {
+              name: 'EGDESK 최고관리자 내보내기',
+              email: 'chachogreat@gmail.com', // 지정된 수신 이메일 매핑
+              message: `[전달 코멘트: ${comment || '없음'}]\n\n${item.user_prompt}`,
+              page_url: item.current_url || '/',
+              user_agent: 'EGDESK System Settings Gateway',
+              client_id: item.id
+            };
+
+            const response = await fetch(supabaseUrl, {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                // Supabase REST API용 apikey 및 Authorization Bearer 토큰 주입 (보안 가드 필터 통과)
+                'apikey': process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNicHRnemF1YmhjY2xrbXZraXVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5OTAzMTIsImV4cCI6MjA3NTU2NjMxMn0.wE5tLN9pMmZWjag_q1E9LaItcsNQlqZYM6XHUL5OiuM',
+                'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNicHRnemF1YmhjY2xrbXZraXVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5OTAzMTIsImV4cCI6MjA3NTU2NjMxMn0.wE5tLN9pMmZWjag_q1E9LaItcsNQlqZYM6XHUL5OiuM'}`
+              },
+              body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+              const errBody = await response.json().catch(() => ({}));
+              throw new Error(`REST API 저장 거부: ${errBody.message || `HTTP ${response.status}`}`);
+            }
+            return response.status === 201 ? { ok: true } : await response.json().catch(() => ({}));
+          });
+
+          await Promise.all(uploadPromises);
+          return { channel: 'egdesk_cloud', success: true };
+        } catch (err: any) {
+          console.error('egdesk.cloud REST API 동기화 실패:', err);
+          return { channel: 'egdesk_cloud', success: false, error: err.message };
         }
       }
 
