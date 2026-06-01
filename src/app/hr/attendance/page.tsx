@@ -272,6 +272,38 @@ export default function HrAttendancePage() {
     }
   };
 
+  // 📝 근로계약 변경 여부 감지 (수정된 사항이 없으면 버튼 비활성화)
+  const getIsContractModified = () => {
+    if (!selectedContractOperatorId) return false;
+    const original = contracts.find(c => String(c.operator_id) === String(selectedContractOperatorId));
+    if (!original) {
+      return hourlyWage !== 10000 || weeklyHours !== 40 || allowHolidayPay !== 1 || workDays !== "월,화,수,목,금" || contractMemo !== "";
+    }
+    return (
+      original.hourly_wage !== hourlyWage ||
+      original.weekly_hours !== weeklyHours ||
+      original.allow_weekly_holiday_paid !== allowHolidayPay ||
+      (original.work_days || "") !== workDays ||
+      (original.contract_memo || "") !== contractMemo
+    );
+  };
+
+  // 📝 임직원 상세 프로필 변경 여부 감지 (수정된 사항이 없으면 버튼 비활성화)
+  const getIsProfileModified = () => {
+    if (!selectedProfileOperatorId) return false;
+    const original = profiles.find(p => String(p.operator_id) === String(selectedProfileOperatorId));
+    if (!original) {
+      return profileDept !== "미정" || profileHireDate !== new Date().toISOString().split('T')[0] || profileCommute !== "인근 통근" || profileSkills !== "일반 서무" || profileBackup !== "none";
+    }
+    return (
+      (original.department || "미정") !== profileDept ||
+      (original.hire_date || "") !== profileHireDate ||
+      (original.commute_area || "인근 통근") !== profileCommute ||
+      (original.skills || "일반 서무") !== profileSkills ||
+      (original.backup_operator_id || "none") !== profileBackup
+    );
+  };
+
   const fetchHrData = async () => {
     setLoading(true);
     setError(null);
@@ -1242,7 +1274,7 @@ export default function HrAttendancePage() {
 
                 <button
                   type="submit"
-                  disabled={submitLoading || !selectedProfileOperatorId}
+                  disabled={submitLoading || !selectedProfileOperatorId || !getIsProfileModified()}
                   className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black shadow-md cursor-pointer transition-all flex items-center justify-center gap-1.5 disabled:opacity-40"
                 >
                   <Send size={12} />
