@@ -9,7 +9,7 @@ import {
 
 interface Partner {
   id: string;
-  type: 'VENDOR' | 'BUYER';
+  type: 'VENDOR' | 'BUYER' | 'AFFILIATE';
   company_name: string;
   business_number: string;
   representative: string;
@@ -29,7 +29,7 @@ interface Partner {
 export default function PartnersDashboard() {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'VENDOR' | 'BUYER'>('VENDOR');
+  const [activeTab, setActiveTab] = useState<'VENDOR' | 'BUYER' | 'AFFILIATE'>('VENDOR');
   const [searchQuery, setSearchQuery] = useState("");
 
   // 등록/수정 모달 상태
@@ -39,7 +39,7 @@ export default function PartnersDashboard() {
   
   // 입력 폼 바인딩
   const [form, setForm] = useState({
-    type: 'VENDOR' as 'VENDOR' | 'BUYER',
+    type: 'VENDOR' as 'VENDOR' | 'BUYER' | 'AFFILIATE',
     company_name: "",
     business_number: "",
     representative: "",
@@ -308,6 +308,7 @@ export default function PartnersDashboard() {
   // 집계 수치 산출
   const totalVendors = partners.filter(p => p.type === 'VENDOR').length;
   const totalBuyers = partners.filter(p => p.type === 'BUYER').length;
+  const totalAffiliates = partners.filter(p => p.type === 'AFFILIATE').length;
   const totalPurchases = partners.filter(p => p.type === 'VENDOR').reduce((sum, p) => sum + (p.total_performance || 0), 0);
   const totalSales = partners.filter(p => p.type === 'BUYER').reduce((sum, p) => sum + (p.total_performance || 0), 0);
 
@@ -330,18 +331,24 @@ export default function PartnersDashboard() {
         </div>
 
         {/* 탭 버튼 */}
-        <div className="flex bg-slate-200/60 p-1.5 rounded-2xl border border-slate-100 max-w-xs shadow-inner">
+        <div className="flex bg-slate-200/60 p-1.5 rounded-2xl border border-slate-100 max-w-md shadow-inner">
           <button 
             onClick={() => setActiveTab("VENDOR")}
-            className={`flex-1 py-2.5 px-5 rounded-xl text-xs md:text-sm font-black flex items-center justify-center transition-all ${activeTab === "VENDOR" ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:text-slate-800"}`}
+            className={`flex-1 py-2.5 px-3 rounded-xl text-xs md:text-sm font-black flex items-center justify-center transition-all ${activeTab === "VENDOR" ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:text-slate-800"}`}
           >
-            자재 공급처 (Vendor)
+            공급처 (Vendor)
           </button>
           <button 
             onClick={() => setActiveTab("BUYER")}
-            className={`flex-1 py-2.5 px-5 rounded-xl text-xs md:text-sm font-black flex items-center justify-center transition-all ${activeTab === "BUYER" ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:text-slate-800"}`}
+            className={`flex-1 py-2.5 px-3 rounded-xl text-xs md:text-sm font-black flex items-center justify-center transition-all ${activeTab === "BUYER" ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:text-slate-800"}`}
           >
-            B2B 바이어 (Buyer)
+            바이어 (Buyer)
+          </button>
+          <button 
+            onClick={() => setActiveTab("AFFILIATE")}
+            className={`flex-1 py-2.5 px-3 rounded-xl text-xs md:text-sm font-black flex items-center justify-center transition-all ${activeTab === "AFFILIATE" ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:text-slate-800"}`}
+          >
+            🤝 관계사 (Affiliate)
           </button>
         </div>
       </div>
@@ -352,7 +359,7 @@ export default function PartnersDashboard() {
         <div className="bg-white border border-slate-100 p-5 rounded-2xl shadow-sm space-y-1">
           <span className="text-[10px] font-bold text-slate-400 uppercase block">등록된 총 거래처</span>
           <span className="text-2xl font-black text-slate-800 block">{partners.length}개사</span>
-          <span className="text-[10px] text-slate-400 block mt-1">공급사 {totalVendors} / 바이어 {totalBuyers}</span>
+          <span className="text-[10px] text-slate-400 block mt-1">공급사 {totalVendors} / 바이어 {totalBuyers} / 관계사 {totalAffiliates}</span>
         </div>
 
         <div className="bg-gradient-to-br from-indigo-50/40 to-indigo-100/10 border border-slate-100 p-5 rounded-2xl shadow-sm space-y-1">
@@ -446,8 +453,14 @@ export default function PartnersDashboard() {
                     </td>
                     <td className="py-4 px-3 text-slate-500 font-mono">{pt.email || '계산서 미발행'}</td>
                     <td className="py-4 px-3">
-                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${pt.vip_level === 'VIP' ? 'bg-amber-100 text-amber-600 border border-amber-200' : 'bg-slate-100 text-slate-500'}`}>
-                        {pt.vip_level}
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black ${
+                        pt.type === 'AFFILIATE'
+                          ? 'bg-indigo-50 text-indigo-600 border border-indigo-100'
+                          : pt.vip_level === 'VIP'
+                          ? 'bg-amber-100 text-amber-600 border border-amber-200' 
+                          : 'bg-slate-100 text-slate-500'
+                      }`}>
+                        {pt.type === 'AFFILIATE' ? '🤝 관계사' : pt.vip_level}
                       </span>
                     </td>
                     <td className="py-4 px-3">
@@ -718,16 +731,23 @@ export default function PartnersDashboard() {
                   <button
                     type="button"
                     onClick={() => setForm(p => ({ ...p, type: 'VENDOR' }))}
-                    className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${form.type === 'VENDOR' ? 'bg-slate-950 text-white' : 'bg-slate-50 border border-slate-200 text-slate-500'}`}
+                    className={`flex-1 py-2 py-1.5 rounded-xl text-xs font-black transition-all ${form.type === 'VENDOR' ? 'bg-slate-950 text-white' : 'bg-slate-50 border border-slate-200 text-slate-500'}`}
                   >
-                    공급처 (Vendor - 매입)
+                    공급처 (Vendor)
                   </button>
                   <button
                     type="button"
                     onClick={() => setForm(p => ({ ...p, type: 'BUYER' }))}
-                    className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all ${form.type === 'BUYER' ? 'bg-slate-950 text-white' : 'bg-slate-50 border border-slate-200 text-slate-500'}`}
+                    className={`flex-1 py-2 py-1.5 rounded-xl text-xs font-black transition-all ${form.type === 'BUYER' ? 'bg-slate-950 text-white' : 'bg-slate-50 border border-slate-200 text-slate-500'}`}
                   >
-                    바이어 (Buyer - 매출)
+                    바이어 (Buyer)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm(p => ({ ...p, type: 'AFFILIATE' }))}
+                    className={`flex-1 py-2 py-1.5 rounded-xl text-xs font-black transition-all ${form.type === 'AFFILIATE' ? 'bg-slate-950 text-white' : 'bg-slate-50 border border-slate-200 text-slate-500'}`}
+                  >
+                    🤝 관계사 (Affiliate)
                   </button>
                 </div>
               </div>
