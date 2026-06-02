@@ -823,7 +823,8 @@ export default function FinancePage() {
 
   // 🧠 실시간 동적 베이지안 확률 추론 엔진
   const getDynamicRecommendations = useCallback((merchantName: string, currentMemo: string): RecommendedOption[] => {
-    const merchant = merchantName?.trim() || "";
+    // 💡 개행 및 탭 문자를 확실하게 거르고 정제하여 문자열 비교 신뢰도 극대화
+    const merchant = merchantName?.replace(/[\r\n\t]/g, "").trim() || "";
     if (!merchant) return [];
     
     const merchantPatterns = jointProbabilityMap[merchant];
@@ -873,15 +874,25 @@ export default function FinancePage() {
     const fallbackOptions: RecommendedOption[] = [];
     const lowerMerchant = merchant.toLowerCase();
     
-    if (["식당", "횟집", "고기", "푸드", "한식", "일식", "중식", "커피", "다과", "스타벅스", "카페", "투썸", "바다사남"].some(k => lowerMerchant.includes(k))) {
+    if (["식당", "횟집", "고기", "푸드", "한식", "일식", "중식", "커피", "다과", "스타벅스", "카페", "투썸", "바다사남", "어시장"].some(k => lowerMerchant.includes(k))) {
       fallbackOptions.push({ category: "직원식대", tags: ["복지지원", "소액결제"], percentage: 80, count: 1 });
       fallbackOptions.push({ category: "거래처식사비", tags: ["거래처접대"], percentage: 20, count: 1 });
-    } else if (["택시", "ktx", "철도", "항공", "주차", "톨게이트", "카카오t"].some(k => lowerMerchant.includes(k))) {
+    } else if (["택시", "ktx", "철도", "항공", "주차", "톨게이트", "카카오t", "교통", "요금"].some(k => lowerMerchant.includes(k))) {
       fallbackOptions.push({ category: "시내교통비", tags: ["긴급비용", "복지지원"], percentage: 90, count: 1 });
     } else if (["마트", "문구", "인쇄", "다이소", "알파문구"].some(k => lowerMerchant.includes(k))) {
       fallbackOptions.push({ category: "사무용품비", tags: ["비품구매", "소액결제"], percentage: 95, count: 1 });
-    } else if (["aws", "google cloud", "클라우드", "호스팅", "cafe24", "github"].some(k => lowerMerchant.includes(k))) {
+    } else if (["aws", "google cloud", "클라우드", "호스팅", "cafe24", "github", "hosting"].some(k => lowerMerchant.includes(k))) {
       fallbackOptions.push({ category: "전산소모품비", tags: ["인프라유지", "정기지출"], percentage: 100, count: 1 });
+    }
+    
+    // 💡 3단계: 1, 2단계 모두 해당하지 않을 때의 최종 기본 폴백 추천 탑재 (항상 1개 이상의 추천 칩 노출 보장)
+    if (fallbackOptions.length === 0) {
+      fallbackOptions.push({
+        category: "기타소분류",
+        tags: ["소액결제"],
+        percentage: 100,
+        count: 1
+      });
     }
     
     return fallbackOptions;
