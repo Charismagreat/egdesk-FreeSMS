@@ -32,6 +32,8 @@ interface Account {
   accountName: string;
   balance: number;
   currency: string;
+  lastTxDate?: string;
+  lastTxTime?: string;
   updatedAt?: string;
 }
 
@@ -781,11 +783,18 @@ export default function FinancePage() {
                     className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
                   >
                     <div className="space-y-0.5">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-2">
                         <span className="text-[10px] font-bold px-1.5 py-0.5 bg-blue-600/30 text-blue-200 rounded border border-blue-500/20">
                           {acc.bankName}
                         </span>
-                        <span className="text-white text-xs font-bold">{acc.accountName}</span>
+                        <span className="text-white text-xs font-bold">
+                          {acc.accountName && !acc.accountName.includes("자동 임포트") && !acc.accountName.includes("자동등록") ? acc.accountName : ""}
+                        </span>
+                        {acc.lastTxDate && (
+                          <span className="text-[9px] text-slate-400/80 font-medium">
+                            최종: {acc.lastTxDate} {acc.lastTxTime}
+                          </span>
+                        )}
                       </div>
                       <p className="text-[10px] text-slate-400 font-mono tracking-wider">{acc.accountNumber}</p>
                     </div>
@@ -1211,10 +1220,18 @@ export default function FinancePage() {
                         <span className="text-slate-400 text-xs font-mono">{acc.accountNumber}</span>
                       </div>
                       <div>
-                        <h4 className="text-xs font-bold text-slate-400 tracking-tight">{acc.accountName}</h4>
+                        <h4 className="text-xs font-bold text-slate-400 tracking-tight">
+                          {acc.accountName && !acc.accountName.includes("자동 임포트") && !acc.accountName.includes("자동등록") ? acc.accountName : ""}
+                        </h4>
                         <p className="text-xl font-extrabold text-slate-800 mt-1">
                           ₩ {acc.balance?.toLocaleString()}
                         </p>
+                        {acc.lastTxDate && (
+                          <p className="text-[10px] text-slate-400 font-semibold mt-1.5 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+                            최종 거래: {acc.lastTxDate} {acc.lastTxTime}
+                          </p>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -1307,7 +1324,7 @@ export default function FinancePage() {
                                 {isDeposit ? `+ ₩ ${tx.amount?.toLocaleString()}` : "-"}
                               </td>
                               <td className={`p-4 text-right font-extrabold ${!isDeposit ? "text-rose-500" : "text-slate-400"}`}>
-                                {!isDeposit ? `- ₩ ${tx.amount?.toLocaleString()}` : "-"}
+                                {!isDeposit ? `₩ ${tx.amount?.toLocaleString()}` : "-"}
                               </td>
                               <td className="p-4 text-right font-mono font-bold text-slate-600">
                                 ₩ {tx.balance?.toLocaleString() || "-"}

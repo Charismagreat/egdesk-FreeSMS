@@ -204,14 +204,37 @@ export async function GET(request: NextRequest) {
           });
           
           accounts = accounts.map((acc: any) => {
+            let lastTxDate = "";
+            let lastTxTime = "";
+            try {
+              // 해당 계좌(accountId)의 가장 최신 정상 거래 일시 조회
+              const latestTx = db.prepare(`
+                SELECT transaction_date, transaction_time 
+                FROM bank_transactions 
+                WHERE account_id = ? AND transaction_date LIKE '2%'
+                ORDER BY transaction_date DESC, transaction_time DESC, id DESC 
+                LIMIT 1
+              `).get(acc.id);
+              
+              if (latestTx) {
+                lastTxDate = latestTx.transaction_date || "";
+                lastTxTime = latestTx.transaction_time || "";
+              }
+            } catch (txErr: any) {
+              console.warn(`[Local DB last tx date query failed] for account ${acc.id}:`, txErr.message);
+            }
+
+            const balanceVal = localBalanceMap[acc.id] !== undefined ? localBalanceMap[acc.id] : acc.balance;
             if (localBalanceMap[acc.id] !== undefined) {
               console.log(`[Local DB accounts merge] 계좌 잔액 동기화 반영: ${acc.id} -> ₩${localBalanceMap[acc.id]}`);
-              return {
-                ...acc,
-                balance: localBalanceMap[acc.id]
-              };
             }
-            return acc;
+
+            return {
+              ...acc,
+              balance: balanceVal,
+              lastTxDate,
+              lastTxTime
+            };
           });
           
           db.close();
