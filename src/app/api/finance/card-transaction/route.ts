@@ -73,6 +73,17 @@ export async function PUT(request: NextRequest) {
 
     console.log(`[Card Update API] Target DB found: ${targetPath}`);
     const db = new Database(targetPath);
+
+    // 💡 [트리거 예외 안전망] better-sqlite3로 DB 업데이트 시 SQLite 내부 트리거가 호출하는 
+    // 사용자 정의 동기화 함수가 에러를 발생시키지 않도록 더미 함수를 강제 주입해 줍니다.
+    try {
+      db.function('notify_change_financehub_changed', (...args: any[]) => {
+        console.log('[SQLite Trigger Bypass] notify_change_financehub_changed dummy executed.');
+        return null;
+      });
+    } catch (triggerErr: any) {
+      console.log('Bypass trigger function register skipped:', triggerErr.message);
+    }
     
     // category와 memo를 card_transactions 테이블에 저장
     const stmt = db.prepare(`
