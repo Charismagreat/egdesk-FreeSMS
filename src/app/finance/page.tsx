@@ -727,10 +727,6 @@ export default function FinancePage() {
           <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight flex items-center gap-2">
             <Landmark className="w-8 h-8 text-blue-600" />
             금융 정보 AI
-            <span className="text-sm font-semibold px-2.5 py-1 bg-blue-50 text-blue-600 rounded-full border border-blue-100 flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              실시간 DB 연동
-            </span>
           </h1>
         </div>
 
