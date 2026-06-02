@@ -1054,7 +1054,7 @@ export async function GET(request: NextRequest) {
       taxInvoiceList.forEach((inv) => {
         const isSales = inv.invoiceType === "sales" || inv.invoiceType === "매출";
         const target = isSales ? hometaxSummary.sales : hometaxSummary.purchase;
-        const amount = Number(inv.totalAmount) || 0;
+        const amount = Number(inv.supplyAmount) || 0;
         const dateStr = inv.issueDate || "";
         const ym = dateStr.substring(0, 7);
 
@@ -1071,7 +1071,7 @@ export async function GET(request: NextRequest) {
       taxExemptList.forEach((inv) => {
         const isSales = inv.invoiceType === "sales" || inv.invoiceType === "매출";
         const target = isSales ? hometaxSummary.sales : hometaxSummary.purchase;
-        const amount = Number(inv.totalAmount) || 0;
+        const amount = Number(inv.supplyAmount) || 0;
         const dateStr = inv.issueDate || "";
         const ym = dateStr.substring(0, 7);
 
@@ -1087,7 +1087,7 @@ export async function GET(request: NextRequest) {
       // 현금영수증 집계 (현금영수증은 전액 발행(매출)로 취급)
       cashReceiptList.forEach((rcpt) => {
         const target = hometaxSummary.sales;
-        const amount = Number(rcpt.totalAmount) || 0;
+        const amount = Number(rcpt.supplyAmount) || 0;
         const dateStr = rcpt.transactionDate || "";
         const ym = dateStr.substring(0, 7);
 
