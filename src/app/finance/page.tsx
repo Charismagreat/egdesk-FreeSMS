@@ -1014,7 +1014,7 @@ export default function FinancePage() {
               </span>
             </div>
             
-            <div className="space-y-0.5">
+            <div className="space-y-0.5 text-right">
               <span className="text-[10px] text-slate-400 font-bold block">올해 매입액 누계</span>
               <span className="text-lg font-black text-rose-500 font-mono block">
                 ₩ {summaryData.hometaxSummary?.purchase?.yTotal?.toLocaleString()}
