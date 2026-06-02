@@ -20,7 +20,8 @@ import {
   FileSpreadsheet,
   CheckCircle2,
   AlertCircle,
-  Sparkles
+  Sparkles,
+  Plus
 } from "lucide-react";
 
 // 타입 정의
@@ -1525,12 +1526,25 @@ export default function FinancePage() {
               {/* 법인 신용 카드 승인 내역 명세서 테이블 */}
               <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
               <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <CreditCard className="w-4 h-4 text-amber-500" />
                   <h3 className="font-bold text-slate-800 text-sm">
                     법인 신용 카드 승인 내역 명세서
                   </h3>
                   <span className="text-xs text-slate-400 font-semibold ml-2">총 {totalCount}건</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReceiptSelectedTxId("");
+                      setReceiptUploadFiles([]);
+                      setReceiptUploadMessage(null);
+                      setIsReceiptModalOpen(true);
+                    }}
+                    className="ml-3 flex items-center gap-1 px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-700 rounded-xl text-[10.5px] font-bold transition-all active:scale-95 cursor-pointer shadow-sm"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-amber-600" />
+                    카드 영수증 일괄 등록
+                  </button>
                 </div>
 
                 {/* 교차 필터 드롭다운 UI */}
