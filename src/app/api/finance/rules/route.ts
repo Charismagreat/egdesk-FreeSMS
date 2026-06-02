@@ -319,6 +319,77 @@ export async function GET() {
   }
 }
 
+// 🧠 룰 간 정합성 경합 및 충돌 감지 헬퍼 함수
+function detectRuleConflict(newRule: any, existingRules: any[]) {
+  for (const r of existingRules) {
+    if (!r.is_active) continue;
+    
+    let cond;
+    try {
+      cond = JSON.parse(r.structured_json);
+    } catch (e) {
+      continue;
+    }
+
+    // 1. 카드사 교집합 체크
+    if (newRule.cardCompanyName && cond.cardCompanyName && newRule.cardCompanyName !== cond.cardCompanyName) {
+      continue;
+    }
+
+    // 2. 카드번호 뒷자리 교집합 체크
+    if (newRule.cardNumberEnd && cond.cardNumberEnd && newRule.cardNumberEnd !== cond.cardNumberEnd) {
+      continue;
+    }
+
+    // 3. 평일/휴일 여부 교집합 체크
+    if (newRule.isHoliday !== null && cond.isHoliday !== null && newRule.isHoliday !== cond.isHoliday) {
+      continue;
+    }
+
+    // 4. 시간 범위 교집합 체크
+    if (newRule.timeRange && cond.timeRange) {
+      const aStart = newRule.timeRange.start;
+      const aEnd = newRule.timeRange.end;
+      const bStart = cond.timeRange.start;
+      const bEnd = cond.timeRange.end;
+      if (aEnd < bStart || aStart > bEnd) {
+        continue;
+      }
+    }
+
+    // 5. 금액 범위 교집합 체크
+    const aMin = newRule.amountMin !== null ? newRule.amountMin : 0;
+    const aMax = newRule.amountMax !== null ? newRule.amountMax : Infinity;
+    const bMin = cond.amountMin !== null ? cond.amountMin : 0;
+    const bMax = cond.amountMax !== null ? cond.amountMax : Infinity;
+    if (aMax < bMin || aMin > bMax) {
+      continue;
+    }
+
+    // 6. 메모/태그 키워드 교집합 체크
+    if (newRule.memoContains && cond.memoContains) {
+      const aMemo = String(newRule.memoContains).toLowerCase();
+      const bMemo = String(cond.memoContains).toLowerCase();
+      if (!aMemo.includes(bMemo) && !bMemo.includes(aMemo)) {
+        continue;
+      }
+    }
+
+    // 💡 모든 조건의 교집합이 존재함
+    // 이때, 타겟 계정과목이 서로 다르면 "경합/충돌"로 진단
+    if (newRule.targetCategory !== r.target_category) {
+      return {
+        conflict: true,
+        conflictingRuleText: r.natural_text,
+        conflictingRuleCategory: r.target_category,
+        newRuleCategory: newRule.targetCategory
+      };
+    }
+  }
+
+  return { conflict: false };
+}
+
 // ==========================================
 // 🔑 2. POST: 자연어 규칙 등록 및 즉시 일괄 분류 기동
 // ==========================================
@@ -336,7 +407,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "최고 관리자 권한이 필요합니다." }, { status: 403 });
     }
 
-    const { naturalText } = await request.json();
+    const { naturalText, force } = await request.json();
     if (!naturalText || !naturalText.trim()) {
       return NextResponse.json({ success: false, error: "등록할 자연어 규칙 텍스트가 전달되지 않았습니다." }, { status: 400 });
     }
@@ -345,6 +416,21 @@ export async function POST(request: NextRequest) {
     const parsed = parseNaturalRule(naturalText);
 
     db = getDbInstance();
+
+    // ⚡ [경합/충돌 예방] force 플래그가 참이 아닐 경우 기존 룰과의 충돌 분석 집행
+    if (!force) {
+      const existingRules = db.prepare("SELECT * FROM natural_rules WHERE is_active = 1").all();
+      const conflictResult = detectRuleConflict(parsed, existingRules);
+      if (conflictResult.conflict) {
+        db.close();
+        return NextResponse.json({
+          success: true,
+          conflict: true,
+          error: `[충돌 우려 감지] 입력하신 규칙은 기존의 활성 규칙 ("${conflictResult.conflictingRuleText}" -> 계정과목: ${conflictResult.conflictingRuleCategory})과 매칭 조건이 대단히 유사하거나 중복되어 정산 경합이 발생할 수 있습니다.\n\n새 규칙의 계정과목: ${conflictResult.newRuleCategory}\n\n그래도 기존 룰보다 최우선하여 강제로 등록하시겠습니까?`,
+        });
+      }
+    }
+
     const ruleId = `rule-${Date.now()}`;
     const createdAt = new Date().toISOString();
 
@@ -369,6 +455,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      conflict: false,
       message: `자연어 규칙이 성공적으로 등록되었습니다! 조건 분석 완료 및 총 ${appliedCount}건의 카드 사용 내역이 자동으로 분류 완료되었습니다.`,
       rule: {
         id: ruleId,

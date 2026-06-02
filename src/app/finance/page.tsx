@@ -326,21 +326,30 @@ export default function FinancePage() {
   }, [fetchRulesList]);
 
   // 🔑 자연어 규칙 등록 API 연동
-  const handleAddRule = async (text: string) => {
+  const handleAddRule = async (text: string, force: boolean = false) => {
     if (!text || !text.trim()) return;
     setIsAddingRule(true);
     try {
       const res = await fetch("/api/finance/rules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ naturalText: text })
+        body: JSON.stringify({ naturalText: text, force })
       });
       const data = await res.json();
       if (data.success) {
-        alert(data.message);
-        setNewRuleText("");
-        fetchRulesList();
-        fetchFinanceData(); // 자동 분류 결과를 신속히 로컬 리스트에 반영
+        if (data.conflict) {
+          // ⚡ 충돌 경고 감지 시 Confirm 대화상자로 분기
+          const confirmForce = confirm(data.error);
+          if (confirmForce) {
+            // 관리자가 동의한 경우 force: true 플래그와 함께 강제 재요청 기동
+            await handleAddRule(text, true);
+          }
+        } else {
+          alert(data.message);
+          setNewRuleText("");
+          fetchRulesList();
+          fetchFinanceData(); // 자동 분류 결과를 신속히 로컬 리스트에 반영
+        }
       } else {
         alert(data.error || "규칙 등록에 실패했습니다.");
       }
