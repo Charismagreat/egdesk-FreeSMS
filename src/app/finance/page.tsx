@@ -155,6 +155,7 @@ export default function FinancePage() {
   const [editingField, setEditingField] = useState<"category" | "memo" | null>(null);
   const [tempCategory, setTempCategory] = useState<string>("");
   const [tempMemo, setTempMemo] = useState<string>("");
+  const [categorySearchTerm, setCategorySearchTerm] = useState<string>("");
   const [isUpdatingCardTx, setIsUpdatingCardTx] = useState<boolean>(false);
   const [dbTags, setDbTags] = useState<DbExpenseTag[]>([]);
 
@@ -1978,9 +1979,22 @@ export default function FinancePage() {
                             <td className="p-4">
                               {hasAdminAccess && editingCardTxId === tx.id && editingField === "category" ? (
                                 (() => {
-                                  // 💡 동적 베이지안 확률 추천에 근거해 높은 확률 순서대로 계정과목 정렬
+                                  // 💡 동적 베이지안 확률 추천에 근거해 높은 확률 순서대로 정렬 & 검색어 필터링 병행 기동
                                   const recommendations = getDynamicRecommendations(tx.merchantName, tx.memo || "");
-                                  const sortedCategories = [...dbCategories].sort((a, b) => {
+                                  
+                                  let filteredList = [...dbCategories];
+                                  
+                                  // 검색어가 입력되어 있다면 매칭 검증
+                                  if (categorySearchTerm.trim() !== "") {
+                                    const term = categorySearchTerm.toLowerCase().trim();
+                                    filteredList = filteredList.filter((c) => {
+                                      const fullPath = `${c.main_category} ${c.mid_category} ${c.sub_category}`.toLowerCase();
+                                      return fullPath.includes(term);
+                                    });
+                                  }
+                                  
+                                  // 추천 항목이 최상단에 먼저 노출되도록 정렬
+                                  const sortedCategories = filteredList.sort((a, b) => {
                                     const indexA = recommendations.findIndex(r => r.category === a.sub_category);
                                     const indexB = recommendations.findIndex(r => r.category === b.sub_category);
                                     
@@ -1991,35 +2005,75 @@ export default function FinancePage() {
                                   });
 
                                   return (
-                                    <div className="flex items-center gap-1">
-                                      <select
-                                        value={tempCategory}
-                                        onChange={(e) => setTempCategory(e.target.value)}
-                                        className="border border-amber-300 bg-amber-50 rounded-lg px-1.5 py-1 text-[11px] font-bold text-slate-700 outline-none focus:ring-1 focus:ring-amber-500 max-w-[280px]"
-                                        autoFocus
-                                      >
-                                        <option value="">계정과목 선택</option>
+                                    <div className="relative flex items-center gap-1.5 min-w-[290px]">
+                                      <div className="relative flex-1">
+                                        <input
+                                          type="text"
+                                          value={categorySearchTerm}
+                                          onChange={(e) => setCategorySearchTerm(e.target.value)}
+                                          className="border border-amber-300 bg-amber-50 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-700 outline-none focus:ring-1 focus:ring-amber-500 w-full pr-6"
+                                          placeholder="계정과목 검색 또는 직접 입력"
+                                          autoFocus
+                                        />
+                                        {categorySearchTerm && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setCategorySearchTerm("");
+                                              setTempCategory("");
+                                            }}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-[10px] font-bold cursor-pointer"
+                                          >
+                                            ×
+                                          </button>
+                                        )}
+                                      </div>
+                                      
+                                      {/* 절대 위치 프리미엄 자동완성 드롭다운 판넬 */}
+                                      <div className="absolute left-0 top-full mt-1.5 w-full max-h-[220px] overflow-y-auto bg-white border border-slate-100/80 shadow-2xl rounded-xl z-50 p-1.5 flex flex-col gap-0.5 scrollbar-thin">
                                         {sortedCategories.map((c) => {
                                           const recItem = recommendations.find(r => r.category === c.sub_category);
-                                          const label = recItem 
-                                            ? `⭐ [추천 ${recItem.percentage}%] ${c.main_category} 〉 ${c.mid_category} 〉 ${c.sub_category}`
-                                            : `${c.main_category} 〉 ${c.mid_category} 〉 ${c.sub_category}`;
+                                          const isSelected = tempCategory === c.sub_category;
                                           
                                           return (
-                                            <option 
-                                              key={c.id} 
-                                              value={c.sub_category}
-                                              className={recItem ? "font-extrabold text-amber-600 bg-amber-50/50" : undefined}
+                                            <button
+                                              key={c.id}
+                                              type="button"
+                                              onClick={() => {
+                                                setTempCategory(c.sub_category);
+                                                setCategorySearchTerm(c.sub_category); // 선택된 소분류를 검색창 텍스트로 연동
+                                              }}
+                                              className={`w-full text-left px-2 py-1.5 rounded-lg text-[10px] transition-all flex flex-col leading-tight cursor-pointer ${
+                                                isSelected
+                                                  ? "bg-amber-500 text-white font-extrabold shadow-sm"
+                                                  : "hover:bg-slate-50 text-slate-700"
+                                              }`}
                                             >
-                                              {label}
-                                            </option>
+                                              <div className="flex items-center justify-between w-full">
+                                                <span className={isSelected ? "text-white" : "text-slate-700 font-bold"}>
+                                                  {c.mid_category} 〉 {c.sub_category}
+                                                </span>
+                                                {recItem && (
+                                                  <span className={`text-[8.5px] font-extrabold px-1 rounded ${isSelected ? "bg-white/20 text-white" : "bg-amber-50 text-amber-600"}`}>
+                                                    ⭐ {recItem.percentage}%
+                                                  </span>
+                                                )}
+                                              </div>
+                                              <span className={`text-[8px] mt-0.5 ${isSelected ? "text-white/80" : "text-slate-400"}`}>
+                                                {c.main_category}
+                                              </span>
+                                            </button>
                                           );
                                         })}
-                                      </select>
+                                        {sortedCategories.length === 0 && (
+                                          <span className="text-[10px] text-slate-400 p-4 text-center font-medium">매칭되는 계정과목이 없습니다.</span>
+                                        )}
+                                      </div>
+                                      
                                       <button
                                         onClick={() => handleUpdateCardTransaction(tx.id, { category: tempCategory })}
-                                        className="px-1.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-bold transition-all whitespace-nowrap active:scale-95"
-                                        disabled={isUpdatingCardTx}
+                                        className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-bold transition-all whitespace-nowrap active:scale-95 shadow-xs cursor-pointer"
+                                        disabled={isUpdatingCardTx || !tempCategory}
                                       >
                                         저장
                                       </button>
@@ -2028,7 +2082,7 @@ export default function FinancePage() {
                                           setEditingCardTxId(null);
                                           setEditingField(null);
                                         }}
-                                        className="px-1.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[10px] font-bold transition-all whitespace-nowrap active:scale-95"
+                                        className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[10px] font-bold transition-all whitespace-nowrap active:scale-95 cursor-pointer"
                                       >
                                         취소
                                       </button>
@@ -2045,6 +2099,7 @@ export default function FinancePage() {
                                         setEditingCardTxId(tx.id);
                                         setEditingField("category");
                                         setTempCategory(tx.category || "");
+                                        setCategorySearchTerm(tx.category || "");
                                       }
                                     }}
                                     title={hasAdminAccess ? "클릭하여 계정과목 수정" : undefined}
