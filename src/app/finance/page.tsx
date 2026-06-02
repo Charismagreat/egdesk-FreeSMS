@@ -961,21 +961,21 @@ export default function FinancePage() {
             {/* 매출 대 매입 대칭 레이아웃 */}
             <div className="grid grid-cols-1 gap-3">
               {/* 매출액 파트 */}
-              <div className="space-y-2 p-2.5 rounded-2xl bg-emerald-50/40 border border-emerald-100/50">
-                <span className="text-[10px] font-bold text-emerald-700 flex items-center gap-1">
+              <div className="space-y-3 p-4 py-3.5 rounded-2xl bg-emerald-50/40 border border-emerald-100/50">
+                <span className="text-[11px] font-bold text-emerald-700 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                   매출액 (Sales)
                 </span>
-                <div className="space-y-1.5">
-                  <div className="flex justify-between items-center text-[10px]">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center text-[11px]">
                     <span className="text-slate-400 font-medium">금월({summaryData.months[0]?.split("-")[1] || "5"}월)</span>
                     <span className="font-extrabold text-emerald-600 font-mono">₩{summaryData.hometaxSummary?.sales?.m0?.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between items-center text-[10px]">
+                  <div className="flex justify-between items-center text-[11px]">
                     <span className="text-slate-400 font-medium">전월({summaryData.months[1]?.split("-")[1] || "4"}월)</span>
                     <span className="font-bold text-slate-600 font-mono">₩{summaryData.hometaxSummary?.sales?.m1?.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between items-center text-[10px]">
+                  <div className="flex justify-between items-center text-[11px]">
                     <span className="text-slate-400 font-medium">전전월({summaryData.months[2]?.split("-")[1] || "3"}월)</span>
                     <span className="font-bold text-slate-600 font-mono">₩{summaryData.hometaxSummary?.sales?.m2?.toLocaleString()}</span>
                   </div>
@@ -983,21 +983,21 @@ export default function FinancePage() {
               </div>
 
               {/* 매입액 파트 */}
-              <div className="space-y-2 p-2.5 rounded-2xl bg-rose-50/30 border border-rose-100/50">
-                <span className="text-[10px] font-bold text-rose-700 flex items-center gap-1">
+              <div className="space-y-3 p-4 py-3.5 rounded-2xl bg-rose-50/30 border border-rose-100/50">
+                <span className="text-[11px] font-bold text-rose-700 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
                   매입액 (Purchase)
                 </span>
-                <div className="space-y-1.5">
-                  <div className="flex justify-between items-center text-[10px]">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center text-[11px]">
                     <span className="text-slate-400 font-medium">금월({summaryData.months[0]?.split("-")[1] || "5"}월)</span>
                     <span className="font-extrabold text-rose-500 font-mono">₩{summaryData.hometaxSummary?.purchase?.m0?.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between items-center text-[10px]">
+                  <div className="flex justify-between items-center text-[11px]">
                     <span className="text-slate-400 font-medium">전월({summaryData.months[1]?.split("-")[1] || "4"}월)</span>
                     <span className="font-bold text-slate-600 font-mono">₩{summaryData.hometaxSummary?.purchase?.m1?.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between items-center text-[10px]">
+                  <div className="flex justify-between items-center text-[11px]">
                     <span className="text-slate-400 font-medium">전전월({summaryData.months[2]?.split("-")[1] || "3"}월)</span>
                     <span className="font-bold text-slate-600 font-mono">₩{summaryData.hometaxSummary?.purchase?.m2?.toLocaleString()}</span>
                   </div>
