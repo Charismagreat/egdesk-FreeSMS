@@ -821,112 +821,98 @@ export default function FinancePage() {
     return map;
   }, [cardTxList]);
 
-  // 🧠 실시간 동적 베이지안 확률 추론 엔진
+  // 🧠 실시간 동적 베이지안 확률 추론 엔진 (하이브리드 교차 추천 알고리즘)
   const getDynamicRecommendations = useCallback((merchantName: string, currentMemo: string): RecommendedOption[] => {
     // 💡 개행 및 탭 문자를 확실하게 거르고 정제하여 문자열 비교 신뢰도 극대화
     const merchant = merchantName?.replace(/[\r\n\t]/g, "").trim() || "";
     if (!merchant) return [];
     
-    const merchantPatterns = jointProbabilityMap[merchant];
-    
-    // 1단계: 과거 학습 이력이 존재하는 경우
-    if (merchantPatterns && Object.keys(merchantPatterns).length > 0) {
-      const patterns = Object.values(merchantPatterns);
-      const totalCount = patterns.reduce((sum, p) => sum + p.count, 0);
-      
-      // 현재 입력/선택된 비고(태그) 분석
-      const currentTags = currentMemo.split(",").map(t => t.trim()).filter(Boolean);
-      
-      const scoredOptions = patterns.map((p) => {
-        let weight = p.count;
-        
-        // 💡 [동적 베이지안 업데이트] 현재 비고(태그) 맥락과 과거 태그 정보가 매칭되는 정도에 따라 가중치 폭발적 향상(Bayesian Priors Update)
-        if (currentTags.length > 0 && p.tags.length > 0) {
-          const intersection = p.tags.filter(t => currentTags.includes(t));
-          if (intersection.length > 0) {
-            // 태그가 많이 겹칠수록 가중치 대폭 상향 (99% 확률 수렴 연출을 위한 가중 배수 적용)
-            weight += intersection.length * 100;
-          }
-        }
-        
-        return {
-          category: p.category,
-          tags: p.tags,
-          weight,
-          rawCount: p.count
-        };
-      });
-      
-      const totalWeight = scoredOptions.reduce((sum, o) => sum + o.weight, 0);
-      
-      // 확률 % 계산 및 정렬
-      return scoredOptions
-        .map((o) => ({
-          category: o.category,
-          tags: o.tags,
-          percentage: totalWeight > 0 ? Math.round((o.weight / totalWeight) * 100) : 0,
-          count: o.rawCount
-        }))
-        .sort((a, b) => b.percentage - a.percentage || b.count - a.count);
-    }
-    
-    // 2단계: 과거 이력이 없을 때의 NLP 맥락 기반 정적 룰 추천 폴백
-    const fallbackOptions: RecommendedOption[] = [];
+    const currentTags = currentMemo.split(",").map(t => t.trim()).filter(Boolean);
     const lowerMerchant = merchant.toLowerCase();
     
-    if (["식당", "횟집", "고기", "푸드", "한식", "일식", "중식", "커피", "다과", "스타벅스", "카페", "투썸", "바다사남", "어시장"].some(k => lowerMerchant.includes(k))) {
-      fallbackOptions.push({ category: "직원식대", tags: ["복지지원", "소액결제"], percentage: 80, count: 1 });
-      fallbackOptions.push({ category: "거래처식사비", tags: ["거래처접대"], percentage: 20, count: 1 });
-    } else if (["택시", "ktx", "철도", "항공", "주차", "톨게이트", "카카오t", "교통", "요금"].some(k => lowerMerchant.includes(k))) {
-      fallbackOptions.push({ category: "시내교통비", tags: ["긴급비용", "복지지원"], percentage: 90, count: 1 });
-    } else if (["마트", "문구", "인쇄", "다이소", "알파문구"].some(k => lowerMerchant.includes(k))) {
-      fallbackOptions.push({ category: "사무용품비", tags: ["비품구매", "소액결제"], percentage: 95, count: 1 });
-    } else if (["aws", "google cloud", "클라우드", "호스팅", "cafe24", "github", "hosting"].some(k => lowerMerchant.includes(k))) {
-      fallbackOptions.push({ category: "전산소모품비", tags: ["인프라유지", "정기지출"], percentage: 100, count: 1 });
+    // 1. 모든 후보군 풀(Candidate Pool)을 생성
+    const candidates: { category: string; tags: string[]; baseWeight: number; isFallback: boolean }[] = [];
+    
+    // (A) 과거 학습 이력 패턴 추가
+    const merchantPatterns = jointProbabilityMap[merchant];
+    if (merchantPatterns && Object.keys(merchantPatterns).length > 0) {
+      Object.values(merchantPatterns).forEach((p) => {
+        candidates.push({
+          category: p.category,
+          tags: p.tags,
+          baseWeight: p.count * 10, // 과거 확정 이력은 기본적으로 높은 우선순위 가중치를 부여
+          isFallback: false
+        });
+      });
     }
     
-    // 💡 3단계: 1, 2단계 모두 해당하지 않을 때의 최종 기본 폴백 추천 탑재 (항상 1개 이상의 추천 칩 노출 보장)
-    if (fallbackOptions.length === 0) {
-      fallbackOptions.push({
+    // (B) NLP 맥락 기반 정적 룰 폴백 패턴 추가
+    const fallbacks: { category: string; tags: string[]; percentage: number }[] = [];
+    if (["식당", "횟집", "고기", "푸드", "한식", "일식", "중식", "커피", "다과", "스타벅스", "카페", "투썸", "바다사남", "어시장"].some(k => lowerMerchant.includes(k))) {
+      fallbacks.push({ category: "직원식대", tags: ["복지지원", "소액결제"], percentage: 80 });
+      fallbacks.push({ category: "거래처식사비", tags: ["거래처접대"], percentage: 20 });
+    } else if (["택시", "ktx", "철도", "항공", "주차", "톨게이트", "카카오t", "교통", "요금"].some(k => lowerMerchant.includes(k))) {
+      fallbacks.push({ category: "시내교통비", tags: ["긴급비용", "복지지원"], percentage: 90 });
+    } else if (["마트", "문구", "인쇄", "다이소", "알파문구"].some(k => lowerMerchant.includes(k))) {
+      fallbacks.push({ category: "사무용품비", tags: ["비품구매", "소액결제"], percentage: 95 });
+    } else if (["aws", "google cloud", "클라우드", "호스팅", "cafe24", "github", "hosting"].some(k => lowerMerchant.includes(k))) {
+      fallbacks.push({ category: "전산소모품비", tags: ["인프라유지", "정기지출"], percentage: 100 });
+    }
+    
+    // 만약 과거 이력과 정적 룰 모두 해당하지 않는 경우 최종 기본 폴백 탑재
+    if (candidates.length === 0 && fallbacks.length === 0) {
+      fallbacks.push({
         category: "기타소분류",
         tags: ["소액결제"],
-        percentage: 100,
-        count: 1
+        percentage: 100
       });
-    }
-
-    // 💡 [2단계/3단계 폴백에 대한 동적 베이지안 가중치 업데이트] 폴백 리스트에 대해서도 현재 비고 태그가 매칭되는 경우 확률을 대폭 보정
-    const currentTags = currentMemo.split(",").map(t => t.trim()).filter(Boolean);
-    if (fallbackOptions.length > 0 && currentTags.length > 0) {
-      const scoredFallbacks = fallbackOptions.map((o) => {
-        let weight = o.percentage; // 기존 percentage를 기본 가중치로 사용
-        
-        // 현재 태그와 후보군 태그가 겹치는 경우 가중치 부여 (확률이 높은 추천으로 치솟도록 가중치 1000배 부여)
-        const intersection = o.tags.filter(t => currentTags.includes(t));
-        if (intersection.length > 0) {
-          weight += intersection.length * 1000;
-        }
-        
-        return {
-          ...o,
-          weight
-        };
-      });
-      
-      const totalWeight = scoredFallbacks.reduce((sum, o) => sum + o.weight, 0);
-      
-      // 새로운 확률 % 재계산 및 정렬
-      return scoredFallbacks
-        .map((o) => ({
-          category: o.category,
-          tags: o.tags,
-          percentage: totalWeight > 0 ? Math.round((o.weight / totalWeight) * 100) : 0,
-          count: o.count
-        }))
-        .sort((a, b) => b.percentage - a.percentage);
     }
     
-    return fallbackOptions;
+    // 폴백 항목들을 후보군 풀에 교차 병합 (중복 카테고리는 과거 이력 우대)
+    fallbacks.forEach((f) => {
+      if (!candidates.some(c => c.category === f.category)) {
+        candidates.push({
+          category: f.category,
+          tags: f.tags,
+          baseWeight: f.percentage,
+          isFallback: true
+        });
+      }
+    });
+    
+    // 2. 동적 베이지안 확률 연산 기동 (Bayesian Intersect Update)
+    const scoredCandidates = candidates.map((c) => {
+      let finalWeight = c.baseWeight;
+      
+      // 현재 입력된 지출 태그 맥락과의 정밀 교차 검증
+      if (currentTags.length > 0 && c.tags.length > 0) {
+        const intersection = c.tags.filter(t => currentTags.includes(t));
+        if (intersection.length > 0) {
+          // 태그 매칭 성공 시 폭발적 보너스 가중치 부여 (가중치 1000배로 최우선 역전 추천 보장)
+          finalWeight += intersection.length * 1000;
+        }
+      }
+      
+      return {
+        category: c.category,
+        tags: c.tags,
+        weight: finalWeight,
+        isFallback: c.isFallback
+      };
+    });
+    
+    const totalWeight = scoredCandidates.reduce((sum, c) => sum + c.weight, 0);
+    
+    // 3. 최종 백분율(%) 계산 및 정렬 (상위 최대 3개 추천 노출)
+    return scoredCandidates
+      .map((c) => ({
+        category: c.category,
+        tags: c.tags,
+        percentage: totalWeight > 0 ? Math.round((c.weight / totalWeight) * 100) : 0,
+        count: c.isFallback ? 1 : Math.round(c.weight / 10)
+      }))
+      .sort((a, b) => b.percentage - a.percentage || b.count - a.count)
+      .slice(0, 3);
   }, [jointProbabilityMap]);
 
   // 🔑 신용카드 거래 내역(계정과목, 비고) 수정 핸들러
