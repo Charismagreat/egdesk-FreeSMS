@@ -76,9 +76,10 @@ export async function PUT(request: NextRequest) {
 
     // 💡 [트리거 예외 안전망] better-sqlite3로 DB 업데이트 시 SQLite 내부 트리거가 호출하는 
     // 사용자 정의 동기화 함수가 에러를 발생시키지 않도록 더미 함수를 강제 주입해 줍니다.
+    // { varargs: true } 옵션을 추가하여 임의의 개수의 인자 전달에도 에러 없이 작동하도록 보장합니다.
     try {
-      db.function('notify_change_financehub_changed', (...args: any[]) => {
-        console.log('[SQLite Trigger Bypass] notify_change_financehub_changed dummy executed.');
+      db.function('notify_change_financehub_changed', { varargs: true }, (...args: any[]) => {
+        console.log('[SQLite Trigger Bypass] notify_change_financehub_changed dummy executed with varargs.');
         return null;
       });
     } catch (triggerErr: any) {
