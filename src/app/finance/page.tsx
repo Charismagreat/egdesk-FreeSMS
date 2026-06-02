@@ -95,7 +95,14 @@ interface SyncLog {
   completedAt?: string;
   recordsCount?: number;
   errorMessage?: string;
-}
+}const cardCompanyMap: Record<string, string> = {
+  "신한카드": "shinhan-card",
+  "KB국민카드": "kb-card",
+  "NH농협카드": "nh-card",
+  "BC카드": "bc-card",
+  "hana카드": "hana-card",
+  "하나카드": "hana-card"
+};
 
 export default function FinancePage() {
   // 메인 탭 상태: accounts (은행 계좌 & 거래), cards (신용카드), hometax (국세청 자료), sync (동기화 역사)
@@ -1455,11 +1462,27 @@ export default function FinancePage() {
             <div className="space-y-6">
               {/* 신용카드 리스트 슬라이드 카드형 레이아웃 */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {groupedCards.map((card: any, idx: number) => (
-                  <div
-                    key={idx}
-                    className="p-5 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md transition-all space-y-3 relative overflow-hidden"
-                  >
+                {groupedCards.map((card: any, idx: number) => {
+                  const companyId = cardCompanyMap[card.cardCompanyName] || "all";
+                  const isSelected = selectedCardCompanyId === companyId;
+                  
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        if (selectedCardCompanyId === companyId) {
+                          setSelectedCardCompanyId("all");
+                        } else {
+                          setSelectedCardCompanyId(companyId);
+                          setSelectedCardNumber("all");
+                        }
+                      }}
+                      className={`p-5 rounded-2xl bg-white border shadow-sm hover:shadow-md transition-all space-y-3 relative overflow-hidden cursor-pointer ${
+                        isSelected
+                          ? "border-amber-500 ring-2 ring-amber-500/10 bg-amber-50/5"
+                          : "border-slate-100"
+                      }`}
+                    >
                     <div className="absolute top-0 right-0 w-16 h-16 bg-amber-500/5 rounded-full blur-lg"></div>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -1493,8 +1516,9 @@ export default function FinancePage() {
                         </p>
                       </div>
                     </div>
-                  </div>
-                ))}
+                    </div>
+                  )
+                })}
                 {groupedCards.length === 0 && (
                   <div className="col-span-full bg-white p-6 rounded-2xl border border-slate-100 text-center text-slate-400 text-xs font-medium">
                     조회된 등록 신용카드가 없습니다.
