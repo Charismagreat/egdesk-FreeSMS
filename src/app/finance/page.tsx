@@ -1407,7 +1407,7 @@ export default function FinancePage() {
                       <span className="text-slate-400 text-xs font-mono">{card.cardCount}개 카드 통합</span>
                     </div>
                     {card.lastTxDate && (
-                      <p className="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
+                      <p className="text-[10px] text-slate-400 font-semibold flex items-center justify-end gap-1 w-full">
                         <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
                         최종 승인: {card.lastTxDate} {card.lastTxTime}
                       </p>
