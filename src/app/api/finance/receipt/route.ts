@@ -63,8 +63,48 @@ export async function POST(request: NextRequest) {
       const db = new Database(targetPath);
       const stmt = db.prepare("UPDATE card_transactions SET receipt_url = ?, updated_at = datetime('now') WHERE id = ?");
       stmt.run(receiptUrl, txId);
-      db.close();
       
+      // 🚀 [RPA 지능형 파이프라인] 지출관리AI 페이지(crm_expenses 테이블)와 실시간 연동
+      const tx = db.prepare("SELECT * FROM card_transactions WHERE id = ?").get(txId);
+      if (tx) {
+        const expId = `exp-card-${txId}`;
+        const rawDate = tx.approved_date || tx.created_at || new Date().toISOString();
+        const expenseDate = rawDate.slice(0, 10);
+        
+        const aiAnalysisObj = {
+          payee: tx.merchant_name || "",
+          approval_number: tx.approval_number || "",
+          card_transaction_id: txId
+        };
+        const aiAnalysisStr = JSON.stringify(aiAnalysisObj);
+        const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+        
+        db.prepare(`
+          INSERT OR REPLACE INTO crm_expenses (
+            id, title, category, amount, expense_date, payment_method, 
+            attachment_url, ai_analysis, memo, actual_expense_date, 
+            deduction_amount, transfer_fee, approval_status, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          expId,
+          tx.merchant_name || "법인카드 거래", 
+          tx.category || "직원식대", 
+          Number(tx.amount || 0), 
+          expenseDate, 
+          `법인카드(${tx.card_company_name || '신용카드'})`, 
+          receiptUrl, 
+          aiAnalysisStr, 
+          tx.memo || "", 
+          expenseDate, 
+          0, 
+          0, 
+          'APPROVED', 
+          nowStr
+        );
+        console.log(`[RPA Sync] 지출관리AI 장부(crm_expenses)에 거래 ${expId} 자동 인서트/갱신 완료!`);
+      }
+      
+      db.close();
       console.log(`[Receipt Upload] 거래 ${txId}에 영수증 등록 완료: ${receiptUrl}`);
     } else {
       throw new Error("로컬 DB 파일을 찾을 수 없습니다.");

@@ -63,7 +63,9 @@ interface CardTransaction {
   category?: string;
   receiptUrl?: string;
   approvalNumber?: string;
+  memo?: string;
 }
+
 
 interface HometaxInvoice {
   id: string;
@@ -1667,6 +1669,7 @@ export default function FinancePage() {
                       <th className="p-4 w-44">카드사 / 카드번호</th>
                       <th className="p-4 min-w-[180px]">계정과목 (대 〉 중 〉 소)</th>
                       <th className="p-4">가맹점명</th>
+                      <th className="p-4 min-w-[120px]">비고 (지출 태그)</th>
                       <th className="p-4 text-right w-28">사용금액</th>
                       <th className="p-4 w-20">승인상태</th>
                       <th className="p-4 text-center w-24">영수증</th>
@@ -1674,7 +1677,7 @@ export default function FinancePage() {
                   </thead>
                   <tbody>
                     {loading ? (
-                      <TableSkeleton cols={8} rows={5} />
+                      <TableSkeleton cols={9} rows={5} />
                     ) : (
                       cardTxList.map((tx) => {
                         const isCancelled = tx.status === "취소";
@@ -1709,6 +1712,19 @@ export default function FinancePage() {
                             </td>
                             <td className="p-4">
                               <span className="font-extrabold text-slate-800">{tx.merchantName}</span>
+                            </td>
+                            <td className="p-4 max-w-[150px]">
+                              {tx.memo ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {tx.memo.split(",").map(t => t.trim()).filter(Boolean).map(tag => (
+                                    <span key={tag} className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 text-[9px] font-bold border border-amber-100/60 shadow-3xs">
+                                      #{tag}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-[10px] text-slate-300 font-light">-</span>
+                              )}
                             </td>
                             <td className={`p-4 text-right font-extrabold ${isCancelled ? "text-slate-400 line-through" : "text-slate-800"}`}>
                               ₩ {tx.amount?.toLocaleString()}
@@ -1759,7 +1775,7 @@ export default function FinancePage() {
                     )}
                     {!loading && cardTxList.length === 0 && (
                       <tr>
-                        <td colSpan={8} className="p-12 text-center text-slate-400 text-xs font-semibold">
+                        <td colSpan={9} className="p-12 text-center text-slate-400 text-xs font-semibold">
                           해당 조회 조건에 맞는 법인카드 사용 내역이 존재하지 않습니다.
                         </td>
                       </tr>
@@ -1767,6 +1783,7 @@ export default function FinancePage() {
                   </tbody>
                 </table>
               </div>
+
 
               {/* 하단 페이지네이션 컴포넌트 */}
               {!loading && totalCount > 0 && (
