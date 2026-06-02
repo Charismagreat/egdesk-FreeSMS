@@ -407,7 +407,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "최고 관리자 권한이 필요합니다." }, { status: 403 });
     }
 
-    const { naturalText, force } = await request.json();
+    const { naturalText, force, previewOnly } = await request.json();
     if (!naturalText || !naturalText.trim()) {
       return NextResponse.json({ success: false, error: "등록할 자연어 규칙 텍스트가 전달되지 않았습니다." }, { status: 400 });
     }
@@ -416,6 +416,77 @@ export async function POST(request: NextRequest) {
     const parsed = parseNaturalRule(naturalText);
 
     db = getDbInstance();
+
+    // ⚡ [드라이런 시뮬레이션] 영향을 받는 건 미리보기 요청인 경우
+    if (previewOnly) {
+      const txs = db.prepare(`
+        SELECT * FROM card_transactions 
+        WHERE category IS NULL 
+           OR category = '' 
+           OR applied_rule_id IS NOT NULL
+      `).all();
+
+      const previewList = [];
+      for (const tx of txs) {
+        // (A) 카드사 조건
+        if (parsed.cardCompanyName) {
+          const txCard = tx.cardCompanyName || "";
+          if (!txCard.includes(parsed.cardCompanyName)) continue;
+        }
+
+        // (B) 카드번호 뒷자리 조건
+        if (parsed.cardNumberEnd) {
+          const txNum = tx.cardNumber || "";
+          const cleanNum = txNum.replace(/[^0-9]/g, "");
+          if (!cleanNum.endsWith(parsed.cardNumberEnd)) continue;
+        }
+
+        // (C) 휴일 조건
+        if (parsed.isHoliday !== null) {
+          const holidayApplied = checkIsHoliday(tx.date);
+          if (holidayApplied !== parsed.isHoliday) continue;
+        }
+
+        // (D) 시간대 조건
+        if (parsed.timeRange) {
+          if (!isTimeInRange(tx.time, parsed.timeRange.start, parsed.timeRange.end)) continue;
+        }
+
+        // (E) 금액 한도 조건
+        if (parsed.amountMax !== null && tx.amount > parsed.amountMax) continue;
+        if (parsed.amountMin !== null && tx.amount < parsed.amountMin) continue;
+
+        // (F) 비고(지출 태그) 조건
+        if (parsed.memoContains) {
+          const txMemo = tx.memo || "";
+          const txMerchant = tx.merchantName || "";
+          const combined = `${txMemo} ${txMerchant}`;
+          if (!combined.includes(parsed.memoContains)) continue;
+        }
+
+        // 조건 충족!
+        previewList.push({
+          id: tx.id,
+          date: tx.date,
+          time: tx.time || "",
+          cardCompanyName: tx.cardCompanyName || "",
+          cardNumber: tx.cardNumber || "",
+          merchantName: tx.merchantName || "",
+          amount: tx.amount,
+          currentCategory: tx.category || "미지정",
+          targetCategory: parsed.targetCategory,
+          memo: tx.memo || ""
+        });
+      }
+
+      db.close();
+      return NextResponse.json({
+        success: true,
+        conflict: false,
+        previewList,
+        parsedCondition: parsed
+      });
+    }
 
     // ⚡ [경합/충돌 예방] force 플래그가 참이 아닐 경우 기존 룰과의 충돌 분석 집행
     if (!force) {

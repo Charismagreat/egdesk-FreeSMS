@@ -161,6 +161,11 @@ export default function FinancePage() {
   const [isAddingRule, setIsAddingRule] = useState<boolean>(false);
   const [isUpdatingCardTx, setIsUpdatingCardTx] = useState<boolean>(false);
   const [dbTags, setDbTags] = useState<DbExpenseTag[]>([]);
+  
+  // ⚡ [경합/충돌 예방] 자연어 규칙 영향 건 실시간 미리보기 및 로딩 상태 변수
+  const [previewList, setPreviewList] = useState<any[]>([]);
+  const [isPreviewLoading, setIsPreviewLoading] = useState<boolean>(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState<boolean>(false);
 
   // 국세청 서브 탭: invoice (세금계산서), exempt (계산서/면세), cash (현금영수증)
   const [hometaxSubTab, setHometaxSubTab] = useState<"invoice" | "exempt" | "cash">("invoice");
@@ -358,6 +363,65 @@ export default function FinancePage() {
     } finally {
       setIsAddingRule(false);
     }
+  };
+
+  // 🔑 자연어 규칙 영향 건 실시간 미리보기 API 연동
+  const handlePreviewRule = async (text: string) => {
+    if (!text || !text.trim()) return;
+    setIsPreviewLoading(true);
+    setPreviewList([]);
+    try {
+      const res = await fetch("/api/finance/rules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ naturalText: text, previewOnly: true })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPreviewList(data.previewList || []);
+        setIsPreviewOpen(true);
+      } else {
+        alert(data.error || "영향을 받는 건 분석에 실패했습니다.");
+      }
+    } catch (e: any) {
+      alert("오류가 발생했습니다: " + e.message);
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  };
+
+  // 📥 영향을 받는 건 미리보기 리스트 CSV 다운로드 헬퍼
+  const downloadPreviewCsv = () => {
+    if (previewList.length === 0) return;
+    
+    // CSV 헤더 설정
+    const headers = ["거래일자", "승인시간", "카드사", "카드번호", "가맹점명", "거래금액", "현재 계정과목", "매칭 후 계정과목", "태그(비고)"];
+    
+    // 데이터 행 포맷팅
+    const rows = previewList.map(tx => [
+      tx.date,
+      tx.time,
+      tx.cardCompanyName,
+      `'${tx.cardNumber}`, // 엑셀에서 카드번호 깨짐 방지용 문자형 처리
+      `"${tx.merchantName.replace(/"/g, '""')}"`, // CSV 쉼표/따옴표 이스케이프
+      tx.amount,
+      tx.currentCategory,
+      tx.targetCategory,
+      `"${(tx.memo || "").replace(/"/g, '""')}"`
+    ]);
+    
+    // CSV 문자열 조립 (Excel 한글 깨짐 방지용 UTF-8 BOM 헤더 필수 주입)
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    
+    // 브라우저 로컬 다운로드 유발 기동
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `AI_정산규칙_적용_영향건_미리보기_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // 🔑 자연어 규칙 활성화 여부 토글 API 연동
@@ -2008,6 +2072,14 @@ export default function FinancePage() {
                         </button>
                         <button
                           type="button"
+                          onClick={() => handlePreviewRule(newRuleText)}
+                          className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-150 rounded-lg text-[9.5px] font-bold transition-all active:scale-95 cursor-pointer disabled:bg-indigo-100/50"
+                          disabled={isPreviewLoading || !newRuleText.trim()}
+                        >
+                          {isPreviewLoading ? "분석 중..." : "🔍 영향 건 미리보기"}
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => handleAddRule(newRuleText)}
                           className="flex items-center gap-1 px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10.5px] font-extrabold transition-all active:scale-95 shadow-md shadow-indigo-100 cursor-pointer disabled:bg-indigo-300"
                           disabled={isAddingRule || !newRuleText.trim()}
@@ -2015,6 +2087,68 @@ export default function FinancePage() {
                           {isAddingRule ? "분석 및 실행 중..." : "🚀 규칙 등록 및 즉시 실행"}
                         </button>
                       </div>
+
+                      {/* ⚡ [경합/충돌 예방] 자연어 규칙 영향 건 실시간 미리보기 패널 */}
+                      {isPreviewOpen && (
+                        <div className="mt-3 bg-indigo-50/50 rounded-2xl border border-indigo-100 p-3 flex flex-col gap-2 shadow-2xs">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-extrabold text-indigo-700 flex items-center gap-1">
+                              🔍 규칙 적용 시 영향받는 거래 건 미리보기 (총 {previewList.length}건 감지)
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              {previewList.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={downloadPreviewCsv}
+                                  className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-[9px] font-bold transition-all cursor-pointer flex items-center gap-0.5 shadow-sm active:scale-95"
+                                >
+                                  📥 CSV 다운로드
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setIsPreviewOpen(false)}
+                                className="text-slate-400 hover:text-slate-600 font-bold text-[10px] px-1.5 py-0.5 rounded hover:bg-slate-200/50 cursor-pointer"
+                              >
+                                닫기
+                              </button>
+                            </div>
+                          </div>
+                          
+                          {previewList.length === 0 ? (
+                            <div className="text-[10px] text-slate-500 font-medium text-center py-4 bg-white/50 rounded-xl border border-slate-100">
+                              해당 규칙의 조건에 부합하여 자동으로 분류될 거래 내역이 없습니다. (조건을 다시 한 번 확인해 보세요!)
+                            </div>
+                          ) : (
+                            <div className="overflow-x-auto max-h-[160px] bg-white rounded-xl border border-slate-100/80 shadow-3xs overflow-y-auto pr-1 scrollbar-thin">
+                              <table className="w-full text-left border-collapse text-[9px]">
+                                <thead>
+                                  <tr className="bg-slate-50/80 border-b border-slate-100 text-slate-500 font-extrabold sticky top-0 backdrop-blur-xs">
+                                    <th className="p-1.5">거래일자</th>
+                                    <th className="p-1.5">가맹점명</th>
+                                    <th className="p-1.5">금액</th>
+                                    <th className="p-1.5">현재 계정과목</th>
+                                    <th className="p-1.5">매칭 후 계정과목</th>
+                                    <th className="p-1.5">비고(태그)</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {previewList.map((tx, idx) => (
+                                    <tr key={tx.id || idx} className="border-b border-slate-50 hover:bg-slate-50/50 text-slate-600 font-medium">
+                                      <td className="p-1.5 whitespace-nowrap">{tx.date}</td>
+                                      <td className="p-1.5 font-bold text-slate-800">{tx.merchantName}</td>
+                                      <td className="p-1.5 font-bold text-slate-700">{tx.amount.toLocaleString()}원</td>
+                                      <td className="p-1.5 text-slate-400">{tx.currentCategory}</td>
+                                      <td className="p-1.5 font-extrabold text-indigo-600">{tx.targetCategory}</td>
+                                      <td className="p-1.5 text-slate-500 max-w-[120px] truncate" title={tx.memo}>{tx.memo || "-"}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* 등록된 규칙 목록 대시보드 */}
