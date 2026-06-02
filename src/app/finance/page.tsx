@@ -678,6 +678,37 @@ export default function FinancePage() {
     .filter(tx => tx.status !== "취소")
     .reduce((acc, curr) => acc + curr.amount, 0);
 
+  // 렌더링을 위해 카드사별로 카드 요약 정보 그룹화 (BC카드 등 개별 번호 카드를 하나의 요약 카드로 병합)
+  const groupedCards = (summaryData.cardSummary || []).reduce((acc: any[], curr: any) => {
+    const existing = acc.find(item => item.cardCompanyName === curr.cardCompanyName);
+    if (existing) {
+      existing.m0 += curr.m0 || 0;
+      existing.m1 += curr.m1 || 0;
+      existing.m2 += curr.m2 || 0;
+      existing.yTotal += curr.yTotal || 0;
+      existing.cardCount += 1;
+      
+      const existingDateTime = existing.lastTxDate ? `${existing.lastTxDate} ${existing.lastTxTime}` : "";
+      const currDateTime = curr.lastTxDate ? `${curr.lastTxDate} ${curr.lastTxTime}` : "";
+      if (currDateTime > existingDateTime) {
+        existing.lastTxDate = curr.lastTxDate;
+        existing.lastTxTime = curr.lastTxTime;
+      }
+    } else {
+      acc.push({
+        cardCompanyName: curr.cardCompanyName,
+        cardCount: 1,
+        m0: curr.m0 || 0,
+        m1: curr.m1 || 0,
+        m2: curr.m2 || 0,
+        yTotal: curr.yTotal || 0,
+        lastTxDate: curr.lastTxDate || "",
+        lastTxTime: curr.lastTxTime || ""
+      });
+    }
+    return acc;
+  }, []);
+
   return (
     <div className="space-y-6 pb-24 max-w-[1600px] mx-auto px-4 md:px-8">
       {/* 1. 상단 웰컴 및 실시간 동기화 헤더 */}
@@ -1363,7 +1394,7 @@ export default function FinancePage() {
             <div className="space-y-6">
               {/* 신용카드 리스트 슬라이드 카드형 레이아웃 */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {summaryData.cardSummary.map((card: any, idx: number) => (
+                {groupedCards.map((card: any, idx: number) => (
                   <div
                     key={idx}
                     className="p-5 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md transition-all space-y-3 relative overflow-hidden"
@@ -1373,7 +1404,7 @@ export default function FinancePage() {
                       <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-md">
                         {card.cardCompanyName}
                       </span>
-                      <span className="text-slate-400 text-xs font-mono">{card.cardNumber}</span>
+                      <span className="text-slate-400 text-xs font-mono">{card.cardCount}개 카드 통합</span>
                     </div>
                     <div>
                       <h4 className="text-xs font-bold text-slate-400 tracking-tight">
@@ -1391,7 +1422,7 @@ export default function FinancePage() {
                     </div>
                   </div>
                 ))}
-                {summaryData.cardSummary.length === 0 && (
+                {groupedCards.length === 0 && (
                   <div className="col-span-full bg-white p-6 rounded-2xl border border-slate-100 text-center text-slate-400 text-xs font-medium">
                     조회된 등록 신용카드가 없습니다.
                   </div>
