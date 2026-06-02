@@ -1406,19 +1406,29 @@ export default function FinancePage() {
                       </span>
                       <span className="text-slate-400 text-xs font-mono">{card.cardCount}개 카드 통합</span>
                     </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-400 tracking-tight">
-                        금월 사용금액
-                      </h4>
-                      <p className="text-xl font-extrabold text-slate-800 mt-1 font-mono">
-                        ₩ {card.m0?.toLocaleString()}
+                    {card.lastTxDate && (
+                      <p className="text-[10px] text-slate-400 font-semibold flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                        최종 승인: {card.lastTxDate} {card.lastTxTime}
                       </p>
-                      {card.lastTxDate && (
-                        <p className="text-[10px] text-slate-400 font-semibold mt-1.5 flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                          최종 승인: {card.lastTxDate} {card.lastTxTime}
+                    )}
+                    <div className="grid grid-cols-2 gap-4 pt-1.5 border-t border-slate-50">
+                      <div>
+                        <h4 className="text-[10px] font-bold text-slate-400 tracking-tight">
+                          금년도 사용액
+                        </h4>
+                        <p className="text-sm font-extrabold text-slate-800 mt-1 font-mono">
+                          ₩ {card.yTotal?.toLocaleString()}
                         </p>
-                      )}
+                      </div>
+                      <div className="border-l border-slate-100 pl-4">
+                        <h4 className="text-[10px] font-bold text-slate-400 tracking-tight">
+                          이번달 사용액
+                        </h4>
+                        <p className="text-sm font-extrabold text-slate-800 mt-1 font-mono">
+                          ₩ {card.m0?.toLocaleString()}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 ))}
