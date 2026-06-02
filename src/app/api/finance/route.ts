@@ -207,18 +207,35 @@ export async function GET(request: NextRequest) {
             let lastTxDate = "";
             let lastTxTime = "";
             try {
-              // 해당 계좌(accountId)의 가장 최신 정상 거래 일시 조회
-              const latestTx = db.prepare(`
-                SELECT transaction_date, transaction_time 
-                FROM bank_transactions 
-                WHERE account_id = ? AND transaction_date LIKE '2%'
-                ORDER BY transaction_date DESC, transaction_time DESC, id DESC 
-                LIMIT 1
-              `).get(acc.id);
-              
-              if (latestTx) {
-                lastTxDate = latestTx.transaction_date || "";
-                lastTxTime = latestTx.transaction_time || "";
+              const isCard = acc.id.includes("CARD") || (acc.bankId && acc.bankId.includes("card")) || acc.accountName.includes("카드");
+              if (isCard) {
+                // 신용카드의 가장 최신 정상 거래 일시 조회
+                const latestCardTx = db.prepare(`
+                  SELECT approval_date, time 
+                  FROM card_transactions 
+                  WHERE account_id = ? AND approval_date LIKE '2%'
+                  ORDER BY approval_date DESC, time DESC, id DESC 
+                  LIMIT 1
+                `).get(acc.id);
+                
+                if (latestCardTx) {
+                  lastTxDate = latestCardTx.approval_date || "";
+                  lastTxTime = latestCardTx.time || "";
+                }
+              } else {
+                // 은행 계좌의 가장 최신 정상 거래 일시 조회
+                const latestTx = db.prepare(`
+                  SELECT transaction_date, transaction_time 
+                  FROM bank_transactions 
+                  WHERE account_id = ? AND transaction_date LIKE '2%'
+                  ORDER BY transaction_date DESC, transaction_time DESC, id DESC 
+                  LIMIT 1
+                `).get(acc.id);
+                
+                if (latestTx) {
+                  lastTxDate = latestTx.transaction_date || "";
+                  lastTxTime = latestTx.transaction_time || "";
+                }
               }
             } catch (txErr: any) {
               console.warn(`[Local DB last tx date query failed] for account ${acc.id}:`, txErr.message);
@@ -951,6 +968,7 @@ export async function GET(request: NextRequest) {
               cardNumber: tx.card_number || "",
               amount: Number(tx.amount || 0),
               date: (tx.approval_date || "").replace(/\./g, "-"),
+              time: tx.time || "",
               status: tx.is_cancelled ? "취소" : "승인"
             }));
           }
@@ -968,6 +986,7 @@ export async function GET(request: NextRequest) {
           cardNumber: tx.cardNumber || "",
           amount: Number(tx.amount || 0),
           date: tx.date || "",
+          time: tx.time || "",
           status: tx.status || "승인"
         }));
       }
@@ -980,7 +999,7 @@ export async function GET(request: NextRequest) {
       const cashReceiptList = cashReceiptListRaw.map(mapCashReceiptToFrontend).filter(Boolean);
 
       // (1) 카드사별/월별 집계
-      const cardMap: Record<string, { cardCompanyName: string; cardNumber: string; m0: number; m1: number; m2: number; yTotal: number }> = {};
+      const cardMap: Record<string, { cardCompanyName: string; cardNumber: string; m0: number; m1: number; m2: number; yTotal: number; lastTxDate: string; lastTxTime: string }> = {};
 
       cardTxList.forEach((tx) => {
         if (tx.status === "취소") return;
@@ -995,12 +1014,15 @@ export async function GET(request: NextRequest) {
             m0: 0,
             m1: 0,
             m2: 0,
-            yTotal: 0
+            yTotal: 0,
+            lastTxDate: "",
+            lastTxTime: ""
           };
         }
 
         const amount = Math.floor(Number(tx.amount) || 0);
         const txDateStr = tx.date || ""; // YYYY-MM-DD
+        const txTimeStr = tx.time || ""; // HH:MM:SS
         const txYM = txDateStr.substring(0, 7);
 
         // 월별 배분
@@ -1011,6 +1033,14 @@ export async function GET(request: NextRequest) {
         // 금년도 누계 가산 (KST 기준 날짜가 올해에 속할 때)
         if (txDateStr.startsWith(String(currentYear))) {
           cardMap[key].yTotal += amount;
+        }
+
+        // 최종 승인 거래일시 판단 갱신
+        const currentLastTx = cardMap[key].lastTxDate ? `${cardMap[key].lastTxDate} ${cardMap[key].lastTxTime}` : "";
+        const txDateTime = `${txDateStr} ${txTimeStr}`;
+        if (!currentLastTx || txDateTime > currentLastTx) {
+          cardMap[key].lastTxDate = txDateStr;
+          cardMap[key].lastTxTime = txTimeStr;
         }
       });
 

@@ -1360,7 +1360,46 @@ export default function FinancePage() {
 
           {/* TAB 2: 신용 카드 사용 내역 */}
           {activeTab === "cards" && (
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="space-y-6">
+              {/* 신용카드 리스트 슬라이드 카드형 레이아웃 */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {summaryData.cardSummary.map((card: any, idx: number) => (
+                  <div
+                    key={idx}
+                    className="p-5 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md transition-all space-y-3 relative overflow-hidden"
+                  >
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-amber-500/5 rounded-full blur-lg"></div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-md">
+                        {card.cardCompanyName}
+                      </span>
+                      <span className="text-slate-400 text-xs font-mono">{card.cardNumber}</span>
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-400 tracking-tight">
+                        금월 사용금액
+                      </h4>
+                      <p className="text-xl font-extrabold text-slate-800 mt-1 font-mono">
+                        ₩ {card.m0?.toLocaleString()}
+                      </p>
+                      {card.lastTxDate && (
+                        <p className="text-[10px] text-slate-400 font-semibold mt-1.5 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                          최종 승인: {card.lastTxDate} {card.lastTxTime}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {summaryData.cardSummary.length === 0 && (
+                  <div className="col-span-full bg-white p-6 rounded-2xl border border-slate-100 text-center text-slate-400 text-xs font-medium">
+                    조회된 등록 신용카드가 없습니다.
+                  </div>
+                )}
+              </div>
+
+              {/* 법인 신용 카드 승인 내역 명세서 테이블 */}
+              <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
               <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-1.5">
                   <CreditCard className="w-4 h-4 text-amber-500" />
@@ -1512,7 +1551,8 @@ export default function FinancePage() {
                 />
               )}
             </div>
-          )}
+          </div>
+        )}
 
           {/* TAB 3: 국세청 홈택스 자료 */}
           {activeTab === "hometax" && (
