@@ -21,6 +21,84 @@ function cleanStr(val: any): string {
   return String(val).trim();
 }
 
+// 파일명, 셀 내용, 헤더 구조 기반으로 국세청 홈택스 엑셀 종류를 자동 추적 식별하는 헬퍼 함수
+function detectHometaxKindFromExcel(fileName: string, rawRows: any[][]): string {
+  const fileUpper = fileName.toUpperCase();
+  
+  // 1단계: 파일명 기반 감지
+  if (fileUpper.includes("현금영수증")) {
+    return "cash-receipt";
+  }
+  
+  const isTaxExempt = fileUpper.includes("계산서") && !fileUpper.includes("세금계산서");
+  const isTaxInvoice = fileUpper.includes("세금계산서");
+  const isSales = fileUpper.includes("매출") || fileUpper.includes("발행");
+  const isPurchase = fileUpper.includes("매입") || fileUpper.includes("수취");
+
+  if (isTaxInvoice) {
+    if (isSales) return "sales";
+    if (isPurchase) return "purchase";
+  }
+  if (isTaxExempt) {
+    if (isSales) return "tax-exempt-sales";
+    if (isPurchase) return "tax-exempt-purchase";
+  }
+
+  // 2단계: 시트 내부 셀 내용 기반 감지
+  let cellText = "";
+  for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
+    const row = rawRows[i];
+    if (row && Array.isArray(row)) {
+      cellText += " " + row.join(" ");
+    }
+  }
+
+  if (cellText.includes("발행구분") && cellText.includes("매출일시") && cellText.includes("신분확인")) {
+    return "cash-receipt";
+  }
+
+  const hasTaxInvoice = cellText.includes("세금계산서");
+  const hasTaxExempt = cellText.includes("계산서") && !cellText.includes("세금계산서");
+  const hasSales = cellText.includes("매출") || cellText.includes("공급자");
+  const hasPurchase = cellText.includes("매입") || cellText.includes("공급받는자");
+
+  if (hasTaxInvoice) {
+    if (hasSales && !hasPurchase) return "sales";
+    if (hasPurchase && !hasSales) return "purchase";
+  }
+  
+  if (hasTaxExempt) {
+    if (hasSales && !hasPurchase) return "tax-exempt-sales";
+    if (hasPurchase && !hasSales) return "tax-exempt-purchase";
+  }
+
+  // 3단계: 헤더 구조 및 타이틀명 기반 감지
+  const headerRow = rawRows[5];
+  if (headerRow && Array.isArray(headerRow)) {
+    const headers = headerRow.map(h => String(h).trim());
+    if (headers.includes("작성일자") && headers.includes("승인번호")) {
+      const isExempt = cellText.includes("전자계산서") && !cellText.includes("전자세금계산서");
+      
+      const metaRow = rawRows[0];
+      if (metaRow && Array.isArray(metaRow)) {
+        const title = String(metaRow[0]);
+        if (title.includes("매출")) {
+          return isExempt ? "tax-exempt-sales" : "sales";
+        }
+        if (title.includes("매입")) {
+          return isExempt ? "tax-exempt-purchase" : "purchase";
+        }
+      }
+    }
+  }
+
+  // 최종 폴백 기본값 설정
+  if (fileUpper.includes("매출")) return "sales";
+  if (fileUpper.includes("매입")) return "purchase";
+
+  return "sales"; // 기본 폴백
+}
+
 // 로컬 financehub.db 연결 객체 획득 헬퍼
 function getFinanceHubDb() {
   const homeDir = os.homedir();
@@ -49,7 +127,18 @@ function getFinanceHubDb() {
     }
   }
 
-  return new Database(targetPath);
+  const db = new Database(targetPath);
+
+  // SQLite 내부 트리거가 호출하는 UI 갱신 UDF(User Defined Function)를 에뮬레이팅하여 안전하게 바인딩합니다.
+  try {
+    db.function("notify_change_financehub_changed", { varargs: true }, (...args: any[]) => {
+      console.log("notify_change_financehub_changed trigger intercepted (hometax):", args);
+    });
+  } catch (udfErr: any) {
+    console.warn("UDF 'notify_change_financehub_changed' registration failed:", udfErr.message);
+  }
+
+  return db;
 }
 
 export async function POST(request: NextRequest) {
@@ -57,19 +146,12 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File;
-    const kind = formData.get("kind") as string; // 'sales', 'purchase', 'tax-exempt-sales', 'tax-exempt-purchase', 'cash-receipt'
+    let kind = formData.get("kind") as string; // 'sales', 'purchase', 'tax-exempt-sales', 'tax-exempt-purchase', 'cash-receipt'
     let businessNumber = formData.get("businessNumber") as string;
 
     if (!file) {
       return NextResponse.json(
         { success: false, error: "업로드된 세무 엑셀 파일이 없습니다." },
-        { status: 400 }
-      );
-    }
-
-    if (!kind) {
-      return NextResponse.json(
-        { success: false, error: "증빙 분류 코드가 지정되지 않았습니다." },
         { status: 400 }
       );
     }
@@ -93,6 +175,50 @@ export async function POST(request: NextRequest) {
         { success: false, error: "엑셀 시트가 비어 있습니다." },
         { status: 400 }
       );
+    }
+
+    // [스마트 홈택스 자료 종류 자동 감지]
+    const detectedKind = detectHometaxKindFromExcel(file.name, rawRows);
+    if (detectedKind) {
+      console.log(`[Smart Hometax Detect] 감지된 자료 종류: ${detectedKind} (기존 선택: ${kind})`);
+      kind = detectedKind;
+    }
+
+    if (!kind) {
+      return NextResponse.json(
+        { success: false, error: "업로드된 엑셀 분석 결과 증빙 종류를 식별할 수 없습니다. 파일명을 확인해 주세요." },
+        { status: 400 }
+      );
+    }
+
+    // [스마트 사업자등록번호 검색 및 백필]
+    if (!businessNumber) {
+      // 1. 파일명에서 검색 (10자리 숫자 패턴)
+      const match = file.name.match(/\b\d{3}-\d{2}-\d{5}\b/) || file.name.match(/\b\d{10}\b/);
+      if (match) {
+        businessNumber = match[0].replace(/\D/g, "");
+      } else {
+        // 2. 엑셀 셀 내용에서 검색 (10자리 숫자 패턴)
+        for (const row of rawRows) {
+          if (row && Array.isArray(row)) {
+            for (const cell of row) {
+              if (cell) {
+                const cellStr = String(cell).replace(/\s+/g, "");
+                const innerMatch = cellStr.match(/\b\d{3}-\d{2}-\d{5}\b/) || cellStr.match(/\b\d{10}\b/);
+                if (innerMatch) {
+                  businessNumber = innerMatch[0].replace(/\D/g, "");
+                  break;
+                }
+              }
+            }
+          }
+          if (businessNumber) break;
+        }
+      }
+    }
+
+    if (!businessNumber) {
+      businessNumber = "MANUAL-IMPORT";
     }
 
     db = getFinanceHubDb();

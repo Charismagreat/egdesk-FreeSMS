@@ -1,15 +1,47 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import {
-  importFinanceHubTransactions,
-  listAccounts
-} from "../../../../egdesk-helpers";
+  listAccounts,
+  upsertFinanceHubAccount,
+  importFinanceHubTransactions
+} from "../../../../../egdesk-helpers";
 import * as xlsx from "xlsx";
 
 // 헤더 텍스트 정규화 헬퍼 (공백 및 특수 점 문자 제거)
 function normalizeHeader(str: any): string {
   if (str === null || str === undefined) return "";
   return String(str).replace(/\s+/g, "").replace(/·/g, "");
+}
+
+// 파일명 및 엑셀 시트 내용으로부터 은행 코드를 스마트하게 자동 감지하는 헬퍼 함수
+function detectBankIdFromExcel(fileName: string, sheet: xlsx.WorkSheet): string {
+  const fileUpper = fileName.toUpperCase();
+  
+  // 1단계: 파일명 우선 판별
+  if (fileUpper.includes("신한")) return "shinhan";
+  if (fileUpper.includes("하나")) return "hana";
+  if (fileUpper.includes("국민") || fileUpper.includes("KB")) return "kookmin";
+  if (fileUpper.includes("기업") || fileUpper.includes("IBK")) return "ibk";
+  if (fileUpper.includes("우리")) return "woori";
+  if (fileUpper.includes("농협") || fileUpper.includes("NH")) return "nh";
+  if (fileUpper.includes("SERP")) return "serp";
+
+  // 2단계: 시트 셀 내용 판별 (전수 조사)
+  for (const cellRef in sheet) {
+    if (cellRef.startsWith("!")) continue;
+    const cell = sheet[cellRef];
+    if (cell && cell.v) {
+      const valStr = String(cell.v).toUpperCase();
+      if (valStr.includes("신한은행") || valStr.includes("신한")) return "shinhan";
+      if (valStr.includes("하나은행") || valStr.includes("하나")) return "hana";
+      if (valStr.includes("국민은행") || valStr.includes("국민") || valStr.includes("KB")) return "kookmin";
+      if (valStr.includes("기업은행") || valStr.includes("IBK")) return "ibk";
+      if (valStr.includes("우리은행") || valStr.includes("우리")) return "woori";
+      if (valStr.includes("농협은행") || valStr.includes("농협") || valStr.includes("NH")) return "nh";
+    }
+  }
+
+  return "";
 }
 
 // 금액 및 수치 텍스트 파싱 헬퍼
@@ -75,7 +107,7 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File;
-    const bankId = formData.get("bankId") as string;
+    let bankId = formData.get("bankId") as string;
     const accountId = formData.get("accountId") as string;
 
     if (!file) {
@@ -85,32 +117,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!bankId) {
-      return NextResponse.json(
-        { success: false, error: "은행 코드가 선택되지 않았습니다." },
-        { status: 400 }
-      );
-    }
-
-    // 1. 계좌 정보 확인 및 데이터 획득
-    const accounts = await listAccounts().catch(() => []);
-    const targetAccount = accounts.find((acc: any) => acc.id === accountId);
-
-    if (!targetAccount && bankId !== "serp") {
-      return NextResponse.json(
-        { success: false, error: "유효한 계좌 정보가 지정되지 않았습니다." },
-        { status: 400 }
-      );
-    }
-
-    const accountData = {
-      accountNumber: targetAccount?.accountNumber || "MANUAL-IMPORT",
-      accountName: targetAccount?.accountName || "수동 임포트 계좌",
-      customerName: targetAccount?.customerName || "본사",
-      balance: targetAccount?.balance || 0
-    };
-
-    // 2. 엑셀 파일 로드 및 버퍼 변환
+    // 1. 엑셀 파일 로드 및 버퍼 변환 (계좌 파싱을 위해 먼저 실행)
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     const workbook = xlsx.read(buffer, { type: "buffer" });
@@ -123,6 +130,98 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // [스마트 은행 코드 자동 감지] 파일명 및 시트 내용으로부터 은행 자동 식별
+    const detectedBankId = detectBankIdFromExcel(file.name, sheet);
+    if (detectedBankId) {
+      bankId = detectedBankId;
+    }
+
+    if (!bankId) {
+      return NextResponse.json(
+        { success: false, error: "엑셀 파일 분석 결과 은행 코드를 판별할 수 없습니다. 파일명이나 내용을 확인해 주세요." },
+        { status: 400 }
+      );
+    }
+
+    // 엑셀 시트 내 모든 셀에서 계좌번호(숫자-숫자-숫자 패턴 혹은 10-15자리 숫자)를 정규식으로 자동 추출
+    let extractedAccountNumber = "";
+    for (const cellRef in sheet) {
+      if (cellRef.startsWith("!")) continue;
+      const cell = sheet[cellRef];
+      if (cell && cell.v) {
+        const valStr = String(cell.v).trim();
+        const match = valStr.match(/\b\d{3,6}-\d{2,6}-\d{3,7}\b/);
+        if (match) {
+          extractedAccountNumber = match[0].replace(/\D/g, "");
+          break;
+        }
+        const numMatch = valStr.match(/\b\d{10,15}\b/);
+        if (numMatch) {
+          extractedAccountNumber = numMatch[0];
+          break;
+        }
+      }
+    }
+
+    // 파일명에서도 계좌번호 포맷 검색 시도 (폴백)
+    if (!extractedAccountNumber && file.name) {
+      const match = file.name.match(/\b\d{3,6}-\d{2,6}-\d{3,7}\b/);
+      if (match) extractedAccountNumber = match[0].replace(/\D/g, "");
+    }
+
+    // 2. 계좌 정보 확인 및 데이터 획득 (listAccounts 반환 객체에서 accounts 배열 추출)
+    const accountsRes = await listAccounts().catch(() => ({ accounts: [] }));
+    const accounts = Array.isArray(accountsRes) ? accountsRes : (accountsRes?.accounts || []);
+    let targetAccount = accounts.find((acc: any) => acc.id === accountId);
+
+    // 만약 개별 은행 업로드 시 연동 계좌가 지정되지 않았거나 등록되어 있지 않다면 계좌 자동 개설
+    if (!targetAccount && bankId !== "serp") {
+      const accountNumber = extractedAccountNumber || `MANUAL-IMPORT-${bankId.toUpperCase()}`;
+      const cleanedAccNum = accountNumber.replace(/\D/g, "");
+      
+      // 이미 동일한 계좌번호의 계좌가 등록되어 있는지 대조
+      targetAccount = accounts.find((acc: any) => 
+        acc.bank_id === bankId && 
+        acc.account_number.replace(/\D/g, "") === cleanedAccNum
+      );
+
+      // 없다면 upsertFinanceHubAccount를 호출하여 자동으로 계좌 추가
+      if (!targetAccount) {
+        const bankNames: Record<string, string> = {
+          shinhan: "신한은행",
+          hana: "하나은행",
+          kookmin: "KB국민은행",
+          ibk: "IBK기업은행",
+          woori: "우리은행",
+          nh: "NH농협은행"
+        };
+        const bankName = bankNames[bankId] || "수동연동";
+        
+        await upsertFinanceHubAccount({
+          bankId,
+          accountNumber,
+          accountName: `${bankName} 자동등록 계좌`,
+          balance: 0
+        }).catch((e) => console.warn("Auto Account creation failed:", e.message));
+
+        // 생성 후 목록을 최신화하여 targetAccount에 셋팅
+        const updatedAccountsRes = await listAccounts().catch(() => ({ accounts: [] }));
+        const updatedAccounts = Array.isArray(updatedAccountsRes) ? updatedAccountsRes : (updatedAccountsRes?.accounts || []);
+        
+        targetAccount = updatedAccounts.find((acc: any) => 
+          acc.bank_id === bankId && 
+          acc.account_number.replace(/\D/g, "") === cleanedAccNum
+        );
+      }
+    }
+
+    const accountData = {
+      accountNumber: (targetAccount?.accountNumber || targetAccount?.account_number || extractedAccountNumber || `MANUAL-IMPORT-${bankId.toUpperCase()}`).replace(/\D/g, ""),
+      accountName: targetAccount?.accountName || targetAccount?.account_name || "자동 임포트 계좌",
+      customerName: targetAccount?.customerName || targetAccount?.customer_name || "본사",
+      balance: targetAccount?.balance || 0
+    };
 
     // 2차원 배열 형태로 시트 파싱 (헤더 위 여백 및 빈 행 처리를 용이하게 하기 위함)
     const rawRows = xlsx.utils.sheet_to_json<any[]>(sheet, { header: 1, raw: false });
@@ -350,6 +449,13 @@ export async function POST(request: NextRequest) {
         extra["적요2"] = getVal("적요2");
       }
 
+      // 날짜 유효성 검증: YYYY-MM-DD 포맷을 충족해야 유효한 거래 행으로 인정
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!txDate || !dateRegex.test(txDate)) {
+        console.log(`[Excel Import Skip] 올바르지 않은 날짜 형식 스킵: ${txDate}`);
+        continue;
+      }
+
       // 비어 있는 적요 항목 방어 코드
       if (!description) description = "인터넷뱅킹 입출금";
 
@@ -364,9 +470,7 @@ export async function POST(request: NextRequest) {
       // 데이터 정규화 객체 생성 (데이터베이스/API 형태 동시 대응)
       const txObj = {
         date: txDate,
-        transaction_date: txDate,
         time: txTime,
-        transaction_time: txTime,
         description,
         description2,
         deposit,
@@ -375,9 +479,7 @@ export async function POST(request: NextRequest) {
         balance,
         branch,
         counterpartyAccount,
-        counterparty_account: counterpartyAccount,
         counterparty,
-        counterparty_name: counterparty,
         type: deposit > 0 ? "deposit" : "withdrawal"
       };
 
@@ -397,28 +499,273 @@ export async function POST(request: NextRequest) {
     const queryPeriodStart = sortedDates[0] || new Date().toISOString().split("T")[0];
     const queryPeriodEnd = sortedDates[sortedDates.length - 1] || new Date().toISOString().split("T")[0];
 
-    // 7. 이지데스크 금융 데이터베이스로 매핑된 내역 최종 전송
-    const importResult = await importFinanceHubTransactions({
-      bankId,
-      accountData,
-      transactions,
-      syncMetadata: {
-        queryPeriodStart,
-        queryPeriodEnd,
-        filePath: file.name
+    // 7. egdesk-helpers를 사용하여 거래 내역 가져오기 실행 (에러 발생 시 로컬 SQLite 직접 주입 폴백 작동)
+    const mappedTransactions = transactions.map(t => ({
+      transaction_date: t.date,
+      transaction_time: t.time,
+      description: t.description,
+      description2: t.description2,
+      deposit: t.deposit,
+      withdrawal: t.withdrawal,
+      amount: t.amount,
+      balance: t.balance,
+      branch: t.branch,
+      counterparty_account: t.counterpartyAccount,
+      counterparty_name: t.counterparty
+    }));
+
+    let insertedCount = 0;
+    let fallbackUsed = false;
+
+    try {
+      const importRes = await importFinanceHubTransactions({
+        bankId,
+        accountData: {
+          accountNumber: accountData.accountNumber,
+          accountName: accountData.accountName,
+          customerName: accountData.customerName,
+          balance: accountData.balance,
+        },
+        transactions: mappedTransactions,
+        syncMetadata: {
+          queryPeriodStart,
+          queryPeriodEnd,
+          filePath: file.name
+        }
+      });
+      insertedCount = importRes?.count ?? importRes?.insertedCount ?? transactions.length;
+    } catch (mcpErr: any) {
+      console.warn("MCP import tool failed (trying local DB fallback):", mcpErr.message);
+      fallbackUsed = true;
+
+      // better-sqlite3는 런타임에 동적으로 import하여 빌드 시 NFT tracing warning을 우회 및 예방합니다.
+      const Database = require("better-sqlite3");
+      const os = require("os");
+      const path = require("path");
+      const fs = require("fs");
+      const crypto = require("crypto");
+
+      const homeDir = os.homedir();
+      const appData = process.env.APPDATA || path.join(homeDir, "AppData/Roaming");
+      const paths = [
+        path.join(appData, "EGDesk/database/financehub.db"),
+        path.join(appData, "egdesk/database/financehub.db")
+      ];
+      
+      let targetPath = "";
+      for (const p of paths) {
+        if (fs.existsSync(p)) {
+          targetPath = p;
+          break;
+        }
       }
-    });
+      if (!targetPath) {
+        targetPath = paths[0];
+        const parentDir = path.dirname(targetPath);
+        if (!fs.existsSync(parentDir)) {
+          fs.mkdirSync(parentDir, { recursive: true });
+        }
+      }
+
+      const db = new Database(targetPath);
+      
+      // SQLite 내부 트리거가 호출하는 UI 갱신 UDF(User Defined Function)를 에뮬레이팅하여 안전하게 바인딩합니다.
+      try {
+        db.function("notify_change_financehub_changed", { varargs: true }, (...args: any[]) => {
+          console.log("notify_change_financehub_changed trigger intercepted:", args);
+        });
+      } catch (udfErr: any) {
+        console.warn("UDF 'notify_change_financehub_changed' registration failed:", udfErr.message);
+      }
+
+      try {
+        const stmt = db.prepare(`
+          INSERT OR REPLACE INTO bank_transactions (
+            id, account_id, bank_id, transaction_date, transaction_time, transaction_datetime,
+            account_number, account_name, deposit, withdrawal, balance,
+            branch, counterparty_account, counterparty_name, description, description2,
+            is_manual, created_at, updated_at
+          ) VALUES (
+            ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?,
+            ?, datetime('now'), datetime('now')
+          )
+        `);
+
+        const targetAccountId = targetAccount?.id || `${bankId}-${accountData.accountNumber.replace(/\D/g, "")}`;
+
+        // [SQLite 외래 키 방어 로직] accounts 테이블에 계좌가 실제로 존재하는지 조회하고, 없으면 수동 개설(폴백)합니다.
+        try {
+          const checkAcc = db.prepare("SELECT id FROM accounts WHERE id = ?").get(targetAccountId);
+          if (!checkAcc) {
+            console.log(`[Local DB Fallback] accounts에 연동 계좌가 없어 자동 폴백 삽입합니다: ${targetAccountId}`);
+            db.prepare(`
+              INSERT OR REPLACE INTO accounts (
+                id, bank_id, account_number, account_name, balance, currency, is_active, created_at, updated_at
+              ) VALUES (
+                ?, ?, ?, ?, ?, 'KRW', 1, datetime('now'), datetime('now')
+              )
+            `).run(
+              targetAccountId,
+              bankId,
+              accountData.accountNumber,
+              accountData.accountName || "자동등록 계좌",
+              accountData.balance || 0
+            );
+          }
+        } catch (accErr: any) {
+          console.warn("⚠️ Local DB auto account insertion warning:", accErr.message);
+        }
+
+        const dbTx = db.transaction((rows) => {
+          for (const row of rows) {
+            const hashSeed = `${accountData.accountNumber}_${row.date}_${row.time}_${row.deposit}_${row.withdrawal}_${row.balance}_${row.description}`;
+            const uniqueId = crypto.createHash("md5").update(hashSeed).digest("hex");
+
+            stmt.run(
+              uniqueId,
+              targetAccountId,
+              bankId,
+              row.date,
+              row.time,
+              `${row.date} ${row.time}`,
+              accountData.accountNumber,
+              accountData.accountName,
+              row.deposit,
+              row.withdrawal,
+              row.balance,
+              row.branch,
+              row.counterpartyAccount,
+              row.counterparty,
+              row.description,
+              row.description2,
+              1 // is_manual
+            );
+            insertedCount++;
+          }
+        });
+
+        dbTx(transactions);
+
+        // [최신 계좌 잔액 동기화 UPDATE] 방금 적재한 거래 내역 중 가장 최신의 거래 잔액을 쿼리하여 accounts 테이블에 갱신시킵니다.
+        try {
+          const latestTx = db.prepare(`
+            SELECT balance FROM bank_transactions 
+            WHERE account_id = ? 
+            ORDER BY transaction_datetime DESC, id DESC 
+            LIMIT 1
+          `).get(targetAccountId);
+          
+          if (latestTx) {
+            console.log(`[Local DB Fallback] accounts 계좌 실잔액 갱신: ${targetAccountId} -> ₩${latestTx.balance.toLocaleString()}`);
+            db.prepare(`
+              UPDATE accounts 
+              SET balance = ?, updated_at = datetime('now') 
+              WHERE id = ?
+            `).run(latestTx.balance, targetAccountId);
+          }
+        } catch (syncErr: any) {
+          console.warn("⚠️ Local DB account balance synchronization failed:", syncErr.message);
+        }
+      } catch (dbErr: any) {
+        console.error("Local DB Fallback Insertion Failed:", dbErr);
+        throw new Error(`거래 내역 적재 실패: 공식 MCP 도구를 호출할 수 없고, 로컬 DB 백업 쓰기도 실패했습니다. (${dbErr.message})`);
+      } finally {
+        try {
+          db.close();
+        } catch (e) {}
+      }
+    }
+
+    // [공통 계좌 실잔액 갱신 보증 장치]
+    // 헬퍼의 API 호출 성공 및 폴백 여부와 전혀 상관없이, 최종 적재된 DB 내의 거래 기준 최종 잔액을 구해 accounts 테이블에 강제 반영시킵니다.
+    try {
+      const Database = require("better-sqlite3");
+      const os = require("os");
+      const path = require("path");
+      const fs = require("fs");
+
+      const homeDir = os.homedir();
+      const appData = process.env.APPDATA || path.join(homeDir, "AppData/Roaming");
+      const paths = [
+        path.join(appData, "EGDesk/database/financehub.db"),
+        path.join(appData, "egdesk/database/financehub.db")
+      ];
+      
+      let targetPath = "";
+      for (const p of paths) {
+        if (fs.existsSync(p)) {
+          targetPath = p;
+          break;
+        }
+      }
+      
+      if (targetPath) {
+        const db = new Database(targetPath);
+        
+        // SQLite 내부 트리거 UDF 바인딩
+        try {
+          db.function("notify_change_financehub_changed", { varargs: true }, () => {});
+        } catch (e) {}
+
+        const targetAccountId = targetAccount?.id || `${bankId}-${accountData.accountNumber.replace(/\D/g, "")}`;
+        
+        // 1. 혹시 계좌 마스터 레코드가 없을 수 있으니 선제적으로 확인 후 삽입
+        const checkAcc = db.prepare("SELECT id FROM accounts WHERE id = ?").get(targetAccountId);
+        if (!checkAcc) {
+          db.prepare(`
+            INSERT OR REPLACE INTO accounts (
+              id, bank_id, account_number, account_name, balance, currency, is_active, created_at, updated_at
+            ) VALUES (
+              ?, ?, ?, ?, ?, 'KRW', 1, datetime('now'), datetime('now')
+            )
+          `).run(
+            targetAccountId,
+            bankId,
+            accountData.accountNumber,
+            accountData.accountName || "자동등록 계좌",
+            accountData.balance || 0
+          );
+        }
+
+        // 2. 가장 최신의 거래 명세(정상 날짜 포맷 형태)의 balance 값을 가져옵니다.
+        // 날짜 필터링을 주어 '합계' 등의 비정상 텍스트 행이 아닌 실제 날짜 데이터의 잔액을 조회하도록 견고하게 쿼리를 짭니다.
+        const latestTx = db.prepare(`
+          SELECT balance FROM bank_transactions 
+          WHERE account_id = ? AND transaction_date LIKE '2%'
+          ORDER BY transaction_date DESC, transaction_time DESC, id DESC 
+          LIMIT 1
+        `).get(targetAccountId);
+        
+        if (latestTx) {
+          console.log(`[Common balance sync] 계좌 실잔액 강제 동기화: ${targetAccountId} -> ₩${latestTx.balance.toLocaleString()}`);
+          db.prepare(`
+            UPDATE accounts 
+            SET balance = ?, updated_at = datetime('now') 
+            WHERE id = ?
+          `).run(latestTx.balance, targetAccountId);
+        }
+        
+        db.close();
+      }
+    } catch (syncErr: any) {
+      console.warn("⚠️ Common balance sync failed:", syncErr.message);
+    }
 
     return NextResponse.json({
       success: true,
-      message: "성공적으로 인터넷뱅킹 엑셀 파일을 가져왔습니다.",
+      message: fallbackUsed 
+        ? "공식 헬퍼가 미지원되는 환경이므로 안전하게 로컬 DB 폴백을 수행해 엑셀 파일을 가져왔습니다."
+        : "성공적으로 인터넷뱅킹 엑셀 파일을 가져왔습니다.",
       data: {
         parsedCount: transactions.length,
+        insertedCount,
         queryPeriodStart,
         queryPeriodEnd,
         accountNumber: accountData.accountNumber,
         accountName: accountData.accountName,
-        importResult
+        fallbackUsed
       }
     });
   } catch (error: any) {

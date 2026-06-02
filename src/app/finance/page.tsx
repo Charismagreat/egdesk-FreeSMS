@@ -19,7 +19,8 @@ import {
   Layers,
   FileSpreadsheet,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Sparkles
 } from "lucide-react";
 
 // 타입 정의
@@ -55,6 +56,7 @@ interface CardTransaction {
   cardCompanyName: string;
   status: string; // 승인, 취소 등
   category?: string;
+  receiptUrl?: string;
 }
 
 interface HometaxInvoice {
@@ -157,6 +159,18 @@ export default function FinancePage() {
   const [pageSize, setPageSize] = useState(10);
   const [searchText, setSearchText] = useState("");
   const [invoiceType, setInvoiceType] = useState<"all" | "sales" | "purchase">("all");
+  const [selectedCardCompanyId, setSelectedCardCompanyId] = useState<string>("all");
+  const [selectedCardNumber, setSelectedCardNumber] = useState<string>("all");
+  const [selectedCashPurpose, setSelectedCashPurpose] = useState<string>("all");
+
+  // 카드 영수증 연동 및 뷰어 관련 상태
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [receiptUploadFiles, setReceiptUploadFiles] = useState<File[]>([]);
+  const [receiptSelectedTxId, setReceiptSelectedTxId] = useState<string>("");
+  const [isReceiptUploading, setIsReceiptUploading] = useState(false);
+  const [receiptUploadMessage, setReceiptUploadMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [viewingReceiptUrl, setViewingReceiptUrl] = useState<string | null>(null);
+  const [viewingReceiptIndex, setViewingReceiptIndex] = useState<number>(0);
 
   // 날짜 필터 (기본 헬퍼 함수 활용)
   const getFormattedDate = (date: Date) => {
@@ -195,7 +209,7 @@ export default function FinancePage() {
   // 페이지 및 검색 텍스트 초기화 방지용 디바운싱 효과
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, hometaxSubTab, searchText, invoiceType, startDate, endDate, pageSize]);
+  }, [activeTab, hometaxSubTab, searchText, invoiceType, startDate, endDate, pageSize, selectedCardCompanyId, selectedCardNumber, selectedCashPurpose]);
 
   // 통합 데이터 패치 함수
   const fetchFinanceData = useCallback(async () => {
@@ -219,6 +233,8 @@ export default function FinancePage() {
       const dateParams = `&startDate=${startDate}&endDate=${endDate}`;
       const searchParam = searchText ? `&searchText=${encodeURIComponent(searchText)}` : "";
       const invTypeParam = invoiceType !== "all" ? `&invoiceType=${invoiceType}` : "";
+      const cardParams = `&cardCompanyId=${selectedCardCompanyId}&cardNumber=${selectedCardNumber}`;
+      const cashParams = `&cashPurpose=${selectedCashPurpose}`;
       const paginationParams = `&limit=${pageSize}&offset=${offset}`;
 
       // 2. 활성화된 메인 탭에 따라 각각 최적의 엔드포인트 패치
@@ -229,7 +245,7 @@ export default function FinancePage() {
           setTotalCount(txRes.data.total || 0);
         }
       } else if (activeTab === "cards") {
-        const cardRes = await fetch(`/api/finance?tab=cards${dateParams}${searchParam}${paginationParams}`).then((res) => res.json());
+        const cardRes = await fetch(`/api/finance?tab=cards${dateParams}${searchParam}${cardParams}${paginationParams}`).then((res) => res.json());
         if (cardRes.success) {
           setCardTxList(cardRes.data.list || []);
           setTotalCount(cardRes.data.total || 0);
@@ -248,7 +264,7 @@ export default function FinancePage() {
             setTotalCount(exemptRes.data.total || 0);
           }
         } else if (hometaxSubTab === "cash") {
-          const cashRes = await fetch(`/api/finance?tab=hometax-cash${dateParams}${searchParam}${paginationParams}`).then((res) => res.json());
+          const cashRes = await fetch(`/api/finance?tab=hometax-cash${dateParams}${searchParam}${cashParams}${paginationParams}`).then((res) => res.json());
           if (cashRes.success) {
             setCashReceiptList(cashRes.data.list || []);
             setTotalCount(cashRes.data.total || 0);
@@ -267,7 +283,7 @@ export default function FinancePage() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, hometaxSubTab, currentPage, pageSize, startDate, endDate, searchText, invoiceType]);
+  }, [activeTab, hometaxSubTab, currentPage, pageSize, startDate, endDate, searchText, invoiceType, selectedCardCompanyId, selectedCardNumber, selectedCashPurpose]);
 
   // 은행 선택 변경 시 해당 은행의 계좌 자동 매칭 및 첫 번째 계좌 선택
   useEffect(() => {
@@ -439,9 +455,155 @@ export default function FinancePage() {
         setCardUploadMessage({ type: "error", text: result.error || "파일 가공 중 에러가 발생했습니다." });
       }
     } catch (err: any) {
-      setCardUploadMessage({ type: "error", text: err.message || "서버 통신 중 에러가 발생했습니다." });
+      setCardUploadMessage({ type: "error", text: err.message || "오류가 발생했습니다." });
     } finally {
       setIsCardUploading(false);
+    }
+  };
+
+  // AI OCR 분석을 통한 거래 건 자동 식별 및 매칭 함수
+  const analyzeReceiptWithAI = async (file: File) => {
+    setReceiptUploadMessage({ type: "success", text: "AI가 영수증 이미지를 정밀 분석하여 적합한 결제 거래 건을 지능형 자동 식별 중입니다..." });
+    setIsReceiptUploading(true);
+    
+    try {
+      // 1. 파일을 Base64로 인코딩
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = (error) => reject(error);
+      });
+      reader.readAsDataURL(file);
+      const base64Data = await base64Promise;
+      
+      // 2. OCR API 호출
+      const res = await fetch("/api/expenses/ocr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageBase64: base64Data,
+          filename: file.name,
+          mimeType: file.type
+        })
+      });
+      
+      if (!res.ok) throw new Error("OCR API 서버 응답 실패");
+      
+      const ocrResult = await res.json();
+      if (ocrResult.success) {
+        const { amount, expense_date, title } = ocrResult;
+        
+        // 3. 지능형 자동 식별 매칭 알고리즘 가동
+        let matchedTx = null;
+        
+        // 우선순위 1: 금액이 정확히 일치하고 날짜도 일치하는 건
+        matchedTx = cardTxList.find(tx => 
+          Math.floor(tx.amount || 0) === Math.floor(amount) && 
+          tx.date === expense_date
+        );
+        
+        // 우선순위 2: 금액만 정확히 일치하는 건
+        if (!matchedTx) {
+          matchedTx = cardTxList.find(tx => 
+            Math.floor(tx.amount || 0) === Math.floor(amount)
+          );
+        }
+        
+        // 우선순위 3: 가맹점명이 유사한 건
+        if (!matchedTx) {
+          const cleanTitle = (title || "").replace(/\s/g, "").toLowerCase();
+          matchedTx = cardTxList.find(tx => {
+            const cleanMerchant = (tx.merchantName || "").replace(/\s/g, "").toLowerCase();
+            return cleanTitle.includes(cleanMerchant) || cleanMerchant.includes(cleanTitle);
+          });
+        }
+        
+        // 우선순위 4: 오차가 적은 결제 내역 매칭 (오차 1만원 이하)
+        if (!matchedTx && cardTxList.length > 0) {
+          const sortedByDiff = [...cardTxList].sort((a, b) => 
+            Math.abs(a.amount - amount) - Math.abs(b.amount - amount)
+          );
+          if (Math.abs(sortedByDiff[0].amount - amount) <= 10000) {
+            matchedTx = sortedByDiff[0];
+          }
+        }
+        
+        if (matchedTx) {
+          setReceiptSelectedTxId(matchedTx.id);
+          setReceiptUploadMessage({
+            type: "success",
+            text: `[지능형 자동 식별 성공] AI가 영수증에서 ₩${Number(amount).toLocaleString()} 지출을 감지하여 '${matchedTx.merchantName}' 거래 건에 완벽하게 자동 선택 매칭하였습니다.`
+          });
+        } else {
+          setReceiptUploadMessage({
+            type: "success",
+            text: `[AI 영수증 분석 완료] ₩${Number(amount).toLocaleString()} 지출을 식별하였으나, 목록 내에 일치하는 금액의 결제 내역이 보이지 않습니다. 연결할 거래를 드롭다운에서 수동으로 선택해 주세요.`
+          });
+        }
+      } else {
+        throw new Error(ocrResult.error || "분석 실패");
+      }
+    } catch (err: any) {
+      console.error("AI OCR 매칭 에러:", err);
+      setReceiptUploadMessage({
+        type: "error",
+        text: `지능형 OCR 분석 중 통신 오류가 발생했으나 파일은 정상 수동 등록 가능합니다.`
+      });
+    } finally {
+      setIsReceiptUploading(false);
+    }
+  };
+
+  // 카드 영수증 다중 업로드 핸들러
+  const handleReceiptUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!receiptUploadFiles || receiptUploadFiles.length === 0) {
+      setReceiptUploadMessage({ type: "error", text: "업로드할 영수증 사진을 선택해 주세요." });
+      return;
+    }
+    if (!receiptSelectedTxId) {
+      setReceiptUploadMessage({ type: "error", text: "연결할 카드 거래 승인 내역을 지정해 주세요." });
+      return;
+    }
+
+    setIsReceiptUploading(true);
+    setReceiptUploadMessage(null);
+
+    try {
+      const fd = new FormData();
+      receiptUploadFiles.forEach((file) => {
+        fd.append("file", file);
+      });
+      fd.append("id", receiptSelectedTxId);
+
+      const res = await fetch("/api/finance/receipt", {
+        method: "POST",
+        body: fd
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP 에러 ${res.status}`);
+      }
+
+      const result = await res.json();
+      if (result.success) {
+        setReceiptUploadMessage({
+          type: "success",
+          text: `성공! 총 ${receiptUploadFiles.length}장의 카드 영수증 사진이 해당 카드 승인 내역에 매핑 및 저장되었습니다.`
+        });
+        setReceiptUploadFiles([]);
+        setTimeout(() => {
+          setIsReceiptModalOpen(false);
+          setReceiptUploadMessage(null);
+          handleRefresh(); // 데이터 리프레시
+        }, 1500);
+      } else {
+        setReceiptUploadMessage({ type: "error", text: result.error || "파일 가공 중 에러가 발생했습니다." });
+      }
+    } catch (err: any) {
+      setReceiptUploadMessage({ type: "error", text: err.message || "서버 통신 중 에러가 발생했습니다." });
+    } finally {
+      setIsReceiptUploading(false);
     }
   };
 
@@ -582,7 +744,7 @@ export default function FinancePage() {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white rounded-3xl p-6 shadow-xl border border-slate-800 flex flex-col justify-between min-h-[300px]"
+          className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 text-white rounded-3xl p-6 shadow-xl border border-slate-800 flex flex-col justify-between min-h-[440px]"
         >
           <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl"></div>
           
@@ -593,12 +755,17 @@ export default function FinancePage() {
                 보유 계좌별 잔액 및 총합계
               </span>
               <span className="px-2 py-0.5 bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-lg text-[10px] font-medium">
-                {accounts.length}개 계좌 연동
+                {accounts.filter(
+                  (acc) =>
+                    !acc.id.includes("CARD") &&
+                    !acc.bankId.includes("card") &&
+                    !acc.accountName.includes("카드")
+                ).length}개 계좌 연동
               </span>
             </div>
 
-            {/* 계좌별 잔액 리스트 영역 */}
-            <div className="max-h-[140px] overflow-y-auto space-y-2 pr-1.5 custom-scrollbar scrollbar-thin scrollbar-thumb-slate-700">
+            {/* 은행 계좌 잔액 리스트 */}
+            <div className="max-h-[280px] overflow-y-auto space-y-2 pr-1.5 custom-scrollbar scrollbar-thin scrollbar-thumb-slate-700">
               {accounts.map((acc) => (
                 <div 
                   key={acc.id} 
@@ -645,7 +812,7 @@ export default function FinancePage() {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.1 }}
-          className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between min-h-[300px] relative overflow-hidden"
+          className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between min-h-[440px] relative overflow-hidden"
         >
           <div className="absolute -top-10 -right-10 w-24 h-24 bg-amber-500/5 rounded-full blur-2xl"></div>
           
@@ -661,14 +828,14 @@ export default function FinancePage() {
             </div>
 
             {/* 카드사별 월별 사용액 컴팩트 테이블 */}
-            <div className="max-h-[140px] overflow-y-auto pr-1 scrollbar-thin">
+            <div className="max-h-[280px] overflow-y-auto pr-1 scrollbar-thin">
               <table className="w-full text-left text-[11px] border-collapse">
-                <thead>
+                <thead className="sticky top-0 bg-white z-10">
                   <tr className="border-b border-slate-100 text-slate-400 font-bold">
-                    <th className="pb-1.5 font-bold">카드명/번호</th>
-                    <th className="pb-1.5 text-right font-bold">금월({summaryData.months[0]?.split("-")[1] || "5"}월)</th>
-                    <th className="pb-1.5 text-right font-bold">전월({summaryData.months[1]?.split("-")[1] || "4"}월)</th>
-                    <th className="pb-1.5 text-right font-bold">전전월({summaryData.months[2]?.split("-")[1] || "3"}월)</th>
+                    <th className="pb-1.5 font-bold bg-white">카드명/번호</th>
+                    <th className="pb-1.5 text-right font-bold bg-white">금월({summaryData.months[0]?.split("-")[1] || "5"}월)</th>
+                    <th className="pb-1.5 text-right font-bold bg-white">전월({summaryData.months[1]?.split("-")[1] || "4"}월)</th>
+                    <th className="pb-1.5 text-right font-bold bg-white">전전월({summaryData.months[2]?.split("-")[1] || "3"}월)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -719,7 +886,7 @@ export default function FinancePage() {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.2 }}
-          className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between min-h-[300px] relative overflow-hidden"
+          className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between min-h-[440px] relative overflow-hidden"
         >
           <div className="absolute -top-10 -right-10 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl"></div>
           
@@ -735,7 +902,7 @@ export default function FinancePage() {
             </div>
 
             {/* 매출 대 매입 대칭 레이아웃 */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-3">
               {/* 매출액 파트 */}
               <div className="space-y-2 p-2.5 rounded-2xl bg-emerald-50/40 border border-emerald-100/50">
                 <span className="text-[10px] font-bold text-emerald-700 flex items-center gap-1">
@@ -805,8 +972,8 @@ export default function FinancePage() {
                 initial={{ width: 0 }}
                 animate={{
                   width: `${
-                    hometaxStats.salesTotal + hometaxStats.purchaseTotal > 0
-                      ? (hometaxStats.salesTotal / (hometaxStats.salesTotal + hometaxStats.purchaseTotal)) * 100
+                    (summaryData.hometaxSummary?.sales?.yTotal || 0) + (summaryData.hometaxSummary?.purchase?.yTotal || 0) > 0
+                      ? ((summaryData.hometaxSummary?.sales?.yTotal || 0) / ((summaryData.hometaxSummary?.sales?.yTotal || 0) + (summaryData.hometaxSummary?.purchase?.yTotal || 0))) * 100
                       : 50
                   }%`
                 }}
@@ -815,8 +982,16 @@ export default function FinancePage() {
               ></motion.div>
             </div>
             <div className="flex justify-between text-[9px] text-slate-400 font-bold">
-              <span className="text-emerald-600">매출 {hometaxStats.salesTotal + hometaxStats.purchaseTotal > 0 ? Math.round((hometaxStats.salesTotal / (hometaxStats.salesTotal + hometaxStats.purchaseTotal)) * 100) : 50}%</span>
-              <span className="text-rose-500">매입 {hometaxStats.salesTotal + hometaxStats.purchaseTotal > 0 ? Math.round((hometaxStats.purchaseTotal / (hometaxStats.salesTotal + hometaxStats.purchaseTotal)) * 100) : 50}%</span>
+              <span className="text-emerald-600">
+                매출 {(summaryData.hometaxSummary?.sales?.yTotal || 0) + (summaryData.hometaxSummary?.purchase?.yTotal || 0) > 0 
+                  ? Math.round(((summaryData.hometaxSummary?.sales?.yTotal || 0) / ((summaryData.hometaxSummary?.sales?.yTotal || 0) + (summaryData.hometaxSummary?.purchase?.yTotal || 0))) * 100) 
+                  : 50}%
+              </span>
+              <span className="text-rose-500">
+                매입 {(summaryData.hometaxSummary?.sales?.yTotal || 0) + (summaryData.hometaxSummary?.purchase?.yTotal || 0) > 0 
+                  ? Math.round(((summaryData.hometaxSummary?.purchase?.yTotal || 0) / ((summaryData.hometaxSummary?.sales?.yTotal || 0) + (summaryData.hometaxSummary?.purchase?.yTotal || 0))) * 100) 
+                  : 50}%
+              </span>
             </div>
           </div>
         </motion.div>
@@ -1059,7 +1234,12 @@ export default function FinancePage() {
                           const isDeposit = tx.type === "deposit" || tx.type === "입금";
                           return (
                             <tr key={tx.id} className="border-b border-slate-50 hover:bg-slate-50/40 text-xs text-slate-700">
-                              <td className="p-4 font-mono font-medium text-slate-400">{tx.date}</td>
+                              <td className="p-4 font-mono font-medium text-slate-400">
+                                <div>{tx.date}</div>
+                                {tx.time && (
+                                  <div className="text-[10px] text-slate-400/80 mt-0.5">{tx.time}</div>
+                                )}
+                              </td>
                               <td className="p-4">
                                 <span className="font-bold text-slate-800">{tx.description}</span>
                                 {tx.category && (
@@ -1130,12 +1310,48 @@ export default function FinancePage() {
           {/* TAB 2: 신용 카드 사용 내역 */}
           {activeTab === "cards" && (
             <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-              <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-                <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+              <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-1.5">
                   <CreditCard className="w-4 h-4 text-amber-500" />
-                  법인 신용 카드 승인 내역 명세서
-                </h3>
-                <span className="text-xs text-slate-400 font-semibold">총 {totalCount}건의 승인</span>
+                  <h3 className="font-bold text-slate-800 text-sm">
+                    법인 신용 카드 승인 내역 명세서
+                  </h3>
+                  <span className="text-xs text-slate-400 font-semibold ml-2">총 {totalCount}건</span>
+                </div>
+
+                {/* 교차 필터 드롭다운 UI */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] font-bold text-slate-400">카드사:</span>
+                    <select
+                      value={selectedCardCompanyId}
+                      onChange={(e) => setSelectedCardCompanyId(e.target.value)}
+                      className="border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl px-2.5 py-1.5 text-[11px] font-bold text-slate-700 outline-none focus:border-amber-500 transition-all cursor-pointer"
+                    >
+                      <option value="all">전체 카드사</option>
+                      <option value="shinhan-card">신한카드</option>
+                      <option value="kb-card">KB국민카드</option>
+                      <option value="nh-card">NH농협카드</option>
+                      <option value="bc-card">BC카드</option>
+                      <option value="hana-card">하나카드</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] font-bold text-slate-400">카드번호:</span>
+                    <select
+                      value={selectedCardNumber}
+                      onChange={(e) => setSelectedCardNumber(e.target.value)}
+                      className="border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl px-2.5 py-1.5 text-[11px] font-bold text-slate-700 outline-none focus:border-amber-500 transition-all cursor-pointer"
+                    >
+                      <option value="all">전체 번호</option>
+                      {/* 고유 카드번호 추출 및 렌더링 */}
+                      {Array.from(new Set(cardTxList.map(tx => tx.cardNumber).filter(Boolean))).map(num => (
+                        <option key={num} value={num}>{num}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </div>
 
               <div className="overflow-x-auto">
@@ -1147,17 +1363,23 @@ export default function FinancePage() {
                       <th className="p-4">가맹점명</th>
                       <th className="p-4 text-right">사용금액</th>
                       <th className="p-4">승인상태</th>
+                      <th className="p-4 text-center w-24">영수증</th>
                     </tr>
                   </thead>
                   <tbody>
                     {loading ? (
-                      <TableSkeleton cols={5} rows={5} />
+                      <TableSkeleton cols={6} rows={5} />
                     ) : (
                       cardTxList.map((tx) => {
                         const isCancelled = tx.status === "취소";
                         return (
                           <tr key={tx.id} className="border-b border-slate-50 hover:bg-slate-50/40 text-xs text-slate-700">
-                            <td className="p-4 font-mono font-medium text-slate-400">{tx.date}</td>
+                            <td className="p-4 font-mono font-medium text-slate-400">
+                              <div>{tx.date}</div>
+                              {tx.time && (
+                                <div className="text-[10px] text-slate-400/80 mt-0.5">{tx.time}</div>
+                              )}
+                            </td>
                             <td className="p-4">
                               <span className="font-bold text-slate-800">{tx.cardCompanyName}</span>
                               <span className="ml-2 font-mono text-[10px] text-slate-400 tracking-wider">({tx.cardNumber})</span>
@@ -1184,13 +1406,42 @@ export default function FinancePage() {
                                 {tx.status || "승인"}
                               </span>
                             </td>
+                            <td className="p-4 text-center">
+                              {tx.receiptUrl ? (
+                                <button
+                                  onClick={() => {
+                                    setViewingReceiptUrl(tx.receiptUrl);
+                                    setViewingReceiptIndex(0);
+                                  }}
+                                  className="p-1.5 hover:bg-amber-50 text-amber-600 rounded-xl transition-all cursor-pointer inline-flex items-center gap-1 text-[10px] font-bold border border-amber-100"
+                                  title="등록된 영수증 보기"
+                                >
+                                  <Search className="w-3.5 h-3.5" />
+                                  보기
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    setReceiptSelectedTxId(tx.id);
+                                    setReceiptUploadFiles([]);
+                                    setReceiptUploadMessage(null);
+                                    setIsReceiptModalOpen(true);
+                                  }}
+                                  className="p-1.5 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-xl transition-all cursor-pointer inline-flex items-center gap-1 text-[10px] font-bold border border-slate-200"
+                                  title="실물 영수증 사진 등록"
+                                >
+                                  <Receipt className="w-3.5 h-3.5" />
+                                  등록
+                                </button>
+                              )}
+                            </td>
                           </tr>
                         );
                       })
                     )}
                     {!loading && cardTxList.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="p-12 text-center text-slate-400 text-xs font-semibold">
+                        <td colSpan={6} className="p-12 text-center text-slate-400 text-xs font-semibold">
                           해당 조회 조건에 맞는 법인카드 사용 내역이 존재하지 않습니다.
                         </td>
                       </tr>
@@ -1251,12 +1502,47 @@ export default function FinancePage() {
 
               {/* 국세청 데이터 보드 테이블 */}
               <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-                <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-                  <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-1.5">
                     <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
-                    국세청 홈택스 {hometaxSubTab === "invoice" ? "전자세금계산서" : hometaxSubTab === "exempt" ? "전자계산서" : "현금영수증"} 명세서
-                  </h3>
-                  <span className="text-xs text-slate-400 font-semibold">총 {totalCount}건의 자료</span>
+                    <h3 className="font-bold text-slate-800 text-sm">
+                      국세청 홈택스 {hometaxSubTab === "invoice" ? "전자세금계산서" : hometaxSubTab === "exempt" ? "전자계산서" : "현금영수증"} 명세서
+                    </h3>
+                    <span className="text-xs text-slate-400 font-semibold ml-2">총 {totalCount}건</span>
+                  </div>
+
+                  {/* 세무 교차 필터 드롭다운 UI */}
+                  <div className="flex items-center gap-2">
+                    {(hometaxSubTab === "invoice" || hometaxSubTab === "exempt") && (
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] font-bold text-slate-400">구분:</span>
+                        <select
+                          value={invoiceType}
+                          onChange={(e) => setInvoiceType(e.target.value as any)}
+                          className="border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl px-2.5 py-1.5 text-[11px] font-bold text-slate-700 outline-none focus:border-emerald-500 transition-all cursor-pointer"
+                        >
+                          <option value="all">전체 내역</option>
+                          <option value="sales">매출 (발행)</option>
+                          <option value="purchase">매입 (수취)</option>
+                        </select>
+                      </div>
+                    )}
+
+                    {hometaxSubTab === "cash" && (
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] font-bold text-slate-400">용도:</span>
+                        <select
+                          value={selectedCashPurpose}
+                          onChange={(e) => setSelectedCashPurpose(e.target.value)}
+                          className="border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl px-2.5 py-1.5 text-[11px] font-bold text-slate-700 outline-none focus:border-emerald-500 transition-all cursor-pointer"
+                        >
+                          <option value="all">전체 용도</option>
+                          <option value="소득공제">소득공제</option>
+                          <option value="지출증빙">지출증빙</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -1470,7 +1756,7 @@ export default function FinancePage() {
         </motion.div>
       </AnimatePresence>
 
-      {/* 6. 인터넷뱅킹 수동 엑셀 업로드 프리미엄 모달 UI */}
+      {/* 6. 인터넷뱅킹 거래 내역 엑셀 수동 가져오기 UI */}
       <AnimatePresence>
         {isUploadModalOpen && (
           <motion.div
@@ -1486,17 +1772,16 @@ export default function FinancePage() {
               transition={{ type: "spring", duration: 0.4 }}
               className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl border border-slate-100 relative overflow-hidden"
             >
-              {/* 모달 내부 장식용 블러 구체 */}
               <div className="absolute -top-10 -left-10 w-28 h-28 bg-blue-500/5 rounded-full blur-2xl"></div>
               
               <div className="flex justify-between items-start pb-4 border-b border-slate-100">
                 <div>
                   <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
                     <FileSpreadsheet className="w-5 h-5 text-blue-600" />
-                    인터넷뱅킹 엑셀 파일 가져오기
+                    인터넷뱅킹 엑셀 가져오기
                   </h3>
                   <p className="text-xs text-slate-400 font-medium mt-1">
-                    인터넷뱅킹에서 내려받은 원본 엑셀을 공통 규격으로 자동 변환 적재합니다.
+                    인터넷뱅킹에서 다운로드한 엑셀 파일을 업로드하여 잔액을 대조합니다.
                   </p>
                 </div>
                 <button
@@ -1508,9 +1793,21 @@ export default function FinancePage() {
               </div>
 
               <form onSubmit={handleExcelUpload} className="mt-5 space-y-5">
-                {/* 1. 은행 선택 */}
+                {/* 지능형 자동 감지 안내 팁 */}
+                <div className="p-4 bg-blue-50/50 border border-blue-100/50 rounded-2xl flex items-start gap-3">
+                  <Sparkles className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-bold text-slate-800">지능형 다중 계좌 파이프라인</h4>
+                    <p className="text-[10.5px] text-slate-500 font-medium leading-relaxed">
+                      올바른 적재 대상 은행과 계좌번호를 드롭다운에서 매칭해 주세요.
+                      엑셀 내부의 거래 데이터를 파싱하여 로컬 계좌의 거래 역사와 잔액을 실시간 결합합니다.
+                    </p>
+                  </div>
+                </div>
+
+                {/* 1. 적재 은행사 */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-600 block">발행 은행 및 매핑 포맷</label>
+                  <label className="text-xs font-bold text-slate-600 block">적재 은행사</label>
                   <select
                     value={uploadBankId}
                     onChange={(e) => setUploadBankId(e.target.value)}
@@ -1522,14 +1819,14 @@ export default function FinancePage() {
                     <option value="ibk">IBK기업은행 (IBK)</option>
                     <option value="woori">우리은행 (Woori)</option>
                     <option value="nh">NH농협은행 (NH)</option>
-                    <option value="serp">SERP 통합 엑셀 포맷 (계좌 정보 자동 분류)</option>
+                    <option value="serp">SERP 통합 연동 (자동 계정 분류)</option>
                   </select>
                 </div>
 
-                {/* 2. 대상 계좌 선택 (SERP는 계좌번호 열로 자동 매핑되므로 미노출) */}
+                {/* 2. 적재 대상 은행 계좌 */}
                 {uploadBankId !== "serp" && (
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-600 block">업로드 대상 계좌 지정</label>
+                    <label className="text-xs font-bold text-slate-600 block">적재 대상 은행 계좌</label>
                     <select
                       value={uploadAccountId}
                       onChange={(e) => setUploadAccountId(e.target.value)}
@@ -1542,7 +1839,7 @@ export default function FinancePage() {
                           .filter((acc) => acc.bankId === uploadBankId)
                           .map((acc) => (
                             <option key={acc.id} value={acc.id}>
-                              {acc.accountName} | {acc.accountNumber} (잔액: ₩{acc.balance?.toLocaleString()})
+                              {acc.accountName} | {acc.accountNumber} (잔액: ₩ {acc.balance?.toLocaleString()})
                             </option>
                           ))
                       )}
@@ -1550,9 +1847,9 @@ export default function FinancePage() {
                   </div>
                 )}
 
-                {/* 3. 파일 드롭존 및 업로드 */}
+                {/* 3. 파일 업로드 드롭존 */}
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-600 block">엑셀 파일 업로드 (.xls, .xlsx)</label>
+                  <label className="text-xs font-bold text-slate-600 block">엑셀 파일 등록 (.xls, .xlsx)</label>
                   <div className="relative group">
                     <input
                       type="file"
@@ -1580,10 +1877,7 @@ export default function FinancePage() {
                       ) : (
                         <div>
                           <p className="text-xs font-bold text-slate-700">
-                            여기에 엑셀 파일을 드래그하여 놓거나 클릭하세요.
-                          </p>
-                          <p className="text-[10px] text-slate-400 mt-1 font-semibold">
-                            변조되지 않은 인터넷뱅킹 원본 엑셀 형식만 지원합니다.
+                            여기에 뱅킹 엑셀 파일을 끌어다 놓거나 클릭해 주세요.
                           </p>
                         </div>
                       )}
@@ -1635,7 +1929,7 @@ export default function FinancePage() {
         )}
       </AnimatePresence>
 
-      {/* 7. 국세청 홈택스 수동 엑셀 업로드 모달 UI */}
+      {/* 7. 국세청 홈택스 엑셀 수동 가져오기 UI */}
       <AnimatePresence>
         {isHometaxModalOpen && (
           <motion.div
@@ -1651,17 +1945,16 @@ export default function FinancePage() {
               transition={{ type: "spring", duration: 0.4 }}
               className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl border border-slate-100 relative overflow-hidden"
             >
-              {/* 모달 내부 장식용 블러 구체 */}
               <div className="absolute -top-10 -left-10 w-28 h-28 bg-emerald-500/5 rounded-full blur-2xl"></div>
               
               <div className="flex justify-between items-start pb-4 border-b border-slate-100">
                 <div>
                   <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
                     <Receipt className="w-5 h-5 text-emerald-600" />
-                    국세청 홈택스 세무 자료 가져오기
+                    국세청 홈택스 세무 자료 등록
                   </h3>
                   <p className="text-xs text-slate-400 font-medium mt-1">
-                    홈택스에서 내려받은 정식 엑셀 원본 파일을 데이터베이스에 병합합니다.
+                    홈택스에서 내려받은 부가가치세 세금계산서/현금영수증 내역을 동기화합니다.
                   </p>
                 </div>
                 <button
@@ -1672,24 +1965,36 @@ export default function FinancePage() {
                 </button>
               </div>
 
-              <form onSubmit={handleHometaxUpload} className="mt-5 space-y-5">
-                {/* 1. 증빙 형태 선택 */}
+               <form onSubmit={handleHometaxUpload} className="mt-5 space-y-5">
+                {/* 지능형 자동 감지 안내 팁 */}
+                <div className="p-4 bg-emerald-50/50 border border-emerald-100/50 rounded-2xl flex items-start gap-3">
+                  <Sparkles className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-bold text-slate-800">지능형 세무 대조 파이프라인</h4>
+                    <p className="text-[10.5px] text-slate-500 font-medium leading-relaxed font-sans">
+                      홈택스에서 다운로드한 엑셀 원본(세금계산서, 면세계산서, 현금영수증)을 자동으로 분석합니다.
+                      엑셀 내부의 거래 데이터를 파싱하여 로컬 지출/매출 대장과 연동합니다.
+                    </p>
+                  </div>
+                </div>
+
+                {/* 1. 세무 자료 구분 */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-600 block">세무 증빙 자료 종류</label>
+                  <label className="text-xs font-bold text-slate-600 block">세무 자료 구분</label>
                   <select
                     value={hometaxKind}
                     onChange={(e) => setHometaxKind(e.target.value)}
-                    className="w-full border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-blue-500 transition-all cursor-pointer"
+                    className="w-full border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 transition-all cursor-pointer"
                   >
-                    <option value="sales">과세 전자세금계산서 (매출)</option>
-                    <option value="purchase">과세 전자세금계산서 (매입)</option>
-                    <option value="tax-exempt-sales">면세 전자계산서 (매출)</option>
-                    <option value="tax-exempt-purchase">면세 전자계산서 (매입)</option>
-                    <option value="cash-receipt">현금영수증 승인 내역 (매출)</option>
+                    <option value="sales">전자세금계산서 (매출)</option>
+                    <option value="purchase">전자세금계산서 (매입)</option>
+                    <option value="tax-exempt-sales">면세 계산서 (매출)</option>
+                    <option value="tax-exempt-purchase">면세 계산서 (매입)</option>
+                    <option value="cash-receipt">현금영수증 (매입)</option>
                   </select>
                 </div>
 
-                {/* 2. 사업자등록번호 입력 (현금영수증은 필수, 나머지는 옵션) */}
+                {/* 2. 사업자번호 입력 (현금 필수, 그외 옵션) */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-600 block">
                     사업자등록번호
@@ -1704,7 +2009,7 @@ export default function FinancePage() {
                     placeholder="예: 123-45-67890 (숫자만 입력)"
                     value={hometaxBusinessNumber}
                     onChange={(e) => setHometaxBusinessNumber(e.target.value.replace(/\D/g, ""))}
-                    className="w-full border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-blue-500 transition-all placeholder:text-slate-400"
+                    className="w-full border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-700 outline-none focus:border-emerald-500 transition-all placeholder:text-slate-400"
                   />
                 </div>
 
@@ -1830,7 +2135,19 @@ export default function FinancePage() {
                 </button>
               </div>
 
-              <form onSubmit={handleCardUpload} className="mt-5 space-y-5">
+               <form onSubmit={handleCardUpload} className="mt-5 space-y-5">
+                {/* 지능형 자동 감지 안내 팁 */}
+                <div className="p-4 bg-amber-50/50 border border-amber-100/50 rounded-2xl flex items-start gap-3">
+                  <Sparkles className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-bold text-slate-800">지능형 카드 승인 파이프라인</h4>
+                    <p className="text-[10.5px] text-slate-500 font-medium leading-relaxed font-sans">
+                      카드사에서 다운로드한 엑셀 원본 파일을 자동으로 인식합니다.
+                      결제 승인 일자, 가맹점 정보, 공급 가액 및 세액을 분석하여 실시간 대조 및 저장합니다.
+                    </p>
+                  </div>
+                </div>
+
                 {/* 1. 카드사 선택 */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-slate-600 block">카드 발급사</label>
@@ -1946,6 +2263,271 @@ export default function FinancePage() {
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 9. 신용카드 영수증 사진 다중 등록 모달 UI */}
+      <AnimatePresence>
+        {isReceiptModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md bg-slate-900/60"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 15 }}
+              transition={{ type: "spring", duration: 0.4 }}
+              className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl border border-slate-100 relative overflow-hidden"
+            >
+              <div className="absolute -top-10 -left-10 w-28 h-28 bg-slate-500/5 rounded-full blur-2xl"></div>
+              
+              <div className="flex justify-between items-start pb-4 border-b border-slate-100">
+                <div>
+                  <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                    <Receipt className="w-5 h-5 text-slate-800" />
+                    카드 승인 영수증 등록
+                  </h3>
+                  <p className="text-xs text-slate-400 font-medium mt-1">
+                    신용카드 승인 내역에 실물 영수증 사진을 매핑합니다. (여러 장 등록 가능)
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsReceiptModalOpen(false)}
+                  className="p-1.5 hover:bg-slate-100 rounded-xl transition-all cursor-pointer text-slate-400 hover:text-slate-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleReceiptUpload} className="mt-5 space-y-5">
+                {/* AI 자동 식별 안내 팁 */}
+                <div className="p-4 bg-slate-50 border border-slate-100 rounded-2xl flex items-start gap-3">
+                  <Sparkles className="w-5 h-5 text-slate-800 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-bold text-slate-800">AI 영수증 자동 식별 매칭</h4>
+                    <p className="text-[10.5px] text-slate-500 font-medium leading-relaxed font-sans">
+                      영수증 사진을 등록하면 AI OCR이 금액, 가맹점, 일자를 정밀 분석하여 목록 내에서 매치되는 카드 승인 건을 찾아 자동으로 매핑합니다.
+                    </p>
+                  </div>
+                </div>
+
+                {/* 1. 대상 카드 거래 선택 */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-600 block">연결할 카드 거래 승인 내역</label>
+                  <select
+                    value={receiptSelectedTxId}
+                    onChange={(e) => setReceiptSelectedTxId(e.target.value)}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-semibold bg-slate-50 text-slate-700 outline-none focus:border-blue-500 cursor-pointer transition-all"
+                  >
+                    <option value="">-- 거래 내역을 수동으로 연결하거나 선택하세요 --</option>
+                    {cardTxList.map((tx) => (
+                      <option key={tx.id} value={tx.id}>
+                        [{tx.date}] {tx.merchantName} | ₩ {Math.floor(tx.amount || 0).toLocaleString()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 2. 사진 파일 업로드 드롭존 (multiple) */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-600 block">영수증 이미지 등록 (.jpg, .png, .jpeg)</label>
+                  <div className="relative group">
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          const filesArray = Array.from(e.target.files);
+                          setReceiptUploadFiles(filesArray);
+                          setReceiptUploadMessage(null);
+                          analyzeReceiptWithAI(filesArray[0]); // 첫 번째 파일로 AI OCR 분석 트리거
+                        }
+                      }}
+                      className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer"
+                    />
+                    <div className="border-dashed border-2 border-slate-200 group-hover:border-slate-800 rounded-2xl p-6 text-center bg-slate-50/50 group-hover:bg-slate-100/30 transition-all flex flex-col items-center justify-center gap-2">
+                      <Receipt className="w-10 h-10 text-slate-400 group-hover:text-slate-700 transition-all" />
+                      
+                      {receiptUploadFiles.length > 0 ? (
+                        <div className="space-y-2 w-full flex flex-col items-center">
+                          <p className="text-xs font-extrabold text-slate-800">
+                            총 {receiptUploadFiles.length}장의 사진이 선택되었습니다.
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-bold">
+                            클릭하여 파일을 추가하거나 개별 제외할 수 있습니다.
+                          </p>
+                          
+                          {/* 3열 썸네일 그리드와 X 버튼 */}
+                          <div className="mt-3 grid grid-cols-3 gap-2 w-full max-h-[160px] overflow-y-auto p-1">
+                            {receiptUploadFiles.map((file, idx) => (
+                              <div key={idx} className="relative group/thumb aspect-square border border-slate-100 rounded-lg overflow-hidden bg-slate-50">
+                                <img
+                                  src={URL.createObjectURL(file)}
+                                  alt="영수증"
+                                  className="w-full h-full object-cover"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setReceiptUploadFiles((prev) => prev.filter((_, i) => i !== idx));
+                                  }}
+                                  className="absolute top-1 right-1 w-5 h-5 bg-rose-500/80 hover:bg-rose-600 text-white rounded-full text-[9px] font-black flex items-center justify-center shadow-md active:scale-90"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-xs font-bold text-slate-700">
+                            여기에 카드 영수증 사진들을 끌어다 놓거나 클릭해 주세요.
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-1 font-semibold">
+                            여러 장의 실물 영수증을 한꺼번에 선택하여 등록할 수 있습니다.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. 로딩 및 성공/실패 피드백 */}
+                {receiptUploadMessage && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`p-3 rounded-2xl text-xs font-bold border flex items-start gap-2 ${
+                      receiptUploadMessage.type === "success"
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                        : "bg-rose-50 text-rose-600 border-rose-100"
+                    }`}
+                  >
+                    {receiptUploadMessage.type === "success" ? (
+                      <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                    )}
+                    <span>{receiptUploadMessage.text}</span>
+                  </motion.div>
+                )}
+
+                {/* 4. 하단 동작 제어 버튼 */}
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsReceiptModalOpen(false)}
+                    disabled={isReceiptUploading}
+                    className="flex-1 py-2.5 border border-slate-200 text-slate-500 hover:bg-slate-50 text-xs font-bold rounded-xl active:scale-95 transition-all disabled:opacity-50 cursor-pointer text-center"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isReceiptUploading || receiptUploadFiles.length === 0 || !receiptSelectedTxId}
+                    className="flex-1 py-2.5 bg-gradient-to-r from-slate-800 to-slate-950 text-white hover:from-slate-900 hover:to-black text-xs font-bold rounded-xl shadow-md hover:shadow-lg active:scale-95 transition-all disabled:from-slate-200 disabled:to-slate-200 disabled:text-slate-400 disabled:shadow-none disabled:pointer-events-none cursor-pointer"
+                  >
+                    {isReceiptUploading ? "영수증 이미지 분석/적재 중..." : "매핑 및 등록 완료"}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 10. 카드 영수증 다중 뷰어(캐러셀) 모달 UI */}
+      <AnimatePresence>
+        {viewingReceiptUrl && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md bg-slate-900/60"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 15 }}
+              transition={{ type: "spring", duration: 0.4 }}
+              className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-100 relative overflow-hidden flex flex-col"
+            >
+              <div className="flex justify-between items-start pb-4 border-b border-slate-100">
+                <div>
+                  <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                    <Receipt className="w-5 h-5 text-slate-800" />
+                    등록된 카드 영수증 보기
+                  </h3>
+                  <p className="text-xs text-slate-400 font-medium mt-1">
+                    {viewingReceiptUrl.split(",").length > 1 
+                      ? `총 ${viewingReceiptUrl.split(",").length}장의 영수증이 등록되어 있습니다.`
+                      : "실물 영수증 증빙 자료입니다."}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setViewingReceiptUrl(null)}
+                  className="p-1.5 hover:bg-slate-100 rounded-xl transition-all cursor-pointer text-slate-400 hover:text-slate-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* 이미지 슬라이더 영역 */}
+              <div className="relative mt-5 flex flex-col items-center bg-slate-50 border border-slate-100 rounded-2xl overflow-hidden min-h-[350px] justify-center">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={viewingReceiptUrl.split(",")[viewingReceiptIndex] || viewingReceiptUrl}
+                  alt="등록 영수증"
+                  className="max-w-full max-h-[400px] object-contain transition-all duration-300"
+                />
+
+                {/* 다중 이미지인 경우 좌우 제어 내비게이터 탑재 */}
+                {viewingReceiptUrl.split(",").length > 1 && (
+                  <>
+                    <button
+                      onClick={() => setViewingReceiptIndex((prev) => (prev > 0 ? prev - 1 : viewingReceiptUrl.split(",").length - 1))}
+                      className="absolute left-3 p-2 bg-white/80 hover:bg-white text-slate-800 rounded-full shadow-md active:scale-90 hover:scale-105 transition-all cursor-pointer border border-slate-100"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <button
+                      onClick={() => setViewingReceiptIndex((prev) => (prev < viewingReceiptUrl.split(",").length - 1 ? prev + 1 : 0))}
+                      className="absolute right-3 p-2 bg-white/80 hover:bg-white text-slate-800 rounded-full shadow-md active:scale-90 hover:scale-105 transition-all cursor-pointer border border-slate-100"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+
+                    {/* 슬라이드 도트(인덱스 표시) */}
+                    <div className="absolute bottom-4 flex gap-1.5 bg-black/60 px-3 py-1.5 rounded-full">
+                      {viewingReceiptUrl.split(",").map((_, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => setViewingReceiptIndex(idx)}
+                          className={`w-2.5 h-2.5 rounded-full cursor-pointer transition-all ${
+                            idx === viewingReceiptIndex ? "bg-white scale-125" : "bg-white/40"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* 뷰어 하단 닫기 단독 버튼 */}
+              <button
+                onClick={() => setViewingReceiptUrl(null)}
+                className="mt-5 w-full py-2.5 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl active:scale-95 transition-all cursor-pointer text-center"
+              >
+                조회 닫기
+              </button>
             </motion.div>
           </motion.div>
         )}

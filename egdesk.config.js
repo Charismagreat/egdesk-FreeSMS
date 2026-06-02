@@ -1,4 +1,4 @@
-"use strict";
+﻿"use strict";
 /**
  * EGDesk User Data Configuration
  * Generated at: 2026-05-28T01:34:49.960Z
@@ -9,7 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.TABLE_NAMES = exports.MAIN_TABLE = exports.TABLES = exports.EGDESK_CONFIG = void 0;
 exports.getTableByName = getTableByName;
 exports.EGDESK_CONFIG = {
-    apiUrl: 'http://localhost:8080',
+    apiUrl: 'https://tunneling-service.onrender.com/t/mcp-server-fxkud1',
     apiKey: 'a67ddc0f-7e2b-4997-9a0b-9667a74c89d0',
 };
 exports.TABLES = {
