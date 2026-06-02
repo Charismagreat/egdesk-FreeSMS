@@ -1244,7 +1244,20 @@ export default function FinancePage() {
                   .map((acc) => (
                     <div
                       key={acc.id}
-                      className="p-5 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md transition-all space-y-3 relative overflow-hidden"
+                      onClick={() => {
+                        if (selectedAccountId === acc.id) {
+                          setSelectedAccountId("all");
+                          setSelectedBankId("all");
+                        } else {
+                          setSelectedAccountId(acc.id);
+                          setSelectedBankId(acc.bankId || "all");
+                        }
+                      }}
+                      className={`p-5 rounded-2xl bg-white border shadow-sm hover:shadow-md transition-all space-y-3 relative overflow-hidden cursor-pointer ${
+                        selectedAccountId === acc.id
+                          ? "border-blue-500 ring-2 ring-blue-500/10 bg-blue-50/5"
+                          : "border-slate-100"
+                      }`}
                     >
                       <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500/5 rounded-full blur-lg"></div>
                       <div className="flex items-center justify-between">
