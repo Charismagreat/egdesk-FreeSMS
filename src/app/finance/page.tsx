@@ -1415,18 +1415,18 @@ export default function FinancePage() {
                     <div className="grid grid-cols-2 gap-4 pt-1.5 border-t border-slate-50">
                       <div>
                         <h4 className="text-[10px] font-bold text-slate-400 tracking-tight">
-                          금년도 사용액
-                        </h4>
-                        <p className="text-sm font-extrabold text-slate-800 mt-1 font-mono">
-                          ₩ {card.yTotal?.toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="border-l border-slate-100 pl-4">
-                        <h4 className="text-[10px] font-bold text-slate-400 tracking-tight">
                           이번달 사용액
                         </h4>
                         <p className="text-sm font-extrabold text-slate-800 mt-1 font-mono">
                           ₩ {card.m0?.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="border-l border-slate-100 pl-4 text-right">
+                        <h4 className="text-[10px] font-bold text-slate-400 tracking-tight">
+                          금년도 사용액
+                        </h4>
+                        <p className="text-sm font-extrabold text-slate-800 mt-1 font-mono">
+                          ₩ {card.yTotal?.toLocaleString()}
                         </p>
                       </div>
                     </div>
