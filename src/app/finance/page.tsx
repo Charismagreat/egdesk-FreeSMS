@@ -424,6 +424,123 @@ export default function FinancePage() {
     document.body.removeChild(link);
   };
 
+  // 📥 [은행거래내역] 엑셀(CSV) 다운로드 헬퍼
+  const downloadAccountsCsv = () => {
+    if (transactionList.length === 0) {
+      alert("다운로드할 거래 내역 데이터가 없습니다.");
+      return;
+    }
+    const headers = ["거래일자", "거래시간", "은행명", "계좌번호", "구분(입/출금)", "거래처/적요", "거래금액", "잔액", "계정과목"];
+    const rows = transactionList.map(tx => [
+      tx.date,
+      tx.time || "",
+      tx.bankName || "",
+      `'${tx.accountNumber || ""}`, // 계좌번호 숫자 포맷 깨짐 방지
+      tx.type,
+      `"${(tx.description || "").replace(/"/g, '""')}"`,
+      tx.amount,
+      tx.balance || 0,
+      tx.category || "미지정"
+    ]);
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `금융허브_은행거래내역_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // 📥 [신용카드거래내역] 엑셀(CSV) 다운로드 헬퍼
+  const downloadCardsCsv = () => {
+    if (cardTxList.length === 0) {
+      alert("다운로드할 카드 승인 내역 데이터가 없습니다.");
+      return;
+    }
+    const headers = ["승인일자", "승인시간", "카드사", "카드번호", "가맹점명", "승인금액", "상태", "계정과목", "승인번호", "메모(태그)"];
+    const rows = cardTxList.map(tx => [
+      tx.date,
+      tx.time || "",
+      tx.cardCompanyName,
+      `'${tx.cardNumber}`, // 카드번호 숫자 포맷 깨짐 방지
+      `"${tx.merchantName.replace(/"/g, '""')}"`,
+      tx.amount,
+      tx.status,
+      tx.category || "미지정",
+      `'${tx.approvalNumber || ""}`, // 승인번호 문자형 강제
+      `"${(tx.memo || "").replace(/"/g, '""')}"`
+    ]);
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `금융허브_카드승인내역_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // 📥 [국세청 세금계산서/계산서] 엑셀(CSV) 다운로드 헬퍼
+  const downloadHometaxInvoiceCsv = (isExempt: boolean) => {
+    const list = isExempt ? taxExemptList : taxInvoiceList;
+    const title = isExempt ? "계산서_면세" : "세금계산서";
+    if (list.length === 0) {
+      alert(`다운로드할 ${isExempt ? "계산서(면세)" : "세금계산서"} 내역 데이터가 없습니다.`);
+      return;
+    }
+    const headers = ["발행일자", "공급자", "공급받는자", "공급가액", "세액", "합계금액", "품목명", "구분", "과세구분"];
+    const rows = list.map(tx => [
+      tx.issueDate,
+      `"${tx.supplierName.replace(/"/g, '""')}"`,
+      `"${tx.buyerName.replace(/"/g, '""')}"`,
+      tx.supplyAmount,
+      tx.taxAmount,
+      tx.totalAmount,
+      `"${(tx.itemName || "").replace(/"/g, '""')}"`,
+      tx.invoiceType,
+      tx.taxType || ""
+    ]);
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `금융허브_국세청_${title}_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // 📥 [국세청 현금영수증] 엑셀(CSV) 다운로드 헬퍼
+  const downloadHometaxCashCsv = () => {
+    if (cashReceiptList.length === 0) {
+      alert("다운로드할 현금영수증 내역 데이터가 없습니다.");
+      return;
+    }
+    const headers = ["거래일자", "가맹점명", "공급가액", "세액", "합계금액", "승인번호", "용도"];
+    const rows = cashReceiptList.map(tx => [
+      tx.transactionDate,
+      `"${tx.franchiseName.replace(/"/g, '""')}"`,
+      tx.supplyAmount,
+      tx.taxAmount,
+      tx.totalAmount,
+      `'${tx.approvalNumber}`, // 승인번호 숫자 포맷 깨짐 방지
+      tx.purpose || ""
+    ]);
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `금융허브_현금영수증_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // 🔑 자연어 규칙 활성화 여부 토글 API 연동
   const handleToggleRule = async (id: string, isActive: boolean) => {
     try {
@@ -1825,6 +1942,14 @@ export default function FinancePage() {
 
                   {/* 은행/계좌 교차 필터 드롭다운 UI */}
                   <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={downloadAccountsCsv}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold transition-all shadow-sm active:scale-95 cursor-pointer mr-2"
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5" />
+                      엑셀 다운로드
+                    </button>
                     <div className="flex items-center gap-1">
                       <span className="text-[10px] font-bold text-slate-400">은행사:</span>
                       <select
@@ -2222,6 +2347,14 @@ export default function FinancePage() {
 
                 {/* 교차 필터 드롭다운 UI */}
                 <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={downloadCardsCsv}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold transition-all shadow-sm active:scale-95 cursor-pointer mr-2"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5" />
+                    엑셀 다운로드
+                  </button>
                   <div className="flex items-center gap-1">
                     <span className="text-[10px] font-bold text-slate-400">카드사:</span>
                     <select
@@ -2741,6 +2874,20 @@ export default function FinancePage() {
 
                   {/* 세무 교차 필터 드롭다운 UI */}
                   <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (hometaxSubTab === "cash") {
+                          downloadHometaxCashCsv();
+                        } else {
+                          downloadHometaxInvoiceCsv(hometaxSubTab === "exempt");
+                        }
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold transition-all shadow-sm active:scale-95 cursor-pointer mr-2"
+                    >
+                      <FileSpreadsheet className="w-3.5 h-3.5" />
+                      엑셀 다운로드
+                    </button>
                     {(hometaxSubTab === "invoice" || hometaxSubTab === "exempt") && (
                       <div className="flex items-center gap-1">
                         <span className="text-[10px] font-bold text-slate-400">구분:</span>
