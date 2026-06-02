@@ -62,6 +62,7 @@ interface CardTransaction {
   status: string; // 승인, 취소 등
   category?: string;
   receiptUrl?: string;
+  approvalNumber?: string;
 }
 
 interface HometaxInvoice {
@@ -86,6 +87,12 @@ interface HometaxCash {
   totalAmount: number;
   approvalNumber: string;
   purpose?: string; // 소득공제, 지출증빙
+}interface DbExpenseCategory {
+  id: string;
+  main_category: string;
+  mid_category: string;
+  sub_category: string;
+  created_at: string;
 }
 
 interface SyncLog {
@@ -164,6 +171,8 @@ export default function FinancePage() {
   const [syncHistory, setSyncHistory] = useState<SyncLog[]>([]);
   const [hometaxSync, setHometaxSync] = useState<any[]>([]);
   const [hometaxConnections, setHometaxConnections] = useState<any[]>([]);
+  const [dbCategories, setDbCategories] = useState<DbExpenseCategory[]>([]);
+
 
   // 페이징 & 필터 상태
   const [totalCount, setTotalCount] = useState(0);
@@ -201,6 +210,60 @@ export default function FinancePage() {
     const d = new Date();
     return `${d.getFullYear()}-01-01`; // 금년도 1월 1일
   };
+
+  // 📂 계정과목 대/중/소 3단 체계 역산 헬퍼
+  const getCategoryHierarchy = useCallback((subCat?: string): { main: string; mid: string; sub: string } => {
+    if (!subCat) return { main: "기타", mid: "기타", sub: "-" };
+
+    // 1. DB 연동 데이터에서 소분류가 일치하는지 실시간 역탐색
+    const dbMatch = dbCategories?.find((c) => c.sub_category === subCat);
+    if (dbMatch) {
+      return {
+        main: dbMatch.main_category,
+        mid: dbMatch.mid_category,
+        sub: dbMatch.sub_category
+      };
+    }
+
+    // 2. Fallback: 하드코딩 맵 기반 매핑 역탐색
+    const ACCOUNT_CATEGORIES_MAP: Record<string, string[]> = {
+      "판매비와관리비": ["복리후생비", "소모품비", "여비교통비", "임차료", "통신비", "세금과공과", "도서인쇄비", "회의비", "광고선전비", "교육훈련비", "차량유지비"],
+      "제조/물류원가": ["외주가공비", "운반비", "포장비", "원재료비", "부재료비", "전력비", "가스수도비", "수선비", "임금", "잡급"],
+      "영업외비용": ["이자비용", "기부금", "기타영업외비용"],
+      "기타": ["잡손실", "기타소분류"]
+    };
+
+    for (const main of Object.keys(ACCOUNT_CATEGORIES_MAP)) {
+      if (ACCOUNT_CATEGORIES_MAP[main].includes(subCat)) {
+        return {
+          main,
+          mid: subCat, // 중분류명이 없는 전통적 맵일 땐 소분류명을 임시로 중분류로 활용
+          sub: subCat
+        };
+      }
+    }
+
+    return {
+      main: "기타",
+      mid: "기타",
+      sub: subCat
+    };
+  }, [dbCategories]);
+
+  // 🎨 대분류별 시각적 뱃지 스타일 헬퍼
+  const getCategoryBadgeStyle = useCallback((mainCat: string) => {
+    switch (mainCat) {
+      case "판매비와관리비":
+        return "bg-emerald-50 text-emerald-700 border border-emerald-100/60";
+      case "제조/물류원가":
+        return "bg-indigo-50 text-indigo-700 border border-indigo-100/60";
+      case "영업외비용":
+        return "bg-amber-50 text-amber-700 border border-amber-100/60";
+      default:
+        return "bg-slate-50 text-slate-600 border border-slate-200/60";
+    }
+  }, []);
+
 
   const [startDate, setStartDate] = useState(getStartDateForBank());
   const [endDate, setEndDate] = useState(getFormattedDate(new Date()));
@@ -635,6 +698,19 @@ export default function FinancePage() {
   useEffect(() => {
     fetchFinanceData();
   }, [fetchFinanceData]);
+
+  // 📂 지출 계정과목(대/중/소 체계) 실시간 로드
+  useEffect(() => {
+    fetch("/api/expenses/categories")
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success) {
+          setDbCategories(json.categories || []);
+        }
+      })
+      .catch((e) => console.error("계정과목 로드 에러:", e));
+  }, []);
+
 
   // 빠른 기간 설정 헬퍼
   const handleQuickPeriod = (days: number | "year") => {
@@ -1586,20 +1662,25 @@ export default function FinancePage() {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="border-b border-slate-100 bg-slate-50 text-[11px] font-bold text-slate-400">
-                      <th className="p-4 w-32">사용일시</th>
-                      <th className="p-4">카드사 / 카드번호</th>
+                      <th className="p-4 w-28">사용일시</th>
+                      <th className="p-4 w-28">승인번호</th>
+                      <th className="p-4 w-44">카드사 / 카드번호</th>
+                      <th className="p-4 min-w-[180px]">계정과목 (대 〉 중 〉 소)</th>
                       <th className="p-4">가맹점명</th>
-                      <th className="p-4 text-right">사용금액</th>
-                      <th className="p-4">승인상태</th>
+                      <th className="p-4 text-right w-28">사용금액</th>
+                      <th className="p-4 w-20">승인상태</th>
                       <th className="p-4 text-center w-24">영수증</th>
                     </tr>
                   </thead>
                   <tbody>
                     {loading ? (
-                      <TableSkeleton cols={6} rows={5} />
+                      <TableSkeleton cols={8} rows={5} />
                     ) : (
                       cardTxList.map((tx) => {
                         const isCancelled = tx.status === "취소";
+                        const catHier = getCategoryHierarchy(tx.category);
+                        const badgeStyle = getCategoryBadgeStyle(catHier.main);
+
                         return (
                           <tr key={tx.id} className="border-b border-slate-50 hover:bg-slate-50/40 text-xs text-slate-700">
                             <td className="p-4 font-mono font-medium text-slate-400">
@@ -1608,17 +1689,26 @@ export default function FinancePage() {
                                 <div className="text-[10px] text-slate-400/80 mt-0.5">{tx.time}</div>
                               )}
                             </td>
+                            <td className="p-4 font-mono text-[11px] text-slate-500 font-semibold tracking-wider">
+                              {tx.approvalNumber || "-"}
+                            </td>
                             <td className="p-4">
                               <span className="font-bold text-slate-800">{tx.cardCompanyName}</span>
                               <span className="ml-2 font-mono text-[10px] text-slate-400 tracking-wider">({tx.cardNumber})</span>
                             </td>
                             <td className="p-4">
-                              <span className="font-extrabold text-slate-800">{tx.merchantName}</span>
-                              {tx.category && (
-                                <span className="ml-2 text-[9px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-400 rounded-md">
-                                  {tx.category}
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold ${badgeStyle}`}>
+                                  {catHier.main}
                                 </span>
-                              )}
+                                <span className="text-[9px] text-slate-300 font-bold">〉</span>
+                                <span className="text-[11px] font-extrabold text-slate-700">{catHier.mid}</span>
+                                <span className="text-[9px] text-slate-300 font-bold">〉</span>
+                                <span className="text-[11px] font-bold text-slate-400">{catHier.sub}</span>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <span className="font-extrabold text-slate-800">{tx.merchantName}</span>
                             </td>
                             <td className={`p-4 text-right font-extrabold ${isCancelled ? "text-slate-400 line-through" : "text-slate-800"}`}>
                               ₩ {tx.amount?.toLocaleString()}
@@ -1669,7 +1759,7 @@ export default function FinancePage() {
                     )}
                     {!loading && cardTxList.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="p-12 text-center text-slate-400 text-xs font-semibold">
+                        <td colSpan={8} className="p-12 text-center text-slate-400 text-xs font-semibold">
                           해당 조회 조건에 맞는 법인카드 사용 내역이 존재하지 않습니다.
                         </td>
                       </tr>
@@ -1677,6 +1767,7 @@ export default function FinancePage() {
                   </tbody>
                 </table>
               </div>
+
               {/* 하단 페이지네이션 컴포넌트 */}
               {!loading && totalCount > 0 && (
                 <PaginationBar
