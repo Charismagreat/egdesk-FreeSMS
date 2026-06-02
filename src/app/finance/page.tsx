@@ -939,6 +939,34 @@ export default function FinancePage() {
     }
   };
 
+  // 💡 비고란의 태그가 '#거래처접대'인 경우 계정과목 자동 적용 리액티브 트리거
+  useEffect(() => {
+    if (!editingCardTxId || editingField !== "memo") return;
+    
+    // tempMemo에 '거래처접대'가 포함되어 있는지 실시간 확인
+    const tags = tempMemo.split(",")
+      .map(t => t.trim())
+      .filter(Boolean);
+      
+    if (tags.includes("거래처접대")) {
+      const tx = cardTxList.find(t => t.id === editingCardTxId);
+      if (tx) {
+        // 동적 베이지안 확률 추천 후보 목록을 가져옴
+        const recs = getDynamicRecommendations(tx.merchantName, tempMemo);
+        if (recs && recs.length > 0) {
+          const bestRec = recs[0];
+          // 이미 해당 카테고리가 지정되어 있거나 업데이트 중이 아니라면 기동
+          if (!isUpdatingCardTx) {
+            handleUpdateCardTransaction(tx.id, {
+              category: bestRec.category,
+              memo: tempMemo
+            });
+          }
+        }
+      }
+    }
+  }, [tempMemo, editingCardTxId, editingField, cardTxList, getDynamicRecommendations, isUpdatingCardTx]);
+
 
   // 빠른 기간 설정 헬퍼
   const handleQuickPeriod = (days: number | "year") => {
