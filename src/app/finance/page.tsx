@@ -894,6 +894,37 @@ export default function FinancePage() {
         count: 1
       });
     }
+
+    // 💡 [2단계/3단계 폴백에 대한 동적 베이지안 가중치 업데이트] 폴백 리스트에 대해서도 현재 비고 태그가 매칭되는 경우 확률을 대폭 보정
+    const currentTags = currentMemo.split(",").map(t => t.trim()).filter(Boolean);
+    if (fallbackOptions.length > 0 && currentTags.length > 0) {
+      const scoredFallbacks = fallbackOptions.map((o) => {
+        let weight = o.percentage; // 기존 percentage를 기본 가중치로 사용
+        
+        // 현재 태그와 후보군 태그가 겹치는 경우 가중치 부여 (확률이 높은 추천으로 치솟도록 가중치 1000배 부여)
+        const intersection = o.tags.filter(t => currentTags.includes(t));
+        if (intersection.length > 0) {
+          weight += intersection.length * 1000;
+        }
+        
+        return {
+          ...o,
+          weight
+        };
+      });
+      
+      const totalWeight = scoredFallbacks.reduce((sum, o) => sum + o.weight, 0);
+      
+      // 새로운 확률 % 재계산 및 정렬
+      return scoredFallbacks
+        .map((o) => ({
+          category: o.category,
+          tags: o.tags,
+          percentage: totalWeight > 0 ? Math.round((o.weight / totalWeight) * 100) : 0,
+          count: o.count
+        }))
+        .sort((a, b) => b.percentage - a.percentage);
+    }
     
     return fallbackOptions;
   }, [jointProbabilityMap]);
