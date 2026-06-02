@@ -1011,14 +1011,14 @@ export default function FinancePage() {
 
           <div className="mt-auto pt-4 border-t border-slate-100 grid grid-cols-2 gap-4">
             <div className="space-y-0.5">
-              <span className="text-[10px] text-slate-400 font-bold block">올해 매출액 누계</span>
+              <span className="text-[10px] text-slate-400 font-bold block">금년도 매출액</span>
               <span className="text-lg font-black text-emerald-600 font-mono block">
                 ₩ {summaryData.hometaxSummary?.sales?.yTotal?.toLocaleString()}
               </span>
             </div>
             
             <div className="space-y-0.5 text-right">
-              <span className="text-[10px] text-slate-400 font-bold block">올해 매입액 누계</span>
+              <span className="text-[10px] text-slate-400 font-bold block">금년도 매입액</span>
               <span className="text-lg font-black text-rose-500 font-mono block">
                 ₩ {summaryData.hometaxSummary?.purchase?.yTotal?.toLocaleString()}
               </span>
