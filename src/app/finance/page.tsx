@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Landmark,
@@ -21,7 +21,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Sparkles,
-  Plus
+  Plus,
+  Edit
 } from "lucide-react";
 
 // 타입 정의
@@ -142,8 +143,14 @@ export default function FinancePage() {
   const [isCardUploading, setIsCardUploading] = useState(false);
   const [cardUploadMessage, setCardUploadMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  // 🔑 최고관리자 권한 및 신용카드 거래내역 인라인 편집 상태 선언
+  const [userRole, setUserRole] = useState<string>("SUB_OPERATOR");
+  const [editingCardTxId, setEditingCardTxId] = useState<string | null>(null);
+  const [editingField, setEditingField] = useState<"category" | "memo" | null>(null);
+  const [tempCategory, setTempCategory] = useState<string>("");
+  const [tempMemo, setTempMemo] = useState<string>("");
+  const [isUpdatingCardTx, setIsUpdatingCardTx] = useState<boolean>(false);
 
-  
   // 국세청 서브 탭: invoice (세금계산서), exempt (계산서/면세), cash (현금영수증)
   const [hometaxSubTab, setHometaxSubTab] = useState<"invoice" | "exempt" | "cash">("invoice");
 
@@ -712,6 +719,70 @@ export default function FinancePage() {
       })
       .catch((e) => console.error("계정과목 로드 에러:", e));
   }, []);
+
+  // 🔑 최고관리자(SUPER_ADMIN) 또는 대표자(PRESIDENT) 권한이 있는지 확인하는 헬퍼 변수
+  const hasAdminAccess = useMemo(() => {
+    if (!userRole) return false;
+    const role = userRole.toUpperCase();
+    return role === "SUPER_ADMIN" || role === "PRESIDENT";
+  }, [userRole]);
+
+  // 🔑 최고관리자 권한 조회
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
+        if (data.success && data.role) {
+          setUserRole(data.role);
+        }
+      } catch (e) {
+        console.error("Failed to fetch user session on client", e);
+      }
+    };
+    fetchUserRole();
+  }, []);
+
+  // 🔑 신용카드 거래 내역(계정과목, 비고) 수정 핸들러
+  const handleUpdateCardTransaction = async (txId: string, updates: { category?: string; memo?: string }) => {
+    setIsUpdatingCardTx(true);
+    try {
+      const res = await fetch("/api/finance/card-transaction", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          id: txId,
+          ...updates
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        // 로컬 상태의 리스트 업데이트
+        setCardTxList((prev) =>
+          prev.map((tx) => {
+            if (tx.id === txId) {
+              return {
+                ...tx,
+                ...updates
+              };
+            }
+            return tx;
+          })
+        );
+        setEditingCardTxId(null);
+        setEditingField(null);
+      } else {
+        alert(data.error || "수정에 실패했습니다.");
+      }
+    } catch (e: any) {
+      console.error("Card transaction update failed", e);
+      alert("오류가 발생했습니다: " + e.message);
+    } finally {
+      setIsUpdatingCardTx(false);
+    }
+  };
 
 
   // 빠른 기간 설정 헬퍼
@@ -1700,30 +1771,143 @@ export default function FinancePage() {
                               <span className="ml-2 font-mono text-[10px] text-slate-400 tracking-wider">({tx.cardNumber})</span>
                             </td>
                             <td className="p-4">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold ${badgeStyle}`}>
-                                  {catHier.main}
-                                </span>
-                                <span className="text-[9px] text-slate-300 font-bold">〉</span>
-                                <span className="text-[11px] font-extrabold text-slate-700">{catHier.mid}</span>
-                                <span className="text-[9px] text-slate-300 font-bold">〉</span>
-                                <span className="text-[11px] font-bold text-slate-400">{catHier.sub}</span>
-                              </div>
+                              {hasAdminAccess && editingCardTxId === tx.id && editingField === "category" ? (
+                                <div className="flex items-center gap-1">
+                                  <select
+                                    value={tempCategory}
+                                    onChange={(e) => setTempCategory(e.target.value)}
+                                    className="border border-amber-300 bg-amber-50 rounded-lg px-1.5 py-1 text-[11px] font-bold text-slate-700 outline-none focus:ring-1 focus:ring-amber-500"
+                                    autoFocus
+                                  >
+                                    <option value="">계정과목 선택</option>
+                                    {dbCategories.map((c) => {
+                                      const label = `${c.main_category} 〉 ${c.mid_category} 〉 ${c.sub_category}`;
+                                      return (
+                                        <option key={c.id} value={c.sub_category}>
+                                          {label}
+                                        </option>
+                                      );
+                                    })}
+                                  </select>
+                                  <button
+                                    onClick={() => handleUpdateCardTransaction(tx.id, { category: tempCategory })}
+                                    className="px-1.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-bold transition-all"
+                                    disabled={isUpdatingCardTx}
+                                  >
+                                    저장
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setEditingCardTxId(null);
+                                      setEditingField(null);
+                                    }}
+                                    className="px-1.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[10px] font-bold transition-all"
+                                  >
+                                    취소
+                                  </button>
+                                </div>
+                              ) : (
+                                <div 
+                                  className={`flex items-center gap-1.5 flex-wrap w-full ${hasAdminAccess ? "cursor-pointer hover:bg-amber-50/50 p-1.5 rounded-xl transition-all group" : ""}`}
+                                  onClick={() => {
+                                    if (hasAdminAccess) {
+                                      setEditingCardTxId(tx.id);
+                                      setEditingField("category");
+                                      setTempCategory(tx.category || "");
+                                    }
+                                  }}
+                                  title={hasAdminAccess ? "클릭하여 계정과목 수정" : undefined}
+                                >
+                                  <span className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold ${badgeStyle}`}>
+                                    {catHier.main}
+                                  </span>
+                                  <span className="text-[9px] text-slate-300 font-bold">〉</span>
+                                  <span className="text-[11px] font-extrabold text-slate-700">{catHier.mid}</span>
+                                  <span className="text-[9px] text-slate-300 font-bold">〉</span>
+                                  <span className="text-[11px] font-bold text-slate-400">{catHier.sub}</span>
+                                  {hasAdminAccess && (
+                                    <span className="ml-auto opacity-0 group-hover:opacity-100 text-amber-500 transition-opacity">
+                                      <Edit className="w-3 h-3" />
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </td>
                             <td className="p-4">
                               <span className="font-extrabold text-slate-800">{tx.merchantName}</span>
                             </td>
                             <td className="p-4 max-w-[150px]">
-                              {tx.memo ? (
-                                <div className="flex flex-wrap gap-1">
-                                  {tx.memo.split(",").map(t => t.trim()).filter(Boolean).map(tag => (
-                                    <span key={tag} className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 text-[9px] font-bold border border-amber-100/60 shadow-3xs">
-                                      #{tag}
-                                    </span>
-                                  ))}
+                              {hasAdminAccess && editingCardTxId === tx.id && editingField === "memo" ? (
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="text"
+                                    value={tempMemo}
+                                    onChange={(e) => setTempMemo(e.target.value)}
+                                    className="border border-amber-300 bg-amber-50 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-700 outline-none focus:ring-1 focus:ring-amber-500 w-full max-w-[120px]"
+                                    placeholder="쉼표로 태그 구분"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        handleUpdateCardTransaction(tx.id, { memo: tempMemo });
+                                      } else if (e.key === "Escape") {
+                                        setEditingCardTxId(null);
+                                        setEditingField(null);
+                                      }
+                                    }}
+                                  />
+                                  <button
+                                    onClick={() => handleUpdateCardTransaction(tx.id, { memo: tempMemo })}
+                                    className="px-1.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-bold transition-all"
+                                    disabled={isUpdatingCardTx}
+                                  >
+                                    저장
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setEditingCardTxId(null);
+                                      setEditingField(null);
+                                    }}
+                                    className="px-1.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[10px] font-bold transition-all"
+                                  >
+                                    취소
+                                  </button>
                                 </div>
                               ) : (
-                                <span className="text-[10px] text-slate-300 font-light">-</span>
+                                <div 
+                                  className={`min-h-[28px] flex items-center w-full ${hasAdminAccess ? "cursor-pointer hover:bg-amber-50/50 p-1.5 rounded-xl transition-all group" : ""}`}
+                                  onClick={() => {
+                                    if (hasAdminAccess) {
+                                      setEditingCardTxId(tx.id);
+                                      setEditingField("memo");
+                                      setTempMemo(tx.memo || "");
+                                    }
+                                  }}
+                                  title={hasAdminAccess ? "클릭하여 비고(지출 태그) 수정" : undefined}
+                                >
+                                  {tx.memo ? (
+                                    <div className="flex flex-wrap gap-1 items-center w-full">
+                                      {tx.memo.split(",").map(t => t.trim()).filter(Boolean).map(tag => (
+                                        <span key={tag} className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 text-[9px] font-bold border border-amber-100/60 shadow-3xs">
+                                          #{tag}
+                                        </span>
+                                      ))}
+                                      {hasAdminAccess && (
+                                        <span className="ml-auto opacity-0 group-hover:opacity-100 text-amber-500 transition-opacity">
+                                          <Edit className="w-3 h-3" />
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center justify-between w-full">
+                                      <span className="text-[10px] text-slate-300 font-light">-</span>
+                                      {hasAdminAccess && (
+                                        <span className="opacity-0 group-hover:opacity-100 text-amber-500 transition-opacity">
+                                          <Edit className="w-3 h-3" />
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
                               )}
                             </td>
                             <td className={`p-4 text-right font-extrabold ${isCancelled ? "text-slate-400 line-through" : "text-slate-800"}`}>
