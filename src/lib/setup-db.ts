@@ -862,8 +862,11 @@ export async function setupDatabase() {
     if (!catsCheck.rows || catsCheck.rows.length < 40) {
       console.log('Detected outdated or partial expense categories. Upgrading to official National Tax Service standards...');
       
-      // 기존 구식 데이터 영구 삭제
-      await deleteRows('expense_categories', {});
+      // 기존 구식 데이터 영구 삭제 (ids를 명시하여 안전한 삭제 실행)
+      const legacyIds = (catsCheck.rows || []).map((r: any) => r.id).filter(Boolean);
+      if (legacyIds.length > 0) {
+        await deleteRows('expense_categories', { ids: legacyIds });
+      }
       
       const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
       const initialCategories = [
