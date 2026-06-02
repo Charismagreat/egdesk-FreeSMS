@@ -166,6 +166,8 @@ export default function FinancePage() {
   const [selectedCardCompanyId, setSelectedCardCompanyId] = useState<string>("all");
   const [selectedCardNumber, setSelectedCardNumber] = useState<string>("all");
   const [selectedCashPurpose, setSelectedCashPurpose] = useState<string>("all");
+  const [selectedBankId, setSelectedBankId] = useState<string>("all");
+  const [selectedAccountId, setSelectedAccountId] = useState<string>("all");
 
   // 카드 영수증 연동 및 뷰어 관련 상태
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
@@ -213,7 +215,7 @@ export default function FinancePage() {
   // 페이지 및 검색 텍스트 초기화 방지용 디바운싱 효과
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, hometaxSubTab, searchText, invoiceType, startDate, endDate, pageSize, selectedCardCompanyId, selectedCardNumber, selectedCashPurpose]);
+  }, [activeTab, hometaxSubTab, searchText, invoiceType, startDate, endDate, pageSize, selectedCardCompanyId, selectedCardNumber, selectedCashPurpose, selectedBankId, selectedAccountId]);
 
   // 통합 데이터 패치 함수
   const fetchFinanceData = useCallback(async () => {
@@ -238,12 +240,13 @@ export default function FinancePage() {
       const searchParam = searchText ? `&searchText=${encodeURIComponent(searchText)}` : "";
       const invTypeParam = invoiceType !== "all" ? `&invoiceType=${invoiceType}` : "";
       const cardParams = `&cardCompanyId=${selectedCardCompanyId}&cardNumber=${selectedCardNumber}`;
+      const bankParams = `&bankId=${selectedBankId}&accountId=${selectedAccountId}`;
       const cashParams = `&cashPurpose=${selectedCashPurpose}`;
       const paginationParams = `&limit=${pageSize}&offset=${offset}`;
 
       // 2. 활성화된 메인 탭에 따라 각각 최적의 엔드포인트 패치
       if (activeTab === "accounts") {
-        const txRes = await fetch(`/api/finance?tab=transactions${dateParams}${searchParam}${paginationParams}`).then((res) => res.json());
+        const txRes = await fetch(`/api/finance?tab=transactions${dateParams}${searchParam}${bankParams}${paginationParams}`).then((res) => res.json());
         if (txRes.success) {
           setTransactionList(txRes.data.list || []);
           setTotalCount(txRes.data.total || 0);
@@ -287,7 +290,7 @@ export default function FinancePage() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, hometaxSubTab, currentPage, pageSize, startDate, endDate, searchText, invoiceType, selectedCardCompanyId, selectedCardNumber, selectedCashPurpose]);
+  }, [activeTab, hometaxSubTab, currentPage, pageSize, startDate, endDate, searchText, invoiceType, selectedCardCompanyId, selectedCardNumber, selectedCashPurpose, selectedBankId, selectedAccountId]);
 
   // 은행 선택 변경 시 해당 은행의 계좌 자동 매칭 및 첫 번째 계좌 선택
   useEffect(() => {
@@ -1280,12 +1283,57 @@ export default function FinancePage() {
 
               {/* 은행 거래 목록 명세서 */}
               <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-                <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-                  <h3 className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-1.5">
                     <Layers className="w-4 h-4 text-blue-500" />
-                    은행 통합 계좌 입출금 명세서
-                  </h3>
-                  <span className="text-xs text-slate-400 font-semibold">총 {totalCount}건의 거래</span>
+                    <h3 className="font-bold text-slate-800 text-sm">
+                      은행 통합 계좌 입출금 명세서
+                    </h3>
+                    <span className="text-xs text-slate-400 font-semibold ml-2">총 {totalCount}건의 거래</span>
+                  </div>
+
+                  {/* 은행/계좌 교차 필터 드롭다운 UI */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] font-bold text-slate-400">은행사:</span>
+                      <select
+                        value={selectedBankId}
+                        onChange={(e) => setSelectedBankId(e.target.value)}
+                        className="border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl px-2.5 py-1.5 text-[11px] font-bold text-slate-700 outline-none focus:border-blue-500 transition-all cursor-pointer"
+                      >
+                        <option value="all">전체 은행사</option>
+                        <option value="shinhan">신한은행</option>
+                        <option value="woori">우리은행</option>
+                        <option value="kookmin">KB국민은행</option>
+                        <option value="hana">하나은행</option>
+                        <option value="ibk">IBK기업은행</option>
+                        <option value="nh">NH농협은행</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <span className="text-[10px] font-bold text-slate-400">계좌번호:</span>
+                      <select
+                        value={selectedAccountId}
+                        onChange={(e) => setSelectedAccountId(e.target.value)}
+                        className="border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl px-2.5 py-1.5 text-[11px] font-bold text-slate-700 outline-none focus:border-blue-500 transition-all cursor-pointer"
+                      >
+                        <option value="all">전체 번호</option>
+                        {accounts
+                          .filter(
+                            (acc) =>
+                              !acc.id.includes("CARD") &&
+                              !acc.bankId.includes("card") &&
+                              !acc.accountName.includes("카드")
+                          )
+                          .map((acc) => (
+                            <option key={acc.id} value={acc.id}>
+                              {acc.accountNumber} ({acc.bankName})
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="overflow-x-auto">
