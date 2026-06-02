@@ -951,6 +951,11 @@ export default function FinancePage() {
     if (tags.includes("거래처접대")) {
       const tx = cardTxList.find(t => t.id === editingCardTxId);
       if (tx) {
+        // 💡 중요: 사용자가 수정 창을 방금 열어서 기존 값과 동일한 상태일 때는 자동 적용을 트리거하지 않고,
+        // 실제로 태그 내용에 변화가 일어났을 때(수정 중일 때)에만 자동 적용하도록 가드합니다.
+        const isMemoChanged = (tx.memo || "") !== tempMemo;
+        if (!isMemoChanged) return;
+
         // 동적 베이지안 확률 추천 후보 목록을 가져옴
         const recs = getDynamicRecommendations(tx.merchantName, tempMemo);
         if (recs && recs.length > 0) {
