@@ -1006,7 +1006,7 @@ export default function FinancePage() {
             </div>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-slate-100 grid grid-cols-2 gap-4">
+          <div className="mt-auto pt-4 border-t border-slate-100 grid grid-cols-2 gap-4">
             <div className="space-y-0.5">
               <span className="text-[10px] text-slate-400 font-bold block">올해 매출액 누계</span>
               <span className="text-lg font-black text-emerald-600 font-mono block">
@@ -1023,7 +1023,7 @@ export default function FinancePage() {
           </div>
 
           {/* 슬라이딩 매출입 밸런스 비율 바 */}
-          <div className="mt-4 space-y-1">
+          <div className="mt-3 space-y-1">
             <div className="w-full bg-rose-200 h-2.5 rounded-full overflow-hidden flex">
               <motion.div
                 initial={{ width: 0 }}
