@@ -98,6 +98,12 @@ interface HometaxCash {
   created_at: string;
 }
 
+interface DbExpenseTag {
+  id: string;
+  name: string;
+  created_at: string;
+}
+
 interface SyncLog {
   id: string;
   operationType: string;
@@ -150,6 +156,7 @@ export default function FinancePage() {
   const [tempCategory, setTempCategory] = useState<string>("");
   const [tempMemo, setTempMemo] = useState<string>("");
   const [isUpdatingCardTx, setIsUpdatingCardTx] = useState<boolean>(false);
+  const [dbTags, setDbTags] = useState<DbExpenseTag[]>([]);
 
   // 국세청 서브 탭: invoice (세금계산서), exempt (계산서/면세), cash (현금영수증)
   const [hometaxSubTab, setHometaxSubTab] = useState<"invoice" | "exempt" | "cash">("invoice");
@@ -719,6 +726,34 @@ export default function FinancePage() {
       })
       .catch((e) => console.error("계정과목 로드 에러:", e));
   }, []);
+
+  // 📂 지출 태그 프리셋 실시간 로드
+  useEffect(() => {
+    fetch("/api/expenses/tags")
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success) {
+          setDbTags(json.tags || []);
+        }
+      })
+      .catch((e) => console.error("지출 태그 로드 에러:", e));
+  }, []);
+
+  // 🔑 지출 태그 토글(인라인 조합) 헬퍼 핸들러
+  const handleTagToggle = (tagName: string) => {
+    const currentTags = tempMemo.split(",")
+      .map(t => t.trim())
+      .filter(Boolean);
+    
+    let nextTags: string[];
+    if (currentTags.includes(tagName)) {
+      nextTags = currentTags.filter(t => t !== tagName);
+    } else {
+      nextTags = [...currentTags, tagName];
+    }
+    
+    setTempMemo(nextTags.join(", "));
+  };
 
   // 🔑 최고관리자(SUPER_ADMIN) 또는 대표자(PRESIDENT) 권한이 있는지 확인하는 헬퍼 변수
   const hasAdminAccess = useMemo(() => {
@@ -1838,39 +1873,71 @@ export default function FinancePage() {
                             </td>
                             <td className="p-4 max-w-[150px]">
                               {hasAdminAccess && editingCardTxId === tx.id && editingField === "memo" ? (
-                                <div className="flex items-center gap-1">
-                                  <input
-                                    type="text"
-                                    value={tempMemo}
-                                    onChange={(e) => setTempMemo(e.target.value)}
-                                    className="border border-amber-300 bg-amber-50 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-700 outline-none focus:ring-1 focus:ring-amber-500 w-full max-w-[120px]"
-                                    placeholder="쉼표로 태그 구분"
-                                    autoFocus
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter") {
-                                        handleUpdateCardTransaction(tx.id, { memo: tempMemo });
-                                      } else if (e.key === "Escape") {
+                                <div className="flex flex-col gap-1.5 p-1 bg-white rounded-2xl border border-slate-100 shadow-lg min-w-[220px]">
+                                  <div className="flex items-center gap-1">
+                                    <input
+                                      type="text"
+                                      value={tempMemo}
+                                      onChange={(e) => setTempMemo(e.target.value)}
+                                      className="border border-amber-300 bg-amber-50 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-700 outline-none focus:ring-1 focus:ring-amber-500 w-full"
+                                      placeholder="쉼표로 태그 구분"
+                                      autoFocus
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                          handleUpdateCardTransaction(tx.id, { memo: tempMemo });
+                                        } else if (e.key === "Escape") {
+                                          setEditingCardTxId(null);
+                                          setEditingField(null);
+                                        }
+                                      }}
+                                    />
+                                    <button
+                                      onClick={() => handleUpdateCardTransaction(tx.id, { memo: tempMemo })}
+                                      className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-bold transition-all active:scale-95 whitespace-nowrap"
+                                      disabled={isUpdatingCardTx}
+                                    >
+                                      저장
+                                    </button>
+                                    <button
+                                      onClick={() => {
                                         setEditingCardTxId(null);
                                         setEditingField(null);
-                                      }
-                                    }}
-                                  />
-                                  <button
-                                    onClick={() => handleUpdateCardTransaction(tx.id, { memo: tempMemo })}
-                                    className="px-1.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-bold transition-all"
-                                    disabled={isUpdatingCardTx}
-                                  >
-                                    저장
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setEditingCardTxId(null);
-                                      setEditingField(null);
-                                    }}
-                                    className="px-1.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[10px] font-bold transition-all"
-                                  >
-                                    취소
-                                  </button>
+                                      }}
+                                      className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[10px] font-bold transition-all active:scale-95 whitespace-nowrap"
+                                    >
+                                      취소
+                                    </button>
+                                  </div>
+                                  
+                                  {/* 💡 지출 태그 프리셋 가이드 칩 UI */}
+                                  <div className="mt-1 p-2 bg-slate-50/50 rounded-xl border border-slate-100/60">
+                                    <div className="text-[9px] font-extrabold text-slate-400 mb-1.5">사용할 수 있는 태그 목록 (클릭 토글)</div>
+                                    <div className="flex flex-wrap gap-1">
+                                      {dbTags.map((tag) => {
+                                        const isSelected = tempMemo.split(",")
+                                          .map(t => t.trim())
+                                          .filter(Boolean)
+                                          .includes(tag.name);
+                                        return (
+                                          <button
+                                            key={tag.id}
+                                            type="button"
+                                            onClick={() => handleTagToggle(tag.name)}
+                                            className={`px-1.5 py-0.5 rounded-md text-[9.5px] font-bold border transition-all active:scale-95 cursor-pointer ${
+                                              isSelected
+                                                ? "bg-amber-500 text-white border-amber-500 shadow-3xs"
+                                                : "bg-white text-slate-500 border-slate-200 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200"
+                                            }`}
+                                          >
+                                            #{tag.name}
+                                          </button>
+                                        );
+                                      })}
+                                      {dbTags.length === 0 && (
+                                        <span className="text-[9px] text-slate-300 font-light">프리셋 태그를 로드할 수 없습니다.</span>
+                                      )}
+                                    </div>
+                                  </div>
                                 </div>
                               ) : (
                                 <div 
