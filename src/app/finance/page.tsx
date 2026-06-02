@@ -1401,17 +1401,19 @@ export default function FinancePage() {
                   >
                     <div className="absolute top-0 right-0 w-16 h-16 bg-amber-500/5 rounded-full blur-lg"></div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-md">
-                        {card.cardCompanyName}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-md">
+                          {card.cardCompanyName}
+                        </span>
+                        {card.lastTxDate && (
+                          <span className="text-[9px] text-slate-400/90 font-bold flex items-center gap-1 mt-0.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                            최종 승인: {card.lastTxDate}
+                          </span>
+                        )}
+                      </div>
                       <span className="text-slate-400 text-xs font-mono">{card.cardCount}개 카드 통합</span>
                     </div>
-                    {card.lastTxDate && (
-                      <p className="text-[10px] text-slate-400 font-semibold flex items-center justify-end gap-1 w-full">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                        최종 승인: {card.lastTxDate} {card.lastTxTime}
-                      </p>
-                    )}
                     <div className="grid grid-cols-2 gap-4 pt-1.5 border-t border-slate-50">
                       <div>
                         <h4 className="text-[10px] font-bold text-slate-400 tracking-tight">
