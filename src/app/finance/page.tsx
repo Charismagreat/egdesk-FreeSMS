@@ -926,14 +926,14 @@ export default function FinancePage() {
 
           <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
             <div className="space-y-0.5">
-              <span className="text-[10px] text-slate-400 font-bold block">금년도 신용카드 지출총액</span>
+              <span className="text-[10px] text-slate-400 font-bold block">금년도 사용액</span>
               <span className="text-xl font-black text-slate-800 font-mono block">
                 ₩ {summaryData.cardSummary.reduce((acc: number, curr: any) => acc + (curr.yTotal || 0), 0)?.toLocaleString()}
               </span>
             </div>
             
             <div className="text-right space-y-0.5">
-              <span className="text-[10px] text-slate-400 font-bold block">이번 달 전체지출</span>
+              <span className="text-[10px] text-slate-400 font-bold block">이번 달 사용액</span>
               <span className="text-xs font-bold text-slate-600 font-mono block">
                 ₩ {summaryData.cardSummary.reduce((acc: number, curr: any) => acc + (curr.m0 || 0), 0)?.toLocaleString()}
               </span>
