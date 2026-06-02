@@ -44,6 +44,8 @@ interface Transaction {
   type: "deposit" | "withdrawal" | "입금" | "출금";
   description: string;
   category?: string;
+  bankName?: string;
+  accountNumber?: string;
 }
 
 interface CardTransaction {
@@ -766,26 +768,38 @@ export default function FinancePage() {
 
             {/* 은행 계좌 잔액 리스트 */}
             <div className="max-h-[280px] overflow-y-auto space-y-2 pr-1.5 custom-scrollbar scrollbar-thin scrollbar-thumb-slate-700">
-              {accounts.map((acc) => (
-                <div 
-                  key={acc.id} 
-                  className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
-                >
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 bg-blue-600/30 text-blue-200 rounded border border-blue-500/20">
-                        {acc.bankName}
-                      </span>
-                      <span className="text-white text-xs font-bold">{acc.accountName}</span>
+              {accounts
+                .filter(
+                  (acc) =>
+                    !acc.id.includes("CARD") &&
+                    !acc.bankId.includes("card") &&
+                    !acc.accountName.includes("카드")
+                )
+                .map((acc) => (
+                  <div 
+                    key={acc.id} 
+                    className="flex items-center justify-between p-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all"
+                  >
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 bg-blue-600/30 text-blue-200 rounded border border-blue-500/20">
+                          {acc.bankName}
+                        </span>
+                        <span className="text-white text-xs font-bold">{acc.accountName}</span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 font-mono tracking-wider">{acc.accountNumber}</p>
                     </div>
-                    <p className="text-[10px] text-slate-400 font-mono tracking-wider">{acc.accountNumber}</p>
+                    <span className="text-xs font-extrabold text-blue-300 font-mono">
+                      ₩ {acc.balance?.toLocaleString()}
+                    </span>
                   </div>
-                  <span className="text-xs font-extrabold text-blue-300 font-mono">
-                    ₩ {acc.balance?.toLocaleString()}
-                  </span>
-                </div>
-              ))}
-              {accounts.length === 0 && (
+                ))}
+              {accounts.filter(
+                (acc) =>
+                  !acc.id.includes("CARD") &&
+                  !acc.bankId.includes("card") &&
+                  !acc.accountName.includes("카드")
+              ).length === 0 && (
                 <div className="text-center py-8 text-xs text-slate-500">
                   연동된 은행 계좌가 없습니다.
                 </div>
@@ -1177,27 +1191,39 @@ export default function FinancePage() {
             <div className="space-y-6">
               {/* 계좌 리스트 슬라이드 카드형 레이아웃 */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {accounts.map((acc) => (
-                  <div
-                    key={acc.id}
-                    className="p-5 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md transition-all space-y-3 relative overflow-hidden"
-                  >
-                    <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500/5 rounded-full blur-lg"></div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-600 border border-slate-200 rounded-md">
-                        {acc.bankName}
-                      </span>
-                      <span className="text-slate-400 text-xs font-mono">{acc.accountNumber}</span>
+                {accounts
+                  .filter(
+                    (acc) =>
+                      !acc.id.includes("CARD") &&
+                      !acc.bankId.includes("card") &&
+                      !acc.accountName.includes("카드")
+                  )
+                  .map((acc) => (
+                    <div
+                      key={acc.id}
+                      className="p-5 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md transition-all space-y-3 relative overflow-hidden"
+                    >
+                      <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500/5 rounded-full blur-lg"></div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-600 border border-slate-200 rounded-md">
+                          {acc.bankName}
+                        </span>
+                        <span className="text-slate-400 text-xs font-mono">{acc.accountNumber}</span>
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-400 tracking-tight">{acc.accountName}</h4>
+                        <p className="text-xl font-extrabold text-slate-800 mt-1">
+                          ₩ {acc.balance?.toLocaleString()}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-400 tracking-tight">{acc.accountName}</h4>
-                      <p className="text-xl font-extrabold text-slate-800 mt-1">
-                        ₩ {acc.balance?.toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-                {accounts.length === 0 && (
+                  ))}
+                {accounts.filter(
+                  (acc) =>
+                    !acc.id.includes("CARD") &&
+                    !acc.bankId.includes("card") &&
+                    !acc.accountName.includes("카드")
+                ).length === 0 && (
                   <div className="col-span-full bg-white p-6 rounded-2xl border border-slate-100 text-center text-slate-400 text-xs font-medium">
                     조회된 등록 계좌가 없습니다.
                   </div>
@@ -1219,6 +1245,8 @@ export default function FinancePage() {
                     <thead>
                       <tr className="border-b border-slate-100 bg-slate-50 text-[11px] font-bold text-slate-400">
                         <th className="p-4 w-32">거래일자</th>
+                        <th className="p-4 w-28">은행명</th>
+                        <th className="p-4 w-36">계좌번호</th>
                         <th className="p-4">적요 / 거래구분</th>
                         <th className="p-4">구분</th>
                         <th className="p-4 text-right">입금액</th>
@@ -1228,7 +1256,7 @@ export default function FinancePage() {
                     </thead>
                     <tbody>
                       {loading ? (
-                        <TableSkeleton cols={6} rows={5} />
+                        <TableSkeleton cols={8} rows={5} />
                       ) : (
                         transactionList.map((tx) => {
                           const isDeposit = tx.type === "deposit" || tx.type === "입금";
@@ -1239,6 +1267,12 @@ export default function FinancePage() {
                                 {tx.time && (
                                   <div className="text-[10px] text-slate-400/80 mt-0.5">{tx.time}</div>
                                 )}
+                              </td>
+                              <td className="p-4">
+                                <span className="font-bold text-slate-800">{tx.bankName || "기타은행"}</span>
+                              </td>
+                              <td className="p-4 font-mono text-slate-500">
+                                {tx.accountNumber || "-"}
                               </td>
                               <td className="p-4">
                                 <span className="font-bold text-slate-800">{tx.description}</span>
@@ -1284,7 +1318,7 @@ export default function FinancePage() {
                       )}
                       {!loading && transactionList.length === 0 && (
                         <tr>
-                          <td colSpan={6} className="p-12 text-center text-slate-400 text-xs font-semibold">
+                          <td colSpan={8} className="p-12 text-center text-slate-400 text-xs font-semibold">
                             해당 조회 조건에 맞는 은행 거래 내역이 존재하지 않습니다.
                           </td>
                         </tr>

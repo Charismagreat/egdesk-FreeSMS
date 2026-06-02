@@ -64,6 +64,7 @@ function mapTransactionToFrontend(tx: any): any {
   const deposit = Number(tx.deposit || 0);
   const withdrawal = Number(tx.withdrawal || 0);
   const isDeposit = deposit > 0;
+  const bankId = tx.bank_id || tx.bankId || "";
   
   return {
     id: String(tx.id || ""),
@@ -74,7 +75,8 @@ function mapTransactionToFrontend(tx: any): any {
     type: isDeposit ? "deposit" : "withdrawal",
     amount: Math.floor(isDeposit ? deposit : withdrawal),
     balance: Math.floor(Number(tx.balance || 0)),
-    bankId: tx.bank_id || tx.bankId || "",
+    bankId: bankId,
+    bankName: tx.bank_name || tx.bankName || bankNames[bankId] || "기타은행",
     accountId: tx.account_id || tx.accountId || "",
     accountNumber: tx.account_number || tx.accountNumber || ""
   };
@@ -237,79 +239,68 @@ export async function GET(request: NextRequest) {
     if (tab === "transactions") {
       const bankId = searchParams.get("bankId") || undefined;
       const accountId = searchParams.get("accountId") || undefined;
+      
+      let list: any[] = [];
+      let total = 0;
+      let localQuerySuccess = false;
 
-      const transactions = await queryBankTransactions({
-        bankId: bankId === "all" ? undefined : bankId,
-        accountId: accountId === "all" ? undefined : accountId,
-        startDate,
-        endDate,
-        searchText,
-        limit,
-        offset,
-        orderBy: "date",
-        orderDir: "desc"
-      }).catch(() => ({ transactions: [], total: 0 }));
+      // [로컬 DB 실시간 실데이터 최우선 조회] 수동 업로드 등으로 로컬 DB에 실데이터가 적재된 환경이므로 로컬 DB를 최우선 조회합니다.
+      try {
+        const Database = require("better-sqlite3");
+        const os = require("os");
+        const path = require("path");
+        const fs = require("fs");
 
-      const rawList = safeArray(transactions?.transactions || transactions);
-      let list = rawList.map(mapTransactionToFrontend).filter(Boolean);
-      let total = transactions?.total || list.length;
-
-      // [로컬 DB 실시간 실데이터 폴백] 원격 API 조회 결과가 없거나 부족한 경우 로컬 SQLite DB의 실데이터를 조회하여 대체 및 병합합니다.
-      if (list.length === 0) {
-        try {
-          const Database = require("better-sqlite3");
-          const os = require("os");
-          const path = require("path");
-          const fs = require("fs");
-
-          const homeDir = os.homedir();
-          const appData = process.env.APPDATA || path.join(homeDir, "AppData/Roaming");
-          const paths = [
-            path.join(appData, "EGDesk/database/financehub.db"),
-            path.join(appData, "egdesk/database/financehub.db")
-          ];
+        const homeDir = os.homedir();
+        const appData = process.env.APPDATA || path.join(homeDir, "AppData/Roaming");
+        const paths = [
+          path.join(appData, "EGDesk/database/financehub.db"),
+          path.join(appData, "egdesk/database/financehub.db")
+        ];
+        
+        let targetPath = "";
+        for (const p of paths) {
+          if (fs.existsSync(p)) {
+            targetPath = p;
+            break;
+          }
+        }
+        
+        if (targetPath) {
+          const db = new Database(targetPath);
           
-          let targetPath = "";
-          for (const p of paths) {
-            if (fs.existsSync(p)) {
-              targetPath = p;
-              break;
-            }
+          // 쿼리 파라미터 바인딩 준비
+          let query = `SELECT * FROM bank_transactions WHERE 1=1`;
+          const params: any[] = [];
+          
+          if (startDate) {
+            const normalizedStart = startDate.replace(/-/g, ".");
+            query += ` AND (transaction_date >= ? OR transaction_date >= ?)`;
+            params.push(startDate, normalizedStart);
+          }
+          if (endDate) {
+            const normalizedEnd = endDate.replace(/-/g, ".");
+            query += ` AND (transaction_date <= ? OR transaction_date <= ?)`;
+            params.push(endDate, normalizedEnd);
+          }
+          if (searchText) {
+            query += ` AND description LIKE ?`;
+            params.push(`%${searchText}%`);
+          }
+          if (bankId && bankId !== "all") {
+            query += ` AND bank_id = ?`;
+            params.push(bankId);
+          }
+          if (accountId && accountId !== "all") {
+            query += ` AND account_id = ?`;
+            params.push(accountId);
           }
           
-          if (targetPath) {
-            const db = new Database(targetPath);
-            
-            // 쿼리 파라미터 바인딩 준비
-            let query = `SELECT * FROM bank_transactions WHERE 1=1`;
-            const params: any[] = [];
-            
-            if (startDate) {
-              const normalizedStart = startDate.replace(/-/g, ".");
-              query += ` AND (transaction_date >= ? OR transaction_date >= ?)`;
-              params.push(startDate, normalizedStart);
-            }
-            if (endDate) {
-              const normalizedEnd = endDate.replace(/-/g, ".");
-              query += ` AND (transaction_date <= ? OR transaction_date <= ?)`;
-              params.push(endDate, normalizedEnd);
-            }
-            if (searchText) {
-              query += ` AND description LIKE ?`;
-              params.push(`%${searchText}%`);
-            }
-            if (bankId && bankId !== "all") {
-              query += ` AND bank_id = ?`;
-              params.push(bankId);
-            }
-            if (accountId && accountId !== "all") {
-              query += ` AND account_id = ?`;
-              params.push(accountId);
-            }
-            
-            // 전체 카운트 구하기
-            const countQuery = query.replace("SELECT *", "SELECT COUNT(*) as cnt");
-            const totalCount = db.prepare(countQuery).get(...params).cnt;
+          // 전체 카운트 구하기
+          const countQuery = query.replace("SELECT *", "SELECT COUNT(*) as cnt");
+          const totalCount = db.prepare(countQuery).get(...params).cnt;
+          
+          if (totalCount > 0) {
             total = totalCount;
 
             // 페이징 및 최신순 정렬 적용
@@ -320,12 +311,33 @@ export async function GET(request: NextRequest) {
             
             // 프론트엔드가 요구하는 포맷으로 표준 매핑 가공
             list = localTxs.map(mapTransactionToFrontend).filter(Boolean);
-            
-            db.close();
+            localQuerySuccess = true;
+            console.log(`[Local DB bank transactions] 로컬 실데이터 최우선 조회 성공: ${list.length}건 반환`);
           }
-        } catch (dbErr: any) {
-          console.warn("⚠️ Local DB bank transactions fallback query failed:", dbErr.message);
+          db.close();
         }
+      } catch (dbErr: any) {
+        console.warn("⚠️ Local DB bank transactions primary query failed:", dbErr.message);
+      }
+
+      // 만약 로컬 SQLite DB에 데이터가 없거나 조회에 실패한 경우에만 폴백으로 원격 API 헬퍼를 찌릅니다.
+      if (!localQuerySuccess) {
+        console.log("[Remote DB bank transactions] 로컬 DB 데이터가 없어 원격 API 조회를 진행합니다.");
+        const transactions = await queryBankTransactions({
+          bankId: bankId === "all" ? undefined : bankId,
+          accountId: accountId === "all" ? undefined : accountId,
+          startDate,
+          endDate,
+          searchText,
+          limit,
+          offset,
+          orderBy: "date",
+          orderDir: "desc"
+        }).catch(() => ({ transactions: [], total: 0 }));
+
+        const rawList = safeArray(transactions?.transactions || transactions);
+        list = rawList.map(mapTransactionToFrontend).filter(Boolean);
+        total = transactions?.total || list.length;
       }
 
       return NextResponse.json({
