@@ -156,6 +156,9 @@ export default function FinancePage() {
   const [tempCategory, setTempCategory] = useState<string>("");
   const [tempMemo, setTempMemo] = useState<string>("");
   const [categorySearchTerm, setCategorySearchTerm] = useState<string>("");
+  const [rulesList, setRulesList] = useState<any[]>([]);
+  const [newRuleText, setNewRuleText] = useState<string>("");
+  const [isAddingRule, setIsAddingRule] = useState<boolean>(false);
   const [isUpdatingCardTx, setIsUpdatingCardTx] = useState<boolean>(false);
   const [dbTags, setDbTags] = useState<DbExpenseTag[]>([]);
 
@@ -304,6 +307,89 @@ export default function FinancePage() {
   useEffect(() => {
     setCurrentPage(1);
   }, [activeTab, hometaxSubTab, searchText, invoiceType, startDate, endDate, pageSize, selectedCardCompanyId, selectedCardNumber, selectedCashPurpose, selectedBankId, selectedAccountId]);
+
+  // 🔑 자연어 규칙 목록 조회 API 연동
+  const fetchRulesList = useCallback(async () => {
+    try {
+      const res = await fetch("/api/finance/rules");
+      const data = await res.json();
+      if (data.success) {
+        setRulesList(data.rules || []);
+      }
+    } catch (e) {
+      console.error("Rules fetch failed:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRulesList();
+  }, [fetchRulesList]);
+
+  // 🔑 자연어 규칙 등록 API 연동
+  const handleAddRule = async (text: string) => {
+    if (!text || !text.trim()) return;
+    setIsAddingRule(true);
+    try {
+      const res = await fetch("/api/finance/rules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ naturalText: text })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message);
+        setNewRuleText("");
+        fetchRulesList();
+        fetchFinanceData(); // 자동 분류 결과를 신속히 로컬 리스트에 반영
+      } else {
+        alert(data.error || "규칙 등록에 실패했습니다.");
+      }
+    } catch (e: any) {
+      alert("오류가 발생했습니다: " + e.message);
+    } finally {
+      setIsAddingRule(false);
+    }
+  };
+
+  // 🔑 자연어 규칙 활성화 여부 토글 API 연동
+  const handleToggleRule = async (id: string, isActive: boolean) => {
+    try {
+      const res = await fetch("/api/finance/rules", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, isActive })
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchRulesList();
+        fetchFinanceData(); // 자동 분류 결과를 실시간 목록에 동기화
+      } else {
+        alert(data.error || "규칙 상태 변경 실패");
+      }
+    } catch (e: any) {
+      alert("오류: " + e.message);
+    }
+  };
+
+  // 🔑 자연어 규칙 삭제 API 연동
+  const handleDeleteRule = async (id: string) => {
+    if (!confirm("이 자연어 규칙을 삭제하시겠습니까? 관련하여 자동 정산된 미확정 내역들도 초기화됩니다.")) return;
+    try {
+      const res = await fetch(`/api/finance/rules?id=${id}`, {
+        method: "DELETE"
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchRulesList();
+        fetchFinanceData(); // 동기화 초기화 결과를 로컬에 반영
+      } else {
+        alert(data.error || "규칙 삭제 실패");
+      }
+    } catch (e: any) {
+      alert("오류: " + e.message);
+    }
+  };
+
 
   // 통합 데이터 패치 함수
   const fetchFinanceData = useCallback(async () => {
@@ -1878,6 +1964,95 @@ export default function FinancePage() {
                 )}
               </div>
 
+              {/* ⚡ 자연어 기반 지능형 정산 규칙 설정 (AI Rule Builder Panel) - 최고 관리자 전용 */}
+              {hasAdminAccess && (
+                <div className="bg-linear-to-br from-indigo-50/40 via-purple-50/20 to-amber-50/30 rounded-3xl border border-indigo-100/50 p-5 shadow-2xs mb-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-6 h-6 rounded-lg bg-indigo-500 flex items-center justify-center p-1 shadow-indigo-100 shadow-sm animate-pulse">
+                      <Sparkles className="w-3.5 h-3.5 text-white" />
+                    </div>
+                    <div className="flex flex-col">
+                      <h3 className="font-extrabold text-slate-800 text-xs sm:text-sm">
+                        지능형 자연어 정산 규칙 설정 <span className="text-[10px] text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-md font-bold ml-1">AI Rule Builder</span>
+                      </h3>
+                      <p className="text-[10px] text-slate-400 font-medium">관리자가 자연어로 설정한 지능형 조건에 매핑되는 승인 건을 영구 자동 분류합니다.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col md:flex-row gap-3">
+                    <div className="flex-1 flex flex-col gap-2 bg-white/70 p-3 rounded-2xl border border-indigo-100/30">
+                      <div className="text-[9.5px] font-extrabold text-indigo-500">✨ 새로운 자연어 규칙 기술하기</div>
+                      <textarea
+                        value={newRuleText}
+                        onChange={(e) => setNewRuleText(e.target.value)}
+                        placeholder='예: "BC카드이고 카드번호 뒤 4자리 숫자가 6975이며 사용일이 휴일이 아니고 오전 6시부터 오후 6시 사이에 승인된 20만원이하의 금액으로 차량번호 뒤 4자리 숫자가 1234인 경우에는 차량유지비로 분류해야합니다."'
+                        className="border border-indigo-200 bg-slate-50/50 rounded-xl p-3 text-[11px] font-medium text-slate-700 outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 w-full min-h-[75px] resize-none leading-relaxed placeholder:text-slate-400/80"
+                        disabled={isAddingRule}
+                      />
+                      <div className="flex justify-end gap-1.5 mt-1">
+                        <button
+                          type="button"
+                          onClick={() => setNewRuleText('BC카드이고 카드번호 뒤 4자리 숫자가 6975이며 사용일이 휴일이 아니고 오전 6시부터 오후 6시 사이에 승인된 20만원이하의 금액으로 차량번호 뒤 4자리 숫자가 1234인 경우에는 차량유지비로 분류해야합니다.')}
+                          className="px-2 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-[9.5px] font-bold transition-all active:scale-95 cursor-pointer"
+                        >
+                          💡 차량유지비 룰 예시 입력
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAddRule(newRuleText)}
+                          className="flex items-center gap-1 px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10.5px] font-extrabold transition-all active:scale-95 shadow-md shadow-indigo-100 cursor-pointer disabled:bg-indigo-300"
+                          disabled={isAddingRule || !newRuleText.trim()}
+                        >
+                          {isAddingRule ? "분석 및 실행 중..." : "🚀 규칙 등록 및 즉시 실행"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 등록된 규칙 목록 대시보드 */}
+                    <div className="w-full md:w-[320px] bg-white/70 p-3 rounded-2xl border border-indigo-100/30 flex flex-col gap-2">
+                      <div className="text-[9.5px] font-extrabold text-slate-400">📋 현재 작동 중인 자연어 규칙 ({rulesList.length}개)</div>
+                      <div className="flex flex-col gap-1.5 max-h-[110px] overflow-y-auto pr-1 scrollbar-thin">
+                        {rulesList.map((rule) => (
+                          <div key={rule.id} className="p-2 bg-white rounded-xl border border-slate-100 shadow-3xs flex flex-col gap-1 text-[9.5px]">
+                            <div className="flex items-start justify-between gap-2">
+                              <span className="font-semibold text-slate-700 leading-tight line-clamp-2" title={rule.natural_text}>
+                                {rule.natural_text}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteRule(rule.id)}
+                                className="text-slate-400 hover:text-red-500 font-bold px-1 rounded hover:bg-slate-50 transition-colors cursor-pointer"
+                              >
+                                삭제
+                              </button>
+                            </div>
+                            <div className="flex items-center justify-between border-t border-slate-50 pt-1 mt-1 text-[8.5px]">
+                              <span className="font-extrabold text-indigo-600 bg-indigo-50 px-1 rounded">
+                                👉 {rule.target_category}
+                              </span>
+                              <div className="flex items-center gap-1.5">
+                                <span className={rule.is_active ? "text-emerald-600 font-bold" : "text-slate-400"}>
+                                  {rule.is_active ? "활성" : "정지"}
+                                </span>
+                                <input
+                                  type="checkbox"
+                                  checked={rule.is_active}
+                                  onChange={(e) => handleToggleRule(rule.id, e.target.checked)}
+                                  className="w-3.5 h-3.5 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer accent-indigo-600"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {rulesList.length === 0 && (
+                          <span className="text-[9.5px] text-slate-300 font-light py-6 text-center">등록된 자연어 정산 규칙이 없습니다.</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* 법인 신용 카드 승인 내역 명세서 테이블 */}
               <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
               <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -2102,8 +2277,21 @@ export default function FinancePage() {
                                         setCategorySearchTerm(tx.category || "");
                                       }
                                     }}
-                                    title={hasAdminAccess ? "클릭하여 계정과목 수정" : undefined}
+                                    title={
+                                      tx.applied_rule_id 
+                                        ? `[자동 분류 규칙] ${tx.applied_rule_text}` 
+                                        : (hasAdminAccess ? "클릭하여 계정과목 수정" : undefined)
+                                    }
                                   >
+                                    {tx.applied_rule_id && (
+                                      <span 
+                                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-[8.5px] font-extrabold shadow-sm animate-pulse"
+                                        title={`[자동 분류 규칙] ${tx.applied_rule_text}`}
+                                      >
+                                        <Sparkles className="w-2.5 h-2.5 text-white" />
+                                        자연어 자동분류
+                                      </span>
+                                    )}
                                     <span className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold ${badgeStyle}`}>
                                       {catHier.main}
                                     </span>

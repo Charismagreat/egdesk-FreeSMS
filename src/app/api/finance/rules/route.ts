@@ -1,0 +1,472 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { decodeJwt } from 'jose';
+import { updateRows } from '../../../../../egdesk-helpers';
+
+export const dynamic = 'force-dynamic';
+
+// 📂 SQLite DB 연결 헬퍼 함수
+function getDbInstance() {
+  const Database = require("better-sqlite3");
+  const os = require("os");
+  const path = require("path");
+  const fs = require("fs");
+
+  const homeDir = os.homedir();
+  const appData = process.env.APPDATA || path.join(homeDir, "AppData/Roaming");
+  const paths = [
+    path.join(appData, "EGDesk/database/financehub.db"),
+    path.join(appData, "egdesk/database/financehub.db")
+  ];
+  
+  let targetPath = "";
+  for (const p of paths) {
+    if (fs.existsSync(p)) {
+      targetPath = p;
+      break;
+    }
+  }
+
+  if (!targetPath) {
+    throw new Error("로컬 금융 DB(financehub.db)를 찾을 수 없습니다.");
+  }
+
+  const db = new Database(targetPath);
+  
+  // 트리거 우회
+  try {
+    db.function('notify_change_financehub_changed', { varargs: true }, () => null);
+  } catch (e) {
+    // 트리거 스킵
+  }
+  
+  return db;
+}
+
+// 🧠 지능형 자연어 한글 룰 파서 (Regex & Pattern Extractor)
+function parseNaturalRule(text: string) {
+  const cleanText = text.replace(/\s+/g, " ");
+
+  // 1. 카드사 파싱 (예: "BC카드이고", "삼성카드이고")
+  let cardCompanyName = null;
+  const cardMatch = cleanText.match(/(BC카드|국민카드|삼성카드|신한카드|현대카드|롯데카드)/);
+  if (cardMatch) {
+    cardCompanyName = cardMatch[1];
+  }
+
+  // 2. 카드번호 뒤 4자리 파싱 (예: "카드번호 뒤 4자리 숫자가 6975이며")
+  let cardNumberEnd = null;
+  const numMatch = cleanText.match(/(?:카드번호 뒤\s*4자리|카드번호\s*뒷자리)\s*(?:숫자가|가)?\s*(\d{4})/);
+  if (numMatch) {
+    cardNumberEnd = numMatch[1];
+  }
+
+  // 3. 휴일 여부 파싱 (예: "사용일이 휴일이 아니고", "휴일이 아니고")
+  let isHoliday = null;
+  if (cleanText.includes("휴일이 아니고") || cleanText.includes("평일이고")) {
+    isHoliday = false;
+  } else if (cleanText.includes("휴일이고") || cleanText.includes("주말이고")) {
+    isHoliday = true;
+  }
+
+  // 4. 시간 범위 파싱 (예: "오전 6시부터 오후 6시 사이에")
+  let timeRange = null;
+  const timeMatch = cleanText.match(/(오전|오후)\s*(\d+)시부터\s*(오전|오후)\s*(\d+)시/);
+  if (timeMatch) {
+    let startHour = parseInt(timeMatch[2]);
+    let endHour = parseInt(timeMatch[4]);
+    
+    if (timeMatch[1] === "오후" && startHour < 12) startHour += 12;
+    if (timeMatch[1] === "오전" && startHour === 12) startHour = 0;
+    
+    if (timeMatch[3] === "오후" && endHour < 12) endHour += 12;
+    if (timeMatch[3] === "오전" && endHour === 12) endHour = 0;
+
+    const formatTime = (h: number) => String(h).padStart(2, "0") + ":00";
+    timeRange = {
+      start: formatTime(startHour),
+      end: formatTime(endHour)
+    };
+  }
+
+  // 5. 금액 한도 파싱 (예: "20만원이하의 금액", "50000원이하")
+  let amountMax = null;
+  let amountMin = null;
+  
+  // 만원 단위 파싱
+  const kmatchMax = cleanText.match(/(\d+)\s*만원\s*(이하)/);
+  if (kmatchMax) {
+    amountMax = parseInt(kmatchMax[1]) * 10000;
+  }
+  const kmatchMin = cleanText.match(/(\d+)\s*만원\s*(이상)/);
+  if (kmatchMin) {
+    amountMin = parseInt(kmatchMin[1]) * 10000;
+  }
+  
+  // 원 단위 파싱 fallback
+  if (!amountMax) {
+    const rmatchMax = cleanText.match(/(\d+)\s*원\s*(이하)/);
+    if (rmatchMax) amountMax = parseInt(rmatchMax[1]);
+  }
+  if (!amountMin) {
+    const rmatchMin = cleanText.match(/(\d+)\s*원\s*(이상)/);
+    if (rmatchMin) amountMin = parseInt(rmatchMin[1]);
+  }
+
+  // 6. 비고 차량번호/메모 키워드 파싱 (예: "차량번호 뒤 4자리 숫자가 1234인 경우")
+  let memoContains = null;
+  const memoMatch = cleanText.match(/(?:차량번호 뒤\s*4자리|차량번호\s*뒷자리|지출태그|비고에)\s*(?:숫자가|가)?\s*(\d{4}|[가-힣a-zA-Z0-9]+)/);
+  if (memoMatch) {
+    memoContains = memoMatch[1];
+  } else {
+    // 일반 키워드 추론 매칭 (예: "태그에 'SCM'이 있고")
+    const keywordMatch = cleanText.match(/태그에\s*['"“‘]([가-힣\s\w]+)['"”’]/);
+    if (keywordMatch) {
+      memoContains = keywordMatch[1];
+    }
+  }
+
+  // 7. 결과 계정과목 소분류 파싱 (예: "차량유지비로 분류해야합니다", "접대비로 분류")
+  let targetCategory = "";
+  const catMatch = cleanText.match(/([가-힣\s]+)(?:으)?로\s*(?:분류|정산|지정)/);
+  if (catMatch) {
+    targetCategory = catMatch[1].trim();
+  }
+
+  if (!targetCategory) {
+    throw new Error("자연어 규칙에서 자동 분류할 대상 '계정과목'을 판독해내지 못했습니다. (예: '차량유지비로 분류해야합니다' 구문 필요)");
+  }
+
+  return {
+    cardCompanyName,
+    cardNumberEnd,
+    isHoliday,
+    timeRange,
+    amountMax,
+    amountMin,
+    memoContains,
+    targetCategory
+  };
+}
+
+// 📅 휴일 여부 계산기 (한국 주말 및 기본 공휴일 판독 헬퍼)
+function checkIsHoliday(dateStr: string): boolean {
+  const date = new Date(dateStr);
+  const day = date.getDay();
+  // 0: 일요일, 6: 토요일 -> 주말은 무조건 휴일
+  if (day === 0 || day === 6) return true;
+
+  // 한국 법정 공휴일 기본 사전 매핑 (MM-DD 포맷)
+  const holidayMap = [
+    "01-01", // 신정
+    "03-01", // 삼일절
+    "05-05", // 어린이날
+    "06-06", // 현충일
+    "08-15", // 광복절
+    "10-03", // 개천절
+    "10-09", // 한글날
+    "12-25"  // 성탄절
+  ];
+
+  const monthDay = dateStr.substring(5); // "YYYY-MM-DD" -> "MM-DD"
+  if (holidayMap.includes(monthDay)) return true;
+
+  return false;
+}
+
+// 🕒 시간 범위 판독 헬퍼 (HH:MM:SS format)
+function isTimeInRange(timeStr: string, startStr: string, endStr: string): boolean {
+  if (!timeStr) return false;
+  
+  // "22:33:22" -> "22:33"
+  const cleanTime = timeStr.substring(0, 5); 
+  return cleanTime >= startStr && cleanTime <= endStr;
+}
+
+// 🚀 [RPA 엔진] 활성 규칙들을 스캔하여 해당하는 카드 승인 데이터를 자동 분류 & 대장 동기화 일괄 집행
+async function applyRulesToTransactions(db: any) {
+  // 1. 활성화 상태인 규칙 목록 로드
+  const rules = db.prepare("SELECT * FROM natural_rules WHERE is_active = 1").all();
+  if (rules.length === 0) return 0;
+
+  // 2. 미확정 거래 건 로드 (또는 규칙에 의해 자동 지정된 거래 건 포함)
+  // 수동으로 계정과목을 강제 확정한 건은 건드리지 않고, 비어 있거나 규칙에 의해 기 자동화 처리된 건들을 재판독 대상으로 지정
+  const txs = db.prepare(`
+    SELECT * FROM card_transactions 
+    WHERE category IS NULL 
+       OR category = '' 
+       OR applied_rule_id IS NOT NULL
+  `).all();
+
+  let matchCount = 0;
+
+  for (const tx of txs) {
+    let matchedRule: any = null;
+
+    for (const rule of rules) {
+      const cond = JSON.parse(rule.structured_json);
+
+      // (A) 카드사 조건
+      if (cond.cardCompanyName) {
+        const txCard = tx.cardCompanyName || "";
+        if (!txCard.includes(cond.cardCompanyName)) continue;
+      }
+
+      // (B) 카드번호 뒷자리 조건
+      if (cond.cardNumberEnd) {
+        const txNum = tx.cardNumber || "";
+        const cleanNum = txNum.replace(/[^0-9]/g, "");
+        if (!cleanNum.endsWith(cond.cardNumberEnd)) continue;
+      }
+
+      // (C) 휴일 조건
+      if (cond.isHoliday !== null) {
+        const holidayApplied = checkIsHoliday(tx.date);
+        if (holidayApplied !== cond.isHoliday) continue;
+      }
+
+      // (D) 시간대 조건
+      if (cond.timeRange) {
+        if (!isTimeInRange(tx.time, cond.timeRange.start, cond.timeRange.end)) continue;
+      }
+
+      // (E) 금액 한도 조건
+      if (cond.amountMax !== null && tx.amount > cond.amountMax) continue;
+      if (cond.amountMin !== null && tx.amount < cond.amountMin) continue;
+
+      // (F) 비고(지출 태그) 조건
+      if (cond.memoContains) {
+        const txMemo = tx.memo || "";
+        const txMerchant = tx.merchantName || "";
+        const combined = `${txMemo} ${txMerchant}`;
+        if (!combined.includes(cond.memoContains)) continue;
+      }
+
+      // 모든 조건 충족!
+      matchedRule = rule;
+      break; 
+    }
+
+    // 매칭 결과 반영
+    if (matchedRule) {
+      // DB에 계정과목 자동 갱신 및 룰 마크 마킹!
+      const updateStmt = db.prepare(`
+        UPDATE card_transactions 
+        SET category = ?, applied_rule_id = ?, applied_rule_text = ? 
+        WHERE id = ?
+      `);
+      updateStmt.run(matchedRule.target_category, matchedRule.id, matchedRule.natural_text, tx.id);
+      matchCount++;
+
+      // 지출 대장(crm_expenses) 양방향 RPA 실시간 동기화
+      try {
+        await updateRows('crm_expenses', {
+          category: matchedRule.target_category,
+          memo: tx.memo || ""
+        }, {
+          filters: { id: `exp-card-${tx.id}` }
+        });
+      } catch (err: any) {
+        console.warn(`[Rules Sync Warning] crm_expenses sync failed for card tx ${tx.id}:`, err.message);
+      }
+    } else {
+      // 과거에 룰이 적용되어 자동분류 되었으나, 룰이 정지/삭제되었거나 조건에서 탈락한 건은 롤백
+      if (tx.applied_rule_id) {
+        const rollbackStmt = db.prepare(`
+          UPDATE card_transactions 
+          SET category = '', applied_rule_id = NULL, applied_rule_text = NULL 
+          WHERE id = ?
+        `);
+        rollbackStmt.run(tx.id);
+
+        try {
+          await updateRows('crm_expenses', {
+            category: "",
+            memo: tx.memo || ""
+          }, {
+            filters: { id: `exp-card-${tx.id}` }
+          });
+        } catch (err) {}
+      }
+    }
+  }
+
+  return matchCount;
+}
+
+// ==========================================
+// 🔑 1. GET: 등록된 전체 자연어 규칙 목록 조회
+// ==========================================
+export async function GET() {
+  let db;
+  try {
+    db = getDbInstance();
+    const rules = db.prepare("SELECT * FROM natural_rules ORDER BY created_at DESC").all();
+    db.close();
+    
+    return NextResponse.json({
+      success: true,
+      rules: rules.map((r: any) => ({
+        ...r,
+        is_active: Boolean(r.is_active),
+        structured: JSON.parse(r.structured_json)
+      }))
+    });
+  } catch (error: any) {
+    if (db) db.close();
+    console.error("Rules GET error:", error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+// ==========================================
+// 🔑 2. POST: 자연어 규칙 등록 및 즉시 일괄 분류 기동
+// ==========================================
+export async function POST(request: NextRequest) {
+  let db;
+  try {
+    // 최고 관리자 세션 체크
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth_token')?.value;
+    if (!token) return NextResponse.json({ success: false, error: "인증 세션이 없습니다." }, { status: 401 });
+    
+    const payload = decodeJwt(token);
+    const role = (payload.role as string || '').toUpperCase();
+    if (role !== 'SUPER_ADMIN' && role !== 'PRESIDENT') {
+      return NextResponse.json({ success: false, error: "최고 관리자 권한이 필요합니다." }, { status: 403 });
+    }
+
+    const { naturalText } = await request.json();
+    if (!naturalText || !naturalText.trim()) {
+      return NextResponse.json({ success: false, error: "등록할 자연어 규칙 텍스트가 전달되지 않았습니다." }, { status: 400 });
+    }
+
+    // 💡 자연어 파싱 기동
+    const parsed = parseNaturalRule(naturalText);
+
+    db = getDbInstance();
+    const ruleId = `rule-${Date.now()}`;
+    const createdAt = new Date().toISOString();
+
+    const insertStmt = db.prepare(`
+      INSERT INTO natural_rules (id, natural_text, structured_json, target_category, is_active, created_at)
+      VALUES (?, ?, ?, ?, 1, ?)
+    `);
+    
+    insertStmt.run(
+      ruleId, 
+      naturalText.trim(), 
+      JSON.stringify(parsed), 
+      parsed.targetCategory, 
+      createdAt
+    );
+
+    console.log(`[Rules API] 새 자연어 규칙 등록 성공: ${ruleId}`);
+
+    // ⚡ 즉시 RPA 자동 분류 매칭기 실행!
+    const appliedCount = await applyRulesToTransactions(db);
+    db.close();
+
+    return NextResponse.json({
+      success: true,
+      message: `자연어 규칙이 성공적으로 등록되었습니다! 조건 분석 완료 및 총 ${appliedCount}건의 카드 사용 내역이 자동으로 분류 완료되었습니다.`,
+      rule: {
+        id: ruleId,
+        natural_text: naturalText,
+        target_category: parsed.targetCategory,
+        is_active: true,
+        structured: parsed
+      },
+      appliedCount
+    });
+
+  } catch (error: any) {
+    if (db) db.close();
+    console.error("Rules POST error:", error);
+    return NextResponse.json({ success: false, error: error.message || "자연어 규칙 등록 중 예외가 발생했습니다." }, { status: 500 });
+  }
+}
+
+// ==========================================
+// 🔑 3. PUT: 규칙 활성화 여부(is_active) 토글 및 재배치
+// ==========================================
+export async function PUT(request: NextRequest) {
+  let db;
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth_token')?.value;
+    if (!token) return NextResponse.json({ success: false, error: "인증 세션이 없습니다." }, { status: 401 });
+    
+    const payload = decodeJwt(token);
+    const role = (payload.role as string || '').toUpperCase();
+    if (role !== 'SUPER_ADMIN' && role !== 'PRESIDENT') {
+      return NextResponse.json({ success: false, error: "최고 관리자 권한이 필요합니다." }, { status: 403 });
+    }
+
+    const { id, isActive } = await request.json();
+    if (!id) return NextResponse.json({ success: false, error: "규칙 ID는 필수값입니다." }, { status: 400 });
+
+    db = getDbInstance();
+    const updateStmt = db.prepare("UPDATE natural_rules SET is_active = ? WHERE id = ?");
+    updateStmt.run(isActive ? 1 : 0, id);
+
+    console.log(`[Rules API] 규칙 활성화 여부 변경 완료: ID ${id} -> ${isActive}`);
+
+    // 상태 재적용을 위해 매칭 엔진 기동
+    const appliedCount = await applyRulesToTransactions(db);
+    db.close();
+
+    return NextResponse.json({
+      success: true,
+      message: `규칙 상태가 성공적으로 변경되었습니다. 규칙 재적용 스캔을 통해 총 ${appliedCount}건의 카드 정산이 실시간 업데이트되었습니다.`,
+      appliedCount
+    });
+
+  } catch (error: any) {
+    if (db) db.close();
+    console.error("Rules PUT error:", error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+// ==========================================
+// 🔑 4. DELETE: 규칙 삭제 및 연동 상태 롤백
+// ==========================================
+export async function DELETE(request: NextRequest) {
+  let db;
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth_token')?.value;
+    if (!token) return NextResponse.json({ success: false, error: "인증 세션이 없습니다." }, { status: 401 });
+    
+    const payload = decodeJwt(token);
+    const role = (payload.role as string || '').toUpperCase();
+    if (role !== 'SUPER_ADMIN' && role !== 'PRESIDENT') {
+      return NextResponse.json({ success: false, error: "최고 관리자 권한이 필요합니다." }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) return NextResponse.json({ success: false, error: "삭제할 규칙 ID는 필수값입니다." }, { status: 400 });
+
+    db = getDbInstance();
+    const deleteStmt = db.prepare("DELETE FROM natural_rules WHERE id = ?");
+    deleteStmt.run(id);
+
+    console.log(`[Rules API] 규칙 삭제 성공: ID ${id}`);
+
+    // 지워진 룰의 영향력을 롤백하기 위해 매칭 엔진 재기동
+    const appliedCount = await applyRulesToTransactions(db);
+    db.close();
+
+    return NextResponse.json({
+      success: true,
+      message: "자연어 정산 규칙이 성공적으로 삭제되었으며, 기존에 룰로 지정되었던 미확정 내역들도 안전하게 초기화되었습니다."
+    });
+
+  } catch (error: any) {
+    if (db) db.close();
+    console.error("Rules DELETE error:", error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}

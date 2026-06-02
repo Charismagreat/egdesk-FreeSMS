@@ -86,10 +86,10 @@ export async function PUT(request: NextRequest) {
       console.log('Bypass trigger function register skipped:', triggerErr.message);
     }
     
-    // category와 memo를 card_transactions 테이블에 저장
+    // category와 memo를 card_transactions 테이블에 저장하고, 수동 편집 시에는 자연어 규칙 자동분류 마킹을 해제(NULL)합니다.
     const stmt = db.prepare(`
       UPDATE card_transactions 
-      SET category = ?, memo = ? 
+      SET category = ?, memo = ?, applied_rule_id = NULL, applied_rule_text = NULL 
       WHERE id = ?
     `);
     
