@@ -1960,40 +1960,64 @@ export default function FinancePage() {
                             </td>
                             <td className="p-4">
                               {hasAdminAccess && editingCardTxId === tx.id && editingField === "category" ? (
-                                <div className="flex items-center gap-1">
-                                  <select
-                                    value={tempCategory}
-                                    onChange={(e) => setTempCategory(e.target.value)}
-                                    className="border border-amber-300 bg-amber-50 rounded-lg px-1.5 py-1 text-[11px] font-bold text-slate-700 outline-none focus:ring-1 focus:ring-amber-500"
-                                    autoFocus
-                                  >
-                                    <option value="">계정과목 선택</option>
-                                    {dbCategories.map((c) => {
-                                      const label = `${c.main_category} 〉 ${c.mid_category} 〉 ${c.sub_category}`;
-                                      return (
-                                        <option key={c.id} value={c.sub_category}>
-                                          {label}
-                                        </option>
-                                      );
-                                    })}
-                                  </select>
-                                  <button
-                                    onClick={() => handleUpdateCardTransaction(tx.id, { category: tempCategory })}
-                                    className="px-1.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-bold transition-all"
-                                    disabled={isUpdatingCardTx}
-                                  >
-                                    저장
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setEditingCardTxId(null);
-                                      setEditingField(null);
-                                    }}
-                                    className="px-1.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[10px] font-bold transition-all"
-                                  >
-                                    취소
-                                  </button>
-                                </div>
+                                (() => {
+                                  // 💡 동적 베이지안 확률 추천에 근거해 높은 확률 순서대로 계정과목 정렬
+                                  const recommendations = getDynamicRecommendations(tx.merchantName, tx.memo || "");
+                                  const sortedCategories = [...dbCategories].sort((a, b) => {
+                                    const indexA = recommendations.findIndex(r => r.category === a.sub_category);
+                                    const indexB = recommendations.findIndex(r => r.category === b.sub_category);
+                                    
+                                    if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+                                    if (indexA !== -1) return -1;
+                                    if (indexB !== -1) return 1;
+                                    return 0;
+                                  });
+
+                                  return (
+                                    <div className="flex items-center gap-1">
+                                      <select
+                                        value={tempCategory}
+                                        onChange={(e) => setTempCategory(e.target.value)}
+                                        className="border border-amber-300 bg-amber-50 rounded-lg px-1.5 py-1 text-[11px] font-bold text-slate-700 outline-none focus:ring-1 focus:ring-amber-500 max-w-[280px]"
+                                        autoFocus
+                                      >
+                                        <option value="">계정과목 선택</option>
+                                        {sortedCategories.map((c) => {
+                                          const recItem = recommendations.find(r => r.category === c.sub_category);
+                                          const label = recItem 
+                                            ? `⭐ [추천 ${recItem.percentage}%] ${c.main_category} 〉 ${c.mid_category} 〉 ${c.sub_category}`
+                                            : `${c.main_category} 〉 ${c.mid_category} 〉 ${c.sub_category}`;
+                                          
+                                          return (
+                                            <option 
+                                              key={c.id} 
+                                              value={c.sub_category}
+                                              className={recItem ? "font-extrabold text-amber-600 bg-amber-50/50" : undefined}
+                                            >
+                                              {label}
+                                            </option>
+                                          );
+                                        })}
+                                      </select>
+                                      <button
+                                        onClick={() => handleUpdateCardTransaction(tx.id, { category: tempCategory })}
+                                        className="px-1.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-bold transition-all whitespace-nowrap active:scale-95"
+                                        disabled={isUpdatingCardTx}
+                                      >
+                                        저장
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setEditingCardTxId(null);
+                                          setEditingField(null);
+                                        }}
+                                        className="px-1.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[10px] font-bold transition-all whitespace-nowrap active:scale-95"
+                                      >
+                                        취소
+                                      </button>
+                                    </div>
+                                  );
+                                })()
                               ) : (
                                 <div className="flex flex-col gap-1.5 w-full">
                                   {/* 원래의 계정과목 배지 표시 */}
