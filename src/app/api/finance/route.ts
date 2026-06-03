@@ -72,6 +72,7 @@ function mapTransactionToFrontend(tx: any): any {
     time: tx.transaction_time || tx.transactionTime || tx.time || "",
     description: tx.description || "",
     category: tx.category || "",
+    memo: tx.memo || "",
     type: isDeposit ? "deposit" : "withdrawal",
     amount: Math.floor(isDeposit ? deposit : withdrawal),
     balance: Math.floor(Number(tx.balance || 0)),

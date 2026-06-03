@@ -152,6 +152,7 @@ export default function FinancePage() {
   // 🔑 최고관리자 권한 및 신용카드 거래내역 인라인 편집 상태 선언
   const [userRole, setUserRole] = useState<string>("SUB_OPERATOR");
   const [editingCardTxId, setEditingCardTxId] = useState<string | null>(null);
+  const [editingBankTxId, setEditingBankTxId] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<"category" | "memo" | null>(null);
   const [tempCategory, setTempCategory] = useState<string>("");
   const [tempMemo, setTempMemo] = useState<string>("");
@@ -160,6 +161,7 @@ export default function FinancePage() {
   const [newRuleText, setNewRuleText] = useState<string>("");
   const [isAddingRule, setIsAddingRule] = useState<boolean>(false);
   const [isUpdatingCardTx, setIsUpdatingCardTx] = useState<boolean>(false);
+  const [isUpdatingBankTx, setIsUpdatingBankTx] = useState<boolean>(false);
   const [dbTags, setDbTags] = useState<DbExpenseTag[]>([]);
   
   // ⚡ [경합/충돌 예방] 자연어 규칙 영향 건 실시간 미리보기 및 로딩 상태 변수
@@ -427,7 +429,7 @@ export default function FinancePage() {
     }
     try {
       const XLSX = await import('xlsx');
-      const headers = ["거래일자", "거래시간", "은행명", "계좌번호", "구분(입/출금)", "거래처/적요", "거래금액", "잔액", "계정과목"];
+      const headers = ["거래일자", "거래시간", "은행명", "계좌번호", "구분(입/출금)", "거래처/적요", "거래금액", "잔액", "계정과목", "태그"];
       const aoaData = [headers];
       transactionList.forEach(tx => {
         aoaData.push([
@@ -439,7 +441,8 @@ export default function FinancePage() {
           tx.description || "",
           tx.amount,
           tx.balance || 0,
-          tx.category || "미지정"
+          tx.category || "미지정",
+          tx.memo || ""
         ]);
       });
       const worksheet = XLSX.utils.aoa_to_sheet(aoaData);
@@ -1240,6 +1243,47 @@ export default function FinancePage() {
     }
   };
 
+  // 🔑 은행 거래 내역(계정과목, 비고) 수정 핸들러
+  const handleUpdateBankTransaction = async (txId: string, updates: { category?: string; memo?: string }) => {
+    setIsUpdatingBankTx(true);
+    try {
+      const res = await fetch("/api/finance/bank-transaction", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          id: txId,
+          ...updates
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        // 로컬 상태의 리스트 업데이트
+        setTransactionList((prev) =>
+          prev.map((tx) => {
+            if (tx.id === txId) {
+              return {
+                ...tx,
+                ...updates
+              };
+            }
+            return tx;
+          })
+        );
+        setEditingBankTxId(null);
+        setEditingField(null);
+      } else {
+        alert(data.error || "수정에 실패했습니다.");
+      }
+    } catch (e: any) {
+      console.error("Bank transaction update failed", e);
+      alert("오류가 발생했습니다: " + e.message);
+    } finally {
+      setIsUpdatingBankTx(false);
+    }
+  };
+
   // 💡 비고란의 태그가 '#거래처접대'인 경우 계정과목 자동 적용 리액티브 트리거
   useEffect(() => {
     if (!editingCardTxId || editingField !== "memo") return;
@@ -2008,6 +2052,7 @@ export default function FinancePage() {
                         <th className="p-4 w-36">계좌번호</th>
                         <th className="p-4">적요 / 거래구분</th>
                         <th className="p-4">구분</th>
+                        <th className="p-4 min-w-[120px]">비고 (태그)</th>
                         <th className="p-4 text-right">입금액</th>
                         <th className="p-4 text-right">출금액</th>
                         <th className="p-4 text-right">잔액</th>
@@ -2015,7 +2060,7 @@ export default function FinancePage() {
                     </thead>
                     <tbody>
                       {loading ? (
-                        <TableSkeleton cols={8} rows={5} />
+                        <TableSkeleton cols={9} rows={5} />
                       ) : (
                         transactionList.map((tx) => {
                           const isDeposit = tx.type === "deposit" || tx.type === "입금";
@@ -2062,6 +2107,107 @@ export default function FinancePage() {
                                   )}
                                 </span>
                               </td>
+                              <td className="p-4 max-w-[150px]">
+                                {hasAdminAccess && editingBankTxId === tx.id && editingField === "memo" ? (
+                                  <div className="flex flex-col gap-1.5 p-1 bg-white rounded-2xl border border-slate-100 shadow-lg min-w-[220px]">
+                                    <div className="flex items-center gap-1">
+                                      <input
+                                        type="text"
+                                        value={tempMemo}
+                                        onChange={(e) => setTempMemo(e.target.value)}
+                                        className="border border-amber-300 bg-amber-50 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-700 outline-none focus:ring-1 focus:ring-amber-500 w-full"
+                                        placeholder="쉼표로 태그 구분"
+                                        autoFocus
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter") {
+                                            handleUpdateBankTransaction(tx.id, { memo: tempMemo });
+                                          } else if (e.key === "Escape") {
+                                            setEditingBankTxId(null);
+                                            setEditingField(null);
+                                          }
+                                        }}
+                                      />
+                                      <button
+                                        onClick={() => handleUpdateBankTransaction(tx.id, { memo: tempMemo })}
+                                        className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-bold transition-all active:scale-95 whitespace-nowrap"
+                                        disabled={isUpdatingBankTx}
+                                      >
+                                        저장
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setEditingBankTxId(null);
+                                          setEditingField(null);
+                                        }}
+                                        className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[10px] font-bold transition-all active:scale-95 whitespace-nowrap"
+                                      >
+                                        취소
+                                      </button>
+                                    </div>
+                                    
+                                    {/* 💡 태그 프리셋 가이드 칩 UI */}
+                                    <div className="mt-1 p-2 bg-slate-50/50 rounded-xl border border-slate-100/60">
+                                      <div className="text-[9px] font-extrabold text-slate-400 mb-1.5">사용할 수 있는 태그 목록 (클릭 토글)</div>
+                                      <div className="flex flex-wrap gap-1">
+                                        {dbTags.map((tag) => {
+                                          const isSelected = tempMemo.split(",")
+                                            .map(t => t.trim())
+                                            .filter(Boolean)
+                                            .includes(tag.name);
+                                          return (
+                                            <button
+                                              key={tag.id}
+                                              type="button"
+                                              onClick={() => handleTagToggle(tag.name)}
+                                              className={`px-1.5 py-0.5 rounded-md text-[9.5px] font-bold border transition-all active:scale-95 cursor-pointer ${
+                                                isSelected
+                                                  ? "bg-amber-500 text-white border-amber-500 shadow-3xs"
+                                                  : "bg-white text-slate-500 border-slate-200 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200"
+                                              }`}
+                                            >
+                                              #{tag.name}
+                                            </button>
+                                          );
+                                        })}
+                                        {dbTags.length === 0 && (
+                                          <span className="text-[9px] text-slate-300 font-light">프리셋 태그를 로드할 수 없습니다.</span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div 
+                                    className={`min-h-[28px] flex items-center w-full ${hasAdminAccess ? "cursor-pointer hover:bg-amber-50/50 p-1.5 rounded-xl transition-all group" : ""}`}
+                                    onClick={() => {
+                                      if (hasAdminAccess) {
+                                        setEditingBankTxId(tx.id);
+                                        setEditingField("memo");
+                                        setTempMemo(tx.memo || "");
+                                      }
+                                    }}
+                                    title={hasAdminAccess ? "클릭하여 비고(태그) 수정" : undefined}
+                                  >
+                                    {tx.memo ? (
+                                      <div className="flex flex-wrap gap-1 items-center w-full">
+                                        {tx.memo.split(",").map(t => t.trim()).filter(Boolean).map(tag => (
+                                          <span key={tag} className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 text-[9px] font-bold border border-amber-100/60 shadow-3xs">
+                                            #{tag}
+                                          </span>
+                                        ))}
+                                        {hasAdminAccess && (
+                                          <span className="ml-auto opacity-0 group-hover:opacity-100 text-amber-500 transition-opacity">
+                                            <Edit className="w-3 h-3" />
+                                          </span>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <span className="text-[10px] text-slate-300 font-bold select-none group-hover:text-amber-500 transition-colors">
+                                        -
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
                               <td className={`p-4 text-right font-extrabold ${isDeposit ? "text-emerald-600" : "text-slate-400"}`}>
                                 {isDeposit ? `+ ₩ ${tx.amount?.toLocaleString()}` : "-"}
                               </td>
@@ -2077,7 +2223,7 @@ export default function FinancePage() {
                       )}
                       {!loading && transactionList.length === 0 && (
                         <tr>
-                          <td colSpan={8} className="p-12 text-center text-slate-400 text-xs font-semibold">
+                          <td colSpan={9} className="p-12 text-center text-slate-400 text-xs font-semibold">
                             해당 조회 조건에 맞는 은행 거래 내역이 존재하지 않습니다.
                           </td>
                         </tr>
