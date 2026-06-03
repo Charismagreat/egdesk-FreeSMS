@@ -144,13 +144,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!cardCompanyId) {
-      return NextResponse.json(
-        { success: false, error: "카드사가 선택되지 않았습니다." },
-        { status: 400 }
-      );
-    }
-
     // 1. 엑셀 로딩 및 버퍼 변환
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);

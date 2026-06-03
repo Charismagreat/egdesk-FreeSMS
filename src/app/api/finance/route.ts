@@ -398,88 +398,65 @@ export async function GET(request: NextRequest) {
       let total = 0;
       const cardCompanyId = searchParams.get("cardCompanyId") || undefined;
       const cardNumber = searchParams.get("cardNumber") || undefined;
+      let localQuerySuccess = false;
 
+      // [로컬 DB 실시간 실데이터 최우선 조회] 수동 업로드 등으로 로컬 DB에 실데이터가 적재된 환경이므로 로컬 DB를 최우선 조회합니다.
       try {
-        const cardTx = await queryCardTransactions({
-          startDate,
-          endDate,
-          merchantName: searchText,
-          limit,
-          offset,
-          orderBy: "date",
-          orderDir: "desc"
-        }).catch(() => null);
+        const Database = require("better-sqlite3");
+        const os = require("os");
+        const path = require("path");
+        const fs = require("fs");
 
-        if (cardTx) {
-          const rawList = safeArray(cardTx.transactions || cardTx);
-          cardTxList = rawList.map(mapCardTransactionToFrontend).filter(Boolean);
+        const homeDir = os.homedir();
+        const appData = process.env.APPDATA || path.join(homeDir, "AppData/Roaming");
+        const paths = [
+          path.join(appData, "EGDesk/database/financehub.db"),
+          path.join(appData, "egdesk/database/financehub.db")
+        ];
+        
+        let targetPath = "";
+        for (const p of paths) {
+          if (fs.existsSync(p)) {
+            targetPath = p;
+            break;
+          }
+        }
+        
+        if (targetPath) {
+          const db = new Database(targetPath);
           
+          // 쿼리 파라미터 바인딩 준비
+          let query = `SELECT * FROM card_transactions WHERE 1=1`;
+          const params: any[] = [];
+          
+          if (startDate) {
+            const normalizedStart = startDate.replace(/-/g, ".");
+            query += ` AND (approval_date >= ? OR approval_date >= ?)`;
+            params.push(startDate, normalizedStart);
+          }
+          if (endDate) {
+            const normalizedEnd = endDate.replace(/-/g, ".");
+            query += ` AND (approval_date <= ? OR approval_date <= ?)`;
+            params.push(endDate, normalizedEnd);
+          }
+          if (searchText) {
+            query += ` AND merchant_name LIKE ?`;
+            params.push(`%${searchText}%`);
+          }
           if (cardCompanyId && cardCompanyId !== "all") {
-            cardTxList = cardTxList.filter((tx: any) => tx.cardCompanyId === cardCompanyId);
+            query += ` AND card_company_id = ?`;
+            params.push(cardCompanyId);
           }
           if (cardNumber && cardNumber !== "all") {
-            cardTxList = cardTxList.filter((tx: any) => tx.cardNumber === cardNumber);
-          }
-          total = cardTxList.length;
-        }
-      } catch (e) {}
-
-      // [로컬 DB 실시간 실데이터 폴백] 원격 API 조회 결과가 없거나 부족한 경우 로컬 SQLite DB의 실데이터를 조회하여 대체 및 병합합니다.
-      if (cardTxList.length === 0) {
-        try {
-          const Database = require("better-sqlite3");
-          const os = require("os");
-          const path = require("path");
-          const fs = require("fs");
-
-          const homeDir = os.homedir();
-          const appData = process.env.APPDATA || path.join(homeDir, "AppData/Roaming");
-          const paths = [
-            path.join(appData, "EGDesk/database/financehub.db"),
-            path.join(appData, "egdesk/database/financehub.db")
-          ];
-          
-          let targetPath = "";
-          for (const p of paths) {
-            if (fs.existsSync(p)) {
-              targetPath = p;
-              break;
-            }
+            query += ` AND card_number = ?`;
+            params.push(cardNumber);
           }
           
-          if (targetPath) {
-            const db = new Database(targetPath);
-            
-            // 쿼리 파라미터 바인딩 준비
-            let query = `SELECT * FROM card_transactions WHERE 1=1`;
-            const params: any[] = [];
-            
-            if (startDate) {
-              const normalizedStart = startDate.replace(/-/g, ".");
-              query += ` AND (approval_date >= ? OR approval_date >= ?)`;
-              params.push(startDate, normalizedStart);
-            }
-            if (endDate) {
-              const normalizedEnd = endDate.replace(/-/g, ".");
-              query += ` AND (approval_date <= ? OR approval_date <= ?)`;
-              params.push(endDate, normalizedEnd);
-            }
-            if (searchText) {
-              query += ` AND merchant_name LIKE ?`;
-              params.push(`%${searchText}%`);
-            }
-            if (cardCompanyId && cardCompanyId !== "all") {
-              query += ` AND card_company_id = ?`;
-              params.push(cardCompanyId);
-            }
-            if (cardNumber && cardNumber !== "all") {
-              query += ` AND card_number = ?`;
-              params.push(cardNumber);
-            }
-            
-            // 전체 카운트 구하기
-            const countQuery = query.replace("SELECT *", "SELECT COUNT(*) as cnt");
-            const totalCount = db.prepare(countQuery).get(...params).cnt;
+          // 전체 카운트 구하기
+          const countQuery = query.replace("SELECT *", "SELECT COUNT(*) as cnt");
+          const totalCount = db.prepare(countQuery).get(...params).cnt;
+          
+          if (totalCount > 0) {
             total = totalCount;
 
             // 페이징 및 최신순 정렬 적용
@@ -490,11 +467,38 @@ export async function GET(request: NextRequest) {
             
             // 프론트엔드가 요구하는 포맷으로 표준 매핑 가공
             cardTxList = localCardTxs.map(mapCardTransactionToFrontend).filter(Boolean);
-            
-            db.close();
+            localQuerySuccess = true;
+            console.log(`[Local DB card transactions] 로컬 실데이터 최우선 조회 성공: ${cardTxList.length}건 반환 (총 ${total}건)`);
           }
-        } catch (dbErr: any) {
-          console.warn("⚠️ Local DB card fallback query failed:", dbErr.message);
+          db.close();
+        }
+      } catch (dbErr: any) {
+        console.warn("⚠️ Local DB card transactions primary query failed:", dbErr.message);
+      }
+
+      // 만약 로컬 SQLite DB에 데이터가 없거나 조회에 실패한 경우에만 폴백으로 원격 API 조회를 진행합니다.
+      if (!localQuerySuccess) {
+        console.log("[Remote DB card transactions] 로컬 DB 데이터가 없어 원격 API 조회를 진행합니다.");
+        try {
+          const cardTx = await queryCardTransactions({
+            cardCompanyId: cardCompanyId === "all" ? undefined : cardCompanyId,
+            cardNumber: cardNumber === "all" ? undefined : cardNumber,
+            startDate,
+            endDate,
+            merchantName: searchText,
+            limit,
+            offset,
+            orderBy: "date",
+            orderDir: "desc"
+          }).catch(() => null);
+
+          if (cardTx) {
+            const rawList = safeArray(cardTx.transactions || cardTx);
+            cardTxList = rawList.map(mapCardTransactionToFrontend).filter(Boolean);
+            total = cardTx?.total || cardTxList.length;
+          }
+        } catch (e) {
+          console.error("Remote card transactions query failed:", e);
         }
       }
 
