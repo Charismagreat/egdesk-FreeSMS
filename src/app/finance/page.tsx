@@ -390,155 +390,162 @@ export default function FinancePage() {
     }
   };
 
-  // 📥 영향을 받는 건 미리보기 리스트 CSV 다운로드 헬퍼
-  const downloadPreviewCsv = () => {
+  // 📥 영향을 받는 건 미리보기 리스트 엑셀 다운로드 헬퍼
+  const downloadPreviewExcel = async () => {
     if (previewList.length === 0) return;
-    
-    // CSV 헤더 설정
-    const headers = ["거래일자", "승인시간", "카드사", "카드번호", "가맹점명", "거래금액", "현재 계정과목", "매칭 후 계정과목", "태그(비고)"];
-    
-    // 데이터 행 포맷팅
-    const rows = previewList.map(tx => [
-      tx.date,
-      tx.time,
-      tx.cardCompanyName,
-      `'${tx.cardNumber}`, // 엑셀에서 카드번호 깨짐 방지용 문자형 처리
-      `"${tx.merchantName.replace(/"/g, '""')}"`, // CSV 쉼표/따옴표 이스케이프
-      tx.amount,
-      tx.currentCategory,
-      tx.targetCategory,
-      `"${(tx.memo || "").replace(/"/g, '""')}"`
-    ]);
-    
-    // CSV 문자열 조립 (Excel 한글 깨짐 방지용 UTF-8 BOM 헤더 필수 주입)
-    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-    
-    // 브라우저 로컬 다운로드 유발 기동
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `AI_정산규칙_적용_영향건_미리보기_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const XLSX = await import('xlsx');
+      const headers = ["거래일자", "승인시간", "카드사", "카드번호", "가맹점명", "거래금액", "현재 계정과목", "매칭 후 계정과목", "태그(비고)"];
+      const aoaData = [headers];
+      previewList.forEach(tx => {
+        aoaData.push([
+          tx.date,
+          tx.time || "",
+          tx.cardCompanyName || "",
+          `'${tx.cardNumber || ""}`,
+          tx.merchantName || "",
+          tx.amount,
+          tx.currentCategory || "",
+          tx.targetCategory || "",
+          tx.memo || ""
+        ]);
+      });
+      const worksheet = XLSX.utils.aoa_to_sheet(aoaData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, '영향건_미리보기');
+      XLSX.writeFile(workbook, `AI_정산규칙_적용_영향건_미리보기_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (e: any) {
+      alert("엑셀 파일 생성 중 오류가 발생했습니다: " + e.message);
+    }
   };
 
-  // 📥 [은행거래내역] 엑셀(CSV) 다운로드 헬퍼
-  const downloadAccountsCsv = () => {
+  // 📥 [은행거래내역] 엑셀 다운로드 헬퍼
+  const downloadAccountsExcel = async () => {
     if (transactionList.length === 0) {
       alert("다운로드할 거래 내역 데이터가 없습니다.");
       return;
     }
-    const headers = ["거래일자", "거래시간", "은행명", "계좌번호", "구분(입/출금)", "거래처/적요", "거래금액", "잔액", "계정과목"];
-    const rows = transactionList.map(tx => [
-      tx.date,
-      tx.time || "",
-      tx.bankName || "",
-      `'${tx.accountNumber || ""}`, // 계좌번호 숫자 포맷 깨짐 방지
-      tx.type,
-      `"${(tx.description || "").replace(/"/g, '""')}"`,
-      tx.amount,
-      tx.balance || 0,
-      tx.category || "미지정"
-    ]);
-    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `금융허브_은행거래내역_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const XLSX = await import('xlsx');
+      const headers = ["거래일자", "거래시간", "은행명", "계좌번호", "구분(입/출금)", "거래처/적요", "거래금액", "잔액", "계정과목"];
+      const aoaData = [headers];
+      transactionList.forEach(tx => {
+        aoaData.push([
+          tx.date,
+          tx.time || "",
+          tx.bankName || "",
+          `'${tx.accountNumber || ""}`,
+          tx.type,
+          tx.description || "",
+          tx.amount,
+          tx.balance || 0,
+          tx.category || "미지정"
+        ]);
+      });
+      const worksheet = XLSX.utils.aoa_to_sheet(aoaData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, '은행거래내역');
+      XLSX.writeFile(workbook, `금융허브_은행거래내역_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (e: any) {
+      alert("엑셀 파일 생성 중 오류가 발생했습니다: " + e.message);
+    }
   };
 
-  // 📥 [신용카드거래내역] 엑셀(CSV) 다운로드 헬퍼
-  const downloadCardsCsv = () => {
+  // 📥 [신용카드거래내역] 엑셀 다운로드 헬퍼
+  const downloadCardsExcel = async () => {
     if (cardTxList.length === 0) {
       alert("다운로드할 카드 승인 내역 데이터가 없습니다.");
       return;
     }
-    const headers = ["승인일자", "승인시간", "카드사", "카드번호", "가맹점명", "승인금액", "상태", "계정과목", "승인번호", "메모(태그)"];
-    const rows = cardTxList.map(tx => [
-      tx.date,
-      tx.time || "",
-      tx.cardCompanyName,
-      `'${tx.cardNumber}`, // 카드번호 숫자 포맷 깨짐 방지
-      `"${tx.merchantName.replace(/"/g, '""')}"`,
-      tx.amount,
-      tx.status,
-      tx.category || "미지정",
-      `'${tx.approvalNumber || ""}`, // 승인번호 문자형 강제
-      `"${(tx.memo || "").replace(/"/g, '""')}"`
-    ]);
-    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `금융허브_카드승인내역_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const XLSX = await import('xlsx');
+      const headers = ["승인일자", "승인시간", "카드사", "카드번호", "가맹점명", "승인금액", "상태", "계정과목", "승인번호", "메모(태그)"];
+      const aoaData = [headers];
+      cardTxList.forEach(tx => {
+        aoaData.push([
+          tx.date,
+          tx.time || "",
+          tx.cardCompanyName || "",
+          `'${tx.cardNumber || ""}`,
+          tx.merchantName || "",
+          tx.amount,
+          tx.status || "",
+          tx.category || "미지정",
+          `'${tx.approvalNumber || ""}`,
+          tx.memo || ""
+        ]);
+      });
+      const worksheet = XLSX.utils.aoa_to_sheet(aoaData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, '카드승인내역');
+      XLSX.writeFile(workbook, `금융허브_카드승인내역_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (e: any) {
+      alert("엑셀 파일 생성 중 오류가 발생했습니다: " + e.message);
+    }
   };
 
-  // 📥 [국세청 세금계산서/계산서] 엑셀(CSV) 다운로드 헬퍼
-  const downloadHometaxInvoiceCsv = (isExempt: boolean) => {
+  // 📥 [국세청 세금계산서/계산서] 엑셀 다운로드 헬퍼
+  const downloadHometaxInvoiceExcel = async (isExempt: boolean) => {
     const list = isExempt ? taxExemptList : taxInvoiceList;
     const title = isExempt ? "계산서_면세" : "세금계산서";
     if (list.length === 0) {
       alert(`다운로드할 ${isExempt ? "계산서(면세)" : "세금계산서"} 내역 데이터가 없습니다.`);
       return;
     }
-    const headers = ["발행일자", "공급자", "공급받는자", "공급가액", "세액", "합계금액", "품목명", "구분", "과세구분"];
-    const rows = list.map(tx => [
-      tx.issueDate,
-      `"${tx.supplierName.replace(/"/g, '""')}"`,
-      `"${tx.buyerName.replace(/"/g, '""')}"`,
-      tx.supplyAmount,
-      tx.taxAmount,
-      tx.totalAmount,
-      `"${(tx.itemName || "").replace(/"/g, '""')}"`,
-      tx.invoiceType,
-      tx.taxType || ""
-    ]);
-    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `금융허브_국세청_${title}_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const XLSX = await import('xlsx');
+      const headers = ["발행일자", "공급자", "공급받는자", "공급가액", "세액", "합계금액", "품목명", "구분", "과세구분"];
+      const aoaData = [headers];
+      list.forEach(tx => {
+        aoaData.push([
+          tx.issueDate,
+          tx.supplierName || "",
+          tx.buyerName || "",
+          tx.supplyAmount,
+          tx.taxAmount,
+          tx.totalAmount,
+          tx.itemName || "",
+          tx.invoiceType,
+          tx.taxType || ""
+        ]);
+      });
+      const worksheet = XLSX.utils.aoa_to_sheet(aoaData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, title);
+      XLSX.writeFile(workbook, `금융허브_국세청_${title}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (e: any) {
+      alert("엑셀 파일 생성 중 오류가 발생했습니다: " + e.message);
+    }
   };
 
-  // 📥 [국세청 현금영수증] 엑셀(CSV) 다운로드 헬퍼
-  const downloadHometaxCashCsv = () => {
+  // 📥 [국세청 현금영수증] 엑셀 다운로드 헬퍼
+  const downloadHometaxCashExcel = async () => {
     if (cashReceiptList.length === 0) {
       alert("다운로드할 현금영수증 내역 데이터가 없습니다.");
       return;
     }
-    const headers = ["거래일자", "가맹점명", "공급가액", "세액", "합계금액", "승인번호", "용도"];
-    const rows = cashReceiptList.map(tx => [
-      tx.transactionDate,
-      `"${tx.franchiseName.replace(/"/g, '""')}"`,
-      tx.supplyAmount,
-      tx.taxAmount,
-      tx.totalAmount,
-      `'${tx.approvalNumber}`, // 승인번호 숫자 포맷 깨짐 방지
-      tx.purpose || ""
-    ]);
-    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `금융허브_현금영수증_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const XLSX = await import('xlsx');
+      const headers = ["거래일자", "가맹점명", "공급가액", "세액", "합계금액", "승인번호", "용도"];
+      const aoaData = [headers];
+      cashReceiptList.forEach(tx => {
+        aoaData.push([
+          tx.transactionDate,
+          tx.franchiseName || "",
+          tx.supplyAmount,
+          tx.taxAmount,
+          tx.totalAmount,
+          `'${tx.approvalNumber || ""}`,
+          tx.purpose || ""
+        ]);
+      });
+      const worksheet = XLSX.utils.aoa_to_sheet(aoaData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, '현금영수증');
+      XLSX.writeFile(workbook, `금융허브_현금영수증_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (e: any) {
+      alert("엑셀 파일 생성 중 오류가 발생했습니다: " + e.message);
+    }
   };
 
   // 🔑 자연어 규칙 활성화 여부 토글 API 연동
@@ -1944,7 +1951,7 @@ export default function FinancePage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
-                      onClick={downloadAccountsCsv}
+                      onClick={downloadAccountsExcel}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold transition-all shadow-sm active:scale-95 cursor-pointer mr-2"
                     >
                       <FileSpreadsheet className="w-3.5 h-3.5" />
@@ -2224,10 +2231,10 @@ export default function FinancePage() {
                               {previewList.length > 0 && (
                                 <button
                                   type="button"
-                                  onClick={downloadPreviewCsv}
+                                  onClick={downloadPreviewExcel}
                                   className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-[9px] font-bold transition-all cursor-pointer flex items-center gap-0.5 shadow-sm active:scale-95"
                                 >
-                                  📥 CSV 다운로드
+                                  📥 엑셀 다운로드
                                 </button>
                               )}
                               <button
@@ -2349,7 +2356,7 @@ export default function FinancePage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
-                    onClick={downloadCardsCsv}
+                    onClick={downloadCardsExcel}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold transition-all shadow-sm active:scale-95 cursor-pointer mr-2"
                   >
                     <FileSpreadsheet className="w-3.5 h-3.5" />
@@ -2878,9 +2885,9 @@ export default function FinancePage() {
                       type="button"
                       onClick={() => {
                         if (hometaxSubTab === "cash") {
-                          downloadHometaxCashCsv();
+                          downloadHometaxCashExcel();
                         } else {
-                          downloadHometaxInvoiceCsv(hometaxSubTab === "exempt");
+                          downloadHometaxInvoiceExcel(hometaxSubTab === "exempt");
                         }
                       }}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold transition-all shadow-sm active:scale-95 cursor-pointer mr-2"

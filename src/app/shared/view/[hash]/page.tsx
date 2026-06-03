@@ -122,34 +122,49 @@ export default function ShareViewPage({ params }: ShareViewPageProps) {
     }
   };
 
-  // 💾 엑셀/CSV 한글 로컬 안전 다운로드 유틸 (UTF-8 BOM 추가 깨짐 원천 방지)
-  const handleDownloadCSV = () => {
+  // 💾 엑셀 한글 로컬 안전 다운로드 유틸 (Excel .xlsx 포맷 전환)
+  const handleDownloadExcel = async () => {
     if (!data) return;
-    const headers = data.columnMappings.map(col => col.friendly);
-    const physicals = data.columnMappings.map(col => col.physical);
-    
-    let csvContent = "\uFEFF"; // UTF-8 BOM 추가
-    csvContent += headers.join(",") + "\n";
-    
-    filteredRows.forEach(row => {
-      const line = physicals.map(colName => {
-        let val = row[colName];
-        if (val === null || val === undefined) val = "";
-        // 값 내부에 큰따옴표나 쉼표가 있을 시 이스케이프 래핑
-        const valStr = String(val).replace(/"/g, '""');
-        return valStr.includes(",") || valStr.includes("\n") || valStr.includes('"') ? `"${valStr}"` : valStr;
+    try {
+      const XLSX = await import('xlsx');
+      const headers = data.columnMappings.map(col => col.friendly);
+      const physicals = data.columnMappings.map(col => col.physical);
+      
+      const aoaData = [headers];
+
+      filteredRows.forEach(row => {
+        const rowData = physicals.map(colName => {
+          const val = row[colName];
+          if (val === null || val === undefined) return "";
+          
+          const valStr = String(val);
+          const colNameLower = colName.toLowerCase();
+          
+          // 계좌번호, 카드번호, 승인번호, 전화번호 등 식별성 성격의 컬럼 또는 9자리 이상의 숫자로만 구성된 긴 문자열의 경우 지수 표현식 방지를 위해 접두사 `'` 추가
+          const isIdentifierKey = colNameLower.includes("number") || 
+                                  colNameLower.includes("card") || 
+                                  colNameLower.includes("account") || 
+                                  colNameLower.includes("phone") || 
+                                  colNameLower.includes("tel") || 
+                                  colNameLower.includes("appr") || 
+                                  colNameLower.includes("serial") ||
+                                  colNameLower.includes("id");
+
+          if ((isIdentifierKey && /^\d+$/.test(valStr) && valStr.length > 5) || (/^\d+$/.test(valStr) && valStr.length >= 9)) {
+            return `'${valStr}`;
+          }
+          return val;
+        });
+        aoaData.push(rowData);
       });
-      csvContent += line.join(",") + "\n";
-    });
-    
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `${data.friendlyTableName}_공유_장부.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+
+      const worksheet = XLSX.utils.aoa_to_sheet(aoaData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, data.friendlyTableName ? data.friendlyTableName.substring(0, 31) : 'ShareTable');
+      XLSX.writeFile(workbook, `${data.friendlyTableName || 'table'}_공유_장부_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (e: any) {
+      alert("엑셀 파일 생성 중 오류가 발생했습니다: " + e.message);
+    }
   };
 
   return (
@@ -192,12 +207,12 @@ export default function ShareViewPage({ params }: ShareViewPageProps) {
               
               {data.allowCsvDownload && (
                 <button
-                  onClick={handleDownloadCSV}
+                  onClick={handleDownloadExcel}
                   className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-3xs cursor-pointer border-none transition-colors"
                   title="정제된 내역을 엑셀로 백업"
                 >
                   <Download className="w-4 h-4 text-white" />
-                  엑셀/CSV 다운로드
+                  엑셀 다운로드
                 </button>
               )}
             </div>

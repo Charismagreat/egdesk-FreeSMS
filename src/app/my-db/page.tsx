@@ -1449,35 +1449,52 @@ export default function MyDBManagementPage() {
     }
   };
 
-  // 8. CSV 원클릭 로컬 백업 내보내기 (Export)
-  const handleExportCSV = () => {
+  // 8. 엑셀 원클릭 로컬 백업 내보내기 (Export)
+  const handleExportExcel = async () => {
     if (tableRows.length === 0) {
       showToast("내보낼 데이터가 존재하지 않습니다.", "warn");
       return;
     }
 
     try {
-      const headers = Object.keys(tableRows[0]).join(",");
-      const csvContent = tableRows.map(row => {
-        return Object.values(row).map(val => {
-          if (val === null || val === undefined) return '""';
-          const str = String(val).replace(/"/g, '""');
-          return `"${str}"`;
-        }).join(",");
+      const XLSX = await import('xlsx');
+      const headers = Object.keys(tableRows[0]);
+      const aoaData = [headers];
+
+      tableRows.forEach(row => {
+        const rowData = headers.map(key => {
+          const val = row[key];
+          if (val === null || val === undefined) return "";
+          
+          const valStr = String(val);
+          const keyLower = key.toLowerCase();
+          
+          // 계좌번호, 카드번호, 승인번호, 전화번호 등 식별성 성격의 컬럼 또는 9자리 이상의 숫자로만 구성된 긴 문자열의 경우 지수 표현식 방지를 위해 접두사 `'` 추가
+          const isIdentifierKey = keyLower.includes("number") || 
+                                  keyLower.includes("card") || 
+                                  keyLower.includes("account") || 
+                                  keyLower.includes("phone") || 
+                                  keyLower.includes("tel") || 
+                                  keyLower.includes("appr") || 
+                                  keyLower.includes("serial") ||
+                                  keyLower.includes("id");
+
+          if ((isIdentifierKey && /^\d+$/.test(valStr) && valStr.length > 5) || (/^\d+$/.test(valStr) && valStr.length >= 9)) {
+            return `'${valStr}`;
+          }
+          return val;
+        });
+        aoaData.push(rowData);
       });
 
-      const fullCsv = "\uFEFF" + [headers, ...csvContent].join("\n"); // Excel 한글 깨짐 방지 BOM 추가
-      const blob = new Blob([fullCsv], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", `EGDESK_EXPORT_${selectedTable}_${new Date().toISOString().slice(0,10)}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      showToast("CSV 파일이 로컬로 안전하게 다운로드되었습니다.", "success");
-    } catch (e) {
-      showToast("내보내기 연산 중 오류가 생겼습니다.", "error");
+      const worksheet = XLSX.utils.aoa_to_sheet(aoaData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, selectedTable ? selectedTable.substring(0, 31) : 'DB_Export');
+      XLSX.writeFile(workbook, `EGDESK_EXPORT_${selectedTable || 'data'}_${new Date().toISOString().slice(0,10)}.xlsx`);
+      
+      showToast("엑셀 파일이 로컬로 안전하게 다운로드되었습니다.", "success");
+    } catch (e: any) {
+      showToast("내보내기 연산 중 오류가 생겼습니다: " + e.message, "error");
     }
   };
 
@@ -2510,12 +2527,12 @@ export default function MyDBManagementPage() {
                 {activeTab === 'data' && selectedTable && (
                   <div className="flex items-center gap-2 shrink-0">
                     <button
-                      onClick={handleExportCSV}
+                      onClick={handleExportExcel}
                       className="flex items-center justify-center gap-1.5 px-3 py-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 rounded-xl text-xs font-bold shadow-3xs cursor-pointer transition-colors"
-                      title="CSV 포맷으로 데이터 백업"
+                      title="엑셀 포맷으로 데이터 백업"
                     >
                       <Download className="w-3.5 h-3.5" />
-                      CSV 백업
+                      Excel 백업
                     </button>
                     <button
                       onClick={() => {

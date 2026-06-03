@@ -393,35 +393,52 @@ export default function AIBriefingDashboardPage() {
     }
   };
 
-  // 💾 8. 데이터 CSV 다운로드
-  const handleDownloadCsv = (rows: any[], title: string) => {
+  // 💾 8. 데이터 Excel 다운로드
+  const handleDownloadExcel = async (rows: any[], title: string) => {
     if (!rows || rows.length === 0) {
       showToast("내보낼 차트 데이터가 존재하지 않습니다.", "warn");
       return;
     }
 
     try {
-      const headers = Object.keys(rows[0]).join(",");
-      const csvContent = rows.map(row => {
-        return Object.values(row).map(val => {
-          if (val === null || val === undefined) return '""';
-          const str = String(val).replace(/"/g, '""');
-          return `"${str}"`;
-        }).join(",");
+      const XLSX = await import('xlsx');
+      const headers = Object.keys(rows[0]);
+      const aoaData = [headers];
+
+      rows.forEach(row => {
+        const rowData = headers.map(key => {
+          const val = row[key];
+          if (val === null || val === undefined) return "";
+          
+          const valStr = String(val);
+          const keyLower = key.toLowerCase();
+          
+          // 계좌번호, 카드번호, 승인번호, 전화번호 등 식별성 성격의 컬럼 또는 9자리 이상의 숫자로만 구성된 긴 문자열의 경우 지수 표현식 방지를 위해 접두사 `'` 추가
+          const isIdentifierKey = keyLower.includes("number") || 
+                                  keyLower.includes("card") || 
+                                  keyLower.includes("account") || 
+                                  keyLower.includes("phone") || 
+                                  keyLower.includes("tel") || 
+                                  keyLower.includes("appr") || 
+                                  keyLower.includes("serial") ||
+                                  keyLower.includes("id");
+
+          if ((isIdentifierKey && /^\d+$/.test(valStr) && valStr.length > 5) || (/^\d+$/.test(valStr) && valStr.length >= 9)) {
+            return `'${valStr}`;
+          }
+          return val;
+        });
+        aoaData.push(rowData);
       });
 
-      const fullCsv = "\uFEFF" + [headers, ...csvContent].join("\n"); // BOM 주입
-      const blob = new Blob([fullCsv], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", `${title.replace(/\s+/g, "_")}_비식별데이터.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      showToast("✓ 차트 연동 원본 데이터가 CSV 파일로 다운로드되었습니다.", "success");
-    } catch (e) {
-      showToast("CSV 생성 실패", "error");
+      const worksheet = XLSX.utils.aoa_to_sheet(aoaData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'ChartData');
+      XLSX.writeFile(workbook, `${title.replace(/\s+/g, "_")}_비식별데이터_${new Date().toISOString().slice(0,10)}.xlsx`);
+
+      showToast("✓ 차트 연동 원본 데이터가 엑셀 파일로 다운로드되었습니다.", "success");
+    } catch (e: any) {
+      showToast("엑셀 생성 실패: " + e.message, "error");
     }
   };
 
@@ -778,12 +795,12 @@ export default function AIBriefingDashboardPage() {
 
                             <div className="w-px h-4 bg-slate-200 mx-1" />
 
-                            {/* 5. CSV 다운 */}
+                            {/* 5. Excel 다운 */}
                             <button
-                              onClick={() => handleDownloadCsv(sampleRows, board.custom_title || board.title)}
+                              onClick={() => handleDownloadExcel(sampleRows, board.custom_title || board.title)}
                               disabled={sampleRows.length === 0}
                               className="p-2 bg-transparent hover:bg-slate-100 text-emerald-600 rounded-xl transition-all active:scale-95 disabled:opacity-30 flex items-center justify-center cursor-pointer"
-                              title="원본 데이터 CSV 다운로드"
+                              title="원본 데이터 Excel 다운로드"
                             >
                               <FileText className="w-3.5 h-3.5 shrink-0" />
                             </button>
@@ -901,12 +918,12 @@ export default function AIBriefingDashboardPage() {
 
                         <div className="w-px h-4 bg-slate-200 mx-1.5" />
 
-                        {/* 5. CSV 다운 */}
+                        {/* 5. Excel 다운 */}
                         <button
-                          onClick={() => handleDownloadCsv(sampleRows, board.custom_title || board.title)}
+                          onClick={() => handleDownloadExcel(sampleRows, board.custom_title || board.title)}
                           disabled={sampleRows.length === 0}
                           className="p-2 bg-transparent hover:bg-slate-100 text-emerald-600 rounded-xl transition-all active:scale-95 disabled:opacity-30 flex items-center justify-center cursor-pointer"
-                          title="원본 데이터 CSV 다운로드"
+                          title="원본 데이터 Excel 다운로드"
                         >
                           <FileText className="w-3.5 h-3.5 shrink-0" />
                         </button>
