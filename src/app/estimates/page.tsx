@@ -2265,7 +2265,7 @@ export default function EstimatesDashboard() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 overflow-y-auto pr-1">
                 
                 {/* 좌측: 견적 요약 및 상세 품목 테이블 (탭 분할 적용) */}
-                <div className="space-y-4 flex flex-col h-[750px]">
+                <div className="space-y-4 flex flex-col h-[680px]">
                   {/* 세련된 디자인의 두 탭 헤더 */}
                   <div className="flex bg-slate-100/80 p-1 rounded-2xl shrink-0">
                     <button
@@ -2520,7 +2520,7 @@ export default function EstimatesDashboard() {
                       </div>
                     
                     {isEditingDetail ? (
-                      <div className="space-y-3 max-h-[550px] overflow-y-auto pr-1">
+                      <div className="space-y-3 max-h-[480px] overflow-y-auto pr-1">
                         {editForm.items.map((item, idx) => (
                           <div key={idx} className="p-3.5 bg-slate-50/60 border border-slate-100 rounded-2xl space-y-2.5 animate-fade-in relative">
                             {/* 첫 번째 행: 품목명 전체 너비 입력 */}
@@ -2592,7 +2592,7 @@ export default function EstimatesDashboard() {
                       </div>
                     ) : (
                       /* 조회 전용 일반 깔끔 테이블 */
-                      <div className="border border-slate-100 rounded-2xl overflow-hidden max-h-[550px] overflow-y-auto">
+                      <div className="border border-slate-100 rounded-2xl overflow-hidden max-h-[480px] overflow-y-auto">
                         <table className="w-full text-left text-xs font-semibold">
                           <thead>
                             <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 text-[10px]">
@@ -2621,17 +2621,33 @@ export default function EstimatesDashboard() {
             </div>
           </div>
 
-                {/* 우측: 원본 파일 열람 및 미리보기 (A4 문서 비율에 부합하도록 h-[750px]로 넉넉하게 확보, overflow-hidden으로 꽉 채움, bg-transparent 투명 처리) */}
-                <div className="flex flex-col border border-slate-100 rounded-3xl bg-transparent relative h-[750px] shrink-0 overflow-hidden">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mt-5 ml-5 mb-3">첨부 원본 견적서 파일</span>
+                {/* 우측: 원본 파일 미리보기 (전체 높이 h-[680px] 최적화, 스크롤바 제거, 상단에 버튼 배치) */}
+                <div className="flex flex-col border border-slate-100 rounded-3xl bg-transparent relative h-[680px] shrink-0 overflow-hidden">
+                  <div className="flex justify-between items-center mt-4 mx-5 mb-3 shrink-0">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">첨부 원본 견적서 파일</span>
+                    {(() => {
+                      const targetFileUrl = detailData?.estimate?.file_url || detailData?.estimate?.business_license_url;
+                      return targetFileUrl ? (
+                        <button
+                          type="button"
+                          onClick={() => window.open(pdfBlobUrl || targetFileUrl, '_blank')}
+                          className="py-1.5 px-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[10px] rounded-lg flex items-center gap-1 transition-all shadow-sm shrink-0"
+                          title="새 창에서 원본 파일 열람 및 인쇄"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
+                          새 창 열람/인쇄
+                        </button>
+                      ) : null;
+                    })()}
+                  </div>
 
                   {(() => {
                     const targetFileUrl = detailData.estimate.file_url || detailData.estimate.business_license_url;
                     return targetFileUrl ? (
                       <div className="flex-1 flex flex-col justify-between h-full">
-                        {/* 이미지 파일 미리보기 지원 (p-0으로 꽉 채움, A4 최적 높이 h-[600px]로 확장, bg-transparent) */}
+                        {/* 이미지 파일 미리보기 지원 (p-0으로 꽉 채움, A4 최적 높이 h-[620px]로 확장, bg-transparent) */}
                         {/\.(jpg|jpeg|png|webp|heic|gif)$/i.test(targetFileUrl) || targetFileUrl.startsWith('data:image/') ? (
-                          <div className="flex-1 bg-transparent overflow-hidden flex items-center justify-center relative group h-[600px] p-0">
+                          <div className="flex-1 bg-transparent overflow-hidden flex items-center justify-center relative group h-[620px] p-0">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img 
                               src={targetFileUrl} 
@@ -2640,7 +2656,7 @@ export default function EstimatesDashboard() {
                             />
                           </div>
                         ) : (targetFileUrl.startsWith("data:application/pdf") || targetFileUrl.toLowerCase().endsWith(".pdf")) ? (
-                          <div className="flex-1 bg-transparent overflow-hidden relative group h-[600px] p-0">
+                          <div className="flex-1 bg-transparent overflow-hidden relative group h-[620px] p-0">
                             {pdfBlobUrl ? (
                               <iframe 
                                 src={`${pdfBlobUrl}#view=FitH`} 
@@ -2655,22 +2671,13 @@ export default function EstimatesDashboard() {
                             )}
                           </div>
                         ) : (
-                          <div className="flex-1 bg-transparent flex flex-col items-center justify-center p-6 text-center h-[600px]">
+                          <div className="flex-1 bg-transparent flex flex-col items-center justify-center p-6 text-center h-[620px]">
                             <FileText className="w-12 h-12 text-slate-300 mb-2" />
                             <span className="text-xs font-bold text-slate-700">문서 파일 형식 (PDF/기타)</span>
                             <span className="text-[10px] text-slate-400 mt-1 max-w-[200px] truncate block">{targetFileUrl}</span>
                           </div>
                         )}
 
-                        <div className="p-5 bg-transparent shrink-0 border-t border-slate-100">
-                          <button
-                            onClick={() => window.open(pdfBlobUrl || targetFileUrl, '_blank')}
-                            className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md shrink-0"
-                          >
-                            <ExternalLink className="w-4 h-4 text-amber-400" />
-                            새 창에서 원본 파일 열람 및 인쇄
-                          </button>
-                        </div>
                       </div>
                     ) : (
                       <div className="flex-1 flex flex-col items-center justify-center border-t border-slate-200/65 border-dashed bg-white p-6 text-center h-full">
