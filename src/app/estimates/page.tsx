@@ -446,14 +446,14 @@ export default function EstimatesDashboard() {
             className={`flex-1 py-3 px-6 rounded-xl text-xs md:text-sm font-black flex items-center justify-center transition-all ${activeTab === "inbound" ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:text-slate-800"}`}
           >
             <ShoppingCart className="w-4 h-4 mr-2" />
-            Inbound Hub (받기/발주)
+            받은 견적/발주
           </button>
           <button 
             onClick={() => setActiveTab("outbound")}
             className={`flex-1 py-3 px-6 rounded-xl text-xs md:text-sm font-black flex items-center justify-center transition-all ${activeTab === "outbound" ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:text-slate-800"}`}
           >
             <Send className="w-4 h-4 mr-2" />
-            Outbound Hub (보내기/수주)
+            보낸 견적/수주
           </button>
         </div>
       </div>
