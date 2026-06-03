@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from "react";
 import { 
   FileText, Sparkles, ArrowRightLeft, Plus, Minus, Check, Send, Phone, Clipboard, 
-  ShoppingCart, Upload, Eye, CheckCircle2, ChevronRight, RefreshCw, X, Box, Info
+  ShoppingCart, Upload, Eye, CheckCircle2, ChevronRight, RefreshCw, X, Box, Info,
+  ShieldAlert, ExternalLink
 } from "lucide-react";
 
 // 타입 선언
