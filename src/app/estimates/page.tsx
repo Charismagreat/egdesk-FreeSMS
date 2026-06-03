@@ -1365,7 +1365,7 @@ export default function EstimatesDashboard() {
                             {po.status === 'PENDING_INBOUND' ? '입고대기' : '입고완료'}
                           </span>
                         </td>
-                        <td className="py-3.5 px-2 text-slate-500 font-medium">{po.created_at.substring(0, 16)}</td>
+                        <td className="py-3.5 px-2 text-slate-500 font-medium">{po.created_at?.substring(0, 16) || '-'}</td>
                         <td className="py-3.5 px-2 text-right">
                           <div className="flex items-center justify-end gap-2">
                             <button

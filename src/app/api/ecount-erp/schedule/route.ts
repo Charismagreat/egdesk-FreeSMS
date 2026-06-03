@@ -117,7 +117,7 @@ export async function POST(request: Request) {
       }, { status: 400 });
     }
 
-    const nowStr = new Date().toISOString();
+    const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
 
     if (action === 'CREATE') {
       if (!scriptFile || !scriptTitle || !targetTable || !periodPreset || !runTime) {
@@ -237,17 +237,19 @@ function calculateNextRun(preset: string, time: string, weekDays?: string, month
   const targetTime = new Date();
   targetTime.setHours(hour || 0, min || 0, 0, 0);
 
+  const toKstString = (d: Date) => new Date(d.getTime() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+
   if (preset === 'hour') {
     // 1시간 후
     const result = new Date(now.getTime() + 60 * 60 * 1000);
-    return result.toISOString();
+    return toKstString(result);
   }
 
   if (preset === 'daily') {
     if (targetTime.getTime() <= now.getTime()) {
       targetTime.setDate(targetTime.getDate() + 1);
     }
-    return targetTime.toISOString();
+    return toKstString(targetTime);
   }
 
   if (preset === 'weekly') {
@@ -262,11 +264,11 @@ function calculateNextRun(preset: string, time: string, weekDays?: string, month
       const mappedDay = dayOfWeek === 0 ? 7 : dayOfWeek; // 1=월, ..., 7=일 변환
       
       if (allowedDays.includes(mappedDay) && nextRun.getTime() > now.getTime()) {
-        return nextRun.toISOString();
+        return toKstString(nextRun);
       }
       nextRun.setDate(nextRun.getDate() + 1);
     }
-    return new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    return toKstString(new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000));
   }
 
   if (preset === 'monthly') {
@@ -277,8 +279,8 @@ function calculateNextRun(preset: string, time: string, weekDays?: string, month
     if (targetTime.getTime() <= now.getTime()) {
       targetTime.setMonth(targetTime.getMonth() + 1);
     }
-    return targetTime.toISOString();
+    return toKstString(targetTime);
   }
 
-  return new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+  return toKstString(new Date(now.getTime() + 24 * 60 * 60 * 1000));
 }

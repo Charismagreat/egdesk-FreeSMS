@@ -77,7 +77,7 @@ export async function POST(req: Request) {
           name: name,
           phone: phone,
           tags: '엑셀업로드',
-          created_at: new Date().toISOString()
+          created_at: new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19)
         });
       }
     }

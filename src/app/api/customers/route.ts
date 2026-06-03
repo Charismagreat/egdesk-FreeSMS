@@ -31,7 +31,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Name and phone are required' }, { status: 400 });
     }
     
-    const now = new Date().toISOString();
+    const now = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
     
     const id = Math.floor(Math.random() * 1000000); // Simple ID generation
     

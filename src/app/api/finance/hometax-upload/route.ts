@@ -552,7 +552,7 @@ export async function POST(request: NextRequest) {
     // D. 홈택스 동기화 역사 테이블 기록 (hometax_sync_operations)
     // ==========================================
     try {
-      const nowStr = new Date().toISOString().replace("T", " ").substring(0, 19);
+      const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace("T", " ").substring(0, 19);
       const logStmt = db.prepare(`
         INSERT INTO hometax_sync_operations (
           business_number, status, start_date, end_date,

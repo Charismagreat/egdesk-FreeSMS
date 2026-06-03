@@ -117,7 +117,7 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
                 prompt_tokens: promptTokens,
                 completion_tokens: completionTokens,
                 total_tokens: totalTokens,
-                created_at: new Date().toISOString()
+                created_at: new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19)
               }]);
             }
           } catch (logErr: any) {
@@ -196,7 +196,7 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
           prompt_tokens: 1200,
           completion_tokens: 450,
           total_tokens: 1650,
-          created_at: new Date().toISOString()
+          created_at: new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19)
         }]);
       } catch (logErr: any) {
         console.error('Mock License OCR token logging failed:', logErr.message);
@@ -255,7 +255,7 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
           prompt_tokens: 1200,
           completion_tokens: 450,
           total_tokens: 1650,
-          created_at: new Date().toISOString()
+          created_at: new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19)
         }]);
       } catch (logErr: any) {
         console.error('Mock Estimate OCR token logging failed:', logErr.message);

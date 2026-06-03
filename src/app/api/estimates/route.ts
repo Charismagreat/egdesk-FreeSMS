@@ -120,7 +120,7 @@ export async function POST(req: Request) {
 
       if (!existingPartner) {
         const partnerId = `PT-${Date.now()}`;
-        const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+        const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
         await insertRows('crm_partners', [{
           id: partnerId,
           type: 'BUYER', // 모바일에서 견적을 요청해온 구매처는 B2B 바이어(BUYER)로 등록
@@ -161,7 +161,7 @@ export async function POST(req: Request) {
 
     // 2. 견적서 고유 식별 마스터 ID 생성
     const estimateId = `EST-${Date.now()}`;
-    const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
 
     // 3. crm_estimates 마스터 테이블 삽입
     await insertRows('crm_estimates', [{
@@ -227,7 +227,7 @@ export async function PUT(req: Request) {
       return NextResponse.json({ success: false, error: '견적 번호가 누락되었습니다.' }, { status: 400 });
     }
 
-    const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
     const masterUpdates: any = {
       updated_at: nowStr
     };

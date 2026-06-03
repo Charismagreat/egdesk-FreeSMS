@@ -43,7 +43,7 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { action, estimateId, orderId, checkedItems = [], partner_name, partner_phone, total_amount } = body;
 
-    const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
 
     // ────────────────────────────────────────────────────────
     // 1. 받은 견적서 ➡️ 발주서 자동 전환

@@ -558,7 +558,7 @@ export default function EcountErpAiPage() {
                           </div>
                         </td>
                         <td className="py-3 px-3 text-[10px] font-bold text-slate-655">
-                          {sched.is_active === 1 ? new Date(sched.next_run_at).toLocaleString('ko-KR', {
+                          {sched.is_active === 1 && sched.next_run_at ? new Date(sched.next_run_at).toLocaleString('ko-KR', {
                             month: 'numeric',
                             day: 'numeric',
                             hour: '2-digit',

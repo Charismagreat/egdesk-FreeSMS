@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     }
 
     let insertedCount = 0;
-    const now = new Date().toISOString();
+    const now = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
 
     for (const d of deliveries) {
       const customerName = d.customerName?.trim();

@@ -78,7 +78,7 @@ export async function POST(req: Request) {
         min_order_amount: Number(min_order_amount) || 0,
         status: status || 'active',
         expires_at: expires_at || null,
-        created_at: new Date().toISOString()
+        created_at: new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19)
       });
     }
 
@@ -98,7 +98,7 @@ export async function POST(req: Request) {
             restriction_type: res.restriction_type,
             target_type: res.target_type,
             target_value: String(res.target_value).trim(),
-            created_at: new Date().toISOString()
+            created_at: new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19)
           });
         }
       }
