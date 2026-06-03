@@ -2221,6 +2221,18 @@ export default function FinancePage() {
                                           <span className="text-[9px] text-slate-300 font-light">프리셋 태그를 로드할 수 없습니다.</span>
                                         )}
                                       </div>
+                                      {hasAdminAccess && (
+                                        <div className="mt-2 pt-1.5 border-t border-slate-100/60 flex justify-end">
+                                          <a
+                                            href="/expenses"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-[9px] font-black text-amber-600 hover:text-amber-700 hover:underline flex items-center gap-0.5 animate-pulse"
+                                          >
+                                            ⚙️ 태그 관리 바로가기
+                                          </a>
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
                                 ) : (
@@ -2911,6 +2923,18 @@ export default function FinancePage() {
                                         <span className="text-[9px] text-slate-300 font-light">프리셋 태그를 로드할 수 없습니다.</span>
                                       )}
                                     </div>
+                                    {hasAdminAccess && (
+                                      <div className="mt-2 pt-1.5 border-t border-slate-100/60 flex justify-end">
+                                        <a
+                                          href="/expenses"
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-[9px] font-black text-amber-600 hover:text-amber-700 hover:underline flex items-center gap-0.5 animate-pulse"
+                                        >
+                                          ⚙️ 태그 관리 바로가기
+                                        </a>
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               ) : (
@@ -3233,6 +3257,18 @@ export default function FinancePage() {
                                               <span className="text-[9px] text-slate-300 font-light">프리셋 태그를 로드할 수 없습니다.</span>
                                             )}
                                           </div>
+                                          {hasAdminAccess && (
+                                            <div className="mt-2 pt-1.5 border-t border-slate-100/60 flex justify-end">
+                                              <a
+                                                href="/expenses"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-[9px] font-black text-amber-600 hover:text-amber-700 hover:underline flex items-center gap-0.5 animate-pulse"
+                                              >
+                                                ⚙️ 태그 관리 바로가기
+                                              </a>
+                                            </div>
+                                          )}
                                         </div>
                                       </div>
                                     ) : (
@@ -3388,6 +3424,18 @@ export default function FinancePage() {
                                             <span className="text-[9px] text-slate-300 font-light">프리셋 태그를 로드할 수 없습니다.</span>
                                           )}
                                         </div>
+                                        {hasAdminAccess && (
+                                          <div className="mt-2 pt-1.5 border-t border-slate-100/60 flex justify-end">
+                                            <a
+                                              href="/expenses"
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="text-[9px] font-black text-amber-600 hover:text-amber-700 hover:underline flex items-center gap-0.5 animate-pulse"
+                                            >
+                                              ⚙️ 태그 관리 바로가기
+                                            </a>
+                                          </div>
+                                        )}
                                       </div>
                                     </div>
                                   ) : (
