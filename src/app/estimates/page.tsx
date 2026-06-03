@@ -2520,7 +2520,7 @@ export default function EstimatesDashboard() {
                       </div>
                     
                     {isEditingDetail ? (
-                      <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+                      <div className="space-y-3 max-h-[580px] overflow-y-auto pr-1">
                         {editForm.items.map((item, idx) => (
                           <div key={idx} className="p-3.5 bg-slate-50/60 border border-slate-100 rounded-2xl space-y-2.5 animate-fade-in relative">
                             {/* 첫 번째 행: 품목명 전체 너비 입력 */}
@@ -2592,7 +2592,7 @@ export default function EstimatesDashboard() {
                       </div>
                     ) : (
                       /* 조회 전용 일반 깔끔 테이블 */
-                      <div className="border border-slate-100 rounded-2xl overflow-hidden">
+                      <div className="border border-slate-100 rounded-2xl overflow-hidden max-h-[580px] overflow-y-auto">
                         <table className="w-full text-left text-xs font-semibold">
                           <thead>
                             <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 text-[10px]">
