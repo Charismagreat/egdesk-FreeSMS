@@ -2315,7 +2315,7 @@ export default function FinancePage() {
                 )}
               </div>
 
-              {/* ⚡ 자연어 기반 지능형 정산 규칙 설정 (AI Rule Builder Panel) - 최고 관리자 전용 */}
+              {/* ⚡ 계정과목 AI Rule Builder - 최고 관리자 전용 */}
               {hasAdminAccess && (
                 <div className="bg-linear-to-br from-indigo-50/40 via-purple-50/20 to-amber-50/30 rounded-3xl border border-indigo-100/50 p-5 shadow-2xs mb-6">
                   <div className="flex items-center gap-2 mb-3">
@@ -2324,7 +2324,7 @@ export default function FinancePage() {
                     </div>
                     <div className="flex flex-col">
                       <h3 className="font-extrabold text-slate-800 text-xs sm:text-sm">
-                        지능형 자연어 정산 규칙 설정 <span className="text-[10px] text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-md font-bold ml-1">AI Rule Builder</span>
+                        계정과목 <span className="text-[10px] text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-md font-bold ml-1">AI Rule Builder</span>
                       </h3>
                       <p className="text-[10px] text-slate-400 font-medium">관리자가 자연어로 설정한 지능형 조건에 매핑되는 승인 건을 영구 자동 분류합니다.</p>
                     </div>
