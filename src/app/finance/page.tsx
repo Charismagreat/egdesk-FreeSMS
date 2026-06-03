@@ -1011,7 +1011,7 @@ export default function FinancePage() {
       .catch((e) => console.error("계정과목 로드 에러:", e));
   }, []);
 
-  // 📂 지출 태그 프리셋 실시간 로드
+  // 📂 태그 프리셋 실시간 로드
   useEffect(() => {
     fetch("/api/expenses/tags")
       .then((res) => res.json())
@@ -1020,10 +1020,10 @@ export default function FinancePage() {
           setDbTags(json.tags || []);
         }
       })
-      .catch((e) => console.error("지출 태그 로드 에러:", e));
+      .catch((e) => console.error("태그 로드 에러:", e));
   }, []);
 
-  // 🔑 지출 태그 토글(인라인 조합) 헬퍼 핸들러
+  // 🔑 태그 토글(인라인 조합) 헬퍼 핸들러
   const handleTagToggle = (tagName: string) => {
     const currentTags = tempMemo.split(",")
       .map(t => t.trim())
@@ -1069,7 +1069,7 @@ export default function FinancePage() {
     count: number;        // 빈도수
   }
 
-  // 🧠 가맹점명 + 지출 태그(비고)의 다차원 결합 확률 사전 실시간 빌드
+  // 🧠 가맹점명 + 태그(비고)의 다차원 결합 확률 사전 실시간 빌드
   const jointProbabilityMap = useMemo(() => {
     const map: Record<string, Record<string, { count: number; category: string; tags: string[] }>> = {};
     
@@ -1168,7 +1168,7 @@ export default function FinancePage() {
     const scoredCandidates = candidates.map((c) => {
       let finalWeight = c.baseWeight;
       
-      // 현재 입력된 지출 태그 맥락과의 정밀 교차 검증
+      // 현재 입력된 태그 맥락과의 정밀 교차 검증
       if (currentTags.length > 0 && c.tags.length > 0) {
         const intersection = c.tags.filter(t => currentTags.includes(t));
         if (intersection.length > 0) {
@@ -2404,7 +2404,7 @@ export default function FinancePage() {
                       <th className="p-4 w-44">카드사 / 카드번호</th>
                       <th className="p-4 min-w-[180px]">계정과목 (대 〉 중 〉 소)</th>
                       <th className="p-4">가맹점명</th>
-                      <th className="p-4 min-w-[120px]">비고 (지출 태그)</th>
+                      <th className="p-4 min-w-[120px]">비고 (태그)</th>
                       <th className="p-4 text-right w-28">사용금액</th>
                       <th className="p-4 w-20">승인상태</th>
                       <th className="p-4 text-center w-24">영수증</th>
@@ -2689,7 +2689,7 @@ export default function FinancePage() {
                                     </button>
                                   </div>
                                   
-                                  {/* 💡 지출 태그 프리셋 가이드 칩 UI */}
+                                  {/* 💡 태그 프리셋 가이드 칩 UI */}
                                   <div className="mt-1 p-2 bg-slate-50/50 rounded-xl border border-slate-100/60">
                                     <div className="text-[9px] font-extrabold text-slate-400 mb-1.5">사용할 수 있는 태그 목록 (클릭 토글)</div>
                                     <div className="flex flex-wrap gap-1">
@@ -2729,7 +2729,7 @@ export default function FinancePage() {
                                       setTempMemo(tx.memo || "");
                                     }
                                   }}
-                                  title={hasAdminAccess ? "클릭하여 비고(지출 태그) 수정" : undefined}
+                                  title={hasAdminAccess ? "클릭하여 비고(태그) 수정" : undefined}
                                 >
                                   {tx.memo ? (
                                     <div className="flex flex-wrap gap-1 items-center w-full">

@@ -115,7 +115,7 @@ function parseNaturalRule(text: string) {
 
   // 6. 비고 차량번호/메모 키워드 파싱 (예: "차량번호 뒤 4자리 숫자가 1234인 경우")
   let memoContains = null;
-  const memoMatch = cleanText.match(/(?:차량번호 뒤\s*4자리|차량번호\s*뒷자리|지출태그|비고에)\s*(?:숫자가|가)?\s*(\d{4}|[가-힣a-zA-Z0-9]+)/);
+  const memoMatch = cleanText.match(/(?:차량번호 뒤\s*4자리|차량번호\s*뒷자리|지출태그|태그|비고에)\s*(?:숫자가|가)?\s*(\d{4}|[가-힣a-zA-Z0-9]+)/);
   if (memoMatch) {
     memoContains = memoMatch[1];
   } else {
