@@ -18,6 +18,26 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: true, estimates });
     }
 
+    // 특정 견적서 상세 조회 (마스터 정보 및 세부 품목 일괄 조회)
+    if (action === 'detail') {
+      const estimateId = searchParams.get('estimateId');
+      if (!estimateId) {
+        return NextResponse.json({ success: false, error: '견적 번호가 누락되었습니다.' }, { status: 400 });
+      }
+
+      const estRes = await queryTable('crm_estimates', { filters: { id: estimateId } });
+      const estimate = estRes.rows && estRes.rows.length > 0 ? estRes.rows[0] : null;
+
+      if (!estimate) {
+        return NextResponse.json({ success: false, error: '해당 견적 내역을 찾을 수 없습니다.' }, { status: 404 });
+      }
+
+      const itemsRes = await queryTable('crm_estimate_items', { filters: { estimate_id: estimateId } });
+      const items = itemsRes.rows || [];
+
+      return NextResponse.json({ success: true, estimate, items });
+    }
+
     // 기본값: 모바일용 견적 상품 목록 조회
     // 💡 SQL Query 헬퍼를 활용하여 견적가 플래그가 켜진 상품만 확실히 색출!
     const query = `SELECT * FROM products WHERE is_estimate_price = 1`;

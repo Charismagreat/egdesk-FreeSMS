@@ -79,6 +79,12 @@ export default function EstimatesDashboard() {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [selectedPartnerId, setSelectedPartnerId] = useState("direct");
 
+  // 견적 상세 조회 모달 상태
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [selectedEstimateId, setSelectedEstimateId] = useState<string | null>(null);
+  const [detailData, setDetailData] = useState<any | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
   // 신규 수동/OCR 입력 모달 상태 (받은 견적서 등록)
   const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
   const [ocrFilename, setOcrFilename] = useState("");
@@ -129,6 +135,29 @@ export default function EstimatesDashboard() {
   ]);
   const [pricingLoading, setPricingLoading] = useState(false);
   const [pricingResult, setPricingResult] = useState<any>(null);
+
+  // 견적서 상세 정보 조회 핸들러
+  const handleOpenDetailModal = async (estimateId: string) => {
+    setSelectedEstimateId(estimateId);
+    setDetailLoading(true);
+    setIsDetailModalOpen(true);
+    setDetailData(null);
+    try {
+      const res = await fetch(`/api/estimates?action=detail&estimateId=${estimateId}`);
+      const data = await res.json();
+      if (data.success) {
+        setDetailData(data);
+      } else {
+        alert(data.error || "견적 상세 정보를 불러오지 못했습니다.");
+        setIsDetailModalOpen(false);
+      }
+    } catch (err) {
+      alert("견적 상세 조회 중 네트워크 오류가 발생했습니다.");
+      setIsDetailModalOpen(false);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -856,7 +885,14 @@ export default function EstimatesDashboard() {
                               className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                             />
                           </td>
-                          <td className="py-3.5 px-2 font-mono text-slate-700">{est.id}</td>
+                          <td className="py-3.5 px-2 font-mono text-slate-700">
+                            <button
+                              onClick={() => handleOpenDetailModal(est.id)}
+                              className="text-indigo-600 hover:underline cursor-pointer font-bold text-left"
+                            >
+                              {est.id}
+                            </button>
+                          </td>
                           <td className="py-3.5 px-2">
                             <span className="font-bold text-slate-800 block">{est.partner_name}</span>
                             <span className="text-[10px] text-slate-400 block mt-0.5">{est.partner_phone}</span>
@@ -889,16 +925,24 @@ export default function EstimatesDashboard() {
                             </span>
                           </td>
                           <td className="py-3.5 px-2 text-right">
-                            {est.direction_status === 'REQUESTED' ? (
+                            <div className="flex items-center justify-end gap-2">
                               <button
-                                onClick={() => handleConvertToPo(est)}
-                                className="px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg text-[10px] font-black flex items-center gap-0.5 ml-auto"
+                                onClick={() => handleOpenDetailModal(est.id)}
+                                className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-black flex items-center gap-1"
                               >
-                                발주서 전환 <ChevronRight className="w-3 h-3" />
+                                <Eye className="w-3.5 h-3.5" /> 상세
                               </button>
-                            ) : (
-                              <span className="text-slate-400 text-[10px]">전환완료</span>
-                            )}
+                              {est.direction_status === 'REQUESTED' ? (
+                                <button
+                                  onClick={() => handleConvertToPo(est)}
+                                  className="px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg text-[10px] font-black flex items-center gap-0.5"
+                                >
+                                  발주서 전환 <ChevronRight className="w-3 h-3" />
+                                </button>
+                              ) : (
+                                <span className="text-slate-400 text-[10px]">전환완료</span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -954,22 +998,14 @@ export default function EstimatesDashboard() {
                     filteredInboundPOs.map(po => (
                       <tr key={po.id} className="border-b border-slate-50 hover:bg-slate-50/50">
                         <td className="py-3.5 px-2">
-                          <input
-                            type="checkbox"
-                            checked={selectedInboundIds.has(po.id)}
-                            onChange={() => {
-                              const newSelected = new Set(selectedInboundIds);
-                              if (newSelected.has(po.id)) {
-                                newSelected.delete(po.id);
-                              } else {
-                                newSelected.add(po.id);
-                              }
-                              setSelectedInboundIds(newSelected);
-                            }}
-                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                          />
+                          <span className="font-mono text-slate-700 block">{po.id}</span>
+                          <button
+                            onClick={() => handleOpenDetailModal(po.estimate_id)}
+                            className="text-indigo-500 hover:underline text-[9px] font-bold block mt-0.5 text-left"
+                          >
+                            견적: {po.estimate_id} 🔗
+                          </button>
                         </td>
-                        <td className="py-3.5 px-2 font-mono text-slate-700">{po.id}</td>
                         <td className="py-3.5 px-2">
                           <span className="font-bold text-slate-800 block">{po.vendor_name}</span>
                           <span className="text-[10px] text-slate-400 block mt-0.5">{po.vendor_phone}</span>
@@ -982,19 +1018,26 @@ export default function EstimatesDashboard() {
                         </td>
                         <td className="py-3.5 px-2 text-slate-500 font-medium">{po.created_at.substring(0, 16)}</td>
                         <td className="py-3.5 px-2 text-right">
-                          {po.status === 'PENDING_INBOUND' ? (
+                          <div className="flex items-center justify-end gap-2">
                             <button
-                              onClick={() => openInspectModal(po)}
-                              className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold rounded-lg flex items-center gap-1 shadow-md shadow-slate-900/10 ml-auto"
+                              onClick={() => handleOpenDetailModal(po.estimate_id)}
+                              className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-black flex items-center gap-1"
                             >
-                              <Eye className="w-3.5 h-3.5" />
-                              실물 입고 검수
+                              <Eye className="w-3.5 h-3.5" /> 견적상세
                             </button>
-                          ) : (
-                            <span className="text-xs text-emerald-500 font-bold flex items-center gap-0.5 justify-end">
-                              <CheckCircle2 className="w-3.5 h-3.5" /> 완료 ({po.completed_at?.substring(11,16)})
-                            </span>
-                          )}
+                            {po.status === 'PENDING_INBOUND' ? (
+                              <button
+                                onClick={() => openInspectModal(po)}
+                                className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold rounded-lg flex items-center gap-1 shadow-md shadow-slate-900/10"
+                              >
+                                실물 입고 검수
+                              </button>
+                            ) : (
+                              <span className="text-xs text-emerald-500 font-bold flex items-center gap-0.5">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> 완료 ({po.completed_at?.substring(11,16)})
+                              </span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -1169,7 +1212,14 @@ export default function EstimatesDashboard() {
                             className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                           />
                         </td>
-                        <td className="py-3.5 px-2 font-mono text-slate-700">{est.id}</td>
+                        <td className="py-3.5 px-2 font-mono text-slate-700">
+                          <button
+                            onClick={() => handleOpenDetailModal(est.id)}
+                            className="text-indigo-600 hover:underline cursor-pointer font-bold text-left"
+                          >
+                            {est.id}
+                          </button>
+                        </td>
                         <td className="py-3.5 px-2">
                           <span className="font-bold text-slate-800 block">{est.partner_name}</span>
                           <span className="text-[10px] text-slate-400 block mt-0.5">{est.partner_phone}</span>
@@ -1184,16 +1234,24 @@ export default function EstimatesDashboard() {
                           {est.file_url || 'AI 맞춤 레터 포함'}
                         </td>
                         <td className="py-3.5 px-2 text-right">
-                          {est.direction_status === 'SENT' ? (
+                          <div className="flex items-center justify-end gap-2">
                             <button
-                              onClick={() => handleConvertToSo(est)}
-                              className="px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg text-[10px] font-black flex items-center gap-0.5 ml-auto"
+                              onClick={() => handleOpenDetailModal(est.id)}
+                              className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-black flex items-center gap-1"
                             >
-                              수주 전환 <ChevronRight className="w-3 h-3" />
+                              <Eye className="w-3.5 h-3.5" /> 상세
                             </button>
-                          ) : (
-                            <span className="text-slate-400 text-[10px]">수주완료</span>
-                          )}
+                            {est.direction_status === 'SENT' ? (
+                              <button
+                                onClick={() => handleConvertToSo(est)}
+                                className="px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg text-[10px] font-black flex items-center gap-0.5"
+                              >
+                                수주 전환 <ChevronRight className="w-3 h-3" />
+                              </button>
+                            ) : (
+                              <span className="text-slate-400 text-[10px]">수주완료</span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -1263,7 +1321,15 @@ export default function EstimatesDashboard() {
                             className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                           />
                         </td>
-                        <td className="py-3.5 px-2 font-mono text-slate-700">{so.id}</td>
+                        <td className="py-3.5 px-2">
+                          <span className="font-mono text-slate-700 block">{so.id}</span>
+                          <button
+                            onClick={() => handleOpenDetailModal(so.estimate_id)}
+                            className="text-indigo-500 hover:underline text-[9px] font-bold block mt-0.5 text-left"
+                          >
+                            견적: {so.estimate_id} 🔗
+                          </button>
+                        </td>
                         <td className="py-3.5 px-2">
                           <span className="font-bold text-slate-800 block">{so.customer_name}</span>
                           <span className="text-[10px] text-slate-400 block mt-0.5">{so.customer_phone}</span>
@@ -1276,18 +1342,26 @@ export default function EstimatesDashboard() {
                         </td>
                         <td className="py-3.5 px-2 text-slate-500 font-medium">{so.created_at.substring(0, 16)}</td>
                         <td className="py-3.5 px-2 text-right">
-                          {so.status === 'REGISTERED' ? (
+                          <div className="flex items-center justify-end gap-2">
                             <button
-                              onClick={() => handleConfirmSalesOrder(so)}
-                              className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold rounded-lg flex items-center gap-1 shadow-md ml-auto"
+                              onClick={() => handleOpenDetailModal(so.estimate_id)}
+                              className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-black flex items-center gap-1"
                             >
-                              수주확인서 발송
+                              <Eye className="w-3.5 h-3.5" /> 견적상세
                             </button>
-                          ) : (
-                            <span className="text-xs text-emerald-600 font-bold flex items-center gap-0.5 justify-end">
-                              <CheckCircle2 className="w-3.5 h-3.5" /> 수주 확인 메일 완료
-                            </span>
-                          )}
+                            {so.status === 'REGISTERED' ? (
+                              <button
+                                onClick={() => handleConfirmSalesOrder(so)}
+                                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold rounded-lg flex items-center gap-1 shadow-md"
+                              >
+                                수주확인서 발송
+                              </button>
+                            ) : (
+                              <span className="text-xs text-emerald-600 font-bold flex items-center gap-0.5">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> 수주 확인 메일 완료
+                              </span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -1674,6 +1748,162 @@ export default function EstimatesDashboard() {
                 className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl disabled:opacity-50"
               >
                 AI 맞춤 견적서 발송 승인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ──────────────────────────────────────────────────────── */}
+      {/* 모달 4: 견적서 상세 정보 및 원본 파일 열람 */}
+      {/* ──────────────────────────────────────────────────────── */}
+      {isDetailModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[32px] max-w-4xl w-full p-6 md:p-8 shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh] animate-scale-up">
+            <button 
+              onClick={() => {
+                setIsDetailModalOpen(false);
+                setDetailData(null);
+              }} 
+              className="absolute top-5 right-5 p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <h3 className="text-lg font-black text-slate-800 flex items-center gap-2 mb-4">
+              <FileText className="w-5 h-5 text-indigo-500" />
+              <span>견적서 상세 내역 및 원본 파일 조회</span>
+            </h3>
+
+            {detailLoading ? (
+              <div className="flex flex-col items-center justify-center py-20 gap-3">
+                <RefreshCw className="w-8 h-8 text-indigo-500 animate-spin" />
+                <span className="text-xs text-slate-500 font-bold animate-pulse">DB에서 견적서 및 연동 품목들을 정밀하게 로딩 중...</span>
+              </div>
+            ) : detailData ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 overflow-y-auto pr-1">
+                
+                {/* 좌측: 견적 요약 및 상세 품목 테이블 */}
+                <div className="space-y-5">
+                  <div className="bg-slate-50 p-4.5 rounded-2xl border border-slate-100 space-y-3">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">견적 마스터 정보</span>
+                    <div className="grid grid-cols-2 gap-y-2.5 text-xs">
+                      <div>
+                        <span className="text-slate-400 font-bold block">견적 번호</span>
+                        <span className="text-slate-800 font-black font-mono">{detailData.estimate.id}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-bold block">작성 일자</span>
+                        <span className="text-slate-800 font-bold">{detailData.estimate.created_at}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-bold block">거래처/고객명</span>
+                        <span className="text-slate-800 font-bold">{detailData.estimate.partner_name}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-bold block">연락처</span>
+                        <span className="text-slate-800 font-bold">{detailData.estimate.partner_phone}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-bold block">견적 유형</span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-black inline-block border ${detailData.estimate.type === 'INBOUND' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
+                          {detailData.estimate.type === 'INBOUND' ? '수신 (INBOUND)' : '발송 (OUTBOUND)'}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-bold block">AI 판독 구분</span>
+                        <span className="text-slate-800 font-bold">{detailData.estimate.ai_parsed ? '🧠 Gemini AI OCR' : '✍️ 수동 등록'}</span>
+                      </div>
+                    </div>
+
+                    <div className="border-t border-slate-200/60 pt-3 flex justify-between items-center">
+                      <span className="text-xs font-black text-slate-600">최종 견적 합계액</span>
+                      <span className="text-base font-extrabold text-indigo-600">{(detailData.estimate.total_amount || 0).toLocaleString()}원</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">견적 품목 명세 ({detailData.items.length}건)</span>
+                    <div className="border border-slate-100 rounded-2xl overflow-hidden">
+                      <table className="w-full text-left text-xs font-semibold">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 text-[10px]">
+                            <th className="py-2.5 px-3">품목명</th>
+                            <th className="py-2.5 px-2 text-center">수량</th>
+                            <th className="py-2.5 px-2 text-right">단가</th>
+                            <th className="py-2.5 px-3 text-right">공급가액</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {detailData.items.map((item: any, idx: number) => (
+                            <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/40">
+                              <td className="py-3 px-3 text-slate-800 font-bold">{item.product_name}</td>
+                              <td className="py-3 px-2 text-center text-slate-600 font-bold">{item.quantity}개</td>
+                              <td className="py-3 px-2 text-right text-slate-500 font-medium">{(item.unit_price || 0).toLocaleString()}원</td>
+                              <td className="py-3 px-3 text-right text-indigo-600 font-bold">{((item.quantity || 0) * (item.unit_price || 0)).toLocaleString()}원</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 우측: 원본 파일 열람 및 미리보기 */}
+                <div className="flex flex-col border border-slate-100 rounded-3xl p-5 bg-slate-50 relative min-h-[300px]">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">첨부 원본 견적서 파일</span>
+
+                  {detailData.estimate.file_url ? (
+                    <div className="flex-1 flex flex-col justify-between space-y-4">
+                      {/* 이미지 파일 미리보기 지원 */}
+                      {/\.(jpg|jpeg|png|webp|heic|gif)$/i.test(detailData.estimate.file_url) || detailData.estimate.file_url.startsWith('data:image/') ? (
+                        <div className="flex-1 border border-slate-200 rounded-2xl bg-white overflow-hidden flex items-center justify-center p-2 min-h-[220px] max-h-[300px] shadow-sm relative group">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img 
+                            src={detailData.estimate.file_url} 
+                            alt="견적서 원본" 
+                            className="max-w-full max-h-full object-contain rounded-xl"
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex-1 border border-slate-200 rounded-2xl bg-white flex flex-col items-center justify-center p-6 text-center shadow-sm">
+                          <FileText className="w-12 h-12 text-slate-300 mb-2" />
+                          <span className="text-xs font-bold text-slate-700">문서 파일 형식 (PDF/기타)</span>
+                          <span className="text-[10px] text-slate-400 mt-1 max-w-[200px] truncate block">{detailData.estimate.file_url}</span>
+                        </div>
+                      )}
+
+                      <button
+                        onClick={() => window.open(detailData.estimate.file_url, '_blank')}
+                        className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md"
+                      >
+                        <ExternalLink className="w-4 h-4 text-amber-400" />
+                        새 창에서 원본 파일 열람 및 인쇄
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex-1 flex flex-col items-center justify-center border border-slate-200 border-dashed rounded-2xl bg-white p-6 text-center">
+                      <ShieldAlert className="w-10 h-10 text-slate-300 mb-2" />
+                      <span className="text-xs font-bold text-slate-600">등록된 첨부 원본 파일이 없습니다.</span>
+                      <span className="text-[10px] text-slate-400 mt-1">수동으로 등록하였거나 업로드 파일이 생략된 견적서입니다.</span>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            ) : (
+              <div className="py-20 text-center text-slate-400">데이터가 없습니다.</div>
+            )}
+
+            <div className="mt-6 border-t border-slate-100 pt-4 flex justify-end">
+              <button 
+                onClick={() => {
+                  setIsDetailModalOpen(false);
+                  setDetailData(null);
+                }} 
+                className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs shadow-md"
+              >
+                확인 완료
               </button>
             </div>
           </div>
