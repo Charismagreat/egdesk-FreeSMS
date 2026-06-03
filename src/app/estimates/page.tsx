@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { 
-  FileText, Sparkles, ArrowRightLeft, Plus, Check, Send, Phone, Clipboard, 
+  FileText, Sparkles, ArrowRightLeft, Plus, Minus, Check, Send, Phone, Clipboard, 
   ShoppingCart, Upload, Eye, CheckCircle2, ChevronRight, RefreshCw, X, Box, Info
 } from "lucide-react";
 
