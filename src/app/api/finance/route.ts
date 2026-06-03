@@ -134,7 +134,8 @@ function mapTaxInvoiceToFrontend(inv: any): any {
     totalAmount: Math.floor(Number(inv.합계금액 || inv.totalAmount || 0)),
     itemName: inv.품목명 || inv.itemName || "",
     invoiceType: inv.invoice_type || inv.invoiceType || (isSales ? "sales" : "purchase"),
-    partnerBusinessNumber: partnerBusinessNo
+    partnerBusinessNumber: partnerBusinessNo,
+    memo: inv.memo || ""
   };
 }
 
@@ -149,7 +150,8 @@ function mapCashReceiptToFrontend(rcpt: any): any {
     supplyAmount: Math.floor(Number(rcpt.공급가액 || rcpt.supplyAmount || 0)),
     taxAmount: Math.floor(Number(rcpt.부가세 || rcpt.taxAmount || 0)),
     totalAmount: Math.floor(Number(rcpt.총금액 || rcpt.totalAmount || 0)),
-    purpose: rcpt.용도구분 || rcpt.purpose || ""
+    purpose: rcpt.용도구분 || rcpt.purpose || "",
+    memo: rcpt.memo || ""
   };
 }
 

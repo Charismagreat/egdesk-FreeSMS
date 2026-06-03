@@ -153,6 +153,7 @@ export default function FinancePage() {
   const [userRole, setUserRole] = useState<string>("SUB_OPERATOR");
   const [editingCardTxId, setEditingCardTxId] = useState<string | null>(null);
   const [editingBankTxId, setEditingBankTxId] = useState<string | null>(null);
+  const [editingHometaxTxId, setEditingHometaxTxId] = useState<string | null>(null);
   const [editingField, setEditingField] = useState<"category" | "memo" | null>(null);
   const [tempCategory, setTempCategory] = useState<string>("");
   const [tempMemo, setTempMemo] = useState<string>("");
@@ -162,6 +163,7 @@ export default function FinancePage() {
   const [isAddingRule, setIsAddingRule] = useState<boolean>(false);
   const [isUpdatingCardTx, setIsUpdatingCardTx] = useState<boolean>(false);
   const [isUpdatingBankTx, setIsUpdatingBankTx] = useState<boolean>(false);
+  const [isUpdatingHometaxTx, setIsUpdatingHometaxTx] = useState<boolean>(false);
   const [dbTags, setDbTags] = useState<DbExpenseTag[]>([]);
   
   // ⚡ [경합/충돌 예방] 자연어 규칙 영향 건 실시간 미리보기 및 로딩 상태 변수
@@ -497,7 +499,7 @@ export default function FinancePage() {
     }
     try {
       const XLSX = await import('xlsx');
-      const headers = ["발행일자", "공급자", "공급받는자", "공급가액", "세액", "합계금액", "품목명", "구분", "과세구분"];
+      const headers = ["발행일자", "공급자", "공급받는자", "공급가액", "세액", "합계금액", "품목명", "구분", "과세구분", "비고 (태그)"];
       const aoaData = [headers];
       list.forEach(tx => {
         aoaData.push([
@@ -509,7 +511,8 @@ export default function FinancePage() {
           tx.totalAmount,
           tx.itemName || "",
           tx.invoiceType,
-          tx.taxType || ""
+          tx.taxType || "",
+          tx.memo || ""
         ]);
       });
       const worksheet = XLSX.utils.aoa_to_sheet(aoaData);
@@ -529,7 +532,7 @@ export default function FinancePage() {
     }
     try {
       const XLSX = await import('xlsx');
-      const headers = ["거래일자", "가맹점명", "공급가액", "세액", "합계금액", "승인번호", "용도"];
+      const headers = ["거래일자", "가맹점명", "공급가액", "세액", "합계금액", "승인번호", "용도", "비고 (태그)"];
       const aoaData = [headers];
       cashReceiptList.forEach(tx => {
         aoaData.push([
@@ -539,7 +542,8 @@ export default function FinancePage() {
           tx.taxAmount,
           tx.totalAmount,
           `'${tx.approvalNumber || ""}`,
-          tx.purpose || ""
+          tx.purpose || "",
+          tx.memo || ""
         ]);
       });
       const worksheet = XLSX.utils.aoa_to_sheet(aoaData);
@@ -1281,6 +1285,50 @@ export default function FinancePage() {
       alert("오류가 발생했습니다: " + e.message);
     } finally {
       setIsUpdatingBankTx(false);
+    }
+  };
+
+  // 🔑 국세청 거래 내역(비고/태그) 수정 핸들러
+  const handleUpdateHometaxTransaction = async (txId: string, type: "invoice" | "exempt" | "cash", updates: { memo?: string }) => {
+    setIsUpdatingHometaxTx(true);
+    try {
+      const res = await fetch("/api/finance/hometax-transaction", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          id: txId,
+          type,
+          ...updates
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        // 로컬 상태의 리스트 업데이트
+        if (type === "invoice") {
+          setTaxInvoiceList((prev) =>
+            prev.map((tx) => (tx.id === txId ? { ...tx, ...updates } : tx))
+          );
+        } else if (type === "exempt") {
+          setTaxExemptList((prev) =>
+            prev.map((tx) => (tx.id === txId ? { ...tx, ...updates } : tx))
+          );
+        } else if (type === "cash") {
+          setCashReceiptList((prev) =>
+            prev.map((tx) => (tx.id === txId ? { ...tx, ...updates } : tx))
+          );
+        }
+        setEditingHometaxTxId(null);
+        setEditingField(null);
+      } else {
+        alert(data.error || "수정에 실패했습니다.");
+      }
+    } catch (e: any) {
+      console.error("Hometax transaction update failed", e);
+      alert("오류가 발생했습니다: " + e.message);
+    } finally {
+      setIsUpdatingHometaxTx(false);
     }
   };
 
@@ -3086,12 +3134,13 @@ export default function FinancePage() {
                             <th className="p-4">품목명</th>
                             <th className="p-4 text-right">공급가액</th>
                             <th className="p-4 text-right">부가세</th>
+                            <th className="p-4 min-w-[120px]">비고 (태그)</th>
                             <th className="p-4 text-right">합계금액</th>
                           </tr>
                         </thead>
                         <tbody>
                           {loading ? (
-                            <TableSkeleton cols={7} rows={5} />
+                            <TableSkeleton cols={8} rows={5} />
                           ) : (
                             (hometaxSubTab === "invoice" ? taxInvoiceList : taxExemptList).map((inv) => {
                               const isSales = inv.invoiceType === "sales" || inv.invoiceType === "매출";
@@ -3124,6 +3173,107 @@ export default function FinancePage() {
                                   <td className="p-4 text-right font-semibold text-slate-400">
                                     ₩ {inv.taxAmount?.toLocaleString()}
                                   </td>
+                                  <td className="p-4 max-w-[150px]">
+                                    {hasAdminAccess && editingHometaxTxId === inv.id && editingField === "memo" ? (
+                                      <div className="flex flex-col gap-1.5 p-1 bg-white rounded-2xl border border-slate-100 shadow-lg min-w-[220px]">
+                                        <div className="flex items-center gap-1">
+                                          <input
+                                            type="text"
+                                            value={tempMemo}
+                                            onChange={(e) => setTempMemo(e.target.value)}
+                                            className="border border-amber-300 bg-amber-50 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-700 outline-none focus:ring-1 focus:ring-amber-500 w-full"
+                                            placeholder="쉼표로 태그 구분"
+                                            autoFocus
+                                            onKeyDown={(e) => {
+                                              if (e.key === "Enter") {
+                                                handleUpdateHometaxTransaction(inv.id, hometaxSubTab === "invoice" ? "invoice" : "exempt", { memo: tempMemo });
+                                              } else if (e.key === "Escape") {
+                                                setEditingHometaxTxId(null);
+                                                setEditingField(null);
+                                              }
+                                            }}
+                                          />
+                                          <button
+                                            onClick={() => handleUpdateHometaxTransaction(inv.id, hometaxSubTab === "invoice" ? "invoice" : "exempt", { memo: tempMemo })}
+                                            className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-bold transition-all active:scale-95 whitespace-nowrap"
+                                            disabled={isUpdatingHometaxTx}
+                                          >
+                                            저장
+                                          </button>
+                                          <button
+                                            onClick={() => {
+                                              setEditingHometaxTxId(null);
+                                              setEditingField(null);
+                                            }}
+                                            className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[10px] font-bold transition-all active:scale-95 whitespace-nowrap"
+                                          >
+                                            취소
+                                          </button>
+                                        </div>
+                                        
+                                        {/* 💡 태그 프리셋 가이드 칩 UI */}
+                                        <div className="mt-1 p-2 bg-slate-50/50 rounded-xl border border-slate-100/60">
+                                          <div className="text-[9px] font-extrabold text-slate-400 mb-1.5">사용할 수 있는 태그 목록 (클릭 토글)</div>
+                                          <div className="flex flex-wrap gap-1">
+                                            {dbTags.map((tag) => {
+                                              const isSelected = tempMemo.split(",")
+                                                .map(t => t.trim())
+                                                .filter(Boolean)
+                                                .includes(tag.name);
+                                              return (
+                                                <button
+                                                  key={tag.id}
+                                                  type="button"
+                                                  onClick={() => handleTagToggle(tag.name)}
+                                                  className={`px-1.5 py-0.5 rounded-md text-[9.5px] font-bold border transition-all active:scale-95 cursor-pointer ${
+                                                    isSelected
+                                                      ? "bg-amber-500 text-white border-amber-500 shadow-3xs"
+                                                      : "bg-white text-slate-500 border-slate-200 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200"
+                                                  }`}
+                                                >
+                                                  #{tag.name}
+                                                </button>
+                                              );
+                                            })}
+                                            {dbTags.length === 0 && (
+                                              <span className="text-[9px] text-slate-300 font-light">프리셋 태그를 로드할 수 없습니다.</span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div 
+                                        className={`min-h-[28px] flex items-center w-full ${hasAdminAccess ? "cursor-pointer hover:bg-amber-50/50 p-1.5 rounded-xl transition-all group" : ""}`}
+                                        onClick={() => {
+                                          if (hasAdminAccess) {
+                                            setEditingHometaxTxId(inv.id);
+                                            setEditingField("memo");
+                                            setTempMemo(inv.memo || "");
+                                          }
+                                        }}
+                                        title={hasAdminAccess ? "클릭하여 비고(태그) 수정" : undefined}
+                                      >
+                                        {inv.memo ? (
+                                          <div className="flex flex-wrap gap-1 items-center w-full">
+                                            {inv.memo.split(",").map(t => t.trim()).filter(Boolean).map(tag => (
+                                              <span key={tag} className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 text-[9px] font-bold border border-amber-100/60 shadow-3xs">
+                                                #{tag}
+                                              </span>
+                                            ))}
+                                            {hasAdminAccess && (
+                                              <span className="ml-auto opacity-0 group-hover:opacity-100 text-amber-500 transition-opacity">
+                                                <Edit className="w-3 h-3" />
+                                              </span>
+                                            )}
+                                          </div>
+                                        ) : (
+                                          <span className="text-[10px] text-slate-300 font-bold select-none group-hover:text-amber-500 transition-colors">
+                                            -
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </td>
                                   <td className="p-4 text-right font-extrabold text-slate-800">
                                     ₩ {inv.totalAmount?.toLocaleString()}
                                   </td>
@@ -3133,7 +3283,7 @@ export default function FinancePage() {
                           )}
                           {!loading && (hometaxSubTab === "invoice" ? taxInvoiceList : taxExemptList).length === 0 && (
                             <tr>
-                              <td colSpan={7} className="p-12 text-center text-slate-400 text-xs font-semibold">
+                              <td colSpan={8} className="p-12 text-center text-slate-400 text-xs font-semibold">
                                 해당 조회 조건에 맞는 홈택스 전자(세금)계산서 자료가 존재하지 않습니다.
                               </td>
                             </tr>
@@ -3152,12 +3302,13 @@ export default function FinancePage() {
                             <th className="p-4">용도구분</th>
                             <th className="p-4 text-right">공급가액</th>
                             <th className="p-4 text-right">부가세</th>
+                            <th className="p-4 min-w-[120px]">비고 (태그)</th>
                             <th className="p-4 text-right">합계금액</th>
                           </tr>
                         </thead>
                         <tbody>
                           {loading ? (
-                            <TableSkeleton cols={6} rows={5} />
+                            <TableSkeleton cols={7} rows={5} />
                           ) : (
                             cashReceiptList.map((rcpt) => (
                               <tr key={rcpt.id} className="border-b border-slate-50 hover:bg-slate-50/40 text-xs text-slate-700">
@@ -3177,6 +3328,107 @@ export default function FinancePage() {
                                 <td className="p-4 text-right font-semibold text-slate-400">
                                   ₩ {rcpt.taxAmount?.toLocaleString()}
                                 </td>
+                                <td className="p-4 max-w-[150px]">
+                                  {hasAdminAccess && editingHometaxTxId === rcpt.id && editingField === "memo" ? (
+                                    <div className="flex flex-col gap-1.5 p-1 bg-white rounded-2xl border border-slate-100 shadow-lg min-w-[220px]">
+                                      <div className="flex items-center gap-1">
+                                        <input
+                                          type="text"
+                                          value={tempMemo}
+                                          onChange={(e) => setTempMemo(e.target.value)}
+                                          className="border border-amber-300 bg-amber-50 rounded-lg px-2 py-1 text-[11px] font-bold text-slate-700 outline-none focus:ring-1 focus:ring-amber-500 w-full"
+                                          placeholder="쉼표로 태그 구분"
+                                          autoFocus
+                                          onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                              handleUpdateHometaxTransaction(rcpt.id, "cash", { memo: tempMemo });
+                                            } else if (e.key === "Escape") {
+                                              setEditingHometaxTxId(null);
+                                              setEditingField(null);
+                                            }
+                                          }}
+                                        />
+                                        <button
+                                          onClick={() => handleUpdateHometaxTransaction(rcpt.id, "cash", { memo: tempMemo })}
+                                          className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-bold transition-all active:scale-95 whitespace-nowrap"
+                                          disabled={isUpdatingHometaxTx}
+                                        >
+                                          저장
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            setEditingHometaxTxId(null);
+                                            setEditingField(null);
+                                          }}
+                                          className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[10px] font-bold transition-all active:scale-95 whitespace-nowrap"
+                                        >
+                                          취소
+                                        </button>
+                                      </div>
+                                      
+                                      {/* 💡 태그 프리셋 가이드 칩 UI */}
+                                      <div className="mt-1 p-2 bg-slate-50/50 rounded-xl border border-slate-100/60">
+                                        <div className="text-[9px] font-extrabold text-slate-400 mb-1.5">사용할 수 있는 태그 목록 (클릭 토글)</div>
+                                        <div className="flex flex-wrap gap-1">
+                                          {dbTags.map((tag) => {
+                                            const isSelected = tempMemo.split(",")
+                                              .map(t => t.trim())
+                                              .filter(Boolean)
+                                              .includes(tag.name);
+                                            return (
+                                              <button
+                                                key={tag.id}
+                                                type="button"
+                                                onClick={() => handleTagToggle(tag.name)}
+                                                className={`px-1.5 py-0.5 rounded-md text-[9.5px] font-bold border transition-all active:scale-95 cursor-pointer ${
+                                                  isSelected
+                                                    ? "bg-amber-500 text-white border-amber-500 shadow-3xs"
+                                                    : "bg-white text-slate-500 border-slate-200 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200"
+                                                }`}
+                                              >
+                                                #{tag.name}
+                                              </button>
+                                            );
+                                          })}
+                                          {dbTags.length === 0 && (
+                                            <span className="text-[9px] text-slate-300 font-light">프리셋 태그를 로드할 수 없습니다.</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div 
+                                      className={`min-h-[28px] flex items-center w-full ${hasAdminAccess ? "cursor-pointer hover:bg-amber-50/50 p-1.5 rounded-xl transition-all group" : ""}`}
+                                      onClick={() => {
+                                        if (hasAdminAccess) {
+                                          setEditingHometaxTxId(rcpt.id);
+                                          setEditingField("memo");
+                                          setTempMemo(rcpt.memo || "");
+                                        }
+                                      }}
+                                      title={hasAdminAccess ? "클릭하여 비고(태그) 수정" : undefined}
+                                    >
+                                      {rcpt.memo ? (
+                                        <div className="flex flex-wrap gap-1 items-center w-full">
+                                          {rcpt.memo.split(",").map(t => t.trim()).filter(Boolean).map(tag => (
+                                            <span key={tag} className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 text-[9px] font-bold border border-amber-100/60 shadow-3xs">
+                                              #{tag}
+                                            </span>
+                                          ))}
+                                          {hasAdminAccess && (
+                                            <span className="ml-auto opacity-0 group-hover:opacity-100 text-amber-500 transition-opacity">
+                                              <Edit className="w-3 h-3" />
+                                            </span>
+                                          )}
+                                        </div>
+                                      ) : (
+                                        <span className="text-[10px] text-slate-300 font-bold select-none group-hover:text-amber-500 transition-colors">
+                                          -
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </td>
                                 <td className="p-4 text-right font-extrabold text-slate-800">
                                   ₩ {rcpt.totalAmount?.toLocaleString()}
                                 </td>
@@ -3185,7 +3437,7 @@ export default function FinancePage() {
                           )}
                           {!loading && cashReceiptList.length === 0 && (
                             <tr>
-                              <td colSpan={6} className="p-12 text-center text-slate-400 text-xs font-semibold">
+                              <td colSpan={7} className="p-12 text-center text-slate-400 text-xs font-semibold">
                                 해당 조회 조건에 맞는 국세청 현금영수증 내역이 존재하지 않습니다.
                               </td>
                             </tr>
