@@ -92,6 +92,28 @@ export default function EstimatesDashboard() {
     items: [] as Array<{ product_name: string; quantity: number; unit_price: number }>
   });
 
+  // AI OCR 상태 및 모달 유틸리티 제어
+  const resetOcrState = () => {
+    setOcrScanning(false);
+    setOcrSuccess(false);
+    setOcrFilename("");
+    setOcrForm({
+      partner_name: "",
+      partner_phone: "",
+      items: []
+    });
+  };
+
+  const openOcrModal = () => {
+    resetOcrState();
+    setIsOcrModalOpen(true);
+  };
+
+  const closeOcrModal = () => {
+    resetOcrState();
+    setIsOcrModalOpen(false);
+  };
+
   // 실물 입고 검수 수량 입력 모달 상태
   const [isInspectModalOpen, setIsInspectModalOpen] = useState(false);
   const [inspectPo, setInspectPo] = useState<PurchaseOrder | null>(null);
@@ -245,8 +267,7 @@ export default function EstimatesDashboard() {
       });
       const data = await res.json();
       if (data.success) {
-        setIsOcrModalOpen(false);
-        setOcrSuccess(false);
+        closeOcrModal();
         fetchData();
         alert("AI OCR 분석 견적이 성공적으로 접수 대장에 적재되었습니다.");
       }
@@ -755,7 +776,7 @@ export default function EstimatesDashboard() {
               
               {inboundSubTab === 'estimates' && (
                 <button
-                  onClick={() => setIsOcrModalOpen(true)}
+                  onClick={openOcrModal}
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-indigo-600/10 flex items-center gap-1.5"
                 >
                   <Upload className="w-4 h-4" />
@@ -1316,7 +1337,7 @@ export default function EstimatesDashboard() {
       {isOcrModalOpen && (
         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-[32px] border border-slate-100 max-w-xl w-full p-6 md:p-8 shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh] animate-scale-up">
-            <button onClick={() => setIsOcrModalOpen(false)} className="absolute top-5 right-5 p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
+            <button onClick={closeOcrModal} className="absolute top-5 right-5 p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
               <X className="w-4 h-4" />
             </button>
 
@@ -1408,7 +1429,7 @@ export default function EstimatesDashboard() {
             </div>
 
             <div className="mt-6 border-t border-slate-100 pt-4 flex gap-3">
-              <button onClick={() => setIsOcrModalOpen(false)} className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-xs">
+              <button onClick={closeOcrModal} className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-xs">
                 취소
               </button>
               <button 
