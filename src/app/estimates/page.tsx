@@ -41,6 +41,18 @@ interface SalesOrder {
   created_at: string;
 }
 
+// Base64 문자열을 Blob 객체로 변환하는 헬퍼 함수 (PDF 브라우저 보안 CSP 우회용)
+const base64ToBlob = (base64: string, mimeType = "application/pdf") => {
+  const base64WithoutHeader = base64.split(",")[1] || base64;
+  const byteCharacters = atob(base64WithoutHeader);
+  const byteNumbers = new Array(byteCharacters.length);
+  for (let i = 0; i < byteCharacters.length; i++) {
+    byteNumbers[i] = byteCharacters.charCodeAt(i);
+  }
+  const byteArray = new Uint8Array(byteNumbers);
+  return new Blob([byteArray], { type: mimeType });
+};
+
 export default function EstimatesDashboard() {
   const [activeTab, setActiveTab] = useState<'inbound' | 'outbound'>('inbound');
   const [loading, setLoading] = useState(true);
@@ -168,6 +180,41 @@ export default function EstimatesDashboard() {
   const [selectedEstimateId, setSelectedEstimateId] = useState<string | null>(null);
   const [detailData, setDetailData] = useState<any | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+
+  // PDF 뷰어용 Blob URL 상태 및 변환/해제 관리
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string>("");
+
+  useEffect(() => {
+    if (detailData?.estimate?.file_url) {
+      const fileUrl = detailData.estimate.file_url;
+      if (fileUrl.startsWith("data:application/pdf") || fileUrl.toLowerCase().endsWith(".pdf")) {
+        try {
+          if (fileUrl.startsWith("data:application/pdf")) {
+            const blob = base64ToBlob(fileUrl, "application/pdf");
+            const url = URL.createObjectURL(blob);
+            setPdfBlobUrl(url);
+          } else {
+            setPdfBlobUrl(fileUrl);
+          }
+        } catch (e) {
+          console.error("PDF Blob 변환 에러:", e);
+          setPdfBlobUrl(fileUrl);
+        }
+      } else {
+        setPdfBlobUrl("");
+      }
+    } else {
+      setPdfBlobUrl("");
+    }
+  }, [detailData]);
+
+  useEffect(() => {
+    return () => {
+      if (pdfBlobUrl && pdfBlobUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(pdfBlobUrl);
+      }
+    };
+  }, [pdfBlobUrl]);
 
   // 신규 수동/OCR 입력 모달 상태 (받은 견적서 등록)
   const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
@@ -2361,11 +2408,18 @@ export default function EstimatesDashboard() {
                         </div>
                       ) : (detailData.estimate.file_url.startsWith("data:application/pdf") || detailData.estimate.file_url.toLowerCase().endsWith(".pdf")) ? (
                         <div className="flex-1 border border-slate-200 rounded-2xl bg-white overflow-hidden p-2 min-h-[220px] max-h-[300px] shadow-sm relative group">
-                          <iframe 
-                            src={detailData.estimate.file_url} 
-                            className="w-full h-full min-h-[210px] border-none rounded-xl"
-                            title="PDF 견적서 미리보기"
-                          />
+                          {pdfBlobUrl ? (
+                            <iframe 
+                              src={pdfBlobUrl} 
+                              className="w-full h-full min-h-[210px] border-none rounded-xl"
+                              title="PDF 견적서 미리보기"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 text-xs font-semibold gap-2 py-10">
+                              <RefreshCw className="w-6 h-6 animate-spin text-indigo-500" />
+                              <span>PDF 문서 로딩 중...</span>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="flex-1 border border-slate-200 rounded-2xl bg-white flex flex-col items-center justify-center p-6 text-center shadow-sm">
@@ -2376,7 +2430,7 @@ export default function EstimatesDashboard() {
                       )}
 
                       <button
-                        onClick={() => window.open(detailData.estimate.file_url, '_blank')}
+                        onClick={() => window.open(pdfBlobUrl || detailData.estimate.file_url, '_blank')}
                         className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md"
                       >
                         <ExternalLink className="w-4 h-4 text-amber-400" />
