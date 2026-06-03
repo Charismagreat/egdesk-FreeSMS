@@ -179,19 +179,28 @@ export default function EstimatesDashboard() {
     }
   };
 
-  // 1. 모의 이미지 파일 업로드 후 AI OCR 가동
-  const handleOcrUpload = () => {
+  // 1. 실제 이미지/PDF 파일 업로드 후 AI OCR 가동
+  const handleOcrFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
     setOcrScanning(true);
     setOcrSuccess(false);
-    setOcrFilename("invoice_roasted_bean_524.png");
+    setOcrFilename(file.name);
 
-    setTimeout(async () => {
-      // OCR 파싱 API POST 호출 (filename 힌트로 에티오피아 원두 모사)
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64Data = reader.result as string;
       try {
         const res = await fetch("/api/estimates/ocr", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageBase64: "dummyData", filename: "bean" })
+          body: JSON.stringify({
+            imageBase64: base64Data,
+            filename: file.name,
+            mimeType: file.type,
+            document_type: 'estimate'
+          })
         });
         const data = await res.json();
         if (data.success) {
@@ -199,15 +208,23 @@ export default function EstimatesDashboard() {
           setOcrSuccess(true);
           setOcrForm({
             partner_name: data.partner_name,
-            partner_phone: data.partner_phone,
+            partner_phone: data.partner_phone || "",
             items: data.items
           });
+        } else {
+          setOcrScanning(false);
+          alert(data.error || "OCR 파싱 실패");
         }
       } catch (err) {
         setOcrScanning(false);
         alert("OCR 파싱 실패");
       }
-    }, 2000);
+    };
+    reader.onerror = () => {
+      setOcrScanning(false);
+      alert("파일을 읽는 도중 오류가 발생했습니다.");
+    };
+    reader.readAsDataURL(file);
   };
 
   // 2. OCR 완료된 받은 견적 접수 실행
@@ -1333,12 +1350,17 @@ export default function EstimatesDashboard() {
                   <div className="text-center space-y-3">
                     <FileText className="w-8 h-8 text-slate-400 mx-auto" />
                     <div className="text-xs text-slate-500">견적서 사진/PDF 이미지 등록 시 AI가 데이터 자동 파싱</div>
-                    <button 
-                      onClick={handleOcrUpload}
-                      className="px-4 py-2 bg-indigo-50 text-indigo-600 font-black text-[11px] rounded-xl border border-indigo-100"
+                    <label 
+                      className="inline-block px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-black text-[11px] rounded-xl border border-indigo-100 cursor-pointer shadow-sm"
                     >
-                      모의 견적 명세서 이미지 업로드 시뮬레이션
-                    </button>
+                      견적서 파일 선택 (이미지 / PDF)
+                      <input 
+                        type="file" 
+                        accept="image/*,application/pdf"
+                        onChange={handleOcrFileChange}
+                        className="hidden"
+                      />
+                    </label>
                   </div>
                 )}
               </div>
