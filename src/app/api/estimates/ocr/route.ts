@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { queryTable } from '../../../../../egdesk-helpers';
+import { queryTable, insertRows } from '../../../../../egdesk-helpers';
 
 /**
  * POST: 받은 견적서 이미지 또는 사업자등록증 AI OCR 파싱 및 정제
@@ -103,6 +103,27 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
 
         if (response.ok) {
           const data = await response.json();
+          
+          // 실시간 AI 호출 토큰 감사록 기록 적재
+          try {
+            const promptTokens = data.usageMetadata?.promptTokenCount || 0;
+            const completionTokens = data.usageMetadata?.candidatesTokenCount || 0;
+            const totalTokens = data.usageMetadata?.totalTokenCount || 0;
+            
+            if (totalTokens > 0) {
+              await insertRows('ai_token_usage_logs', [{
+                model: 'gemini-3.5-flash',
+                purpose: document_type === 'license' ? 'business-license-ocr' : 'estimates-ocr',
+                prompt_tokens: promptTokens,
+                completion_tokens: completionTokens,
+                total_tokens: totalTokens,
+                created_at: new Date().toISOString()
+              }]);
+            }
+          } catch (logErr: any) {
+            console.error('Real Gemini OCR token logging failed:', logErr.message);
+          }
+
           const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
           const ocrJson = JSON.parse(text.trim());
 
@@ -167,6 +188,20 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
       // 잠시 스캔하는 듯한 딜레이 연출을 위해 임시 렉 모사 (클라이언트 로딩 스spinner 확인용)
       await new Promise(resolve => setTimeout(resolve, 1500));
 
+      // 모의(Mock) OCR 호출 시 감사록 연동용 개발/체험 가상 토큰 로그 적재
+      try {
+        await insertRows('ai_token_usage_logs', [{
+          model: 'gemini-3.5-flash',
+          purpose: 'business-license-ocr',
+          prompt_tokens: 1200,
+          completion_tokens: 450,
+          total_tokens: 1650,
+          created_at: new Date().toISOString()
+        }]);
+      } catch (logErr: any) {
+        console.error('Mock License OCR token logging failed:', logErr.message);
+      }
+
       return NextResponse.json({
         success: true,
         document_type: 'license',
@@ -211,6 +246,20 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
       }
 
       await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // 모의(Mock) OCR 호출 시 감사록 연동용 개발/체험 가상 토큰 로그 적재
+      try {
+        await insertRows('ai_token_usage_logs', [{
+          model: 'gemini-3.5-flash',
+          purpose: 'estimates-ocr',
+          prompt_tokens: 1200,
+          completion_tokens: 450,
+          total_tokens: 1650,
+          created_at: new Date().toISOString()
+        }]);
+      } catch (logErr: any) {
+        console.error('Mock Estimate OCR token logging failed:', logErr.message);
+      }
 
       return NextResponse.json({
         success: true,
