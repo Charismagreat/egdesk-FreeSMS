@@ -2293,9 +2293,9 @@ export default function EstimatesDashboard() {
                   </div>
 
                   {/* 탭 내용 분기 */}
-                  <div className="flex-1 overflow-y-auto pr-1 space-y-4">
+                  <div className="flex-1 overflow-hidden flex flex-col min-h-0 pr-1 space-y-4">
                     {activeDetailTab === 'info' && (
-                      <div className="bg-slate-50 p-4.5 rounded-2xl border border-slate-100 space-y-3 animate-fade-in">
+                      <div className="bg-slate-50 p-4.5 rounded-2xl border border-slate-100 space-y-3 animate-fade-in overflow-y-auto max-h-[670px]">
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">견적 마스터 정보</span>
                     
                     {isEditingDetail ? (
@@ -2520,7 +2520,7 @@ export default function EstimatesDashboard() {
                       </div>
                     
                     {isEditingDetail ? (
-                      <div className="space-y-3 max-h-[580px] overflow-y-auto pr-1">
+                      <div className="space-y-3 max-h-[550px] overflow-y-auto pr-1">
                         {editForm.items.map((item, idx) => (
                           <div key={idx} className="p-3.5 bg-slate-50/60 border border-slate-100 rounded-2xl space-y-2.5 animate-fade-in relative">
                             {/* 첫 번째 행: 품목명 전체 너비 입력 */}
@@ -2592,7 +2592,7 @@ export default function EstimatesDashboard() {
                       </div>
                     ) : (
                       /* 조회 전용 일반 깔끔 테이블 */
-                      <div className="border border-slate-100 rounded-2xl overflow-hidden max-h-[580px] overflow-y-auto">
+                      <div className="border border-slate-100 rounded-2xl overflow-hidden max-h-[550px] overflow-y-auto">
                         <table className="w-full text-left text-xs font-semibold">
                           <thead>
                             <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 text-[10px]">
