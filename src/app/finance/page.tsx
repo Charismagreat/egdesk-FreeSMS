@@ -499,20 +499,20 @@ export default function FinancePage() {
     }
     try {
       const XLSX = await import('xlsx');
-      const headers = ["발행일자", "공급자", "공급받는자", "공급가액", "세액", "합계금액", "품목명", "구분", "과세구분", "비고 (태그)"];
+      const headers = ["발행일자", "공급자", "공급받는자", "품목명", "비고 (태그)", "공급가액", "세액", "합계금액", "구분", "과세구분"];
       const aoaData = [headers];
       list.forEach(tx => {
         aoaData.push([
           tx.issueDate,
           tx.supplierName || "",
           tx.buyerName || "",
+          tx.itemName || "",
+          tx.memo || "",
           tx.supplyAmount,
           tx.taxAmount,
           tx.totalAmount,
-          tx.itemName || "",
           tx.invoiceType,
-          tx.taxType || "",
-          tx.memo || ""
+          tx.taxType || ""
         ]);
       });
       const worksheet = XLSX.utils.aoa_to_sheet(aoaData);
@@ -532,18 +532,18 @@ export default function FinancePage() {
     }
     try {
       const XLSX = await import('xlsx');
-      const headers = ["거래일자", "가맹점명", "공급가액", "세액", "합계금액", "승인번호", "용도", "비고 (태그)"];
+      const headers = ["거래일자", "가맹점명", "용도", "비고 (태그)", "공급가액", "세액", "합계금액", "승인번호"];
       const aoaData = [headers];
       cashReceiptList.forEach(tx => {
         aoaData.push([
           tx.transactionDate,
           tx.franchiseName || "",
+          tx.purpose || "",
+          tx.memo || "",
           tx.supplyAmount,
           tx.taxAmount,
           tx.totalAmount,
-          `'${tx.approvalNumber || ""}`,
-          tx.purpose || "",
-          tx.memo || ""
+          `'${tx.approvalNumber || ""}`
         ]);
       });
       const worksheet = XLSX.utils.aoa_to_sheet(aoaData);
@@ -3132,9 +3132,9 @@ export default function FinancePage() {
                             <th className="p-4">구분</th>
                             <th className="p-4">공급받는자 / 공급자</th>
                             <th className="p-4">품목명</th>
+                            <th className="p-4 min-w-[120px]">비고 (태그)</th>
                             <th className="p-4 text-right">공급가액</th>
                             <th className="p-4 text-right">부가세</th>
-                            <th className="p-4 min-w-[120px]">비고 (태그)</th>
                             <th className="p-4 text-right">합계금액</th>
                           </tr>
                         </thead>
@@ -3167,12 +3167,6 @@ export default function FinancePage() {
                                     </div>
                                   </td>
                                   <td className="p-4 font-semibold text-slate-600">{inv.itemName || "종합 광고 수수료"}</td>
-                                  <td className="p-4 text-right font-bold text-slate-700">
-                                    ₩ {inv.supplyAmount?.toLocaleString()}
-                                  </td>
-                                  <td className="p-4 text-right font-semibold text-slate-400">
-                                    ₩ {inv.taxAmount?.toLocaleString()}
-                                  </td>
                                   <td className="p-4 max-w-[150px]">
                                     {hasAdminAccess && editingHometaxTxId === inv.id && editingField === "memo" ? (
                                       <div className="flex flex-col gap-1.5 p-1 bg-white rounded-2xl border border-slate-100 shadow-lg min-w-[220px]">
@@ -3274,6 +3268,12 @@ export default function FinancePage() {
                                       </div>
                                     )}
                                   </td>
+                                  <td className="p-4 text-right font-bold text-slate-700">
+                                    ₩ {inv.supplyAmount?.toLocaleString()}
+                                  </td>
+                                  <td className="p-4 text-right font-semibold text-slate-400">
+                                    ₩ {inv.taxAmount?.toLocaleString()}
+                                  </td>
                                   <td className="p-4 text-right font-extrabold text-slate-800">
                                     ₩ {inv.totalAmount?.toLocaleString()}
                                   </td>
@@ -3300,9 +3300,9 @@ export default function FinancePage() {
                             <th className="p-4 w-32">거래일자</th>
                             <th className="p-4">가맹점 / 승인번호</th>
                             <th className="p-4">용도구분</th>
+                            <th className="p-4 min-w-[120px]">비고 (태그)</th>
                             <th className="p-4 text-right">공급가액</th>
                             <th className="p-4 text-right">부가세</th>
-                            <th className="p-4 min-w-[120px]">비고 (태그)</th>
                             <th className="p-4 text-right">합계금액</th>
                           </tr>
                         </thead>
@@ -3321,12 +3321,6 @@ export default function FinancePage() {
                                   <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
                                     {rcpt.purpose || "지출증빙용"}
                                   </span>
-                                </td>
-                                <td className="p-4 text-right font-bold text-slate-700">
-                                  ₩ {rcpt.supplyAmount?.toLocaleString()}
-                                </td>
-                                <td className="p-4 text-right font-semibold text-slate-400">
-                                  ₩ {rcpt.taxAmount?.toLocaleString()}
                                 </td>
                                 <td className="p-4 max-w-[150px]">
                                   {hasAdminAccess && editingHometaxTxId === rcpt.id && editingField === "memo" ? (
@@ -3428,6 +3422,12 @@ export default function FinancePage() {
                                       )}
                                     </div>
                                   )}
+                                </td>
+                                <td className="p-4 text-right font-bold text-slate-700">
+                                  ₩ {rcpt.supplyAmount?.toLocaleString()}
+                                </td>
+                                <td className="p-4 text-right font-semibold text-slate-400">
+                                  ₩ {rcpt.taxAmount?.toLocaleString()}
                                 </td>
                                 <td className="p-4 text-right font-extrabold text-slate-800">
                                   ₩ {rcpt.totalAmount?.toLocaleString()}
