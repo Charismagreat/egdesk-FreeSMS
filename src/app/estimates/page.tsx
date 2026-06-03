@@ -231,6 +231,7 @@ export default function EstimatesDashboard() {
   const [detailData, setDetailData] = useState<any | null>(null);
   const detailMeta = detailData ? parseEstimateMetadata(detailData.estimate.tags || "") : null;
   const [detailLoading, setDetailLoading] = useState(false);
+  const [activeDetailTab, setActiveDetailTab] = useState<'info' | 'items'>('info');
 
   // PDF 뷰어용 Blob URL 상태 및 변환/해제 관리
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string>("");
@@ -326,6 +327,7 @@ export default function EstimatesDashboard() {
     setIsDetailModalOpen(true);
     setDetailData(null);
     setIsEditingDetail(false);
+    setActiveDetailTab('info');
     try {
       const res = await fetch(`/api/estimates?action=detail&estimateId=${estimateId}`);
       const data = await res.json();
@@ -2232,6 +2234,7 @@ export default function EstimatesDashboard() {
                 setIsDetailModalOpen(false);
                 setDetailData(null);
                 setIsEditingDetail(false);
+                setActiveDetailTab('info');
               }} 
               className="absolute top-5 right-5 p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 transition-colors"
             >
@@ -2261,10 +2264,39 @@ export default function EstimatesDashboard() {
             ) : detailData ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 overflow-y-auto pr-1">
                 
-                {/* 좌측: 견적 요약 및 상세 품목 테이블 */}
-                <div className="space-y-5">
-                  <div className="bg-slate-50 p-4.5 rounded-2xl border border-slate-100 space-y-3">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">견적 마스터 정보</span>
+                {/* 좌측: 견적 요약 및 상세 품목 테이블 (탭 분할 적용) */}
+                <div className="space-y-4 flex flex-col h-[750px]">
+                  {/* 세련된 디자인의 두 탭 헤더 */}
+                  <div className="flex bg-slate-100/80 p-1 rounded-2xl shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setActiveDetailTab('info')}
+                      className={`flex-1 py-2.5 text-center text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                        activeDetailTab === 'info'
+                          ? 'bg-white text-indigo-600 shadow-sm border border-slate-200/40'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      📋 견적 및 공급처 정보
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveDetailTab('items')}
+                      className={`flex-1 py-2.5 text-center text-xs font-black rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                        activeDetailTab === 'items'
+                          ? 'bg-white text-indigo-600 shadow-sm border border-slate-200/40'
+                          : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      📦 견적 품목 명세 ({isEditingDetail ? editForm.items.length : detailData.items.length}건)
+                    </button>
+                  </div>
+
+                  {/* 탭 내용 분기 */}
+                  <div className="flex-1 overflow-y-auto pr-1 space-y-4">
+                    {activeDetailTab === 'info' && (
+                      <div className="bg-slate-50 p-4.5 rounded-2xl border border-slate-100 space-y-3 animate-fade-in">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">견적 마스터 정보</span>
                     
                     {isEditingDetail ? (
                       <div className="grid grid-cols-2 gap-3 text-xs">
@@ -2455,8 +2487,13 @@ export default function EstimatesDashboard() {
                         </div>
                       </div>
                     )}
+                  </div>
+                )}
 
-                    <div className="border-t border-slate-200/60 pt-3 flex justify-between items-center">
+                {activeDetailTab === 'items' && (
+                  <div className="space-y-4 animate-fade-in flex-1 flex flex-col min-h-0">
+                    {/* 최종 합계액 */}
+                    <div className="bg-slate-50 p-4.5 rounded-2xl border border-slate-100 flex justify-between items-center shrink-0">
                       <span className="text-xs font-black text-slate-600">최종 견적 합계액</span>
                       <span className="text-base font-extrabold text-indigo-600">
                         {isEditingDetail 
@@ -2464,23 +2501,23 @@ export default function EstimatesDashboard() {
                           : (detailData.estimate.total_amount || 0).toLocaleString()}원
                       </span>
                     </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
-                        견적 품목 명세 ({isEditingDetail ? editForm.items.length : detailData.items.length}건)
-                      </span>
-                      {isEditingDetail && (
-                        <button
-                          type="button"
-                          onClick={handleAddEditItem}
-                          className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-[10px] font-black rounded-lg border border-indigo-100 flex items-center gap-0.5 transition-all animate-fade-in"
-                        >
-                          <Plus className="w-3 h-3" /> 품목 추가
-                        </button>
-                      )}
-                    </div>
+                    {/* 견적 품목 명세 */}
+                    <div className="space-y-2.5 flex-1 flex flex-col min-h-0">
+                      <div className="flex justify-between items-center shrink-0">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                          견적 품목 명세 ({isEditingDetail ? editForm.items.length : detailData.items.length}건)
+                        </span>
+                        {isEditingDetail && (
+                          <button
+                            type="button"
+                            onClick={handleAddEditItem}
+                            className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-[10px] font-black rounded-lg border border-indigo-100 flex items-center gap-0.5 transition-all shadow-sm"
+                          >
+                            <Plus className="w-3 h-3" /> 품목 추가
+                          </button>
+                        )}
+                      </div>
                     
                     {isEditingDetail ? (
                       <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
@@ -2580,6 +2617,9 @@ export default function EstimatesDashboard() {
                     )}
                   </div>
                 </div>
+              )}
+            </div>
+          </div>
 
                 {/* 우측: 원본 파일 열람 및 미리보기 (A4 문서 비율에 부합하도록 h-[750px]로 넉넉하게 확보, overflow-hidden으로 꽉 채움, bg-transparent 투명 처리) */}
                 <div className="flex flex-col border border-slate-100 rounded-3xl bg-transparent relative h-[750px] shrink-0 overflow-hidden">
@@ -2680,6 +2720,7 @@ export default function EstimatesDashboard() {
                       setIsDetailModalOpen(false);
                       setDetailData(null);
                       setIsEditingDetail(false);
+                      setActiveDetailTab('info');
                     }} 
                     className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs shadow-md"
                   >
