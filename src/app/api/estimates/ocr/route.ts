@@ -201,6 +201,13 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
           { product_name: "손잡이형 피자 박스 12인치 (100개입)", quantity: 10, unit_price: 32000 },
           { product_name: "매장 포장용 종이 크라프트백 (중)", quantity: 500, unit_price: 250 }
         ];
+      } else if (filename && (filename.toLowerCase().includes('cup') || filename.includes('컵') || filename.toLowerCase().includes('코메스'))) {
+        mockPartnerName = "코메스 유통 (컵 전문)";
+        mockPartnerPhone = "010-3333-5555";
+        mockItems = [
+          { product_name: "친환경 생분해 테이크아웃 컵 10oz (100개입)", quantity: 50, unit_price: 8500 },
+          { product_name: "고급 크라프트 종이 컵 홀더 (500개입)", quantity: 5, unit_price: 12000 }
+        ];
       }
 
       await new Promise(resolve => setTimeout(resolve, 1500));
