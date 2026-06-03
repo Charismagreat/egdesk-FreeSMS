@@ -2359,6 +2359,14 @@ export default function EstimatesDashboard() {
                             className="max-w-full max-h-full object-contain rounded-xl"
                           />
                         </div>
+                      ) : (detailData.estimate.file_url.startsWith("data:application/pdf") || detailData.estimate.file_url.toLowerCase().endsWith(".pdf")) ? (
+                        <div className="flex-1 border border-slate-200 rounded-2xl bg-white overflow-hidden p-2 min-h-[220px] max-h-[300px] shadow-sm relative group">
+                          <iframe 
+                            src={detailData.estimate.file_url} 
+                            className="w-full h-full min-h-[210px] border-none rounded-xl"
+                            title="PDF 견적서 미리보기"
+                          />
+                        </div>
                       ) : (
                         <div className="flex-1 border border-slate-200 rounded-2xl bg-white flex flex-col items-center justify-center p-6 text-center shadow-sm">
                           <FileText className="w-12 h-12 text-slate-300 mb-2" />
