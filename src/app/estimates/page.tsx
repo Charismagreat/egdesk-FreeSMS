@@ -80,6 +80,26 @@ export default function EstimatesDashboard() {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [selectedPartnerId, setSelectedPartnerId] = useState("direct");
 
+  // 최고 관리자용 상태
+  const [userRole, setUserRole] = useState<string>("SUB_OPERATOR");
+  const [isEditingDetail, setIsEditingDetail] = useState(false);
+  const [editForm, setEditForm] = useState<{
+    partner_name: string;
+    partner_phone: string;
+    items: Array<{
+      id?: number;
+      product_id: string;
+      product_name: string;
+      quantity: number;
+      unit_price: number;
+      amount: number;
+    }>;
+  }>({
+    partner_name: "",
+    partner_phone: "",
+    items: []
+  });
+
   // 견적 상세 조회 모달 상태
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedEstimateId, setSelectedEstimateId] = useState<string | null>(null);
@@ -143,6 +163,7 @@ export default function EstimatesDashboard() {
     setDetailLoading(true);
     setIsDetailModalOpen(true);
     setDetailData(null);
+    setIsEditingDetail(false);
     try {
       const res = await fetch(`/api/estimates?action=detail&estimateId=${estimateId}`);
       const data = await res.json();
@@ -160,8 +181,153 @@ export default function EstimatesDashboard() {
     }
   };
 
+  // 최고 관리자 전용 편집 관련 핸들러들
+  const handleStartEdit = () => {
+    if (!detailData) return;
+    setEditForm({
+      partner_name: detailData.estimate.partner_name,
+      partner_phone: detailData.estimate.partner_phone,
+      items: detailData.items.map((item: any) => ({
+        id: item.id,
+        product_id: item.product_id || '',
+        product_name: item.product_name,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        amount: item.amount
+      }))
+    });
+    setIsEditingDetail(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditingDetail(false);
+  };
+
+  const handleAddEditItem = () => {
+    setEditForm(prev => ({
+      ...prev,
+      items: [
+        ...prev.items,
+        {
+          product_id: "",
+          product_name: "",
+          quantity: 1,
+          unit_price: 0,
+          amount: 0
+        }
+      ]
+    }));
+  };
+
+  const handleRemoveEditItem = (idx: number) => {
+    setEditForm(prev => ({
+      ...prev,
+      items: prev.items.filter((_, i) => i !== idx)
+    }));
+  };
+
+  const handleEditItemChange = (idx: number, field: string, value: any) => {
+    setEditForm(prev => {
+      const nextItems = [...prev.items];
+      const target = { ...nextItems[idx] };
+      
+      if (field === 'quantity') {
+        const qty = parseInt(value) || 0;
+        target.quantity = qty;
+        target.amount = qty * target.unit_price;
+      } else if (field === 'unit_price') {
+        const price = parseInt(value) || 0;
+        target.unit_price = price;
+        target.amount = target.quantity * price;
+      } else if (field === 'product_name') {
+        target.product_name = value;
+      } else if (field === 'product_id') {
+        target.product_id = value;
+      }
+      
+      nextItems[idx] = target;
+      return { ...prev, items: nextItems };
+    });
+  };
+
+  const handleSaveEditedEstimate = async () => {
+    if (!editForm.partner_name.trim()) {
+      alert("거래처/고객명은 필수 입력 항목입니다.");
+      return;
+    }
+    if (editForm.items.length === 0) {
+      alert("최소 1개 이상의 견적 품목이 필요합니다.");
+      return;
+    }
+    if (editForm.items.some(item => !item.product_name.trim())) {
+      alert("품목명을 입력해 주세요.");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/estimates", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          estimateId: selectedEstimateId,
+          partner_name: editForm.partner_name,
+          partner_phone: editForm.partner_phone,
+          items: editForm.items
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("견적서가 성공적으로 수정되었습니다.");
+        setIsEditingDetail(false);
+        fetchData();
+        if (selectedEstimateId) {
+          handleOpenDetailModal(selectedEstimateId);
+        }
+      } else {
+        alert(data.error || "수정에 실패했습니다.");
+      }
+    } catch (err) {
+      alert("견적 수정 중 네트워크 오류가 발생했습니다.");
+    }
+  };
+
+  const handleDeleteEstimate = async () => {
+    if (!selectedEstimateId) return;
+    if (!confirm("정말로 이 견적서를 완전히 삭제하시겠습니까? 관련 데이터가 영구 유실됩니다.")) return;
+    
+    try {
+      const res = await fetch(`/api/estimates?estimateId=${selectedEstimateId}`, {
+        method: "DELETE"
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("견적서 및 세부 품목이 성공적으로 삭제되었습니다.");
+        setIsDetailModalOpen(false);
+        setDetailData(null);
+        fetchData();
+      } else {
+        alert(data.error || "삭제에 실패했습니다.");
+      }
+    } catch (err) {
+      alert("견적 삭제 중 네트워크 오류가 발생했습니다.");
+    }
+  };
+
+  const fetchUserRole = async () => {
+    try {
+      const res = await fetch("/api/auth/me");
+      const data = await res.json();
+      if (data.success && data.role) {
+        setUserRole(data.role);
+      }
+    } catch (e) {
+      console.error("Failed to fetch user session on client", e);
+    }
+  };
+
   useEffect(() => {
     fetchData();
+    fetchUserRole();
   }, []);
 
   const fetchData = async () => {
@@ -1765,16 +1931,27 @@ export default function EstimatesDashboard() {
               onClick={() => {
                 setIsDetailModalOpen(false);
                 setDetailData(null);
+                setIsEditingDetail(false);
               }} 
               className="absolute top-5 right-5 p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
 
-            <h3 className="text-lg font-black text-slate-800 flex items-center gap-2 mb-4">
-              <FileText className="w-5 h-5 text-indigo-500" />
-              <span>견적서 상세 내역 및 원본 파일 조회</span>
-            </h3>
+            <div className="flex justify-between items-center mb-4 pr-8">
+              <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                <FileText className="w-5 h-5 text-indigo-500" />
+                <span>{isEditingDetail ? "견적서 상세 정보 수정 (최고관리자)" : "견적서 상세 내역 및 원본 파일 조회"}</span>
+              </h3>
+              {userRole === 'SUPER_ADMIN' && detailData && !detailLoading && !isEditingDetail && (
+                <button 
+                  onClick={handleStartEdit} 
+                  className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1"
+                >
+                  ✏️ 견적 수정
+                </button>
+              )}
+            </div>
 
             {detailLoading ? (
               <div className="flex flex-col items-center justify-center py-20 gap-3">
@@ -1788,62 +1965,170 @@ export default function EstimatesDashboard() {
                 <div className="space-y-5">
                   <div className="bg-slate-50 p-4.5 rounded-2xl border border-slate-100 space-y-3">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">견적 마스터 정보</span>
-                    <div className="grid grid-cols-2 gap-y-2.5 text-xs">
-                      <div>
-                        <span className="text-slate-400 font-bold block">견적 번호</span>
-                        <span className="text-slate-800 font-black font-mono">{detailData.estimate.id}</span>
+                    
+                    {isEditingDetail ? (
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <label className="text-slate-400 font-bold block mb-1">견적 번호</label>
+                          <span className="text-slate-500 font-black font-mono block p-2.5 bg-slate-100 rounded-xl">{detailData.estimate.id}</span>
+                        </div>
+                        <div>
+                          <label className="text-slate-400 font-bold block mb-1">작성 일자</label>
+                          <span className="text-slate-500 font-bold block p-2.5 bg-slate-100 rounded-xl">{detailData.estimate.created_at}</span>
+                        </div>
+                        <div>
+                          <label className="text-slate-400 font-bold block mb-1">거래처/고객명 *</label>
+                          <input 
+                            type="text" 
+                            value={editForm.partner_name}
+                            onChange={e => setEditForm(prev => ({ ...prev, partner_name: e.target.value }))}
+                            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-indigo-500"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="text-slate-400 font-bold block mb-1">연락처</label>
+                          <input 
+                            type="text" 
+                            value={editForm.partner_phone}
+                            onChange={e => setEditForm(prev => ({ ...prev, partner_phone: e.target.value }))}
+                            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-bold block">견적 유형</span>
+                          <span className={`px-2 py-0.5 mt-1 rounded text-[10px] font-black inline-block border ${detailData.estimate.type === 'INBOUND' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
+                            {detailData.estimate.type === 'INBOUND' ? '수신 (INBOUND)' : '발송 (OUTBOUND)'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-bold block">AI 판독 구분</span>
+                          <span className="text-slate-800 font-bold mt-1 inline-block">{detailData.estimate.ai_parsed ? '🧠 Gemini AI OCR' : '✍️ 수동 등록'}</span>
+                        </div>
                       </div>
-                      <div>
-                        <span className="text-slate-400 font-bold block">작성 일자</span>
-                        <span className="text-slate-800 font-bold">{detailData.estimate.created_at}</span>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-y-2.5 text-xs">
+                        <div>
+                          <span className="text-slate-400 font-bold block">견적 번호</span>
+                          <span className="text-slate-800 font-black font-mono">{detailData.estimate.id}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-bold block">작성 일자</span>
+                          <span className="text-slate-800 font-bold">{detailData.estimate.created_at}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-bold block">거래처/고객명</span>
+                          <span className="text-slate-800 font-bold">{detailData.estimate.partner_name}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-bold block">연락처</span>
+                          <span className="text-slate-800 font-bold">{detailData.estimate.partner_phone}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-bold block">견적 유형</span>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-black inline-block border ${detailData.estimate.type === 'INBOUND' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
+                            {detailData.estimate.type === 'INBOUND' ? '수신 (INBOUND)' : '발송 (OUTBOUND)'}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-bold block">AI 판독 구분</span>
+                          <span className="text-slate-800 font-bold">{detailData.estimate.ai_parsed ? '🧠 Gemini AI OCR' : '✍️ 수동 등록'}</span>
+                        </div>
                       </div>
-                      <div>
-                        <span className="text-slate-400 font-bold block">거래처/고객명</span>
-                        <span className="text-slate-800 font-bold">{detailData.estimate.partner_name}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400 font-bold block">연락처</span>
-                        <span className="text-slate-800 font-bold">{detailData.estimate.partner_phone}</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400 font-bold block">견적 유형</span>
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-black inline-block border ${detailData.estimate.type === 'INBOUND' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
-                          {detailData.estimate.type === 'INBOUND' ? '수신 (INBOUND)' : '발송 (OUTBOUND)'}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400 font-bold block">AI 판독 구분</span>
-                        <span className="text-slate-800 font-bold">{detailData.estimate.ai_parsed ? '🧠 Gemini AI OCR' : '✍️ 수동 등록'}</span>
-                      </div>
-                    </div>
+                    )}
 
                     <div className="border-t border-slate-200/60 pt-3 flex justify-between items-center">
                       <span className="text-xs font-black text-slate-600">최종 견적 합계액</span>
-                      <span className="text-base font-extrabold text-indigo-600">{(detailData.estimate.total_amount || 0).toLocaleString()}원</span>
+                      <span className="text-base font-extrabold text-indigo-600">
+                        {isEditingDetail 
+                          ? editForm.items.reduce((acc, curr) => acc + (curr.quantity * curr.unit_price), 0).toLocaleString() 
+                          : (detailData.estimate.total_amount || 0).toLocaleString()}원
+                      </span>
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">견적 품목 명세 ({detailData.items.length}건)</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                        견적 품목 명세 ({isEditingDetail ? editForm.items.length : detailData.items.length}건)
+                      </span>
+                      {isEditingDetail && (
+                        <button
+                          type="button"
+                          onClick={handleAddEditItem}
+                          className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-[10px] font-black rounded-lg border border-indigo-100 flex items-center gap-0.5 transition-all animate-fade-in"
+                        >
+                          <Plus className="w-3 h-3" /> 품목 추가
+                        </button>
+                      )}
+                    </div>
+                    
                     <div className="border border-slate-100 rounded-2xl overflow-hidden">
                       <table className="w-full text-left text-xs font-semibold">
                         <thead>
                           <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 text-[10px]">
                             <th className="py-2.5 px-3">품목명</th>
-                            <th className="py-2.5 px-2 text-center">수량</th>
-                            <th className="py-2.5 px-2 text-right">단가</th>
-                            <th className="py-2.5 px-3 text-right">공급가액</th>
+                            <th className="py-2.5 px-2 text-center w-[70px]">수량</th>
+                            <th className="py-2.5 px-2 text-right w-[110px]">단가</th>
+                            <th className="py-2.5 px-3 text-right w-[110px]">공급가액</th>
+                            {isEditingDetail && <th className="py-2.5 px-2 text-center w-[40px]">삭제</th>}
                           </tr>
                         </thead>
                         <tbody>
-                          {detailData.items.map((item: any, idx: number) => (
-                            <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/40">
-                              <td className="py-3 px-3 text-slate-800 font-bold">{item.product_name}</td>
-                              <td className="py-3 px-2 text-center text-slate-600 font-bold">{item.quantity}개</td>
-                              <td className="py-3 px-2 text-right text-slate-500 font-medium">{(item.unit_price || 0).toLocaleString()}원</td>
-                              <td className="py-3 px-3 text-right text-indigo-600 font-bold">{((item.quantity || 0) * (item.unit_price || 0)).toLocaleString()}원</td>
-                            </tr>
-                          ))}
+                          {isEditingDetail ? (
+                            editForm.items.map((item, idx) => (
+                              <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/40">
+                                <td className="py-2 px-3">
+                                  <input 
+                                    type="text" 
+                                    value={item.product_name}
+                                    onChange={e => handleEditItemChange(idx, 'product_name', e.target.value)}
+                                    placeholder="품목명 입력"
+                                    className="w-full p-1.5 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-indigo-500"
+                                  />
+                                </td>
+                                <td className="py-2 px-2 text-center">
+                                  <input 
+                                    type="number" 
+                                    value={item.quantity}
+                                    onChange={e => handleEditItemChange(idx, 'quantity', e.target.value)}
+                                    className="w-full p-1.5 border border-slate-200 rounded-lg text-xs font-bold text-center outline-none focus:border-indigo-500"
+                                    min="1"
+                                  />
+                                </td>
+                                <td className="py-2 px-2 text-right">
+                                  <input 
+                                    type="number" 
+                                    value={item.unit_price}
+                                    onChange={e => handleEditItemChange(idx, 'unit_price', e.target.value)}
+                                    className="w-full p-1.5 border border-slate-200 rounded-lg text-xs font-bold text-right outline-none focus:border-indigo-500"
+                                    min="0"
+                                  />
+                                </td>
+                                <td className="py-2 px-3 text-right text-indigo-600 font-bold">
+                                  {(item.quantity * item.unit_price).toLocaleString()}원
+                                </td>
+                                <td className="py-2 px-2 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveEditItem(idx)}
+                                    className="p-1 hover:bg-rose-50 text-rose-500 rounded-lg transition-colors"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            detailData.items.map((item: any, idx: number) => (
+                              <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/40">
+                                <td className="py-3 px-3 text-slate-800 font-bold">{item.product_name}</td>
+                                <td className="py-3 px-2 text-center text-slate-600 font-bold">{item.quantity}개</td>
+                                <td className="py-3 px-2 text-right text-slate-500 font-medium">{(item.unit_price || 0).toLocaleString()}원</td>
+                                <td className="py-3 px-3 text-right text-indigo-600 font-bold">{((item.quantity || 0) * (item.unit_price || 0)).toLocaleString()}원</td>
+                              </tr>
+                            ))
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -1896,16 +2181,46 @@ export default function EstimatesDashboard() {
               <div className="py-20 text-center text-slate-400">데이터가 없습니다.</div>
             )}
 
-            <div className="mt-6 border-t border-slate-100 pt-4 flex justify-end">
-              <button 
-                onClick={() => {
-                  setIsDetailModalOpen(false);
-                  setDetailData(null);
-                }} 
-                className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs shadow-md"
-              >
-                확인 완료
-              </button>
+            <div className="mt-6 border-t border-slate-100 pt-4 flex justify-between">
+              <div>
+                {userRole === 'SUPER_ADMIN' && detailData && !isEditingDetail && (
+                  <button 
+                    onClick={handleDeleteEstimate}
+                    className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl font-bold text-xs flex items-center gap-1 transition-all shadow-sm"
+                  >
+                    🗑️ 견적 삭제
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-2">
+                {isEditingDetail ? (
+                  <>
+                    <button 
+                      onClick={handleCancelEdit} 
+                      className="px-5 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-xs"
+                    >
+                      취소
+                    </button>
+                    <button 
+                      onClick={handleSaveEditedEstimate} 
+                      className="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs shadow-md"
+                    >
+                      저장
+                    </button>
+                  </>
+                ) : (
+                  <button 
+                    onClick={() => {
+                      setIsDetailModalOpen(false);
+                      setDetailData(null);
+                      setIsEditingDetail(false);
+                    }} 
+                    className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs shadow-md"
+                  >
+                    확인 완료
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

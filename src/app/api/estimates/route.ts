@@ -1,6 +1,21 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { queryTable, insertRows, executeSQL } from '../../../../egdesk-helpers';
+import { queryTable, insertRows, updateRows, deleteRows, executeSQL } from '../../../../egdesk-helpers';
+import { cookies } from 'next/headers';
+import { decodeJwt } from 'jose';
+
+// 최고 관리자(SUPER_ADMIN) 권한 검증 헬퍼
+async function verifySuperAdmin() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('auth_token')?.value;
+  if (!token) return false;
+  try {
+    const payload = decodeJwt(token);
+    return payload.role === 'SUPER_ADMIN';
+  } catch {
+    return false;
+  }
+}
 
 /**
  * GET: 견적 전용 상품 목록 조회
@@ -176,6 +191,123 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error('API estimates POST error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+/**
+ * PUT: 견적서 마스터 정보 및 품목 리스트 수정 (최고관리자 전용)
+ */
+export async function PUT(req: Request) {
+  try {
+    const isAuthorized = await verifySuperAdmin();
+    if (!isAuthorized) {
+      return NextResponse.json({ success: false, error: '🔒 권한 차단: 견적서 수정은 최고관리자(SUPER_ADMIN) 권한으로만 가능합니다.' }, { status: 403 });
+    }
+
+    const body = await req.json();
+    const { 
+      estimateId, 
+      partner_name, 
+      partner_phone, 
+      items = [] // [{ product_id, product_name, quantity, unit_price }]
+    } = body;
+
+    if (!estimateId) {
+      return NextResponse.json({ success: false, error: '견적 번호가 누락되었습니다.' }, { status: 400 });
+    }
+
+    if (!partner_name) {
+      return NextResponse.json({ success: false, error: '거래처/고객명은 필수 입력 항목입니다.' }, { status: 400 });
+    }
+
+    // 1. 총 합계 금액 재계산
+    let total_amount = 0;
+    const itemRows = items.map((item: any) => {
+      const qty = parseInt(item.quantity) || 0;
+      const price = parseInt(item.unit_price) || 0;
+      const amount = qty * price;
+      total_amount += amount;
+
+      return {
+        product_id: item.product_id || '',
+        product_name: item.product_name,
+        quantity: qty,
+        unit_price: price,
+        amount: amount
+      };
+    });
+
+    const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+    // 2. crm_estimates 마스터 업데이트
+    await updateRows('crm_estimates', {
+      partner_name,
+      partner_phone,
+      total_amount,
+      updated_at: nowStr
+    }, { filters: { id: estimateId } });
+
+    // 3. 기존 crm_estimate_items 삭제 후 재생성
+    await deleteRows('crm_estimate_items', { filters: { estimate_id: estimateId } });
+
+    // 4. crm_estimate_items 신규 삽입
+    const detailRows = itemRows.map((row: any, idx: number) => ({
+      id: Date.now() + idx,
+      estimate_id: estimateId,
+      product_id: row.product_id,
+      product_name: row.product_name,
+      quantity: row.quantity,
+      unit_price: row.unit_price,
+      amount: row.amount
+    }));
+
+    if (detailRows.length > 0) {
+      await insertRows('crm_estimate_items', detailRows);
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: '견적서가 성공적으로 수정되었습니다.',
+      totalAmount: total_amount
+    });
+
+  } catch (error: any) {
+    console.error('API estimates PUT error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+/**
+ * DELETE: 견적서 및 세부 품목 삭제 (최고관리자 전용)
+ */
+export async function DELETE(req: Request) {
+  try {
+    const isAuthorized = await verifySuperAdmin();
+    if (!isAuthorized) {
+      return NextResponse.json({ success: false, error: '🔒 권한 차단: 견적서 삭제는 최고관리자(SUPER_ADMIN) 권한으로만 가능합니다.' }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const estimateId = searchParams.get('estimateId');
+
+    if (!estimateId) {
+      return NextResponse.json({ success: false, error: '삭제할 견적 번호가 누락되었습니다.' }, { status: 400 });
+    }
+
+    // 1. crm_estimates 테이블에서 마스터 삭제
+    await deleteRows('crm_estimates', { filters: { id: estimateId } });
+
+    // 2. crm_estimate_items 테이블에서 상세 품목 일괄 삭제
+    await deleteRows('crm_estimate_items', { filters: { estimate_id: estimateId } });
+
+    return NextResponse.json({
+      success: true,
+      message: '견적서 및 세부 품목이 성공적으로 삭제되었습니다.'
+    });
+
+  } catch (error: any) {
+    console.error('API estimates DELETE error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
