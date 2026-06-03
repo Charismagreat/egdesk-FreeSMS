@@ -3,6 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { Settings } from "lucide-react";
+import DatabaseInitCard from "./DatabaseInitCard";
 import CompanySettingsCard from "./CompanySettingsCard";
 import AiSettingsCard from "../AiSettingsCard";
 import PointSettingsCard from "../PointSettingsCard";
@@ -22,6 +23,7 @@ export default function SettingsPage() {
       </div>
 
       <div className="space-y-6">
+        <DatabaseInitCard />
         <CompanySettingsCard />
         <AiSettingsCard />
         <AiUsageMonitor />

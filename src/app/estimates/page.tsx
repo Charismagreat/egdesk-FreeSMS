@@ -86,6 +86,7 @@ export default function EstimatesDashboard() {
   const [editForm, setEditForm] = useState<{
     partner_name: string;
     partner_phone: string;
+    tags: string;
     items: Array<{
       id?: number;
       product_id: string;
@@ -97,8 +98,70 @@ export default function EstimatesDashboard() {
   }>({
     partner_name: "",
     partner_phone: "",
+    tags: "",
     items: []
   });
+
+  // 인라인 비고(태그) 수정용 상태
+  const [editingEstimateId, setEditingEstimateId] = useState<string | null>(null);
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [tempTags, setTempTags] = useState("");
+  const [dbTags, setDbTags] = useState<any[]>([]);
+  const [isUpdatingEstimateTags, setIsUpdatingEstimateTags] = useState(false);
+
+  // 📂 태그 프리셋 실시간 로드
+  useEffect(() => {
+    fetch("/api/expenses/tags")
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success) {
+          setDbTags(json.tags || []);
+        }
+      })
+      .catch((e) => console.error("태그 로드 에러:", e));
+  }, []);
+
+  // 🔑 태그 토글(인라인 조합) 헬퍼 핸들러
+  const handleTagToggle = (tagName: string) => {
+    const currentTags = tempTags.split(",")
+      .map(t => t.trim())
+      .filter(Boolean);
+    
+    let nextTags: string[];
+    if (currentTags.includes(tagName)) {
+      nextTags = currentTags.filter(t => t !== tagName);
+    } else {
+      nextTags = [...currentTags, tagName];
+    }
+    
+    setTempTags(nextTags.join(", "));
+  };
+
+  const handleUpdateEstimateTags = async (estId: string, tagsValue: string) => {
+    setIsUpdatingEstimateTags(true);
+    try {
+      const res = await fetch("/api/estimates", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          estimateId: estId,
+          tags: tagsValue
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEditingEstimateId(null);
+        setEditingField(null);
+        fetchData(); // 대장 목록 리로드
+      } else {
+        alert(data.error || "비고 수정에 실패했습니다.");
+      }
+    } catch (e) {
+      alert("오류가 발생했습니다.");
+    } finally {
+      setIsUpdatingEstimateTags(false);
+    }
+  };
 
   // 견적 상세 조회 모달 상태
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -187,6 +250,7 @@ export default function EstimatesDashboard() {
     setEditForm({
       partner_name: detailData.estimate.partner_name,
       partner_phone: detailData.estimate.partner_phone,
+      tags: detailData.estimate.tags || '',
       items: detailData.items.map((item: any) => ({
         id: item.id,
         product_id: item.product_id || '',
@@ -272,6 +336,7 @@ export default function EstimatesDashboard() {
           estimateId: selectedEstimateId,
           partner_name: editForm.partner_name,
           partner_phone: editForm.partner_phone,
+          tags: editForm.tags,
           items: editForm.items
         })
       });
@@ -1010,10 +1075,16 @@ export default function EstimatesDashboard() {
                     }}>견적 번호 {inboundSortKey === "id" && (inboundSortDir === 'asc' ? '▲' : '▼')}</th>
                     <th className="py-3 px-2">공급/요청처</th>
                     <th className="py-3 px-2 cursor-pointer hover:text-slate-800" onClick={() => {
+                      setInboundSortKey("created_at");
+                      setInboundSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+                    }}>견적서일자 {inboundSortKey === "created_at" && (inboundSortDir === 'asc' ? '▲' : '▼')}</th>
+                    <th className="py-3 px-2">등록일시</th>
+                    <th className="py-3 px-2">견적내용요약</th>
+                    <th className="py-3 px-2 cursor-pointer hover:text-slate-800" onClick={() => {
                       setInboundSortKey("total_amount");
                       setInboundSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
                     }}>총 견적액 {inboundSortKey === "total_amount" && (inboundSortDir === 'asc' ? '▲' : '▼')}</th>
-                    <th className="py-3 px-2">AI 스캔 신뢰도</th>
+                    <th className="py-3 px-2 text-amber-600 font-extrabold whitespace-nowrap">🏷️ 비고(태그)</th>
                     <th className="py-3 px-2">상태</th>
                     <th className="py-3 px-2 text-right">작업</th>
                   </tr>
@@ -1021,15 +1092,12 @@ export default function EstimatesDashboard() {
                 <tbody>
                   {filteredInboundEstimates.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-12 text-slate-400 font-semibold">조건에 맞는 견적 내역이 없습니다.</td>
+                      <td colSpan={10} className="text-center py-12 text-slate-400 font-semibold">조건에 맞는 견적 내역이 없습니다.</td>
                     </tr>
                   ) : (
                     filteredInboundEstimates.map(est => {
-                      // 가상 신뢰도 점수 및 오차 생성
+                      // 가상 오차율 생성
                       const hash = est.id.charCodeAt(est.id.length - 1) || 90;
-                      const score = 75 + (hash % 25);
-                      const confidenceColor = score >= 95 ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : score >= 85 ? 'bg-amber-50 text-amber-700 border-amber-100' : 'bg-rose-50 text-rose-700 border-rose-100';
-                      
                       const diff = (hash % 10) - 5;
                       const diffText = diff > 0 ? `+${diff}%` : diff < 0 ? `${diff}%` : '일치';
                       const diffColor = diff > 0 ? 'text-rose-600 font-bold' : diff < 0 ? 'text-indigo-600 font-bold' : 'text-slate-500 font-medium';
@@ -1064,26 +1132,140 @@ export default function EstimatesDashboard() {
                             <span className="font-bold text-slate-800 block">{est.partner_name}</span>
                             <span className="text-[10px] text-slate-400 block mt-0.5">{est.partner_phone}</span>
                           </td>
+                          {/* 견적서일자: created_at의 날짜 영역 */}
+                          <td className="py-3.5 px-2 text-slate-600 font-medium whitespace-nowrap">
+                            {est.created_at ? est.created_at.split(' ')[0] : '-'}
+                          </td>
+                          {/* 등록일시: created_at 전체 */}
+                          <td className="py-3.5 px-2 text-slate-500 font-medium text-[11px] leading-snug">
+                            {est.created_at || '-'}
+                          </td>
+                          {/* 견적내용요약 */}
+                          <td className="py-3.5 px-2 text-slate-700 max-w-[200px] truncate" title={est.first_item_name ? (est.item_count > 1 ? `${est.first_item_name} 외 ${est.item_count - 1}건` : est.first_item_name) : '품목 없음'}>
+                            {est.first_item_name ? (
+                              <span className="font-bold text-slate-800">
+                                {est.first_item_name}
+                                {est.item_count > 1 && (
+                                  <span className="text-indigo-500 font-black text-[10px] ml-1">외 {est.item_count - 1}건</span>
+                                )}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 italic text-[11px]">품목 내역 없음</span>
+                            )}
+                          </td>
                           <td className="py-3.5 px-2">
                             <span className="text-indigo-600 font-bold block">{est.total_amount.toLocaleString()}원</span>
                             {est.ai_parsed ? (
                               <span className={`text-[9px] block mt-0.5 ${diffColor}`}>기존가 대비 {diffText} 💡</span>
                             ) : null}
                           </td>
+                          {/* 비고(태그) 컬럼 */}
                           <td className="py-3.5 px-2">
-                            {est.ai_parsed ? (
-                              <div className="relative group inline-block">
-                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border uppercase cursor-help ${confidenceColor}`}>
-                                  {score}% {score >= 95 ? '안전' : score >= 85 ? '주의' : '위험'}
-                                </span>
-                                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:block bg-slate-900 text-white text-[9px] rounded px-2 py-1 shadow-md w-36 text-center z-10 leading-normal">
-                                  Gemini AI 판독 신뢰 지수.<br/>수동 검수를 권장합니다.
-                                </span>
+                            {editingEstimateId === est.id && editingField === "tags" ? (
+                              <div className="flex flex-col gap-1.5 p-1.5 bg-white rounded-xl border border-slate-200 shadow-md min-w-[200px] z-10 relative">
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="text"
+                                    value={tempTags}
+                                    onChange={(e) => setTempTags(e.target.value)}
+                                    className="border border-indigo-300 bg-indigo-50/50 rounded-lg px-2 py-1 text-[10px] font-bold text-slate-700 outline-none focus:ring-1 focus:ring-indigo-500 w-full"
+                                    placeholder="쉼표로 태그 구분"
+                                    autoFocus
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        handleUpdateEstimateTags(est.id, tempTags);
+                                      } else if (e.key === "Escape") {
+                                        setEditingEstimateId(null);
+                                        setEditingField(null);
+                                      }
+                                    }}
+                                  />
+                                  <button
+                                    onClick={() => handleUpdateEstimateTags(est.id, tempTags)}
+                                    className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[9px] font-bold transition-all active:scale-95 whitespace-nowrap"
+                                    disabled={isUpdatingEstimateTags}
+                                  >
+                                    저장
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setEditingEstimateId(null);
+                                      setEditingField(null);
+                                    }}
+                                    className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg text-[9px] font-bold transition-all active:scale-95 whitespace-nowrap"
+                                  >
+                                    취소
+                                  </button>
+                                </div>
+                                
+                                {/* 태그 프리셋 가이드 칩 */}
+                                <div className="mt-1 p-1.5 bg-slate-50/80 rounded-lg border border-slate-100/80">
+                                  <div className="text-[8.5px] font-extrabold text-slate-400 mb-1">태그 선택 (토글)</div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {dbTags.map((tag) => {
+                                      const isSelected = tempTags.split(",")
+                                        .map(t => t.trim())
+                                        .filter(Boolean)
+                                        .includes(tag.name);
+                                      return (
+                                        <button
+                                          key={tag.id}
+                                          type="button"
+                                          onClick={() => handleTagToggle(tag.name)}
+                                          className={`px-1.5 py-0.5 rounded-md text-[8.5px] font-bold border transition-all active:scale-95 cursor-pointer ${
+                                            isSelected
+                                              ? "bg-indigo-600 text-white border-indigo-600"
+                                              : "bg-white text-slate-500 border-slate-200 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200"
+                                          }`}
+                                        >
+                                          #{tag.name}
+                                        </button>
+                                      );
+                                    })}
+                                    {dbTags.length === 0 && (
+                                      <span className="text-[8.5px] text-slate-300">로드 중...</span>
+                                    )}
+                                  </div>
+                                  {/* 최고 관리자일 때 태그관리 바로가기 제공 */}
+                                  {userRole === 'SUPER_ADMIN' && (
+                                    <div className="mt-2 pt-1.5 border-t border-slate-100 flex justify-end">
+                                      <a
+                                        href="/expenses"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-[8.5px] font-black text-indigo-600 hover:text-indigo-700 hover:underline flex items-center gap-0.5 animate-pulse"
+                                      >
+                                        ⚙️ 태그 관리 바로가기
+                                      </a>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             ) : (
-                              <span className="px-2 py-0.5 rounded-md text-[9px] font-bold bg-slate-100 text-slate-400 border border-slate-200">
-                                수동접수
-                              </span>
+                              <div 
+                                className="min-h-[28px] flex items-center w-full cursor-pointer hover:bg-indigo-50/50 p-1 rounded-xl transition-all group"
+                                onClick={() => {
+                                  setEditingEstimateId(est.id);
+                                  setEditingField("tags");
+                                  setTempTags(est.tags || "");
+                                }}
+                                title="클릭하여 비고(태그) 인라인 수정"
+                              >
+                                <div className="flex flex-wrap gap-1 max-w-[150px]">
+                                  {/* 시스템 태그 */}
+                                  <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-black border ${est.ai_parsed ? 'bg-indigo-50 text-indigo-600 border-indigo-100/60' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
+                                    {est.ai_parsed ? 'AI' : '수동'}
+                                  </span>
+                                  {/* 사용자 태그 */}
+                                  {est.tags ? est.tags.split(',').map((t: string) => t.trim()).filter(Boolean).map((tag: string, tIdx: number) => (
+                                    <span key={tIdx} className="px-1.5 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100/60 rounded-md text-[9px] font-black">
+                                      {tag}
+                                    </span>
+                                  )) : (
+                                    <span className="text-slate-300 text-[9px] font-bold italic group-hover:text-indigo-400">비고 추가...</span>
+                                  )}
+                                </div>
+                              </div>
                             )}
                           </td>
                           <td className="py-3.5 px-2">
@@ -1995,6 +2177,16 @@ export default function EstimatesDashboard() {
                             className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-indigo-500"
                           />
                         </div>
+                        <div className="col-span-2">
+                          <label className="text-slate-400 font-bold block mb-1">비고(태그) (쉼표로 구분)</label>
+                          <input 
+                            type="text" 
+                            value={editForm.tags}
+                            onChange={e => setEditForm(prev => ({ ...prev, tags: e.target.value }))}
+                            placeholder="예: 중요, 피드백, 2026Q2"
+                            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-indigo-500"
+                          />
+                        </div>
                         <div>
                           <span className="text-slate-400 font-bold block">견적 유형</span>
                           <span className={`px-2 py-0.5 mt-1 rounded text-[10px] font-black inline-block border ${detailData.estimate.type === 'INBOUND' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
@@ -2033,6 +2225,22 @@ export default function EstimatesDashboard() {
                         <div>
                           <span className="text-slate-400 font-bold block">AI 판독 구분</span>
                           <span className="text-slate-800 font-bold">{detailData.estimate.ai_parsed ? '🧠 Gemini AI OCR' : '✍️ 수동 등록'}</span>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-slate-400 font-bold block mb-1.5">비고(태그)</span>
+                          <div className="flex flex-wrap gap-1.5">
+                            <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black border ${detailData.estimate.ai_parsed ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                              {detailData.estimate.ai_parsed ? 'AI OCR' : '수동 등록'}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black border ${detailData.estimate.type === 'INBOUND' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
+                              {detailData.estimate.type === 'INBOUND' ? '수신' : '발송'}
+                            </span>
+                            {detailData.estimate.tags ? detailData.estimate.tags.split(',').map((t: string) => t.trim()).filter(Boolean).map((tag: string, idx: number) => (
+                              <span key={idx} className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-[10px] font-black">
+                                {tag}
+                              </span>
+                            )) : null}
+                          </div>
                         </div>
                       </div>
                     )}

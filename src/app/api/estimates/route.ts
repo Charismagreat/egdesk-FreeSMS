@@ -28,8 +28,15 @@ export async function GET(req: Request) {
 
     // 만약 견적서 목록을 조회하고 싶다면 (관리자용)
     if (action === 'list') {
-      const estimatesRes = await queryTable('crm_estimates', { orderBy: 'created_at', orderDirection: 'DESC' });
-      const estimates = estimatesRes.rows || [];
+      const query = `
+        SELECT e.*, 
+               (SELECT product_name FROM crm_estimate_items WHERE estimate_id = e.id LIMIT 1) AS first_item_name,
+               (SELECT COUNT(*) FROM crm_estimate_items WHERE estimate_id = e.id) AS item_count
+        FROM crm_estimates e
+        ORDER BY e.id DESC
+      `;
+      const result = await executeSQL(query);
+      const estimates = (result && result.rows) ? result.rows : (Array.isArray(result) ? result : []);
       return NextResponse.json({ success: true, estimates });
     }
 
@@ -82,6 +89,7 @@ export async function POST(req: Request) {
       file_url = '',
       ai_parsed = 0,
       business_license_url = '',  // 신규 첫 견적 시 첨부된 사업자등록증 URL
+      tags = '',
 
       // B2B 신규 거래처 자동 가입용 추가 필드
       is_new_partner = false,
@@ -166,6 +174,7 @@ export async function POST(req: Request) {
       file_url,
       business_license_url, // 첨부된 사업자등록증 URL 매핑
       ai_parsed,
+      tags,
       created_at: nowStr
     }]);
 
@@ -210,67 +219,73 @@ export async function PUT(req: Request) {
       estimateId, 
       partner_name, 
       partner_phone, 
-      items = [] // [{ product_id, product_name, quantity, unit_price }]
+      tags,
+      items
     } = body;
 
     if (!estimateId) {
       return NextResponse.json({ success: false, error: '견적 번호가 누락되었습니다.' }, { status: 400 });
     }
 
-    if (!partner_name) {
-      return NextResponse.json({ success: false, error: '거래처/고객명은 필수 입력 항목입니다.' }, { status: 400 });
-    }
-
-    // 1. 총 합계 금액 재계산
-    let total_amount = 0;
-    const itemRows = items.map((item: any) => {
-      const qty = parseInt(item.quantity) || 0;
-      const price = parseInt(item.unit_price) || 0;
-      const amount = qty * price;
-      total_amount += amount;
-
-      return {
-        product_id: item.product_id || '',
-        product_name: item.product_name,
-        quantity: qty,
-        unit_price: price,
-        amount: amount
-      };
-    });
-
     const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
-
-    // 2. crm_estimates 마스터 업데이트
-    await updateRows('crm_estimates', {
-      partner_name,
-      partner_phone,
-      total_amount,
+    const masterUpdates: any = {
       updated_at: nowStr
-    }, { filters: { id: estimateId } });
+    };
+    if (partner_name !== undefined) masterUpdates.partner_name = partner_name;
+    if (partner_phone !== undefined) masterUpdates.partner_phone = partner_phone;
+    if (tags !== undefined) masterUpdates.tags = tags;
 
-    // 3. 기존 crm_estimate_items 삭제 후 재생성
-    await deleteRows('crm_estimate_items', { filters: { estimate_id: estimateId } });
+    if (items !== undefined && Array.isArray(items)) {
+      if (!partner_name) {
+        return NextResponse.json({ success: false, error: '품목 수정 시 거래처/고객명은 필수 입력 항목입니다.' }, { status: 400 });
+      }
 
-    // 4. crm_estimate_items 신규 삽입
-    const detailRows = itemRows.map((row: any, idx: number) => ({
-      id: Date.now() + idx,
-      estimate_id: estimateId,
-      product_id: row.product_id,
-      product_name: row.product_name,
-      quantity: row.quantity,
-      unit_price: row.unit_price,
-      amount: row.amount
-    }));
+      let total_amount = 0;
+      const itemRows = items.map((item: any) => {
+        const qty = parseInt(item.quantity) || 0;
+        const price = parseInt(item.unit_price) || 0;
+        const amount = qty * price;
+        total_amount += amount;
 
-    if (detailRows.length > 0) {
-      await insertRows('crm_estimate_items', detailRows);
+        return {
+          product_id: item.product_id || '',
+          product_name: item.product_name,
+          quantity: qty,
+          unit_price: price,
+          amount: amount
+        };
+      });
+      masterUpdates.total_amount = total_amount;
+
+      await updateRows('crm_estimates', masterUpdates, { filters: { id: estimateId } });
+      await deleteRows('crm_estimate_items', { filters: { estimate_id: estimateId } });
+
+      const detailRows = itemRows.map((row: any, idx: number) => ({
+        id: Date.now() + idx,
+        estimate_id: estimateId,
+        product_id: row.product_id,
+        product_name: row.product_name,
+        quantity: row.quantity,
+        unit_price: row.unit_price,
+        amount: row.amount
+      }));
+
+      if (detailRows.length > 0) {
+        await insertRows('crm_estimate_items', detailRows);
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: '견적서가 성공적으로 수정되었습니다.',
+        totalAmount: total_amount
+      });
+    } else {
+      await updateRows('crm_estimates', masterUpdates, { filters: { id: estimateId } });
+      return NextResponse.json({
+        success: true,
+        message: '견적서 정보가 성공적으로 수정되었습니다.'
+      });
     }
-
-    return NextResponse.json({
-      success: true,
-      message: '견적서가 성공적으로 수정되었습니다.',
-      totalAmount: total_amount
-    });
 
   } catch (error: any) {
     console.error('API estimates PUT error:', error);
