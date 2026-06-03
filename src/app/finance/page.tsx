@@ -399,7 +399,7 @@ export default function FinancePage() {
     if (previewList.length === 0) return;
     try {
       const XLSX = await import('xlsx');
-      const headers = ["거래일자", "승인시간", "카드사", "카드번호", "가맹점명", "거래금액", "현재 계정과목", "매칭 후 계정과목", "태그(비고)"];
+      const headers = ["거래일자", "승인시간", "카드사", "카드번호", "가맹점명", "거래금액", "현재 계정과목", "매칭 후 계정과목", "태그"];
       const aoaData = [headers];
       previewList.forEach(tx => {
         aoaData.push([
@@ -464,7 +464,7 @@ export default function FinancePage() {
     }
     try {
       const XLSX = await import('xlsx');
-      const headers = ["승인일자", "승인시간", "카드사", "카드번호", "가맹점명", "승인금액", "상태", "계정과목", "승인번호", "메모(태그)"];
+      const headers = ["승인일자", "승인시간", "카드사", "카드번호", "가맹점명", "승인금액", "상태", "계정과목", "승인번호", "태그"];
       const aoaData = [headers];
       cardTxList.forEach(tx => {
         aoaData.push([
@@ -499,7 +499,7 @@ export default function FinancePage() {
     }
     try {
       const XLSX = await import('xlsx');
-      const headers = ["발행일자", "공급자", "공급받는자", "품목명", "비고 (태그)", "공급가액", "세액", "합계금액", "구분", "과세구분"];
+      const headers = ["발행일자", "공급자", "공급받는자", "품목명", "태그", "공급가액", "세액", "합계금액", "구분", "과세구분"];
       const aoaData = [headers];
       list.forEach(tx => {
         aoaData.push([
@@ -532,7 +532,7 @@ export default function FinancePage() {
     }
     try {
       const XLSX = await import('xlsx');
-      const headers = ["거래일자", "가맹점명", "용도", "비고 (태그)", "공급가액", "세액", "합계금액", "승인번호"];
+      const headers = ["거래일자", "가맹점명", "용도", "태그", "공급가액", "세액", "합계금액", "승인번호"];
       const aoaData = [headers];
       cashReceiptList.forEach(tx => {
         aoaData.push([
@@ -2100,7 +2100,7 @@ export default function FinancePage() {
                         <th className="p-4 w-36">계좌번호</th>
                         <th className="p-4">적요 / 거래구분</th>
                         <th className="p-4">구분</th>
-                        <th className="p-4 min-w-[120px]">비고 (태그)</th>
+                        <th className="p-4 min-w-[120px] text-amber-600 font-extrabold">🏷️ 태그</th>
                         <th className="p-4 text-right">입금액</th>
                         <th className="p-4 text-right">출금액</th>
                         <th className="p-4 text-right">잔액</th>
@@ -2598,7 +2598,7 @@ export default function FinancePage() {
                       <th className="p-4 w-44">카드사 / 카드번호</th>
                       <th className="p-4 min-w-[180px]">계정과목 (대 〉 중 〉 소)</th>
                       <th className="p-4">가맹점명</th>
-                      <th className="p-4 min-w-[120px]">비고 (태그)</th>
+                      <th className="p-4 min-w-[120px] text-amber-600 font-extrabold">🏷️ 태그</th>
                       <th className="p-4 text-right w-28">사용금액</th>
                       <th className="p-4 w-20">승인상태</th>
                       <th className="p-4 text-center w-24">영수증</th>
@@ -3132,7 +3132,7 @@ export default function FinancePage() {
                             <th className="p-4">구분</th>
                             <th className="p-4">공급받는자 / 공급자</th>
                             <th className="p-4">품목명</th>
-                            <th className="p-4 min-w-[120px]">비고 (태그)</th>
+                            <th className="p-4 min-w-[120px] text-amber-600 font-extrabold">🏷️ 태그</th>
                             <th className="p-4 text-right">공급가액</th>
                             <th className="p-4 text-right">부가세</th>
                             <th className="p-4 text-right">합계금액</th>
@@ -3300,7 +3300,7 @@ export default function FinancePage() {
                             <th className="p-4 w-32">거래일자</th>
                             <th className="p-4">가맹점 / 승인번호</th>
                             <th className="p-4">용도구분</th>
-                            <th className="p-4 min-w-[120px]">비고 (태그)</th>
+                            <th className="p-4 min-w-[120px] text-amber-600 font-extrabold">🏷️ 태그</th>
                             <th className="p-4 text-right">공급가액</th>
                             <th className="p-4 text-right">부가세</th>
                             <th className="p-4 text-right">합계금액</th>
