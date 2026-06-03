@@ -184,8 +184,8 @@ export default function MobileEstimateRequestPage() {
           if (ocrResult.phone) setPartnerPhone(ocrResult.phone);
           if (ocrResult.email) setEmail(ocrResult.email);
 
-          // 로컬 업로드 디렉토리 가상 매핑
-          setLicenseFileUrl(`/uploads/licenses/license_${Date.now()}_${file.name}`);
+          // 로컬 업로드 디렉토리 가상 매핑 대신 실제 Base64 데이터 매핑
+          setLicenseFileUrl(base64Data);
           setOcrSuccessMsg(`AI가 사업자등록증 정보를 완벽 해독했습니다! 상호명[${ocrResult.company_name}], 대표자[${ocrResult.representative}] 등을 자동 입력 완료했습니다. ✨`);
         } else {
           alert("AI OCR 스캔 실패: " + ocrResult.error);

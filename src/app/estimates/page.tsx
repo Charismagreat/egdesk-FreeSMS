@@ -53,6 +53,44 @@ const base64ToBlob = (base64: string, mimeType = "application/pdf") => {
   return new Blob([byteArray], { type: mimeType });
 };
 
+// 하이브리드 JSON 메타데이터 파서
+const parseEstimateMetadata = (tagsString: string) => {
+  const defaultMeta = {
+    tags: "",
+    business_number: "",
+    address: "",
+    representative: "",
+    document_number: "",
+    document_date: "",
+    document_memo: ""
+  };
+  
+  if (!tagsString) return defaultMeta;
+  
+  const trimmed = tagsString.trim();
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      return {
+        tags: parsed.tags || "",
+        business_number: parsed.business_number || "",
+        address: parsed.address || "",
+        representative: parsed.representative || "",
+        document_number: parsed.document_number || "",
+        document_date: parsed.document_date || "",
+        document_memo: parsed.document_memo || ""
+      };
+    } catch (e) {
+      // 파싱 실패
+    }
+  }
+  
+  return {
+    ...defaultMeta,
+    tags: tagsString
+  };
+};
+
 export default function EstimatesDashboard() {
   const [activeTab, setActiveTab] = useState<'inbound' | 'outbound'>('inbound');
   const [loading, setLoading] = useState(true);
@@ -99,6 +137,12 @@ export default function EstimatesDashboard() {
     partner_name: string;
     partner_phone: string;
     tags: string;
+    business_number: string;
+    address: string;
+    representative: string;
+    document_number: string;
+    document_date: string;
+    document_memo: string;
     items: Array<{
       id?: number;
       product_id: string;
@@ -111,6 +155,12 @@ export default function EstimatesDashboard() {
     partner_name: "",
     partner_phone: "",
     tags: "",
+    business_number: "",
+    address: "",
+    representative: "",
+    document_number: "",
+    document_date: "",
+    document_memo: "",
     items: []
   });
 
@@ -179,14 +229,15 @@ export default function EstimatesDashboard() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedEstimateId, setSelectedEstimateId] = useState<string | null>(null);
   const [detailData, setDetailData] = useState<any | null>(null);
+  const detailMeta = detailData ? parseEstimateMetadata(detailData.estimate.tags || "") : null;
   const [detailLoading, setDetailLoading] = useState(false);
 
   // PDF 뷰어용 Blob URL 상태 및 변환/해제 관리
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string>("");
 
   useEffect(() => {
-    if (detailData?.estimate?.file_url) {
-      const fileUrl = detailData.estimate.file_url;
+    const fileUrl = detailData?.estimate?.file_url || detailData?.estimate?.business_license_url;
+    if (fileUrl) {
       if (fileUrl.startsWith("data:application/pdf") || fileUrl.toLowerCase().endsWith(".pdf")) {
         try {
           if (fileUrl.startsWith("data:application/pdf")) {
@@ -226,7 +277,8 @@ export default function EstimatesDashboard() {
   const [ocrForm, setOcrForm] = useState({
     partner_name: "",
     partner_phone: "",
-    items: [] as Array<{ product_name: string; quantity: number; unit_price: number }>
+    items: [] as Array<{ product_name: string; quantity: number; unit_price: number }>,
+    file_url: ""
   });
 
   // AI OCR 상태 및 모달 유틸리티 제어
@@ -294,10 +346,17 @@ export default function EstimatesDashboard() {
   // 최고 관리자 전용 편집 관련 핸들러들
   const handleStartEdit = () => {
     if (!detailData) return;
+    const meta = parseEstimateMetadata(detailData.estimate.tags || "");
     setEditForm({
       partner_name: detailData.estimate.partner_name,
       partner_phone: detailData.estimate.partner_phone,
-      tags: detailData.estimate.tags || '',
+      tags: meta.tags,
+      business_number: meta.business_number,
+      address: meta.address,
+      representative: meta.representative,
+      document_number: meta.document_number,
+      document_date: meta.document_date,
+      document_memo: meta.document_memo,
       items: detailData.items.map((item: any) => ({
         id: item.id,
         product_id: item.product_id || '',
@@ -376,6 +435,16 @@ export default function EstimatesDashboard() {
     }
 
     try {
+      const tagsJsonString = JSON.stringify({
+        tags: editForm.tags,
+        business_number: editForm.business_number,
+        address: editForm.address,
+        representative: editForm.representative,
+        document_number: editForm.document_number,
+        document_date: editForm.document_date,
+        document_memo: editForm.document_memo
+      });
+
       const res = await fetch("/api/estimates", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -383,7 +452,7 @@ export default function EstimatesDashboard() {
           estimateId: selectedEstimateId,
           partner_name: editForm.partner_name,
           partner_phone: editForm.partner_phone,
-          tags: editForm.tags,
+          tags: tagsJsonString,
           items: editForm.items
         })
       });
@@ -539,7 +608,8 @@ export default function EstimatesDashboard() {
           setOcrForm({
             partner_name: data.partner_name,
             partner_phone: data.partner_phone || "",
-            items: data.items
+            items: data.items,
+            file_url: base64Data
           });
         } else {
           setOcrScanning(false);
@@ -570,7 +640,8 @@ export default function EstimatesDashboard() {
           partner_name: ocrForm.partner_name,
           partner_phone: ocrForm.partner_phone,
           items: ocrForm.items,
-          ai_parsed: 1
+          ai_parsed: 1,
+          file_url: ocrForm.file_url
         })
       });
       const data = await res.json();
@@ -2244,6 +2315,69 @@ export default function EstimatesDashboard() {
                           <span className="text-slate-400 font-bold block">AI 판독 구분</span>
                           <span className="text-slate-800 font-bold mt-1 inline-block">{detailData.estimate.ai_parsed ? '🧠 Gemini AI OCR' : '✍️ 수동 등록'}</span>
                         </div>
+                        {/* 공급처 추가 정보 입력 */}
+                        <div className="col-span-2 border-t border-slate-200/60 my-1 pt-2">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">공급처 세부 정보</span>
+                        </div>
+                        <div>
+                          <label className="text-slate-400 font-bold block mb-1">사업자번호</label>
+                          <input 
+                            type="text" 
+                            value={editForm.business_number}
+                            onChange={e => setEditForm(prev => ({ ...prev, business_number: e.target.value }))}
+                            placeholder="000-00-00000"
+                            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-slate-400 font-bold block mb-1">대표자명</label>
+                          <input 
+                            type="text" 
+                            value={editForm.representative}
+                            onChange={e => setEditForm(prev => ({ ...prev, representative: e.target.value }))}
+                            placeholder="홍길동"
+                            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-indigo-500"
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="text-slate-400 font-bold block mb-1">소재지 주소</label>
+                          <input 
+                            type="text" 
+                            value={editForm.address}
+                            onChange={e => setEditForm(prev => ({ ...prev, address: e.target.value }))}
+                            placeholder="서울특별시 강남구..."
+                            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-slate-400 font-bold block mb-1">문서 견적번호</label>
+                          <input 
+                            type="text" 
+                            value={editForm.document_number}
+                            onChange={e => setEditForm(prev => ({ ...prev, document_number: e.target.value }))}
+                            placeholder="문서에 기재된 견적번호"
+                            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-indigo-500 font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-slate-400 font-bold block mb-1">문서 견적일자</label>
+                          <input 
+                            type="text" 
+                            value={editForm.document_date}
+                            onChange={e => setEditForm(prev => ({ ...prev, document_date: e.target.value }))}
+                            placeholder="YYYY-MM-DD"
+                            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-indigo-500"
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="text-slate-400 font-bold block mb-1">기타 (유효기간, 납기조건 등)</label>
+                          <textarea 
+                            value={editForm.document_memo}
+                            onChange={e => setEditForm(prev => ({ ...prev, document_memo: e.target.value }))}
+                            placeholder="견적유효기간, 납기조건 등 견적서에 기재된 기타 정보"
+                            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-indigo-500 min-h-[60px] resize-none"
+                          />
+                        </div>
                       </div>
                     ) : (
                       <div className="grid grid-cols-2 gap-y-2.5 text-xs">
@@ -2282,12 +2416,42 @@ export default function EstimatesDashboard() {
                             <span className={`px-2 py-0.5 rounded-lg text-[10px] font-black border ${detailData.estimate.type === 'INBOUND' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
                               {detailData.estimate.type === 'INBOUND' ? '수신' : '발송'}
                             </span>
-                            {detailData.estimate.tags ? detailData.estimate.tags.split(',').map((t: string) => t.trim()).filter(Boolean).map((tag: string, idx: number) => (
+                            {detailMeta?.tags ? detailMeta.tags.split(',').map((t: string) => t.trim()).filter(Boolean).map((tag: string, idx: number) => (
                               <span key={idx} className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 rounded-lg text-[10px] font-black">
                                 {tag}
                               </span>
                             )) : null}
                           </div>
+                        </div>
+                        {/* 공급처 추가 정보 조회 */}
+                        <div className="col-span-2 border-t border-slate-200/60 my-1 pt-2">
+                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">공급처 세부 정보</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-bold block">사업자번호</span>
+                          <span className="text-slate-800 font-bold mt-1 inline-block">{detailMeta?.business_number || "-"}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-bold block">대표자명</span>
+                          <span className="text-slate-800 font-bold mt-1 inline-block">{detailMeta?.representative || "-"}</span>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-slate-400 font-bold block">소재지 주소</span>
+                          <span className="text-slate-800 font-bold mt-1 inline-block">{detailMeta?.address || "-"}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-bold block">문서 견적번호</span>
+                          <span className="text-slate-800 font-black font-mono mt-1 inline-block">{detailMeta?.document_number || "-"}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-bold block">문서 견적일자</span>
+                          <span className="text-slate-800 font-bold mt-1 inline-block">{detailMeta?.document_date || "-"}</span>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-slate-400 font-bold block">기타 (유효기간, 납기조건 등)</span>
+                          <span className="text-slate-800 font-bold whitespace-pre-wrap block bg-slate-100 p-2 rounded-xl mt-1 text-[11px] min-h-[40px]">
+                            {detailMeta?.document_memo || "-"}
+                          </span>
                         </div>
                       </div>
                     )}
@@ -2318,132 +2482,164 @@ export default function EstimatesDashboard() {
                       )}
                     </div>
                     
-                    <div className="border border-slate-100 rounded-2xl overflow-hidden">
-                      <table className="w-full text-left text-xs font-semibold">
-                        <thead>
-                          <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 text-[10px]">
-                            <th className="py-2.5 px-3">품목명</th>
-                            <th className="py-2.5 px-2 text-center w-[70px]">수량</th>
-                            <th className="py-2.5 px-2 text-right w-[110px]">단가</th>
-                            <th className="py-2.5 px-3 text-right w-[110px]">공급가액</th>
-                            {isEditingDetail && <th className="py-2.5 px-2 text-center w-[40px]">삭제</th>}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {isEditingDetail ? (
-                            editForm.items.map((item, idx) => (
-                              <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/40">
-                                <td className="py-2 px-3">
-                                  <input 
-                                    type="text" 
-                                    value={item.product_name}
-                                    onChange={e => handleEditItemChange(idx, 'product_name', e.target.value)}
-                                    placeholder="품목명 입력"
-                                    className="w-full p-1.5 border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-indigo-500"
-                                  />
-                                </td>
-                                <td className="py-2 px-2 text-center">
-                                  <input 
-                                    type="number" 
-                                    value={item.quantity}
-                                    onChange={e => handleEditItemChange(idx, 'quantity', e.target.value)}
-                                    className="w-full p-1.5 border border-slate-200 rounded-lg text-xs font-bold text-center outline-none focus:border-indigo-500"
-                                    min="1"
-                                  />
-                                </td>
-                                <td className="py-2 px-2 text-right">
-                                  <input 
-                                    type="number" 
-                                    value={item.unit_price}
-                                    onChange={e => handleEditItemChange(idx, 'unit_price', e.target.value)}
-                                    className="w-full p-1.5 border border-slate-200 rounded-lg text-xs font-bold text-right outline-none focus:border-indigo-500"
-                                    min="0"
-                                  />
-                                </td>
-                                <td className="py-2 px-3 text-right text-indigo-600 font-bold">
+                    {isEditingDetail ? (
+                      <div className="space-y-3 max-h-[350px] overflow-y-auto pr-1">
+                        {editForm.items.map((item, idx) => (
+                          <div key={idx} className="p-3.5 bg-slate-50/60 border border-slate-100 rounded-2xl space-y-2.5 animate-fade-in relative">
+                            {/* 첫 번째 행: 품목명 전체 너비 입력 */}
+                            <div>
+                              <div className="flex justify-between items-center mb-1">
+                                <label className="text-[10px] text-slate-400 font-bold">품목명 *</label>
+                                <span className="text-[9px] bg-indigo-50 text-indigo-500 font-black px-1.5 py-0.5 rounded">
+                                  품목 #{idx + 1}
+                                </span>
+                              </div>
+                              <input 
+                                type="text" 
+                                value={item.product_name}
+                                onChange={e => handleEditItemChange(idx, 'product_name', e.target.value)}
+                                placeholder="품목명을 입력하세요"
+                                className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 transition-all shadow-sm"
+                                required
+                              />
+                            </div>
+
+                            {/* 두 번째 행: 수량, 단가, 공급금액, 삭제 버튼 가로 배치 */}
+                            <div className="grid grid-cols-12 gap-2 items-center">
+                              {/* 수량 */}
+                              <div className="col-span-3">
+                                <label className="text-[9px] text-slate-400 font-bold block mb-1">수량</label>
+                                <input 
+                                  type="number" 
+                                  value={item.quantity}
+                                  onChange={e => handleEditItemChange(idx, 'quantity', e.target.value)}
+                                  className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-center outline-none focus:border-indigo-500 transition-all shadow-sm"
+                                  min="1"
+                                />
+                              </div>
+
+                              {/* 단가 */}
+                              <div className="col-span-4">
+                                <label className="text-[9px] text-slate-400 font-bold block mb-1">단가(원)</label>
+                                <input 
+                                  type="number" 
+                                  value={item.unit_price}
+                                  onChange={e => handleEditItemChange(idx, 'unit_price', e.target.value)}
+                                  className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-right outline-none focus:border-indigo-500 transition-all shadow-sm"
+                                  min="0"
+                                />
+                              </div>
+
+                              {/* 공급금액 */}
+                              <div className="col-span-4 text-right pr-1">
+                                <span className="text-[9px] text-slate-400 font-bold block">공급금액</span>
+                                <span className="text-xs font-extrabold text-indigo-650 block mt-0.5">
                                   {(item.quantity * item.unit_price).toLocaleString()}원
-                                </td>
-                                <td className="py-2 px-2 text-center">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRemoveEditItem(idx)}
-                                    className="p-1 hover:bg-rose-50 text-rose-500 rounded-lg transition-colors"
-                                  >
-                                    <X className="w-3.5 h-3.5" />
-                                  </button>
-                                </td>
-                              </tr>
-                            ))
-                          ) : (
-                            detailData.items.map((item: any, idx: number) => (
+                                </span>
+                              </div>
+
+                              {/* 삭제 버튼 */}
+                              <div className="col-span-1 flex justify-end">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveEditItem(idx)}
+                                  className="p-2 bg-white border border-slate-200 hover:bg-rose-50 hover:text-rose-500 text-slate-400 rounded-xl transition-all shadow-sm flex items-center justify-center shrink-0"
+                                  title="품목 삭제"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      /* 조회 전용 일반 깔끔 테이블 */
+                      <div className="border border-slate-100 rounded-2xl overflow-hidden">
+                        <table className="w-full text-left text-xs font-semibold">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 text-[10px]">
+                              <th className="py-2.5 px-3">품목명</th>
+                              <th className="py-2.5 px-2 text-center w-[70px]">수량</th>
+                              <th className="py-2.5 px-2 text-right w-[110px]">단가</th>
+                              <th className="py-2.5 px-3 text-right w-[110px]">공급가액</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {detailData.items.map((item: any, idx: number) => (
                               <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/40">
                                 <td className="py-3 px-3 text-slate-800 font-bold">{item.product_name}</td>
                                 <td className="py-3 px-2 text-center text-slate-600 font-bold">{item.quantity}개</td>
                                 <td className="py-3 px-2 text-right text-slate-500 font-medium">{(item.unit_price || 0).toLocaleString()}원</td>
                                 <td className="py-3 px-3 text-right text-indigo-600 font-bold">{((item.quantity || 0) * (item.unit_price || 0)).toLocaleString()}원</td>
                               </tr>
-                            ))
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 </div>
 
-                {/* 우측: 원본 파일 열람 및 미리보기 */}
-                <div className="flex flex-col border border-slate-100 rounded-3xl p-5 bg-slate-50 relative min-h-[300px]">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3">첨부 원본 견적서 파일</span>
+                {/* 우측: 원본 파일 열람 및 미리보기 (A4 문서 비율에 부합하도록 h-[750px]로 넉넉하게 확보, overflow-hidden으로 꽉 채움, bg-transparent 투명 처리) */}
+                <div className="flex flex-col border border-slate-100 rounded-3xl bg-transparent relative h-[750px] shrink-0 overflow-hidden">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mt-5 ml-5 mb-3">첨부 원본 견적서 파일</span>
 
-                  {detailData.estimate.file_url ? (
-                    <div className="flex-1 flex flex-col justify-between space-y-4">
-                      {/* 이미지 파일 미리보기 지원 */}
-                      {/\.(jpg|jpeg|png|webp|heic|gif)$/i.test(detailData.estimate.file_url) || detailData.estimate.file_url.startsWith('data:image/') ? (
-                        <div className="flex-1 border border-slate-200 rounded-2xl bg-white overflow-hidden flex items-center justify-center p-2 min-h-[220px] max-h-[300px] shadow-sm relative group">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img 
-                            src={detailData.estimate.file_url} 
-                            alt="견적서 원본" 
-                            className="max-w-full max-h-full object-contain rounded-xl"
-                          />
-                        </div>
-                      ) : (detailData.estimate.file_url.startsWith("data:application/pdf") || detailData.estimate.file_url.toLowerCase().endsWith(".pdf")) ? (
-                        <div className="flex-1 border border-slate-200 rounded-2xl bg-white overflow-hidden p-2 min-h-[220px] max-h-[300px] shadow-sm relative group">
-                          {pdfBlobUrl ? (
-                            <iframe 
-                              src={pdfBlobUrl} 
-                              className="w-full h-full min-h-[210px] border-none rounded-xl"
-                              title="PDF 견적서 미리보기"
+                  {(() => {
+                    const targetFileUrl = detailData.estimate.file_url || detailData.estimate.business_license_url;
+                    return targetFileUrl ? (
+                      <div className="flex-1 flex flex-col justify-between h-full">
+                        {/* 이미지 파일 미리보기 지원 (p-0으로 꽉 채움, A4 최적 높이 h-[600px]로 확장, bg-transparent) */}
+                        {/\.(jpg|jpeg|png|webp|heic|gif)$/i.test(targetFileUrl) || targetFileUrl.startsWith('data:image/') ? (
+                          <div className="flex-1 bg-transparent overflow-hidden flex items-center justify-center relative group h-[600px] p-0">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img 
+                              src={targetFileUrl} 
+                              alt="견적서 원본" 
+                              className="w-full h-full object-contain"
                             />
-                          ) : (
-                            <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 text-xs font-semibold gap-2 py-10">
-                              <RefreshCw className="w-6 h-6 animate-spin text-indigo-500" />
-                              <span>PDF 문서 로딩 중...</span>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="flex-1 border border-slate-200 rounded-2xl bg-white flex flex-col items-center justify-center p-6 text-center shadow-sm">
-                          <FileText className="w-12 h-12 text-slate-300 mb-2" />
-                          <span className="text-xs font-bold text-slate-700">문서 파일 형식 (PDF/기타)</span>
-                          <span className="text-[10px] text-slate-400 mt-1 max-w-[200px] truncate block">{detailData.estimate.file_url}</span>
-                        </div>
-                      )}
+                          </div>
+                        ) : (targetFileUrl.startsWith("data:application/pdf") || targetFileUrl.toLowerCase().endsWith(".pdf")) ? (
+                          <div className="flex-1 bg-transparent overflow-hidden relative group h-[600px] p-0">
+                            {pdfBlobUrl ? (
+                              <iframe 
+                                src={`${pdfBlobUrl}#view=FitH`} 
+                                className="w-full h-full border-none bg-transparent"
+                                title="PDF 견적서 미리보기"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 text-xs font-semibold gap-2 py-10">
+                                <RefreshCw className="w-6 h-6 animate-spin text-indigo-500" />
+                                <span>PDF 문서 로딩 중...</span>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="flex-1 bg-transparent flex flex-col items-center justify-center p-6 text-center h-[600px]">
+                            <FileText className="w-12 h-12 text-slate-300 mb-2" />
+                            <span className="text-xs font-bold text-slate-700">문서 파일 형식 (PDF/기타)</span>
+                            <span className="text-[10px] text-slate-400 mt-1 max-w-[200px] truncate block">{targetFileUrl}</span>
+                          </div>
+                        )}
 
-                      <button
-                        onClick={() => window.open(pdfBlobUrl || detailData.estimate.file_url, '_blank')}
-                        className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md"
-                      >
-                        <ExternalLink className="w-4 h-4 text-amber-400" />
-                        새 창에서 원본 파일 열람 및 인쇄
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center border border-slate-200 border-dashed rounded-2xl bg-white p-6 text-center">
-                      <ShieldAlert className="w-10 h-10 text-slate-300 mb-2" />
-                      <span className="text-xs font-bold text-slate-600">등록된 첨부 원본 파일이 없습니다.</span>
-                      <span className="text-[10px] text-slate-400 mt-1">수동으로 등록하였거나 업로드 파일이 생략된 견적서입니다.</span>
-                    </div>
-                  )}
+                        <div className="p-5 bg-transparent shrink-0 border-t border-slate-100">
+                          <button
+                            onClick={() => window.open(pdfBlobUrl || targetFileUrl, '_blank')}
+                            className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md shrink-0"
+                          >
+                            <ExternalLink className="w-4 h-4 text-amber-400" />
+                            새 창에서 원본 파일 열람 및 인쇄
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex-1 flex flex-col items-center justify-center border-t border-slate-200/65 border-dashed bg-white p-6 text-center h-full">
+                        <ShieldAlert className="w-10 h-10 text-slate-300 mb-2" />
+                        <span className="text-xs font-bold text-slate-600">등록된 첨부 원본 파일이 없습니다.</span>
+                        <span className="text-[10px] text-slate-400 mt-1">수동으로 등록하였거나 업로드 파일이 생략된 견적서입니다.</span>
+                      </div>
+                    );
+                  })()}
                 </div>
 
               </div>
