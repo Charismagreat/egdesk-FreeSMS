@@ -204,7 +204,7 @@ export default function ExpenseConfigCenter({
     const result = await handleAddTag(newTagName.trim());
     setIsSubmittingTag(false);
     if (result.success) {
-      alert("지출 태그가 프리셋에 정식 추가되었습니다.");
+      alert("태그가 추가되었습니다.");
       setNewTagName("");
     } else {
       alert("등록 실패: " + result.error);
@@ -282,7 +282,7 @@ export default function ExpenseConfigCenter({
               activeConfigTab === 'tag' ? 'bg-white text-rose-655 shadow-2xs font-extrabold' : 'text-slate-500 hover:text-slate-800 bg-transparent'
             }`}
           >
-            🏷️ 지출 태그
+            🏷️ 태그
           </button>
           <button
             type="button"
@@ -540,7 +540,7 @@ export default function ExpenseConfigCenter({
           <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
             <h3 className="font-extrabold text-slate-800 text-[11px] flex items-center">
               <Sparkles className="w-3 h-3 text-rose-500 mr-1.5 animate-pulse" />
-              ➕ 프리셋 지출 태그 등록
+              ➕ 태그 등록
             </h3>
             <div className="flex items-center gap-2">
               <input
@@ -562,10 +562,10 @@ export default function ExpenseConfigCenter({
           </div>
 
           <div className="space-y-1.5">
-            <h3 className="font-extrabold text-slate-500 text-[10px] pl-1">현재 등록된 프리셋 지출 태그 ({dbTags.length}개)</h3>
+            <h3 className="font-extrabold text-slate-500 text-[10px] pl-1">등록된 태그 ({dbTags.length}개)</h3>
             <div className="flex flex-wrap gap-2 p-4 border border-slate-200 rounded-xl bg-white shadow-2xs">
               {dbTags.length === 0 ? (
-                <div className="w-full text-center text-slate-400 font-bold py-4">등록된 지출 태그가 없습니다.</div>
+                <div className="w-full text-center text-slate-400 font-bold py-4">등록된 태그가 없습니다.</div>
               ) : (
                 dbTags.map(tag => (
                   <div key={tag.id} className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200 text-slate-600 text-[10px] font-extrabold px-3 py-1.5 rounded-full shadow-3xs">
