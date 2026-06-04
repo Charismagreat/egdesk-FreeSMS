@@ -1,0 +1,572 @@
+"use client";
+
+import React, { useState } from "react";
+import { Upload, Eye, CheckCircle2, ChevronRight } from "lucide-react";
+import { Estimate, PurchaseOrder } from "../types";
+import InlineTagEditor from "./InlineTagEditor";
+
+interface InboundHubProps {
+  estimates: Estimate[];
+  purchaseOrders: PurchaseOrder[];
+  userRole: string;
+  dbTags: any[];
+  onOpenDetailModal: (id: string) => void;
+  onOpenOcrModal: () => void;
+  onOpenInspectModal: (po: PurchaseOrder) => void;
+  onConvertToPo: (est: Estimate) => Promise<void>;
+  onBulkConvertToPo: (ids: string[]) => Promise<void>;
+  onUpdateTags: (estId: string, tagsValue: string) => Promise<void>;
+  onBulkExportExcel: (
+    type: "inbound_est" | "inbound_po",
+    selectedIds: Set<string>
+  ) => void;
+}
+
+export default function InboundHub({
+  estimates,
+  purchaseOrders,
+  userRole,
+  dbTags,
+  onOpenDetailModal,
+  onOpenOcrModal,
+  onOpenInspectModal,
+  onConvertToPo,
+  onBulkConvertToPo,
+  onUpdateTags,
+  onBulkExportExcel,
+}: InboundHubProps) {
+  // 서브 탭 및 필터 로컬 상태
+  const [inboundSubTab, setInboundSubTab] = useState<"estimates" | "pos">("estimates");
+  const [inboundSearch, setInboundSearch] = useState("");
+  const [inboundStatusFilter, setInboundStatusFilter] = useState("ALL");
+  const [inboundSortKey, setInboundSortKey] = useState("created_at");
+  const [inboundSortDir, setInboundSortDir] = useState<"asc" | "desc">("desc");
+
+  // 다중 선택 로컬 상태
+  const [selectedInboundIds, setSelectedInboundIds] = useState<Set<string>>(new Set());
+
+  // 필터링 및 정렬 파이프라인
+  const filteredInboundEstimates = estimates
+    .filter((e) => e.type === "INBOUND")
+    .filter((e) => {
+      if (!inboundSearch.trim()) return true;
+      const term = inboundSearch.toLowerCase();
+      return (
+        e.partner_name.toLowerCase().includes(term) ||
+        e.id.toLowerCase().includes(term)
+      );
+    })
+    .filter((e) => {
+      if (inboundStatusFilter === "ALL") return true;
+      return e.direction_status === inboundStatusFilter;
+    })
+    .sort((a, b) => {
+      const valA = a[inboundSortKey as keyof Estimate] ?? "";
+      const valB = b[inboundSortKey as keyof Estimate] ?? "";
+      if (typeof valA === "string" && typeof valB === "string") {
+        return inboundSortDir === "asc"
+          ? valA.localeCompare(valB)
+          : valB.localeCompare(valA);
+      }
+      return inboundSortDir === "asc"
+        ? (valA as number) - (valB as number)
+        : (valB as number) - (valA as number);
+    });
+
+  const filteredInboundPOs = purchaseOrders
+    .filter((po) => {
+      if (!inboundSearch.trim()) return true;
+      const term = inboundSearch.toLowerCase();
+      return (
+        po.vendor_name.toLowerCase().includes(term) ||
+        po.id.toLowerCase().includes(term)
+      );
+    })
+    .filter((po) => {
+      if (inboundStatusFilter === "ALL") return true;
+      return po.status === inboundStatusFilter;
+    })
+    .sort((a, b) => {
+      const valA = a[inboundSortKey as keyof PurchaseOrder] ?? "";
+      const valB = b[inboundSortKey as keyof PurchaseOrder] ?? "";
+      if (typeof valA === "string" && typeof valB === "string") {
+        return inboundSortDir === "asc"
+          ? valA.localeCompare(valB)
+          : valB.localeCompare(valA);
+      }
+      return inboundSortDir === "asc"
+        ? (valA as number) - (valB as number)
+        : (valB as number) - (valA as number);
+    });
+
+  // 정렬 핸들러
+  const handleSort = (key: string) => {
+    if (inboundSortKey === key) {
+      setInboundSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setInboundSortKey(key);
+      setInboundSortDir("desc");
+    }
+  };
+
+  // 선택 취소 핸들러
+  const handleClearSelection = () => {
+    setSelectedInboundIds(new Set());
+  };
+
+  // 일괄 발주 전환 로컬 핸들러
+  const handleLocalBulkConvertToPo = async () => {
+    const ids = Array.from(selectedInboundIds);
+    await onBulkConvertToPo(ids);
+    handleClearSelection();
+  };
+
+  // 일괄 엑셀 내보내기 로컬 핸들러
+  const handleLocalBulkExportExcel = () => {
+    onBulkExportExcel(inboundSubTab === "estimates" ? "inbound_est" : "inbound_po", selectedInboundIds);
+  };
+
+  return (
+    <div className="space-y-6 animate-scale-up">
+      {/* 서브 탭 헤더 */}
+      <div className="flex border-b border-slate-100 gap-6 pb-2">
+        <button
+          onClick={() => {
+            setInboundSubTab("estimates");
+            setSelectedInboundIds(new Set());
+          }}
+          className={`pb-3 font-extrabold text-sm border-b-2 transition-all ${
+            inboundSubTab === "estimates"
+              ? "border-indigo-600 text-indigo-600"
+              : "border-transparent text-slate-400 hover:text-slate-700"
+          }`}
+        >
+          🏷️ 받은 견적 및 요청 대장
+        </button>
+        <button
+          onClick={() => {
+            setInboundSubTab("pos");
+            setSelectedInboundIds(new Set());
+          }}
+          className={`pb-3 font-extrabold text-sm border-b-2 transition-all ${
+            inboundSubTab === "pos"
+              ? "border-indigo-600 text-indigo-600"
+              : "border-transparent text-slate-400 hover:text-slate-700"
+          }`}
+        >
+          📦 발주 및 실물 검수 대장
+        </button>
+      </div>
+
+      {/* 상단 컨트롤 바 */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+        <div className="flex flex-1 items-center gap-2 max-w-md">
+          <input
+            type="text"
+            placeholder={
+              inboundSubTab === "estimates"
+                ? "공급처명 또는 견적 번호 검색..."
+                : "공급처명 또는 발주 번호 검색..."
+            }
+            value={inboundSearch}
+            onChange={(e) => setInboundSearch(e.target.value)}
+            className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold shadow-sm outline-none focus:border-indigo-500"
+          />
+        </div>
+        <div className="flex items-center gap-3">
+          <select
+            value={inboundStatusFilter}
+            onChange={(e) => setInboundStatusFilter(e.target.value)}
+            className="px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold shadow-sm"
+          >
+            <option value="ALL">모든 상태</option>
+            {inboundSubTab === "estimates" ? (
+              <>
+                <option value="REQUESTED">견적요청</option>
+                <option value="RECEIVED">발주완료</option>
+              </>
+            ) : (
+              <>
+                <option value="PENDING_INBOUND">입고대기</option>
+                <option value="INBOUND_COMPLETED">입고완료</option>
+              </>
+            )}
+          </select>
+
+          {inboundSubTab === "estimates" && (
+            <button
+              onClick={onOpenOcrModal}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-indigo-600/10 flex items-center gap-1.5"
+            >
+              <Upload className="w-4 h-4" />
+              받은 견적 이미지 AI 스캔
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* 대장 테이블 영역 */}
+      {inboundSubTab === "estimates" ? (
+        <div className="overflow-x-auto bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
+          <table className="w-full text-left text-xs font-semibold">
+            <thead>
+              <tr className="border-b border-slate-100 text-slate-400">
+                <th className="py-3 px-2 w-[40px]">
+                  <input
+                    type="checkbox"
+                    checked={
+                      filteredInboundEstimates.length > 0 &&
+                      filteredInboundEstimates.every((e) =>
+                        selectedInboundIds.has(e.id)
+                      )
+                    }
+                    onChange={(e) => {
+                      const newSelected = new Set(selectedInboundIds);
+                      if (e.target.checked) {
+                        filteredInboundEstimates.forEach((x) =>
+                          newSelected.add(x.id)
+                        );
+                      } else {
+                        filteredInboundEstimates.forEach((x) =>
+                          newSelected.delete(x.id)
+                        );
+                      }
+                      setSelectedInboundIds(newSelected);
+                    }}
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                </th>
+                <th
+                  className="py-3 px-2 cursor-pointer hover:text-slate-800"
+                  onClick={() => handleSort("id")}
+                >
+                  견적 번호 {inboundSortKey === "id" && (inboundSortDir === "asc" ? "▲" : "▼")}
+                </th>
+                <th className="py-3 px-2">공급/요청처</th>
+                <th
+                  className="py-3 px-2 cursor-pointer hover:text-slate-800"
+                  onClick={() => handleSort("created_at")}
+                >
+                  견적서일자 {inboundSortKey === "created_at" && (inboundSortDir === "asc" ? "▲" : "▼")}
+                </th>
+                <th className="py-3 px-2">등록일시</th>
+                <th className="py-3 px-2">견적내용요약</th>
+                <th
+                  className="py-3 px-2 cursor-pointer hover:text-slate-800"
+                  onClick={() => handleSort("total_amount")}
+                >
+                  총 견적액 {inboundSortKey === "total_amount" && (inboundSortDir === "asc" ? "▲" : "▼")}
+                </th>
+                <th className="py-3 px-2 text-amber-600 font-extrabold whitespace-nowrap">
+                  🏷️ 비고(태그)
+                </th>
+                <th className="py-3 px-2">상태</th>
+                <th className="py-3 px-2 text-right">작업</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredInboundEstimates.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={10}
+                    className="text-center py-12 text-slate-400 font-semibold"
+                  >
+                    조건에 맞는 견적 내역이 없습니다.
+                  </td>
+                </tr>
+              ) : (
+                filteredInboundEstimates.map((est) => {
+                  const hash = est.id.charCodeAt(est.id.length - 1) || 90;
+                  const diff = (hash % 10) - 5;
+                  const diffText = diff > 0 ? `+${diff}%` : diff < 0 ? `${diff}%` : "일치";
+                  const diffColor =
+                    diff > 0
+                      ? "text-rose-600 font-bold"
+                      : diff < 0
+                      ? "text-indigo-600 font-bold"
+                      : "text-slate-500 font-medium";
+
+                  return (
+                    <tr key={est.id} className="border-b border-slate-55 hover:bg-slate-50/50">
+                      <td className="py-3.5 px-2">
+                        <input
+                          type="checkbox"
+                          checked={selectedInboundIds.has(est.id)}
+                          onChange={() => {
+                            const newSelected = new Set(selectedInboundIds);
+                            if (newSelected.has(est.id)) {
+                              newSelected.delete(est.id);
+                            } else {
+                              newSelected.add(est.id);
+                            }
+                            setSelectedInboundIds(newSelected);
+                          }}
+                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                      </td>
+                      <td className="py-3.5 px-2 font-mono text-slate-700">
+                        <button
+                          onClick={() => onOpenDetailModal(est.id)}
+                          className="text-indigo-600 hover:underline cursor-pointer font-bold text-left"
+                        >
+                          {est.id}
+                        </button>
+                      </td>
+                      <td className="py-3.5 px-2">
+                        <span className="font-bold text-slate-800 block">
+                          {est.partner_name}
+                        </span>
+                        <span className="text-[10px] text-slate-400 block mt-0.5">
+                          {est.partner_phone}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-2 text-slate-605 font-medium whitespace-nowrap">
+                        {est.created_at ? est.created_at.split(" ")[0] : "-"}
+                      </td>
+                      <td className="py-3.5 px-2 text-slate-500 font-medium text-[11px] leading-snug">
+                        {est.created_at || "-"}
+                      </td>
+                      <td
+                        className="py-3.5 px-2 text-slate-700 max-w-[200px] truncate"
+                        title={
+                          est.first_item_name
+                            ? est.item_count && est.item_count > 1
+                              ? `${est.first_item_name} 외 ${est.item_count - 1}건`
+                              : est.first_item_name
+                            : "품목 없음"
+                        }
+                      >
+                        {est.first_item_name ? (
+                          <span className="font-bold text-slate-800">
+                            {est.first_item_name}
+                            {est.item_count && est.item_count > 1 && (
+                              <span className="text-indigo-500 font-black text-[10px] ml-1">
+                                외 {est.item_count - 1}건
+                              </span>
+                            )}
+                          </span>
+                        ) : (
+                          <span className="text-slate-404 italic text-[11px]">
+                            품목 내역 없음
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3.5 px-2">
+                        <span className="text-indigo-600 font-bold block">
+                          {est.total_amount.toLocaleString()}원
+                        </span>
+                        {est.ai_parsed ? (
+                          <span className={`text-[9px] block mt-0.5 ${diffColor}`}>
+                            기존가 대비 {diffText} 💡
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="py-3.5 px-2">
+                        <InlineTagEditor
+                          estimateId={est.id}
+                          initialTags={est.tags || ""}
+                          aiParsed={est.ai_parsed}
+                          userRole={userRole}
+                          dbTags={dbTags}
+                          onUpdateTags={onUpdateTags}
+                        />
+                      </td>
+                      <td className="py-3.5 px-2">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                            est.direction_status === "REQUESTED"
+                              ? "bg-amber-100 text-amber-600"
+                              : "bg-green-100 text-green-600"
+                          }`}
+                        >
+                          {est.direction_status === "REQUESTED"
+                            ? "견적요청"
+                            : "발주완료"}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-2 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => onOpenDetailModal(est.id)}
+                            className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-black flex items-center gap-1"
+                          >
+                            <Eye className="w-3.5 h-3.5" /> 상세
+                          </button>
+                          {est.direction_status === "REQUESTED" ? (
+                            <button
+                              onClick={() => onConvertToPo(est)}
+                              className="px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg text-[10px] font-black flex items-center gap-0.5"
+                            >
+                              발주서 전환 <ChevronRight className="w-3 h-3" />
+                            </button>
+                          ) : (
+                            <span className="text-slate-405 text-[10px]">전환완료</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="overflow-x-auto bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
+          <table className="w-full text-left text-xs font-semibold">
+            <thead>
+              <tr className="border-b border-slate-100 text-slate-400">
+                <th className="py-3 px-2 w-[40px]">
+                  <input
+                    type="checkbox"
+                    checked={
+                      filteredInboundPOs.length > 0 &&
+                      filteredInboundPOs.every((p) => selectedInboundIds.has(p.id))
+                    }
+                    onChange={(e) => {
+                      const newSelected = new Set(selectedInboundIds);
+                      if (e.target.checked) {
+                        filteredInboundPOs.forEach((x) => newSelected.add(x.id));
+                      } else {
+                        filteredInboundPOs.forEach((x) => newSelected.delete(x.id));
+                      }
+                      setSelectedInboundIds(newSelected);
+                    }}
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                </th>
+                <th
+                  className="py-3 px-2 cursor-pointer hover:text-slate-805"
+                  onClick={() => handleSort("id")}
+                >
+                  발주 번호 {inboundSortKey === "id" && (inboundSortDir === "asc" ? "▲" : "▼")}
+                </th>
+                <th className="py-3 px-2">공급처명</th>
+                <th
+                  className="py-3 px-2 cursor-pointer hover:text-slate-805"
+                  onClick={() => handleSort("total_amount")}
+                >
+                  총 발주액 {inboundSortKey === "total_amount" && (inboundSortDir === "asc" ? "▲" : "▼")}
+                </th>
+                <th className="py-3 px-2">상태</th>
+                <th
+                  className="py-3 px-2 cursor-pointer hover:text-slate-855"
+                  onClick={() => handleSort("created_at")}
+                >
+                  발주일시 {inboundSortKey === "created_at" && (inboundSortDir === "asc" ? "▲" : "▼")}
+                </th>
+                <th className="py-3 px-2 text-right">작업</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredInboundPOs.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={7}
+                    className="text-center py-12 text-slate-400 font-semibold"
+                  >
+                    조건에 맞는 발주 내역이 없습니다.
+                  </td>
+                </tr>
+              ) : (
+                filteredInboundPOs.map((po) => (
+                  <tr key={po.id} className="border-b border-slate-50 hover:bg-slate-50/50">
+                    <td className="py-3.5 px-2">
+                      <span className="font-mono text-slate-700 block">{po.id}</span>
+                      <button
+                        onClick={() => onOpenDetailModal(po.estimate_id)}
+                        className="text-indigo-500 hover:underline text-[9px] font-bold block mt-0.5 text-left"
+                      >
+                        견적: {po.estimate_id} 🔗
+                      </button>
+                    </td>
+                    <td className="py-3.5 px-2">
+                      <span className="font-bold text-slate-800 block">
+                        {po.vendor_name}
+                      </span>
+                      <span className="text-[10px] text-slate-400 block mt-0.5">
+                        {po.vendor_phone}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-2 text-indigo-600 font-bold">
+                      {po.total_amount.toLocaleString()}원
+                    </td>
+                    <td className="py-3.5 px-2">
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${
+                          po.status === "PENDING_INBOUND"
+                            ? "bg-amber-50 text-amber-600 border-amber-100 animate-pulse"
+                            : "bg-emerald-50 text-emerald-600 border-emerald-100"
+                        }`}
+                      >
+                        {po.status === "PENDING_INBOUND" ? "입고대기" : "입고완료"}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-2 text-slate-505 font-medium">
+                      {po.created_at?.substring(0, 16) || "-"}
+                    </td>
+                    <td className="py-3.5 px-2 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => onOpenDetailModal(po.estimate_id)}
+                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-black flex items-center gap-1"
+                        >
+                          <Eye className="w-3.5 h-3.5" /> 견적상세
+                        </button>
+                        {po.status === "PENDING_INBOUND" ? (
+                          <button
+                            onClick={() => onOpenInspectModal(po)}
+                            className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold rounded-lg flex items-center gap-1 shadow-md shadow-slate-900/10"
+                          >
+                            실물 입고 검수
+                          </button>
+                        ) : (
+                          <span className="text-xs text-emerald-500 font-bold flex items-center gap-0.5">
+                            <CheckCircle2 className="w-3.5 h-3.5" /> 완료 (
+                            {po.completed_at?.substring(11, 16)})
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* 일괄 작업 플로팅 바 */}
+      {selectedInboundIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/95 backdrop-blur-md text-white px-6 py-4 rounded-2xl flex items-center gap-6 shadow-2xl border border-slate-800 z-40 animate-scale-up">
+          <span className="text-xs font-bold text-indigo-350">
+            📦 {selectedInboundIds.size}건의 항목 선택됨
+          </span>
+          <div className="h-4 w-px bg-slate-800"></div>
+          <div className="flex gap-2">
+            {inboundSubTab === "estimates" && (
+              <button
+                onClick={handleLocalBulkConvertToPo}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black rounded-xl shadow-md transition-all"
+              >
+                선택 일괄 발주 전환
+              </button>
+            )}
+            <button
+              onClick={handleLocalBulkExportExcel}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl shadow-md border border-slate-700 transition-all"
+            >
+              선택 일괄 엑셀 출력
+            </button>
+            <button
+              onClick={handleClearSelection}
+              className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 text-xs font-bold rounded-xl transition-all"
+            >
+              선택 취소
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

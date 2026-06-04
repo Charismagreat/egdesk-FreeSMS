@@ -1,103 +1,93 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import {
-  listTables,
-  createTable,
-  queryTable,
-  insertRows,
-  updateRows,
-  deleteRows
-} from '../../../../egdesk-helpers';
+import Database from 'better-sqlite3';
 
-// 테이블 자동 생성 초기화 함수
-async function initTables() {
-  try {
-    const tables = await listTables();
-    const tableNames = Array.isArray(tables) ? tables.map((t: any) => t.tableName) : [];
+// 데이터베이스 인스턴스 헬퍼
+function getDB() {
+  return new Database('crm_data.db');
+}
 
-    // inventory_items 테이블 생성
-    if (!tableNames.includes('inventory_items')) {
-      await createTable(
-        '재고 품목',
-        [
-          { name: 'type', type: 'TEXT', notNull: true }, // 'material' (자재) 또는 'product' (제품)
-          { name: 'name', type: 'TEXT', notNull: true }, // 품목명
-          { name: 'category', type: 'TEXT', notNull: true }, // 카테고리
-          { name: 'price', type: 'REAL', notNull: true }, // 자재는 매입가, 제품은 판매가
-          { name: 'partner', type: 'TEXT' }, // 매입 거래처 (자재 전용)
-          { name: 'stock', type: 'INTEGER', notNull: true }, // 현재 재고량
-          { name: 'safeStock', type: 'INTEGER', notNull: true }, // 안전 재고량
-          { name: 'location', type: 'TEXT' }, // 창고 보관 위치
-          { name: 'spec', type: 'TEXT' }, // 규격
-          { name: 'unitType', type: 'TEXT' }, // 단위 구분 (count, weight, box)
-          { name: 'unitValue', type: 'TEXT' }, // 단위 세부 단위명 (g, kg, 등)
-          { name: 'boxContains', type: 'INTEGER' }, // 박스당 입수량
-          { name: 'description', type: 'TEXT' }, // 품목 설명
-          { name: 'tags', type: 'TEXT' }, // 커스텀 멀티 태그 콤마 구분값
-          { name: 'barcode', type: 'TEXT' }, // 바코드 번호 (리더기용)
-          { name: 'createdAt', type: 'TEXT', notNull: true } // 등록 일자
-        ],
-        { tableName: 'inventory_items' }
-      );
-    }
+// 테이블 초기화 헬퍼 (없을 경우 자동 생성)
+function initTables(db: Database.Database) {
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS inventory_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT NOT NULL,
+      name TEXT NOT NULL,
+      category TEXT NOT NULL,
+      price REAL NOT NULL,
+      partner TEXT,
+      stock INTEGER NOT NULL,
+      safeStock INTEGER NOT NULL,
+      location TEXT,
+      spec TEXT,
+      unitType TEXT,
+      unitValue TEXT,
+      boxContains INTEGER,
+      description TEXT,
+      tags TEXT,
+      barcode TEXT,
+      createdAt TEXT NOT NULL
+    )
+  `).run();
 
-    // inventory_logs 테이블 생성
-    if (!tableNames.includes('inventory_logs')) {
-      await createTable(
-        '재고 변동 이력',
-        [
-          { name: 'itemId', type: 'INTEGER', notNull: true }, // 품목 ID
-          { name: 'itemName', type: 'TEXT', notNull: true }, // 품목명
-          { name: 'itemType', type: 'TEXT', notNull: true }, // 품목 구분 ('material' / 'product')
-          { name: 'changeType', type: 'TEXT', notNull: true }, // 변동 유형 ('in' 입고, 'out' 출고, 'adjust' 실사조정)
-          { name: 'quantity', type: 'INTEGER', notNull: true }, // 변동 수량 (실사조정의 경우 조정 후의 최종 수량)
-          { name: 'price', type: 'REAL', notNull: true }, // 당시 단가
-          { name: 'operator', type: 'TEXT', notNull: true }, // 담당자
-          { name: 'note', type: 'TEXT' }, // 변동 사유 / 메모
-          { name: 'createdAt', type: 'TEXT', notNull: true } // 발생 시간
-        ],
-        { tableName: 'inventory_logs' }
-      );
-    }
-  } catch (error) {
-    console.error('테이블 초기화 중 오류 발생:', error);
-  }
+  db.prepare(`
+    CREATE TABLE IF NOT EXISTS inventory_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      itemId INTEGER NOT NULL,
+      itemName TEXT NOT NULL,
+      itemType TEXT NOT NULL,
+      changeType TEXT NOT NULL,
+      quantity INTEGER NOT NULL,
+      price REAL NOT NULL,
+      operator TEXT NOT NULL,
+      note TEXT,
+      createdAt TEXT NOT NULL
+    )
+  `).run();
 }
 
 // GET: 재고 품목 목록 조회
 export async function GET(request: Request) {
+  let db;
   try {
-    await initTables();
+    db = getDB();
+    initTables(db);
 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type'); // 'material' 또는 'product'
     
-    const filters: Record<string, string> = {};
+    let query = 'SELECT * FROM inventory_items';
+    const params: any[] = [];
+
     if (type) {
-      filters.type = type;
+      query += ' WHERE type = ?';
+      params.push(type);
     }
 
-    const items = await queryTable('inventory_items', {
-      filters,
-      orderBy: 'createdAt',
-      orderDirection: 'DESC',
-      limit: 100
-    });
+    query += ' ORDER BY createdAt DESC LIMIT 100';
 
-    return NextResponse.json({ success: true, data: items?.rows || [] });
+    const stmt = db.prepare(query);
+    const rows = stmt.all(...params);
+
+    return NextResponse.json({ success: true, data: rows });
   } catch (error: any) {
     console.error('재고 목록 조회 중 오류 발생:', error);
     return NextResponse.json(
       { success: false, error: error.message || '재고 목록을 조회하지 못했습니다.' },
       { status: 500 }
     );
+  } finally {
+    if (db) db.close();
   }
 }
 
 // POST: 신규 품목 등록
 export async function POST(request: Request) {
+  let db;
   try {
-    await initTables();
+    db = getDB();
+    initTables(db);
     const body = await request.json();
     
     const { type, name, category, price, partner, stock, safeStock, location, spec, unitType, unitValue, boxContains, description, tags, barcode } = body;
@@ -109,58 +99,79 @@ export async function POST(request: Request) {
       );
     }
 
-    const newItem = {
-      type,
-      name,
-      category,
-      price: Number(price),
-      partner: partner || '',
-      stock: Number(stock),
-      safeStock: Number(safeStock),
-      location: location || '',
-      spec: spec || '',
-      unitType: unitType || 'count',
-      unitValue: unitValue || '개',
-      boxContains: boxContains ? Number(boxContains) : null,
-      description: description || '',
-      tags: tags || '',
-      barcode: barcode || '',
-      createdAt: new Date().toISOString()
-    };
+    // 트랜잭션 처리
+    const insertItem = db.transaction(() => {
+      const stmt = db.prepare(`
+        INSERT INTO inventory_items (
+          type, name, category, price, partner, stock, safeStock, location, spec, unitType, unitValue, boxContains, description, tags, barcode, createdAt
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      
+      const createdAt = new Date().toISOString();
+      const info = stmt.run(
+        type,
+        name,
+        category,
+        Number(price),
+        partner || '',
+        Number(stock),
+        Number(safeStock),
+        location || '',
+        spec || '',
+        unitType || 'count',
+        unitValue || '개',
+        boxContains ? Number(boxContains) : null,
+        description || '',
+        tags || '',
+        barcode || '',
+        createdAt
+      );
 
-    const result = await insertRows('inventory_items', [newItem]);
+      const insertedId = info.lastInsertRowid;
 
-    // 초기 재고가 0보다 큰 경우 입고 변동 이력도 남겨줍니다.
-    if (Number(stock) > 0 && result && Array.isArray(result) && result[0]) {
-      const insertedId = result[0].id;
-      const initialLog = {
-        itemId: insertedId,
-        itemName: name,
-        itemType: type,
-        changeType: 'in',
-        quantity: Number(stock),
-        price: Number(price),
-        operator: '시스템 관리자',
-        note: '최초 등록 입고',
-        createdAt: new Date().toISOString()
-      };
-      await insertRows('inventory_logs', [initialLog]);
-    }
+      // 초기 재고가 0보다 큰 경우 입고 변동 이력도 추가
+      if (Number(stock) > 0) {
+        const logStmt = db.prepare(`
+          INSERT INTO inventory_logs (
+            itemId, itemName, itemType, changeType, quantity, price, operator, note, createdAt
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `);
+        logStmt.run(
+          insertedId,
+          name,
+          type,
+          'in',
+          Number(stock),
+          Number(price),
+          '시스템 관리자',
+          '최초 등록 입고',
+          createdAt
+        );
+      }
 
-    return NextResponse.json({ success: true, data: result });
+      return { id: insertedId };
+    });
+
+    const result = insertItem();
+
+    return NextResponse.json({ success: true, data: [result] });
   } catch (error: any) {
     console.error('재고 등록 중 오류 발생:', error);
     return NextResponse.json(
       { success: false, error: error.message || '재고 품목을 등록하지 못했습니다.' },
       { status: 500 }
     );
+  } finally {
+    if (db) db.close();
   }
 }
 
 // PUT: 품목 정보 수정
 export async function PUT(request: Request) {
+  let db;
   try {
-    await initTables();
+    db = getDB();
+    initTables(db);
     const body = await request.json();
     const { id, name, category, price, partner, safeStock, location, spec, unitType, unitValue, boxContains, description, tags, barcode } = body;
 
@@ -171,24 +182,31 @@ export async function PUT(request: Request) {
       );
     }
 
-    const updates: Record<string, any> = {};
-    if (name !== undefined) updates.name = name;
-    if (category !== undefined) updates.category = category;
-    if (price !== undefined) updates.price = Number(price);
-    if (partner !== undefined) updates.partner = partner;
-    if (safeStock !== undefined) updates.safeStock = Number(safeStock);
-    if (location !== undefined) updates.location = location;
-    if (spec !== undefined) updates.spec = spec;
-    if (unitType !== undefined) updates.unitType = unitType;
-    if (unitValue !== undefined) updates.unitValue = unitValue;
-    if (boxContains !== undefined) updates.boxContains = boxContains ? Number(boxContains) : null;
-    if (description !== undefined) updates.description = description;
-    if (tags !== undefined) updates.tags = tags;
-    if (barcode !== undefined) updates.barcode = barcode;
+    const sets: string[] = [];
+    const params: any[] = [];
 
-    await updateRows('inventory_items', updates, {
-      ids: [Number(id)]
-    });
+    if (name !== undefined) { sets.push('name = ?'); params.push(name); }
+    if (category !== undefined) { sets.push('category = ?'); params.push(category); }
+    if (price !== undefined) { sets.push('price = ?'); params.push(Number(price)); }
+    if (partner !== undefined) { sets.push('partner = ?'); params.push(partner); }
+    if (safeStock !== undefined) { sets.push('safeStock = ?'); params.push(Number(safeStock)); }
+    if (location !== undefined) { sets.push('location = ?'); params.push(location); }
+    if (spec !== undefined) { sets.push('spec = ?'); params.push(spec); }
+    if (unitType !== undefined) { sets.push('unitType = ?'); params.push(unitType); }
+    if (unitValue !== undefined) { sets.push('unitValue = ?'); params.push(unitValue); }
+    if (boxContains !== undefined) { sets.push('boxContains = ?'); params.push(boxContains ? Number(boxContains) : null); }
+    if (description !== undefined) { sets.push('description = ?'); params.push(description); }
+    if (tags !== undefined) { sets.push('tags = ?'); params.push(tags); }
+    if (barcode !== undefined) { sets.push('barcode = ?'); params.push(barcode); }
+
+    if (sets.length === 0) {
+      return NextResponse.json({ success: true });
+    }
+
+    params.push(Number(id));
+    const query = `UPDATE inventory_items SET ${sets.join(', ')} WHERE id = ?`;
+    
+    db.prepare(query).run(...params);
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
@@ -197,13 +215,17 @@ export async function PUT(request: Request) {
       { success: false, error: error.message || '재고 정보를 수정하지 못했습니다.' },
       { status: 500 }
     );
+  } finally {
+    if (db) db.close();
   }
 }
 
 // DELETE: 품목 삭제
 export async function DELETE(request: Request) {
+  let db;
   try {
-    await initTables();
+    db = getDB();
+    initTables(db);
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -214,15 +236,14 @@ export async function DELETE(request: Request) {
       );
     }
 
-    // 1. 품목 삭제
-    await deleteRows('inventory_items', {
-      ids: [Number(id)]
+    const deleteTx = db.transaction(() => {
+      // 1. 품목 삭제
+      db.prepare('DELETE FROM inventory_items WHERE id = ?').run(Number(id));
+      // 2. 관련 이력 삭제
+      db.prepare('DELETE FROM inventory_logs WHERE itemId = ?').run(Number(id));
     });
 
-    // 2. 해당 품목의 이력도 정리 (선택사항, 데이터 일관성을 위해 유지하거나 혹은 남겨둠. 여기선 같이 삭제하도록 처리)
-    await deleteRows('inventory_logs', {
-      filters: { itemId: String(id) }
-    });
+    deleteTx();
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
@@ -231,5 +252,7 @@ export async function DELETE(request: Request) {
       { success: false, error: error.message || '재고 품목을 삭제하지 못했습니다.' },
       { status: 500 }
     );
+  } finally {
+    if (db) db.close();
   }
 }
