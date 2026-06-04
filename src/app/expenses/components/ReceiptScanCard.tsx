@@ -635,7 +635,7 @@ export default function ReceiptScanCard({
             <label className="block text-[10px] font-extrabold text-slate-500 mb-1">영수인/가맹점명/거래처명 *</label>
             <input 
               type="text"
-              placeholder="예: 최창숙 또는 삼송베이커리"
+              placeholder="예: 홍길동 또는 이지커피숍"
               value={newExpense.payee || ""}
               onChange={e => setNewExpense(prev => ({ ...prev, payee: e.target.value }))}
               className="w-full border border-slate-250 rounded-xl px-3.5 py-2.5 outline-none font-bold text-xs bg-white focus:ring-2 focus:ring-rose-500 transition-all text-slate-805"
