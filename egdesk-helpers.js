@@ -311,11 +311,32 @@ function createTable(displayName, schema, options) {
  */
 function insertRows(tableName, rows) {
     return __awaiter(this, void 0, void 0, function () {
+        var res;
         return __generator(this, function (_a) {
-            return [2 /*return*/, callUserDataTool('user_data_insert_rows', {
-                    tableName: tableName,
-                    rows: rows
-                })];
+            switch (_a.label) {
+                case 0: return [4 /*yield*/, callUserDataTool('user_data_insert_rows', {
+                        tableName: tableName,
+                        rows: rows
+                    })];
+                case 1:
+                    res = _a.sent();
+                    // 🕒 DB 변경 이벤트 발행
+                    try {
+                        const { emitDbChange } = require('./src/lib/db-event-hub');
+                        const timestamp = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+                        rows.forEach(row => {
+                            emitDbChange({
+                                table: tableName,
+                                action: 'insert',
+                                timestamp: timestamp,
+                                data: row
+                            }).catch(err => console.error('[Helpers DB Event Trigger Error]:', err));
+                        });
+                    } catch (e) {
+                        console.error('[Helpers DB Event Require Error]:', e);
+                    }
+                    return [2 /*return*/, res];
+            }
         });
     });
 }
@@ -324,8 +345,28 @@ function insertRows(tableName, rows) {
  */
 function updateRows(tableName, updates, options) {
     return __awaiter(this, void 0, void 0, function () {
+        var res;
         return __generator(this, function (_a) {
-            return [2 /*return*/, callUserDataTool('user_data_update_rows', __assign({ tableName: tableName, updates: updates }, options))];
+            switch (_a.label) {
+                case 0: return [4 /*yield*/, callUserDataTool('user_data_update_rows', __assign({ tableName: tableName, updates: updates }, options))];
+                case 1:
+                    res = _a.sent();
+                    // 🕒 DB 변경 이벤트 발행
+                    try {
+                        const { emitDbChange } = require('./src/lib/db-event-hub');
+                        const timestamp = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+                        emitDbChange({
+                            table: tableName,
+                            action: 'update',
+                            timestamp: timestamp,
+                            data: updates,
+                            previousData: options
+                        }).catch(err => console.error('[Helpers DB Event Trigger Error]:', err));
+                    } catch (e) {
+                        // 브라우저 예외 방어
+                    }
+                    return [2 /*return*/, res];
+            }
         });
     });
 }
@@ -334,8 +375,27 @@ function updateRows(tableName, updates, options) {
  */
 function deleteRows(tableName, options) {
     return __awaiter(this, void 0, void 0, function () {
+        var res;
         return __generator(this, function (_a) {
-            return [2 /*return*/, callUserDataTool('user_data_delete_rows', __assign({ tableName: tableName }, options))];
+            switch (_a.label) {
+                case 0: return [4 /*yield*/, callUserDataTool('user_data_delete_rows', __assign({ tableName: tableName }, options))];
+                case 1:
+                    res = _a.sent();
+                    // 🕒 DB 변경 이벤트 발행
+                    try {
+                        const { emitDbChange } = require('./src/lib/db-event-hub');
+                        const timestamp = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+                        emitDbChange({
+                            table: tableName,
+                            action: 'delete',
+                            timestamp: timestamp,
+                            data: options
+                        }).catch(err => console.error('[Helpers DB Event Trigger Error]:', err));
+                    } catch (e) {
+                        // 브라우저 예외 방어
+                    }
+                    return [2 /*return*/, res];
+            }
         });
     });
 }

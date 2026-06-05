@@ -248,6 +248,7 @@ If the user is asking about how to use the system, menus, manuals, guides, or tr
 - 만약 SQL 쿼리가 실패했거나 오류가 있었다면, 관리자가 원인을 파악할 수 있도록 SQL 오류 메시지를 보여주며 원인 진단을 도와주세요.
 - 챗봇 자체에서 데이터를 임의로 수정/삭제(UPDATE/DELETE)할 수 없음을 인지하되, SELECT를 통한 깊이 있는 데이터 분석 및 인사이트 제공에 집중해 주세요.
 - [중요 💡] 만약 사용자가 특정 메뉴나 페이지로 직접 이동하기를 희망한다는 의도가 명백히 감지되면(예: "금융 정보 페이지로 가줘", "지출 관리 열어줘", "홈페이지 빌더 가자"), 최종 답변의 가장 마지막 줄에 정확하게 \`[REDIRECT:이동할_경로]\` (예: \`[REDIRECT:/finance]\`, \`[REDIRECT:/expenses]\`, \`[REDIRECT:/sms]\`, \`[REDIRECT:/settings]\`, \`[REDIRECT:/my-db]\`) 태그를 단독 라인으로 기입해 주세요. 시스템이 이를 감지하여 관리자에게 확인 창을 띄워 페이지를 실시간 자동 이동시킵니다.
+- [중요 ⚠️] 만약 사용자가 특정 직무나 작업 지시(스냅태스크)를 내리는 의도가 명백히 감지되면(예: "최우영 대리에게 안전센서 점검 6월 10일까지 마감인 고화질 스냅태스크 발행해줘"), 최종 답변의 가장 마지막 줄에 정확하게 \`[CREATE_TASK:담당자ID:우선순위:마감일(YYYY-MM-DD):제목:내용]\` (예: \`[CREATE_TASK:3:high:2026-06-10:안전센서 정기 점검:절삭기 가동 부위의 감지 센서 작동 여부 정밀 점검 요망]\`) 태그를 단독 라인으로 기입해 주세요. (담당자ID 후보: '1'=관리자/대표, '2'=영업팀, '3'=생산품질팀 / 우선순위 후보: 'low', 'medium', 'high', 'critical'). 그리고 답변 내용에는 "요청하신 작업 지시 사항이 이지봇 시스템을 통해 생산품질팀 담당자에게 정식으로 즉시 발급되었습니다. 해당 스냅태스크 진척 상황은 작업 대장에서 실시간 모니터링됩니다."와 같이 든든하고 신뢰감을 주는 멘트를 포함해 주세요.
 - [중요 ⚠️] 만약 사용자가 시스템의 버그, 불편함, 건의사항, 개선 필요, 불만 사항, 또는 신규 기능 추가 요청 등을 명확하게 제기하는 의도가 감지되면(예: "재고 관리가 이상해요", "버그 있어요", "이 부분 추가해 줘", "너무 느려요", "이메일 알림 연동해줘"), 최종 답변의 가장 마지막 줄에 정확하게 \`[FEEDBACK:유형:핵심제보요약]\` (예: \`[FEEDBACK:bug:재고 바코드 리더 오작동]\`, \`[FEEDBACK:feature_request:이메일 알림 연동 희망]\`, \`[FEEDBACK:complaint:발송 속도가 너무 느림]\`) 태그를 단독 라인으로 기입해 주세요. (유형 후보: 'bug', 'feature_request', 'complaint', 'other'). 그리고 답변 내용에는 "제보해 주신 소중한 버그/의견은 관리자 피드백 보드에 정식으로 즉시 접수되었습니다. 개발팀과 함께 신속하게 검토하여 개선하겠습니다!"와 같이 상냥하고 신뢰감을 주는 접수 완료 멘트를 포함해 주세요.
 
 ${manualContext ? `\n============================\n[공식 시스템 매뉴얼 지식 베이스 (RAG)]\n${manualContext}\n\n-> 지시사항: 사용자가 시스템 사용법, 메뉴 구조, 가이드라인 등을 묻고 있습니다. 지어내지 말고, 위 매뉴얼 내용에 기반하여 가장 정확하고 친절하게 대답해 주세요.\n============================\n` : ''}
@@ -286,6 +287,51 @@ ${JSON.stringify(localStorageContext, null, 2)}
 
     const step2Data = await step2Response.json();
     let finalAnswer = step2Data.candidates?.[0]?.content?.parts?.[0]?.text || "답변을 생성하는 데 실패했습니다.";
+
+    // [CREATE_TASK:담당자ID:우선순위:마감일:제목:내용] 태그 감지 시 crm_snaptasks 테이블에 자동 발급 처리
+    const taskMatch = finalAnswer.match(/\[CREATE_TASK:(.*?):(.*?):(.*?):(.*?):(.*?)\]/);
+    if (taskMatch) {
+      const opId = taskMatch[1].trim();
+      const priority = taskMatch[2].trim();
+      const dueDate = taskMatch[3].trim();
+      const title = taskMatch[4].trim();
+      const content = taskMatch[5].trim();
+
+      try {
+        const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+        const taskId = `ST-${Date.now()}`;
+
+        // 1. 마스터 테이블 crm_snaptasks 삽입
+        await insertRows('crm_snaptasks', [{
+          id: taskId,
+          title: title,
+          status: 'ACTIVE',
+          partner_id: null,
+          created_at: nowStr,
+          updated_at: nowStr
+        }]);
+
+        // 2. 상세 지시 내용을 crm_snaptask_items에 삽입
+        const detailText = `[이지봇 작업 지시]\n- 담당자: ${opId === '3' ? '생산품질팀' : opId === '2' ? '영업팀' : '관리자'}\n- 우선순위: ${priority}\n- 마감기한: ${dueDate}\n\n[상세 내용]\n${content}`;
+
+        await insertRows('crm_snaptask_items', [{
+          id: Date.now(),
+          task_id: taskId,
+          content_text: detailText,
+          file_url: null,
+          file_type: 'TEXT',
+          ai_analysis: JSON.stringify({ source: 'easybot-chat', priority, due_date: dueDate }),
+          created_at: nowStr
+        }]);
+
+        console.log(`[이지봇 자율 태스크 기입 완료] ID: ${taskId}, 제목: ${title}, 담당자: ${opId}`);
+      } catch (dbErr) {
+        console.error('자율 스냅태스크 DB 저장 실패:', dbErr);
+      }
+
+      // 최종 답변 본문에서 개발용 트리거 태그 깔끔히 소거
+      finalAnswer = finalAnswer.replace(/\[CREATE_TASK:.*?\]/g, '').trim();
+    }
 
     // [FEEDBACK:유형:내용] 태그 감지 시 user_feedbacks 테이블에 안전하게 접수 및 적재
     const feedbackMatch = finalAnswer.match(/\[FEEDBACK:(.*?):(.*?)\]/);
