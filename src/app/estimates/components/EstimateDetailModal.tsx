@@ -316,16 +316,8 @@ export default function EstimateDetailModal({
         <div className="flex justify-between items-center mb-4 pr-8">
           <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
             <FileText className="w-5 h-5 text-indigo-500" />
-            <span>{isEditingDetail ? "견적서 상세 정보 수정 (최고관리자)" : "견적서 상세 내역 및 원본 파일 조회"}</span>
+          <span>{isEditingDetail ? "견적서 상세 정보 수정 (최고관리자)" : "견적서 상세 내역 및 원본 파일 조회"}</span>
           </h3>
-          {userRole === 'SUPER_ADMIN' && detailData && !detailLoading && !isEditingDetail && (
-            <button 
-              onClick={handleStartEdit} 
-              className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center gap-1"
-            >
-              ✏️ 견적 수정
-            </button>
-          )}
         </div>
 
         {detailLoading ? (
@@ -779,14 +771,22 @@ export default function EstimateDetailModal({
         )}
 
         <div className="mt-6 border-t border-slate-100 pt-4 flex justify-between">
-          <div>
+          <div className="flex gap-2">
             {userRole === 'SUPER_ADMIN' && detailData && !isEditingDetail && (
-              <button 
-                onClick={handleDeleteEstimate}
-                className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl font-bold text-xs flex items-center gap-1 transition-all shadow-sm"
-              >
-                🗑️ 견적 삭제
-              </button>
+              <>
+                <button 
+                  onClick={handleDeleteEstimate}
+                  className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl font-bold text-xs flex items-center gap-1 transition-all shadow-sm"
+                >
+                  🗑️ 견적 삭제
+                </button>
+                <button 
+                  onClick={handleStartEdit} 
+                  className="px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-xl font-bold text-xs flex items-center gap-1 transition-all shadow-sm"
+                >
+                  ✏️ 견적 수정
+                </button>
+              </>
             )}
           </div>
           <div className="flex gap-2">
