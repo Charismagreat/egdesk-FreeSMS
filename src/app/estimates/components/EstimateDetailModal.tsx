@@ -770,22 +770,41 @@ export default function EstimateDetailModal({
           <div className="py-20 text-center text-slate-400">데이터가 없습니다.</div>
         )}
 
-        <div className="mt-6 border-t border-slate-100 pt-4 flex justify-between">
-          <div className="flex gap-2">
+        <div className="mt-6 border-t border-slate-100 pt-4 flex justify-between items-center">
+          <div className="flex items-center gap-2 flex-wrap">
             {userRole === 'SUPER_ADMIN' && detailData && !isEditingDetail && (
               <>
                 <button 
                   onClick={handleDeleteEstimate}
-                  className="px-4 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl font-bold text-xs flex items-center gap-1 transition-all shadow-sm"
+                  disabled={detailData.isLinked}
+                  className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1 transition-all shadow-sm ${
+                    detailData.isLinked 
+                      ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none opacity-60' 
+                      : 'bg-rose-50 hover:bg-rose-100 text-rose-600'
+                  }`}
+                  title={detailData.isLinked ? "이미 발주/수주로 전환된 견적서입니다." : "견적서 완전히 삭제"}
                 >
                   🗑️ 견적 삭제
                 </button>
                 <button 
                   onClick={handleStartEdit} 
-                  className="px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-xl font-bold text-xs flex items-center gap-1 transition-all shadow-sm"
+                  disabled={detailData.isLinked}
+                  className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1 transition-all shadow-sm ${
+                    detailData.isLinked 
+                      ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none opacity-60' 
+                      : 'bg-amber-50 hover:bg-amber-100 text-amber-600'
+                  }`}
+                  title={detailData.isLinked ? "이미 발주/수주로 전환된 견적서입니다." : "견적서 상세 정보 수정"}
                 >
                   ✏️ 견적 수정
                 </button>
+                
+                {/* 💡 이미 발주/수주로 전환된 견적서일 경우 경고 가이드 뱃지 표출 */}
+                {detailData.isLinked && (
+                  <span className="text-[10px] text-amber-600 font-extrabold bg-amber-50/50 px-2.5 py-1.5 rounded-xl border border-amber-100/70 flex items-center gap-1 shrink-0">
+                    🔒 연동됨: 이 견적서는 발주/수주로 전환되어 수정 및 삭제할 수 없습니다.
+                  </span>
+                )}
               </>
             )}
           </div>

@@ -57,7 +57,15 @@ export async function GET(req: Request) {
       const itemsRes = await queryTable('crm_estimate_items', { filters: { estimate_id: estimateId } });
       const items = itemsRes.rows || [];
 
-      return NextResponse.json({ success: true, estimate, items });
+      // 💡 안전 가드: 발주서(crm_purchase_orders) 또는 수주서(crm_sales_orders)로의 전환 여부 검사
+      const poCheck = await executeSQL(`SELECT id FROM crm_purchase_orders WHERE estimate_id = '${estimateId}' LIMIT 1`);
+      const poRows = poCheck?.rows || (Array.isArray(poCheck) ? poCheck : []);
+      const soCheck = await executeSQL(`SELECT id FROM crm_sales_orders WHERE estimate_id = '${estimateId}' LIMIT 1`);
+      const soRows = soCheck?.rows || (Array.isArray(soCheck) ? soCheck : []);
+      
+      const isLinked = poRows.length > 0 || soRows.length > 0;
+
+      return NextResponse.json({ success: true, estimate, items, isLinked });
     }
 
     // 기본값: 모바일용 견적 상품 목록 조회
@@ -308,6 +316,19 @@ export async function DELETE(req: Request) {
 
     if (!estimateId) {
       return NextResponse.json({ success: false, error: '삭제할 견적 번호가 누락되었습니다.' }, { status: 400 });
+    }
+
+    // 💡 안전 가드: 발주서(crm_purchase_orders) 또는 수주서(crm_sales_orders)로의 전환 여부 검사 및 삭제 차단
+    const poCheck = await executeSQL(`SELECT id FROM crm_purchase_orders WHERE estimate_id = '${estimateId}' LIMIT 1`);
+    const poRows = poCheck?.rows || (Array.isArray(poCheck) ? poCheck : []);
+    const soCheck = await executeSQL(`SELECT id FROM crm_sales_orders WHERE estimate_id = '${estimateId}' LIMIT 1`);
+    const soRows = soCheck?.rows || (Array.isArray(soCheck) ? soCheck : []);
+
+    if (poRows.length > 0 || soRows.length > 0) {
+      return NextResponse.json({ 
+        success: false, 
+        error: '🔒 삭제 불가: 이 견적서는 이미 발주 또는 수주로 전환(연동)된 상태입니다. 연동된 발주/수주 내역을 먼저 삭제해 주세요.' 
+      }, { status: 400 });
     }
 
     // 1. crm_estimates 테이블에서 마스터 삭제
