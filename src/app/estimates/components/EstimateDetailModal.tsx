@@ -673,11 +673,11 @@ export default function EstimateDetailModal({
                         <div className="border border-slate-100 rounded-2xl overflow-hidden max-h-[540px] overflow-y-auto">
                           <table className="w-full text-left text-xs font-semibold">
                             <thead>
-                              <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 text-[10px]">
-                                <th className="py-2.5 px-3">품목명</th>
-                                <th className="py-2.5 px-2 text-center w-[70px]">수량</th>
-                                <th className="py-2.5 px-2 text-right w-[110px]">단가</th>
-                                <th className="py-2.5 px-3 text-right w-[110px]">공급가액</th>
+                              <tr className="border-b border-slate-100 text-slate-400 text-[10px]">
+                                <th className="py-2.5 px-3 sticky top-0 bg-slate-50 z-10">품목명</th>
+                                <th className="py-2.5 px-2 text-center w-[70px] sticky top-0 bg-slate-50 z-10">수량</th>
+                                <th className="py-2.5 px-2 text-right w-[110px] sticky top-0 bg-slate-50 z-10">단가</th>
+                                <th className="py-2.5 px-3 text-right w-[110px] sticky top-0 bg-slate-50 z-10">공급가액</th>
                               </tr>
                             </thead>
                             <tbody>
