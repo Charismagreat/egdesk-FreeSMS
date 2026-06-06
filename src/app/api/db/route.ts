@@ -174,6 +174,67 @@ export async function GET(request: Request) {
           else if (name === 'crm_finance_forecasts') displayName = '90일 자금 수금/지출 예정 대장';
           else if (name === 'crm_grant_company_profile') displayName = '지원금 적합도 매칭용 회사 스펙';
 
+          // 3차 이관: 전사 잔여 테이블(55개) 한글 매핑 추가
+          else if (name === 'crm_operator_profiles') displayName = '임직원 인사 마스터 정보';
+          else if (name === 'crm_operator_salaries') displayName = '월별 급여 대장 및 명세서';
+          else if (name === 'crm_operator_leave_balances') displayName = '임직원별 연차/휴가 잔여 현황';
+          else if (name === 'crm_operator_family_events') displayName = '경조사 신청 및 경조금 지급 대장';
+          else if (name === 'crm_operator_licenses') displayName = '보유 국가기술자격 및 면허 대장';
+          else if (name === 'crm_operator_careers') displayName = '입사 전 외부 경력 사항 이력';
+          else if (name === 'crm_operator_education') displayName = '최종 학력 및 교육 이력 정보';
+          else if (name === 'crm_operator_families') displayName = '인사 등록 부양가족 명단';
+          else if (name === 'crm_operator_job_history') displayName = '부서 발령 및 직위 변동 이력';
+          else if (name === 'crm_operator_promotions') displayName = '승진 및 연봉 협상 이력 대장';
+          else if (name === 'crm_operator_projects') displayName = '수행 프로젝트 및 R&D 참여 이력';
+          else if (name === 'crm_operator_reputations') displayName = '동료 다면 평가 및 평판 조회';
+          else if (name === 'crm_operator_incidents') displayName = '징계 및 사내 사고 조치 이력';
+          else if (name === 'crm_operator_medical') displayName = '건강검진 및 특이 의료 사항 정보';
+          else if (name === 'crm_operator_awards') displayName = '포상 및 수상 이력 대장';
+          else if (name === 'crm_operator_contract_settings') displayName = '근로 형태별 급여 계산 설정 규칙';
+          else if (name === 'crm_operator_ai_briefing_histories') displayName = '임직원용 AI 모닝 브리핑 이력';
+          else if (name === 'crm_annual_leaves') displayName = '휴가 신청 및 결재 대장';
+          else if (name === 'crm_attendance') displayName = '일일 출퇴근 기록 및 근태 현황';
+          else if (name === 'crm_company_events') displayName = '전사 사내 행사 및 주요 일정 대장';
+          else if (name === 'crm_company_event_types') displayName = '사내 일정 및 행사 분류 코드';
+          else if (name === 'coupons') displayName = '발행 할인 쿠폰 마스터';
+          else if (name === 'crm_coupons_restrictions') displayName = '쿠폰 적용 품목 및 제한 조건';
+          else if (name === 'crm_sales_orders') displayName = '고객 수주 및 판매 주문 내역 대장';
+          else if (name === 'inventory_logs') displayName = '자재 및 제품 입출고 수불부';
+          else if (name === 'message_logs') displayName = '플랫폼 문자/알림톡 발송 이력';
+          else if (name === 'message_templates') displayName = '자주 쓰는 메시지 템플릿 대장';
+          else if (name === 'ad_templates') displayName = 'AI 광고 홍보문구 템플릿 대장';
+          else if (name === 'ai_token_usage_logs') displayName = '전사 AI 토큰 누적 사용량 로그';
+          else if (name === 'crm_snaptasks') displayName = 'AI 스냅태스크 시나리오 마스터';
+          else if (name === 'crm_snaptask_actions') displayName = 'AI 스냅태스크 실행 세부 기록';
+          else if (name === 'crm_snaptask_items') displayName = 'AI 스냅태스크 분석 대상 항목';
+          else if (name === 'instagram_marketing_settings') displayName = '인스타그램 AI 포스팅 자동화 계정';
+          else if (name === 'naver_blog_marketing_settings') displayName = '네이버 블로그 AI 포스팅 설정';
+          else if (name === 'shared_dashboards') displayName = '외부 공유용 AI 지능형 시각화 링크';
+          else if (name === 'alert_logs') displayName = 'AI 자동화 및 시스템 경보 내역';
+          else if (name === 'alert_rules') displayName = 'AI 경보 발동 조건 및 수신처 설정';
+          else if (name === 'ecount_rpa_lock') displayName = '이카운트 ERP RPA 가동 중복방지 락';
+          else if (name === 'exchange_rates') displayName = '실시간 주요 외환 고시 환율';
+          else if (name === 'exchange_rate_histories') displayName = '일자별 외환 환율 변동 추이 이력';
+          else if (name === 'price_histories') displayName = '원자재 및 경쟁사 가격 추적 히스토리';
+          else if (name === 'tracked_items') displayName = '가격 모니터링 등록 자재 품목';
+          else if (name === 'target_urls') displayName = '경쟁사 쇼핑몰 상품 분석 수집 URL';
+          else if (name === 'system_settings') displayName = '플랫폼 전체 AI 모델 및 API 설정 키';
+          else if (name === 'system_menu_settings') displayName = '최고관리자 시스템 메뉴 활성 설정';
+          else if (name === 'user_feedbacks') displayName = '플랫폼 이용 관련 개선 피드백 대장';
+          else if (name === 'crm_deliveries') displayName = '배송 정보 및 트래킹 대장';
+          else if (name === 'pms_projects') displayName = '사내 프로젝트 및 태스크 관리 대장';
+          else if (name === 'tenant_menu_settings') displayName = '고객사(테넌트)별 활성화된 메뉴 정보';
+          else if (name === 'system_shared_views') displayName = '대시보드 뷰 템플릿 구성 정보';
+          
+          // 4차 보완: 잔여 시스템 테이블(7개) 한글 매핑 추가
+          else if (name === 'crm_estimate_items') displayName = '견적 및 발주서 상세 품목 대장';
+          else if (name === 'crm_transactions') displayName = '수금 및 지급 결제 거래 내역';
+          else if (name === 'expense_categories') displayName = '지출 과목 및 비용 분류 카테고리';
+          else if (name === 'expense_departments') displayName = '지출 귀속 부서 및 조직 정보';
+          else if (name === 'expense_employees') displayName = '지출 청구 대상 임직원 명단';
+          else if (name === 'expense_settings') displayName = '지출 관리 결재 한도 및 연동 설정';
+          else if (name === 'expense_tags') displayName = '지출 상세 분석용 태그 관리';
+
           tablesWithCount.push({
             name,
             displayName,
