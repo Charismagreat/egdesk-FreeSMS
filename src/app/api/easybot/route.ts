@@ -105,6 +105,21 @@ export async function POST(req: Request) {
       console.warn('테이블 목록 조회 실패 (에이전트에 스키마 가이드 제한됨):', e);
     }
 
+    // 💡 [FinanceHub] 보유계좌 잔액 및 금융 내역 스키마 힌트를 AI 모델에 직접 추가 인입
+    const financeHubTablesInfo = `
+[FinanceHub Accounts Table (accounts)]
+- Description: 은행 계좌 보유 현황 및 현재 잔액 정보가 들어있는 테이블입니다.
+- Columns:
+  - bank_id (TEXT): 은행 식별자 (예: 'ibk', 'hana')
+  - account_number (TEXT): 계좌번호
+  - account_name (TEXT): 계좌 별칭
+  - customer_name (TEXT): 예금주명 (예: '본사')
+  - balance (INTEGER): 현재 보유 잔액 (원화)
+  - currency (TEXT): 통화 (기본 'KRW')
+  - is_active (INTEGER): 활성화 여부 (1: 활성, 0: 비활성)
+`;
+    dbTablesInfo += "\n" + financeHubTablesInfo;
+
     // 3. STEP 1: 사용자의 질문을 분석하여 DB 조회가 필요한지 확인하고 SELECT 쿼리 생성
     const step1SystemPrompt = `
 You are the database analysis engine of "EasyBot" (이지봇), a premium management assistant.
@@ -210,9 +225,38 @@ If the user is asking about how to use the system, menus, manuals, guides, or tr
         sqlError = `보안 제한: 오직 데이터 조회(SELECT) 쿼리만 안전하게 실행할 수 있습니다. 생성된 쿼리는 실행이 거부되었습니다: "${sqlToExecute}"`;
       } else {
         try {
-          // SQLite DB raw 쿼리 실행
-          const queryRes = await executeSQL(sqlToExecute);
-          sqlQueryResult = queryRes;
+          // 쿼리에 financehub 관련 테이블(accounts 등)이 포함되어 있는지 대소문자 무관하게 검사
+          const lowerSQL = sqlToExecute.toLowerCase();
+          const isFinanceHubQuery = lowerSQL.includes('accounts') || 
+                                    lowerSQL.includes('bank_transactions') ||
+                                    lowerSQL.includes('card_transactions');
+          
+          if (isFinanceHubQuery) {
+            // 로컬 financehub.db 파일에 직접 direct로 better-sqlite3 쿼리를 실행해 결과를 가져옵니다.
+            const Database = require('better-sqlite3');
+            const os = require('os');
+            const path = require('path');
+            const fs = require('fs');
+            
+            const homeDir = os.homedir();
+            const appData = process.env.APPDATA || path.join(homeDir, 'AppData/Roaming');
+            const dbPath = path.join(appData, 'EGDesk/database/financehub.db');
+            
+            if (fs.existsSync(dbPath)) {
+              const db = new Database(dbPath);
+              const rows = db.prepare(sqlToExecute).all();
+              sqlQueryResult = { success: true, rows, total: rows.length };
+              db.close();
+            } else {
+              // 파일이 없을 시 API 터널 executeSQL로 폴백 시도
+              const queryRes = await executeSQL(sqlToExecute);
+              sqlQueryResult = queryRes;
+            }
+          } else {
+            // CRM DB에 일반 쿼리 실행
+            const queryRes = await executeSQL(sqlToExecute);
+            sqlQueryResult = queryRes;
+          }
         } catch (err: any) {
           console.error('SQL 실행 오류:', err);
           sqlError = err.message || String(err);
@@ -287,6 +331,14 @@ ${JSON.stringify(localStorageContext, null, 2)}
 
     const step2Data = await step2Response.json();
     let finalAnswer = step2Data.candidates?.[0]?.content?.parts?.[0]?.text || "답변을 생성하는 데 실패했습니다.";
+
+    // [REDIRECT:경로] 태그 감지 및 추출, 그리고 마크다운 링크로 치환
+    let redirectUrl: string | null = null;
+    const redirectMatch = finalAnswer.match(/\[REDIRECT:(.*?)\]/);
+    if (redirectMatch) {
+      redirectUrl = redirectMatch[1].trim();
+      finalAnswer = finalAnswer.replace(/\[REDIRECT:(.*?)\]/g, `[바로가기 (${redirectUrl})](${redirectUrl})`).trim();
+    }
 
     // [CREATE_TASK:담당자ID:우선순위:마감일:제목:내용] 태그 감지 시 crm_snaptasks 테이블에 자동 발급 처리
     const taskMatch = finalAnswer.match(/\[CREATE_TASK:(.*?):(.*?):(.*?):(.*?):(.*?)\]/);
@@ -380,6 +432,8 @@ ${JSON.stringify(localStorageContext, null, 2)}
     return NextResponse.json({
       success: true,
       answer: finalAnswer,
+      reply: finalAnswer, // 클라이언트의 data.reply 참조 호환성을 위해 추가
+      redirectUrl: redirectUrl, // 리다이렉트 자동 수행을 위한 경로 정보 추가
       sql: sqlPlan.sql,
       sqlSuccess: sqlPlan.requiresQuery ? !sqlError : null,
       sqlError

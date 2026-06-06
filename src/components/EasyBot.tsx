@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Sparkles, X, Send, RotateCcw, Bot, Terminal, ShieldAlert, Maximize2, Minimize2, Mic, MicOff, Volume2, VolumeX, Camera, Mail, CheckCircle2, User, Phone, Briefcase, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { MessageSquare, Sparkles, X, Send, RotateCcw, Bot, Terminal, ShieldAlert, Maximize2, Minimize2, Mic, MicOff, Volume2, VolumeX, Camera, Mail, CheckCircle2, User, Phone, Briefcase, RefreshCw, Calendar, DollarSign, Check, FileText, Plus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter } from 'next/navigation';
 
@@ -38,20 +38,27 @@ function SafeMarkdown({ content }: { content: string }) {
     const codeClass = isUserMessage 
       ? "px-2 py-0.5 rounded bg-white/20 text-white font-mono text-xs border border-white/30" 
       : "px-2 py-0.5 rounded bg-rose-50 text-rose-650 font-mono text-xs border border-rose-100";
+    const linkClass = isUserMessage
+      ? "text-white underline font-bold hover:opacity-80 transition-opacity"
+      : "text-violet-600 underline font-bold hover:text-violet-850 transition-colors";
 
     while (remaining.length > 0) {
       const boldMatch = remaining.match(/\*\*(.*?)\*\*/);
       const codeMatch = remaining.match(/`(.*?)`/);
+      const linkMatch = remaining.match(/\[(.*?)\]\((.*?)\)/);
 
-      if (!boldMatch && !codeMatch) {
+      if (!boldMatch && !codeMatch && !linkMatch) {
         parts.push(<span key={`txt-${keyIndex}`}>{remaining}</span>);
         break;
       }
 
       const boldIndex = boldMatch ? remaining.indexOf(boldMatch[0]) : Infinity;
       const codeIndex = codeMatch ? remaining.indexOf(codeMatch[0]) : Infinity;
+      const linkIndex = linkMatch ? remaining.indexOf(linkMatch[0]) : Infinity;
 
-      if (boldIndex < codeIndex) {
+      const minIndex = Math.min(boldIndex, codeIndex, linkIndex);
+
+      if (minIndex === boldIndex) {
         if (boldIndex > 0) {
           parts.push(<span key={`txt-${keyIndex}`}>{remaining.substring(0, boldIndex)}</span>);
           keyIndex++;
@@ -59,7 +66,7 @@ function SafeMarkdown({ content }: { content: string }) {
         parts.push(<strong key={`bold-${keyIndex}`} className={boldClass}>{boldMatch![1]}</strong>);
         keyIndex++;
         remaining = remaining.substring(boldIndex + boldMatch![0].length);
-      } else {
+      } else if (minIndex === codeIndex) {
         if (codeIndex > 0) {
           parts.push(<span key={`txt-${keyIndex}`}>{remaining.substring(0, codeIndex)}</span>);
           keyIndex++;
@@ -71,6 +78,20 @@ function SafeMarkdown({ content }: { content: string }) {
         );
         keyIndex++;
         remaining = remaining.substring(codeIndex + codeMatch![0].length);
+      } else {
+        if (linkIndex > 0) {
+          parts.push(<span key={`txt-${keyIndex}`}>{remaining.substring(0, linkIndex)}</span>);
+          keyIndex++;
+        }
+        const linkText = linkMatch![1];
+        const linkUrl = linkMatch![2];
+        parts.push(
+          <a key={`link-${keyIndex}`} href={linkUrl} className={linkClass}>
+            {linkText}
+          </a>
+        );
+        keyIndex++;
+        remaining = remaining.substring(linkIndex + linkMatch![0].length);
       }
     }
 
@@ -437,6 +458,329 @@ function CardPreviewMessage({ tagContent, onConfirmSuccess }: { tagContent: stri
 }
 
 /**
+ * AI 영수증 OCR 데이터를 파싱하여 인라인 수동 보정 및 확정 등록을 수행하는 영수증 프리뷰 카드 컴포넌트
+ */
+function ReceiptPreviewMessage({ tagContent }: { tagContent: string }) {
+  const [receipt, setReceipt] = useState<any>(null);
+  const [title, setTitle] = useState('');
+  const [amount, setAmount] = useState('');
+  const [expenseDate, setExpenseDate] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('법인카드');
+  const [memo, setMemo] = useState('');
+  const [payee, setPayee] = useState('');
+  
+  const [dbCategories, setDbCategories] = useState<any[]>([]);
+  const [selectedMainCat, setSelectedMainCat] = useState('판매비와관리비');
+  const [selectedMidCat, setSelectedMidCat] = useState('복리후생비');
+  const [selectedSubCat, setSelectedSubCat] = useState('직원식대');
+  
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  // 1. 카테고리 정보 로드
+  useEffect(() => {
+    const fetchCats = async () => {
+      try {
+        const res = await fetch('/api/expenses/categories');
+        const json = await res.json();
+        if (json.success) {
+          setDbCategories(json.categories);
+        }
+      } catch (err) {
+        console.error('이지봇 영수증 카테고리 로드 실패:', err);
+      }
+    };
+    fetchCats();
+  }, []);
+
+  // 2. 3단계 카테고리 구조 동적 빌딩
+  const ACCOUNT_CATEGORIES = useMemo(() => {
+    const structure: Record<string, Record<string, string[]>> = {};
+    if (!dbCategories || dbCategories.length === 0) {
+      return {
+        "판매비와관리비": {
+          "복리후생비": ["직원식대", "직원야근식대", "음료및간식비"]
+        }
+      };
+    }
+    dbCategories.forEach(cat => {
+      const main = cat.main_category;
+      const mid = cat.mid_category;
+      const sub = cat.sub_category;
+      if (!structure[main]) structure[main] = {};
+      if (!structure[main][mid]) structure[main][mid] = [];
+      if (!structure[main][mid].includes(sub)) structure[main][mid].push(sub);
+    });
+    return structure;
+  }, [dbCategories]);
+
+  // 3. 수신한 OCR 데이터 파싱 및 초기화
+  useEffect(() => {
+    try {
+      const parsed = JSON.parse(tagContent);
+      setReceipt(parsed);
+      setTitle(parsed.title || '');
+      setAmount(parsed.amount ? String(parsed.amount) : '');
+      setExpenseDate(parsed.expense_date || new Date().toISOString().slice(0, 10));
+      setPaymentMethod(parsed.payment_method || '법인카드');
+      setMemo(parsed.memo || '');
+      setPayee(parsed.payee || parsed.merchant || '');
+
+      // OCR 카테고리(중분류 수준)의 지능형 소분류 맵핑
+      if (parsed.category && dbCategories.length > 0) {
+        const OCR_MID_CAT_MAP: Record<string, string> = {
+          "복리후생비": "복리후생비",
+          "여비교통비": "여비교통비",
+          "소모품비": "소모품비",
+          "접대비": "접대비(기업업무추진비)",
+          "임차료": "지급임차료",
+          "세금공과금": "세금과공과",
+          "기타": "지급수수료"
+        };
+        const targetMidCat = OCR_MID_CAT_MAP[parsed.category] || parsed.category;
+        const matchedCats = dbCategories.filter(cat => cat.mid_category === targetMidCat);
+
+        if (matchedCats.length > 0) {
+          const titleLower = (parsed.title || '').toLowerCase();
+          let subCat = matchedCats[0].sub_category;
+          
+          if (targetMidCat === "복리후생비") {
+            if (titleLower.includes("음료") || titleLower.includes("커피") || titleLower.includes("간식") || titleLower.includes("라떼")) {
+              const found = matchedCats.find(c => c.sub_category === "음료및간식비");
+              if (found) subCat = found.sub_category;
+            } else if (titleLower.includes("야식") || titleLower.includes("야근")) {
+              const found = matchedCats.find(c => c.sub_category === "직원야근식대");
+              if (found) subCat = found.sub_category;
+            } else if (titleLower.includes("식대") || titleLower.includes("식사")) {
+              const found = matchedCats.find(c => c.sub_category === "직원식대");
+              if (found) subCat = found.sub_category;
+            }
+          } else if (targetMidCat === "여비교통비" && titleLower.includes("택시")) {
+            const found = matchedCats.find(c => c.sub_category === "택시비");
+            if (found) subCat = found.sub_category;
+          }
+          
+          setSelectedSubCat(subCat);
+          
+          // 역으로 대/중분류 매핑
+          for (const mainCat of Object.keys(ACCOUNT_CATEGORIES)) {
+            for (const midCat of Object.keys(ACCOUNT_CATEGORIES[mainCat])) {
+              if (ACCOUNT_CATEGORIES[mainCat][midCat].includes(subCat)) {
+                setSelectedMainCat(mainCat);
+                setSelectedMidCat(midCat);
+                break;
+              }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('영수증 파싱 실패:', err);
+    }
+  }, [tagContent, dbCategories, ACCOUNT_CATEGORIES]);
+
+  const handleMainCatChange = (mainCat: string) => {
+    setSelectedMainCat(mainCat);
+    const midCats = Object.keys(ACCOUNT_CATEGORIES[mainCat] || {});
+    if (midCats.length > 0) {
+      const firstMid = midCats[0];
+      setSelectedMidCat(firstMid);
+      const subCats = ACCOUNT_CATEGORIES[mainCat][firstMid] || [];
+      if (subCats.length > 0) setSelectedSubCat(subCats[0]);
+    }
+  };
+
+  const handleMidCatChange = (midCat: string) => {
+    setSelectedMidCat(midCat);
+    const subCats = ACCOUNT_CATEGORIES[selectedMainCat][midCat] || [];
+    if (subCats.length > 0) setSelectedSubCat(subCats[0]);
+  };
+
+  const handleConfirmSubmit = async () => {
+    if (!title || !amount) {
+      alert('적요와 금액은 필수 입력 항목입니다.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch('/api/expenses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          category: selectedSubCat,
+          amount: Number(amount),
+          expense_date: expenseDate,
+          payment_method: paymentMethod,
+          memo,
+          payee,
+          requisition_date: expenseDate,
+          ai_analysis: JSON.stringify({ ocrParsed: true, source: 'EASYBOT_OCR' })
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSaved(true);
+      } else {
+        alert(data.error || '지출 내역 등록 처리에 실패했습니다.');
+      }
+    } catch (err: any) {
+      alert('지출 등록 통신 에러: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!receipt) return <div className="text-rose-500 font-bold p-2 text-xs">영수증 데이터를 파싱하지 못했습니다.</div>;
+
+  return (
+    <div className="my-3 border border-rose-100 rounded-2xl bg-white shadow-md overflow-hidden text-slate-800 max-w-sm animate-in zoom-in-95 duration-200">
+      <div className="bg-gradient-to-r from-rose-50/50 to-pink-50/30 px-4 py-3 border-b border-rose-50 flex items-center gap-2">
+        <Sparkles size={14} className="text-rose-500 animate-pulse" />
+        <span className="text-xs font-black text-slate-800">이지봇 AI 영수증 분석 리포트</span>
+      </div>
+
+      <div className="p-4 space-y-3 text-[11px]">
+        {/* 적요 */}
+        <div className="space-y-1">
+          <label className="text-[10px] text-slate-450 font-extrabold flex items-center gap-1"><FileText size={10} />적요 (지출 용도)</label>
+          <input 
+            type="text" 
+            value={title} 
+            onChange={e => setTitle(e.target.value)}
+            disabled={saving || saved}
+            className="w-full px-2 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-rose-500 bg-slate-50/20 font-bold text-xs"
+          />
+        </div>
+
+        {/* 3단 계정과목 */}
+        <div className="grid grid-cols-3 gap-1.5">
+          <div className="space-y-1">
+            <label className="text-[9px] text-slate-450 font-extrabold">대분류</label>
+            <select
+              value={selectedMainCat}
+              onChange={e => handleMainCatChange(e.target.value)}
+              disabled={saving || saved}
+              className="w-full px-1 py-1.5 border border-slate-200 rounded-lg bg-slate-50/20 font-bold text-[10px] cursor-pointer"
+            >
+              {Object.keys(ACCOUNT_CATEGORIES).map(m => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-[9px] text-slate-450 font-extrabold">중분류</label>
+            <select
+              value={selectedMidCat}
+              onChange={e => handleMidCatChange(e.target.value)}
+              disabled={saving || saved}
+              className="w-full px-1 py-1.5 border border-slate-200 rounded-lg bg-slate-50/20 font-bold text-[10px] cursor-pointer"
+            >
+              {Object.keys(ACCOUNT_CATEGORIES[selectedMainCat] || {}).map(mid => (
+                <option key={mid} value={mid}>{mid}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-[9px] text-slate-450 font-extrabold">소분류</label>
+            <select
+              value={selectedSubCat}
+              onChange={e => setSelectedSubCat(e.target.value)}
+              disabled={saving || saved}
+              className="w-full px-1 py-1.5 border border-slate-200 rounded-lg bg-slate-50/20 font-bold text-[10px] cursor-pointer"
+            >
+              {(ACCOUNT_CATEGORIES[selectedMainCat]?.[selectedMidCat] || []).map(sub => (
+                <option key={sub} value={sub}>{sub}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* 금액 및 날짜 */}
+        <div className="grid grid-cols-2 gap-2.5">
+          <div className="space-y-1">
+            <label className="text-[10px] text-slate-450 font-extrabold flex items-center gap-1"><DollarSign size={10} />지출 금액 (원)</label>
+            <input 
+              type="number" 
+              value={amount} 
+              onChange={e => setAmount(e.target.value)}
+              disabled={saving || saved}
+              className="w-full px-2 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-rose-500 bg-slate-50/20 font-bold font-mono text-xs"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] text-slate-450 font-extrabold flex items-center gap-1"><Calendar size={10} />품의 일자</label>
+            <input 
+              type="date" 
+              value={expenseDate} 
+              onChange={e => setExpenseDate(e.target.value)}
+              disabled={saving || saved}
+              className="w-full px-1 py-1 border border-slate-200 rounded-lg focus:outline-none bg-slate-50/20 font-bold text-[10px] cursor-pointer"
+            />
+          </div>
+        </div>
+
+        {/* 결제 수단 및 가맹점 */}
+        <div className="grid grid-cols-2 gap-2.5">
+          <div className="space-y-1">
+            <label className="text-[10px] text-slate-450 font-extrabold flex items-center gap-1"><Phone size={10} />결제 수단</label>
+            <select
+              value={paymentMethod}
+              onChange={e => setPaymentMethod(e.target.value)}
+              disabled={saving || saved}
+              className="w-full px-2 py-1.5 border border-slate-200 rounded-lg bg-slate-50/20 font-bold text-[10px] cursor-pointer"
+            >
+              {["법인카드", "개인신용카드", "계좌송금", "현금", "기타"].map(m => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] text-slate-450 font-extrabold flex items-center gap-1">🏢 가맹점/상호명</label>
+            <input 
+              type="text" 
+              value={payee} 
+              onChange={e => setPayee(e.target.value)}
+              disabled={saving || saved}
+              className="w-full px-2 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-rose-500 bg-slate-50/20 font-bold text-xs"
+            />
+          </div>
+        </div>
+
+        {/* 비고(태그) */}
+        <div className="space-y-1">
+          <label className="text-[10px] text-slate-450 font-extrabold flex items-center gap-1"><Plus size={10} />비고 (지출 태그)</label>
+          <input 
+            type="text" 
+            value={memo} 
+            onChange={e => setMemo(e.target.value)}
+            disabled={saving || saved}
+            className="w-full px-2 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-rose-500 bg-slate-50/20 font-bold text-xs"
+          />
+        </div>
+
+        {/* 등록 버튼 */}
+        <div className="pt-1.5">
+          {saved ? (
+            <div className="w-full py-2 bg-emerald-50 text-emerald-600 rounded-xl font-black text-center border border-emerald-100 flex items-center justify-center gap-1 text-xs">
+              <Check size={14} className="shrink-0" /> 지출결의서 등록이 완료되었습니다!
+            </div>
+          ) : (
+            <button
+              onClick={handleConfirmSubmit}
+              disabled={saving}
+              className="w-full py-2 bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white rounded-xl font-black shadow-md shadow-rose-500/10 cursor-pointer border-none flex items-center justify-center gap-1 transition-all text-xs"
+            >
+              {saving ? '장부 적재 중...' : '지출결의서 장부 즉시 등록'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
  * AI 사업자등록증 OCR 구조화 데이터를 파싱하여 인라인 수동 보정 및 국세청 2중 검증 확정 등록을 수행하는 프리미엄 카드 컴포넌트
  */
 function LicensePreviewMessage({ tagContent, onConfirmSuccess }: { tagContent: string; onConfirmSuccess: (msg: string) => void }) {
@@ -795,6 +1139,7 @@ export default function EasyBot() {
    * 진성 주의/경고사항 감지 및 5문장 제한 요약 낭독 TTS 유틸리티
    */
   const speakImportantNotesOnly = (text: string) => {
+    if (!text || typeof text !== 'string') return;
     if (!voiceEnabled || !ttsSynthesisRef.current) return;
     
     stopSpeaking();
@@ -949,50 +1294,65 @@ export default function EasyBot() {
 
         const data = await response.json();
 
-        if (data.success) {
-          if (data.fileType === 'BUSINESS_LICENSE') {
-            const licensePayload = {
-              status: data.status,
-              existingId: data.existingId,
-              existingType: data.existingType,
-              diff: data.diff,
-              checksum: data.checksum,
-              nts: data.nts,
-              data: data.data
-            };
+        if (data.success && data.detectedItems && data.detectedItems.length > 0) {
+          // 로딩 상태 대화 제거
+          setMessages(prev => {
+            const updated = [...prev];
+            updated.pop();
+            return updated;
+          });
 
-            // 봇의 로딩 대화를 특수 [LICENSE_PREVIEW:...] 카드로 치환
-            setMessages(prev => {
-              const updated = [...prev];
-              updated[updated.length - 1] = {
-                role: 'bot',
-                content: `[LICENSE_PREVIEW:${JSON.stringify(licensePayload)}]`,
-                timestamp: formatTimestamp()
+          // 검출된 문서 수만큼 대화창에 차례대로 카드 뿌리기
+          data.detectedItems.forEach((item: any) => {
+            if (item.itemType === 'BUSINESS_LICENSE') {
+              const licensePayload = {
+                status: item.status,
+                existingId: item.existingId,
+                existingType: item.existingType,
+                diff: item.diff,
+                checksum: item.checksum,
+                nts: item.nts,
+                data: item.data
               };
-              return updated;
-            });
-          } else {
-            // 명함 이미지 저장 URL이나 가상 URL 매핑
-            const cardPayload = {
-              ...data.data,
-              actionType: data.actionType,
-              partnerId: data.partnerId,
-              partnerName: data.partnerName,
-              existingContact: data.existingContact,
-              cardImageUrl: base64Str // 프리뷰용 base64 보존
-            };
-
-            // 봇의 로딩 대화를 특수 [CARD_PREVIEW:...] 카드로 치환
-            setMessages(prev => {
-              const updated = [...prev];
-              updated[updated.length - 1] = {
-                role: 'bot',
-                content: `[CARD_PREVIEW:${JSON.stringify(cardPayload)}]`,
-                timestamp: formatTimestamp()
+              setMessages(prev => [
+                ...prev,
+                {
+                  role: 'bot',
+                  content: `[LICENSE_PREVIEW:${JSON.stringify(licensePayload)}]`,
+                  timestamp: formatTimestamp()
+                }
+              ]);
+            } else if (item.itemType === 'BUSINESS_CARD') {
+              const cardPayload = {
+                ...item.data,
+                actionType: item.actionType,
+                partnerId: item.partnerId,
+                partnerName: item.partnerName,
+                existingContact: item.existingContact,
+                cardImageUrl: base64Str
               };
-              return updated;
-            });
-          }
+              setMessages(prev => [
+                ...prev,
+                {
+                  role: 'bot',
+                  content: `[CARD_PREVIEW:${JSON.stringify(cardPayload)}]`,
+                  timestamp: formatTimestamp()
+                }
+              ]);
+            } else if (item.itemType === 'RECEIPT') {
+              const receiptPayload = {
+                ...item.data
+              };
+              setMessages(prev => [
+                ...prev,
+                {
+                  role: 'bot',
+                  content: `[RECEIPT_PREVIEW:${JSON.stringify(receiptPayload)}]`,
+                  timestamp: formatTimestamp()
+                }
+              ]);
+            }
+          });
         } else {
           setMessages(prev => {
             const updated = [...prev];
@@ -1085,7 +1445,7 @@ export default function EasyBot() {
           ...prev,
           {
             role: 'bot',
-            content: data.reply,
+            content: data.reply || data.answer,
             timestamp: formatTimestamp(),
             sql: data.sql || null,
             sqlSuccess: data.sqlSuccess !== undefined ? data.sqlSuccess : null,
@@ -1094,7 +1454,7 @@ export default function EasyBot() {
         ]);
 
         // 4. 주의/경고사항 감지 및 요약 오디오 재생
-        speakImportantNotesOnly(data.reply);
+        speakImportantNotesOnly(data.reply || data.answer);
 
         // 5. 서버 측에서 화면 새로고침(redirect) 요령이 있으면 반응 처리
         if (data.redirectUrl) {
@@ -1254,14 +1614,18 @@ export default function EasyBot() {
             {/* 메시지 보드 영역 */}
             <div className="flex-1 min-h-0 overflow-y-auto p-5 pb-6 space-y-6 bg-[#fafafb] custom-scrollbar pt-6">
               {messages.map((msg, index) => {
-                const isCardPreview = msg.role === 'bot' && msg.content.startsWith('[CARD_PREVIEW:');
-                const isLicensePreview = msg.role === 'bot' && msg.content.startsWith('[LICENSE_PREVIEW:');
-                const tagContent = isCardPreview 
+                const hasContent = typeof msg.content === 'string';
+                const isCardPreview = msg.role === 'bot' && hasContent && msg.content.startsWith('[CARD_PREVIEW:');
+                const isLicensePreview = msg.role === 'bot' && hasContent && msg.content.startsWith('[LICENSE_PREVIEW:');
+                const isReceiptPreview = msg.role === 'bot' && hasContent && msg.content.startsWith('[RECEIPT_PREVIEW:');
+                const tagContent = isCardPreview && hasContent
                   ? msg.content.substring(14, msg.content.length - 1) 
-                  : isLicensePreview 
+                  : isLicensePreview && hasContent
+                  ? msg.content.substring(17, msg.content.length - 1)
+                  : isReceiptPreview && hasContent
                   ? msg.content.substring(17, msg.content.length - 1) 
                   : '';
-                const isCustomPreview = isCardPreview || isLicensePreview;
+                const isCustomPreview = isCardPreview || isLicensePreview || isReceiptPreview;
 
                 return (
                   <div key={index} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -1317,6 +1681,8 @@ export default function EasyBot() {
                           <CardPreviewMessage tagContent={tagContent} onConfirmSuccess={handleCardConfirmSuccess} />
                         ) : isLicensePreview ? (
                           <LicensePreviewMessage tagContent={tagContent} onConfirmSuccess={handleCardConfirmSuccess} />
+                        ) : isReceiptPreview ? (
+                          <ReceiptPreviewMessage tagContent={tagContent} />
                         ) : (
                           <SafeMarkdown content={msg.content} />
                         )}

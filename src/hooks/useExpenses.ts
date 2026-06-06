@@ -647,10 +647,102 @@ export function useExpenses() {
         const json = await res.json();
         
         if (json.success) {
+          // AI OCR 분석 결과(중분류)를 실제 DB의 소분류(sub_category)로 변환하는 지능형 매핑 로직
+          let mappedCategory = "직원식대"; // 기본 fallback 값
+          
+          if (json.category) {
+            // OCR 비목명과 DB 중분류명 매칭 사전
+            const OCR_MID_CAT_MAP: Record<string, string> = {
+              "복리후생비": "복리후생비",
+              "여비교통비": "여비교통비",
+              "소모품비": "소모품비",
+              "접대비": "접대비(기업업무추진비)",
+              "임차료": "지급임차료",
+              "세금공과금": "세금과공과",
+              "기타": "지급수수료"
+            };
+
+            const targetMidCat = OCR_MID_CAT_MAP[json.category] || json.category;
+            const matchedCats = dbCategories.filter(cat => cat.mid_category === targetMidCat);
+
+            if (matchedCats.length > 0) {
+              const titleLower = (json.title || "").toLowerCase();
+              let subCat = matchedCats[0].sub_category; // 기본값은 해당 중분류의 첫 번째 소분류
+              
+              if (targetMidCat === "복리후생비") {
+                if (titleLower.includes("음료") || titleLower.includes("커피") || titleLower.includes("간식") || titleLower.includes("과자") || titleLower.includes("물") || titleLower.includes("라떼")) {
+                  const found = matchedCats.find(c => c.sub_category === "음료및간식비");
+                  if (found) subCat = found.sub_category;
+                } else if (titleLower.includes("야식") || titleLower.includes("야근") || titleLower.includes("특근")) {
+                  const found = matchedCats.find(c => c.sub_category === "직원야근식대");
+                  if (found) subCat = found.sub_category;
+                } else if (titleLower.includes("식대") || titleLower.includes("식사") || titleLower.includes("밥")) {
+                  const found = matchedCats.find(c => c.sub_category === "직원식대");
+                  if (found) subCat = found.sub_category;
+                } else if (titleLower.includes("경조") || titleLower.includes("화환") || titleLower.includes("축하")) {
+                  const found = matchedCats.find(c => c.sub_category === "경조사비");
+                  if (found) subCat = found.sub_category;
+                } else if (titleLower.includes("교육") || titleLower.includes("세미나") || titleLower.includes("강의")) {
+                  const found = matchedCats.find(c => c.sub_category === "직원교육비");
+                  if (found) subCat = found.sub_category;
+                }
+              } else if (targetMidCat === "여비교통비") {
+                if (titleLower.includes("택시")) {
+                  const found = matchedCats.find(c => c.sub_category === "택시비");
+                  if (found) subCat = found.sub_category;
+                } else if (titleLower.includes("KTX") || titleLower.includes("항공") || titleLower.includes("기차") || titleLower.includes("철도") || titleLower.includes("비행기")) {
+                  const found = matchedCats.find(c => c.sub_category === "KTX/항공료");
+                  if (found) subCat = found.sub_category;
+                } else if (titleLower.includes("주차")) {
+                  const found = matchedCats.find(c => c.sub_category === "주차요금");
+                  if (found) subCat = found.sub_category;
+                } else if (titleLower.includes("유류") || titleLower.includes("주유") || titleLower.includes("가솔린") || titleLower.includes("디젤")) {
+                  const found = matchedCats.find(c => c.sub_category === "유류비");
+                  if (found) subCat = found.sub_category;
+                } else if (titleLower.includes("톨게이트") || titleLower.includes("하이패스") || titleLower.includes("통행료")) {
+                  const found = matchedCats.find(c => c.sub_category === "톨게이트비");
+                  if (found) subCat = found.sub_category;
+                }
+              } else if (targetMidCat === "소모품비") {
+                if (titleLower.includes("비품") || titleLower.includes("의자") || titleLower.includes("책상") || titleLower.includes("가구")) {
+                  const found = matchedCats.find(c => c.sub_category === "사무비품비");
+                  if (found) subCat = found.sub_category;
+                } else if (titleLower.includes("전산") || titleLower.includes("마우스") || titleLower.includes("키보드") || titleLower.includes("토너") || titleLower.includes("잉크")) {
+                  const found = matchedCats.find(c => c.sub_category === "전산소모품비");
+                  if (found) subCat = found.sub_category;
+                } else {
+                  const found = matchedCats.find(c => c.sub_category === "사무용품비");
+                  if (found) subCat = found.sub_category;
+                }
+              } else if (targetMidCat === "접대비(기업업무추진비)") {
+                if (titleLower.includes("선물") || titleLower.includes("기프트")) {
+                  const found = matchedCats.find(c => c.sub_category === "거래처선물비");
+                  if (found) subCat = found.sub_category;
+                } else if (titleLower.includes("경조") || titleLower.includes("화환") || titleLower.includes("부조")) {
+                  const found = matchedCats.find(c => c.sub_category === "거래처경조사비");
+                  if (found) subCat = found.sub_category;
+                } else {
+                  const found = matchedCats.find(c => c.sub_category === "거래처식사비");
+                  if (found) subCat = found.sub_category;
+                }
+              }
+              
+              mappedCategory = subCat;
+            } else {
+              // 중분류 매칭 실패 시 소분류 직접 일치 확인
+              const matchedSub = dbCategories.find(cat => cat.sub_category === json.category);
+              if (matchedSub) {
+                mappedCategory = matchedSub.sub_category;
+              } else if (dbCategories.length > 0) {
+                mappedCategory = dbCategories[0].sub_category;
+              }
+            }
+          }
+
           // AI OCR 분석 결과 폼 자동 채우기
           setNewExpense({
             title: json.title || "",
-            category: json.category || "직원야근식대",
+            category: mappedCategory,
             amount: String(json.amount) || "",
             expense_date: json.expense_date || new Date().toISOString().slice(0, 10),
             payment_method: json.payment_method || "법인카드",

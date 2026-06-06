@@ -1,6 +1,6 @@
 /**
  * EGDesk User Data Configuration
- * Generated at: 2026-06-05T02:11:01.369Z
+ * Generated at: 2026-06-06T03:36:16.751Z
  *
  * This file contains type-safe definitions for your EGDesk tables.
  */
@@ -80,7 +80,7 @@ export const TABLES = {
   table9: {
     name: 'crm_expenses',
     displayName: '지출 내역',
-    rowCount: 5,
+    rowCount: 3,
     columnCount: 23,
     columns: ['id', 'title', 'category', 'amount', 'expense_date', 'payment_method', 'attachment_url', 'ai_analysis', 'memo', 'approval_status', 'approval_memo', 'approved_at', 'actual_expense_date', 'deduction_amount', 'transfer_fee', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
@@ -129,7 +129,7 @@ export const TABLES = {
   table16: {
     name: 'ai_token_usage_logs',
     displayName: 'AI 토큰 사용량 로그',
-    rowCount: 10,
+    rowCount: 26,
     columnCount: 7,
     columns: ['id', 'model', 'purpose', 'prompt_tokens', 'completion_tokens', 'total_tokens', 'created_at']
   } as TableDefinition,
@@ -157,14 +157,14 @@ export const TABLES = {
   table20: {
     name: 'crm_snaptask_items',
     displayName: '스냅태스크 상세 내역',
-    rowCount: 3,
+    rowCount: 49,
     columnCount: 7,
     columns: ['id', 'task_id', 'content_text', 'file_url', 'file_type', 'ai_analysis', 'created_at']
   } as TableDefinition,
   table21: {
     name: 'crm_snaptasks',
     displayName: '스냅태스크 관리',
-    rowCount: 3,
+    rowCount: 49,
     columnCount: 6,
     columns: ['id', 'title', 'status', 'partner_id', 'created_at', 'updated_at']
   } as TableDefinition,
@@ -185,21 +185,21 @@ export const TABLES = {
   table24: {
     name: 'crm_purchase_orders',
     displayName: '발주서 관리',
-    rowCount: 1,
+    rowCount: 0,
     columnCount: 8,
     columns: ['id', 'estimate_id', 'vendor_name', 'vendor_phone', 'status', 'total_amount', 'created_at', 'completed_at']
   } as TableDefinition,
   table25: {
     name: 'crm_estimate_items',
     displayName: '견적서 품목 상세',
-    rowCount: 10,
+    rowCount: 0,
     columnCount: 7,
     columns: ['id', 'estimate_id', 'product_id', 'product_name', 'quantity', 'unit_price', 'amount']
   } as TableDefinition,
   table26: {
     name: 'crm_estimates',
     displayName: '견적서 관리',
-    rowCount: 1,
+    rowCount: 0,
     columnCount: 17,
     columns: ['id', 'type', 'direction_status', 'partner_name', 'partner_phone', 'total_amount', 'file_url', 'business_license_url', 'ai_parsed', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
@@ -213,14 +213,14 @@ export const TABLES = {
   table28: {
     name: 'crm_coupons_restrictions',
     displayName: '쿠폰 제한 관리',
-    rowCount: 2,
+    rowCount: 0,
     columnCount: 6,
     columns: ['id', 'coupon_id', 'restriction_type', 'target_type', 'target_value', 'created_at']
   } as TableDefinition,
   table29: {
     name: 'coupons',
     displayName: '쿠폰 관리',
-    rowCount: 2,
+    rowCount: 1,
     columnCount: 16,
     columns: ['id', 'code', 'name', 'discount_type', 'discount_value', 'min_order_amount', 'status', 'expires_at', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
@@ -255,7 +255,7 @@ export const TABLES = {
   table34: {
     name: 'crm_operators',
     displayName: '운영자 권한 관리',
-    rowCount: 1,
+    rowCount: 5,
     columnCount: 13,
     columns: ['id', 'username', 'password_hash', 'name', 'role', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
@@ -269,7 +269,7 @@ export const TABLES = {
   table36: {
     name: 'crm_deliveries',
     displayName: '배송 내역',
-    rowCount: 1,
+    rowCount: 0,
     columnCount: 15,
     columns: ['id', 'customer_name', 'customer_phone', 'address', 'courier', 'tracking_number', 'status', 'order_id', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
@@ -290,7 +290,7 @@ export const TABLES = {
   table39: {
     name: 'crm_orders',
     displayName: '주문 내역',
-    rowCount: 3,
+    rowCount: 1,
     columnCount: 20,
     columns: ['id', 'customer_name', 'customer_phone', 'product_name', 'quantity', 'total_price', 'delivery_method', 'shipping_address', 'tracking_number', 'attachment_url', 'customer_memo', 'order_date', 'status', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
@@ -304,7 +304,7 @@ export const TABLES = {
   table41: {
     name: 'products',
     displayName: '광고 상품',
-    rowCount: 1,
+    rowCount: 2,
     columnCount: 19,
     columns: ['id', 'name', 'price', 'url', 'description', 'main_image_url', 'detail_image_url', 'available_methods', 'category', 'menu_category', 'is_coupon_excludable', 'is_estimate_price', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
@@ -332,7 +332,7 @@ export const TABLES = {
   table45: {
     name: 'crm_customers',
     displayName: '고객 명단',
-    rowCount: 1,
+    rowCount: 3,
     columnCount: 18,
     columns: ['id', 'name', 'phone', 'tags', 'memo', 'address', 'shipping_address', 'recipient_name', 'recipient_phone', 'point_balance', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
@@ -487,7 +487,7 @@ export const TABLES = {
   table67: {
     name: 'crm_attendance',
     displayName: '직원 근태 대장',
-    rowCount: 5,
+    rowCount: 4,
     columnCount: 10,
     columns: ['id', 'operator_id', 'work_date', 'clock_in', 'clock_out', 'status', 'working_hours', 'memo', 'created_at', 'updated_at']
   } as TableDefinition,
