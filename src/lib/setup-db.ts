@@ -1091,6 +1091,13 @@ export async function setupDatabase() {
     { name: 'custom_title', type: 'TEXT' }
   ], { tableName: 'shared_dashboards', uniqueKeyColumns: ['share_id'] });
 
+  // 41. System Menu Settings Table (사이드바 동적 메뉴 활성 및 순서 설정)
+  await safeCreateTable('시스템 메뉴 설정', [
+    { name: 'menu_href', type: 'TEXT', notNull: true },
+    { name: 'is_enabled', type: 'INTEGER', notNull: true, defaultValue: 1 },
+    { name: 'sort_order', type: 'INTEGER', notNull: true }
+  ], { tableName: 'system_menu_settings', uniqueKeyColumns: ['menu_href'], duplicateAction: 'update' });
+
   // 40-1. 기존 shared_dashboards 테이블 물리 ALTER TABLE 보정 마이그레이션 (자율 핫픽스)
   try {
     const Database = require('better-sqlite3');
