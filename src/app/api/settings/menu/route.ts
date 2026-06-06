@@ -36,6 +36,7 @@ const DEFAULT_MENU_ITEMS = [
   { href: "/grant-management", label: "지원금 관리 AI" },
   { href: "/labor-management", label: "노무 관리 AI" },
   { href: "/credit-risk", label: "채권 관리 AI" },
+  { href: "/password-ai", label: "비밀번호관리 AI" },
   { href: "/hr/attendance", label: "근태 관리 AI" },
   { href: "/price-tracker", label: "가격 추적 AI" },
   { href: "/website", label: "홈페이지 빌더 AI" },
