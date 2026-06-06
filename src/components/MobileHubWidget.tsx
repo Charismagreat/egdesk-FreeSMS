@@ -233,6 +233,16 @@ export default function MobileHubWidget() {
       themeColor: "from-rose-600 to-red-650 bg-rose-50 text-rose-600 border-rose-100",
       badge: "근로기준법/노무 관리",
       smsTemplate: "[이지데스크] 당사 실시간 노무 리스크 모바일 알림입니다. 주 52시간 한도 초과 위험이 발견되었으니 신속하게 시정조치 바랍니다. "
+    },
+    {
+      id: "credit-risk",
+      name: "채권 모바일 관제",
+      description: "거래처별 실시간 신용 리스크 분석 상태 및 연체 미수 거래처에 대한 다이렉트 모바일 독촉/공유 채널",
+      path: "/m/credit-risk",
+      icon: Coins,
+      themeColor: "from-rose-650 to-pink-650 bg-rose-50 text-rose-600 border-rose-100",
+      badge: "채권/신용 관리",
+      smsTemplate: "[이지데스크] 당사 채권 리스크 모바일 관제 센터 링크입니다. 연체 미수 거래처의 신용 점수 모니터링 및 즉시 독촉을 진행해주세요. "
     }
   ];
 

@@ -96,7 +96,8 @@ const MENU_METADATA_MAP: Record<string, { label: string; icon: any; color: strin
   "/safety-detection": { label: "위험 감지 AI", icon: ShieldAlert, color: "text-red-655" },
   "/scm-management": { label: "공급망 관리 AI", icon: Globe, color: "text-indigo-555" },
   "/grant-management": { label: "지원금 관리 AI", icon: Award, color: "text-amber-555" },
-  "/labor-management": { label: "노무 관리 AI", icon: Scale, color: "text-red-655" }
+  "/labor-management": { label: "노무 관리 AI", icon: Scale, color: "text-red-655" },
+  "/credit-risk": { label: "채권 관리 AI", icon: CreditCard, color: "text-rose-555" }
 };
 
 interface MenuSettingItem {

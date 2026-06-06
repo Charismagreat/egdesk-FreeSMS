@@ -1,5 +1,5 @@
 import { 
-  BookOpen, MessageSquare, Bot, Coins, Ticket, Zap, TrendingUp, CalendarDays, Shield, CheckSquare, Wrench, ShieldAlert, Globe, Award, Scale
+  BookOpen, MessageSquare, Bot, Coins, Ticket, Zap, TrendingUp, CalendarDays, Shield, CheckSquare, Wrench, ShieldAlert, Globe, Award, Scale, CreditCard
 } from "lucide-react";
 import { FAQItem, CategoryConfig } from "./types";
 
@@ -21,7 +21,8 @@ export const CATEGORIES: CategoryConfig[] = [
   { id: "safety-detect", label: "위험 감지 & 안전 비전 AI 🚨", icon: ShieldAlert, color: "text-red-500" },
   { id: "scm", label: "공급망 관리 & 대체 조달 AI 🌐", icon: Globe, color: "text-indigo-400" },
   { id: "grant", label: "정책 자금 & 정부 지원금 AI 🪙", icon: Award, color: "text-amber-400" },
-  { id: "labor", label: "근로기준법 & 노무 관리 AI ⚖️", icon: Scale, color: "text-red-400" }
+  { id: "labor", label: "근로기준법 & 노무 관리 AI ⚖️", icon: Scale, color: "text-red-400" },
+  { id: "credit", label: "거래처 신용 & 채권 관리 AI 🪙", icon: CreditCard, color: "text-rose-400" }
 ];
 
 // FAQ 데이터베이스 (기존 Q&A 데이터 완전 보존 실장)
@@ -567,5 +568,17 @@ export const FAQ_DATABASE: FAQItem[] = [
     category: "labor",
     question: "근로계약서 상의 위법 조항 스캔 결과와 AI 보정(Remediation) 기능은 어떻게 사용하나요?",
     answer: "PC 노무 관리 대시보드에서 특정 임직원을 선택하면, AI가 근로계약서 상에서 근로기준법을 위반하거나 분쟁 소지가 높은 독소 조항(예: 포괄임금 수당 내역 미명시, 연장근로 무제한 강제 조항 등)을 빨간색 카드로 추출해 줍니다. 각 카드 우측 상단의 [AI 합법 조항 적용] 버튼을 누르면, 고용노동부 가이드 및 최신 판례에 부합하는 합법적인 표준 근로조항 텍스트로 즉시 교정 보정됩니다. 모든 조항 보정을 마친 계약서는 [계약서 새 탭 인쇄] 버튼을 클릭해 실물 인쇄 및 PDF 저장으로 즉시 다운로드하여 사용할 수 있습니다."
+  },
+  {
+    id: "credit-1",
+    category: "credit",
+    question: "거래처 신용 위험 및 부실채권 조기 경보의 AI 연산 알고리즘은 무엇인가요?",
+    answer: "채권 관리 AI는 B2B 거래처의 누적 미수금 규모, 최근 12개월간 연체 발생 일수, 매출액 대비 미수 비율, 그리고 업계 표준 부도 통계 데이터를 하이브리드 머신러닝 모사 엔진으로 스캔합니다. 이를 바탕으로 거래처별 신용 등급(A~F) 및 미래 90일 내 부도 위험 확률(%)을 계산하여 리스크 수준(SAFE, WARNING, CRITICAL)을 산출합니다. 또한, 연체 미수금 규모를 기간별로 에이징(Aging: 30일/60일/90일 이상) 분석하여 SVG 스택형 그래프로 시각화해 줍니다."
+  },
+  {
+    id: "credit-2",
+    category: "credit",
+    question: "AI 독촉 SMS 발송 시 대한민국 채권추심법 가이드라인은 어떻게 준수되나요?",
+    answer: "이지데스크 [FreeSMS] 플랫폼은 채권의 공정한 추심에 관한 법률 제9조에 어긋나지 않도록 특수 설계되었습니다. 야간(오후 9시~다음날 오전 8시) 및 공휴일에 불안감을 주는 채권 독촉 문자 발송이 제한되며, 사용자가 해당 시간대에 발송 버튼을 누르면 AI가 즉시 수신 거래처 담당자의 타임존과 당일 공휴일 여부를 파악하여 가장 합법적인 평일 오전 9시 이후로 자동 예약 발송을 지연 조율합니다. 발송되는 문자 템플릿에는 연체 금액, 가상계좌번호, 변제 의무가 법률 가이드에 맞는 정중하고 단호한 표준 문안으로 자동 세팅됩니다."
   }
 ];
