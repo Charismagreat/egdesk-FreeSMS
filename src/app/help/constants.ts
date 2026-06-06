@@ -1,5 +1,5 @@
 import { 
-  BookOpen, MessageSquare, Bot, Coins, Ticket, Zap, TrendingUp, CalendarDays, Shield 
+  BookOpen, MessageSquare, Bot, Coins, Ticket, Zap, TrendingUp, CalendarDays, Shield, CheckSquare
 } from "lucide-react";
 import { FAQItem, CategoryConfig } from "./types";
 
@@ -13,7 +13,8 @@ export const CATEGORIES: CategoryConfig[] = [
   { id: "order", label: "전사 협업 & 견적/수주 AI 🪐", icon: Zap, color: "text-cyan-400" },
   { id: "price", label: "가격 & 마진 추적 AI 📈", icon: TrendingUp, color: "text-pink-400" },
   { id: "hr", label: "근태 & 급여/인사 AI 📅", icon: CalendarDays, color: "text-indigo-600" },
-  { id: "safety", label: "안전 관리 & 중대재해 AI 🛡️", icon: Shield, color: "text-red-400" }
+  { id: "safety", label: "안전 관리 & 중대재해 AI 🛡️", icon: Shield, color: "text-red-400" },
+  { id: "quality", label: "품질 관리 & 스마트 공정 AI 🛡️", icon: CheckSquare, color: "text-cyan-400" }
 ];
 
 // FAQ 데이터베이스 (기존 Q&A 데이터 완전 보존 실장)
@@ -451,5 +452,17 @@ export const FAQ_DATABASE: FAQItem[] = [
     category: "safety",
     question: "현장 근로자가 TBM 안전 서명을 모바일로 제출하려면 어떻게 배포하나요?",
     answer: "최고관리자가 TBM 대장을 개설하면 고유한 모바일 서명 페이지가 생성됩니다. 대시보드의 [스마트 모바일 채널] 영역에 등록된 [AI 안전 TBM 서명] 카드를 통해 모바일 링크를 신속하게 복사하거나 QR코드를 출력 및 인쇄하여 현장에 부착해 둘 수 있으며, '발송' 버튼을 눌러 근로자들에게 안내 문자를 비용 0원에 일괄 전송할 수 있습니다. 근로자는 모바일에서 서명을 마치는 즉시 PC 대장에 실시간으로 QR 서명이 누적 집계됩니다."
+  },
+  {
+    id: "quality-1",
+    category: "quality",
+    question: "품질 관리 AI 기능은 어떻게 가동하며 주요 분석 모델은 무엇인가요?",
+    answer: "품질 관리 AI는 제조 현장의 품질 최적화를 위해 실시간 관제를 제공합니다. (1) Vision AI 불량 검출: 정상 이미지(Golden Sample) 50~100장으로 훈련하는 비지도 학습(Unsupervised PatchCore)을 통해 크랙, 이물 등 이상 감지 및 XAI 히트맵 시각화를 지원합니다. (2) SPC 공정 능력 관리: 계측 데이터를 연동하여 X-bar R 관리도 및 Cpk를 실시간 계산하며, LSTM 시계열 모델을 가동하여 향후 4~8시간 이내 품질 이상 및 Cpk 저하 위험성을 선제 차단합니다. (3) 설비 이상 탐지: 오토인코더(Autoencoder)를 통해 모터 진동/전류/온도 센서의 다변량 Anomaly Score를 실시간 조기 경보합니다."
+  },
+  {
+    id: "quality-2",
+    category: "quality",
+    question: "현장 검사원이 모바일로 체크리스트와 수기 서명을 제출하는 방법은 무엇인가요?",
+    answer: "대시보드의 [스마트 모바일 채널] 영역에 있는 [품질 현장 검사 양식] 카드를 배포하여 사용합니다. 모바일 링크나 QR코드를 통해 현장에서 스마트폰으로 접속한 뒤, 바코드 버튼으로 원자재/제품 Lot 번호를 1초 만에 자동 스캔할 수 있습니다. 5대 검사 항목 체크, 결함 의심 부위 촬영 첨부(Vision AI 보조 검수 자동 연동), 그리고 수기 전자 서명(Sign)을 마치고 제출하면 종이 문서 없이(Paperless) PC 품질 대장 및 NCR 부적합 접수로 즉시 실시간 동기화 처리됩니다."
   }
 ];

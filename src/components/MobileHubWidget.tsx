@@ -19,7 +19,8 @@ import {
   Handshake,
   Sparkles,
   Coins,
-  Shield
+  Shield,
+  CheckSquare
 } from "lucide-react";
 
 interface MobileChannel {
@@ -135,6 +136,16 @@ export default function MobileHubWidget() {
       themeColor: "from-amber-600 to-red-650 bg-amber-50 text-amber-600 border-amber-100",
       badge: "현장 근로자/안전 의무",
       smsTemplate: "[이지데스크] 금일 작업 TBM 및 안전 서명 링크입니다. 작업 시작 전 반드시 확인하시고 모바일 서명을 마쳐주시기 바랍니다. "
+    },
+    {
+      id: "quality-control",
+      name: "품질 현장 검사 양식",
+      description: "작업 현장에서 실시간 모바일 체크리스트를 기입하고 바코드 스캔 및 전자 서명 후 관리 대장에 즉시 적재하는 실무용 채널",
+      path: "/m/quality-control",
+      icon: CheckSquare,
+      themeColor: "from-indigo-600 to-blue-600 bg-indigo-50 text-indigo-600 border-indigo-100",
+      badge: "품질 보증/현장 실무",
+      smsTemplate: "[이지데스크] 금일 공정 품질 검사 및 현장 체크리스트 서명 링크입니다. 작업 종료 전 반드시 점검 완료해 주세요. "
     }
   ];
 
