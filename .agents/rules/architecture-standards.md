@@ -25,3 +25,16 @@
 
 - 코드를 수정한 후에는 반드시 `npx tsc --noEmit` 컴파일 검사를 실행하여 타입 빌드 오류가 없는지 검증해야 합니다.
 - 새로운 페이지나 주요 비즈니스 로직 수정이 발생했을 때, `scratch/` 폴더 하위에 Playwright E2E 검증 테스트 스크립트를 작성 및 실행하여 초기 렌더링, 입력값 동작, 라우팅 성공 등 실제 인터랙션을 검증하고 증빙 스냅샷을 수집해야 합니다.
+
+---
+
+## 4. 🗂️ 신규 페이지 개발 시 연동 및 헬프센터 가이드라인
+
+- **사이드바 메뉴 및 설정 연동**:
+  - 새로운 독립 페이지를 신설할 경우, 반드시 좌측 사이드바 컴포넌트([SidebarMenu.tsx](file:///C:/dev/egdesk-FreeSMS/src/components/SidebarMenu.tsx))의 `MENU_STATIC_MAP`에 경로, 레이블명, 아이콘 및 컬러를 매핑하여 등록해야 합니다.
+  - 동시에 시스템 설정의 동적 메뉴 관리 컴포넌트([MenuSettingsCard.tsx](file:///C:/dev/egdesk-FreeSMS/src/app/settings/MenuSettingsCard.tsx))의 `MENU_METADATA_MAP`에도 해당 경로와 레이블, 아이콘을 추가하여 최고관리자 전용 설정 영역에서 렌더링될 수 있도록 조치해야 합니다.
+- **스마트 모바일 채널 연동**:
+  - 만약 신규 기능에 대응하는 모바일 화면(`/m/...` 등)이 제공되는 경우, 대시보드 페이지의 모바일 제어 센터 위젯([MobileHubWidget.tsx](file:///C:/dev/egdesk-FreeSMS/src/components/MobileHubWidget.tsx))의 `channels` 배열에 해당 모바일 채널(경로, 아이콘, 뱃지, 설명 및 SMS 템플릿 포함)을 지능적으로 추가하여 실시간 QR 배포 및 공유가 가능하게 해야 합니다.
+- **헬프센터 및 가이드라인 반영**:
+  - 깃 푸시(Git Push)를 수행하기 전, 사용자가 신규 기능을 파악할 수 있도록 헬프센터 데이터베이스([constants.ts](file:///C:/dev/egdesk-FreeSMS/src/app/help/constants.ts))에 적절한 FAQ 카테고리와 설명 항목(Q&A)을 반드시 추가 및 수정하여 반영해야 합니다.
+

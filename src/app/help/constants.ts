@@ -1,5 +1,5 @@
 import { 
-  BookOpen, MessageSquare, Bot, Coins, Ticket, Zap, TrendingUp, CalendarDays 
+  BookOpen, MessageSquare, Bot, Coins, Ticket, Zap, TrendingUp, CalendarDays, Shield 
 } from "lucide-react";
 import { FAQItem, CategoryConfig } from "./types";
 
@@ -12,7 +12,8 @@ export const CATEGORIES: CategoryConfig[] = [
   { id: "coupon", label: "쿠폰 & 주문/예약 📦", icon: Ticket, color: "text-rose-400" },
   { id: "order", label: "전사 협업 & 견적/수주 AI 🪐", icon: Zap, color: "text-cyan-400" },
   { id: "price", label: "가격 & 마진 추적 AI 📈", icon: TrendingUp, color: "text-pink-400" },
-  { id: "hr", label: "근태 & 급여/인사 AI 📅", icon: CalendarDays, color: "text-indigo-600" }
+  { id: "hr", label: "근태 & 급여/인사 AI 📅", icon: CalendarDays, color: "text-indigo-600" },
+  { id: "safety", label: "안전 관리 & 중대재해 AI 🛡️", icon: Shield, color: "text-red-400" }
 ];
 
 // FAQ 데이터베이스 (기존 Q&A 데이터 완전 보존 실장)
@@ -438,5 +439,17 @@ export const FAQ_DATABASE: FAQItem[] = [
     category: "order",
     question: "AI 결재 자동 파일럿(Autopilot) 전결 기능의 승인 판단 기준과 안전 제동 장치는 어떻게 동작하나요?",
     answer: "10만 원 이하의 소액 청구이면서 한도 및 서식 검사 95점 이상일 때 'APPROVED_AUTO'로 자동 전결을 처리하고, 한도 초과 등 이상 감지 시 수동 승인선(부서장)으로 안전 제동 이송합니다."
+  },
+  {
+    id: "safety-1",
+    category: "safety",
+    question: "안전 관리 AI 기능은 어떤 의무를 보좌하며 어떻게 사용하나요?",
+    answer: "안전 관리 AI는 중대재해처벌법(SAPA) 제4조 등 경영책임자의 안전보건 확보 의무 이행을 보좌합니다. 전사 안전보건방침 선언(연도별 공표), Gemini AI 기반의 위험성평가서 요인/대책 자동 도출 및 공식 결재 승인, 일일 TBM(툴박스미팅) 연설안 생성과 모바일 QR 서명 대장 관리, 그리고 현장 근로자의 아차사고(Near-miss) 실시간 신고 및 AI 위험도 판정(비상 SMS 연동) 기능을 원스톱 지원합니다."
+  },
+  {
+    id: "safety-2",
+    category: "safety",
+    question: "현장 근로자가 TBM 안전 서명을 모바일로 제출하려면 어떻게 배포하나요?",
+    answer: "최고관리자가 TBM 대장을 개설하면 고유한 모바일 서명 페이지가 생성됩니다. 대시보드의 [스마트 모바일 채널] 영역에 등록된 [AI 안전 TBM 서명] 카드를 통해 모바일 링크를 신속하게 복사하거나 QR코드를 출력 및 인쇄하여 현장에 부착해 둘 수 있으며, '발송' 버튼을 눌러 근로자들에게 안내 문자를 비용 0원에 일괄 전송할 수 있습니다. 근로자는 모바일에서 서명을 마치는 즉시 PC 대장에 실시간으로 QR 서명이 누적 집계됩니다."
   }
 ];
