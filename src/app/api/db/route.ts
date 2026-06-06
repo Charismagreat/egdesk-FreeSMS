@@ -128,6 +128,51 @@ export async function GET(request: Request) {
           else if (name === 'crm_point_history') displayName = '포인트 이용 내역';
           else if (name === 'crm_purchase_orders') displayName = '구매 발주서 관리';
           else if (name === 'crm_reservations') displayName = '예약 현황 관리';
+          
+          // AI 및 관제 모듈 추가 물리 테이블 한글 매핑
+          else if (name === 'crm_energy_savings') displayName = '에너지 피크 절감 스케줄';
+          else if (name === 'crm_energy_equipments') displayName = '에너지 소모 설비 대장';
+          else if (name === 'crm_safety_alerts') displayName = '비전 AI 안전 위험 경보 로그';
+          else if (name === 'crm_safety_zones') displayName = '안전 제어 구역 설정';
+          else if (name === 'crm_scm_shipments') displayName = '수입 조달 화물 실시간 대장';
+          else if (name === 'crm_scm_suppliers') displayName = 'SCM 협력사 평가 스코어카드';
+          else if (name === 'crm_grant_announcements') displayName = '정부 지원금 추천 공고';
+          else if (name === 'crm_grant_bookmarks') displayName = '지원금 관심 공고 보관함';
+          else if (name === 'crm_grant_rnd_plans') displayName = 'AI R&D 사업계획서 초안 보관함';
+          else if (name === 'crm_labor_stats') displayName = '주 52시간 근태 초과 리스크 대장';
+          else if (name === 'crm_labor_contracts') displayName = '근로계약서 독소조항 스캔 현황';
+          else if (name === 'crm_partner_credit_risks') displayName = '거래처 신용 위험 및 연체 지표';
+          else if (name === 'crm_production_gantt_tasks') displayName = '생산 간트 차트 작업 스케줄';
+          else if (name === 'crm_production_unscheduled_orders') displayName = 'AI 대기중 미배정 수주 대장';
+          else if (name === 'crm_production_bottlenecks') displayName = '설비 병목지수 및 부하율 통계';
+          else if (name === 'crm_production_due_risk') displayName = '수주 납기 준수 예측 위험 지표';
+          else if (name === 'crm_facility_events') displayName = '설비 예방 보전 정비 캘린더';
+          else if (name === 'crm_facility_parts') displayName = '소모성 중요 기계 부품 재고';
+          else if (name === 'crm_facility_checklists') displayName = '모바일 설비 점검 보고서 이력';
+          else if (name === 'crm_facility_oee_stats') displayName = 'OEE 설비 종합 효율 통계';
+          else if (name === 'crm_facility_oee_downtime') displayName = '설비 비가동 원인 시간 통계';
+          else if (name === 'crm_facility_layout') displayName = '공장 설비 평면 배치 및 가동 상태';
+          else if (name === 'crm_facility_predictive_summary') displayName = '예지보전 프레스 건전도 요약';
+          else if (name === 'crm_facility_predictive_vibration') displayName = '실시간 센서 진동 시계열 추이';
+          else if (name === 'crm_facility_predictive_fft') displayName = 'FFT 주파수 스펙트럼 분석 이력';
+          else if (name === 'crm_facility_predictive_part_rul') displayName = '부품 RUL 잔여수명 예측 데이터';
+          else if (name === 'crm_facility_repair_logs') displayName = '설비 고장 수리 대장 및 정비 이력';
+          else if (name === 'crm_facility_repair_solutions') displayName = 'AI RAG 고장 해결 가이드 DB';
+          else if (name === 'crm_quality_checklist_submissions') displayName = '모바일 품질 검사 보고서 이력';
+          else if (name === 'crm_quality_ncr_items') displayName = '부적합 보고서(NCR) 조치 대장';
+          else if (name === 'crm_quality_ncr_similar_cases') displayName = 'AI RAG 유사 불량 조치 이력 추천';
+          else if (name === 'crm_quality_sensors_status') displayName = '실시간 전류/진동 센서 요약';
+          else if (name === 'crm_quality_sensors_contribution') displayName = '비정상 센서 기여도 요인 비율';
+          else if (name === 'crm_quality_sensors_timeline') displayName = '전류/온도 센서 시계열 이상 지표';
+          else if (name === 'crm_quality_spc_config') displayName = 'SPC 관리 한계 및 공정 규격 설정';
+          else if (name === 'crm_quality_spc_samples') displayName = '가열 실린더 온도 계측 이력 샘플';
+          else if (name === 'crm_quality_spc_predictions') displayName = '미래 Cpk 하락 위험 예측 데이터';
+          else if (name === 'crm_quality_spc_features') displayName = 'SPC 공정 변동 원인 중요도';
+          else if (name === 'crm_quality_vision_model') displayName = '비전 AI 모델 사양 및 임계값 설정';
+          else if (name === 'crm_quality_vision_logs') displayName = '비전 AI 불량 검출 이미지 이력 로그';
+          else if (name === 'crm_finance_products') displayName = '제품 표준 원가 분석 기초 데이터';
+          else if (name === 'crm_finance_forecasts') displayName = '90일 자금 수금/지출 예정 대장';
+          else if (name === 'crm_grant_company_profile') displayName = '지원금 적합도 매칭용 회사 스펙';
 
           tablesWithCount.push({
             name,
