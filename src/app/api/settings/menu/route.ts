@@ -28,6 +28,7 @@ const DEFAULT_MENU_ITEMS = [
   { href: "/safety-management", label: "안전 관리 AI" },
   { href: "/quality-control", label: "품질 관리 AI" },
   { href: "/facility-management", label: "설비 관리 AI" },
+  { href: "/finance-cashflow", label: "자금/원가 AI 시뮬레이터" },
   { href: "/hr/attendance", label: "근태 관리 AI" },
   { href: "/price-tracker", label: "가격 추적 AI" },
   { href: "/website", label: "홈페이지 빌더 AI" },

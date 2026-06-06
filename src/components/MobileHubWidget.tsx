@@ -156,7 +156,17 @@ export default function MobileHubWidget() {
       icon: Wrench,
       themeColor: "from-amber-600 to-yellow-600 bg-amber-50 text-amber-600 border-amber-100",
       badge: "설비 보전/현장 실무",
-      smsTemplate: "[이지데스크] 금일 공정 품질 검사 및 현장 체크리스트 서명 링크입니다. 작업 종료 전 반드시 점검 완료해 주세요. "
+      smsTemplate: "[이지데스크] 금일 공장 설비 정기 점검 및 수기 서명 링크입니다. 교대 전 반드시 점검 및 전송을 마쳐주시기 바랍니다. "
+    },
+    {
+      id: "finance-cashflow",
+      name: "자금 모바일 분석 채널",
+      description: "환율 및 원가 시뮬레이션, 90일 자금 흐름 모니터링 및 연체 미수 거래처에 대한 원클릭 FreeSMS 독촉 발송 모바일 웹 채널",
+      path: "/m/finance-cashflow",
+      icon: Coins,
+      themeColor: "from-emerald-600 to-teal-650 bg-emerald-50 text-emerald-600 border-emerald-100",
+      badge: "자금/세무/B2B 관리",
+      smsTemplate: "[이지데스크] 당사 자금 분석 모바일 관제 센터 링크입니다. 실시간 수금 현황 및 연체 미수 정리를 진행해주세요. "
     }
   ];
 
