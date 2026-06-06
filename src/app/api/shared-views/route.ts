@@ -3,13 +3,38 @@ import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
 import Database from 'better-sqlite3';
 import crypto from 'crypto';
+import os from 'os';
+import path from 'path';
+import fs from 'fs';
 
 export const dynamic = 'force-dynamic';
 
 // 📂 실제 AppData 경로의 SQLite3 물리 DB 인스턴스 획득 헬퍼
 function getDirectDB() {
-  const dbPath = 'C:\\Users\\CHARISMA\\AppData\\Roaming\\egdesk\\database\\user_data.db';
-  return new Database(dbPath, { verbose: console.log });
+  const homeDir = os.homedir();
+  const appData = process.env.APPDATA || path.join(homeDir, 'AppData/Roaming');
+  const paths = [
+    path.join(appData, 'EGDesk/database/user_data.db'),
+    path.join(appData, 'egdesk/database/user_data.db')
+  ];
+  
+  let targetPath = '';
+  for (const p of paths) {
+    if (fs.existsSync(p)) {
+      targetPath = p;
+      break;
+    }
+  }
+  
+  if (!targetPath) {
+    targetPath = paths[0];
+    const dir = path.dirname(targetPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  }
+
+  return new Database(targetPath, { verbose: console.log });
 }
 
 // 🔑 최고관리자 인증 획득용 헬퍼 (저장 및 삭제용)

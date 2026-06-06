@@ -2,13 +2,38 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
 import Database from 'better-sqlite3';
+import os from 'os';
+import path from 'path';
+import fs from 'fs';
 
 export const dynamic = 'force-dynamic';
 
 // 📂 실제 AppData 경로의 이지데스크 가동용 SQLite3 물리 DB 인스턴스 획득 헬퍼
 function getDirectDB() {
-  const dbPath = 'C:\\Users\\CHARISMA\\AppData\\Roaming\\egdesk\\database\\user_data.db';
-  return new Database(dbPath, { verbose: console.log });
+  const homeDir = os.homedir();
+  const appData = process.env.APPDATA || path.join(homeDir, 'AppData/Roaming');
+  const paths = [
+    path.join(appData, 'EGDesk/database/user_data.db'),
+    path.join(appData, 'egdesk/database/user_data.db')
+  ];
+  
+  let targetPath = '';
+  for (const p of paths) {
+    if (fs.existsSync(p)) {
+      targetPath = p;
+      break;
+    }
+  }
+  
+  if (!targetPath) {
+    targetPath = paths[0];
+    const dir = path.dirname(targetPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  }
+
+  return new Database(targetPath, { verbose: console.log });
 }
 
 // 감사추적이 필요한 대상이 되는 핵심 비즈니스 테이블 목록 (지출 프로젝트 관리 확장 편입)

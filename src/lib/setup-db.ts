@@ -1094,8 +1094,34 @@ export async function setupDatabase() {
   // 40-1. 기존 shared_dashboards 테이블 물리 ALTER TABLE 보정 마이그레이션 (자율 핫픽스)
   try {
     const Database = require('better-sqlite3');
-    const dbPath = 'C:\\Users\\CHARISMA\\AppData\\Roaming\\egdesk\\database\\user_data.db';
-    const db = new Database(dbPath);
+    const os = require('os');
+    const path = require('path');
+    const fs = require('fs');
+
+    const homeDir = os.homedir();
+    const appData = process.env.APPDATA || path.join(homeDir, 'AppData/Roaming');
+    const paths = [
+      path.join(appData, 'EGDesk/database/user_data.db'),
+      path.join(appData, 'egdesk/database/user_data.db')
+    ];
+    
+    let targetPath = '';
+    for (const p of paths) {
+      if (fs.existsSync(p)) {
+        targetPath = p;
+        break;
+      }
+    }
+    
+    if (!targetPath) {
+      targetPath = paths[0];
+      const dir = path.dirname(targetPath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+    }
+
+    const db = new Database(targetPath);
     
     const colInfo = db.prepare("PRAGMA table_info(shared_dashboards);").all();
     const colNames = colInfo.map((c: any) => c.name);
