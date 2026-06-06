@@ -6,7 +6,7 @@ import {
   ClipboardList, CreditCard, CalendarDays, Truck, Send, 
   PackageSearch, Package, UserCog, Zap, Ticket, Landmark, Globe, Briefcase, HelpCircle,
   ArrowRightLeft, Handshake, Sparkles, Coins, Database, Compass,
-  ChevronUp, ChevronDown, Check, Save, ShieldAlert, GripVertical
+  ChevronUp, ChevronDown, Check, Save, ShieldAlert, GripVertical, Shield
 } from "lucide-react";
 
 // 커스텀 인스타그램 아이콘 SVG
@@ -77,6 +77,7 @@ const MENU_METADATA_MAP: Record<string, { label: string; icon: any; color: strin
   "/snaptasks": { label: "AI 스냅태스크", icon: Sparkles, color: "text-indigo-600" },
   "/inventory": { label: "재고 관리 AI", icon: Package, color: "text-cyan-600" },
   "/expenses": { label: "지출 관리 AI", icon: Coins, color: "text-rose-550" },
+  "/safety-management": { label: "안전 관리 AI", icon: Shield, color: "text-red-655" },
   "/hr/attendance": { label: "근태 관리 AI", icon: CalendarDays, color: "text-indigo-650" },
   "/price-tracker": { label: "가격 추적 AI", icon: Zap, color: "text-pink-550" },
   "/website": { label: "홈페이지 빌더 AI", icon: Globe, color: "text-sky-550" },

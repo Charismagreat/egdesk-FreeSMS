@@ -18,7 +18,8 @@ import {
   Info,
   Handshake,
   Sparkles,
-  Coins
+  Coins,
+  Shield
 } from "lucide-react";
 
 interface MobileChannel {
@@ -124,6 +125,16 @@ export default function MobileHubWidget() {
       themeColor: "from-rose-600 to-pink-650 bg-rose-50 text-rose-600 border-rose-100",
       badge: "대표자/임원진 전용",
       smsTemplate: "[이지데스크] 지출결의서 모바일 실시간 심사 링크입니다. 아래 링크에서 즉석 검수 및 승인을 진행해 주시기 바랍니다. "
+    },
+    {
+      id: "safety-tbm",
+      name: "AI 안전 TBM 서명",
+      description: "현장 작업자가 모바일로 당일 TBM 연설안을 확인하고 QR코드로 실시간 안전 서명을 제출하는 의무 관리 창구",
+      path: "/m/safety/tbm",
+      icon: Shield,
+      themeColor: "from-amber-600 to-red-650 bg-amber-50 text-amber-600 border-amber-100",
+      badge: "현장 근로자/안전 의무",
+      smsTemplate: "[이지데스크] 금일 작업 TBM 및 안전 서명 링크입니다. 작업 시작 전 반드시 확인하시고 모바일 서명을 마쳐주시기 바랍니다. "
     }
   ];
 

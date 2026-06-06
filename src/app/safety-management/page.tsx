@@ -493,7 +493,7 @@ Keep the tone urgent, professional, and clear.
         <div>
           <h1 className="text-3xl font-black text-slate-900 flex items-center tracking-tight">
             <Shield className="w-8 h-8 text-amber-500 mr-3 animate-pulse" />
-            안전 관리 AI 관제 센터
+            안전 관리 AI
           </h1>
           <p className="text-xs font-semibold text-slate-500 mt-1">중대재해처벌법(SAPA) 이행 및 안전 예방활동 실시간 관리 시스템</p>
         </div>
@@ -1356,7 +1356,7 @@ Keep the tone urgent, professional, and clear.
           {/* --- 🤖 플로팅 AI 비상 대응 센터 버튼 --- */}
           <button 
             onClick={() => setIsChatOpen(true)}
-            className="fixed bottom-6 right-6 z-40 bg-gradient-to-r from-amber-500 to-rose-500 text-white font-extrabold text-sm py-3 px-5 rounded-full shadow-2xl flex items-center gap-2 hover:scale-105 active:scale-95 transition-transform"
+            className="fixed bottom-6 right-24 z-40 bg-gradient-to-r from-amber-500 to-rose-500 text-white font-extrabold text-sm py-3 px-5 rounded-full shadow-2xl flex items-center gap-2 hover:scale-105 active:scale-95 transition-transform"
           >
             <AlertOctagon className="w-5 h-5 animate-bounce" />
             🚨 AI 비상 대응 센터
