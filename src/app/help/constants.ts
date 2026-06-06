@@ -16,7 +16,8 @@ export const CATEGORIES: CategoryConfig[] = [
   { id: "safety", label: "안전 관리 & 중대재해 AI 🛡️", icon: Shield, color: "text-red-400" },
   { id: "quality", label: "품질 관리 & 스마트 공정 AI 🛡️", icon: CheckSquare, color: "text-cyan-400" },
   { id: "facility", label: "설비 관리 & 예지보전 AI ⚙️", icon: Wrench, color: "text-amber-550" },
-  { id: "production", label: "생산 계획 & APS AI 📅", icon: CalendarDays, color: "text-indigo-450" }
+  { id: "production", label: "생산 계획 & APS AI 📅", icon: CalendarDays, color: "text-indigo-450" },
+  { id: "energy", label: "에너지 & 전력 피크 AI ⚡", icon: Zap, color: "text-amber-500" }
 ];
 
 // FAQ 데이터베이스 (기존 Q&A 데이터 완전 보존 실장)
@@ -502,5 +503,17 @@ export const FAQ_DATABASE: FAQItem[] = [
     category: "production",
     question: "현장 작업자가 모바일 작업지시서를 통해 상태를 보고하면 관리자 PC에는 어떻게 반영되나요?",
     answer: "작업자가 모바일 페이지(/m/production-plan)에서 '출근 완료' 등록 후 본인 계정으로 할당된 작업을 조회하여 '작업 시작'을 누르면, PC 간트 차트 대장의 해당 공정 블록 색상이 '진행 중(Running)'으로 바뀌며 슬라이더로 조절한 수치만큼 실시간 진행률(Progress)이 무선 동기화 표시됩니다. 최종 '작업 완료' 버튼을 누르면 블록이 초록색(Completed, 100%)으로 갱신되어, 사무실의 관리자가 현장에 직접 가지 않고도 모든 제조 스케줄 진척률을 원격 관제할 수 있습니다."
+  },
+  {
+    id: "energy-1",
+    category: "energy",
+    question: "에너지 관리 AI의 전력 피크 요금 기본료 절감 원리는 무엇인가요?",
+    answer: "에너지 관리 AI는 공장 내 주요 고전력 설비의 실시간 에너지 소비 패턴과 한국전력공사의 시간대별/계절별 차등 요금제를 대조 분석합니다. AI 시계열 예측 모델이 오늘 오후의 전력 피크 시간대(예: 15시)에 사용량이 계약 전력을 초과할 위험을 미리 감지하면, 상대적으로 시프트가 용이한 공정 가동 스케줄을 요금이 저렴한 경부하 시간대로 2~3시간 뒤로 우회 배정하도록 추천합니다. 이를 수락 시 전력 기본요금 책정 기준인 '연간 피크치' 자체를 사전에 낮추어 전기 기본료를 최대 18% 절감합니다."
+  },
+  {
+    id: "energy-2",
+    category: "energy",
+    question: "모바일 에너지 관제 화면에서 설비 셧다운 토글 제어를 하면 공장 현장에는 어떻게 즉각 반영되나요?",
+    answer: "모바일 에너지 관제 채널(/m/energy-management)에서는 공장 내 모든 IoT 연동 계량 센서들의 데이터를 종합한 실시간 부하율(%)을 관제할 수 있습니다. 전력량이 폭등하여 90% 이상 적색 경보 발생 시, 사용자가 모바일 화면에서 비필수 조명, 공조 장치, 혹은 예비 설비의 셧다운 전원 스위치를 Off하면 백엔드 시스템이 즉시 원격 IOT 릴레이 신호를 송신하여 가동을 제어합니다. 전력 소모량이 급감하는 결과가 실시간 시계열 대장 및 PC 관제 화면에 무선으로 즉시 동기화되어 공장 가동 정지 사고를 방어합니다."
   }
 ];

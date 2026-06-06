@@ -22,7 +22,8 @@ import {
   Shield,
   CheckSquare,
   Wrench,
-  CalendarDays
+  CalendarDays,
+  Zap
 } from "lucide-react";
 
 interface MobileChannel {
@@ -178,6 +179,16 @@ export default function MobileHubWidget() {
       themeColor: "from-indigo-600 to-violet-650 bg-indigo-50 text-indigo-600 border-indigo-100",
       badge: "생산 계획/현장 지시",
       smsTemplate: "[이지데스크] 금일 공정 작업지시서 무선 동기화 링크입니다. 근무 시작 전 모바일 상태 보고를 진행해주세요. "
+    },
+    {
+      id: "energy-management",
+      name: "에너지 모바일 관제",
+      description: "공장의 실시간 전력 부하 피크 위험도를 점검하고, 비상 시 모바일을 통해 고전력 설비를 원격 셧다운 제어하는 채널",
+      path: "/m/energy-management",
+      icon: Zap,
+      themeColor: "from-amber-600 to-orange-650 bg-amber-50 text-amber-600 border-amber-100",
+      badge: "에너지/피크/현장 실무",
+      smsTemplate: "[이지데스크] 당사 공장 실시간 에너지 피크 모바일 제어 센터 링크입니다. 피크 위험 발생 시 즉각 셧다운 조치해주세요. "
     }
   ];
 

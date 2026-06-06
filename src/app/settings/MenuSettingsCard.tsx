@@ -91,7 +91,8 @@ const MENU_METADATA_MAP: Record<string, { label: string; icon: any; color: strin
   "/ai-briefing": { label: "AI 브리핑", icon: Sparkles, color: "text-indigo-550" },
   "/facility-management": { label: "설비 관리 AI", icon: Wrench, color: "text-amber-550" },
   "/finance-cashflow": { label: "자금/원가 AI", icon: Coins, color: "text-amber-550" },
-  "/production-plan": { label: "생산 계획 AI", icon: CalendarDays, color: "text-indigo-550" }
+  "/production-plan": { label: "생산 계획 AI", icon: CalendarDays, color: "text-indigo-550" },
+  "/energy-management": { label: "에너지 관리 AI", icon: Zap, color: "text-amber-550" }
 };
 
 interface MenuSettingItem {

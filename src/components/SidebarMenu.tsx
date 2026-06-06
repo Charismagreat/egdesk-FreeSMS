@@ -92,7 +92,8 @@ const MENU_STATIC_MAP: Record<string, { label: string; icon: any; color: string 
   "/ai-briefing": { label: "AI 브리핑", icon: Sparkles, color: "text-indigo-400" },
   "/facility-management": { label: "설비 관리 AI", icon: Wrench, color: "text-amber-400" },
   "/finance-cashflow": { label: "자금/원가 AI", icon: Coins, color: "text-amber-400" },
-  "/production-plan": { label: "생산 계획 AI", icon: CalendarDays, color: "text-indigo-400" }
+  "/production-plan": { label: "생산 계획 AI", icon: CalendarDays, color: "text-indigo-400" },
+  "/energy-management": { label: "에너지 관리 AI", icon: Zap, color: "text-amber-400" }
 };
 
 interface SidebarMenuProps {
