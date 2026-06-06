@@ -52,7 +52,7 @@ export default function CashflowSimulatorPage() {
         <div>
           <h1 className="text-3xl font-black text-slate-900 flex items-center tracking-tight">
             <Coins className="w-8 h-8 text-indigo-500 mr-3 animate-pulse" />
-            자금/원가 AI 시뮬레이터
+            자금/원가 AI
           </h1>
           <p className="text-xs font-semibold text-slate-500 mt-1">
             원부자재비, 노무비(임금), 환율 변동 조건에 따른 향후 90일 자금 예측 흐름 및 제품별 실시간 이익 마진 시뮬레이션

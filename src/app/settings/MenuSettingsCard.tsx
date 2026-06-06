@@ -90,7 +90,7 @@ const MENU_METADATA_MAP: Record<string, { label: string; icon: any; color: strin
   "/ecount-erp-ai": { label: "이카운트 ERP AI", icon: ArrowRightLeft, color: "text-sky-550" },
   "/ai-briefing": { label: "AI 브리핑", icon: Sparkles, color: "text-indigo-550" },
   "/facility-management": { label: "설비 관리 AI", icon: Wrench, color: "text-amber-550" },
-  "/finance-cashflow": { label: "자금/원가 AI 시뮬레이터", icon: Coins, color: "text-amber-550" }
+  "/finance-cashflow": { label: "자금/원가 AI", icon: Coins, color: "text-amber-550" }
 };
 
 interface MenuSettingItem {
