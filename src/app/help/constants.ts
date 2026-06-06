@@ -1,5 +1,5 @@
 import { 
-  BookOpen, MessageSquare, Bot, Coins, Ticket, Zap, TrendingUp, CalendarDays, Shield, CheckSquare
+  BookOpen, MessageSquare, Bot, Coins, Ticket, Zap, TrendingUp, CalendarDays, Shield, CheckSquare, Wrench
 } from "lucide-react";
 import { FAQItem, CategoryConfig } from "./types";
 
@@ -14,7 +14,8 @@ export const CATEGORIES: CategoryConfig[] = [
   { id: "price", label: "가격 & 마진 추적 AI 📈", icon: TrendingUp, color: "text-pink-400" },
   { id: "hr", label: "근태 & 급여/인사 AI 📅", icon: CalendarDays, color: "text-indigo-600" },
   { id: "safety", label: "안전 관리 & 중대재해 AI 🛡️", icon: Shield, color: "text-red-400" },
-  { id: "quality", label: "품질 관리 & 스마트 공정 AI 🛡️", icon: CheckSquare, color: "text-cyan-400" }
+  { id: "quality", label: "품질 관리 & 스마트 공정 AI 🛡️", icon: CheckSquare, color: "text-cyan-400" },
+  { id: "facility", label: "설비 관리 & 예지보전 AI ⚙️", icon: Wrench, color: "text-amber-550" }
 ];
 
 // FAQ 데이터베이스 (기존 Q&A 데이터 완전 보존 실장)
@@ -464,5 +465,17 @@ export const FAQ_DATABASE: FAQItem[] = [
     category: "quality",
     question: "현장 검사원이 모바일로 체크리스트와 수기 서명을 제출하는 방법은 무엇인가요?",
     answer: "대시보드의 [스마트 모바일 채널] 영역에 있는 [품질 현장 검사 양식] 카드를 배포하여 사용합니다. 모바일 링크나 QR코드를 통해 현장에서 스마트폰으로 접속한 뒤, 바코드 버튼으로 원자재/제품 Lot 번호를 1초 만에 자동 스캔할 수 있습니다. 5대 검사 항목 체크, 결함 의심 부위 촬영 첨부(Vision AI 보조 검수 자동 연동), 그리고 수기 전자 서명(Sign)을 마치고 제출하면 종이 문서 없이(Paperless) PC 품질 대장 및 NCR 부적합 접수로 즉시 실시간 동기화 처리됩니다."
+  },
+  {
+    id: "facility-1",
+    category: "facility",
+    question: "설비 관리 AI 기능은 어떻게 가동하며 예지보전(PdM)의 원리는 무엇인가요?",
+    answer: "설비 관리 AI는 공장의 핵심 기계 자산을 모니터링하여 돌발 고장을 예방하고 가동률을 극대화합니다. (1) 예지보전: 진동 센서(RMS, FFT 주파수 스펙트럼 분석)를 통해 특이 주파수 이상 피크를 스캔하고, LSTM 시계열 모델로 모터, 베어링 등의 잔여 수명(RUL) D-Day를 AI 예측합니다. (2) OEE 설비종합효율 분석: 시간 가동률, 성능 효율, 양품률의 3대 요소를 실시간 계측하여 비가동 손실 금액으로 산출하고 공장 평면 배치 레이아웃에 실시간 매핑하여 관제합니다. (3) CMMS 및 RAG: 과거 수리 이력을 SQLite DB에 보관하며, 퇴직 정비 반장님의 노하우를 RAG 챗봇을 통해 질의하여 조치 방안 및 보관함 자재 좌표까지 실시간 피드백해 줍니다."
+  },
+  {
+    id: "facility-2",
+    category: "facility",
+    question: "현장 정비사가 모바일로 예방 점검을 수행하고 수리 대장을 기입하는 방법은 무엇인가요?",
+    answer: "모바일 전용 예방 점검 채널(`/m/facility-management`)을 사용하면 됩니다. (1) 스마트 모바일 채널 허브 위젯이나 QR코드/SMS 링크를 통해 정비사 스마트폰으로 접속합니다. (2) 대상 설비 코드를 선택하고 5대 예방 점검 항목을 원터치 토글합니다. (3) 수리 조치 상세 내역의 우측 상단 '음성 받아쓰기'를 누르고 음성 메모를 입력하면 AI가 문맥을 정제하여 한국어 수리 대장으로 자동 변환해 줍니다. (4) 마지막으로 액정에 수기 전자 서명을 마친 뒤 최종 전송하면, 종이 양식 없이 백엔드 PC ERP 대장에 영구 적재되며 이상 발생(FAIL) 시에는 즉시 설비 고장 알림 경보가 가동됩니다."
   }
 ];

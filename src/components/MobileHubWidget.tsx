@@ -20,7 +20,8 @@ import {
   Sparkles,
   Coins,
   Shield,
-  CheckSquare
+  CheckSquare,
+  Wrench
 } from "lucide-react";
 
 interface MobileChannel {
@@ -145,6 +146,16 @@ export default function MobileHubWidget() {
       icon: CheckSquare,
       themeColor: "from-indigo-600 to-blue-600 bg-indigo-50 text-indigo-600 border-indigo-100",
       badge: "품질 보증/현장 실무",
+      smsTemplate: "[이지데스크] 금일 공정 품질 검사 및 현장 체크리스트 서명 링크입니다. 작업 종료 전 반드시 점검 완료해 주세요. "
+    },
+    {
+      id: "facility-management",
+      name: "설비 현장 점검 채널",
+      description: "진동 센서 및 가동률 점검, 이상 현상 발생 시 모바일 수기 서명과 STT 음성 메모로 관리 대장에 즉각 송신하는 공장 설비 채널",
+      path: "/m/facility-management",
+      icon: Wrench,
+      themeColor: "from-amber-600 to-yellow-600 bg-amber-50 text-amber-600 border-amber-100",
+      badge: "설비 보전/현장 실무",
       smsTemplate: "[이지데스크] 금일 공정 품질 검사 및 현장 체크리스트 서명 링크입니다. 작업 종료 전 반드시 점검 완료해 주세요. "
     }
   ];

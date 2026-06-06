@@ -7,7 +7,7 @@ import {
   Home, Users, MessageSquare, Settings, ShoppingCart, 
   ClipboardList, CreditCard, CalendarDays, Truck, Send, 
   PackageSearch, Package, UserCog, Zap, Ticket, Landmark, Globe, Briefcase, HelpCircle,
-  ArrowRightLeft, Handshake, Sparkles, Coins, Database, Compass, Shield, CheckSquare
+  ArrowRightLeft, Handshake, Sparkles, Coins, Database, Compass, Shield, CheckSquare, Wrench
 } from "lucide-react";
 
 // 커스텀 인스타그램 아이콘 SVG
@@ -89,7 +89,8 @@ const MENU_STATIC_MAP: Record<string, { label: string; icon: any; color: string 
   "/youtube-shorts": { label: "YOUTUBE 쇼츠 AI", icon: YoutubeIcon, color: "text-[#FF0000]" },
   "/knowledge-ai": { label: "지식 관리 AI", icon: Compass, color: "text-indigo-400" },
   "/ecount-erp-ai": { label: "이카운트 ERP AI", icon: ArrowRightLeft, color: "text-sky-400" },
-  "/ai-briefing": { label: "AI 브리핑", icon: Sparkles, color: "text-indigo-400" }
+  "/ai-briefing": { label: "AI 브리핑", icon: Sparkles, color: "text-indigo-400" },
+  "/facility-management": { label: "설비 관리 AI", icon: Wrench, color: "text-amber-400" }
 };
 
 interface SidebarMenuProps {
