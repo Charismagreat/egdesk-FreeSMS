@@ -1,5 +1,5 @@
 import { 
-  BookOpen, MessageSquare, Bot, Coins, Ticket, Zap, TrendingUp, CalendarDays, Shield, CheckSquare, Wrench, ShieldAlert, Globe, Award, Scale, CreditCard
+  BookOpen, MessageSquare, Bot, Coins, Ticket, Zap, TrendingUp, CalendarDays, Shield, CheckSquare, Wrench, ShieldAlert, Globe, Award, Scale, CreditCard, Key
 } from "lucide-react";
 import { FAQItem, CategoryConfig } from "./types";
 
@@ -22,7 +22,8 @@ export const CATEGORIES: CategoryConfig[] = [
   { id: "scm", label: "공급망 관리 & 대체 조달 AI 🌐", icon: Globe, color: "text-indigo-400" },
   { id: "grant", label: "정책 자금 & 정부 지원금 AI 🪙", icon: Award, color: "text-amber-400" },
   { id: "labor", label: "근로기준법 & 노무 관리 AI ⚖️", icon: Scale, color: "text-red-400" },
-  { id: "credit", label: "거래처 신용 & 채권 관리 AI 🪙", icon: CreditCard, color: "text-rose-400" }
+  { id: "credit", label: "거래처 신용 & 채권 관리 AI 🪙", icon: CreditCard, color: "text-rose-400" },
+  { id: "security", label: "비밀번호 & 사내 보안 AI 🔑", icon: Key, color: "text-purple-400" }
 ];
 
 // FAQ 데이터베이스 (기존 Q&A 데이터 완전 보존 실장)
@@ -580,5 +581,17 @@ export const FAQ_DATABASE: FAQItem[] = [
     category: "credit",
     question: "AI 독촉 SMS 발송 시 대한민국 채권추심법 가이드라인은 어떻게 준수되나요?",
     answer: "이지데스크 [FreeSMS] 플랫폼은 채권의 공정한 추심에 관한 법률 제9조에 어긋나지 않도록 특수 설계되었습니다. 야간(오후 9시~다음날 오전 8시) 및 공휴일에 불안감을 주는 채권 독촉 문자 발송이 제한되며, 사용자가 해당 시간대에 발송 버튼을 누르면 AI가 즉시 수신 거래처 담당자의 타임존과 당일 공휴일 여부를 파악하여 가장 합법적인 평일 오전 9시 이후로 자동 예약 발송을 지연 조율합니다. 발송되는 문자 템플릿에는 연체 금액, 가상계좌번호, 변제 의무가 법률 가이드에 맞는 정중하고 단호한 표준 문안으로 자동 세팅됩니다."
+  },
+  {
+    id: "security-1",
+    category: "security",
+    question: "비밀번호관리 AI의 비상 복구(열람) 요청 및 최고관리자 승인 프로세스는 어떻게 되나요?",
+    answer: "동료 직원이 부재중이거나 퇴사하여 관리자 계정이나 도어락 비밀번호를 급히 조회해야 할 때 사용하는 비상 구제 절차입니다. 비밀번호 대장에서 [눈 아이콘]을 클릭해 '비상 조회 신청' 모달을 열고 상세한 신청 사유를 기입하면 최고관리자에게 실시간 승인 요청이 전송됩니다. 최고관리자가 이를 검토하고 승인하면, 신청자에게는 **정확히 24시간 동안만 임시 조회 권한(눈 아이콘 활성화)**이 부여됩니다. 24시간이 경과하면 백엔드 스케줄러가 권한을 자동으로 만료(EXPIRED)시켜 무단 열람을 원천 예방합니다."
+  },
+  {
+    id: "security-2",
+    category: "security",
+    question: "비밀번호 자산의 저장 보안성과 퇴사 임직원 자산 인수인계 기능은 무엇인가요?",
+    answer: "금고에 등록되는 모든 패스워드는 서버 사이드에서 `AES-256-GCM` 대칭키 알고리즘을 사용해 즉시 물리 암호화되어 보관되며, 평문 데이터는 DB에 절대 보존되지 않아 안전합니다. 또한, 기존 담당 직원이 퇴사(계정 비활성화) 처리되면 해당 직원이 소유자로 지정되어 있던 기밀 자산 목록이 자동으로 '인수인계 대기(INHERIT_PENDING)' 상태로 전환됩니다. 최고관리자는 대시보드에서 이 목록을 한눈에 식별하고, 드롭다운 선택을 통해 새로 온 담당 근무자에게 기밀 자산을 단 1초 만에 안전하고 무결하게 일괄 인계할 수 있습니다."
   }
 ];
