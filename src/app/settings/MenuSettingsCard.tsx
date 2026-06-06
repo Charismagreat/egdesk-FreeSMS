@@ -93,7 +93,8 @@ const MENU_METADATA_MAP: Record<string, { label: string; icon: any; color: strin
   "/finance-cashflow": { label: "자금/원가 AI", icon: Coins, color: "text-amber-550" },
   "/production-plan": { label: "생산 계획 AI", icon: CalendarDays, color: "text-indigo-550" },
   "/energy-management": { label: "에너지 관리 AI", icon: Zap, color: "text-amber-550" },
-  "/safety-detection": { label: "위험 감지 AI", icon: ShieldAlert, color: "text-red-655" }
+  "/safety-detection": { label: "위험 감지 AI", icon: ShieldAlert, color: "text-red-655" },
+  "/scm-management": { label: "공급망 관리 AI", icon: Globe, color: "text-indigo-550" }
 };
 
 interface MenuSettingItem {

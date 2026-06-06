@@ -1,5 +1,5 @@
 import { 
-  BookOpen, MessageSquare, Bot, Coins, Ticket, Zap, TrendingUp, CalendarDays, Shield, CheckSquare, Wrench, ShieldAlert
+  BookOpen, MessageSquare, Bot, Coins, Ticket, Zap, TrendingUp, CalendarDays, Shield, CheckSquare, Wrench, ShieldAlert, Globe
 } from "lucide-react";
 import { FAQItem, CategoryConfig } from "./types";
 
@@ -18,7 +18,8 @@ export const CATEGORIES: CategoryConfig[] = [
   { id: "facility", label: "설비 관리 & 예지보전 AI ⚙️", icon: Wrench, color: "text-amber-550" },
   { id: "production", label: "생산 계획 & APS AI 📅", icon: CalendarDays, color: "text-indigo-450" },
   { id: "energy", label: "에너지 & 전력 피크 AI ⚡", icon: Zap, color: "text-amber-550" },
-  { id: "safety-detect", label: "위험 감지 & 안전 비전 AI 🚨", icon: ShieldAlert, color: "text-red-500" }
+  { id: "safety-detect", label: "위험 감지 & 안전 비전 AI 🚨", icon: ShieldAlert, color: "text-red-500" },
+  { id: "scm", label: "공급망 관리 & 대체 조달 AI 🌐", icon: Globe, color: "text-indigo-400" }
 ];
 
 // FAQ 데이터베이스 (기존 Q&A 데이터 완전 보존 실장)
@@ -528,5 +529,17 @@ export const FAQ_DATABASE: FAQItem[] = [
     category: "safety-detect",
     question: "작업장의 위험 행동이나 쓰러짐 사고가 감지되었을 때 모바일을 통해 즉시 취할 수 있는 비상 조치 핫키는 어떻게 동작하나요?",
     answer: "위험 감지 AI가 쓰러짐이나 헬멧 미착용 등의 고위험 상황(Critical)을 감지하는 순간, 관리자의 스마트폰 관제 화면(/m/safety-detection) 전체가 붉은색으로 점멸하며 긴급 푸시 알림이 발생합니다. 화면 상단에 노출되는 3대 핫키를 통해 (1) [비상 셧다운] 클릭 시 즉각 백엔드 전원 차단 신호가 현장 IOT 콘센트/릴레이로 전송되어 공정이 멈춥니다. (2) [사이렌 방송] 클릭 시 현장 스피커 및 LED 경광등이 긴급 싸이렌을 울립니다. (3) [119 신고] 클릭 시 스마트폰 전화 걸기 창으로 즉시 119 다이얼을 띄워 응급 구조를 보조합니다."
+  },
+  {
+    id: "scm-1",
+    category: "scm",
+    question: "공급망 관리 AI의 실시간 원자재 지연 위험 예측은 어떠한 원리로 작동하나요?",
+    answer: "공급망 관리 AI는 조달 원자재의 출발 항구(선적지) 기상 기후 이변, 글로벌 항만 적체 일수, 세관 통관 행정 지연 추이, 그리고 내륙 화물 운송차량의 교통 및 경로 상의 병목 변수를 종합적으로 수집합니다. AI 분류 예측 모델(Random Forest / Gradient Boosting)이 이를 실시간 분석하여, 예정 납기일(ETA)을 지키지 못할 확률(%)을 계산합니다. 지연 확률이 80% 이상이 되는 건은 즉시 '지연 심각(Critical)' 경보를 발동하여 관리자에게 대체 조달처 매칭 모달을 통해 국내/외 예비 공급사로의 신속한 발주처 우회 전환을 적극 제안합니다."
+  },
+  {
+    id: "scm-2",
+    category: "scm",
+    question: "모바일 공급망 관제 화면을 통해 현장 및 협력업체와 어떻게 긴급 소통을 할 수 있나요?",
+    answer: "모바일 공급망 관제 채널(/m/scm-management)에서는 이송 중인 조달 화물의 통관/운송 단계를 실시간으로 파악할 수 있으며, 지연 위기 시 즉각적인 대응을 위해 두 가지 핫링크 모듈을 제공합니다. (1) [담당기사 전화연결] 버튼 클릭 시, 운송 트럭 기사나 담당 포워더의 가상 통화 다이얼(tel:)을 즉시 실행해 주며, (2) [긴급 독촉 SMS 발송] 클릭 시, 화물코드, 지연 위험 분석 결과, 신속 운송 협조 템플릿이 자동으로 입력된 모바일 SMS 전송 화면(sms:)을 팝업으로 띄워줍니다. 이를 통해 현장 및 파트너사와 무선으로 밀착 협조하여 납기 차질을 미연에 방지할 수 있습니다."
   }
 ];

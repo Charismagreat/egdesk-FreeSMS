@@ -24,7 +24,8 @@ import {
   Wrench,
   CalendarDays,
   Zap,
-  ShieldAlert
+  ShieldAlert,
+  Globe
 } from "lucide-react";
 
 interface MobileChannel {
@@ -200,6 +201,16 @@ export default function MobileHubWidget() {
       themeColor: "from-red-600 to-rose-650 bg-red-50 text-red-600 border-red-100",
       badge: "안전 관리/비상 대응",
       smsTemplate: "[이지데스크] 현장 비상 위험 경보 전송 채널 링크입니다. 위험 포착 시 모바일 핫키를 통해 긴급 정지 조치를 집행하세요! "
+    },
+    {
+      id: "scm-management",
+      name: "공급망 모바일 관제",
+      description: "조달 원자재의 세관 통관 및 입고 단계 실시간 업데이트, 기사 긴급 SMS/전화 독촉을 원클릭 수행하는 모바일 웹 채널",
+      path: "/m/scm-management",
+      icon: Globe,
+      themeColor: "from-indigo-650 to-blue-650 bg-indigo-50 text-indigo-600 border-indigo-100",
+      badge: "물류/SCM/현장 실무",
+      smsTemplate: "[이지데스크] 당사 공급망(SCM) 모바일 실시간 관제 링크입니다. 세관 통관 및 입고 갱신을 진행해주세요. "
     }
   ];
 
