@@ -6,7 +6,7 @@ import {
   ClipboardList, CreditCard, CalendarDays, Truck, Send, 
   PackageSearch, Package, UserCog, Zap, Ticket, Landmark, Globe, Briefcase, HelpCircle,
   ArrowRightLeft, Handshake, Sparkles, Coins, Database, Compass,
-  ChevronUp, ChevronDown, Check, Save, ShieldAlert, GripVertical, Shield, CheckSquare, Wrench
+  ChevronUp, ChevronDown, Check, Save, ShieldAlert, GripVertical, Shield, CheckSquare, Wrench, Award
 } from "lucide-react";
 
 // 커스텀 인스타그램 아이콘 SVG
@@ -94,7 +94,8 @@ const MENU_METADATA_MAP: Record<string, { label: string; icon: any; color: strin
   "/production-plan": { label: "생산 계획 AI", icon: CalendarDays, color: "text-indigo-550" },
   "/energy-management": { label: "에너지 관리 AI", icon: Zap, color: "text-amber-550" },
   "/safety-detection": { label: "위험 감지 AI", icon: ShieldAlert, color: "text-red-655" },
-  "/scm-management": { label: "공급망 관리 AI", icon: Globe, color: "text-indigo-550" }
+  "/scm-management": { label: "공급망 관리 AI", icon: Globe, color: "text-indigo-555" },
+  "/grant-management": { label: "지원금 관리 AI", icon: Award, color: "text-amber-555" }
 };
 
 interface MenuSettingItem {

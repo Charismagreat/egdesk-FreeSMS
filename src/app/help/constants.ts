@@ -1,5 +1,5 @@
 import { 
-  BookOpen, MessageSquare, Bot, Coins, Ticket, Zap, TrendingUp, CalendarDays, Shield, CheckSquare, Wrench, ShieldAlert, Globe
+  BookOpen, MessageSquare, Bot, Coins, Ticket, Zap, TrendingUp, CalendarDays, Shield, CheckSquare, Wrench, ShieldAlert, Globe, Award
 } from "lucide-react";
 import { FAQItem, CategoryConfig } from "./types";
 
@@ -19,7 +19,8 @@ export const CATEGORIES: CategoryConfig[] = [
   { id: "production", label: "생산 계획 & APS AI 📅", icon: CalendarDays, color: "text-indigo-450" },
   { id: "energy", label: "에너지 & 전력 피크 AI ⚡", icon: Zap, color: "text-amber-550" },
   { id: "safety-detect", label: "위험 감지 & 안전 비전 AI 🚨", icon: ShieldAlert, color: "text-red-500" },
-  { id: "scm", label: "공급망 관리 & 대체 조달 AI 🌐", icon: Globe, color: "text-indigo-400" }
+  { id: "scm", label: "공급망 관리 & 대체 조달 AI 🌐", icon: Globe, color: "text-indigo-400" },
+  { id: "grant", label: "정책 자금 & 정부 지원금 AI 🪙", icon: Award, color: "text-amber-400" }
 ];
 
 // FAQ 데이터베이스 (기존 Q&A 데이터 완전 보존 실장)
@@ -541,5 +542,17 @@ export const FAQ_DATABASE: FAQItem[] = [
     category: "scm",
     question: "모바일 공급망 관제 화면을 통해 현장 및 협력업체와 어떻게 긴급 소통을 할 수 있나요?",
     answer: "모바일 공급망 관제 채널(/m/scm-management)에서는 이송 중인 조달 화물의 통관/운송 단계를 실시간으로 파악할 수 있으며, 지연 위기 시 즉각적인 대응을 위해 두 가지 핫링크 모듈을 제공합니다. (1) [담당기사 전화연결] 버튼 클릭 시, 운송 트럭 기사나 담당 포워더의 가상 통화 다이얼(tel:)을 즉시 실행해 주며, (2) [긴급 독촉 SMS 발송] 클릭 시, 화물코드, 지연 위험 분석 결과, 신속 운송 협조 템플릿이 자동으로 입력된 모바일 SMS 전송 화면(sms:)을 팝업으로 띄워줍니다. 이를 통해 현장 및 파트너사와 무선으로 밀착 협조하여 납기 차질을 미연에 방지할 수 있습니다."
+  },
+  {
+    id: "grant-1",
+    category: "grant",
+    question: "지원금 관리 AI의 실시간 기업 맞춤형 적합도 매칭은 어떠한 원리로 분석하나요?",
+    answer: "지원금 관리 AI는 당사에 등록된 기업 프로필(설립일 기준 업력, 상시 근로자수, 청년 및 여성 고용 비율, 보유 특허 수, 업종 대분류)을 분석 엔진으로 입력합니다. 기성 지원금 공고 데이터에서 추출한 신청 제한 요건(예: 창업 7년 이하, 상시근로자 5인 미만 등)과 가점 항목(예: 여성/청년 고용 비율 우대, 특허 보유 등)을 룰 모델링 및 시맨틱 비교를 수행하여, 최종적으로 100점 만점의 'AI 적합도 점수(%)'로 도출합니다. 또한, 현재 부족한 가점 요건이나 신청 시 보완해야 할 점(예: 전담 부서 지정 필요 등)을 맞춤형 텍스트 제언 리포트로 함께 표출해 줍니다."
+  },
+  {
+    id: "grant-2",
+    category: "grant",
+    question: "AI R&D 사업계획서 자동 빌딩을 사용할 때의 팁과 내보내기 방식은 무엇인가요?",
+    answer: "PC 지원금 관리 대시보드에서 기술 R&D 유형 공고의 [AI 계획서 빌드] 버튼을 누르면, 표준 R&D 계획서 양식의 4대 항목(필요성, 기술 차별성, 최종 목표, 사업화 계획)에 대한 초안 원고를 AI가 순식간에 작성해 줍니다. 사용자는 탭 에디터를 통해 AI가 작성한 텍스트를 실시간으로 직접 확인하고 내용을 보완할 수 있습니다. 완필된 사업계획서는 우측 상단의 [CSV 엑셀 다운로드] 버튼을 통해 파일로 즉시 저장할 수 있어, 사내 백업 및 타 기안서 문서 편집기로 편리하게 이식하여 편집할 수 있습니다."
   }
 ];

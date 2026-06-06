@@ -25,7 +25,8 @@ import {
   CalendarDays,
   Zap,
   ShieldAlert,
-  Globe
+  Globe,
+  Award
 } from "lucide-react";
 
 interface MobileChannel {
@@ -211,6 +212,16 @@ export default function MobileHubWidget() {
       themeColor: "from-indigo-650 to-blue-650 bg-indigo-50 text-indigo-600 border-indigo-100",
       badge: "물류/SCM/현장 실무",
       smsTemplate: "[이지데스크] 당사 공급망(SCM) 모바일 실시간 관제 링크입니다. 세관 통관 및 입고 갱신을 진행해주세요. "
+    },
+    {
+      id: "grant-management",
+      name: "지원금 모바일 관제",
+      description: "당사 조건에 적합한 정부 지원 사업 매칭 리스트 실시간 확인 및 사내 담당자 대상 문자/링크 공유 채널",
+      path: "/m/grant-management",
+      icon: Award,
+      themeColor: "from-amber-600 to-yellow-650 bg-amber-50 text-amber-600 border-amber-100",
+      badge: "정책 자금/정부 혜택",
+      smsTemplate: "[이지데스크] 당사 맞춤형 정부 지원금/보조금 실시간 모바일 매칭 리스트입니다. 확인 후 신속하게 신청 바랍니다. "
     }
   ];
 
