@@ -1115,13 +1115,16 @@ export async function setupDatabase() {
     
     if (!targetPath) {
       targetPath = paths[0];
-      const dir = path.dirname(targetPath);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
     }
 
-    const db = new Database(targetPath);
+    // 윈도우 환경 및 빌드 번들러 경로 구분자 오작동 방지를 위한 수동 포워드 슬래시 정규화 및 상위 디렉토리 생성
+    const normalizedPath = targetPath.replace(/\\/g, '/');
+    const dir = normalizedPath.substring(0, normalizedPath.lastIndexOf('/'));
+    if (dir && !fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    const db = new Database(normalizedPath);
     
     const colInfo = db.prepare("PRAGMA table_info(shared_dashboards);").all();
     const colNames = colInfo.map((c: any) => c.name);

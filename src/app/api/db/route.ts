@@ -27,13 +27,16 @@ function getDirectDB() {
   
   if (!targetPath) {
     targetPath = paths[0];
-    const dir = path.dirname(targetPath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
   }
 
-  return new Database(targetPath, { verbose: console.log });
+  // 윈도우 환경 및 빌드 번들러 경로 구분자 오작동 방지를 위한 수동 포워드 슬래시 정규화 및 상위 디렉토리 생성
+  const normalizedPath = targetPath.replace(/\\/g, '/');
+  const dir = normalizedPath.substring(0, normalizedPath.lastIndexOf('/'));
+  if (dir && !fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
+  return new Database(normalizedPath, { verbose: console.log });
 }
 
 // 감사추적이 필요한 대상이 되는 핵심 비즈니스 테이블 목록 (지출 프로젝트 관리 확장 편입)
