@@ -1098,6 +1098,153 @@ export async function setupDatabase() {
     { name: 'sort_order', type: 'INTEGER', notNull: true }
   ], { tableName: 'system_menu_settings', uniqueKeyColumns: ['menu_href'], duplicateAction: 'update' });
 
+  // 42. Safety Policies Table (안전보건방침 및 목표 설정 대장)
+  await safeCreateTable('안전보건방침 및 목표', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'year', type: 'TEXT', notNull: true },
+    { name: 'policy_title', type: 'TEXT', notNull: true },
+    { name: 'targets_json', type: 'TEXT', notNull: true },
+    { name: 'established_at', type: 'TEXT', notNull: true },
+    { name: 'established_by', type: 'TEXT', notNull: true }
+  ], { tableName: 'safety_policies', uniqueKeyColumns: ['year'], duplicateAction: 'update' });
+
+  // 43. Safety Risk Assessments Table (AI 위험성평가 수립 대장)
+  await safeCreateTable('AI 위험성평가서', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'work_name', type: 'TEXT', notNull: true },
+    { name: 'work_date', type: 'TEXT', notNull: true },
+    { name: 'hazards_json', type: 'TEXT', notNull: true },
+    { name: 'risk_level', type: 'TEXT', notNull: true },
+    { name: 'evaluated_by', type: 'TEXT', notNull: true },
+    { name: 'approved_at', type: 'TEXT' },
+    { name: 'status', type: 'TEXT', defaultValue: 'DRAFT' }
+  ], { tableName: 'safety_risk_assessments', uniqueKeyColumns: ['id'] });
+
+  // 44. Safety TBM Logs Table (TBM 실시 일지 대장)
+  await safeCreateTable('TBM 안전 교육 대장', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'tbm_date', type: 'TEXT', notNull: true },
+    { name: 'work_leader', type: 'TEXT', notNull: true },
+    { name: 'weather_info', type: 'TEXT' },
+    { name: 'tbm_script', type: 'TEXT', notNull: true },
+    { name: 'attendees_count', type: 'INTEGER', defaultValue: 0 },
+    { name: 'attendee_signatures', type: 'TEXT', notNull: true },
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'safety_tbm_logs', uniqueKeyColumns: ['id'] });
+
+  // 45. Safety Near Misses Table (근로자 아차사고 및 유해요소 제보 대장)
+  await safeCreateTable('아차사고 및 유해요소 제보 대장', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'reporter_name', type: 'TEXT', notNull: true },
+    { name: 'hazard_location', type: 'TEXT', notNull: true },
+    { name: 'description', type: 'TEXT', notNull: true },
+    { name: 'photo_url', type: 'TEXT' },
+    { name: 'risk_grade', type: 'TEXT', notNull: true },
+    { name: 'action_status', type: 'TEXT', defaultValue: 'PENDING' },
+    { name: 'action_description', type: 'TEXT' },
+    { name: 'action_photo_url', type: 'TEXT' },
+    { name: 'action_completed_at', type: 'TEXT' },
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'safety_near_misses', uniqueKeyColumns: ['id'] });
+
+  // 46. Safety Inspect Logs Table (안전점검 감사 대장)
+  await safeCreateTable('안전점검 감사 대장', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'inspect_title', type: 'TEXT', notNull: true },
+    { name: 'inspect_date', type: 'TEXT', notNull: true },
+    { name: 'inspector_name', type: 'TEXT', notNull: true },
+    { name: 'checklist_json', type: 'TEXT', notNull: true },
+    { name: 'fail_actions_json', type: 'TEXT' },
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'safety_inspect_logs', uniqueKeyColumns: ['id'] });
+
+  // 안전 관리 AI 기초 시딩 데이터 자동 주입
+  try {
+    const policyCheck = await queryTable('safety_policies', { filters: { year: '2026' } });
+    if (!policyCheck.rows || policyCheck.rows.length === 0) {
+      const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+      
+      // 1. 2026년 안전보건방침 시딩
+      await insertRows('safety_policies', [{
+        id: 1,
+        year: '2026',
+        policy_title: '인간존중을 실천하는 전사적 안전문화 정착',
+        targets_json: JSON.stringify([
+          '안전보건예산 적기 집행율 100% 달성',
+          '작업 전 TBM 100% 이행 및 QR 서명 정착',
+          '중대재해 Zero 실현 및 잠재위험요인 선제적 통제'
+        ]),
+        established_at: nowStr,
+        established_by: '김대표'
+      }]);
+
+      // 2. 위험성평가 사례 시딩
+      await insertRows('safety_risk_assessments', [{
+        id: 'risk-demo-01',
+        work_name: '3공장 배터리 조립라인 정기 정비 작업',
+        work_date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+        hazards_json: JSON.stringify([
+          {
+            hazard: '설비 정비 중 예기치 않은 전원 재인입으로 인한 감전',
+            type: '감전',
+            measure: '정비 전 LOTO(Lock-Out, Tag-Out) 절차 수립 및 전원 차단 잠금장치 부착'
+          },
+          {
+            hazard: '조립설비 상부 윤활유 교체 시 미끄러짐으로 인한 낙하',
+            type: '추락',
+            measure: '안전모 및 안전대 착용 필수, 미끄럼 방지 안전화 교체 확인'
+          }
+        ]),
+        risk_level: '중',
+        evaluated_by: '김안전',
+        approved_at: nowStr,
+        status: 'APPROVED'
+      }]);
+
+      // 3. 오늘의 TBM 일지 시딩
+      await insertRows('safety_tbm_logs', [{
+        id: 'tbm-demo-01',
+        tbm_date: new Date(Date.now()).toISOString().slice(0, 10),
+        work_leader: '김안전',
+        weather_info: '맑음',
+        tbm_script: '동료 여러분 반갑습니다. 오늘 3공장 배터리 조립라인 정비 작업 전 안전회의를 시작합니다. 우선 정비 전에 LOTO 잠금 조치를 완벽히 이행했는지 전원 상태를 교차 검증해 주세요. 고소 작업 시에는 반드시 안전대 체결을 생활화하고 미끄럼 방지에 각별히 주의하시기 바랍니다. 오늘도 무재해 하루를 만들어 갑시다! 안전!',
+        attendees_count: 2,
+        attendee_signatures: JSON.stringify([
+          {
+            worker_name: '이철수',
+            signature_data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAACWAQMAAABC...',
+            signed_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19)
+          },
+          {
+            worker_name: '박영희',
+            signature_data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASwAAACWAQMAAABC...',
+            signed_at: new Date(Date.now() - 1.9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19)
+          }
+        ]),
+        created_at: nowStr
+      }]);
+
+      // 4. 아차사고 대기중인 건 시딩
+      await insertRows('safety_near_misses', [{
+        id: 'miss-demo-01',
+        reporter_name: '이철수',
+        hazard_location: '2공장 원자재 적재장 통로',
+        description: '지게차 이동 통로 바닥에 오일 누유 흔적이 넓게 퍼져 있어 보행 시 넘어질 뻔한 아차사고 발생. 방치 시 지게차 바퀴 미끄러짐 및 전도 우려됨.',
+        photo_url: '',
+        risk_grade: 'HIGH',
+        action_status: 'PENDING',
+        action_description: null,
+        action_photo_url: null,
+        action_completed_at: null,
+        created_at: nowStr
+      }]);
+
+      console.log('Safety management AI seed data generated successfully.');
+    }
+  } catch (e: any) {
+    console.error('Error seeding Safety Management AI data:', e.message);
+  }
+
   // 40-1. 기존 shared_dashboards 테이블 물리 ALTER TABLE 보정 마이그레이션 (자율 핫픽스)
   try {
     const Database = require('better-sqlite3');
