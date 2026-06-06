@@ -91,7 +91,8 @@ const MENU_STATIC_MAP: Record<string, { label: string; icon: any; color: string 
   "/ecount-erp-ai": { label: "이카운트 ERP AI", icon: ArrowRightLeft, color: "text-sky-400" },
   "/ai-briefing": { label: "AI 브리핑", icon: Sparkles, color: "text-indigo-400" },
   "/facility-management": { label: "설비 관리 AI", icon: Wrench, color: "text-amber-400" },
-  "/finance-cashflow": { label: "자금/원가 AI", icon: Coins, color: "text-amber-400" }
+  "/finance-cashflow": { label: "자금/원가 AI", icon: Coins, color: "text-amber-400" },
+  "/production-plan": { label: "생산 계획 AI", icon: CalendarDays, color: "text-indigo-400" }
 };
 
 interface SidebarMenuProps {

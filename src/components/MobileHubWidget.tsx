@@ -21,7 +21,8 @@ import {
   Coins,
   Shield,
   CheckSquare,
-  Wrench
+  Wrench,
+  CalendarDays
 } from "lucide-react";
 
 interface MobileChannel {
@@ -167,6 +168,16 @@ export default function MobileHubWidget() {
       themeColor: "from-emerald-600 to-teal-650 bg-emerald-50 text-emerald-600 border-emerald-100",
       badge: "자금/세무/B2B 관리",
       smsTemplate: "[이지데스크] 당사 자금 분석 모바일 관제 센터 링크입니다. 실시간 수금 현황 및 연체 미수 정리를 진행해주세요. "
+    },
+    {
+      id: "production-plan",
+      name: "생산 모바일 지시서",
+      description: "현장 근무자가 본인 확인 후 당일 생산 공정과 가동 설비 계획을 조회하고 실시간 작업 상태를 전송하는 채널",
+      path: "/m/production-plan",
+      icon: CalendarDays,
+      themeColor: "from-indigo-600 to-violet-650 bg-indigo-50 text-indigo-600 border-indigo-100",
+      badge: "생산 계획/현장 지시",
+      smsTemplate: "[이지데스크] 금일 공정 작업지시서 무선 동기화 링크입니다. 근무 시작 전 모바일 상태 보고를 진행해주세요. "
     }
   ];
 
