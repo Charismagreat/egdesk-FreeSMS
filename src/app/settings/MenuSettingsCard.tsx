@@ -244,9 +244,19 @@ export default function MenuSettingsCard() {
         {/* 헤더 영역 (밝은 테마 보더와 컬러 적용) */}
         <div className="border-b border-indigo-100/60 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h2 className="text-lg font-extrabold text-indigo-950 flex items-center gap-2">
+            <h2 className="text-lg font-extrabold text-indigo-950 flex items-center gap-2 flex-wrap">
               <Settings className="w-5.5 h-5.5 text-indigo-600" />
               사이드바 동적 메뉴 활성 및 순서 설정
+              {!isLoading && (
+                <>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-850 ml-1">
+                    전체 {menuItems.length}개
+                  </span>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-850 ml-1">
+                    활성 {menuItems.filter(item => item.is_enabled === 1).length}개
+                  </span>
+                </>
+              )}
             </h2>
             <p className="text-xs text-indigo-750/90 mt-1.5 leading-relaxed">
               업체 내에서 사용하지 않는 메뉴는 토글 스위치로 꺼서 숨길 수 있으며, 리스트 항목을 마우스로 드래그하거나 화살표 단추를 눌러 노출 순서를 간편하게 재배치할 수 있습니다.
