@@ -1,5 +1,5 @@
 import { 
-  BookOpen, MessageSquare, Bot, Coins, Ticket, Zap, TrendingUp, CalendarDays, Shield, CheckSquare, Wrench, ShieldAlert, Globe, Award
+  BookOpen, MessageSquare, Bot, Coins, Ticket, Zap, TrendingUp, CalendarDays, Shield, CheckSquare, Wrench, ShieldAlert, Globe, Award, Scale
 } from "lucide-react";
 import { FAQItem, CategoryConfig } from "./types";
 
@@ -20,7 +20,8 @@ export const CATEGORIES: CategoryConfig[] = [
   { id: "energy", label: "에너지 & 전력 피크 AI ⚡", icon: Zap, color: "text-amber-550" },
   { id: "safety-detect", label: "위험 감지 & 안전 비전 AI 🚨", icon: ShieldAlert, color: "text-red-500" },
   { id: "scm", label: "공급망 관리 & 대체 조달 AI 🌐", icon: Globe, color: "text-indigo-400" },
-  { id: "grant", label: "정책 자금 & 정부 지원금 AI 🪙", icon: Award, color: "text-amber-400" }
+  { id: "grant", label: "정책 자금 & 정부 지원금 AI 🪙", icon: Award, color: "text-amber-400" },
+  { id: "labor", label: "근로기준법 & 노무 관리 AI ⚖️", icon: Scale, color: "text-red-400" }
 ];
 
 // FAQ 데이터베이스 (기존 Q&A 데이터 완전 보존 실장)
@@ -554,5 +555,17 @@ export const FAQ_DATABASE: FAQItem[] = [
     category: "grant",
     question: "AI R&D 사업계획서 자동 빌딩을 사용할 때의 팁과 내보내기 방식은 무엇인가요?",
     answer: "PC 지원금 관리 대시보드에서 기술 R&D 유형 공고의 [AI 계획서 빌드] 버튼을 누르면, 표준 R&D 계획서 양식의 4대 항목(필요성, 기술 차별성, 최종 목표, 사업화 계획)에 대한 초안 원고를 AI가 순식간에 작성해 줍니다. 사용자는 탭 에디터를 통해 AI가 작성한 텍스트를 실시간으로 직접 확인하고 내용을 보완할 수 있습니다. 완필된 사업계획서는 우측 상단의 [CSV 엑셀 다운로드] 버튼을 통해 파일로 즉시 저장할 수 있어, 사내 백업 및 타 기안서 문서 편집기로 편리하게 이식하여 편집할 수 있습니다."
+  },
+  {
+    id: "labor-1",
+    category: "labor",
+    question: "노무 관리 AI의 실시간 근로기준법 리스크 감사 및 수치 연산 원리는 무엇인가요?",
+    answer: "노무 관리 AI는 기존 근태 관리 대장의 출퇴근 타임스탬프(출근 및 퇴근 시각 기록)를 밀리초 단위로 파악하여 1주일 단위로 합산합니다. 주간 총 근로시간이 법정 한도인 52시간(소정근로 40시간 + 연장근로 12시간)에 임박하거나 초과할 경우 즉시 '위반 초과(Critical)' 경보를 내보냅니다. 또한, 월별 지각 및 조퇴 횟수 통계를 누적 연산하여 이상 근태 흐름을 파악하고, 포괄임금 수당 설계 상의 과소/누락 지급액을 모의 계산하여 전사의 종합적인 '노무 감사 점수(Score)'를 100점 만점으로 자동 산출합니다."
+  },
+  {
+    id: "labor-2",
+    category: "labor",
+    question: "근로계약서 상의 위법 조항 스캔 결과와 AI 보정(Remediation) 기능은 어떻게 사용하나요?",
+    answer: "PC 노무 관리 대시보드에서 특정 임직원을 선택하면, AI가 근로계약서 상에서 근로기준법을 위반하거나 분쟁 소지가 높은 독소 조항(예: 포괄임금 수당 내역 미명시, 연장근로 무제한 강제 조항 등)을 빨간색 카드로 추출해 줍니다. 각 카드 우측 상단의 [AI 합법 조항 적용] 버튼을 누르면, 고용노동부 가이드 및 최신 판례에 부합하는 합법적인 표준 근로조항 텍스트로 즉시 교정 보정됩니다. 모든 조항 보정을 마친 계약서는 [계약서 새 탭 인쇄] 버튼을 클릭해 실물 인쇄 및 PDF 저장으로 즉시 다운로드하여 사용할 수 있습니다."
   }
 ];

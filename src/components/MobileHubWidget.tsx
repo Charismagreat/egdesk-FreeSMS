@@ -26,7 +26,8 @@ import {
   Zap,
   ShieldAlert,
   Globe,
-  Award
+  Award,
+  Scale
 } from "lucide-react";
 
 interface MobileChannel {
@@ -222,6 +223,16 @@ export default function MobileHubWidget() {
       themeColor: "from-amber-600 to-yellow-650 bg-amber-50 text-amber-600 border-amber-100",
       badge: "정책 자금/정부 혜택",
       smsTemplate: "[이지데스크] 당사 맞춤형 정부 지원금/보조금 실시간 모바일 매칭 리스트입니다. 확인 후 신속하게 신청 바랍니다. "
+    },
+    {
+      id: "labor-management",
+      name: "노무 모바일 관제",
+      description: "임직원별 실시간 근로기준법 한도 초과 위험 상태 조회 및 유선 통화/시정 권고 SMS 즉각 발송 채널",
+      path: "/m/labor-management",
+      icon: Scale,
+      themeColor: "from-rose-600 to-red-650 bg-rose-50 text-rose-600 border-rose-100",
+      badge: "근로기준법/노무 관리",
+      smsTemplate: "[이지데스크] 당사 실시간 노무 리스크 모바일 알림입니다. 주 52시간 한도 초과 위험이 발견되었으니 신속하게 시정조치 바랍니다. "
     }
   ];
 
