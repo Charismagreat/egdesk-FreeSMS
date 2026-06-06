@@ -1,5 +1,5 @@
 import { 
-  BookOpen, MessageSquare, Bot, Coins, Ticket, Zap, TrendingUp, CalendarDays, Shield, CheckSquare, Wrench
+  BookOpen, MessageSquare, Bot, Coins, Ticket, Zap, TrendingUp, CalendarDays, Shield, CheckSquare, Wrench, ShieldAlert
 } from "lucide-react";
 import { FAQItem, CategoryConfig } from "./types";
 
@@ -17,7 +17,8 @@ export const CATEGORIES: CategoryConfig[] = [
   { id: "quality", label: "품질 관리 & 스마트 공정 AI 🛡️", icon: CheckSquare, color: "text-cyan-400" },
   { id: "facility", label: "설비 관리 & 예지보전 AI ⚙️", icon: Wrench, color: "text-amber-550" },
   { id: "production", label: "생산 계획 & APS AI 📅", icon: CalendarDays, color: "text-indigo-450" },
-  { id: "energy", label: "에너지 & 전력 피크 AI ⚡", icon: Zap, color: "text-amber-500" }
+  { id: "energy", label: "에너지 & 전력 피크 AI ⚡", icon: Zap, color: "text-amber-550" },
+  { id: "safety-detect", label: "위험 감지 & 안전 비전 AI 🚨", icon: ShieldAlert, color: "text-red-500" }
 ];
 
 // FAQ 데이터베이스 (기존 Q&A 데이터 완전 보존 실장)
@@ -515,5 +516,17 @@ export const FAQ_DATABASE: FAQItem[] = [
     category: "energy",
     question: "모바일 에너지 관제 화면에서 설비 셧다운 토글 제어를 하면 공장 현장에는 어떻게 즉각 반영되나요?",
     answer: "모바일 에너지 관제 채널(/m/energy-management)에서는 공장 내 모든 IoT 연동 계량 센서들의 데이터를 종합한 실시간 부하율(%)을 관제할 수 있습니다. 전력량이 폭등하여 90% 이상 적색 경보 발생 시, 사용자가 모바일 화면에서 비필수 조명, 공조 장치, 혹은 예비 설비의 셧다운 전원 스위치를 Off하면 백엔드 시스템이 즉시 원격 IOT 릴레이 신호를 송신하여 가동을 제어합니다. 전력 소모량이 급감하는 결과가 실시간 시계열 대장 및 PC 관제 화면에 무선으로 즉시 동기화되어 공장 가동 정지 사고를 방어합니다."
+  },
+  {
+    id: "safety-detect-1",
+    category: "safety-detect",
+    question: "위험 감지 AI(Vision Safety)의 작업자 안전모 미착용 및 위험 구역 침범 실시간 감지 원리는 무엇인가요?",
+    answer: "위험 감지 AI는 공장 내 설치된 일반 IP CCTV 카메라 영상 피드를 실시간으로 수신하여 YOLOv8 기반 객체 인식 및 세그멘테이션 분석을 수행합니다. 작업자 객체의 두부 영역 패턴을 분석하여 안전모 착용 유무를 식별하고(미착용 시 적색 경고 오버레이), 공장 바닥 도면에 소프트웨어적으로 선언한 '가상 울타리(Virtual Fence)' 영역에 보행자나 미인가 장비가 침범하는 이상 거동을 밀리초(ms) 단위로 감지하여 관제판에 바운딩 박스를 표출합니다."
+  },
+  {
+    id: "safety-detect-2",
+    category: "safety-detect",
+    question: "작업장의 위험 행동이나 쓰러짐 사고가 감지되었을 때 모바일을 통해 즉시 취할 수 있는 비상 조치 핫키는 어떻게 동작하나요?",
+    answer: "위험 감지 AI가 쓰러짐이나 헬멧 미착용 등의 고위험 상황(Critical)을 감지하는 순간, 관리자의 스마트폰 관제 화면(/m/safety-detection) 전체가 붉은색으로 점멸하며 긴급 푸시 알림이 발생합니다. 화면 상단에 노출되는 3대 핫키를 통해 (1) [비상 셧다운] 클릭 시 즉각 백엔드 전원 차단 신호가 현장 IOT 콘센트/릴레이로 전송되어 공정이 멈춥니다. (2) [사이렌 방송] 클릭 시 현장 스피커 및 LED 경광등이 긴급 싸이렌을 울립니다. (3) [119 신고] 클릭 시 스마트폰 전화 걸기 창으로 즉시 119 다이얼을 띄워 응급 구조를 보조합니다."
   }
 ];

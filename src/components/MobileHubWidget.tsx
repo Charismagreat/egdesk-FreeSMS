@@ -23,7 +23,8 @@ import {
   CheckSquare,
   Wrench,
   CalendarDays,
-  Zap
+  Zap,
+  ShieldAlert
 } from "lucide-react";
 
 interface MobileChannel {
@@ -186,9 +187,19 @@ export default function MobileHubWidget() {
       description: "공장의 실시간 전력 부하 피크 위험도를 점검하고, 비상 시 모바일을 통해 고전력 설비를 원격 셧다운 제어하는 채널",
       path: "/m/energy-management",
       icon: Zap,
-      themeColor: "from-amber-600 to-orange-650 bg-amber-50 text-amber-600 border-amber-100",
+      themeColor: "from-amber-600 to-orange-655 bg-amber-50 text-amber-600 border-amber-100",
       badge: "에너지/피크/현장 실무",
       smsTemplate: "[이지데스크] 당사 공장 실시간 에너지 피크 모바일 제어 센터 링크입니다. 피크 위험 발생 시 즉각 셧다운 조치해주세요. "
+    },
+    {
+      id: "safety-detection",
+      name: "위험 모바일 감지",
+      description: "CCTV 비전 감지로 인명 상해 사고나 위험구역 침범이 포착될 시 실시간 점멸 비상 경보를 울리고 즉각 셧다운 및 119 신고를 돕는 채널",
+      path: "/m/safety-detection",
+      icon: ShieldAlert,
+      themeColor: "from-red-600 to-rose-650 bg-red-50 text-red-600 border-red-100",
+      badge: "안전 관리/비상 대응",
+      smsTemplate: "[이지데스크] 현장 비상 위험 경보 전송 채널 링크입니다. 위험 포착 시 모바일 핫키를 통해 긴급 정지 조치를 집행하세요! "
     }
   ];
 
