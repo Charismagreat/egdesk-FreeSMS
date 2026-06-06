@@ -1,98 +1,100 @@
 import { NextResponse } from "next/server";
+import { queryTable, updateRows } from "../../../../../egdesk-helpers";
 
-// 모의 비전 불량 판정 이력 데이터
-const MOCK_VISION_LOGS = [
-  {
-    id: "VIS-001",
-    timestamp: "2026-06-06 23:15:30",
-    itemName: "사출 성형 커버 A형",
-    anomalyScore: 92.5,
-    status: "FAIL",
-    defectType: "표면 크랙 (Surface Crack)",
-    imageUrl: "https://api.placeholder.com/400/300", // 플레이스홀더 대체용 이미지
-    isReviewed: false,
-  },
-  {
-    id: "VIS-002",
-    timestamp: "2026-06-06 23:02:12",
-    itemName: "사출 성형 커버 A형",
-    anomalyScore: 12.4,
-    status: "PASS",
-    defectType: "없음 (정상)",
-    imageUrl: "https://api.placeholder.com/400/300",
-    isReviewed: true,
-  },
-  {
-    id: "VIS-003",
-    timestamp: "2026-06-06 22:45:18",
-    itemName: "커넥터 하우징 B형",
-    anomalyScore: 88.1,
-    status: "FAIL",
-    defectType: "미성형 (Under-fill)",
-    imageUrl: "https://api.placeholder.com/400/300",
-    isReviewed: true,
-  },
-  {
-    id: "VIS-004",
-    timestamp: "2026-06-06 22:30:05",
-    itemName: "커넥터 하우징 B형",
-    anomalyScore: 15.0,
-    status: "PASS",
-    defectType: "없음 (정상)",
-    imageUrl: "https://api.placeholder.com/400/300",
-    isReviewed: true,
-  },
-  {
-    id: "VIS-005",
-    timestamp: "2026-06-06 22:12:44",
-    itemName: "사출 성형 커버 A형",
-    anomalyScore: 95.4,
-    status: "FAIL",
-    defectType: "이물 혼입 (Contamination)",
-    imageUrl: "https://api.placeholder.com/400/300",
-    isReviewed: false,
-  }
-];
-
-// GET: 비전 모델 상태 및 검출 이력 리스트 조회
+/**
+ * GET: 비전 모델 상태 및 검출 이력 리스트 조회 (물리 DB 연동)
+ */
 export async function GET() {
-  return NextResponse.json({
-    success: true,
-    modelStatus: {
-      activeModel: "Unsupervised PatchCore v2.1",
-      goldenSamplesCount: 85,
-      lastTrainedAt: "2026-06-05 14:30:22",
-      anomalyThreshold: 75.0, // 이상 점수(Anomaly Score) 임계값
-    },
-    logs: MOCK_VISION_LOGS,
-  });
+  try {
+    // 1. DB에서 모델 기본 사양 조회 (ID: VIS-MODEL 단일 행)
+    const modelRes = await queryTable("crm_quality_vision_model", { filters: { id: "VIS-MODEL" } });
+    const dbModel = modelRes.rows && modelRes.rows.length > 0 ? modelRes.rows[0] : null;
+
+    const modelStatus = {
+      activeModel: dbModel ? dbModel.activeModel : "Unsupervised PatchCore v2.1",
+      goldenSamplesCount: dbModel ? Number(dbModel.goldenSamplesCount || 0) : 85,
+      lastTrainedAt: dbModel ? dbModel.lastTrainedAt : "2026-06-05 14:30:22",
+      anomalyThreshold: dbModel ? Number(dbModel.anomalyThreshold || 0) : 75.0,
+    };
+
+    // 2. DB에서 비전 판정 로그 조회
+    const logsRes = await queryTable("crm_quality_vision_logs", {});
+    const logs = (logsRes.rows || []).map((l: any) => ({
+      id: l.id,
+      timestamp: l.timestamp,
+      itemName: l.itemName,
+      anomalyScore: Number(l.anomalyScore || 0),
+      status: l.status,
+      defectType: l.defectType,
+      imageUrl: l.imageUrl,
+      isReviewed: l.isReviewed === 1
+    }));
+
+    // 최신 시간순 정렬
+    logs.sort((a: any, b: any) => b.timestamp.localeCompare(a.timestamp));
+
+    return NextResponse.json({
+      success: true,
+      modelStatus,
+      logs,
+    });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
 }
 
-// POST: 노코드 모델 재학습 및 임계치 업데이트
+/**
+ * POST: 노코드 모델 재학습 및 임계치 업데이트
+ */
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { action, threshold, newGoldenSamples } = body;
 
+    const targetModelId = "VIS-MODEL";
+
     if (action === "retrain") {
-      // 모델 재학습 모킹
+      // 1. 기존 모델 정보 조회
+      const modelRes = await queryTable("crm_quality_vision_model", { filters: { id: targetModelId } });
+      const dbModel = modelRes.rows && modelRes.rows.length > 0 ? modelRes.rows[0] : null;
+      
+      const currentSamples = dbModel ? Number(dbModel.goldenSamplesCount || 0) : 85;
+      const nextSamples = currentSamples + (newGoldenSamples || 0);
+      const nextThreshold = threshold || (dbModel ? Number(dbModel.anomalyThreshold || 0) : 75.0);
+      const lastTrainedAt = new Date().toLocaleString("ko-KR");
+
+      // 2. DB 갱신
+      await updateRows("crm_quality_vision_model", {
+        activeModel: "Unsupervised PatchCore v2.1 (훈련 중)",
+        goldenSamplesCount: nextSamples,
+        lastTrainedAt,
+        anomalyThreshold: nextThreshold
+      }, { filters: { id: targetModelId } });
+
       return NextResponse.json({
         success: true,
         message: "Golden Sample 기반 Vision AI 모델 재학습이 성공적으로 시작되었습니다. 완료 후 대시보드에 적용됩니다.",
         modelStatus: {
           activeModel: "Unsupervised PatchCore v2.1 (훈련 중)",
-          goldenSamplesCount: 85 + (newGoldenSamples || 0),
-          lastTrainedAt: new Date().toLocaleString(),
-          anomalyThreshold: threshold || 75.0,
+          goldenSamplesCount: nextSamples,
+          lastTrainedAt,
+          anomalyThreshold: nextThreshold,
         }
       });
     }
 
     if (action === "update_threshold") {
+      const nextThreshold = threshold !== undefined ? Number(threshold) : 75.0;
+
+      // DB 갱신
+      await updateRows("crm_quality_vision_model", {
+        anomalyThreshold: nextThreshold
+      }, { filters: { id: targetModelId } });
+
       return NextResponse.json({
         success: true,
-        message: `이상 검출 임계치가 ${threshold}%로 변경되었습니다.`,
-        threshold,
+        message: `이상 검출 임계치가 ${nextThreshold}%로 변경되었습니다.`,
+        threshold: nextThreshold,
       });
     }
 

@@ -1,35 +1,65 @@
 import { NextResponse } from "next/server";
+import { queryTable } from "../../../../../egdesk-helpers";
 
-// 모의 예지보전 센서 분석 데이터
-const MOCK_PREDICTIVE_DATA = {
-  equipmentId: "EQ-PRESS-01",
-  equipmentName: "주력 사출 프레스 M-500",
-  healthScore: 84.5, // 설비 건전도 점수 (0~100)
-  vibrationRms: 2.8,  // 실시간 진동 mm/s
-  vibrationTrend: [
-    { time: "18:00", value: 1.2 },
-    { time: "19:00", value: 1.3 },
-    { time: "20:00", value: 1.5 },
-    { time: "21:00", value: 2.1 },
-    { time: "22:00", value: 2.6 },
-    { time: "23:00", value: 2.8 }
-  ],
-  fftAnalysis: [
-    { frequency: 10, amplitude: 0.1, label: "불균형 요인" },
-    { frequency: 33, amplitude: 0.8, label: "베어링 아우터 레이스 마모 결함" }, // 특정 피크 주파수
-    { frequency: 50, amplitude: 0.2, label: "전원 노이즈" },
-    { frequency: 80, amplitude: 0.05, label: "기어 이빨 기어링" }
-  ],
-  partLifetimes: [
-    { partName: "구동 축 롤러 베어링", rulDays: 14, status: "WARNING", percent: 12 },
-    { partName: "유압 서보 벨브 실링", rulDays: 45, status: "NORMAL", percent: 48 },
-    { partName: "고압 가열 코일 블록", rulDays: 120, status: "NORMAL", percent: 85 }
-  ]
-};
-
+/**
+ * GET: 예지보전 센서 상태 및 수명 예측 지표 조회 (물리 DB 연동)
+ */
 export async function GET() {
-  return NextResponse.json({
-    success: true,
-    predictiveStatus: MOCK_PREDICTIVE_DATA
-  });
+  try {
+    const targetEqId = "EQ-PRESS-01";
+
+    // 1. DB에서 설비 건전도 점수 및 실시간 진동 요약 조회
+    const summaryRes = await queryTable("crm_facility_predictive_summary", { filters: { equipmentId: targetEqId } });
+    const summaryRow = summaryRes.rows && summaryRes.rows.length > 0 ? summaryRes.rows[0] : null;
+
+    const equipmentId = summaryRow ? summaryRow.equipmentId : targetEqId;
+    const equipmentName = summaryRow ? summaryRow.equipmentName : "주력 사출 프레스 M-500";
+    const healthScore = summaryRow ? Number(summaryRow.healthScore || 0) : 84.5;
+    const vibrationRms = summaryRow ? Number(summaryRow.vibrationRms || 0) : 2.8;
+
+    // 2. DB에서 진동 추이 시계열 데이터 조회
+    const vibRes = await queryTable("crm_facility_predictive_vibration", { filters: { equipmentId: targetEqId } });
+    const vibrationTrend = (vibRes.rows || []).map((v: any) => ({
+      time: v.time,
+      value: Number(v.value || 0)
+    }));
+    // 시간 순으로 정렬
+    vibrationTrend.sort((a: any, b: any) => a.time.localeCompare(b.time));
+
+    // 3. DB에서 FFT 주파수 스펙트럼 분석 데이터 조회
+    const fftRes = await queryTable("crm_facility_predictive_fft", { filters: { equipmentId: targetEqId } });
+    const fftAnalysis = (fftRes.rows || []).map((f: any) => ({
+      frequency: Number(f.frequency || 0),
+      amplitude: Number(f.amplitude || 0),
+      label: f.label
+    }));
+    // 주파수 순으로 정렬
+    fftAnalysis.sort((a: any, b: any) => a.frequency - b.frequency);
+
+    // 4. DB에서 부품 잔여 수명 RUL 조회
+    const rulRes = await queryTable("crm_facility_predictive_part_rul", { filters: { equipmentId: targetEqId } });
+    const partLifetimes = (rulRes.rows || []).map((r: any) => ({
+      partName: r.partName,
+      rulDays: Number(r.rulDays || 0),
+      status: r.status,
+      percent: Number(r.percent || 0)
+    }));
+
+    const predictiveStatus = {
+      equipmentId,
+      equipmentName,
+      healthScore,
+      vibrationRms,
+      vibrationTrend,
+      fftAnalysis,
+      partLifetimes
+    };
+
+    return NextResponse.json({
+      success: true,
+      predictiveStatus
+    });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
 }

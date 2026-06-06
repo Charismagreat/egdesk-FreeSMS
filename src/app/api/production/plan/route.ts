@@ -1,45 +1,66 @@
 import { NextResponse } from "next/server";
+import { queryTable, insertRows, updateRows, deleteRows } from "../../../../../egdesk-helpers";
 
-// 모의 생산 계획 인메모리 데이터베이스
-let MOCK_GANTT_TASKS = [
-  { id: "T-01", title: "자동차 범퍼 사출 가공", equipmentId: "M-500", equipmentName: "사출 1호기 (M-500)", operatorName: "강성욱 (기사)", startHour: 9, endHour: 12, progress: 100, status: "COMPLETED" },
-  { id: "T-02", title: "가전 외장 케이스 압출", equipmentId: "M-300", equipmentName: "사출 2호기 (M-300)", operatorName: "이민우 (조장)", startHour: 9, endHour: 13, progress: 75, status: "RUNNING" },
-  { id: "T-03", title: "내부 정밀 기어 사출", equipmentId: "M-200", equipmentName: "사출 3호기 (M-200)", operatorName: "박준영 (사원)", startHour: 10, endHour: 15, progress: 20, status: "RUNNING" },
-  { id: "T-04", title: "범퍼 후가공 및 마감", equipmentId: "A-100", equipmentName: "조립 라인 A (A-100)", operatorName: "최현우 (조장)", startHour: 13, endHour: 17, progress: 0, status: "WAITING" },
-  { id: "T-05", title: "외장 케이스 도장 건조", equipmentId: "A-100", equipmentName: "조립 라인 A (A-100)", operatorName: "김태호 (사원)", startHour: 17, endHour: 21, progress: 0, status: "WAITING" },
-];
-
-// 모의 신규 미배정 주문 목록
-let MOCK_UNSCHEDULED_ORDERS = [
-  { orderId: "ORD-9954", productName: "냉장고 도어 힌지 몰딩", qty: 2500, dueDate: "2026-06-12", status: "UNSCHEDULED" },
-  { orderId: "ORD-9955", productName: "자동차 헤드램프 가이드", qty: 1200, dueDate: "2026-06-14", status: "UNSCHEDULED" },
-  { orderId: "ORD-9956", productName: "스마트TV 후면 프레임", qty: 3000, dueDate: "2026-06-18", status: "UNSCHEDULED" },
-];
+// 설비 ID별 이름 매핑 딕셔너리
+const EQ_NAMES: Record<string, string> = {
+  "M-500": "사출 1호기 (M-500)",
+  "M-300": "사출 2호기 (M-300)",
+  "M-200": "사출 3호기 (M-200)",
+  "A-100": "조립 라인 A (A-100)"
+};
 
 /**
- * GET: 생산 계획 정보, 미배정 주문 리스트 및 설비 병목지수 조회
+ * GET: 생산 계획 정보, 미배정 주문 리스트 및 설비 병목지수 조회 (물리 DB 연동)
  */
 export async function GET() {
   try {
-    // 가동률 기반 설비별 병목지수 연산 (모의)
-    const bottlenecks = [
-      { id: "M-500", name: "사출 1호기 (M-500)", loadRate: 98, status: "CRITICAL", queueTasks: 4 },
-      { id: "M-300", name: "사출 2호기 (M-300)", loadRate: 85, status: "WARNING", queueTasks: 2 },
-      { id: "M-200", name: "사출 3호기 (M-200)", loadRate: 60, status: "NORMAL", queueTasks: 1 },
-      { id: "A-100", name: "조립 라인 A (A-100)", loadRate: 45, status: "NORMAL", queueTasks: 1 },
-    ];
+    // 1. DB에서 간트 태스크 조회
+    const ganttRes = await queryTable("crm_production_gantt_tasks", {});
+    const ganttTasks = (ganttRes.rows || []).map((t: any) => ({
+      id: t.id,
+      title: t.title,
+      equipmentId: t.equipmentId,
+      equipmentName: t.equipmentName,
+      operatorName: t.operatorName || "",
+      startHour: Number(t.startHour),
+      endHour: Number(t.endHour),
+      progress: Number(t.progress || 0),
+      status: t.status
+    }));
 
-    // 수주별 예정된 납기 준수 확률 예측 (모의)
-    const dueRiskAnalysis = [
-      { orderId: "ORD-9951", productName: "현대차 도어 가니쉬", probability: 98, status: "SAFE" },
-      { orderId: "ORD-9952", productName: "삼성 에어컨 그릴", probability: 89, status: "SAFE" },
-      { orderId: "ORD-9953", productName: "LG 노트북 쉘", probability: 64, status: "WARNING" }, // 사출 1호기 병목으로 인한 지연 우려
-    ];
+    // 2. DB에서 미배정 주문 대장 조회
+    const orderRes = await queryTable("crm_production_unscheduled_orders", {});
+    const unscheduledOrders = (orderRes.rows || []).map((o: any) => ({
+      orderId: o.orderId,
+      productName: o.productName,
+      qty: Number(o.qty || 0),
+      dueDate: o.dueDate,
+      status: o.status
+    }));
+
+    // 3. DB에서 설비 병목지수 조회
+    const bottleRes = await queryTable("crm_production_bottlenecks", {});
+    const bottlenecks = (bottleRes.rows || []).map((b: any) => ({
+      id: b.id,
+      name: b.name,
+      loadRate: Number(b.loadRate || 0),
+      status: b.status,
+      queueTasks: Number(b.queueTasks || 0)
+    }));
+
+    // 4. DB에서 납기 준수 위험 분석 조회
+    const riskRes = await queryTable("crm_production_due_risk", {});
+    const dueRiskAnalysis = (riskRes.rows || []).map((r: any) => ({
+      orderId: r.orderId,
+      productName: r.productName,
+      probability: Number(r.probability || 0),
+      status: r.status
+    }));
 
     return NextResponse.json({
       success: true,
-      ganttTasks: MOCK_GANTT_TASKS,
-      unscheduledOrders: MOCK_UNSCHEDULED_ORDERS,
+      ganttTasks,
+      unscheduledOrders,
       bottlenecks,
       dueRiskAnalysis,
     });
@@ -59,74 +80,98 @@ export async function POST(req: Request) {
     // 1. 공정 스케줄링 재배치 (reschedule)
     if (action === "reschedule") {
       const { taskId, startHour, endHour, equipmentId } = body;
-      
-      // 대상 작업 정보 수정
-      MOCK_GANTT_TASKS = MOCK_GANTT_TASKS.map((task) => {
-        if (task.id === taskId) {
-          const eqNames: Record<string, string> = {
-            "M-500": "사출 1호기 (M-500)",
-            "M-300": "사출 2호기 (M-300)",
-            "M-200": "사출 3호기 (M-200)",
-            "A-100": "조립 라인 A (A-100)"
-          };
-          return {
-            ...task,
-            startHour,
-            endHour,
-            equipmentId,
-            equipmentName: eqNames[equipmentId] || task.equipmentName,
-          };
-        }
-        return task;
-      });
+
+      const equipmentName = EQ_NAMES[equipmentId] || "기타 설비";
+
+      // DB 업데이트 실행
+      await updateRows("crm_production_gantt_tasks", {
+        startHour,
+        endHour,
+        equipmentId,
+        equipmentName
+      }, { filters: { id: taskId } });
+
+      // 최신 간트 태스크 정보 로딩
+      const ganttRes = await queryTable("crm_production_gantt_tasks", {});
+      const ganttTasks = (ganttRes.rows || []).map((t: any) => ({
+        id: t.id,
+        title: t.title,
+        equipmentId: t.equipmentId,
+        equipmentName: t.equipmentName,
+        operatorName: t.operatorName || "",
+        startHour: Number(t.startHour),
+        endHour: Number(t.endHour),
+        progress: Number(t.progress || 0),
+        status: t.status
+      }));
 
       return NextResponse.json({
         success: true,
         message: "AI 스케줄러가 제약 조건을 준수하며 일정을 실시간 재정렬했습니다.",
-        ganttTasks: MOCK_GANTT_TASKS,
+        ganttTasks,
       });
     }
 
     // 2. 신규 주문 공정 자동 배정 (schedule_order)
     if (action === "schedule_order") {
       const { orderId, equipmentId, startHour, duration } = body;
-      const orderToSchedule = MOCK_UNSCHEDULED_ORDERS.find(o => o.orderId === orderId);
 
-      if (!orderToSchedule) {
+      // 미배정 주문 조회
+      const orderRes = await queryTable("crm_production_unscheduled_orders", { filters: { orderId } });
+      if (!orderRes.rows || orderRes.rows.length === 0) {
         return NextResponse.json({ success: false, error: "주문 정보를 찾을 수 없습니다." }, { status: 400 });
       }
+      const orderToSchedule = orderRes.rows[0];
 
-      // 미배정 리스트에서 제거
-      MOCK_UNSCHEDULED_ORDERS = MOCK_UNSCHEDULED_ORDERS.filter(o => o.orderId !== orderId);
+      // 미배정 리스트에서 해당 주문 삭제
+      await deleteRows("crm_production_unscheduled_orders", { filters: { orderId } });
 
-      // 간트 태스크에 신규 추가
+      // 간트 태스크 테이블에 신규 작업 추가
       const newTaskId = `T-${Date.now()}`;
-      const eqNames: Record<string, string> = {
-        "M-500": "사출 1호기 (M-500)",
-        "M-300": "사출 2호기 (M-300)",
-        "M-200": "사출 3호기 (M-200)",
-        "A-100": "조립 라인 A (A-100)"
-      };
+      const equipmentName = EQ_NAMES[equipmentId] || "미정";
 
-      const newGanttTask = {
-        id: newTaskId,
-        title: `[신규] ${orderToSchedule.productName}`,
-        equipmentId,
-        equipmentName: eqNames[equipmentId] || "미정",
-        operatorName: "자동 매칭(예비)",
-        startHour,
-        endHour: startHour + duration,
-        progress: 0,
-        status: "WAITING" as const,
-      };
+      await insertRows("crm_production_gantt_tasks", [
+        {
+          id: newTaskId,
+          title: `[신규] ${orderToSchedule.productName}`,
+          equipmentId,
+          equipmentName,
+          operatorName: "자동 매칭(예비)",
+          startHour,
+          endHour: startHour + duration,
+          progress: 0,
+          status: "WAITING"
+        }
+      ]);
 
-      MOCK_GANTT_TASKS.push(newGanttTask);
+      // 최신 정보 로딩
+      const ganttRes = await queryTable("crm_production_gantt_tasks", {});
+      const nextGanttTasks = (ganttRes.rows || []).map((t: any) => ({
+        id: t.id,
+        title: t.title,
+        equipmentId: t.equipmentId,
+        equipmentName: t.equipmentName,
+        operatorName: t.operatorName || "",
+        startHour: Number(t.startHour),
+        endHour: Number(t.endHour),
+        progress: Number(t.progress || 0),
+        status: t.status
+      }));
+
+      const nextOrderRes = await queryTable("crm_production_unscheduled_orders", {});
+      const unscheduledOrders = (nextOrderRes.rows || []).map((o: any) => ({
+        orderId: o.orderId,
+        productName: o.productName,
+        qty: Number(o.qty || 0),
+        dueDate: o.dueDate,
+        status: o.status
+      }));
 
       return NextResponse.json({
         success: true,
         message: `주문 ${orderId}가 설비 스케줄에 자동으로 최적 배정 완료되었습니다.`,
-        ganttTasks: MOCK_GANTT_TASKS,
-        unscheduledOrders: MOCK_UNSCHEDULED_ORDERS,
+        ganttTasks: nextGanttTasks,
+        unscheduledOrders,
       });
     }
 
@@ -134,21 +179,32 @@ export async function POST(req: Request) {
     if (action === "update_status") {
       const { taskId, status, progress } = body;
 
-      MOCK_GANTT_TASKS = MOCK_GANTT_TASKS.map((task) => {
-        if (task.id === taskId) {
-          return {
-            ...task,
-            status,
-            progress: progress !== undefined ? progress : task.progress,
-          };
-        }
-        return task;
-      });
+      const updateFields: any = { status };
+      if (progress !== undefined) {
+        updateFields.progress = progress;
+      }
+
+      // DB 업데이트
+      await updateRows("crm_production_gantt_tasks", updateFields, { filters: { id: taskId } });
+
+      // 최신 정보 로딩
+      const ganttRes = await queryTable("crm_production_gantt_tasks", {});
+      const ganttTasks = (ganttRes.rows || []).map((t: any) => ({
+        id: t.id,
+        title: t.title,
+        equipmentId: t.equipmentId,
+        equipmentName: t.equipmentName,
+        operatorName: t.operatorName || "",
+        startHour: Number(t.startHour),
+        endHour: Number(t.endHour),
+        progress: Number(t.progress || 0),
+        status: t.status
+      }));
 
       return NextResponse.json({
         success: true,
         message: "공정 상태가 변경되어 PC ERP 대장에 실시간 반영되었습니다.",
-        ganttTasks: MOCK_GANTT_TASKS,
+        ganttTasks,
       });
     }
 

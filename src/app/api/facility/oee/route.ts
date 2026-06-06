@@ -1,40 +1,67 @@
 import { NextResponse } from "next/server";
+import { queryTable } from "../../../../../egdesk-helpers";
 
-// 모의 OEE 및 비가동 원인 통계 데이터
-const MOCK_OEE_DATA = {
-  overallOee: 78.4, // 설비종합효율 %
-  availability: 88.5, // 시간가동률 %
-  performance: 92.0,  // 성능효율 %
-  quality: 96.2,      // 양품률 %
-  operatingHours: {
-    totalLoaded: 480, // 부하 시간 (분)
-    actualRun: 425,   // 실제 가동 시간 (분)
-    plannedStop: 30,  // 계획 정지 시간 (분)
-    breakdownStop: 25 // 돌발 정지 시간 (분)
-  },
-  financialLoss: {
-    opportunityLossKrw: 4800000, // 기회 손실 비용 (원)
-    preventedLossKrw: 12500000,  // AI 예지보전으로 예방한 손실 비용 (원)
-  },
-  downtimeReasons: [
-    { reason: "기종 교체 및 금형 세팅", minutes: 90, rate: 45 },
-    { reason: "원재료 Lot 입고 지연 대기", minutes: 50, rate: 25 },
-    { reason: "모터 하우징 진동 과부하 정지", minutes: 30, rate: 15 },
-    { reason: "일상 보전 급유 및 스케일 청소", minutes: 20, rate: 10 },
-    { reason: "기타 안전 센서 오작동 등", minutes: 10, rate: 5 }
-  ],
-  factoryLayout: [
-    { id: "M-500", name: "사출 1호기", status: "WARNING", oee: 72.5, x: 20, y: 30 },
-    { id: "M-300", name: "사출 2호기", status: "RUNNING", oee: 84.1, x: 50, y: 30 },
-    { id: "M-200", name: "사출 3호기", status: "STOPPED", oee: 0.0, x: 80, y: 30 },
-    { id: "A-100", name: "조립 라인 A", status: "RUNNING", oee: 92.5, x: 35, y: 70 },
-    { id: "P-100", name: "포장 기기 P", status: "RUNNING", oee: 88.0, x: 65, y: 70 }
-  ]
-};
-
+/**
+ * GET: OEE 종합 효율 및 설비 배치 상태 조회 (물리 DB 연동)
+ */
 export async function GET() {
-  return NextResponse.json({
-    success: true,
-    oeeData: MOCK_OEE_DATA
-  });
+  try {
+    // 1. DB에서 OEE 종합 통계 조회 (ID: OEE-GLOBAL로 저장된 것 단일 행 조회)
+    const statsRes = await queryTable("crm_facility_oee_stats", { filters: { id: "OEE-GLOBAL" } });
+    const statsRow = statsRes.rows && statsRes.rows.length > 0 ? statsRes.rows[0] : null;
+
+    const overallOee = statsRow ? Number(statsRow.overallOee || 0) : 78.4;
+    const availability = statsRow ? Number(statsRow.availability || 0) : 88.5;
+    const performance = statsRow ? Number(statsRow.performance || 0) : 92.0;
+    const quality = statsRow ? Number(statsRow.quality || 0) : 96.2;
+
+    const operatingHours = {
+      totalLoaded: statsRow ? Number(statsRow.totalLoaded || 0) : 480,
+      actualRun: statsRow ? Number(statsRow.actualRun || 0) : 425,
+      plannedStop: statsRow ? Number(statsRow.plannedStop || 0) : 30,
+      breakdownStop: statsRow ? Number(statsRow.breakdownStop || 0) : 25
+    };
+
+    const financialLoss = {
+      opportunityLossKrw: statsRow ? Number(statsRow.opportunityLossKrw || 0) : 4800000,
+      preventedLossKrw: statsRow ? Number(statsRow.preventedLossKrw || 0) : 12500000
+    };
+
+    // 2. DB에서 비가동 원인 통계 조회
+    const downtimeRes = await queryTable("crm_facility_oee_downtime", {});
+    const downtimeReasons = (downtimeRes.rows || []).map((d: any) => ({
+      reason: d.reason,
+      minutes: Number(d.minutes || 0),
+      rate: Number(d.rate || 0)
+    }));
+
+    // 3. DB에서 설비 레이아웃 배치 정보 조회
+    const layoutRes = await queryTable("crm_facility_layout", {});
+    const factoryLayout = (layoutRes.rows || []).map((l: any) => ({
+      id: l.id,
+      name: l.name,
+      status: l.status,
+      oee: Number(l.oee || 0),
+      x: Number(l.x || 0),
+      y: Number(l.y || 0)
+    }));
+
+    const oeeData = {
+      overallOee,
+      availability,
+      performance,
+      quality,
+      operatingHours,
+      financialLoss,
+      downtimeReasons,
+      factoryLayout
+    };
+
+    return NextResponse.json({
+      success: true,
+      oeeData
+    });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
 }

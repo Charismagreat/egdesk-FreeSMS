@@ -1,17 +1,7 @@
 import { NextResponse } from "next/server";
 import { queryTable, insertRows, deleteRows } from "../../../../../egdesk-helpers";
 
-// 모의 회사 기본 프로필
-const MOCK_COMPANY_PROFILE = {
-  establishmentYear: 2022, // 4년차 스타트업
-  employeeCount: 12,
-  patentsCount: 2,
-  femaleEmployeeRatio: 35,
-  youthEmployeeRatio: 65, // 청년 친화 기업
-  sector: "도소매 및 물류 소프트웨어"
-};
-
-// 백업용 R&D 기본 텍스트 템플릿
+// R&D 기본 텍스트 템플릿
 const DEFAULT_RND_TEXTS: Record<string, Record<string, string>> = {
   "GR-501": {
     necessity: `[연구개발의 필요성 및 시급성]
@@ -52,7 +42,26 @@ export async function GET() {
     const dbBookmarks = bookmarkRes.rows || [];
     const bookmarkedIds = new Set(dbBookmarks.map((b: any) => b.announcement_id));
 
-    // 3. 북마크 데이터 바인딩 조립
+    // 3. DB에서 기업 프로필 조회 및 없을 시 동적 백필
+    const profileRes = await queryTable("crm_grant_company_profile", { filters: { id: "MY-COMPANY" } });
+    let companyProfile;
+    if (profileRes.rows && profileRes.rows.length > 0) {
+      companyProfile = profileRes.rows[0];
+    } else {
+      // DB에 없는 경우 자동 백필
+      companyProfile = {
+        id: "MY-COMPANY",
+        establishmentYear: 2022,
+        employeeCount: 12,
+        patentsCount: 2,
+        femaleEmployeeRatio: 35,
+        youthEmployeeRatio: 65,
+        sector: "도소매 및 물류 소프트웨어"
+      };
+      await insertRows("crm_grant_company_profile", [companyProfile]);
+    }
+
+    // 4. 북마크 데이터 바인딩 조립
     const announcements = dbAnnouncements.map((ann: any) => {
       // 프론트엔드 모듈에 필요한 시뮬레이션 매칭 가이드 연동
       let matchGuide = [
@@ -88,7 +97,7 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       announcements,
-      companyProfile: MOCK_COMPANY_PROFILE
+      companyProfile
     });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

@@ -1,25 +1,39 @@
 import { NextResponse } from "next/server";
+import { queryTable } from "../../../../../egdesk-helpers";
 
-// 모의 월간 정비 일정 목록
-const MOCK_MAINTENANCE_EVENTS = [
-  { id: "EVT-001", date: "2026-06-08", title: "사출 1호기 축 롤러 베어링 교체", type: "PREVENTIVE", assignee: "김철수" },
-  { id: "EVT-002", date: "2026-06-12", title: "사출 2호기 유압 유량 센서 캘리브레이션", type: "CALIBRATION", assignee: "이영희" },
-  { id: "EVT-003", date: "2026-06-15", title: "공장 전력 분전반 안전 점검", type: "ROUTINE", assignee: "박민수" },
-  { id: "EVT-004", date: "2026-06-22", title: "사출 3호기 모터 서보 앰프 점검", type: "PREVENTIVE", assignee: "김철수" },
-  { id: "EVT-005", date: "2026-06-28", title: "조립 라인 컨베이어 벨트 장력 조절", type: "ROUTINE", assignee: "이영희" }
-];
-
-// 소모성 부품 재고 관리
-const MOCK_PART_INVENTORIES = [
-  { id: "PT-022", name: "롤러 베어링 (6204-ZZ)", safetyStock: 10, currentStock: 2, unit: "EA", leadTimeDays: 5, risk: "CRITICAL" },
-  { id: "PT-085", name: "고온 히터 카트리지 (300W)", safetyStock: 5, currentStock: 6, unit: "EA", leadTimeDays: 3, risk: "SAFE" },
-  { id: "PT-112", name: "유압 서보 솔레노이드 밸브", safetyStock: 2, currentStock: 1, unit: "EA", leadTimeDays: 10, risk: "WARNING" }
-];
-
+/**
+ * GET: 월간 정비 일정 및 소모성 부품 재고 목록 조회 (물리 DB 연동)
+ */
 export async function GET() {
-  return NextResponse.json({
-    success: true,
-    events: MOCK_MAINTENANCE_EVENTS,
-    partInventories: MOCK_PART_INVENTORIES
-  });
+  try {
+    // 1. DB에서 정비 일정 조회
+    const eventRes = await queryTable("crm_facility_events", {});
+    const events = (eventRes.rows || []).map((e: any) => ({
+      id: e.id,
+      date: e.date,
+      title: e.title,
+      type: e.type,
+      assignee: e.assignee
+    }));
+
+    // 2. DB에서 부품 재고 조회
+    const partRes = await queryTable("crm_facility_parts", {});
+    const partInventories = (partRes.rows || []).map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      safetyStock: Number(p.safetyStock || 0),
+      currentStock: Number(p.currentStock || 0),
+      unit: p.unit,
+      leadTimeDays: Number(p.leadTimeDays || 0),
+      risk: p.risk
+    }));
+
+    return NextResponse.json({
+      success: true,
+      events,
+      partInventories
+    });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
 }
