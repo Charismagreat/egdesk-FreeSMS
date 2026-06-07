@@ -1300,6 +1300,45 @@ export default function EasyBot() {
 
   // 📸 화면 스크린샷 캡처
   const handleCaptureScreenshot = async () => {
+    const disabledSheets: CSSStyleSheet[] = [];
+
+    // 1. html2canvas의 CSS 파서가 lab(), oklch() 등 최신 CSS 색상 함수를 분석하다 터지는 버그 우회 패치
+    try {
+      for (let i = 0; i < document.styleSheets.length; i++) {
+        const sheet = document.styleSheets[i];
+        try {
+          let hasUnsupportedColors = false;
+          
+          // 내부 규칙(cssRules) 순회 검사
+          const rules = sheet.cssRules || sheet.rules;
+          if (rules) {
+            for (let j = 0; j < rules.length; j++) {
+              const cssText = rules[j].cssText.toLowerCase();
+              if (
+                cssText.includes('lab(') || 
+                cssText.includes('oklch(') || 
+                cssText.includes('oklab(') || 
+                cssText.includes('lch(')
+              ) {
+                hasUnsupportedColors = true;
+                break;
+              }
+            }
+          }
+
+          if (hasUnsupportedColors) {
+            sheet.disabled = true;
+            disabledSheets.push(sheet);
+          }
+        } catch (sheetErr) {
+          // 외부 도메인 스타일시트 등 CORS 보안 제약으로 cssRules에 접근하지 못하는 경우 안전하게 스킵.
+          // (CORS 제한 시트의 경우 html2canvas도 규칙 분석을 건너뛰므로 에러를 내지 않습니다.)
+        }
+      }
+    } catch (err) {
+      console.warn('스타일 시트 사전 정밀 필터링 중 예외 발생:', err);
+    }
+
     try {
       const element = document.body;
       const canvas = await html2canvas(element, {
@@ -1319,6 +1358,15 @@ export default function EasyBot() {
     } catch (error: any) {
       console.error('스크린샷 캡처 실패:', error);
       alert(`화면 캡처에 실패했습니다. 상세 요인: ${error.message || error}`);
+    } finally {
+      // 2. 비활성화했던 스타일 시트 즉시 복구
+      disabledSheets.forEach((sheet) => {
+        try {
+          sheet.disabled = false;
+        } catch (e) {
+          // 복구 예외 방어
+        }
+      });
     }
   };
 
