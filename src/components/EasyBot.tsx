@@ -1595,8 +1595,8 @@ export default function EasyBot() {
 
       const img = new Image();
       img.onload = () => {
-        const maxWidth = Math.min(window.innerWidth * 0.95, 1200);
-        const maxHeight = window.innerHeight * 0.75;
+        const maxWidth = Math.min(window.innerWidth * 0.98, 1920);
+        const maxHeight = window.innerHeight * 0.8;
         
         let width = img.width;
         let height = img.height;
@@ -2562,7 +2562,7 @@ export default function EasyBot() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white rounded-3xl max-w-6xl w-full p-6 space-y-4 border border-slate-100 shadow-2xl relative block"
+              className="bg-white rounded-3xl max-w-[96vw] w-full p-6 space-y-4 border border-slate-100 shadow-2xl relative block"
             >
               <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                 <div className="space-y-0.5">
@@ -2582,7 +2582,7 @@ export default function EasyBot() {
                 </button>
               </div>
 
-              <div className="flex items-center justify-center bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 min-h-[400px] max-h-[75vh]">
+              <div className="flex items-center justify-center bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 min-h-[450px] max-h-[80vh]">
                 <canvas
                   ref={canvasRef}
                   onMouseDown={startDrawing}
