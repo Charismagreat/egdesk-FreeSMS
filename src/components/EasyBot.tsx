@@ -2593,7 +2593,9 @@ export default function EasyBot() {
                   onTouchStart={startDrawing}
                   onTouchMove={draw}
                   onTouchEnd={stopDrawing}
-                  className="max-w-full max-h-full block cursor-crosshair bg-slate-950"
+                  className={`max-w-full max-h-full block bg-slate-950 ${
+                    drawingMode === 'none' ? 'cursor-default' : 'cursor-crosshair'
+                  }`}
                 />
               </div>
 
