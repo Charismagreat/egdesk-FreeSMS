@@ -1300,13 +1300,53 @@ export default function EasyBot() {
 
   // 📸 화면 스크린샷 캡처
   const handleCaptureScreenshot = async () => {
-    const backupStyleElements: { el: HTMLStyleElement; originalText: string }[] = [];
-    const backupRules: { sheet: CSSStyleSheet; index: number; cssText: string }[] = [];
-    const disabledExternalSheets: CSSStyleSheet[] = [];
+    // 1. window.getComputedStyle를 일시적으로 몽키 패칭(Monkey Patching)하여
+    // html2canvas가 DOM 요소를 분석하며 읽어가는 모든 스타일의 lab/oklch 색상을 transparent로 강제 치환 반환합니다.
+    // 이 방식을 사용하면 스타일시트를 비활성화할 필요가 없으므로 레이아웃이 절대 붕괴하지 않습니다.
+    const originalGetComputedStyle = window.getComputedStyle;
+    
+    window.getComputedStyle = function (el, pseudoElt) {
+      const style = originalGetComputedStyle.call(window, el, pseudoElt);
+      
+      return new Proxy(style, {
+        get(target, prop) {
+          const val = target[prop as any];
+          if (typeof val === 'string') {
+            const valLower = val.toLowerCase();
+            if (
+              valLower.includes('lab(') || 
+              valLower.includes('oklch(') || 
+              valLower.includes('oklab(') || 
+              valLower.includes('lch(')
+            ) {
+              return 'transparent';
+            }
+          }
+          if (typeof val === 'function') {
+            return function (...args: any[]) {
+              const res = val.apply(target, args);
+              if (typeof res === 'string') {
+                const resLower = res.toLowerCase();
+                if (
+                  resLower.includes('lab(') || 
+                  resLower.includes('oklch(') || 
+                  resLower.includes('oklab(') || 
+                  resLower.includes('lch(')
+                ) {
+                  return 'transparent';
+                }
+              }
+              return res;
+            };
+          }
+          return val;
+        }
+      });
+    };
 
-    // 1. html2canvas의 CSS 파서가 lab(), oklch() 등 최신 CSS 색상 함수를 분석하다 터지는 버그 우회 패치 (4차 정밀 가로채기)
+    // 혹시 모를 파싱 에러 방지를 위해 인라인 <style> 태그 내의 텍스트도 transparent로 임시 치환
+    const backupStyleElements: { el: HTMLStyleElement; originalText: string }[] = [];
     try {
-      // A. 인라인 <style> 태그 내의 미지원 색상 함수 텍스트 일괄 치환 (스타일 붕괴 방지)
       const styleElements = Array.from(document.querySelectorAll('style')) as HTMLStyleElement[];
       styleElements.forEach((el) => {
         if (el.textContent) {
@@ -1327,69 +1367,8 @@ export default function EasyBot() {
           }
         }
       });
-
-      // B. adoptedStyleSheets 및 document.styleSheets를 순회하여 규칙 부분 편집
-      const sheetsToScan: CSSStyleSheet[] = [];
-      
-      // document.styleSheets 수집
-      for (let i = 0; i < document.styleSheets.length; i++) {
-        sheetsToScan.push(document.styleSheets[i]);
-      }
-      // adoptedStyleSheets (섀도우 돔 및 동적 스타일용 생성된 시트) 수집
-      if ((document as any).adoptedStyleSheets) {
-        const adopted = (document as any).adoptedStyleSheets;
-        for (let i = 0; i < adopted.length; i++) {
-          sheetsToScan.push(adopted[i]);
-        }
-      }
-
-      sheetsToScan.forEach((sheet) => {
-        try {
-          // 크롬 확장 프로그램(Dark Reader 등) 주입 외부 링크 시트는 캡처 동안 일시 비활성화
-          if (sheet.href) {
-            const href = sheet.href.toLowerCase();
-            if (href.startsWith('chrome-extension:') || href.includes('darkreader') || href.includes('extension')) {
-              sheet.disabled = true;
-              disabledExternalSheets.push(sheet);
-              return;
-            }
-          }
-
-          const rules = sheet.cssRules || sheet.rules;
-          if (rules) {
-            // 역순 순회하여 규칙 삭제 시 인덱스 꼬임 방지
-            for (let j = rules.length - 1; j >= 0; j--) {
-              const rule = rules[j];
-              try {
-                if (rule && rule.cssText) {
-                  const cssText = rule.cssText.toLowerCase();
-                  if (
-                    cssText.includes('lab(') || 
-                    cssText.includes('oklch(') || 
-                    cssText.includes('oklab(') || 
-                    cssText.includes('lch(')
-                  ) {
-                    if (typeof sheet.deleteRule === 'function') {
-                      sheet.deleteRule(j);
-                      backupRules.push({
-                        sheet,
-                        index: j,
-                        cssText: rule.cssText
-                      });
-                    }
-                  }
-                }
-              } catch (ruleErr) {
-                // 특정 규칙 접근 불가 에러 방어
-              }
-            }
-          }
-        } catch (sheetErr) {
-          // CORS 제약이 있는 외부 시트는 html2canvas도 규칙 분석을 패스하므로 안전함
-        }
-      });
-    } catch (err) {
-      console.warn('스타일 시트 사전 가로채기 중 예외 발생:', err);
+    } catch (styleErr) {
+      console.warn('style 태그 사전 필터링 스킵:', styleErr);
     }
 
     try {
@@ -1412,31 +1391,12 @@ export default function EasyBot() {
       console.error('스크린샷 캡처 실패:', error);
       alert(`화면 캡처에 실패했습니다. 상세 요인: ${error.message || error}`);
     } finally {
-      // 2. 임시 가로채기 및 변환했던 모든 규칙/스타일 시트 원복
-      // A. 인라인 <style> 텍스트 복구
+      // 2. 몽키 패칭 및 스타일 치환 즉각 원상 복구
+      window.getComputedStyle = originalGetComputedStyle;
+      
       backupStyleElements.forEach((item) => {
         try {
           item.el.textContent = item.originalText;
-        } catch (e) {}
-      });
-
-      // B. 임시 삭제했던 규칙 복구
-      backupRules.forEach((item) => {
-        try {
-          if (typeof item.sheet.insertRule === 'function') {
-            item.sheet.insertRule(item.cssText, item.index);
-          }
-        } catch (e) {
-          try {
-            item.sheet.insertRule(item.cssText);
-          } catch (e2) {}
-        }
-      });
-
-      // C. 비활성화했던 외부 확장 스타일 시트 복구
-      disabledExternalSheets.forEach((sheet) => {
-        try {
-          sheet.disabled = false;
         } catch (e) {}
       });
     }
