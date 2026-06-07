@@ -1618,6 +1618,14 @@ export default function EasyBot() {
     }
   }, [isEditingScreenshot, canvasImage]);
 
+  // 드로잉 모드에 맞춰 캔버스 커서 강제 지정 (!important 우회)
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      canvas.style.setProperty('cursor', drawingMode === 'none' ? 'default' : 'crosshair', 'important');
+    }
+  }, [drawingMode, isEditingScreenshot]);
+
   // 💬 개발사 피드백 전송 API 호출 핸들러
   const handleSubmitFeedback = async () => {
     if (!feedbackText.trim()) {
@@ -2594,7 +2602,6 @@ export default function EasyBot() {
                   onTouchMove={draw}
                   onTouchEnd={stopDrawing}
                   className="max-w-full max-h-full block bg-slate-950"
-                  style={{ cursor: drawingMode === 'none' ? 'default' : 'crosshair' }}
                 />
               </div>
 
