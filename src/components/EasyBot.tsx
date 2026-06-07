@@ -1047,7 +1047,7 @@ export default function EasyBot() {
   const [isLoading, setIsLoading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(false);
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [voiceEnabled, setVoiceEnabled] = useState(false);
 
   // 💬 개발사 피드백 실시간 연동 상태 변수
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
@@ -1071,7 +1071,7 @@ export default function EasyBot() {
   // 클로저 고립 문제를 차단하기 위한 최신 상태 동기화 Ref 그룹
   const messagesRef = useRef<Message[]>([]);
   const pathnameRef = useRef<string>('');
-  const voiceEnabledRef = useRef<boolean>(true);
+  const voiceEnabledRef = useRef<boolean>(false);
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
