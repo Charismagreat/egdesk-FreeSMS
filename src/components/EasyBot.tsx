@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { MessageSquare, Sparkles, X, Send, RotateCcw, Bot, Terminal, ShieldAlert, Maximize2, Minimize2, Mic, MicOff, Volume2, VolumeX, Camera, Mail, CheckCircle2, User, Phone, Briefcase, RefreshCw, Calendar, DollarSign, Check, FileText, Plus, Layers, MousePointerClick } from 'lucide-react';
+import { MessageSquare, Sparkles, X, Send, RotateCcw, Bot, Terminal, ShieldAlert, Maximize2, Minimize2, Mic, MicOff, Volume2, VolumeX, Camera, Mail, CheckCircle2, User, Phone, Briefcase, RefreshCw, Calendar, DollarSign, Check, FileText, Plus, Layers, MousePointerClick, Video, VideoOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter } from 'next/navigation';
+import html2canvas from 'html2canvas';
 
 interface Message {
   role: 'user' | 'bot';
@@ -1056,6 +1057,27 @@ export default function EasyBot() {
   const [feedbackType, setFeedbackType] = useState<"suggest" | "bug" | "other">("suggest");
   const [isSendingFeedback, setIsSendingFeedback] = useState(false);
 
+  // 📸 스크린샷 & 화면 녹화 기능 상태 변수 추가
+  const [screenshotBlob, setScreenshotBlob] = useState<Blob | null>(null);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [screenRecordBlob, setScreenRecordBlob] = useState<Blob | null>(null);
+  const [screenRecordPreview, setScreenRecordPreview] = useState<string | null>(null);
+
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordStreamRef = useRef<MediaStream | null>(null);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const [isEditingScreenshot, setIsEditingScreenshot] = useState(false);
+  const [drawingMode, setDrawingMode] = useState<'none' | 'pen' | 'blur'>('none');
+  const [canvasImage, setCanvasImage] = useState<string | null>(null);
+
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isDrawingRef = useRef(false);
+  const lastXRef = useRef(0);
+  const lastYRef = useRef(0);
+
   const pathname = usePathname();
   const router = useRouter();
 
@@ -1276,6 +1298,250 @@ export default function EasyBot() {
     }
   };
 
+  // 📸 화면 스크린샷 캡처
+  const handleCaptureScreenshot = async () => {
+    try {
+      const element = document.body;
+      const canvas = await html2canvas(element, {
+        useCORS: true,
+        allowTaint: true,
+        scrollX: 0,
+        scrollY: 0,
+        x: window.scrollX,
+        y: window.scrollY,
+        width: window.innerWidth,
+        height: window.innerHeight,
+        ignoreElements: (el) => {
+          return el.classList.contains('ignore-capture') || el.id === 'easybot-widget-root' || el.getAttribute('data-easybot-widget') !== null;
+        }
+      });
+
+      const dataUrl = canvas.toDataURL('image/png');
+      setCanvasImage(dataUrl);
+      setDrawingMode('pen'); // 기본 드로잉 모드를 펜 모드로 설정
+      setIsEditingScreenshot(true);
+    } catch (error) {
+      console.error('스크린샷 캡처 실패:', error);
+      alert('화면 캡처에 실패했습니다. 브라우저 권한을 확인해 주세요.');
+    }
+  };
+
+  // 캔버스 드로잉 관련 핸들러
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (drawingMode === 'none') return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    isDrawingRef.current = true;
+    const rect = canvas.getBoundingClientRect();
+    let clientX = 0;
+    let clientY = 0;
+    
+    if ('touches' in e) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    
+    lastXRef.current = x;
+    lastYRef.current = y;
+
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+  };
+
+  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDrawingRef.current || drawingMode === 'none') return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const rect = canvas.getBoundingClientRect();
+    let clientX = 0;
+    let clientY = 0;
+    
+    if ('touches' in e) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+
+    if (drawingMode === 'pen') {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 4;
+    } else if (drawingMode === 'blur') {
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
+      ctx.lineWidth = 20;
+    }
+
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    
+    lastXRef.current = x;
+    lastYRef.current = y;
+  };
+
+  const stopDrawing = () => {
+    isDrawingRef.current = false;
+  };
+
+  const handleSaveEditedScreenshot = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    canvas.toBlob((blob) => {
+      if (blob) {
+        setScreenshotBlob(blob);
+        const previewUrl = URL.createObjectURL(blob);
+        setScreenshotPreview(previewUrl);
+      }
+      setIsEditingScreenshot(false);
+    }, 'image/png');
+  };
+
+  // 🎥 화면 녹화 시작
+  const handleStartRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          displaySurface: "monitor"
+        },
+        audio: false
+      });
+
+      recordStreamRef.current = stream;
+      setIsRecording(true);
+      setRecordingSeconds(0);
+
+      const options = { mimeType: 'video/webm; codecs=vp9' };
+      let recorder: MediaRecorder;
+      try {
+        recorder = new MediaRecorder(stream, options);
+      } catch (e) {
+        recorder = new MediaRecorder(stream);
+      }
+
+      mediaRecorderRef.current = recorder;
+      const chunks: Blob[] = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          chunks.push(e.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        setScreenRecordBlob(blob);
+        const previewUrl = URL.createObjectURL(blob);
+        setScreenRecordPreview(previewUrl);
+        setIsRecording(false);
+        
+        stream.getTracks().forEach(track => track.stop());
+        
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+        }
+      };
+
+      stream.getVideoTracks()[0].onended = () => {
+        if (recorder.state !== 'inactive') {
+          recorder.stop();
+        }
+      };
+
+      recorder.start();
+
+      const timer = setInterval(() => {
+        setRecordingSeconds((prev) => {
+          if (prev >= 29) {
+            if (recorder.state !== 'inactive') {
+              recorder.stop();
+            }
+            clearInterval(timer);
+            return 30;
+          }
+          return prev + 1;
+        });
+      }, 1000);
+
+      recordingTimerRef.current = timer;
+
+    } catch (error) {
+      console.error('화면 녹화 실패:', error);
+      setIsRecording(false);
+    }
+  };
+
+  const handleStopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+  };
+
+  // 언마운트 시 녹화 해제
+  useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+      if (recordStreamRef.current) {
+        recordStreamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
+  // 캔버스 이미지 그리기 용 훅
+  useEffect(() => {
+    if (isEditingScreenshot && canvasImage && canvasRef.current) {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const img = new Image();
+      img.onload = () => {
+        const maxWidth = Math.min(window.innerWidth * 0.9, 800);
+        const maxHeight = window.innerHeight * 0.6;
+        
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = (maxWidth / width) * height;
+          width = maxWidth;
+        }
+        if (height > maxHeight) {
+          width = (maxHeight / height) * width;
+          height = maxHeight;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
+      };
+      img.src = canvasImage;
+    }
+  }, [isEditingScreenshot, canvasImage]);
+
   // 💬 개발사 피드백 전송 API 호출 핸들러
   const handleSubmitFeedback = async () => {
     if (!feedbackText.trim()) {
@@ -1285,16 +1551,24 @@ export default function EasyBot() {
 
     setIsSendingFeedback(true);
     try {
+      const formData = new FormData();
+      formData.append("companyName", "이지데스크 B2B 회원사"); // 챗봇이 탑재되는 고객사 정보 대리 매핑
+      formData.append("senderName", "운영자 사장님");
+      formData.append("contact", feedbackContact || "미기입");
+      formData.append("feedbackType", feedbackType === "bug" ? "버그 제보" : feedbackType === "suggest" ? "기능 제안" : "기타 문의");
+      formData.append("feedbackText", feedbackText);
+      formData.append("currentUrl", pathname || window.location.pathname);
+
+      if (screenshotBlob) {
+        formData.append("screenshot", screenshotBlob, "screenshot.png");
+      }
+      if (screenRecordBlob) {
+        formData.append("recording", screenRecordBlob, "recording.webm");
+      }
+
       const res = await fetch("/api/support/feedback", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          companyName: "이지데스크 B2B 회원사", // 챗봇이 탑재되는 고객사 정보 대리 매핑
-          senderName: "운영자 사장님",
-          contact: feedbackContact || "미기입",
-          feedbackType: feedbackType === "bug" ? "버그 제보" : feedbackType === "suggest" ? "기능 제안" : "기타 문의",
-          feedbackText: feedbackText
-        })
+        body: formData
       });
 
       const data = await res.json();
@@ -1302,6 +1576,10 @@ export default function EasyBot() {
         alert("개발사로 피드백이 실시간으로 전송 완료되었습니다! 🚀\n신속하게 확인하여 카카오톡 채널로 대응해 드리겠습니다.");
         setFeedbackText("");
         setFeedbackContact("");
+        setScreenshotBlob(null);
+        setScreenshotPreview(null);
+        setScreenRecordBlob(null);
+        setScreenRecordPreview(null);
         setIsFeedbackOpen(false);
       } else {
         alert(data.error || "피드백 전송에 실패했습니다. 대행사 설정을 확인하세요.");
@@ -1620,7 +1898,7 @@ export default function EasyBot() {
           setIsOpen(!isOpen);
           stopSpeaking();
         }}
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg transition-transform hover:scale-105 active:scale-95 cursor-pointer focus:outline-none"
+        className="ignore-capture fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg transition-transform hover:scale-105 active:scale-95 cursor-pointer focus:outline-none"
         style={{
           background: 'linear-gradient(135deg, #7000ff 0%, #bc2a8d 50%, #f91f7f 100%)',
           boxShadow: '0 8px 24px rgba(112, 0, 255, 0.25)'
@@ -1638,7 +1916,7 @@ export default function EasyBot() {
             animate={{ opacity: widgetOpacity, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 50, scale: 0.95 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className={`fixed bottom-24 right-6 z-40 bg-white rounded-3xl border border-slate-200/90 shadow-2xl overflow-hidden flex flex-col transition-all duration-300 ${
+            className={`ignore-capture fixed bottom-24 right-6 z-40 bg-white rounded-3xl border border-slate-200/90 shadow-2xl overflow-hidden flex flex-col transition-all duration-300 ${
               isMaximized ? 'w-[94vw] h-[92vh] sm:w-[68vw] sm:h-[88vh]' : 'w-[92vw] h-[72vh] sm:w-[400px] sm:h-[550px]'
             }`}
             style={{ opacity: widgetOpacity }}
@@ -1988,7 +2266,7 @@ export default function EasyBot() {
       {/* 💬 개발사 피드백 실시간 접수 모달 (Vibrant Glassmorphism & Micro-animations) */}
       <AnimatePresence>
         {isFeedbackOpen && (
-          <div className="fixed inset-0 bg-black/45 backdrop-blur-3xs flex items-center justify-center z-[100] p-4 text-slate-800">
+          <div className="ignore-capture fixed inset-0 bg-black/45 backdrop-blur-3xs flex items-center justify-center z-[100] p-4 text-slate-800">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -2000,6 +2278,10 @@ export default function EasyBot() {
                   setIsFeedbackOpen(false);
                   setFeedbackText("");
                   setFeedbackContact("");
+                  setScreenshotBlob(null);
+                  setScreenshotPreview(null);
+                  setScreenRecordBlob(null);
+                  setScreenRecordPreview(null);
                 }} 
                 className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 cursor-pointer"
               >
@@ -2065,6 +2347,82 @@ export default function EasyBot() {
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-semibold resize-none leading-relaxed text-xs"
                   />
                 </div>
+
+                {/* 자료 첨부 */}
+                <div className="space-y-1 block border-t border-slate-100 pt-3">
+                  <label className="text-[10px] text-slate-455 uppercase tracking-widest block font-extrabold mb-1">자료 첨부 (선택)</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCaptureScreenshot}
+                      className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-slate-200 hover:border-indigo-400 bg-white hover:bg-indigo-50/20 text-slate-700 hover:text-indigo-700 transition-all font-bold text-[10px] cursor-pointer"
+                    >
+                      <Camera size={13} className="text-slate-500" />
+                      화면 스크린샷 캡처
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleStartRecording}
+                      disabled={isRecording}
+                      className={`flex items-center justify-center gap-1.5 py-2 rounded-xl border transition-all font-bold text-[10px] cursor-pointer ${
+                        isRecording 
+                          ? 'bg-rose-50 border-rose-200 text-rose-650'
+                          : 'border-slate-200 hover:border-rose-450 bg-white hover:bg-rose-50/20 text-slate-700 hover:text-rose-650'
+                      }`}
+                    >
+                      <Video size={13} className={isRecording ? "text-rose-500 animate-pulse" : "text-slate-500"} />
+                      {isRecording ? "녹화 진행 중..." : "화면 녹화 (동영상)"}
+                    </button>
+                  </div>
+
+                  {/* 첨부된 미디어 미리보기 */}
+                  {(screenshotPreview || screenRecordPreview) && (
+                    <div className="flex gap-2.5 mt-2 p-2 bg-slate-50/80 rounded-2xl border border-slate-100">
+                      {screenshotPreview && (
+                        <div className="relative group w-[75px] h-[75px] rounded-xl border border-slate-200 overflow-hidden bg-white shrink-0 shadow-2xs">
+                          <img src={screenshotPreview} alt="Screenshot preview" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setScreenshotBlob(null);
+                              setScreenshotPreview(null);
+                            }}
+                            className="absolute -top-1 -right-1 bg-slate-900/80 text-white rounded-full p-1 hover:bg-rose-600 transition-colors shadow-sm"
+                          >
+                            <X size={10} />
+                          </button>
+                          <div 
+                            onClick={() => {
+                              setCanvasImage(screenshotPreview);
+                              setIsEditingScreenshot(true);
+                            }}
+                            className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[9px] font-black cursor-pointer transition-opacity"
+                          >
+                            편집
+                          </div>
+                        </div>
+                      )}
+                      {screenRecordPreview && (
+                        <div className="relative w-[120px] h-[75px] rounded-xl border border-slate-200 overflow-hidden bg-black shrink-0 shadow-2xs">
+                          <video src={screenRecordPreview} className="w-full h-full object-cover" controls={false} muted autoPlay loop playsInline />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setScreenRecordBlob(null);
+                              setScreenRecordPreview(null);
+                            }}
+                            className="absolute -top-1 -right-1 bg-slate-900/80 text-white rounded-full p-1 hover:bg-rose-600 transition-colors shadow-sm z-10"
+                          >
+                            <X size={10} />
+                          </button>
+                          <div className="absolute bottom-1 right-1 bg-black/60 text-white px-1 py-0.5 rounded text-[8px] font-extrabold tracking-wide">
+                            VIDEO
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* 전송 버튼 */}
@@ -2086,6 +2444,151 @@ export default function EasyBot() {
                   </>
                 )}
               </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 🔴 화면 녹화 중 플로팅 제어기 */}
+      <AnimatePresence>
+        {isRecording && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 50, scale: 0.9 }}
+            className="ignore-capture fixed bottom-6 left-6 z-[999] bg-slate-900/95 text-white px-4 py-3 rounded-2xl shadow-2xl border border-slate-800 flex items-center gap-3.5 backdrop-blur-md"
+          >
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
+              <span className="text-xs font-black tracking-wide">화면 녹화 중</span>
+            </div>
+            <div className="h-4 w-px bg-slate-700" />
+            <div className="text-xs font-mono font-bold text-slate-300">
+              {String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:
+              {String(recordingSeconds % 60).padStart(2, '0')} / 00:30
+            </div>
+            <button
+              type="button"
+              onClick={handleStopRecording}
+              className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 rounded-xl text-[10px] font-black tracking-wide transition-all shadow-md shadow-rose-600/20 cursor-pointer border-none"
+            >
+              녹화 완료
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 📸 스크린샷 캔버스 편집 모달 */}
+      <AnimatePresence>
+        {isEditingScreenshot && (
+          <div className="ignore-capture fixed inset-0 bg-black/60 backdrop-blur-2xs flex items-center justify-center z-[110] p-4 text-slate-800 select-none">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-3xl max-w-3xl w-full p-5 space-y-4 border border-slate-100 shadow-2xl relative block"
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <div className="space-y-0.5">
+                  <h4 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                    ✂️ 스크린샷 마스킹 편집기
+                  </h4>
+                  <p className="text-[10px] text-slate-400 font-bold">
+                    개인정보나 중요 재무 정보는 블러 펜(투명 흑색 마스킹)으로 지워주시고, 강조할 부분은 빨간 펜을 쓰세요.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingScreenshot(false)}
+                  className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-center bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 min-h-[300px] max-h-[60vh]">
+                <canvas
+                  ref={canvasRef}
+                  onMouseDown={startDrawing}
+                  onMouseMove={draw}
+                  onMouseUp={stopDrawing}
+                  onMouseLeave={stopDrawing}
+                  onTouchStart={startDrawing}
+                  onTouchMove={draw}
+                  onTouchEnd={stopDrawing}
+                  className="max-w-full max-h-full block cursor-crosshair bg-slate-950"
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setDrawingMode('pen')}
+                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer border ${
+                      drawingMode === 'pen'
+                        ? 'bg-rose-50 border-rose-200 text-rose-600 shadow-3xs'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+                    빨간 펜
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDrawingMode('blur')}
+                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer border ${
+                      drawingMode === 'blur'
+                        ? 'bg-slate-950 border-slate-850 text-white shadow-3xs'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full bg-slate-800" />
+                    블러(마스킹)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDrawingMode('none')}
+                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black transition-all cursor-pointer border ${
+                      drawingMode === 'none'
+                        ? 'bg-indigo-50 border-indigo-200 text-indigo-750 shadow-3xs'
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <MousePointerClick size={12} />
+                    이동/선택 모드
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (canvasImage && canvasRef.current) {
+                        const canvas = canvasRef.current;
+                        const ctx = canvas.getContext('2d');
+                        if (!ctx) return;
+                        const img = new Image();
+                        img.onload = () => {
+                          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        };
+                        img.src = canvasImage;
+                      }
+                    }}
+                    className="flex items-center justify-center p-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"
+                    title="초기화"
+                  >
+                    <RotateCcw size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveEditedScreenshot}
+                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-md cursor-pointer transition-all border-none"
+                  >
+                    첨부 완료
+                  </button>
+                </div>
+              </div>
             </motion.div>
           </div>
         )}
