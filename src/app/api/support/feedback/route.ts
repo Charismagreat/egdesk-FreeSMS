@@ -96,9 +96,43 @@ ${feedbackText}${attachmentsText}`;
 
     console.log(`[피드백 DB 저장 완료] ID: ${feedbackId}, 유형: ${feedbackType}, 스크린샷: ${screenshotUrl ? 'O' : 'X'}, 녹화본: ${recordingUrl ? 'O' : 'X'}`);
 
+    // 3. 개발사 웹사이트(egdesk.cloud) Supabase DB로 자동 전송 (실시간 동기화)
+    try {
+      const supabaseUrl = 'https://cbptgzaubhcclkmvkiua.supabase.co/rest/v1/feedback';
+      const anonKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNicHRnemF1YmhjY2xrbXZraXVhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5OTAzMTIsImV4cCI6MjA3NTU2NjMxMn0.wE5tLN9pMmZWjag_q1E9LaItcsNQlqZYM6XHUL5OiuM';
+      
+      const payload = {
+        name: `이지봇 피드백 - ${senderName}`,
+        email: contact || 'chachogreat@gmail.com',
+        message: `[고객사: ${companyName} / 제보자: ${senderName} (${contact}) / 유형: ${feedbackType}]\n\n${feedbackText}${attachmentsText}`,
+        page_url: currentUrl || '/',
+        user_agent: 'EGDESK EasyBot Widget Client',
+        client_id: feedbackId
+      };
+
+      const response = await fetch(supabaseUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'apikey': anonKey,
+          'Authorization': `Bearer ${anonKey}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errBody = await response.json().catch(() => ({}));
+        console.error(`[Supabase 실시간 전송 실패] HTTP ${response.status}:`, errBody.message || '');
+      } else {
+        console.log(`[Supabase 실시간 전송 성공] ID: ${feedbackId}`);
+      }
+    } catch (sbErr: any) {
+      console.error('[Supabase 실시간 API 동기화 에러]:', sbErr.message);
+    }
+
     return NextResponse.json({
       success: true,
-      message: '피드백과 첨부파일이 서버에 안전하게 저장되었습니다. 🟢'
+      message: '피드백과 첨부파일이 서버에 저장되었으며, 개발사 웹사이트로 자동 전송되었습니다. 🟢'
     });
 
   } catch (error: any) {

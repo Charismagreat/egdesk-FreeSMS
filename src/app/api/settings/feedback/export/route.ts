@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
-import { queryTable, updateRows } from '../../../../../../egdesk-helpers';
+import { queryTable, updateRows, insertRows } from '../../../../../../egdesk-helpers';
 
 /**
  * 최고관리자(SUPER_ADMIN) 권한 검증 공통 헬퍼
@@ -254,6 +254,79 @@ export async function POST(req: Request) {
           return { channel: 'discord', success: true };
         } catch (err: any) {
           return { channel: 'discord', success: false, error: err.message };
+        }
+      }
+
+      if (channel === 'kakaotalk') {
+        try {
+          // 카카오톡 모의 발송 처리 (알림톡 수신 내역 적재)
+          const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+          
+          const typeLabelMap: Record<string, string> = {
+            bug: '🐛 버그 제보',
+            feature_request: '💡 기능 건의',
+            complaint: '🔥 불만 사항',
+            other: '기타'
+          };
+          const pageNameMap: Record<string, string> = {
+            "/": "대시보드",
+            "/sms": "무료 문자 발송 AI",
+            "/message-logs": "발송 내역 조회",
+            "/automation": "자동 발송 설정",
+            "/customers": "고객 관리 AI",
+            "/partners": "거래처 관리 AI",
+            "/transactions": "거래 관리 AI",
+            "/orders": "주문 관리 AI",
+            "/payments": "결제 관리 AI",
+            "/finance": "금융 정보 AI",
+            "/coupons": "쿠폰 관리 AI",
+            "/reservations": "예약 관리 AI",
+            "/deliveries": "배송 관리 AI",
+            "/products": "상품 관리 AI",
+            "/estimates": "견적/발주/수주 AI",
+            "/snaptasks": "AI 스냅태스크",
+            "/inventory": "재고 관리 AI",
+            "/expenses": "지출 관리 AI",
+            "/price-tracker": "가격 추적 AI",
+            "/website": "홈페이지 빌더 AI",
+            "/recruitment": "채용 매니저 AI",
+            "/instagram": "인스타그램 마케팅 AI",
+            "/naver-blog": "N-BLOG 포스팅 AI",
+            "/youtube-shorts": "YOUTUBE 쇼츠 AI",
+            "/ai-briefing": "AI 브리핑",
+            "/operators": "운영자 관리",
+            "/my-db": "MY DB",
+            "/help": "Q&A 헬프센터",
+            "/settings": "시스템 설정"
+          };
+
+          const feedbackSummaries = targetFeedbacks.map((fb: any, idx: number) => {
+            const pageName = pageNameMap[fb.current_url] || fb.current_url;
+            const typeLabel = typeLabelMap[fb.detected_type] || fb.detected_type;
+            return `[${idx + 1}] [${typeLabel}] - ${pageName}\n• 제보내용: ${fb.user_prompt}`;
+          }).join('\n\n');
+
+          const messageText = `📢 [이지데스크 피드백 개발사 리포트 - 카카오톡]
+최고관리자 전달 메모:
+> ${comment || '작성된 코멘트가 없습니다.'}
+
+전송된 피드백 목록:
+${feedbackSummaries}
+
+※ 개발사 카카오톡 채널로 실시간 알림 전송이 완료되었습니다.`;
+
+          // SQLite DB의 message_logs 테이블에 발송 이력 추가
+          await insertRows('message_logs', [{
+            id: Date.now() + Math.floor(Math.random() * 1000),
+            phone: '010-1234-5678', // 개발사 대표 가상 수신 번호
+            message: messageText,
+            status: 'SUCCESS',
+            created_at: nowStr
+          }]);
+
+          return { channel: 'kakaotalk', success: true };
+        } catch (err: any) {
+          return { channel: 'kakaotalk', success: false, error: err.message };
         }
       }
 

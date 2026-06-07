@@ -36,7 +36,7 @@ export default function FeedbackManagementCard() {
   
   // 1. 외부 메신저 채널 전송 모달 상태
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [selectedChannels, setSelectedChannels] = useState<string[]>(['slack']); // 기본값은 슬랙
+  const [selectedChannels, setSelectedChannels] = useState<string[]>(['egdesk_cloud', 'kakaotalk']); // 기본값은 개발사 웹사이트 및 카카오톡
   const [exportComment, setExportComment] = useState('');
   const [exporting, setExporting] = useState(false);
   const [exportResults, setExportResults] = useState<any[] | null>(null);
@@ -522,6 +522,8 @@ export default function FeedbackManagementCard() {
                         <td className="p-4 whitespace-nowrap font-semibold">
                           <Link 
                             href={item.current_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 text-indigo-600 hover:underline hover:text-indigo-700"
                           >
                             {getPageName(item.current_url)}
@@ -707,7 +709,7 @@ export default function FeedbackManagementCard() {
               
               <div className="space-y-2">
                 <label className="block text-[11px] font-extrabold text-slate-700">1. 발송 대상 채널 지정 (다중 선택 가능)</label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   
                   <div 
                     onClick={() => !exporting && handleChannelToggle('slack')}
@@ -747,6 +749,26 @@ export default function FeedbackManagementCard() {
                       />
                     </div>
                     <span className="text-[9px] text-slate-400">디스코드 Webhook 연동</span>
+                  </div>
+
+                  <div 
+                    onClick={() => !exporting && handleChannelToggle('kakaotalk')}
+                    className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all flex flex-col justify-between h-20 ${
+                      selectedChannels.includes('kakaotalk')
+                        ? 'border-indigo-500 bg-indigo-50/20 text-indigo-900 shadow-sm'
+                        : 'border-slate-100 hover:border-slate-300 bg-white text-slate-600'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-[11px]">💛 개발사 카카오톡</span>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedChannels.includes('kakaotalk')}
+                        onChange={() => {}} 
+                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5"
+                      />
+                    </div>
+                    <span className="text-[9px] text-slate-450">카카오톡 채널 연동</span>
                   </div>
 
                   <div 
@@ -798,7 +820,7 @@ export default function FeedbackManagementCard() {
                   </p>
                   <div className="space-y-1 text-[10px] text-emerald-600/90 pl-4.5 font-medium">
                     {exportResults.map((r, i) => (
-                      <p key={i}>• {r.channel === 'slack' ? '슬랙' : r.channel === 'discord' ? '디스코드' : 'egdesk.cloud 사이트'}: {r.success ? '✅ 전송 성공' : `❌ 전송 실패 (${r.error})`}</p>
+                      <p key={i}>• {r.channel === 'slack' ? '슬랙' : r.channel === 'discord' ? '디스코드' : r.channel === 'kakaotalk' ? '개발사 카카오톡' : 'egdesk.cloud 사이트'}: {r.success ? '✅ 전송 성공' : `❌ 전송 실패 (${r.error})`}</p>
                     ))}
                   </div>
                 </div>

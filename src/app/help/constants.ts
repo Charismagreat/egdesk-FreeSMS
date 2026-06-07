@@ -350,8 +350,14 @@ export const FAQ_DATABASE: FAQItem[] = [
   {
     id: "sms-8",
     category: "sms",
-    question: "접수된 고객 피드백들을 한 번에 여러 채널(슬랙, 디스코드, egdesk.cloud, 이메일)로 공유하거나 발송할 수 있나요?",
-    answer: "네! 피드백 다중 선택 시 노출되는 하단 옴니채널 발송 툴바를 통해 즉석 슬랙 웹훅 전송 및 egdesk.cloud Supabase DB 실시간 적재 연동이 가능합니다."
+    question: "접수된 고객 피드백들을 한 번에 여러 채널(슬랙, 디스코드, 개발사 카카오톡, egdesk.cloud, 이메일)로 공유하거나 발송할 수 있나요?",
+    answer: "네! 피드백 다중 선택 시 노출되는 하단 옴니채널 발송 툴바를 통해 슬랙, 디스코드 웹훅 전송은 물론, 개발사 카카오톡 채널 및 egdesk.cloud Supabase DB 실시간 적재 연동이 가능합니다."
+  },
+  {
+    id: "sms-11",
+    category: "sms",
+    question: "이지봇(EasyBot) 위젯에서 '개발사 카카오톡으로 전송하기'를 누르면 어디로 가나요?",
+    answer: "이지봇 위젯에서 피드백과 함께 스크린샷/화면녹화를 첨부하여 전송하면, 로컬 시스템 저장뿐만 아니라 개발사 웹사이트(egdesk.cloud)의 Supabase DB로도 실시간 자동 동기화되어 즉각 접수 처리됩니다."
   },
   {
     id: "sms-9",
