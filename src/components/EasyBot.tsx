@@ -1302,37 +1302,59 @@ export default function EasyBot() {
   const handleCaptureScreenshot = async () => {
     const disabledSheets: CSSStyleSheet[] = [];
 
-    // 1. html2canvas의 CSS 파서가 lab(), oklch() 등 최신 CSS 색상 함수를 분석하다 터지는 버그 우회 패치
+    // 1. html2canvas의 CSS 파서가 lab(), oklch() 등 최신 CSS 색상 함수를 분석하다 터지는 버그 우회 패치 (3차 고도화)
     try {
       for (let i = 0; i < document.styleSheets.length; i++) {
         const sheet = document.styleSheets[i];
         try {
-          let hasUnsupportedColors = false;
+          let shouldDisable = false;
+
+          // A. 크롬 확장 프로그램(Dark Reader 등) 주입 스타일 시트 식별 및 비활성화
+          if (sheet.href) {
+            const href = sheet.href.toLowerCase();
+            if (href.startsWith('chrome-extension:') || href.includes('darkreader') || href.includes('extension')) {
+              shouldDisable = true;
+            }
+          }
           
-          // 내부 규칙(cssRules) 순회 검사
-          const rules = sheet.cssRules || sheet.rules;
-          if (rules) {
+          let rules: CSSRuleList | null = null;
+          try {
+            rules = sheet.cssRules || sheet.rules;
+          } catch (e) {
+            // B. CORS 제약이 발생하는 외부/확장프로그램 스타일시트 일시 비활성화
+            // (html2canvas가 분석할 때 파싱 중단을 유발할 가능성이 큰 동일 도메인 외부 시트 등도 보안 에러 시 일시 차단)
+            shouldDisable = true;
+          }
+
+          if (rules && !shouldDisable) {
+            // C. 내부 스타일 룰 검사하여 미지원 최신 색상 함수 검출
             for (let j = 0; j < rules.length; j++) {
-              const cssText = rules[j].cssText.toLowerCase();
-              if (
-                cssText.includes('lab(') || 
-                cssText.includes('oklch(') || 
-                cssText.includes('oklab(') || 
-                cssText.includes('lch(')
-              ) {
-                hasUnsupportedColors = true;
-                break;
+              const rule = rules[j];
+              try {
+                if (rule && rule.cssText) {
+                  const cssText = rule.cssText.toLowerCase();
+                  if (
+                    cssText.includes('lab(') || 
+                    cssText.includes('oklch(') || 
+                    cssText.includes('oklab(') || 
+                    cssText.includes('lch(')
+                  ) {
+                    shouldDisable = true;
+                    break;
+                  }
+                }
+              } catch (ruleErr) {
+                // 특정 @import 등 접근 불가 룰 무시
               }
             }
           }
 
-          if (hasUnsupportedColors) {
+          if (shouldDisable) {
             sheet.disabled = true;
             disabledSheets.push(sheet);
           }
         } catch (sheetErr) {
-          // 외부 도메인 스타일시트 등 CORS 보안 제약으로 cssRules에 접근하지 못하는 경우 안전하게 스킵.
-          // (CORS 제한 시트의 경우 html2canvas도 규칙 분석을 건너뛰므로 에러를 내지 않습니다.)
+          // 개별 스타일시트 조사 예외 방어
         }
       }
     } catch (err) {
