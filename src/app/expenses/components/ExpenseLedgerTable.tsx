@@ -176,7 +176,10 @@ export default function ExpenseLedgerTable({
         {/* 1층: 기간 피커 & 실시간 검색창 */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 bg-slate-50/50 p-4 border border-slate-100 rounded-2xl">
           {/* 기간 필터 */}
-          <div className="xl:col-span-2 space-y-2 text-left">
+          <div 
+            data-easybot-hint="품의서 일자 범위 설정: 지출 전표의 품의일자를 기준으로 대장에 노출할 기간 범위를 지정합니다. 달력을 통해 시작일과 종료일을 지정하거나, 우측의 '오늘', '1주일', '1개월', '3개월' 단축 버튼을 사용하여 빠르게 설정할 수 있습니다."
+            className="xl:col-span-2 space-y-2 text-left"
+          >
             <label className="text-[10px] font-extrabold text-slate-500 flex items-center gap-1">
               <Calendar className="w-3.5 h-3.5 text-slate-400" />
               품의서 일자 범위 설정
@@ -238,7 +241,10 @@ export default function ExpenseLedgerTable({
           </div>
 
           {/* 검색창 */}
-          <div className="space-y-2 text-left">
+          <div 
+            data-easybot-hint="지출 대장 통합 검색: 찾고자 하는 지출 결의서의 적요(용도), 가맹점명(공급자), 혹은 적용된 태그명을 입력하여 실시간으로 필터링 검색을 수행합니다."
+            className="space-y-2 text-left"
+          >
             <label className="text-[10px] font-extrabold text-slate-500 flex items-center gap-1">
               <Search className="w-3.5 h-3.5 text-slate-400" />
               적요/가맹점/태그 통합 검색
@@ -265,7 +271,10 @@ export default function ExpenseLedgerTable({
         </div>
 
         {/* 2층: 카테고리 필터 피드 */}
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div 
+          data-easybot-hint="계정과목(비목)별 필터 탭: 현재 기간 및 검색 조건에 맞는 지출 항목들을 복리후생비, 여비교통비 등 계정과목별로 분류하여 탭 형태로 보여줍니다. 특정 계정과목 탭을 클릭하면 해당 비목의 지출만 모아서 볼 수 있습니다."
+          className="flex flex-wrap items-center gap-1.5"
+        >
           <button
             type="button"
             onClick={() => setActiveCategoryFilter("ALL")}
@@ -300,7 +309,10 @@ export default function ExpenseLedgerTable({
 
       {/* 다중 선택 일괄 제어판 */}
       {selectedIds.size > 0 && (
-        <div className="bg-rose-50 border border-rose-100 rounded-2xl p-4 flex items-center justify-between animate-fade-in shadow-3xs">
+        <div 
+          data-easybot-hint="선택 지출 일괄 삭제 기능: 대장 테이블 좌측의 체크박스를 통해 여러 개의 지출 항목을 선택한 경우 노출되며, '선택 일괄 삭제' 버튼을 클릭하면 선택된 모든 지출 전표가 한 번에 데이터베이스에서 삭제됩니다."
+          className="bg-rose-50 border border-rose-100 rounded-2xl p-4 flex items-center justify-between animate-fade-in shadow-3xs"
+        >
           <div className="flex items-center space-x-2">
             <span className="text-xs font-black text-rose-700 flex items-center">
               <AlertCircle className="w-4 h-4 mr-1 text-rose-600 shrink-0" />

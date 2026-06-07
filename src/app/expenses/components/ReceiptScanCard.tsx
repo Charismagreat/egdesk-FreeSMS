@@ -428,6 +428,7 @@ export default function ReceiptScanCard({
 
       {/* 드롭존 영역 */}
       <div 
+        data-easybot-hint="지출 영수증 파일 업로드 영역: 이곳에 지출 증빙용 이미지(PNG, JPG, WEBP)나 PDF 파일을 드래그 앤 드롭하거나 클릭하여 업로드하면, AI가 자동으로 텍스트를 인식(OCR)하여 지출 일자, 공급자명, 금액 등을 파악하고 지출 전표 생성을 도와줍니다."
         onDragOver={handleDragOver}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
@@ -772,6 +773,7 @@ export default function ReceiptScanCard({
         <div className="pt-2 flex justify-end">
           <button 
             type="button"
+            data-easybot-hint="지출 대장 즉시 등록 버튼: AI가 추출하거나 사용자가 수동으로 검수한 지출 명세(일자, 공급자, 금액, 결제수단 등)를 최종 검토한 뒤, 이 버튼을 누르면 실제 지출 대장(ledger) 데이터베이스에 정식 전표로 등록 및 보관됩니다."
             onClick={handleRegisterExpense}
             disabled={isSubmittingExpense || !newExpense.title || !newExpense.amount}
             className="px-6 py-2.5 bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700 text-white rounded-xl font-black text-xs shadow-md shadow-rose-500/10 hover:opacity-95 disabled:bg-slate-350 disabled:shadow-none transition-all cursor-pointer border-none flex items-center"

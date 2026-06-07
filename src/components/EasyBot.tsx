@@ -1079,6 +1079,30 @@ export default function EasyBot() {
     }
   }, [isOpen, messages]);
 
+  // 🧭 마우스 호버 및 입력 포커스 시 data-easybot-hint를 실시간 수집하는 전역 리스너
+  useEffect(() => {
+    const handleInteraction = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (!target) return;
+      
+      const hintElement = target.closest("[data-easybot-hint]");
+      if (hintElement) {
+        const hintText = hintElement.getAttribute("data-easybot-hint");
+        if (hintText) {
+          (window as any).currentEasyBotHint = hintText;
+        }
+      }
+    };
+
+    window.addEventListener("mouseover", handleInteraction, { passive: true });
+    window.addEventListener("focusin", handleInteraction, { passive: true });
+
+    return () => {
+      window.removeEventListener("mouseover", handleInteraction);
+      window.removeEventListener("focusin", handleInteraction);
+    };
+  }, []);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -1433,7 +1457,8 @@ export default function EasyBot() {
             content: m.content
           })),
           localStorageContext: typeof window !== 'undefined' ? { ...window.localStorage } : {},
-          currentUrl: pathname
+          currentUrl: pathname,
+          focusedUiHint: typeof window !== 'undefined' ? (window as any).currentEasyBotHint || null : null
         })
       });
 

@@ -317,6 +317,7 @@ export default function ExpenseConfigCenter({
               <label className="block text-[10px] font-extrabold text-slate-500 mb-1">월별 지출 제한 한도 (원화 ₩) *</label>
               <input 
                 type="number"
+                data-easybot-hint="월별 지출 제한 한도: 한 달 동안 사용할 총 지출 예산을 원화(₩) 단위로 입력합니다. 누적 지출이 설정한 경보 임계치에 도달하면 경보 문자가 자동 발송됩니다."
                 value={tempSettings.monthly_budget}
                 onChange={e => handleTempSettingChange('monthly_budget', Number(e.target.value))}
                 disabled={tempSettings.is_alert_enabled === 0}
@@ -328,6 +329,7 @@ export default function ExpenseConfigCenter({
               <label className="block text-[10px] font-extrabold text-slate-500 mb-1">경보 수신 연락처 (점주 번호) *</label>
               <input 
                 type="text"
+                data-easybot-hint="경보 수신 연락처: 예산 초과 경보 SMS를 수신할 담당자 또는 관리자(점주)의 휴대전화 번호를 입력합니다. 예: 010-1234-5678"
                 placeholder="예: 010-1234-5678"
                 value={tempSettings.alert_phone}
                 onChange={e => handleTempSettingChange('alert_phone', e.target.value)}
@@ -359,6 +361,7 @@ export default function ExpenseConfigCenter({
                 <span className="text-[9px] text-slate-455 font-bold">지원 변수: {"{경보임계율}"}, {"{경보금액}"}, {"{누적지출}"}, {"{월예산}"}</span>
               </div>
               <textarea 
+                data-easybot-hint="경보 문자 템플릿 문구: 예산 소모율이 임계치를 초과할 때 발송할 SMS/LMS의 내용입니다. {경보임계율}, {경보금액}, {누적지출}, {월예산}과 같은 예약어 변수들을 본문에 포함하면, 발송 시점의 실제 수치로 자동 변환되어 발송됩니다. 한글 기준 80바이트 초과 시 장문 메시지(LMS)로 처리됩니다."
                 value={tempSettings.alert_sms_template}
                 onChange={e => handleTempSettingChange('alert_sms_template', e.target.value)}
                 disabled={tempSettings.is_alert_enabled === 0}
@@ -408,7 +411,10 @@ export default function ExpenseConfigCenter({
       {/* 📂 2. 계정 과목 관리 탭 */}
       {activeConfigTab === 'category' && (
         <div className="space-y-4 animate-fade-in text-xs text-left">
-          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+          <div 
+            data-easybot-hint="계정 과목 3단계 수동 추가: 지출 결의 시 선택할 대분류(판매비와관리비, 제조/물류원가 등), 중분류(여비교통비, 복리후생비 등), 그리고 구체적인 비목인 소분류(시내교통비, 직원식대 등)를 조합하여 신규 계정 과목을 수동으로 등록합니다."
+            className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3"
+          >
             <h3 className="font-extrabold text-slate-800 text-[11px] flex items-center">
               <Sparkles className="w-3 h-3 text-rose-500 mr-1.5 animate-pulse" />
               ➕ 신규 계정 과목 3단계 추가
@@ -460,7 +466,10 @@ export default function ExpenseConfigCenter({
             </div>
           </div>
 
-          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+          <div 
+            data-easybot-hint="엑셀 계정 과목 일괄 등록: 여러 개의 계정 과목을 한 번에 등록하고 싶을 때 사용합니다. '양식 다운로드' 버튼을 클릭하여 제공되는 엑셀 템플릿(.xlsx)에 대분류, 중분류, 소분류를 기록한 뒤 파일을 이곳에 업로드하면 대량의 계정이 즉시 일괄 추가됩니다."
+            className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3"
+          >
             <div className="flex items-center justify-between">
               <h3 className="font-extrabold text-slate-800 text-[11px] flex items-center">
                 <Upload className="w-3.5 h-3.5 text-rose-500 mr-1.5" />
@@ -537,7 +546,10 @@ export default function ExpenseConfigCenter({
       {/* 🏷️ 3. 지출 태그 관리 탭 */}
       {activeConfigTab === 'tag' && (
         <div className="space-y-4 animate-fade-in text-xs text-left">
-          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+          <div 
+            data-easybot-hint="지출 태그 등록: 지출 항목에 추가적으로 표시할 커스텀 태그를 생성합니다. 예를 들어 특정 프로젝트명, 본부명, 행사 성격 등을 입력하고 등록하면 지출 작성 시 라벨로 부착하여 다차원 분석에 활용할 수 있습니다."
+            className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3"
+          >
             <h3 className="font-extrabold text-slate-800 text-[11px] flex items-center">
               <Sparkles className="w-3 h-3 text-rose-500 mr-1.5 animate-pulse" />
               ➕ 태그 등록
@@ -592,7 +604,10 @@ export default function ExpenseConfigCenter({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             
             {/* 부서 관리 */}
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+            <div 
+              data-easybot-hint="사내 부서 관리: 지출 전표 결의 시 지출 주체가 되는 기업 내부의 공식 부서들을 등록 및 삭제합니다. 이곳에 등록한 부서들은 지출 보고서 필터나 부서별 예산 분석 통계의 기준이 됩니다."
+              className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3"
+            >
               <h3 className="font-extrabold text-slate-800 text-[10.5px] border-b pb-1.5">🏢 사내 부서 관리</h3>
               <div className="flex gap-1.5">
                 <input
@@ -632,7 +647,10 @@ export default function ExpenseConfigCenter({
             </div>
 
             {/* 임직원 관리 */}
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+            <div 
+              data-easybot-hint="사내 임직원 명단 관리: 법인카드 사용자나 지출 결의를 상신하는 직원들의 이름을 관리합니다. 등록된 임직원은 지출 결의자 또는 영수증 사용자 필드에서 선택할 수 있게 됩니다."
+              className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3"
+            >
               <h3 className="font-extrabold text-slate-800 text-[10.5px] border-b pb-1.5">👥 임직원 명단 관리</h3>
               <div className="flex gap-1.5">
                 <input
@@ -672,7 +690,10 @@ export default function ExpenseConfigCenter({
             </div>
 
             {/* 프로젝트 관리 */}
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+            <div 
+              data-easybot-hint="프로젝트 및 사업명 관리: 특정 목적으로 임시 발족되거나 특별 정산이 필요한 프로젝트성 사업명을 등록합니다. 각 지출 결의 시 이 사업명을 매핑해 두면 차후 프로젝트별 원가 분석 시 대단히 유용합니다."
+              className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3"
+            >
               <h3 className="font-extrabold text-slate-800 text-[10.5px] border-b pb-1.5">🚀 프로젝트 사업명 관리</h3>
               <div className="flex gap-1.5">
                 <input
