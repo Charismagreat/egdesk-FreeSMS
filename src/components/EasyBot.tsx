@@ -1304,13 +1304,9 @@ export default function EasyBot() {
       const element = document.body;
       const canvas = await html2canvas(element, {
         useCORS: true,
-        allowTaint: true,
-        scrollX: 0,
-        scrollY: 0,
-        x: window.scrollX,
-        y: window.scrollY,
-        width: window.innerWidth,
-        height: window.innerHeight,
+        allowTaint: false, // allowTaint가 true이면 외부 이미지 렌더링 후 toDataURL()에서 보안 위반 에러(SecurityError)가 유발됩니다.
+        backgroundColor: '#ffffff', // 캡처본 배경 불투명 처리
+        logging: false,
         ignoreElements: (el) => {
           return el.classList.contains('ignore-capture') || el.id === 'easybot-widget-root' || el.getAttribute('data-easybot-widget') !== null;
         }
@@ -1320,9 +1316,9 @@ export default function EasyBot() {
       setCanvasImage(dataUrl);
       setDrawingMode('pen'); // 기본 드로잉 모드를 펜 모드로 설정
       setIsEditingScreenshot(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error('스크린샷 캡처 실패:', error);
-      alert('화면 캡처에 실패했습니다. 브라우저 권한을 확인해 주세요.');
+      alert(`화면 캡처에 실패했습니다. 상세 요인: ${error.message || error}`);
     }
   };
 
