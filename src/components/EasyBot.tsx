@@ -1652,13 +1652,15 @@ export default function EasyBot() {
                 >
                   <Bot size={16} />
                 </div>
-                <div>
-                  <h4 className="text-xs font-black text-slate-800 tracking-wide flex items-center gap-1.5">
-                    이지봇 AI 비서
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  </h4>
-                  <p className="text-[9.5px] text-slate-400 font-bold mt-0.5">EGDesk 지능형 비서 연동</p>
-                </div>
+                {isMaximized && (
+                  <div className="animate-fade-in">
+                    <h4 className="text-xs font-black text-slate-800 tracking-wide flex items-center gap-1.5">
+                      이지봇 AI 비서
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    </h4>
+                    <p className="text-[9.5px] text-slate-400 font-bold mt-0.5">EGDesk 지능형 비서 연동</p>
+                  </div>
+                )}
               </div>
 
               {/* 헤더 액션 단추 그룹 */}
