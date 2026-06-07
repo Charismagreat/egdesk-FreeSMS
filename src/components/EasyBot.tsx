@@ -1322,8 +1322,13 @@ export default function EasyBot() {
             rules = sheet.cssRules || sheet.rules;
           } catch (e) {
             // B. CORS 제약이 발생하는 외부/확장프로그램 스타일시트 일시 비활성화
-            // (html2canvas가 분석할 때 파싱 중단을 유발할 가능성이 큰 동일 도메인 외부 시트 등도 보안 에러 시 일시 차단)
-            shouldDisable = true;
+            // (다만, 로컬 프로젝트 자체 CSS인 경우 레이아웃이 완전히 깨지는 것을 막기 위해 비활성화하지 않고 보존합니다.)
+            const href = sheet.href ? sheet.href.toLowerCase() : '';
+            const isLocalProjectCss = !href || href.includes('localhost') || href.includes(window.location.host) || href.startsWith('/');
+            
+            if (!isLocalProjectCss) {
+              shouldDisable = true;
+            }
           }
 
           if (rules && !shouldDisable) {
