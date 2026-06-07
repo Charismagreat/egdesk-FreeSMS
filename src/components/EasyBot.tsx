@@ -1300,40 +1300,65 @@ export default function EasyBot() {
 
   // 📸 화면 스크린샷 캡처
   const handleCaptureScreenshot = async () => {
-    const disabledSheets: CSSStyleSheet[] = [];
+    const backupStyleElements: { el: HTMLStyleElement; originalText: string }[] = [];
+    const backupRules: { sheet: CSSStyleSheet; index: number; cssText: string }[] = [];
+    const disabledExternalSheets: CSSStyleSheet[] = [];
 
-    // 1. html2canvas의 CSS 파서가 lab(), oklch() 등 최신 CSS 색상 함수를 분석하다 터지는 버그 우회 패치 (3차 고도화)
+    // 1. html2canvas의 CSS 파서가 lab(), oklch() 등 최신 CSS 색상 함수를 분석하다 터지는 버그 우회 패치 (4차 정밀 가로채기)
     try {
-      for (let i = 0; i < document.styleSheets.length; i++) {
-        const sheet = document.styleSheets[i];
-        try {
-          let shouldDisable = false;
+      // A. 인라인 <style> 태그 내의 미지원 색상 함수 텍스트 일괄 치환 (스타일 붕괴 방지)
+      const styleElements = Array.from(document.querySelectorAll('style')) as HTMLStyleElement[];
+      styleElements.forEach((el) => {
+        if (el.textContent) {
+          const text = el.textContent;
+          if (
+            text.includes('lab(') || 
+            text.includes('oklch(') || 
+            text.includes('oklab(') || 
+            text.includes('lch(')
+          ) {
+            backupStyleElements.push({ el, originalText: text });
+            const cleanText = text
+              .replace(/lab\([^)]*\)/gi, 'transparent')
+              .replace(/oklch\([^)]*\)/gi, 'transparent')
+              .replace(/oklab\([^)]*\)/gi, 'transparent')
+              .replace(/lch\([^)]*\)/gi, 'transparent');
+            el.textContent = cleanText;
+          }
+        }
+      });
 
-          // A. 크롬 확장 프로그램(Dark Reader 등) 주입 스타일 시트 식별 및 비활성화
+      // B. adoptedStyleSheets 및 document.styleSheets를 순회하여 규칙 부분 편집
+      const sheetsToScan: CSSStyleSheet[] = [];
+      
+      // document.styleSheets 수집
+      for (let i = 0; i < document.styleSheets.length; i++) {
+        sheetsToScan.push(document.styleSheets[i]);
+      }
+      // adoptedStyleSheets (섀도우 돔 및 동적 스타일용 생성된 시트) 수집
+      if ((document as any).adoptedStyleSheets) {
+        const adopted = (document as any).adoptedStyleSheets;
+        for (let i = 0; i < adopted.length; i++) {
+          sheetsToScan.push(adopted[i]);
+        }
+      }
+
+      sheetsToScan.forEach((sheet) => {
+        try {
+          // 크롬 확장 프로그램(Dark Reader 등) 주입 외부 링크 시트는 캡처 동안 일시 비활성화
           if (sheet.href) {
             const href = sheet.href.toLowerCase();
             if (href.startsWith('chrome-extension:') || href.includes('darkreader') || href.includes('extension')) {
-              shouldDisable = true;
-            }
-          }
-          
-          let rules: CSSRuleList | null = null;
-          try {
-            rules = sheet.cssRules || sheet.rules;
-          } catch (e) {
-            // B. CORS 제약이 발생하는 외부/확장프로그램 스타일시트 일시 비활성화
-            // (다만, 로컬 프로젝트 자체 CSS인 경우 레이아웃이 완전히 깨지는 것을 막기 위해 비활성화하지 않고 보존합니다.)
-            const href = sheet.href ? sheet.href.toLowerCase() : '';
-            const isLocalProjectCss = !href || href.includes('localhost') || href.includes(window.location.host) || href.startsWith('/');
-            
-            if (!isLocalProjectCss) {
-              shouldDisable = true;
+              sheet.disabled = true;
+              disabledExternalSheets.push(sheet);
+              return;
             }
           }
 
-          if (rules && !shouldDisable) {
-            // C. 내부 스타일 룰 검사하여 미지원 최신 색상 함수 검출
-            for (let j = 0; j < rules.length; j++) {
+          const rules = sheet.cssRules || sheet.rules;
+          if (rules) {
+            // 역순 순회하여 규칙 삭제 시 인덱스 꼬임 방지
+            for (let j = rules.length - 1; j >= 0; j--) {
               const rule = rules[j];
               try {
                 if (rule && rule.cssText) {
@@ -1344,26 +1369,27 @@ export default function EasyBot() {
                     cssText.includes('oklab(') || 
                     cssText.includes('lch(')
                   ) {
-                    shouldDisable = true;
-                    break;
+                    if (typeof sheet.deleteRule === 'function') {
+                      sheet.deleteRule(j);
+                      backupRules.push({
+                        sheet,
+                        index: j,
+                        cssText: rule.cssText
+                      });
+                    }
                   }
                 }
               } catch (ruleErr) {
-                // 특정 @import 등 접근 불가 룰 무시
+                // 특정 규칙 접근 불가 에러 방어
               }
             }
           }
-
-          if (shouldDisable) {
-            sheet.disabled = true;
-            disabledSheets.push(sheet);
-          }
         } catch (sheetErr) {
-          // 개별 스타일시트 조사 예외 방어
+          // CORS 제약이 있는 외부 시트는 html2canvas도 규칙 분석을 패스하므로 안전함
         }
-      }
+      });
     } catch (err) {
-      console.warn('스타일 시트 사전 정밀 필터링 중 예외 발생:', err);
+      console.warn('스타일 시트 사전 가로채기 중 예외 발생:', err);
     }
 
     try {
@@ -1386,13 +1412,32 @@ export default function EasyBot() {
       console.error('스크린샷 캡처 실패:', error);
       alert(`화면 캡처에 실패했습니다. 상세 요인: ${error.message || error}`);
     } finally {
-      // 2. 비활성화했던 스타일 시트 즉시 복구
-      disabledSheets.forEach((sheet) => {
+      // 2. 임시 가로채기 및 변환했던 모든 규칙/스타일 시트 원복
+      // A. 인라인 <style> 텍스트 복구
+      backupStyleElements.forEach((item) => {
+        try {
+          item.el.textContent = item.originalText;
+        } catch (e) {}
+      });
+
+      // B. 임시 삭제했던 규칙 복구
+      backupRules.forEach((item) => {
+        try {
+          if (typeof item.sheet.insertRule === 'function') {
+            item.sheet.insertRule(item.cssText, item.index);
+          }
+        } catch (e) {
+          try {
+            item.sheet.insertRule(item.cssText);
+          } catch (e2) {}
+        }
+      });
+
+      // C. 비활성화했던 외부 확장 스타일 시트 복구
+      disabledExternalSheets.forEach((sheet) => {
         try {
           sheet.disabled = false;
-        } catch (e) {
-          // 복구 예외 방어
-        }
+        } catch (e) {}
       });
     }
   };
