@@ -1618,11 +1618,20 @@ export default function EasyBot() {
     }
   }, [isEditingScreenshot, canvasImage]);
 
-  // 드로잉 모드에 맞춰 캔버스 커서 강제 지정 (!important 우회)
+  // 드로잉 모드에 맞춰 캔버스 커서 강제 지정 (!important 우회 및 커스텀 SVG 포인터 탑재)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas) {
-      canvas.style.setProperty('cursor', drawingMode === 'none' ? 'default' : 'crosshair', 'important');
+      const redPencilCursor = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23ef4444' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M12 20h9'/><path d='M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z'/></svg>") 3 21, crosshair`;
+      const blurBrushCursor = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%234b5563' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21Z'/><path d='M22 21H7'/><path d='m5 11 9 9'/></svg>") 3 21, crosshair`;
+
+      let cursorValue = 'default';
+      if (drawingMode === 'pen') {
+        cursorValue = redPencilCursor;
+      } else if (drawingMode === 'blur') {
+        cursorValue = blurBrushCursor;
+      }
+      canvas.style.setProperty('cursor', cursorValue, 'important');
     }
   }, [drawingMode, isEditingScreenshot]);
 
