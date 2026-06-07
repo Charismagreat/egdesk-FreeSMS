@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { MessageSquare, Sparkles, X, Send, RotateCcw, Bot, Terminal, ShieldAlert, Maximize2, Minimize2, Mic, MicOff, Volume2, VolumeX, Camera, Mail, CheckCircle2, User, Phone, Briefcase, RefreshCw, Calendar, DollarSign, Check, FileText, Plus, Layers } from 'lucide-react';
+import { MessageSquare, Sparkles, X, Send, RotateCcw, Bot, Terminal, ShieldAlert, Maximize2, Minimize2, Mic, MicOff, Volume2, VolumeX, Camera, Mail, CheckCircle2, User, Phone, Briefcase, RefreshCw, Calendar, DollarSign, Check, FileText, Plus, Layers, MousePointerClick } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter } from 'next/navigation';
 
@@ -1033,6 +1033,9 @@ export default function EasyBot() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const [widgetOpacity, setWidgetOpacity] = useState(1.0); // 대화창 투명도 상태 (1.0, 0.8, 0.6, 0.4 순환)
+  const [autoGuideEnabled, setAutoGuideEnabled] = useState(true); // 마우스 호버 시 2.5초 후 자동 가이드 설명 모드
+
+
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'bot',
@@ -1065,6 +1068,24 @@ export default function EasyBot() {
   // 명함 파일 업로드 수입용 Ref 추가
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // 클로저 고립 문제를 차단하기 위한 최신 상태 동기화 Ref 그룹
+  const messagesRef = useRef<Message[]>([]);
+  const pathnameRef = useRef<string>('');
+  const voiceEnabledRef = useRef<boolean>(true);
+  const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
+
+  useEffect(() => {
+    voiceEnabledRef.current = voiceEnabled;
+  }, [voiceEnabled]);
+
   const scrollToBottom = () => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -1088,6 +1109,10 @@ export default function EasyBot() {
       
       // 이지봇 위젯 내부(트리거 버튼 또는 대화창 본체)에서 발생한 이벤트는 힌트 갱신을 건너뜁니다.
       if (target.closest("[data-easybot-widget]")) {
+        if (hoverTimerRef.current) {
+          clearTimeout(hoverTimerRef.current);
+          hoverTimerRef.current = null;
+        }
         return;
       }
       
@@ -1096,18 +1121,58 @@ export default function EasyBot() {
         const hintText = hintElement.getAttribute("data-easybot-hint");
         if (hintText) {
           (window as any).currentEasyBotHint = hintText;
+
+          // 자동 가이드 모드가 활성화되어 있고 마우스가 호버한 상태라면 2.5초 후 자동 질문 트리거 시동
+          if (autoGuideEnabled && e.type === "mouseover") {
+            if (hoverTimerRef.current) {
+              clearTimeout(hoverTimerRef.current);
+            }
+            hoverTimerRef.current = setTimeout(() => {
+              triggerAutoQuery(hintText);
+            }, 2500);
+          }
         }
+      }
+    };
+
+    const handleMouseOut = (e: MouseEvent) => {
+      // 마우스가 힌트 요소 영역을 벗어나 이동하면 예방 차원에서 타이머를 클리어합니다.
+      if (hoverTimerRef.current) {
+        clearTimeout(hoverTimerRef.current);
+        hoverTimerRef.current = null;
       }
     };
 
     window.addEventListener("mouseover", handleInteraction, { passive: true });
     window.addEventListener("focusin", handleInteraction, { passive: true });
+    window.addEventListener("mouseout", handleMouseOut, { passive: true });
 
     return () => {
       window.removeEventListener("mouseover", handleInteraction);
       window.removeEventListener("focusin", handleInteraction);
+      window.removeEventListener("mouseout", handleMouseOut);
+      if (hoverTimerRef.current) {
+        clearTimeout(hoverTimerRef.current);
+      }
     };
-  }, []);
+  }, [autoGuideEnabled]);
+
+  const getQueryFromHint = (hint: string): string => {
+    const parts = hint.split(":");
+    if (parts.length > 0 && parts[0].trim().length < 30) {
+      return `이 부분(${parts[0].trim()})은 어떻게 사용해?`;
+    }
+    return "이 부분은 어떻게 사용해?";
+  };
+
+  const triggerAutoQuery = async (hintText: string) => {
+    if (typeof window !== 'undefined') {
+      (window as any).currentEasyBotHint = hintText;
+    }
+    setIsOpen(true);
+    const autoQuery = getQueryFromHint(hintText);
+    await sendUserMessage(autoQuery);
+  };
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -1427,23 +1492,20 @@ export default function EasyBot() {
     ]);
   };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputVal.trim() || isLoading) return;
+  const sendUserMessage = async (textToSend: string) => {
+    if (!textToSend.trim() || isLoading) return;
 
-    const userText = inputVal;
-    setInputVal('');
     setIsLoading(true);
     stopSpeaking();
 
     const timeStr = formatTimestamp();
 
-    // 1. 유저 메시지 적재
+    // 1. 유저 메시지 적재 (stale closure 방지를 위해 messagesRef.current 참조)
     const updatedMessages = [
-      ...messages,
+      ...messagesRef.current,
       {
         role: 'user' as const,
-        content: userText,
+        content: textToSend,
         timestamp: timeStr
       }
     ];
@@ -1457,13 +1519,13 @@ export default function EasyBot() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          prompt: userText,
+          prompt: textToSend,
           chatHistory: updatedMessages.map(m => ({
             role: m.role,
             content: m.content
           })),
           localStorageContext: typeof window !== 'undefined' ? { ...window.localStorage } : {},
-          currentUrl: pathname,
+          currentUrl: pathnameRef.current,
           focusedUiHint: typeof window !== 'undefined' ? (window as any).currentEasyBotHint || null : null
         })
       });
@@ -1485,7 +1547,9 @@ export default function EasyBot() {
         ]);
 
         // 4. 주의/경고사항 감지 및 요약 오디오 재생
-        speakImportantNotesOnly(data.reply || data.answer);
+        if (voiceEnabledRef.current) {
+          speakImportantNotesOnly(data.reply || data.answer);
+        }
 
         // 5. 서버 측에서 화면 새로고침(redirect) 요령이 있으면 반응 처리
         if (data.redirectUrl) {
@@ -1520,6 +1584,15 @@ export default function EasyBot() {
         }
       }, 50);
     }
+  };
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputVal.trim() || isLoading) return;
+
+    const userText = inputVal;
+    setInputVal('');
+    await sendUserMessage(userText);
   };
 
   // textarea 높이 동적 자동 조절 (Auto-growing)
@@ -1590,6 +1663,18 @@ export default function EasyBot() {
 
               {/* 헤더 액션 단추 그룹 */}
               <div className="flex items-center gap-1">
+                {/* 호버 자동 가이드 토글 버튼 */}
+                <button
+                  type="button"
+                  onClick={() => setAutoGuideEnabled(!autoGuideEnabled)}
+                  className={`p-2 rounded-xl transition-colors flex items-center gap-1 border-none bg-transparent cursor-pointer ${
+                    autoGuideEnabled ? 'text-violet-650 bg-violet-50 hover:bg-violet-100' : 'text-slate-400 hover:bg-slate-50'
+                  }`}
+                  title={autoGuideEnabled ? "마우스 호버 자동 가이드 활성화 (2.5초 호버 시 자동 설명)" : "마우스 호버 자동 가이드 꺼짐"}
+                >
+                  <MousePointerClick size={15} />
+                  <span className="text-[9.5px] font-black">{autoGuideEnabled ? "ON" : "OFF"}</span>
+                </button>
                 {/* 투명도 조절 순환 토글 버튼 */}
                 <button
                   type="button"
