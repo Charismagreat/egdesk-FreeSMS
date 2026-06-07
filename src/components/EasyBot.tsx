@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { MessageSquare, Sparkles, X, Send, RotateCcw, Bot, Terminal, ShieldAlert, Maximize2, Minimize2, Mic, MicOff, Volume2, VolumeX, Camera, Mail, CheckCircle2, User, Phone, Briefcase, RefreshCw, Calendar, DollarSign, Check, FileText, Plus } from 'lucide-react';
+import { MessageSquare, Sparkles, X, Send, RotateCcw, Bot, Terminal, ShieldAlert, Maximize2, Minimize2, Mic, MicOff, Volume2, VolumeX, Camera, Mail, CheckCircle2, User, Phone, Briefcase, RefreshCw, Calendar, DollarSign, Check, FileText, Plus, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter } from 'next/navigation';
 
@@ -1032,6 +1032,7 @@ function LicensePreviewMessage({ tagContent, onConfirmSuccess }: { tagContent: s
 export default function EasyBot() {
   const [isOpen, setIsOpen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
+  const [widgetOpacity, setWidgetOpacity] = useState(1.0); // 대화창 투명도 상태 (1.0, 0.8, 0.6, 0.4 순환)
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'bot',
@@ -1565,8 +1566,9 @@ export default function EasyBot() {
             exit={{ opacity: 0, y: 50, scale: 0.95 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             className={`fixed bottom-24 right-6 z-40 bg-white rounded-3xl border border-slate-200/90 shadow-2xl overflow-hidden flex flex-col transition-all duration-300 ${
-              isMaximized ? 'w-[85vw] h-[85vh] sm:w-[60vw] sm:h-[80vh]' : 'w-[92vw] h-[72vh] sm:w-[400px] sm:h-[550px]'
+              isMaximized ? 'w-[94vw] h-[92vh] sm:w-[68vw] sm:h-[88vh]' : 'w-[92vw] h-[72vh] sm:w-[400px] sm:h-[550px]'
             }`}
+            style={{ opacity: widgetOpacity }}
           >
             {/* 헤더 바 */}
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 to-indigo-50/20">
@@ -1588,6 +1590,20 @@ export default function EasyBot() {
 
               {/* 헤더 액션 단추 그룹 */}
               <div className="flex items-center gap-1">
+                {/* 투명도 조절 순환 토글 버튼 */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextMap: Record<number, number> = { 1.0: 0.8, 0.8: 0.6, 0.6: 0.4, 0.4: 1.0 };
+                    setWidgetOpacity(nextMap[widgetOpacity] || 1.0);
+                  }}
+                  className="p-2 rounded-xl text-slate-450 hover:bg-slate-105 hover:text-slate-700 transition-colors flex items-center gap-1 border-none bg-transparent cursor-pointer"
+                  title={`대화창 투명도 조절 (현재: ${Math.round(widgetOpacity * 100)}%)`}
+                >
+                  <Layers size={15} />
+                  <span className="text-[9.5px] font-black text-slate-550">{Math.round(widgetOpacity * 100)}%</span>
+                </button>
+
                 {/* 오디오 소리 조절 버튼 */}
                 <button
                   onClick={() => {
