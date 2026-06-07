@@ -1085,6 +1085,11 @@ export default function EasyBot() {
       const target = e.target as HTMLElement;
       if (!target) return;
       
+      // 이지봇 위젯 내부(트리거 버튼 또는 대화창 본체)에서 발생한 이벤트는 힌트 갱신을 건너뜁니다.
+      if (target.closest("[data-easybot-widget]")) {
+        return;
+      }
+      
       const hintElement = target.closest("[data-easybot-hint]");
       if (hintElement) {
         const hintText = hintElement.getAttribute("data-easybot-hint");
@@ -1536,6 +1541,7 @@ export default function EasyBot() {
     <>
       {/* 1. 이지봇 플로팅 트리거 단추 (Harmonic Indigo 그라데이션) */}
       <button
+        data-easybot-widget="trigger"
         onClick={() => {
           setIsOpen(!isOpen);
           stopSpeaking();
@@ -1553,6 +1559,7 @@ export default function EasyBot() {
       <AnimatePresence>
         {isOpen && (
           <motion.div
+            data-easybot-widget="panel"
             initial={{ opacity: 0, y: 50, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 50, scale: 0.95 }}
