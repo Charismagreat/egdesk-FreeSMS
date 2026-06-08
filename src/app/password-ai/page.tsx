@@ -391,29 +391,25 @@ export default function PasswordAiPage() {
   };
 
   return (
-    <main className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
-      {/* 🚀 상단 헤더 영역 */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-650 rounded-3xl p-6 md:p-8 text-white shadow-lg relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-white/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <h1 className="text-2xl md:text-3xl font-black flex items-center gap-3">
-              <Lock className="w-8 h-8 text-yellow-300 animate-pulse" />
-              비밀번호관리 AI
-            </h1>
-            <p className="text-xs md:text-sm text-blue-100 font-medium max-w-2xl leading-relaxed">
-              사내 중요 기기, 문서 금고, 웹 서비스 관리자 계정을 중앙에서 암호화 보관합니다.
-              담당 직원의 갑작스러운 휴가나 퇴사 시 최고관리자 이중 통제(Dual-Auth) 결재 프로세스를 통해 업무 마비를 방지합니다.
-            </p>
-          </div>
-          <button 
-            onClick={openCreateModal}
-            className="flex items-center justify-center gap-2 px-6 py-3.5 bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-black rounded-2xl text-sm transition-all transform hover:scale-[1.03] active:scale-95 shadow-md shrink-0 self-start md:self-center"
-          >
-            <Plus className="w-4.5 h-4.5" />
-            신규 기밀 자산 등록
-          </button>
+    <main className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in text-left">
+      {/* 헤더 및 타이틀 */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div className="text-left">
+          <h1 className="text-3xl font-black text-slate-900 flex items-center tracking-tight">
+            <Lock className="w-8 h-8 text-indigo-650 mr-3 animate-pulse" />
+            비밀번호관리 AI
+          </h1>
+          <p className="text-xs font-semibold text-slate-500 mt-1">
+            사내 중요 기기, 문서 금고, 웹 서비스 관리자 계정을 중앙에서 암호화 보관합니다. 담당 직원의 갑작스러운 휴가나 퇴사 시 최고관리자 이중 통제(Dual-Auth) 결재 프로세스를 통해 업무 마비를 방지합니다.
+          </p>
         </div>
+        <button 
+          onClick={openCreateModal}
+          className="flex items-center gap-1.5 px-4.5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-bold shadow-2xs transition-colors shrink-0 cursor-pointer"
+        >
+          <Plus className="w-4 h-4" />
+          신규 기밀 자산 등록
+        </button>
       </div>
 
       {/* 📊 메인 지표 & AI 리스크 보드 */}

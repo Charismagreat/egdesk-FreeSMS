@@ -32,49 +32,56 @@ export default function CreditRiskPage() {
   const selectedPartner = stats.find(s => s.id === selectedPartnerId) || null;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in text-left">
       
-      {/* --- 상단 헤더 섹션 (Wow 디자인) --- */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-950 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden">
-        {/* 장식용 오로라 구체 */}
-        <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
-        <div className="absolute bottom-0 left-1/3 w-60 h-60 bg-rose-500/5 rounded-full blur-3xl pointer-events-none" />
+      {/* 헤더 및 타이틀 */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div className="text-left">
+          <h1 className="text-3xl font-black text-slate-900 flex items-center tracking-tight">
+            <Coins className="w-8 h-8 text-indigo-650 mr-3" />
+            채권 관리 AI
+          </h1>
+          <p className="text-xs font-semibold text-slate-500 mt-1">
+            B2B 매출채권의 지연 및 부도 리스크를 머신러닝 기반 신용점수로 진단하고, 공정채권추심법 가이드라인을 통과한 SMS 자동 독촉 및 최고장 인쇄 솔루션을 제공합니다.
+          </p>
+        </div>
+      </div>
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2 text-left">
-            <div className="flex items-center gap-2">
-              <span className="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[9px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1 uppercase tracking-wide">
-                <Sparkles className="w-3 h-3 text-indigo-450" /> AI Credit Risk Advisor
-              </span>
-            </div>
-            <h1 className="text-xl md:text-2xl font-black tracking-tight flex items-center gap-2">
-              <Coins className="w-6 h-6 text-indigo-400" /> 채권 관리 AI
-            </h1>
-            <p className="text-xs text-indigo-200/80 font-bold max-w-xl">
-              B2B 매출채권의 지연 및 부도 리스크를 머신러닝 기반 신용점수로 진단하고, 공정채권추심법 가이드라인을 통과한 SMS 자동 독촉 및 최고장 인쇄 솔루션을 제공합니다.
-            </p>
+      {/* 주요 통계 요약 스코어카드 */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center justify-between gap-4 text-left">
+          <div className="space-y-1.5">
+            <span className="text-xs text-slate-400 font-extrabold block">관리 거래처</span>
+            <span className="text-2xl font-black text-slate-800 font-mono">
+              {totalPartners} <span className="text-xs text-slate-400 font-bold">개사</span>
+            </span>
           </div>
+          <div className="p-3.5 rounded-2xl bg-indigo-50/50">
+            <Coins className="w-8 h-8 text-indigo-500" />
+          </div>
+        </div>
 
-          {/* 주요 통계 요약 (Dashboard Hero Stats) */}
-          <div className="grid grid-cols-3 gap-3 md:gap-6 bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl p-4 shrink-0 text-left">
-            <div>
-              <span className="block text-[8px] text-indigo-300 font-black">관리 거래처</span>
-              <span className="text-sm md:text-base font-black font-mono text-white">
-                {totalPartners} <span className="text-[10px] text-indigo-200">개사</span>
-              </span>
-            </div>
-            <div>
-              <span className="block text-[8px] text-rose-350 font-black">부도 고위험군</span>
-              <span className="text-sm md:text-base font-black font-mono text-rose-450">
-                {criticalCount} <span className="text-[10px] text-rose-350">개사</span>
-              </span>
-            </div>
-            <div>
-              <span className="block text-[8px] text-amber-300 font-black">수금 경고/주의</span>
-              <span className="text-sm md:text-base font-black font-mono text-amber-400">
-                {warningCount} <span className="text-[10px] text-amber-300">개사</span>
-              </span>
-            </div>
+        <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center justify-between gap-4 text-left">
+          <div className="space-y-1.5">
+            <span className="text-xs text-slate-400 font-extrabold block">부도 고위험군</span>
+            <span className="text-2xl font-black text-rose-550 font-mono">
+              {criticalCount} <span className="text-xs text-rose-350 font-bold">개사</span>
+            </span>
+          </div>
+          <div className="p-3.5 rounded-2xl bg-rose-50/50">
+            <ShieldAlert className="w-8 h-8 text-rose-500 animate-pulse" />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm flex items-center justify-between gap-4 text-left">
+          <div className="space-y-1.5">
+            <span className="text-xs text-slate-400 font-extrabold block">수금 경고/주의</span>
+            <span className="text-2xl font-black text-amber-550 font-mono">
+              {warningCount} <span className="text-xs text-amber-300 font-bold">개사</span>
+            </span>
+          </div>
+          <div className="p-3.5 rounded-2xl bg-amber-50/50">
+            <AlertCircle className="w-8 h-8 text-amber-500" />
           </div>
         </div>
       </div>
