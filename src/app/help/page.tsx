@@ -33,6 +33,7 @@ export default function FAQHelpCenterPage() {
         if (q === "ㅈㄹ" && str.includes("적립")) return true;
         if (q === "ㅋㅍ" && str.includes("쿠폰")) return true;
         if (q === "ㅅㅇㅈ" && (str.includes("사업자") || str.includes("등록증"))) return true;
+        if (q === "ㅈㅁㅈㅍ" && (str.includes("재무") || str.includes("제표"))) return true;
         if (q === "ㅇㅈㅂ" && str.includes("이지봇")) return true;
         if (q === "ㄱㅌ" && str.includes("근태")) return true;
         if (q === "ㄱㅇ" && str.includes("급여")) return true;
