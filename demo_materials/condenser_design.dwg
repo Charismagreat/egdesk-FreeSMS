@@ -1,0 +1,17 @@
+# AutoCAD DWG dummy file for (주)제이제이인터내셔널
+# Project: Aluminum Air Conditioner Condenser Type A Design
+# Code: PROD-AG-05
+# Specification: Aluminum Fin Type Heat Exchanger, Assembly for Avante CN7 & Sorento MQ4
+# Dimensions: 650mm x 400mm x 16mm
+# Material Spec: Al 6061-T6
+# Weight: 2.4kg
+# Design Date: 2026-03-15
+# Designer: 최민수 (R&D Center Research Assistant)
+
+# BOM List:
+# 1. Aluminum Fin (Al 6061-T6, 2.0T) - 150ea (Item: RAW-ALUM-01)
+# 2. Copper Pipe (Ø8.0mm) - 12m
+# 3. Side Bracket (Steel) - 2ea
+# 4. Inlet/Outlet Connector (Al) - 1set
+# 5. Header Pipe (Al) - 2ea
+# 6. Mounting Brackets - 4ea

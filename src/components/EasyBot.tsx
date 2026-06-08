@@ -839,7 +839,7 @@ function MedicalPreviewCard({ tagContent, onConfirmSuccess }: { tagContent: stri
         ) : (
           <button
             onClick={handleConfirmSubmit}
-            disabled={saving || !operatorId || !startDate || !endDate}
+            disabled={saving}
             className="w-full py-2.5 text-xs font-bold text-white rounded-xl shadow-md hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer border-none"
             style={{ backgroundColor: '#7c3aed' }}
           >
@@ -3974,7 +3974,7 @@ export default function EasyBot() {
           ...prev,
           {
             role: 'user',
-            content: '📷 명함 이미지를 스캔하여 등록해 주세요.',
+            content: '',
             timestamp: timeStr,
             isCardPhoto: true,
             isPdfFile: false,
@@ -4148,6 +4148,16 @@ export default function EasyBot() {
                 updated.push({
                   role: 'bot',
                   content: `[LEGAL_PREVIEW:${JSON.stringify(legalPayload)}]`,
+                  timestamp: formatTimestamp()
+                });
+              } else if (item.itemType === 'INVENTORY_INBOUND') {
+                const inboundPayload = {
+                  data: item.data,
+                  inventoryItemsList: data.inventoryItemsList || []
+                };
+                updated.push({
+                  role: 'bot',
+                  content: `[INBOUND_PREVIEW:${JSON.stringify(inboundPayload)}]`,
                   timestamp: formatTimestamp()
                 });
               }

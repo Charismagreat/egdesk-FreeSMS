@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ScmShipment } from "../../scm-management/types";
+import { ScmShipment } from "../../../scm-management/types";
 import { Phone, MessageSquare, AlertTriangle, Check, RefreshCcw, Landmark, Ship, Truck, CheckSquare } from "lucide-react";
 
 interface MobileScmTrackerCardProps {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { CreditRiskStats, CreditSummary } from "../../credit-risk/types";
+import { CreditRiskStats, CreditSummary } from "../../../credit-risk/types";
 
 export function useMobileCredit() {
   const [stats, setStats] = useState<CreditRiskStats[]>([]);

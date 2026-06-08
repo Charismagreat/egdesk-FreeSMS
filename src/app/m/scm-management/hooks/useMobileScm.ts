@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { ScmShipment, ScmSupplier } from "../../scm-management/types";
+import { ScmShipment, ScmSupplier } from "../../../scm-management/types";
 
 export function useMobileScm() {
   const [isLoading, setIsLoading] = useState(true);

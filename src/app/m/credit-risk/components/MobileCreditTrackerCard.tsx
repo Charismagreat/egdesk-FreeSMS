@@ -1,5 +1,5 @@
 import React from "react";
-import { CreditRiskStats } from "../../credit-risk/types";
+import { CreditRiskStats } from "../../../credit-risk/types";
 import { Phone, MessageSquare, AlertTriangle, Share2, Coins } from "lucide-react";
 
 interface MobileCreditTrackerCardProps {
