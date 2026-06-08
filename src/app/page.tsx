@@ -49,7 +49,7 @@ export default async function Home() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-slate-800">대시보드</h1>
+        <h1 className="text-3xl font-bold text-slate-800">모바일 채널</h1>
         <div className="text-sm text-slate-500 bg-white px-4 py-2 rounded-full shadow-sm">
           연동 상태: <span className="text-green-500 font-semibold">정상 (Google 메시지)</span>
         </div>

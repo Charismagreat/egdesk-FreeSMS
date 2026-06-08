@@ -7,7 +7,7 @@ import { queryTable, insertRows, deleteRows } from '../../../../../egdesk-helper
 
 // 기본 25개 메뉴 정의 (24개 기본 메뉴 + 1개 AI 브리핑)
 const DEFAULT_MENU_ITEMS = [
-  { href: "/", label: "대시보드" },
+  { href: "/", label: "모바일 채널" },
   { href: "/sms", label: "무료 문자 발송 AI" },
   { href: "/message-logs", label: "발송 내역 조회" },
   { href: "/automation", label: "자동 발송 설정" },

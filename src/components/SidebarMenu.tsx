@@ -60,7 +60,7 @@ function YoutubeIcon({ className = "w-5 h-5" }: { className?: string }) {
 
 // 메뉴 메타데이터 정적 맵 정의
 const MENU_STATIC_MAP: Record<string, { label: string; icon: any; color: string }> = {
-  "/": { label: "대시보드", icon: Home, color: "text-blue-400" },
+  "/": { label: "모바일 채널", icon: Home, color: "text-blue-400" },
   "/sms": { label: "무료 문자 발송 AI", icon: MessageSquare, color: "text-purple-400" },
   "/message-logs": { label: "발송 내역 조회", icon: Send, color: "text-purple-400" },
   "/automation": { label: "자동 발송 설정", icon: Zap, color: "text-yellow-400" },
