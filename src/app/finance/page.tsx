@@ -17,6 +17,7 @@ import FinanceAccountsTab from "./components/FinanceAccountsTab";
 import FinanceCardsTab from "./components/FinanceCardsTab";
 import FinanceHometaxTab from "./components/FinanceHometaxTab";
 import FinanceSyncTab from "./components/FinanceSyncTab";
+import FinanceMatchingTab from "./components/FinanceMatchingTab";
 
 // 비즈니스 로직 커스텀 훅 임포트
 import { useFinance } from "./hooks/useFinance";
@@ -72,6 +73,9 @@ export default function FinancePage() {
     syncHistory,
     hometaxSync,
     dbCategories,
+    matchingList,
+    matchingStatus,
+    setMatchingStatus,
     totalCount,
     currentPage,
     setCurrentPage,
@@ -287,6 +291,22 @@ export default function FinancePage() {
           {/* TAB 4: 금융 동기화 역사 */}
           {activeTab === "sync" && (
             <FinanceSyncTab syncHistory={syncHistory} hometaxSync={hometaxSync} />
+          )}
+
+          {/* TAB 5: 수금/지급 대조 AI */}
+          {activeTab === "matching" && (
+            <FinanceMatchingTab
+              matchingList={matchingList}
+              loading={loading}
+              matchingStatus={matchingStatus}
+              setMatchingStatus={setMatchingStatus}
+              invoiceType={invoiceType}
+              totalCount={totalCount}
+              currentPage={currentPage}
+              pageSize={pageSize}
+              setPageSize={setPageSize}
+              setCurrentPage={setCurrentPage}
+            />
           )}
         </motion.div>
       </AnimatePresence>

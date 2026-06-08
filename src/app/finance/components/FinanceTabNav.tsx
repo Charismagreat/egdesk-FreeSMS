@@ -1,12 +1,12 @@
 "use client";
 
 import React from "react";
-import { Landmark, CreditCard, Receipt, RefreshCw } from "lucide-react";
+import { Landmark, CreditCard, Receipt, RefreshCw, TrendingUp } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface FinanceTabNavProps {
-  activeTab: "accounts" | "cards" | "hometax" | "sync";
-  setActiveTab: (tab: "accounts" | "cards" | "hometax" | "sync") => void;
+  activeTab: "accounts" | "cards" | "hometax" | "sync" | "matching";
+  setActiveTab: (tab: "accounts" | "cards" | "hometax" | "sync" | "matching") => void;
 }
 
 export default function FinanceTabNav({ activeTab, setActiveTab }: FinanceTabNavProps) {
@@ -52,6 +52,21 @@ export default function FinanceTabNav({ activeTab, setActiveTab }: FinanceTabNav
           <Receipt className="w-4.5 h-4.5" />
           국세청 홈택스 자료
           {activeTab === "hometax" && (
+            <motion.div
+              layoutId="activeTabUnderline"
+              className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600"
+            />
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab("matching")}
+          className={`pb-3 text-sm font-bold flex items-center gap-2 relative transition-colors ${
+            activeTab === "matching" ? "text-blue-600" : "text-slate-400 hover:text-slate-600"
+          }`}
+        >
+          <TrendingUp className="w-4.5 h-4.5" />
+          수금/지급 대조 AI 📈
+          {activeTab === "matching" && (
             <motion.div
               layoutId="activeTabUnderline"
               className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600"

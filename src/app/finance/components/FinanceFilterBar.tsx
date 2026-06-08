@@ -9,7 +9,7 @@ interface FinanceFilterBarProps {
   endDate: string;
   isDateManuallySet: boolean;
   searchText: string;
-  activeTab: "accounts" | "cards" | "hometax" | "sync";
+  activeTab: "accounts" | "cards" | "hometax" | "sync" | "matching";
   hometaxSubTab: "invoice" | "exempt" | "cash";
   invoiceType: "all" | "sales" | "purchase";
   setStartDate: (date: string) => void;
@@ -117,7 +117,7 @@ export default function FinanceFilterBar({
 
         {/* 통합 검색어 바 */}
         <div className="flex items-center gap-3 w-full lg:w-auto">
-          {activeTab === "hometax" && hometaxSubTab !== "cash" && (
+          {((activeTab === "hometax" && hometaxSubTab !== "cash") || activeTab === "matching") && (
             <select
               value={invoiceType}
               onChange={(e: any) => setInvoiceType(e.target.value)}
@@ -138,6 +138,8 @@ export default function FinanceFilterBar({
                   ? "거래처, 적요 검색..."
                   : activeTab === "cards"
                   ? "가맹점명 검색..."
+                  : activeTab === "matching"
+                  ? "공급자, 공급받는자, 품목명 검색..."
                   : "공급자, 공급받는자, 품목명 검색..."
               }
               value={searchText}

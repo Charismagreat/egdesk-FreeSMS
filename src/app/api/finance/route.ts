@@ -162,7 +162,7 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get("startDate") || undefined;
     const endDate = searchParams.get("endDate") || undefined;
     const searchText = searchParams.get("searchText") || undefined;
-    const invoiceType = (searchParams.get("invoiceType") as "sales" | "purchase") || undefined;
+    const invoiceType = (searchParams.get("invoiceType") as "sales" | "purchase" | "all") || undefined;
     const limit = Number(searchParams.get("limit")) || 30;
     const offset = Number(searchParams.get("offset")) || 0;
 
@@ -519,7 +519,7 @@ export async function GET(request: NextRequest) {
 
       try {
         const taxInvoices = await queryTaxInvoices({
-          invoiceType,
+          invoiceType: invoiceType === "all" ? undefined : invoiceType,
           startDate,
           endDate,
           limit,
@@ -626,7 +626,7 @@ export async function GET(request: NextRequest) {
 
       try {
         const exemptInvoices = await queryTaxExemptInvoices({
-          invoiceType,
+          invoiceType: invoiceType === "all" ? undefined : invoiceType,
           startDate,
           endDate,
           limit,
@@ -1113,6 +1113,210 @@ export async function GET(request: NextRequest) {
           months: [m0Str, m1Str, m2Str],
           cardSummary: Object.values(cardMap),
           hometaxSummary
+        }
+      });
+    }
+
+    // 9. 이카운트 계산서 ↔ 입출금 DB 수금 대조 조회
+    if (tab === "matching") {
+      const matchStatus = searchParams.get("status") || "all"; // 'all' | 'matched' | 'unmatched'
+      const invoiceType = searchParams.get("invoiceType") || "all"; // 'all' | 'sales' | 'purchase'
+      
+      let list: any[] = [];
+      let total = 0;
+      
+      try {
+        const Database = require("better-sqlite3");
+        const os = require("os");
+        const path = require("path");
+        const fs = require("fs");
+
+        const homeDir = os.homedir();
+        const appData = process.env.APPDATA || path.join(homeDir, "AppData/Roaming");
+        const paths = [
+          path.join(appData, "EGDesk/database/financehub.db"),
+          path.join(appData, "egdesk/database/financehub.db")
+        ];
+        
+        let targetPath = "";
+        for (const p of paths) {
+          if (fs.existsSync(p)) {
+            targetPath = p;
+            break;
+          }
+        }
+        
+        if (targetPath) {
+          const db = new Database(targetPath);
+          
+          // 기본 매칭 쿼리를 서브쿼리로 정의하고, 외부에서 필터링(WHERE)과 페이징 적용
+          let baseQuery = `
+            WITH combined_invoices AS (
+              SELECT 
+                'tax' AS source_table, 
+                id, 
+                invoice_type, 
+                작성일자, 
+                공급자사업자등록번호,
+                공급자상호, 
+                공급받는자사업자등록번호,
+                공급받는자상호, 
+                합계금액, 
+                공급가액, 
+                세액, 
+                품목명, 
+                비고,
+                memo
+              FROM tax_invoices
+              UNION ALL
+              SELECT 
+                'exempt' AS source_table, 
+                id, 
+                invoice_type, 
+                작성일자, 
+                공급자사업자등록번호,
+                공급자상호, 
+                공급받는자사업자등록번호,
+                공급받는자상호, 
+                합계금액, 
+                공급가액, 
+                세액, 
+                품목명, 
+                비고,
+                memo
+              FROM tax_exempt_invoices
+            ),
+            matched_pairs AS (
+              SELECT 
+                i.*,
+                bt.id AS bank_tx_id,
+                bt.transaction_date AS bank_tx_date,
+                bt.transaction_time AS bank_tx_time,
+                bt.bank_id AS bank_tx_bank_id,
+                bt.account_number AS bank_tx_account_number,
+                bt.deposit AS bank_tx_deposit,
+                bt.withdrawal AS bank_tx_withdrawal,
+                bt.counterparty_name AS bank_tx_counterparty,
+                bt.description AS bank_tx_description,
+                ROW_NUMBER() OVER (
+                  PARTITION BY i.source_table, i.id 
+                  ORDER BY ABS(julianday(REPLACE(bt.transaction_date, '.', '-')) - julianday(REPLACE(i.작성일자, '.', '-'))) ASC, bt.id ASC
+                ) as rn
+              FROM combined_invoices i
+              LEFT JOIN bank_transactions bt ON (
+                -- 금액 조건
+                (i.invoice_type = 'sales' AND bt.deposit = i.합계금액) OR
+                (i.invoice_type = 'purchase' AND bt.withdrawal = i.합계금액)
+              ) AND (
+                -- Fuzzy 상호명 조건
+                (i.invoice_type = 'sales' AND (
+                   bt.counterparty_name LIKE '%' || REPLACE(REPLACE(REPLACE(REPLACE(i.공급받는자상호, '(주)', ''), '주식회사', ''), '(합자)', ''), '(유한)', '') || '%' OR
+                   bt.description LIKE '%' || REPLACE(REPLACE(REPLACE(REPLACE(i.공급받는자상호, '(주)', ''), '주식회사', ''), '(합자)', ''), '(유한)', '') || '%'
+                )) OR
+                (i.invoice_type = 'purchase' AND (
+                   bt.counterparty_name LIKE '%' || REPLACE(REPLACE(REPLACE(REPLACE(i.공급자상호, '(주)', ''), '주식회사', ''), '(합자)', ''), '(유한)', '') || '%' OR
+                   bt.description LIKE '%' || REPLACE(REPLACE(REPLACE(REPLACE(i.공급자상호, '(주)', ''), '주식회사', ''), '(합자)', ''), '(유한)', '') || '%'
+                ))
+              )
+              -- 작성일자와 거래일자 차이가 90일 이내인 거래만 매칭
+              WHERE bt.id IS NULL OR ABS(julianday(REPLACE(bt.transaction_date, '.', '-')) - julianday(REPLACE(i.작성일자, '.', '-'))) <= 90
+            )
+            SELECT * FROM matched_pairs WHERE rn = 1
+          `;
+          
+          // 동적 WHERE 조건 빌드
+          let whereClauses: string[] = [];
+          const params: any[] = [];
+          
+          if (startDate) {
+            whereClauses.push("작성일자 >= ?");
+            params.push(startDate);
+          }
+          if (endDate) {
+            whereClauses.push("작성일자 <= ?");
+            params.push(endDate);
+          }
+          if (invoiceType && invoiceType !== "all") {
+            whereClauses.push("invoice_type = ?");
+            params.push(invoiceType);
+          }
+          
+          // 매칭 상태 필터
+          if (matchStatus === "matched") {
+            whereClauses.push("bank_tx_id IS NOT NULL");
+          } else if (matchStatus === "unmatched") {
+            whereClauses.push("bank_tx_id IS NULL");
+          }
+          
+          // 검색어 필터
+          if (searchText) {
+            whereClauses.push("(공급자상호 LIKE ? OR 공급받는자상호 LIKE ? OR 품목명 LIKE ?)");
+            params.push(`%${searchText}%`, `%${searchText}%`, `%${searchText}%`);
+          }
+          
+          let filterQuery = `SELECT * FROM (${baseQuery}) AS m`;
+          if (whereClauses.length > 0) {
+            filterQuery += " WHERE " + whereClauses.join(" AND ");
+          }
+          
+          // 전체 카운트 조회
+          const countQuery = `SELECT COUNT(*) as cnt FROM (${filterQuery})`;
+          const totalCount = db.prepare(countQuery).get(...params).cnt;
+          total = totalCount;
+          
+          // 정렬 및 페이징
+          filterQuery += " ORDER BY 작성일자 DESC, id DESC LIMIT ? OFFSET ?";
+          params.push(limit, offset);
+          
+          const dbRows = db.prepare(filterQuery).all(...params);
+          
+          // 가공하여 프론트엔드로 전달
+          list = dbRows.map((row: any) => {
+            const isSales = row.invoice_type === "sales";
+            return {
+              id: `${row.source_table}_${row.id}`,
+              sourceTable: row.source_table,
+              dbId: row.id,
+              invoiceType: row.invoice_type,
+              issueDate: row.작성일자,
+              supplierName: row.공급자상호,
+              supplierBusinessNumber: row.공급자사업자등록번호,
+              buyerName: row.공급받는자상호,
+              buyerBusinessNumber: row.공급받는자사업자등록번호,
+              totalAmount: row.합계금액,
+              supplyAmount: row.공급가액,
+              taxAmount: row.세액,
+              itemName: row.품목명,
+              memo: row.memo,
+              bankTx: row.bank_tx_id ? {
+                id: row.bank_tx_id,
+                date: row.bank_tx_date,
+                time: row.bank_tx_time,
+                bankId: row.bank_tx_bank_id,
+                bankName: bankNames[row.bank_tx_bank_id] || "기타은행",
+                accountNumber: row.bank_tx_account_number,
+                amount: isSales ? row.bank_tx_deposit : row.bank_tx_withdrawal,
+                counterparty: row.bank_tx_counterparty,
+                description: row.bank_tx_description
+              } : null
+            };
+          });
+          
+          db.close();
+        }
+      } catch (dbErr: any) {
+        console.error("⚠️ SQLite Matching query failed:", dbErr);
+        return NextResponse.json(
+          { success: false, error: dbErr.message },
+          { status: 500 }
+        );
+      }
+      
+      return NextResponse.json({
+        success: true,
+        data: {
+          list: list,
+          total: total
         }
       });
     }

@@ -91,3 +91,32 @@ export interface SyncLog {
   recordsCount?: number;
   errorMessage?: string;
 }
+
+export interface MatchingItem {
+  id: string;
+  sourceTable: "tax" | "exempt";
+  dbId: number;
+  invoiceType: "sales" | "purchase";
+  issueDate: string;
+  supplierName: string;
+  supplierBusinessNumber: string;
+  buyerName: string;
+  buyerBusinessNumber: string;
+  totalAmount: number;
+  supplyAmount: number;
+  taxAmount: number;
+  itemName?: string;
+  memo?: string;
+  bankTx?: {
+    id: string;
+    date: string;
+    time?: string;
+    bankId: string;
+    bankName: string;
+    accountNumber: string;
+    amount: number;
+    counterparty: string;
+    description: string;
+  } | null;
+}
+

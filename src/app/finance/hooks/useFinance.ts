@@ -27,8 +27,8 @@ export interface RecommendedOption {
 }
 
 export function useFinance() {
-  // 메인 탭 상태: accounts (은행 계좌 & 거래), cards (신용카드), hometax (국세청 자료), sync (동기화 역사)
-  const [activeTab, setActiveTab] = useState<"accounts" | "cards" | "hometax" | "sync">("accounts");
+  // 메인 탭 상태: accounts (은행 계좌 & 거래), cards (신용카드), hometax (국세청 자료), sync (동기화 역사), matching (수금/지급 대조 AI)
+  const [activeTab, setActiveTab] = useState<"accounts" | "cards" | "hometax" | "sync" | "matching">("accounts");
   
   // 엑셀 수동 업로드 모달 관련 상태
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -91,6 +91,10 @@ export function useFinance() {
   const [hometaxSync, setHometaxSync] = useState<any[]>([]);
   const [hometaxConnections, setHometaxConnections] = useState<any[]>([]);
   const [dbCategories, setDbCategories] = useState<DbExpenseCategory[]>([]);
+  
+  // 수금/지급 대조 AI 관련 상태 추가
+  const [matchingList, setMatchingList] = useState<any[]>([]);
+  const [matchingStatus, setMatchingStatus] = useState<"all" | "matched" | "unmatched">("all");
 
   // 페이징 & 필터 상태
   const [totalCount, setTotalCount] = useState(0);
@@ -130,7 +134,7 @@ export function useFinance() {
   // 페이지 및 검색 텍스트 초기화 방지용 디바운싱 효과
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, hometaxSubTab, searchText, invoiceType, startDate, endDate, pageSize, selectedCardCompanyId, selectedCardNumber, selectedCashPurpose, selectedBankId, selectedAccountId]);
+  }, [activeTab, hometaxSubTab, searchText, invoiceType, startDate, endDate, pageSize, selectedCardCompanyId, selectedCardNumber, selectedCashPurpose, selectedBankId, selectedAccountId, matchingStatus]);
 
   // 자연어 규칙 목록 조회 API 연동
   const fetchRulesList = useCallback(async () => {
@@ -214,13 +218,19 @@ export function useFinance() {
           setHometaxSync(syncRes.data.hometaxSync || []);
           setHometaxConnections(syncRes.data.hometaxConnections || []);
         }
+      } else if (activeTab === "matching") {
+        const matchingRes = await fetch(`/api/finance?tab=matching${dateParams}${searchParam}&status=${matchingStatus}${invTypeParam}${paginationParams}`).then((res) => res.json());
+        if (matchingRes.success) {
+          setMatchingList(matchingRes.data.list || []);
+          setTotalCount(matchingRes.data.total || 0);
+        }
       }
     } catch (e) {
       console.error("데이터 패칭 실패:", e);
     } finally {
       setLoading(false);
     }
-  }, [activeTab, hometaxSubTab, currentPage, pageSize, startDate, endDate, searchText, invoiceType, selectedCardCompanyId, selectedCardNumber, selectedCashPurpose, selectedBankId, selectedAccountId]);
+  }, [activeTab, hometaxSubTab, currentPage, pageSize, startDate, endDate, searchText, invoiceType, selectedCardCompanyId, selectedCardNumber, selectedCashPurpose, selectedBankId, selectedAccountId, matchingStatus]);
 
   // 자연어 규칙 등록 API 연동
   const handleAddRule = async (text: string, force: boolean = false) => {
@@ -794,6 +804,10 @@ export function useFinance() {
     setHometaxConnections,
     dbCategories,
     setDbCategories,
+    matchingList,
+    setMatchingList,
+    matchingStatus,
+    setMatchingStatus,
     totalCount,
     setTotalCount,
     currentPage,
