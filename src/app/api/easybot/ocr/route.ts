@@ -101,7 +101,6 @@ export async function POST(req: Request) {
       mimeType = parts[0].replace('data:', '');
       base64Data = parts[1];
     }
-
     // 1.5. PDF 및 이미지 파일을 디스크에 미리 보관
     let pdfFilePath = '';
     try {
@@ -112,15 +111,13 @@ export async function POST(req: Request) {
         if (!fs.existsSync(uploadDir)) {
           fs.mkdirSync(uploadDir, { recursive: true });
         }
-        const fileExt = isPdf ? '.pdf' : '.png';
-        const fileName = 'financial_' + Date.now() + fileExt;
+        const fileName = `${Date.now()}.${isPdf ? 'pdf' : 'png'}`;
         const filePath = path.join(uploadDir, fileName);
-        const fileBuffer = Buffer.from(base64Data, 'base64');
-        fs.writeFileSync(filePath, fileBuffer);
-        pdfFilePath = '/uploads/financials/' + fileName;
+        fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+        pdfFilePath = `/uploads/financials/${fileName}`;
       }
-    } catch (fileErr) {
-      console.error('OCR 로컬 파일 작성 에러:', fileErr);
+    } catch (e) {
+      console.warn('파일 디스크 저장 에러:', e);
     }
 
     // 2. DB에서 AI 설정 정보 로드
@@ -139,11 +136,17 @@ export async function POST(req: Request) {
       ? modelRes.rows[0].value
       : 'gemini-3.5-flash';
 
+    // RAG 매칭 소스로 쓰일 등록 정보 조회
+    const partnersResForRag = await queryTable('crm_partners', {});
+    const partnersListForRag = (partnersResForRag.rows || []).map((p: any) => ({ id: p.id, name: p.company_name || p.name }));
+    const trackedItemsResForRag = await queryTable('tracked_items', {});
+    const trackedItemsListForRag = (trackedItemsResForRag.rows || []).map((t: any) => ({ id: t.item_id, name: t.item_name, code: t.item_code, category: t.category, basePrice: t.base_price }));
+
     // 3. 지능형 하이브리드 OCR 분류/스캔 통합 프롬프트 설계 (멀티 엔티티 탐지 지원)
-    const geminiPrompt = `제공된 문서 이미지나 PDF 속에는 여러 장의 명함, 사업자등록증, 영수증(지출 증빙), 재무제표, 거래명세서, 이력서(PDF/이미지), 또는 병원 진단서/처방전이 혼재되어 있을 수 있습니다.
+    const geminiPrompt = `제공된 문서 이미지나 PDF 속에는 여러 장의 명함, 사업자등록증, 영수증(지출 증빙), 재무제표, 거래명세서, 이력서(PDF/이미지), 병원 진단서/처방전, 매입 명세서(원가 청구서), 또는 경쟁사 가격 캡처 화면이 혼재되어 있을 수 있습니다.
 각 문서들을 지능적으로 개별 검출하여 detectedItems 배열 안에 순서대로 담아 응답해 주세요.
 
-각 아이템은 다음 7가지 타입 중 하나여야 합니다:
+각 아이템은 다음 9가지 타입 중 하나여야 합니다:
 1. 명함 ("BUSINESS_CARD"):
    - data 객체에 name (성명), position (직급/직책), phone (전화번호), email (이메일), companyName (회사명/소속) 추출.
 2. 사업자등록증 ("BUSINESS_LICENSE"):
@@ -160,6 +163,17 @@ export async function POST(req: Request) {
    - data 객체에 name (성명), age (연령/나이, 예: "29세" 또는 "1997년생" 등), phone (전화번호), experience (주요 경력사항 요약 텍스트), motivation (지원동기 요약 텍스트), tech_stacks (보유 기술 스택 목록, 예: "React, Node.js, TypeScript"), matching_score (AI 역량 매칭 점수, 0~100 사이의 정수. 회사의 일반적인 개발/관리 직무 역량 대비 이력서 스펙의 적합도 점수) 추출.
 7. 병원 진단서/처방전 ("MEDICAL_CERTIFICATE"):
    - data 객체에 patientName (환자명), diagnosis (진단명/병명), startDate (병가 시작일 "YYYY-MM-DD"), endDate (병가 종료일 "YYYY-MM-DD"), daysSpent (사용 일수, 숫자로만, 예: 3.0) 추출.
+8. 매입 명세서 ("PURCHASE_INVOICE"):
+   - data 객체에 companyName (매입처/거래처명, 예: "한양철강"), invoiceDate (매입/작성일자 "YYYY-MM-DD", 없으면 오늘)와 items 배열을 추출해 주세요.
+   - items 배열의 각 요소는 itemName (품목명, 예: "구리 강선 B형"), spec (규격, 예: "5.0T"), quantity (매입 수량, 숫자로만, 예: 100), unitPrice (매입 단가, 숫자로만, 예: 8200), amount (공급 총액, 숫자로만, 예: 820000)를 포함해야 합니다.
+9. 경쟁 가격 캡처 ("COMPETITOR_PRICE_CAPTURE"):
+   - data 객체에 competitorName (경쟁사명 또는 수집 사이트명, 예: "LME 시세 정보" 또는 "마켓컬리"), itemName (캡처 화면 속 경쟁 제품/상품명, 예: "구리 전기동"), capturedPrice (경쟁사 판매가, 숫자로만, 예: 8450), captureUrl (매핑용 출처 URL, 있으면 기입) 추출.
+
+사내 등록된 거래처 정보(RAG):
+${JSON.stringify(partnersListForRag)}
+
+사내 등록된 가격 추적 품목 정보(RAG):
+${JSON.stringify(trackedItemsListForRag)}
 
 추출한 값들은 반드시 아래 JSON 스키마 규격을 빈틈없이 준수하여 순수 JSON 문자열로만 응답해 주세요. 다른 마크다운 백틱(\`\`\`) 기호나 텍스트는 절대 포함하지 마세요.
 
@@ -211,29 +225,36 @@ export async function POST(req: Request) {
       }
     },
     {
-      "itemType": "RESUME",
+      "itemType": "PURCHASE_INVOICE",
       "data": {
-        "name": "홍길동",
-        "age": "27세",
-        "phone": "010-1234-5678",
-        "experience": "네이버 웹툰 프론트엔드 인턴 6개월, 스타트업 개발 1년",
-        "motivation": "자유롭고 힙한 스타트업 문화 속에서 세상에 유용한 서비스를 함께 만들어가고 싶습니다.",
-        "tech_stacks": "React, TypeScript, Next.js, Tailwind CSS",
-        "matching_score": 85
+        "companyName": "한양철강",
+        "invoiceDate": "2026-06-08",
+        "items": [
+          {
+            "itemName": "구리 강선 B형",
+            "spec": "5.0T",
+            "quantity": 100,
+            "unitPrice": 8200,
+            "amount": 820000
+          }
+        ]
       }
     },
     {
-      "itemType": "MEDICAL_CERTIFICATE",
+      "itemType": "COMPETITOR_PRICE_CAPTURE",
       "data": {
-        "patientName": "이철수",
-        "diagnosis": "급성 장염 및 탈수 증세",
-        "startDate": "2026-06-08",
-        "endDate": "2026-06-10",
-        "daysSpent": 3.0
+        "competitorName": "LME 시세 정보",
+        "itemName": "구리 전기동",
+        "capturedPrice": 8450,
+        "captureUrl": "https://www.lme.com/en/Metals/Non-ferrous/Copper"
       }
     }
   ]
-}`;
+}
+`;
+
+
+
 
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
     const response = await fetch(geminiUrl, {
@@ -332,6 +353,9 @@ export async function POST(req: Request) {
     const inventoryItemsRes = await queryTable('inventory_items', {});
     const allInventoryItems = inventoryItemsRes.rows || [];
 
+    const trackedItemsRes = await queryTable('tracked_items', {});
+    const allTrackedItems = trackedItemsRes.rows || [];
+
     const processedItems = [];
 
     for (const item of detectedItems) {
@@ -361,7 +385,7 @@ export async function POST(req: Request) {
         let existingContactId = null;
         let existingContact = null;
 
-        const contactsRes = await queryTable('crm_partner_contacts', { filters: { name: parsedCard.name, is_active: 1 } });
+        const contactsRes = await queryTable('crm_partner_contacts', { filters: { name: parsedCard.name, is_active: '1' } });
         const activeContacts = contactsRes.rows || [];
 
         if (activeContacts.length > 0) {
@@ -692,6 +716,95 @@ export async function POST(req: Request) {
           matchedOperatorId,
           matchedOperatorName,
           operatorsList: operators.map((op: any) => ({ id: op.id, name: op.name }))
+        });
+      } else if (item.itemType === 'PURCHASE_INVOICE') {
+        const invoiceData = item.data || {};
+        const companyName = invoiceData.companyName ? invoiceData.companyName.trim() : '';
+        
+        // 1. 거래처 매핑
+        let partnerId = null;
+        if (companyName) {
+          const partnerRes = await queryTable('crm_partners', { filters: { company_name: companyName } });
+          if (partnerRes.rows && partnerRes.rows.length > 0) {
+            partnerId = partnerRes.rows[0].id;
+          } else {
+            const fuzzyRes = await queryTable('crm_partners', {});
+            const match = fuzzyRes.rows.find((p: any) => 
+              p.company_name && (p.company_name.includes(companyName) || companyName.includes(p.company_name))
+            );
+            if (match) partnerId = match.id;
+          }
+        }
+
+        // 2. 개별 매입 품목 매핑
+        const parsedItems = (invoiceData.items || []).map((rawItem: any) => {
+          let matchedItemId = null;
+          let matchedItemName = '';
+          
+          if (rawItem.itemName) {
+            const cleanName = rawItem.itemName.trim().toLowerCase();
+            const match = allTrackedItems.find((it: any) => 
+              it.item_name && (it.item_name.trim().toLowerCase().includes(cleanName) || cleanName.includes(it.item_name.trim().toLowerCase()))
+            );
+            if (match) {
+              matchedItemId = match.item_id;
+              matchedItemName = match.item_name;
+            }
+          }
+
+          return {
+            itemName: rawItem.itemName || '',
+            spec: rawItem.spec || '',
+            quantity: Number(rawItem.quantity) || 0,
+            unitPrice: Number(rawItem.unitPrice) || 0,
+            amount: Number(rawItem.amount) || 0,
+            matched_item_id: matchedItemId,
+            matched_item_name: matchedItemName
+          };
+        });
+
+        processedItems.push({
+          itemType: 'PURCHASE_INVOICE',
+          data: {
+            companyName,
+            invoiceDate: invoiceData.invoiceDate || new Date().toISOString().slice(0, 10),
+            items: parsedItems,
+            pdfFilePath
+          },
+          partnerId,
+          trackedItemsList: allTrackedItems.map((it: any) => ({ id: it.item_id, name: it.item_name }))
+        });
+
+      } else if (item.itemType === 'COMPETITOR_PRICE_CAPTURE') {
+        const captureData = item.data || {};
+        const rawItemName = captureData.itemName ? captureData.itemName.trim() : '';
+
+        // 1. 자사 품목 매핑
+        let matchedItemId = null;
+        let matchedItemName = '';
+        if (rawItemName) {
+          const cleanName = rawItemName.toLowerCase();
+          const match = allTrackedItems.find((it: any) => 
+            it.item_name && (it.item_name.trim().toLowerCase().includes(cleanName) || cleanName.includes(it.item_name.trim().toLowerCase()))
+          );
+          if (match) {
+            matchedItemId = match.item_id;
+            matchedItemName = match.item_name;
+          }
+        }
+
+        processedItems.push({
+          itemType: 'COMPETITOR_PRICE_CAPTURE',
+          data: {
+            competitorName: captureData.competitorName || '외부 사이트',
+            itemName: rawItemName,
+            capturedPrice: Number(captureData.capturedPrice) || 0,
+            captureUrl: captureData.captureUrl || '',
+            pdfFilePath
+          },
+          matchedItemId,
+          matchedItemName,
+          trackedItemsList: allTrackedItems.map((it: any) => ({ id: it.item_id, name: it.item_name }))
         });
       }
     }

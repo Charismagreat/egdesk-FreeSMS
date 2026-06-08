@@ -81,7 +81,7 @@ export async function POST(req: Request) {
       const checkRes = await queryTable('crm_financial_statements', {
         filters: {
           company_id: partnerId,
-          fiscal_year: Number(fiscalYear),
+          fiscal_year: String(fiscalYear),
           fiscal_quarter: fiscalQuarter
         }
       });
@@ -271,7 +271,7 @@ export async function POST(req: Request) {
           // 2-A. 기존 재고 품목에 가산
           finalMatchedItemId = Number(item.matchedItemId);
           
-          const matchCheck = await queryTable('inventory_items', { filters: { id: finalMatchedItemId } });
+          const matchCheck = await queryTable('inventory_items', { filters: { id: String(finalMatchedItemId) } });
           if (matchCheck.rows && matchCheck.rows.length > 0) {
             const currentItem = matchCheck.rows[0];
             const newStock = (Number(currentItem.stock) || 0) + qty;
@@ -281,7 +281,7 @@ export async function POST(req: Request) {
               stock: newStock,
               price: price > 0 ? price : currentItem.price,
               updated_at: nowStr
-            }, { filters: { id: finalMatchedItemId } });
+            }, { filters: { id: String(finalMatchedItemId) } });
 
             // 재고 변동 로그 기록
             maxLogId++;
@@ -455,6 +455,184 @@ export async function POST(req: Request) {
         message: `이지봇 AI 비서가 첨부된 실물 진단서 증빙과 매칭된 직원의 병가 신청(결재 대기) 건 상신 등록을 완수했습니다! 📄`,
         action: 'inserted',
         leaveId: generatedId
+      });
+    }
+
+    // ==================================================
+    // 📂 분기 처리 1.8: 매입 명세서 확정 (PURCHASE_INVOICE)
+    // ==================================================
+    if (fileType === 'PURCHASE_INVOICE') {
+      const { items = [] } = reqBody;
+      
+      if (items.length === 0) {
+        return NextResponse.json({
+          success: false,
+          error: '등록할 매입 품목 정보가 없습니다.'
+        }, { status: 400 });
+      }
+
+      const trackedItemsRes = await queryTable('tracked_items', {});
+      const allTrackedItems = trackedItemsRes.rows || [];
+      let maxItemId = allTrackedItems.length > 0 ? Math.max(...allTrackedItems.map((i: any) => Number(i.item_id) || 0)) : 0;
+
+      let updatedCount = 0;
+      let insertedCount = 0;
+
+      for (const item of items) {
+        const price = Number(item.unitPrice) || 0;
+        const itemName = item.itemName || '';
+        const spec = item.spec || '';
+        
+        let targetItemId = item.matched_item_id ? Number(item.matched_item_id) : null;
+
+        // 매핑된 ID가 없는 경우, 이름 매칭 시도
+        if (!targetItemId) {
+          const match = allTrackedItems.find((t: any) => 
+            t.item_name && t.item_name.trim() === itemName.trim()
+          );
+          if (match) {
+            targetItemId = match.item_id;
+          }
+        }
+
+        if (targetItemId) {
+          // 기존 가격 추적 품목의 base_price(매입 원가) 업데이트
+          await updateRows('tracked_items', {
+            base_price: price,
+            spec: spec || undefined
+          }, { filters: { item_id: String(targetItemId) } });
+          updatedCount++;
+        } else {
+          // 신규 품목 등록
+          maxItemId++;
+          await insertRows('tracked_items', [{
+            item_id: maxItemId,
+            item_code: `RAW-AUTO-${Date.now()}-${insertedCount}`,
+            item_name: itemName,
+            category: 'RAW_MATERIAL',
+            spec: spec || '',
+            base_price: price,
+            target_margin_rate: 10.0, // 기본 마진율 목표 10%
+            created_at: nowStr
+          }]);
+          insertedCount++;
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `매입 명세서 확정 완료: 총 ${items.length}건 중 기존 원가 갱신 ${updatedCount}건, 신규 품목 자율 등록 ${insertedCount}건이 수행되었습니다.`,
+        action: 'purchase_invoice_completed'
+      });
+    }
+
+    // ==================================================
+    // 📂 분기 처리 1.9: 경쟁 가격 캡처 확정 (COMPETITOR_PRICE_CAPTURE)
+    // ==================================================
+    if (fileType === 'COMPETITOR_PRICE_CAPTURE') {
+      const { matchedItemId, data } = reqBody;
+      const { competitorName, itemName, capturedPrice, captureUrl } = data || {};
+
+      if (!matchedItemId) {
+        return NextResponse.json({
+          success: false,
+          error: '매핑할 자사 품목(matchedItemId)을 선택해 주세요.'
+        }, { status: 400 });
+      }
+
+      if (!capturedPrice) {
+        return NextResponse.json({
+          success: false,
+          error: '등록할 수집 가격(capturedPrice) 정보가 누락되었습니다.'
+        }, { status: 400 });
+      }
+
+      // 1) 감시 대상 URL 쿼리 및 필요시 생성
+      const urlsRes = await queryTable('target_urls', {
+        filters: { item_id: String(matchedItemId), site_name: competitorName }
+      });
+      let urlId = urlsRes.rows && urlsRes.rows.length > 0 ? urlsRes.rows[0].url_id : null;
+
+      if (!urlId) {
+        const allUrls = await queryTable('target_urls', {});
+        const maxUrlId = allUrls.rows && allUrls.rows.length > 0 ? Math.max(...allUrls.rows.map((u: any) => Number(u.url_id) || 0)) : 0;
+        urlId = maxUrlId + 1;
+
+        await insertRows('target_urls', [{
+          url_id: urlId,
+          item_id: Number(matchedItemId),
+          site_name: competitorName || '외부 사이트',
+          target_url: captureUrl || 'http://localhost:4000/price-tracker',
+          css_selector: 'body',
+          cron_interval: '0 9 * * *',
+          is_active: 1,
+          created_at: nowStr
+        }]);
+      }
+
+      // 2) price_histories 에 이력 기록
+      const historiesRes = await queryTable('price_histories', {});
+      const maxHistoryId = historiesRes.rows && historiesRes.rows.length > 0 ? Math.max(...historiesRes.rows.map((h: any) => Number(h.history_id) || 0)) : 0;
+      const newHistoryId = maxHistoryId + 1;
+
+      await insertRows('price_histories', [{
+        history_id: newHistoryId,
+        url_id: urlId,
+        captured_price: Number(capturedPrice),
+        captured_at: nowStr,
+        status: 'SUCCESS',
+        error_message: null
+      }]);
+
+      // 3) 마진 실시간 연산 및 경보 트리거 감시
+      const itemRes = await queryTable('tracked_items', { filters: { item_id: String(matchedItemId) } });
+      const currentItem = itemRes.rows && itemRes.rows.length > 0 ? itemRes.rows[0] : null;
+      
+      let marginReport = '마진 분석 생략';
+      let isMarginCollapsed = false;
+
+      if (currentItem) {
+        const basePrice = Number(currentItem.base_price || 0);
+        const targetMarginRate = Number(currentItem.target_margin_rate || 10.0);
+        
+        // 실시간 마진율 = ((경쟁사 판매가 - 자사 매입원가) / 경쟁사 판매가) * 100
+        const currentMarginRate = capturedPrice > 0 ? ((capturedPrice - basePrice) / capturedPrice) * 100 : 0;
+        
+        isMarginCollapsed = currentMarginRate < targetMarginRate;
+        marginReport = `자사 매입원가 ${basePrice.toLocaleString()}원 대비 경쟁가 ${capturedPrice.toLocaleString()}원의 현재 마진율은 ${currentMarginRate.toFixed(1)}% 입니다. (목표 마진율: ${targetMarginRate}%)`;
+
+        if (isMarginCollapsed) {
+          // 쿨다운 검사: 3시간 이내 동일 품목 경보가 발송되었는지 여부
+          const recentLogs = await queryTable('alert_logs', { orderBy: 'sent_at', orderDirection: 'DESC' });
+          const lastLog = (recentLogs.rows || []).find((l: any) => {
+            const timeDiff = Date.now() - new Date(l.sent_at).getTime();
+            return l.sent_message.includes(currentItem.item_name) && timeDiff < 3 * 60 * 60 * 1000;
+          });
+
+          if (!lastLog) {
+            const logsAll = await queryTable('alert_logs', {});
+            const maxLogId = logsAll.rows && logsAll.rows.length > 0 ? Math.max(...logsAll.rows.map((l: any) => Number(l.log_id) || 0)) : 0;
+            const newLogId = maxLogId + 1;
+
+            const smsMsg = `[🚨마진비상] 품목 '${currentItem.item_name}'의 마진율이 ${currentMarginRate.toFixed(1)}%로 목표치(${targetMarginRate}%) 아래로 붕괴되었습니다! (경쟁가: ${capturedPrice.toLocaleString()}원, 원가: ${basePrice.toLocaleString()}원)`;
+            
+            await insertRows('alert_logs', [{
+              log_id: newLogId,
+              rule_id: 999, // 이지봇 강제 경보 규칙
+              sent_price: Number(capturedPrice),
+              sent_message: smsMsg,
+              sent_at: nowStr,
+              api_response: 'SUCCESS'
+            }]);
+          }
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `경쟁사 [${competitorName}]의 제품 [${itemName}] 시세(${capturedPrice.toLocaleString()}원) 매핑 등록이 정상 완료되었습니다. ${isMarginCollapsed ? '⚠️ 마진 붕괴 위험 감지!' : '🟢 마진 양호'}`,
+        action: 'competitor_price_completed',
+        marginReport
       });
     }
 
