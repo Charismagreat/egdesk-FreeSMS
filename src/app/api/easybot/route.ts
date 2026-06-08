@@ -200,6 +200,71 @@ export async function POST(req: Request) {
 `;
     dbTablesInfo += "\n" + inventoryTablesInfo;
 
+    // 💡 [RND] 기업부설연구소 사후관리 관련 테이블 스키마 힌트 주입
+    const rndTablesInfo = `
+[R&D Centers Table (rnd_centers)]
+- Description: 기업부설연구소 기본 정보가 저장된 테이블입니다.
+- Columns:
+  - center_id (INTEGER PRIMARY KEY): 연구소 고유 식별자
+  - center_name (TEXT): 연구소 명칭 (예: '이지데스크 지능형 소프트웨어 연구소')
+  - center_type (TEXT): 연구소 구분 ('RESEARCH_CENTER': 부설연구소, 'RESEARCH_DEPT': 연구개발실)
+  - established_date (TEXT): 설립일자 (YYYY-MM-DD)
+  - koita_reg_number (TEXT): KOITA 등록번호 (예: 'KOITA-2024-8899')
+  - total_area_sqm (REAL): 연구실 전용 면적 (제곱미터)
+  - is_active (INTEGER): 연구소 가동 여부 (1: 가동, 0: 폐쇄)
+
+[R&D Staffs Table (rnd_staffs)]
+- Description: 부설연구소 소속 연구원 대장입니다.
+- Columns:
+  - staff_id (INTEGER PRIMARY KEY): 연구원 식별자
+  - user_id (INTEGER): 사용자 계정 ID
+  - staff_role (TEXT): 담당 역할 ('DIRECTOR': 연구소장, 'RESEARCHER': 전담연구원, 'ASSISTANT': 연구보조원)
+  - employment_status (TEXT): 재직 상태 ('ACTIVE': 재직, 'RESIGNED': 퇴사/연구원 제외)
+  - degree_level (TEXT): 최종 학위 종류 ('BACHELOR': 학사, 'MASTER': 석사, 'DOCTOR': 박사)
+  - major_name (TEXT): 전공 학과명 (예: '컴퓨터공학과')
+  - major_category (TEXT): 전공 계열 구분 ('ENGINEERING': 공학계열, 'SCIENCE': 자연과학계열, 'OTHER': 기타 비적격계열)
+  - joined_date (TEXT): 연구소 지정일자 (YYYY-MM-DD)
+
+[R&D Spaces Table (rnd_spaces)]
+- Description: Vision AI를 통한 연구실 공간 물적 구획 진단 실사 기록입니다.
+- Columns:
+  - space_check_id (INTEGER PRIMARY KEY): 진단 식별자
+  - check_date (TEXT): 진단 일자 (YYYY-MM-DD)
+  - image_url_entrance (TEXT): 외부 현판 스냅샷 이미지 경로
+  - image_url_layout (TEXT): 내부 전경 스냅샷 이미지 경로
+  - signage_status (TEXT): 현판 감지 여부 ('PASS': 합격, 'FAIL': 미부착)
+  - partition_status (TEXT): 파티션 높이 적합 여부 ('PASS': 기준충족, 'FAIL': 높이 미달)
+  - overall_status (TEXT): 종합 판정 ('적격', '보완필요')
+  - inspector_notes (TEXT): 비전 진단 소견 및 권장 조치 메모
+  - ai_analysis_result (TEXT): YOLOv8 개체 탐지 바운딩박스 원시 JSON 문자열
+
+[R&D Logs Table (rnd_logs)]
+- Description: 일일 R&D 연구개발 실적 일지 대장입니다.
+- Columns:
+  - log_id (INTEGER PRIMARY KEY): 연구일지 고유 식별자
+  - author_id (INTEGER): 작성 연구원 ID (rnd_staffs.staff_id)
+  - work_date (TEXT): 일지 작성 및 연구 수행일자 (YYYY-MM-DD)
+  - raw_source (TEXT): 원시 정보 출처 ('VOICE': 음성녹음, 'GITHUB': 커밋로그, 'JIRA': 지라티켓)
+  - raw_content (TEXT): 원시 텍스트
+  - ai_generated_title (TEXT): AI가 요약한 R&D 제목
+  - ai_generated_content (TEXT): R&D 4대 문항 포맷의 본문 내용
+  - approval_status (TEXT): 전자결재 상태 ('DRAFT', 'PENDING', 'APPROVED', 'REJECTED')
+  - approver_id (INTEGER): 승인한 연구소장 ID
+  - approved_at (TEXT): 최종 결재 승인일시
+  - blockchain_hash (TEXT): 블록체인 감사 추적 SHA-256 해시각인 값
+
+[R&D Compliance Alarms Table (rnd_compliance_alarms)]
+- Description: 연구소 유지 요건 위반 리스크 상시 감시 및 D-Day 알림 대장입니다.
+- Columns:
+  - alarm_id (INTEGER PRIMARY KEY): 알림 식별자
+  - category (TEXT): 위험 구분 ('STAFF_CHANGE': 연구원 변동/인원부족, 'SPACE_CHECK': 공간 실사 누락/부적합, 'LOG_MISSING': 연구일지 누락)
+  - severity (TEXT): 심각도 등급 ('INFO', 'WARNING', 'CRITICAL')
+  - message (TEXT): 구체적인 경고 알림 내용
+  - due_date (TEXT): 법정 시정 및 변경신고 마감 기한 (YYYY-MM-DD)
+  - is_resolved (INTEGER): 조치 완료 여부 (1: 완료, 0: 미해결/대기)
+`;
+    dbTablesInfo += "\n" + rndTablesInfo;
+
     // 💡 [RAG] 모든 기업의 연도별 재무제표 세부 계정과목 트리(JSON) 로드 및 프롬프트 RAG 인입
     let financialStatementsRAG = '';
     try {
@@ -407,6 +472,10 @@ If the user is asking about how to use the system, menus, manuals, guides, or tr
 - [중요 🧭] 사용자가 현재 보고 있는 페이지 주소는 아래의 [현재 보고 있는 페이지 URL] 항목에 제공됩니다. 사용자의 현재 화면 위치 맥락을 고려하여, 페이지 성격에 꼭 맞는 맥락형 친절한 답변을 작성해 주세요. (예: /expenses인 경우 지출 관리 현황에 초점을 맞춰 응대)
 - [중요 🧭] 사용자가 "이 부분은 어떻게 써?", "이거 뭐야?" 처럼 지사 대명사로 특정 영역을 가리켜 질문하는 경우, 아래의 [현재 사용자가 마우스 호버/포커싱하여 가리키고 있는 UI 요소 힌트] 정보를 최우선 참조하여 해당 컴포넌트의 가이드라인을 1:1 맞춤형으로 아주 상세하게 직접 설명해 주세요.
 - [중요 ⚠️] 만약 사용자가 시스템의 버그, 불편함, 건의사항, 개선 필요, 불만 사항, 또는 신규 기능 추가 요청 등을 명확하게 제기하는 의도가 감지되면(예: "재고 관리가 이상해요", "버그 있어요", "이 부분 추가해 줘", "너무 느려요", "이메일 알림 연동해줘"), 최종 답변의 가장 마지막 줄에 정확하게 \`[FEEDBACK:유형:핵심제보요약]\` (예: \`[FEEDBACK:bug:재고 바코드 리더 오작동]\`, \`[FEEDBACK:feature_request:이메일 알림 연동 희망]\`, \`[FEEDBACK:complaint:발송 속도가 너무 느림]\`) 태그를 단독 라인으로 기입해 주세요. (유형 후보: 'bug', 'feature_request', 'complaint', 'other'). 그리고 답변 내용에는 "제보해 주신 소중한 버그/의견은 관리자 피드백 보드에 정식으로 즉시 접수되었습니다. 개발팀과 함께 신속하게 검토하여 개선하겠습니다!"와 같이 상냥하고 신뢰감을 주는 접수 완료 멘트를 포함해 주세요.
+- [중요 🧪] 만약 사용자가 연구소 사진(외부 현판 혹은 내부 구획 등)을 업로드하며 공간 검증을 요청하거나 자가진단을 명하는 의도가 감지되면, 다른 설명 글을 완전히 생략하고 오직 다음 형식의 단독 메시지로만 응답해 주세요 (JSON 외에 다른 일반 텍스트나 사족을 절대 덧붙이지 마세요):
+  \`[RND_SPACE_PREVIEW:{"entrance_image": "/images/rnd/entrance_good.jpg", "layout_image": "/images/rnd/layout_need_improvement.jpg", "signage_status": "PASS", "partition_status": "FAIL", "overall_status": "보완필요", "inspector_notes": "이지봇 분석 결과: 출입구 현판은 적합하게 감지되었으나, 내부 파티션 높이가 1.05m로 추정되어 법정 기준(1.2m)에 미달하여 보완이 필요합니다."}]\`
+- [중요 📝] 만약 사용자가 R&D 연구일지 작성을 요청하거나 음성 스케치/Git 커밋 로그/Jira 태스크 내역을 보내면서 일지 초안 작성을 요구하는 상황이 명백히 감지되면, R&D 필수 4대 구성 요건(1. 연구 배경, 2. 실험 방법, 3. 결과 분석, 4. 향후 계획)에 부합하는 정밀하고 학술적인 일지 본문 내용을 지능적으로 자동 작문하고, 다른 설명 글을 완전히 생략하고 오직 다음 형식의 단독 메시지로만 응답해 주세요 (JSON 외에 다른 일반 텍스트나 사족을 절대 덧붙이지 마세요):
+  \`[RND_LOG_PREVIEW:{"author_id": 3, "work_date": "오늘날짜(YYYY-MM-DD)", "raw_source": "VOICE 또는 GITHUB 또는 JIRA", "raw_content": "사용자가 보내온 원문 또는 요약 텍스트", "ai_generated_title": "AI가 요약한 R&D 제목", "ai_generated_content": "1. 연구 배경: ...\\n2. 실험 방법: ...\\n3. 결과 분석: ...\\n4. 향후 계획: ..."}]\`
 
 ${manualContext ? `\n============================\n[공식 시스템 매뉴얼 지식 베이스 (RAG)]\n${manualContext}\n\n-> 지시사항: 사용자가 시스템 사용법, 메뉴 구조, 가이드라인 등을 묻고 있습니다. 지어내지 말고, 위 매뉴얼 내용에 기반하여 가장 정확하고 친절하게 대답해 주세요.\n============================\n` : ''}
 [현재 보고 있는 페이지 URL]:
