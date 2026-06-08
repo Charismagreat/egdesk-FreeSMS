@@ -471,6 +471,171 @@ function ResumePreviewCard({ tagContent, onConfirmSuccess }: { tagContent: strin
 }
 
 /**
+ * R&D 연구소 공간 진단 프리뷰 카드
+ */
+function RndSpacePreviewCard({ tagContent, onConfirmSuccess }: { tagContent: string; onConfirmSuccess: (msg: string) => void }) {
+  const [data, setData] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    try {
+      setData(JSON.parse(tagContent));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [tagContent]);
+
+  if (!data) return <div className="text-rose-500 font-bold p-2">공간 분석 데이터를 읽을 수 없습니다.</div>;
+
+  const handleConfirm = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/rnd', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'space_add',
+          data: {
+            check_date: new Date().toISOString().slice(0, 10),
+            image_url_entrance: data.image_url_entrance || '/images/rnd/entrance.jpg',
+            image_url_layout: data.image_url_layout || '/images/rnd/layout.jpg',
+            ai_analysis_result: data.ai_analysis_result,
+            signage_status: data.signage_status || 'PASS',
+            partition_status: data.partition_status || 'FAIL',
+            overall_status: data.overall_status || '보완필요',
+            inspector_notes: data.inspector_notes || ''
+          }
+        })
+      }).then(r => r.json());
+
+      if (res.success) {
+        setSaved(true);
+        onConfirmSuccess('연구소 공간 자가진단 내역이 성공적으로 데이터베이스에 등재되었습니다.');
+      } else {
+        alert(res.error || '저장 실패');
+      }
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="my-3 border border-amber-100 rounded-2xl bg-white shadow-md overflow-hidden text-slate-800 max-w-sm animate-in zoom-in-95 duration-200">
+      <div className="bg-gradient-to-r from-amber-50 to-orange-50/30 px-4 py-3 border-b border-amber-50 flex items-center gap-2">
+        <Camera size={14} className="text-amber-600" />
+        <span className="text-xs font-black text-slate-800">이지봇 공간 적격성 AI 판독</span>
+      </div>
+      <div className="p-4 space-y-2.5 text-[11px]">
+        <p className="font-bold text-slate-800 text-xs">진단 결과: <span className={data.overall_status === '합격' ? 'text-green-600' : 'text-amber-600 font-extrabold'}>{data.overall_status}</span></p>
+        <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-slate-600 space-y-1">
+          <p>• 현판 부착: {data.signage_status === 'PASS' ? '합격(확인)' : '부적격(미부착)'}</p>
+          <p>• 파티션 높이: {data.partition_status === 'PASS' ? '합격(1.2m 이상)' : '주의(1.2m 미달 추정)'}</p>
+          <p className="text-[10px] text-slate-500 italic border-t pt-1.5 mt-1.5 leading-relaxed">
+            "{data.inspector_notes}"
+          </p>
+        </div>
+      </div>
+      <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex justify-end">
+        {saved ? (
+          <span className="text-green-600 text-xs font-bold flex items-center gap-1"><Check size={12} /> 진단 기록 등재 완료</span>
+        ) : (
+          <button 
+            onClick={handleConfirm}
+            disabled={saving}
+            className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-colors border-none cursor-pointer"
+          >
+            {saving ? '기록 중...' : '자가진단 대장 등록'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * R&D 연구일지 AI 결재선 프리뷰 카드
+ */
+function RndLogPreviewCard({ tagContent, onConfirmSuccess }: { tagContent: string; onConfirmSuccess: (msg: string) => void }) {
+  const [data, setData] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    try {
+      setData(JSON.parse(tagContent));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [tagContent]);
+
+  if (!data) return <div className="text-rose-500 font-bold p-2">일지 초안 데이터를 읽을 수 없습니다.</div>;
+
+  const handleConfirm = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/rnd', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'log_add',
+          data: {
+            author_id: data.author_id || 3, // 박영희
+            work_date: data.work_date || new Date().toISOString().slice(0, 10),
+            raw_source: data.raw_source || 'VOICE',
+            raw_content: data.raw_content || '',
+            ai_generated_title: data.ai_generated_title,
+            ai_generated_content: data.ai_generated_content,
+            approval_status: 'PENDING'
+          }
+        })
+      }).then(r => r.json());
+
+      if (res.success) {
+        setSaved(true);
+        onConfirmSuccess('연구일지가 성공적으로 작성되어 소장 결재 승인 대기열에 상신되었습니다.');
+      } else {
+        alert(res.error || '상신 실패');
+      }
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="my-3 border border-indigo-100 rounded-2xl bg-white shadow-md overflow-hidden text-slate-800 max-w-sm animate-in zoom-in-95 duration-200">
+      <div className="bg-gradient-to-r from-indigo-50 to-violet-50/30 px-4 py-3 border-b border-indigo-50 flex items-center gap-2">
+        <Sparkles size={14} className="text-indigo-600" />
+        <span className="text-xs font-black text-slate-800">이지봇 AI 연구일지 상신</span>
+      </div>
+      <div className="p-4 space-y-2 text-[11px]">
+        <p className="font-bold text-slate-800 text-xs">과제: {data.ai_generated_title}</p>
+        <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100 text-[10px] text-slate-500 whitespace-pre-line leading-relaxed max-h-36 overflow-y-auto font-medium">
+          {data.ai_generated_content}
+        </div>
+      </div>
+      <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex justify-end">
+        {saved ? (
+          <span className="text-green-600 text-xs font-bold flex items-center gap-1"><Check size={12} /> 결재 상신 완료</span>
+        ) : (
+          <button 
+            onClick={handleConfirm}
+            disabled={saving}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-colors border-none cursor-pointer"
+          >
+            {saving ? '상신 중...' : '소장 결재 요청'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
  * AI 병가 진단서 OCR 구조화 데이터를 파싱하여 인라인 수동 보정 및 근태 관리 병가 자동 상신을 수행하는 프리미엄 카드 컴포넌트
  */
 function MedicalPreviewCard({ tagContent, onConfirmSuccess }: { tagContent: string; onConfirmSuccess: (msg: string) => void }) {
@@ -4141,6 +4306,8 @@ export default function EasyBot() {
                 const isFacilityPlatePreview = msg.role === 'bot' && hasContent && msg.content.startsWith('[FACILITY_PLATE_PREVIEW:');
                 const isFacilityChecklistPreview = msg.role === 'bot' && hasContent && msg.content.startsWith('[FACILITY_CHECKLIST_PREVIEW:');
                 const isLegalPreview = msg.role === 'bot' && hasContent && msg.content.startsWith('[LEGAL_PREVIEW:');
+                const isRndSpacePreview = msg.role === 'bot' && hasContent && msg.content.startsWith('[RND_SPACE_PREVIEW:');
+                const isRndLogPreview = msg.role === 'bot' && hasContent && msg.content.startsWith('[RND_LOG_PREVIEW:');
                 
                 const tagContent = isCardPreview && hasContent
                   ? msg.content.substring(14, msg.content.length - 1) 
@@ -4166,8 +4333,12 @@ export default function EasyBot() {
                   ? msg.content.substring(28, msg.content.length - 1)
                   : isLegalPreview && hasContent
                   ? msg.content.substring(15, msg.content.length - 1)
+                  : isRndSpacePreview && hasContent
+                  ? msg.content.substring(19, msg.content.length - 1)
+                  : isRndLogPreview && hasContent
+                  ? msg.content.substring(17, msg.content.length - 1)
                   : '';
-                const isCustomPreview = isCardPreview || isLicensePreview || isReceiptPreview || isFinancialPreview || isInboundPreview || isResumePreview || isMedicalPreview || isPurchaseInvoicePreview || isCompetitorPricePreview || isFacilityPlatePreview || isFacilityChecklistPreview || isLegalPreview;
+                const isCustomPreview = isCardPreview || isLicensePreview || isReceiptPreview || isFinancialPreview || isInboundPreview || isResumePreview || isMedicalPreview || isPurchaseInvoicePreview || isCompetitorPricePreview || isFacilityPlatePreview || isFacilityChecklistPreview || isLegalPreview || isRndSpacePreview || isRndLogPreview;
 
                 return (
                   <div key={index} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -4243,6 +4414,10 @@ export default function EasyBot() {
                           <FacilityChecklistPreviewMessage tagContent={tagContent} onConfirmSuccess={handleCardConfirmSuccess} />
                         ) : isLegalPreview ? (
                           <LegalPreviewCard tagContent={tagContent} onConfirmSuccess={handleCardConfirmSuccess} />
+                        ) : isRndSpacePreview ? (
+                          <RndSpacePreviewCard tagContent={tagContent} onConfirmSuccess={handleCardConfirmSuccess} />
+                        ) : isRndLogPreview ? (
+                          <RndLogPreviewCard tagContent={tagContent} onConfirmSuccess={handleCardConfirmSuccess} />
                         ) : (
                           <SafeMarkdown content={msg.content} />
                         )}

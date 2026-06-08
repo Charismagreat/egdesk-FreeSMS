@@ -100,7 +100,8 @@ const MENU_STATIC_MAP: Record<string, { label: string; icon: any; color: string 
   "/labor-management": { label: "노무 관리 AI", icon: Scale, color: "text-red-400" },
   "/lawyer-ai": { label: "변호사 AI", icon: Scale, color: "text-amber-400" },
   "/credit-risk": { label: "채권 관리 AI", icon: CreditCard, color: "text-rose-400" },
-  "/password-ai": { label: "비밀번호관리 AI", icon: Key, color: "text-purple-400" }
+  "/password-ai": { label: "비밀번호관리 AI", icon: Key, color: "text-purple-400" },
+  "/rnd-management": { label: "연구소 관리 AI", icon: Award, color: "text-amber-400" }
 };
 
 interface SidebarMenuProps {
