@@ -43,6 +43,7 @@ async function initHrDatabase() {
         { name: 'reason', type: 'TEXT' },
         { name: 'reject_reason', type: 'TEXT' },
         { name: 'approver_id', type: 'TEXT' },
+        { name: 'medical_certificate_path', type: 'TEXT' },
         { name: 'created_at', type: 'TEXT', notNull: true },
         { name: 'updated_at', type: 'TEXT', notNull: true }
       ], {
@@ -118,6 +119,48 @@ async function initHrDatabase() {
       await insertRows('crm_company_events', demoEvents).catch(e => console.error(e));
       console.log('✓ 데모 회사 공유 일정 데이터 적재 성공');
     });
+
+    // crm_annual_leaves 테이블 medical_certificate_path 컬럼 추가 자율 마이그레이션 (자가치유)
+    try {
+      const Database = require('better-sqlite3');
+      const os = require('os');
+      const path = require('path');
+      const fs = require('fs');
+
+      const homeDir = os.homedir();
+      const appData = process.env.APPDATA || path.join(homeDir, 'AppData/Roaming');
+      const paths = [
+        path.join(appData, 'EGDesk/database/user_data.db'),
+        path.join(appData, 'egdesk/database/user_data.db')
+      ];
+      
+      let targetPath = '';
+      for (const p of paths) {
+        if (fs.existsSync(p)) {
+          targetPath = p;
+          break;
+        }
+      }
+      if (!targetPath) targetPath = paths[0];
+
+      const normalizedPath = targetPath.replace(/\\/g, '/');
+      const dir = normalizedPath.substring(0, normalizedPath.lastIndexOf('/'));
+      if (dir && !fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+
+      const db = new Database(normalizedPath);
+      const colInfo = db.prepare("PRAGMA table_info(crm_annual_leaves);").all();
+      const colNames = colInfo.map((c: any) => c.name);
+      
+      if (!colNames.includes('medical_certificate_path')) {
+        db.exec("ALTER TABLE crm_annual_leaves ADD COLUMN medical_certificate_path TEXT;");
+        console.log('✓ In-app migration: added medical_certificate_path to crm_annual_leaves');
+      }
+      db.close();
+    } catch (err: any) {
+      console.error('⚠️ HR In-app migration error:', err.message);
+    }
   } catch (err) {
     console.error('HR 데이터베이스 자율 마이그레이션 처리 실패:', err);
   }

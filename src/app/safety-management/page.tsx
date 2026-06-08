@@ -379,8 +379,8 @@ export default function SafetyManagementPage() {
     setIsChatLoading(true);
 
     try {
-      const settingsRes = await queryTable('system_settings', { filters: { key: 'google_ai_api_key' } });
-      let apiKey = settingsRes.rows && settingsRes.rows.length > 0 ? settingsRes.rows[0].value : null;
+      const apiKeyRes = await fetch("/api/settings?key=google_ai_api_key").then(r => r.json());
+      let apiKey = apiKeyRes.success ? apiKeyRes.value : null;
       if (!apiKey) apiKey = process.env.GEMINI_API_KEY || '';
 
       if (!apiKey) {
@@ -392,10 +392,11 @@ export default function SafetyManagementPage() {
         return;
       }
 
-      const modelRes = await queryTable('system_settings', { filters: { key: 'google_ai_model' } });
-      const selectedModel = modelRes.rows && modelRes.rows.length > 0 && modelRes.rows[0].value
-        ? modelRes.rows[0].value
+      const modelRes = await fetch("/api/settings?key=google_ai_model").then(r => r.json());
+      const selectedModel = modelRes.success && modelRes.value
+        ? modelRes.value
         : 'gemini-3.5-flash';
+
 
       const systemPrompt = `
 You are a premium Industrial Safety Response Chatbot complying with the Korean Serious Accident Punishment Act (SAPA).

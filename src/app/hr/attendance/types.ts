@@ -38,6 +38,7 @@ export interface LeaveRequest {
   reason: string;
   reject_reason: string | null;
   approver_name: string | null;
+  medical_certificate_path?: string;
   created_at: string;
 }
 

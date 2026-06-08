@@ -363,6 +363,102 @@ export async function POST(req: Request) {
     }
 
     // ==================================================
+    // 📂 분기 처리 1.6: 이력서 확정 (RESUME)
+    // ==================================================
+    if (fileType === 'RESUME') {
+      const { data } = reqBody;
+      if (!data || !data.name) {
+        return NextResponse.json({
+          success: false,
+          error: '등록할 지원자의 성명(name)이 누락되었습니다.'
+        }, { status: 400 });
+      }
+
+      const generatedId = `APP-${Date.now()}`;
+      const applicantRecord = {
+        id: generatedId,
+        name: data.name,
+        age: data.age || '',
+        phone: data.phone || '',
+        experience: data.experience || '',
+        motivation: data.motivation || '',
+        matching_score: Number(data.matching_score) || 0,
+        status: 'applied',
+        signature_url: null,
+        signed_at: null,
+        resume_file_path: data.resume_file_path || '',
+        tech_stacks: data.tech_stacks || '',
+        interview_logs: JSON.stringify([]),
+        ai_evaluation: null,
+        created_at: nowStr
+      };
+
+      await insertRows('crm_recruitment_applicants', [applicantRecord]);
+
+      return NextResponse.json({
+        success: true,
+        message: `이지봇 AI 비서가 지원자 [${data.name}] 님의 이력서 프로필을 채용 인재풀에 안전하게 적재 완료하였습니다! 🎯`,
+        action: 'inserted',
+        applicant: {
+          id: applicantRecord.id,
+          name: applicantRecord.name,
+          age: applicantRecord.age,
+          phone: applicantRecord.phone,
+          experience: applicantRecord.experience,
+          motivation: applicantRecord.motivation,
+          matchingScore: applicantRecord.matching_score,
+          status: applicantRecord.status,
+          interviewLogs: [],
+          resume_file_path: applicantRecord.resume_file_path,
+          tech_stacks: applicantRecord.tech_stacks
+        }
+      });
+    }
+
+    // ==================================================
+    // 📂 분기 처리 1.7: 병원 진단서 확정 (MEDICAL_CERTIFICATE)
+    // ==================================================
+    if (fileType === 'MEDICAL_CERTIFICATE') {
+      const { data, operatorId } = reqBody;
+      if (!operatorId) {
+        return NextResponse.json({
+          success: false,
+          error: '병가 신청을 상신할 직원을 선택해 주세요.'
+        }, { status: 400 });
+      }
+      if (!data || !data.startDate || !data.endDate) {
+        return NextResponse.json({
+          success: false,
+          error: '병가 기간(시작일/종료일) 정보가 누락되었습니다.'
+        }, { status: 400 });
+      }
+
+      const generatedId = `LV-${Date.now()}`;
+      await insertRows('crm_annual_leaves', [{
+        id: generatedId,
+        operator_id: operatorId,
+        leave_type: 'SICK',
+        start_date: data.startDate,
+        end_date: data.endDate,
+        days_spent: Number(data.daysSpent) || 0,
+        status: 'PENDING',
+        reason: `[병가 증빙 등록] 진단명: ${data.diagnosis || '진단서 증빙 첨부'}`,
+        reject_reason: null,
+        approver_id: null,
+        medical_certificate_path: data.medical_certificate_path || '',
+        created_at: nowStr,
+        updated_at: nowStr
+      }]);
+
+      return NextResponse.json({
+        success: true,
+        message: `이지봇 AI 비서가 첨부된 실물 진단서 증빙과 매칭된 직원의 병가 신청(결재 대기) 건 상신 등록을 완수했습니다! 📄`,
+        action: 'inserted',
+        leaveId: generatedId
+      });
+    }
+
+    // ==================================================
     // 📂 분기 처리 2: 명함 확정 (BUSINESS_CARD) - 레거시 완벽 승계
     // ==================================================
     const { 

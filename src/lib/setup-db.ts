@@ -1288,6 +1288,25 @@ export async function setupDatabase() {
     { name: 'updated_at', type: 'TEXT', notNull: true }
   ], { tableName: 'crm_financial_statements', uniqueKeyColumns: ['id'] });
 
+  // 48. Recruitment Applicants Table (채용 지원자 관리)
+  await safeCreateTable('채용 지원자 관리', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'name', type: 'TEXT', notNull: true },
+    { name: 'age', type: 'TEXT' },
+    { name: 'phone', type: 'TEXT' },
+    { name: 'experience', type: 'TEXT' },
+    { name: 'motivation', type: 'TEXT' },
+    { name: 'matching_score', type: 'INTEGER', defaultValue: 0 },
+    { name: 'status', type: 'TEXT', defaultValue: 'applied' },
+    { name: 'signature_url', type: 'TEXT' },
+    { name: 'signed_at', type: 'TEXT' },
+    { name: 'resume_file_path', type: 'TEXT' },
+    { name: 'tech_stacks', type: 'TEXT' },
+    { name: 'interview_logs', type: 'TEXT' },
+    { name: 'ai_evaluation', type: 'TEXT' },
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'crm_recruitment_applicants', uniqueKeyColumns: ['id'] });
+
   // 40-1. 기존 shared_dashboards 테이블 물리 ALTER TABLE 보정 마이그레이션 (자율 핫픽스)
   try {
     const Database = require('better-sqlite3');
@@ -1338,6 +1357,18 @@ export async function setupDatabase() {
       db.exec("ALTER TABLE shared_dashboards ADD COLUMN custom_title TEXT;");
       console.log('✓ In-app migration: added custom_title to shared_dashboards');
     }
+
+    // crm_recruitment_applicants 테이블 컬럼 보정 마이그레이션
+    const applicantCols = db.prepare("PRAGMA table_info(crm_recruitment_applicants);").all().map((c: any) => c.name);
+    if (!applicantCols.includes('interview_logs')) {
+      db.exec("ALTER TABLE crm_recruitment_applicants ADD COLUMN interview_logs TEXT;");
+      console.log('✓ In-app migration: added interview_logs to crm_recruitment_applicants');
+    }
+    if (!applicantCols.includes('ai_evaluation')) {
+      db.exec("ALTER TABLE crm_recruitment_applicants ADD COLUMN ai_evaluation TEXT;");
+      console.log('✓ In-app migration: added ai_evaluation to crm_recruitment_applicants');
+    }
+
     db.close();
   } catch (err: any) {
     console.error('⚠️ In-app migration error:', err.message);

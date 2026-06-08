@@ -140,10 +140,10 @@ export async function POST(req: Request) {
       : 'gemini-3.5-flash';
 
     // 3. 지능형 하이브리드 OCR 분류/스캔 통합 프롬프트 설계 (멀티 엔티티 탐지 지원)
-    const geminiPrompt = `제공된 문서 이미지나 PDF 속에는 여러 장의 명함, 사업자등록증, 영수증(지출 증빙), 재무제표, 그리고 거래명세서(또는 바코드 라벨/재고 정보)가 혼재되어 있을 수 있습니다.
+    const geminiPrompt = `제공된 문서 이미지나 PDF 속에는 여러 장의 명함, 사업자등록증, 영수증(지출 증빙), 재무제표, 거래명세서, 이력서(PDF/이미지), 또는 병원 진단서/처방전이 혼재되어 있을 수 있습니다.
 각 문서들을 지능적으로 개별 검출하여 detectedItems 배열 안에 순서대로 담아 응답해 주세요.
 
-각 아이템은 다음 5가지 타입 중 하나여야 합니다:
+각 아이템은 다음 7가지 타입 중 하나여야 합니다:
 1. 명함 ("BUSINESS_CARD"):
    - data 객체에 name (성명), position (직급/직책), phone (전화번호), email (이메일), companyName (회사명/소속) 추출.
 2. 사업자등록증 ("BUSINESS_LICENSE"):
@@ -156,6 +156,10 @@ export async function POST(req: Request) {
 5. 거래명세서/바코드 라벨 ("INVENTORY_INBOUND"):
    - data 객체에 partnerName (명세서상의 공급자 상호명 또는 거래처명, 예: "주식회사 원컨덕터"), inboundDate (입고일자 또는 작성일자 "YYYY-MM-DD", 기재되어 있지 않다면 오늘 날짜)와 items 배열을 추출해 주세요.
    - items 배열의 각 요소는 itemName (품명, 예: "구리 와이어"), spec (규격/스펙, 예: "Ø2.0mm", 없을 시 공백), quantity (수량, 숫자로만, 예: 250), price (단가, 숫자로만, 없을 시 0, 예: 12000), barcode (바코드 번호 또는 라벨 식별 번호, 바코드의 기호나 텍스트가 식별되면 기입, 없을 시 공백)를 포함해야 합니다.
+6. 이력서 ("RESUME"):
+   - data 객체에 name (성명), age (연령/나이, 예: "29세" 또는 "1997년생" 등), phone (전화번호), experience (주요 경력사항 요약 텍스트), motivation (지원동기 요약 텍스트), tech_stacks (보유 기술 스택 목록, 예: "React, Node.js, TypeScript"), matching_score (AI 역량 매칭 점수, 0~100 사이의 정수. 회사의 일반적인 개발/관리 직무 역량 대비 이력서 스펙의 적합도 점수) 추출.
+7. 병원 진단서/처방전 ("MEDICAL_CERTIFICATE"):
+   - data 객체에 patientName (환자명), diagnosis (진단명/병명), startDate (병가 시작일 "YYYY-MM-DD"), endDate (병가 종료일 "YYYY-MM-DD"), daysSpent (사용 일수, 숫자로만, 예: 3.0) 추출.
 
 추출한 값들은 반드시 아래 JSON 스키마 규격을 빈틈없이 준수하여 순수 JSON 문자열로만 응답해 주세요. 다른 마크다운 백틱(\`\`\`) 기호나 텍스트는 절대 포함하지 마세요.
 
@@ -207,19 +211,25 @@ export async function POST(req: Request) {
       }
     },
     {
-      "itemType": "INVENTORY_INBOUND",
+      "itemType": "RESUME",
       "data": {
-        "partnerName": "(주)대선기공",
-        "inboundDate": "2026-06-08",
-        "items": [
-          {
-            "itemName": "메인샤프트 베어링",
-            "spec": "UC208-24",
-            "quantity": 50,
-            "price": 18500,
-            "barcode": "8809123456789"
-          }
-        ]
+        "name": "홍길동",
+        "age": "27세",
+        "phone": "010-1234-5678",
+        "experience": "네이버 웹툰 프론트엔드 인턴 6개월, 스타트업 개발 1년",
+        "motivation": "자유롭고 힙한 스타트업 문화 속에서 세상에 유용한 서비스를 함께 만들어가고 싶습니다.",
+        "tech_stacks": "React, TypeScript, Next.js, Tailwind CSS",
+        "matching_score": 85
+      }
+    },
+    {
+      "itemType": "MEDICAL_CERTIFICATE",
+      "data": {
+        "patientName": "이철수",
+        "diagnosis": "급성 장염 및 탈수 증세",
+        "startDate": "2026-06-08",
+        "endDate": "2026-06-10",
+        "daysSpent": 3.0
       }
     }
   ]
@@ -632,6 +642,56 @@ export async function POST(req: Request) {
             items: parsedItems,
             pdfFilePath
           }
+        });
+      } else if (item.itemType === 'RESUME') {
+        const resumeData = item.data || {};
+        const cleanedPhone = normalizePhone(resumeData.phone || '');
+        processedItems.push({
+          itemType: 'RESUME',
+          data: {
+            name: resumeData.name ? resumeData.name.trim() : '',
+            age: resumeData.age ? resumeData.age.trim() : '',
+            phone: cleanedPhone,
+            experience: resumeData.experience ? resumeData.experience.trim() : '',
+            motivation: resumeData.motivation ? resumeData.motivation.trim() : '',
+            tech_stacks: resumeData.tech_stacks ? resumeData.tech_stacks.trim() : '',
+            matching_score: Number(resumeData.matching_score) || 0,
+            resume_file_path: pdfFilePath
+          }
+        });
+      } else if (item.itemType === 'MEDICAL_CERTIFICATE') {
+        const certData = item.data || {};
+        const patientName = certData.patientName ? certData.patientName.trim() : '';
+
+        // crm_operators에서 직원명 매칭 시도
+        const operatorsRes = await queryTable('crm_operators', {});
+        const operators = operatorsRes.rows || [];
+        let matchedOperatorId = null;
+        let matchedOperatorName = '';
+
+        if (patientName) {
+          const match = operators.find((op: any) =>
+            op.name && (op.name.trim() === patientName || op.name.trim().includes(patientName) || patientName.includes(op.name.trim()))
+          );
+          if (match) {
+            matchedOperatorId = match.id;
+            matchedOperatorName = match.name;
+          }
+        }
+
+        processedItems.push({
+          itemType: 'MEDICAL_CERTIFICATE',
+          data: {
+            patientName,
+            diagnosis: certData.diagnosis ? certData.diagnosis.trim() : '',
+            startDate: certData.startDate || '',
+            endDate: certData.endDate || '',
+            daysSpent: Number(certData.daysSpent) || 0.0,
+            medical_certificate_path: pdfFilePath
+          },
+          matchedOperatorId,
+          matchedOperatorName,
+          operatorsList: operators.map((op: any) => ({ id: op.id, name: op.name }))
         });
       }
     }

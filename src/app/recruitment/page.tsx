@@ -35,8 +35,16 @@ export default function RecruitmentDashboardPage() {
       const savedJob = localStorage.getItem("egdesk_recruitment_job");
       if (savedJob) setJobPosting(JSON.parse(savedJob));
 
-      const savedApplicants = localStorage.getItem("egdesk_recruitment_applicants");
-      if (savedApplicants) setApplicants(JSON.parse(savedApplicants));
+      // SQLite DB로부터 지원자 데이터 실시간 로드 및 LocalStorage 백필
+      fetch('/api/recruitment/applicants')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.applicants) {
+            setApplicants(data.applicants);
+            localStorage.setItem("egdesk_recruitment_applicants", JSON.stringify(data.applicants));
+          }
+        })
+        .catch(err => console.error("지원자 데이터베이스 로드 실패:", err));
 
       // 실시간 양방향 LocalStorage Sync 리스너
       const handleStorageSync = (e: StorageEvent) => {
@@ -67,10 +75,23 @@ export default function RecruitmentDashboardPage() {
 
             // 2. 실시간 AI 면접 대화 업데이트 중계
             if (data.action === "interview_msg" && data.applicantId) {
+              const nextStatus = data.isDone ? ("interview_done" as const) : ("interviewing" as const);
+              
+              // SQLite DB에 실시간 면접 로그 및 평가 적재
+              fetch('/api/recruitment/applicants', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  id: data.applicantId,
+                  status: nextStatus,
+                  interviewLogs: data.logs,
+                  aiEvaluation: data.isDone ? data.evaluation : undefined
+                })
+              }).catch(err => console.error("면접 진행 DB 업데이트 실패:", err));
+
               setApplicants((prev) => {
                 const updated = prev.map((a) => {
                   if (a.id === data.applicantId) {
-                    const nextStatus = data.isDone ? ("interview_done" as const) : ("interviewing" as const);
                     const updatedApp = {
                       ...a,
                       interviewLogs: data.logs,
@@ -110,6 +131,20 @@ export default function RecruitmentDashboardPage() {
 
             // 3. 근로계약서 모바일 서명 완료 동기화
             if (data.action === "contract_signed" && data.applicantId) {
+              const signatureDate = new Date().toLocaleDateString("ko-KR");
+              
+              // SQLite DB에 모바일 계약 서명 정보 적재
+              fetch('/api/recruitment/applicants', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  id: data.applicantId,
+                  status: "approved",
+                  signatureUrl: data.signatureUrl,
+                  signedAt: signatureDate
+                })
+              }).catch(err => console.error("근로계약 완료 DB 업데이트 실패:", err));
+
               setApplicants((prev) => {
                 const updated = prev.map((a) => {
                   if (a.id === data.applicantId) {
@@ -117,7 +152,7 @@ export default function RecruitmentDashboardPage() {
                       ...a,
                       status: "approved" as const,
                       signatureUrl: data.signatureUrl,
-                      signedAt: new Date().toLocaleDateString("ko-KR"),
+                      signedAt: signatureDate,
                     };
                     if (selectedApplicant?.id === data.applicantId) {
                       setSelectedApplicant(updatedApp);
@@ -272,6 +307,13 @@ export default function RecruitmentDashboardPage() {
 
   // 사장님이 지원자 면접 개시 승인
   const handleApproveInterview = (app: Applicant) => {
+    // SQLite DB 상태 업데이트
+    fetch('/api/recruitment/applicants', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: app.id, status: 'interviewing' })
+    }).catch(err => console.error("면접 승인 DB 업데이트 실패:", err));
+
     const updatedApplicants = applicants.map((a) => {
       if (a.id === app.id) {
         return { ...a, status: "interviewing" as const };
@@ -300,6 +342,13 @@ export default function RecruitmentDashboardPage() {
 
   // 최종 합격 처리 승인 (전자 근로계약서 개방)
   const handleApproveHiring = (app: Applicant) => {
+    // SQLite DB 상태 업데이트
+    fetch('/api/recruitment/applicants', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: app.id, status: 'approved' })
+    }).catch(err => console.error("채용 승인 DB 업데이트 실패:", err));
+
     const updatedApplicants = applicants.map((a) => {
       if (a.id === app.id) {
         return { ...a, status: "approved" as const };

@@ -123,9 +123,22 @@ export const CompanyCalendar: React.FC<CompanyCalendarProps> = ({
 
           {/* 오늘 휴가자 뱃지 */}
           {metadata.leavesCount > 0 && (
-            <span className="px-1.5 py-0.2 rounded bg-rose-50 text-rose-600 font-extrabold text-[8px]">
-              휴가 {metadata.leavesCount}명 🔴
-            </span>
+            <div className="flex flex-col gap-0.5 items-end shrink-0">
+              <span className="px-1.5 py-0.2 rounded bg-rose-50 text-rose-600 font-extrabold text-[8px]">
+                휴가 {metadata.leavesCount}명 🔴
+              </span>
+              {metadata.leavesList.some(l => l.leave_type === 'SICK' && l.medical_certificate_path) && (
+                <a
+                  href={metadata.leavesList.find(l => l.leave_type === 'SICK' && l.medical_certificate_path)?.medical_certificate_path}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  className="text-[7.5px] text-violet-600 hover:text-violet-850 font-black underline tracking-tighter"
+                >
+                  📄 진단서 보기
+                </a>
+              )}
+            </div>
           )}
         </div>
 

@@ -71,6 +71,20 @@ export const LeaveApprovalBox: React.FC<LeaveApprovalBoxProps> = ({
                 <div className="whitespace-pre-wrap">{req.reason}</div>
               </div>
 
+              {req.leave_type === 'SICK' && req.medical_certificate_path && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-violet-100 bg-violet-50/30 text-[9px] font-bold text-violet-700 animate-in fade-in-50 duration-200">
+                  <span>📄 진단서 증빙:</span>
+                  <a 
+                    href={req.medical_certificate_path} 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="underline text-violet-600 hover:text-violet-850 font-black"
+                  >
+                    [실물 증빙 파일 확인]
+                  </a>
+                </div>
+              )}
+
               <div className="flex gap-2 w-full pt-0.5">
                 <button
                   onClick={() => handleLeaveDecision(req.id, 'APPROVE')}
