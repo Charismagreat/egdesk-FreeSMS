@@ -1307,6 +1307,40 @@ export async function setupDatabase() {
     { name: 'created_at', type: 'TEXT', notNull: true }
   ], { tableName: 'crm_recruitment_applicants', uniqueKeyColumns: ['id'] });
 
+  // 49. crm_grant_announcements Table (정부 지원금 추천 공고)
+  await safeCreateTable('정부 지원금 추천 공고', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'title', type: 'TEXT', notNull: true },
+    { name: 'agency', type: 'TEXT', notNull: true },
+    { name: 'match_score', type: 'INTEGER' },
+    { name: 'budget', type: 'INTEGER' },
+    { name: 'end_date', type: 'TEXT', notNull: true }
+  ], { tableName: 'crm_grant_announcements', uniqueKeyColumns: ['id'] });
+
+  // 50. crm_grant_bookmarks Table (지원금 북마크)
+  await safeCreateTable('지원금 북마크', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'announcement_id', type: 'TEXT', notNull: true }
+  ], { tableName: 'crm_grant_bookmarks', uniqueKeyColumns: ['id'] });
+
+  // 51. crm_grant_rnd_plans Table (지원금 R&D 계획서)
+  await safeCreateTable('지원금 R&D 계획서', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'announcement_id', type: 'TEXT', notNull: true },
+    { name: 'plan_data', type: 'TEXT', notNull: true }
+  ], { tableName: 'crm_grant_rnd_plans', uniqueKeyColumns: ['id'] });
+
+  // 52. crm_grant_company_profile Table (지원금 매칭용 기업 프로필)
+  await safeCreateTable('지원금 매칭용 기업 프로필', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'establishmentYear', type: 'INTEGER' },
+    { name: 'employeeCount', type: 'INTEGER' },
+    { name: 'patentsCount', type: 'INTEGER' },
+    { name: 'femaleEmployeeRatio', type: 'INTEGER' },
+    { name: 'youthEmployeeRatio', type: 'INTEGER' },
+    { name: 'sector', type: 'TEXT' }
+  ], { tableName: 'crm_grant_company_profile', uniqueKeyColumns: ['id'] });
+
   // 40-1. 기존 shared_dashboards 테이블 물리 ALTER TABLE 보정 마이그레이션 (자율 핫픽스)
   try {
     const Database = require('better-sqlite3');
@@ -1372,6 +1406,58 @@ export async function setupDatabase() {
     db.close();
   } catch (err: any) {
     console.error('⚠️ In-app migration error:', err.message);
+  }
+
+  // 53. 정부 지원금 공고 및 프로필 초기 데이터 백필 (Seeding)
+  try {
+    const grantAnnouncementsCheck = await queryTable('crm_grant_announcements', {});
+    if (!grantAnnouncementsCheck.rows || grantAnnouncementsCheck.rows.length === 0) {
+      const seedAnnouncements = [
+        {
+          id: 'GR-501',
+          title: '중소기업 스마트공장 고도화 지원사업',
+          agency: '중소벤처기업부',
+          match_score: 92,
+          budget: 150000000,
+          end_date: '2026-07-15'
+        },
+        {
+          id: 'GR-502',
+          title: '소상공인 디지털 전환 기술보급 보조금',
+          agency: '소상공인시장진흥공단',
+          match_score: 85,
+          budget: 30000000,
+          end_date: '2026-06-30'
+        },
+        {
+          id: 'GR-503',
+          title: '대·중소 동반성장 공동 R&D 지원과제',
+          agency: '산업통상자원부',
+          match_score: 68,
+          budget: 300000000,
+          end_date: '2026-08-31'
+        }
+      ];
+      await insertRows('crm_grant_announcements', seedAnnouncements);
+      console.log('✓ 정부 지원금 공고 초기 데이터 시딩 완료');
+    }
+
+    const companyProfileCheck = await queryTable('crm_grant_company_profile', { filters: { id: 'MY-COMPANY' } });
+    if (!companyProfileCheck.rows || companyProfileCheck.rows.length === 0) {
+      const seedProfile = {
+        id: 'MY-COMPANY',
+        establishmentYear: 2022,
+        employeeCount: 12,
+        patentsCount: 2,
+        femaleEmployeeRatio: 35,
+        youthEmployeeRatio: 65,
+        sector: '도소매 및 물류 소프트웨어'
+      };
+      await insertRows('crm_grant_company_profile', [seedProfile]);
+      console.log('✓ 지원금 매칭용 기업 프로필 초기 데이터 시딩 완료');
+    }
+  } catch (seedErr: any) {
+    console.error('⚠️ Grant seeding error:', seedErr.message);
   }
 
   console.log('Database setup complete.');

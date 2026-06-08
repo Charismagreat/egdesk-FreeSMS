@@ -1,7 +1,42 @@
 import { NextResponse } from "next/server";
-import { queryTable, insertRows, deleteRows } from "../../../../../egdesk-helpers";
+import { queryTable, insertRows, updateRows, deleteRows } from "../../../../../egdesk-helpers";
 
-// R&D 기본 텍스트 템플릿
+// Gemini API 호출을 위한 헬퍼 함수
+async function callGemini(apiKey: string, model: string, systemPrompt: string, userPrompt: string): Promise<string> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: systemPrompt }] },
+      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+      generationConfig: {
+        temperature: 0.3
+      }
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`Gemini API 호출 실패 (Status: ${response.status})`);
+  }
+
+  const data = await response.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+}
+
+// JSON 문자열의 마크다운 코드 블록(```json ... ```) 정제 함수
+function cleanJsonString(raw: string): string {
+  let cleaned = raw.trim();
+  if (cleaned.startsWith("```")) {
+    cleaned = cleaned.replace(/^```[a-zA-Z]*\n/, "");
+    cleaned = cleaned.replace(/\n```$/, "");
+  }
+  return cleaned.trim();
+}
+
+// R&D 기본 텍스트 템플릿 (폴백용)
 const DEFAULT_RND_TEXTS: Record<string, Record<string, string>> = {
   "GR-501": {
     necessity: `[연구개발의 필요성 및 시급성]
@@ -29,7 +64,7 @@ const DEFAULT_RND_TEXTS: Record<string, Record<string, string>> = {
 };
 
 /**
- * GET: 지원금 공고 리스트, 기업 프로필 조회 (물리 DB 연동)
+ * GET: 지원금 공고 리스트, 기업 프로필 조회 (물리 DB 연동 및 AI RAG 적합도 연동)
  */
 export async function GET() {
   try {
@@ -48,7 +83,6 @@ export async function GET() {
     if (profileRes.rows && profileRes.rows.length > 0) {
       companyProfile = profileRes.rows[0];
     } else {
-      // DB에 없는 경우 자동 백필
       companyProfile = {
         id: "MY-COMPANY",
         establishmentYear: 2022,
@@ -61,15 +95,23 @@ export async function GET() {
       await insertRows("crm_grant_company_profile", [companyProfile]);
     }
 
-    // 4. 북마크 데이터 바인딩 조립
-    const announcements = dbAnnouncements.map((ann: any) => {
-      // 프론트엔드 모듈에 필요한 시뮬레이션 매칭 가이드 연동
+    // AI 설정 쿼리
+    const settingsKeyRes = await queryTable('system_settings', { filters: { key: 'google_ai_api_key' } });
+    const apiKey = settingsKeyRes.rows && settingsKeyRes.rows.length > 0 ? settingsKeyRes.rows[0].value : (process.env.GEMINI_API_KEY || "");
+    const settingsModelRes = await queryTable('system_settings', { filters: { key: 'google_ai_model' } });
+    const model = settingsModelRes.rows && settingsModelRes.rows.length > 0 ? settingsModelRes.rows[0].value : "gemini-3.5-flash";
+
+    // 4. 북마크 데이터 바인딩 조립 (AI RAG 연동)
+    const announcements = [];
+    for (const ann of dbAnnouncements) {
+      let matchScore = ann.match_score || 70;
       let matchGuide = [
         "✅ 현재 기술 요건 및 매출액 요건 충족으로 기본 지원 자격 확보",
         "✅ 기업 임직원 중 청년 근로자 비율이 60% 이상으로 가점 항목(+2점) 확보 가능",
         "💡 보유 특허 2건이 핵심 기술과 직접 연계될 경우 우위 예상",
         "⚠️ 연구노트 관리 규정 및 사내 R&D 조직 지정 사전 점검 필요"
       ];
+
       if (ann.id === "GR-502") {
         matchGuide = [
           "✅ 이지데스크의 스마트오더 연계 도입 시 즉시 신청 적합",
@@ -78,7 +120,50 @@ export async function GET() {
         ];
       }
 
-      return {
+      // API Key가 등록되어 있을 경우 실시간 AI RAG 매칭 수행
+      if (apiKey) {
+        try {
+          const systemPrompt = `
+You are an expert government grant advisor for Korean SMEs.
+Analyze the company profile and the grant announcement to calculate a precise matching score (0-100) and provide exactly 3-4 specific matching advice bullets (each starting with ✅, 💡, or ⚠️) in Korean.
+Return the response in raw JSON format matching this schema:
+{
+  "matchScore": number,
+  "matchGuide": string[]
+}
+Do not wrap the output in markdown code blocks like \`\`\`json.
+`;
+          const userPrompt = `
+[Company Profile]
+- Establishment Year: ${companyProfile.establishmentYear}
+- Employee Count: ${companyProfile.employeeCount}
+- Patents Count: ${companyProfile.patentsCount}
+- Youth Employee Ratio: ${companyProfile.youthEmployeeRatio}%
+- Female Employee Ratio: ${companyProfile.femaleEmployeeRatio}%
+- Sector: ${companyProfile.sector}
+
+[Grant Announcement]
+- Title: ${ann.title}
+- Agency: ${ann.agency}
+- Budget: ${ann.budget} (KRW)
+- Deadline: ${ann.end_date}
+`;
+
+          const aiText = await callGemini(apiKey, model, systemPrompt, userPrompt);
+          const parsed = JSON.parse(cleanJsonString(aiText));
+          if (parsed && typeof parsed.matchScore === "number" && Array.isArray(parsed.matchGuide)) {
+            matchScore = parsed.matchScore;
+            matchGuide = parsed.matchGuide;
+            
+            // 데이터베이스 스코어 캐싱 업데이트
+            await updateRows("crm_grant_announcements", { match_score: matchScore }, { filters: { id: ann.id } });
+          }
+        } catch (e: any) {
+          console.error(`AI RAG matching failed for ${ann.id}, using default fallback:`, e.message);
+        }
+      }
+
+      announcements.push({
         id: ann.id,
         agency: ann.agency,
         title: ann.title,
@@ -88,11 +173,11 @@ export async function GET() {
         target: "창업 7년 이하이면서 매출액 요건을 만족하는 중소기업/소상공인",
         deadline: ann.end_date,
         category: ann.id === "GR-501" ? "RND" as const : ann.id === "GR-502" ? "GRANT" as const : "LOAN" as const,
-        matchScore: ann.match_score,
+        matchScore,
         matchGuide,
         isBookmarked: bookmarkedIds.has(ann.id)
-      };
-    });
+      });
+    }
 
     return NextResponse.json({
       success: true,
@@ -105,7 +190,7 @@ export async function GET() {
 }
 
 /**
- * POST: R&D 계획서 초안 생성 및 북마크 토글
+ * POST: R&D 계획서 AI 생성 및 북마크 토글
  */
 export async function POST(req: Request) {
   try {
@@ -116,15 +201,12 @@ export async function POST(req: Request) {
     if (action === "toggle_bookmark") {
       const { id } = body;
 
-      // 이미 북마크 등록되어 있는지 조회
       const checkRes = await queryTable("crm_grant_bookmarks", { filters: { announcement_id: id } });
       const exists = checkRes.rows && checkRes.rows.length > 0;
 
       if (exists) {
-        // 존재하면 북마크 제거
         await deleteRows("crm_grant_bookmarks", { filters: { announcement_id: id } });
       } else {
-        // 존재하지 않으면 북마크 삽입
         await insertRows("crm_grant_bookmarks", [{
           id: `BM-${Date.now()}`,
           announcement_id: id
@@ -169,11 +251,71 @@ export async function POST(req: Request) {
       let plan;
 
       if (planRes.rows && planRes.rows.length > 0) {
-        // 이미 DB에 저장된 내용 반환
         plan = JSON.parse(planRes.rows[0].plan_data);
       } else {
-        // DB에 없을 시 기본 템플릿 생성 후 DB 저장
-        plan = DEFAULT_RND_TEXTS[id] || {
+        // DB에 없을 시 실시간 Gemini 생성 시도
+        const settingsKeyRes = await queryTable('system_settings', { filters: { key: 'google_ai_api_key' } });
+        const apiKey = settingsKeyRes.rows && settingsKeyRes.rows.length > 0 ? settingsKeyRes.rows[0].value : (process.env.GEMINI_API_KEY || "");
+        const settingsModelRes = await queryTable('system_settings', { filters: { key: 'google_ai_model' } });
+        const model = settingsModelRes.rows && settingsModelRes.rows.length > 0 ? settingsModelRes.rows[0].value : "gemini-3.5-flash";
+
+        // 회사 매칭 프로필 및 공고 정보 획득
+        const profileRes = await queryTable("crm_grant_company_profile", { filters: { id: "MY-COMPANY" } });
+        const companyProfile = profileRes.rows?.[0] || {
+          establishmentYear: 2022,
+          employeeCount: 12,
+          patentsCount: 2,
+          femaleEmployeeRatio: 35,
+          youthEmployeeRatio: 65,
+          sector: "도소매 및 물류 소프트웨어"
+        };
+
+        const annRes = await queryTable("crm_grant_announcements", { filters: { id } });
+        const ann = annRes.rows?.[0] || { title: "중소기업 기술개발 과제", agency: "정부기관", budget: 100000000 };
+
+        let generatedPlan = null;
+
+        if (apiKey) {
+          try {
+            const systemPrompt = `
+You are an expert R&D consultant helping Korean SMEs draft high-scoring research proposals for government grants.
+Based on the company profile and the grant announcement, write a detailed 4-part research plan in Korean. Keep the tone professional, realistic, and highly technical.
+Return the response in raw JSON format matching this schema:
+{
+  "necessity": "Detailed text for 1. 연구개발의 필요성 및 시급성 (approx 3-5 sentences in Korean)",
+  "differentiation": "Detailed text for 2. 국내외 기술 트렌드 및 차별성 (approx 3-5 sentences in Korean)",
+  "objectives": "Detailed text for 3. 연구개발 최종 목표 및 상세 내용 (approx 3-5 sentences in Korean)",
+  "businessPlan": "Detailed text for 4. 사업화 방안 및 향후 시장 진출 계획 (approx 3-5 sentences in Korean)"
+}
+Do not wrap the output in markdown code blocks like \`\`\`json.
+`;
+            const userPrompt = `
+[Company Profile]
+- Establishment Year: ${companyProfile.establishmentYear}
+- Employee Count: ${companyProfile.employeeCount}
+- Patents Count: ${companyProfile.patentsCount}
+- Youth Employee Ratio: ${companyProfile.youthEmployeeRatio}%
+- Female Employee Ratio: ${companyProfile.femaleEmployeeRatio}%
+- Sector: ${companyProfile.sector}
+
+[Grant Announcement]
+- Title: ${ann.title}
+- Agency: ${ann.agency}
+- Budget: ${ann.budget} (KRW)
+`;
+
+            const aiText = await callGemini(apiKey, model, systemPrompt, userPrompt);
+            const parsed = JSON.parse(cleanJsonString(aiText));
+            if (parsed && parsed.necessity && parsed.differentiation && parsed.objectives && parsed.businessPlan) {
+              generatedPlan = parsed;
+            }
+          } catch (e: any) {
+            console.error("Gemini R&D generation failed, falling back to template:", e.message);
+          }
+        }
+
+        // AI 생성 성공 시 해당 데이터 사용, 실패 혹은 API 키 부재 시 하드코딩 폴백 적용
+        plan = generatedPlan || DEFAULT_RND_TEXTS[id] || {
           necessity: `[연구개발의 필요성 및 시급성]
 선택하신 사업공고(${id})에 대응하는 기술 개발 시나리오입니다. 중소기업 혁신성장을 위한 맞춤형 R&D 테마를 수립하고 관련 연구의 시급성을 세부 설명합니다.`,
           differentiation: `[국내외 기술 트렌드 및 차별성]
@@ -191,9 +333,6 @@ export async function POST(req: Request) {
           plan_data: JSON.stringify(plan)
         }]);
       }
-
-      // AI 지연 연산 시뮬레이션
-      await new Promise((resolve) => setTimeout(resolve, 300));
 
       return NextResponse.json({
         success: true,
