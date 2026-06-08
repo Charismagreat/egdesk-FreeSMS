@@ -2415,42 +2415,97 @@ function PurchaseInvoicePreviewMessage({ tagContent, onConfirmSuccess }: { tagCo
   );
 }
 
-function InboundEstimatePreviewMessage({ tagContent }: { tagContent: string; onConfirmSuccess?: (msg: string) => void }) {
+function InboundEstimatePreviewMessage({ tagContent, onConfirmSuccess }: { tagContent: string; onConfirmSuccess: (msg: string) => void }) {
   const router = useRouter();
   const [estimateData, setEstimateData] = useState<any>(null);
+  const [partnerId, setPartnerId] = useState('');
   const [partnerName, setPartnerName] = useState('');
   const [partnerPhone, setPartnerPhone] = useState('');
   const [estimateDate, setEstimateDate] = useState('');
-  const [totalAmount, setTotalAmount] = useState(0);
-  const [itemsCount, setItemsCount] = useState(0);
+  const [items, setItems] = useState<any[]>([]);
   const [pdfFilePath, setPdfFilePath] = useState('');
+  const [trackedItemsList, setTrackedItemsList] = useState<any[]>([]);
+  const [partnersList, setPartnersList] = useState<any[]>([]);
+
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [totalAmount, setTotalAmount] = useState(0);
 
   useEffect(() => {
     try {
       const parsed = JSON.parse(tagContent);
       setEstimateData(parsed);
       const ocrData = parsed.data || {};
-      setPartnerName(ocrData.partnerName || '미지정 거래처');
+      setPartnerName(ocrData.partnerName || '');
       setPartnerPhone(ocrData.partnerPhone || '');
       setEstimateDate(ocrData.estimateDate || new Date().toISOString().slice(0, 10));
       setPdfFilePath(ocrData.pdfFilePath || '');
+      setTrackedItemsList(parsed.trackedItemsList || []);
+      setPartnersList(parsed.partnersList || []);
+      setPartnerId(parsed.partnerId || '');
       
-      const parsedItems = ocrData.items || [];
-      setItemsCount(parsedItems.length);
-      const total = parsedItems.reduce((sum: number, it: any) => sum + (Number(it.quantity || 0) * Number(it.unitPrice || it.unit_price || 0)), 0);
+      const parsedItems = (ocrData.items || []).map((item: any) => ({
+        productName: item.productName || item.product_name || item.itemName || '',
+        spec: item.spec || '',
+        quantity: Number(item.quantity) || 0,
+        unitPrice: Number(item.unitPrice || item.unit_price) || 0,
+        amount: Number(item.amount) || 0,
+        matched_item_id: item.matched_item_id ? String(item.matched_item_id) : ''
+      }));
+      setItems(parsedItems);
+
+      // 총 금액 계산
+      const total = parsedItems.reduce((sum: number, it: any) => sum + (it.quantity * it.unitPrice), 0);
       setTotalAmount(total);
     } catch (err: any) {
       console.error('받은 견적서 태그 파싱 실패:', err);
     }
   }, [tagContent]);
 
-  if (!estimateData) return <div className="text-rose-500 font-bold p-2 text-xs">견적서 요약 데이터를 파싱하지 못했습니다.</div>;
+  if (!estimateData) return <div className="text-rose-500 font-bold p-2 text-xs">견적서 데이터를 파싱하지 못했습니다.</div>;
 
-  const handleGoToDetail = () => {
-    // 세션 스토리지에 임시 데이터를 보존하여 다른 페이지로 전달
-    sessionStorage.setItem('pending_estimate_ocr', tagContent);
-    // 견적서 관리 및 AI 분석 페이지로 쿼리 파라미터를 추가하여 이동
-    router.push('/estimates?ocr_import=true');
+  const handleGoToDetail = async () => {
+    if (items.length === 0) {
+      alert('등록할 견적 품목이 존재하지 않습니다.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const response = await fetch('/api/easybot/ocr/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileType: 'INBOUND_ESTIMATE',
+          partnerName,
+          partnerPhone,
+          estimateDate,
+          pdfFilePath,
+          items: items.map(it => ({
+            ...it,
+            matched_item_id: it.matched_item_id ? Number(it.matched_item_id) : null
+          }))
+        })
+      });
+
+      const resData = await response.json();
+      if (resData.success) {
+        setSaved(true);
+        onConfirmSuccess(resData.message);
+        
+        // 상세조회 모달이 열린 상태로 페이지 이동
+        if (resData.estimateId) {
+          router.push(`/estimates?detail_id=${resData.estimateId}`);
+        } else {
+          router.push('/estimates');
+        }
+      } else {
+        alert(resData.error || '견적서 저장 처리에 실패했습니다.');
+      }
+    } catch (err: any) {
+      alert('서버 등록 통신 오류: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -2466,7 +2521,7 @@ function InboundEstimatePreviewMessage({ tagContent }: { tagContent: string; onC
         <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-2.5">
           <div className="flex justify-between items-center">
             <span className="text-slate-400 font-bold">공급처(거래처)</span>
-            <span className="text-slate-800 font-black text-right">{partnerName}</span>
+            <span className="text-slate-800 font-black text-right">{partnerName || '미지정'}</span>
           </div>
           {partnerPhone && (
             <div className="flex justify-between items-center">
@@ -2480,7 +2535,7 @@ function InboundEstimatePreviewMessage({ tagContent }: { tagContent: string; onC
           </div>
           <div className="flex justify-between items-center">
             <span className="text-slate-400 font-bold">총 품목 수</span>
-            <span className="text-slate-800 font-bold text-right">{itemsCount}건</span>
+            <span className="text-slate-800 font-bold text-right">{items.length}건</span>
           </div>
           <div className="flex justify-between items-center pt-2 border-t border-slate-200/60">
             <span className="text-slate-500 font-black">총 견적 금액</span>
@@ -2501,9 +2556,10 @@ function InboundEstimatePreviewMessage({ tagContent }: { tagContent: string; onC
         {/* 자세히 보기 및 연동 버튼 */}
         <button
           onClick={handleGoToDetail}
-          className="w-full py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-black transition text-xs shadow-md shadow-sky-200/50 cursor-pointer flex items-center justify-center gap-1.5"
+          disabled={saving}
+          className="w-full py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-black transition text-xs shadow-md shadow-sky-200/50 cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
         >
-          🔍 자세히 보기 및 견적 연동 ➡️
+          {saving ? '⚡ 견적서 연동 처리 중...' : '🔍 자세히 보기 및 견적 연동 ➡️'}
         </button>
       </div>
     </div>
