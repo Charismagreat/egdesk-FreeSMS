@@ -1949,6 +1949,26 @@ export async function setupDatabase() {
     { name: 'created_at', type: 'TEXT' }
   ], { tableName: 'rnd_compliance_alarms', uniqueKeyColumns: ['alarm_id'] });
 
+  // 78. 최고관리자 초기 계정 자동 주입
+  try {
+    const operatorCheck = await queryTable('crm_operators', { filters: { username: 'admin' } });
+    if (!operatorCheck.rows || operatorCheck.rows.length === 0) {
+      const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+      await insertRows('crm_operators', [{
+        id: 1,
+        username: 'admin',
+        password_hash: '$2b$10$wJx1.955Ypx9znqV8x6KVuFTrZaxAaf6TaEFc77Rz29ctUUD7jgz.', // admin1234
+        name: '최고관리자',
+        role: 'SUPER_ADMIN',
+        created_at: nowStr,
+        uuid: 'super-admin-uuid-1'
+      }]);
+      console.log('Super admin account (admin) seeded.');
+    }
+  } catch (e: any) {
+    console.error('Error seeding super admin account:', e.message);
+  }
+
   // 79. 기업부설연구소 초기 시드 데이터 자동 주입
   try {
     const rndCentersCheck = await queryTable('rnd_centers', {});
