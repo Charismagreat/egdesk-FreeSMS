@@ -4324,9 +4324,9 @@ export default function EasyBot() {
                   : isMedicalPreview && hasContent
                   ? msg.content.substring(17, msg.content.length - 1)
                   : isPurchaseInvoicePreview && hasContent
-                  ? msg.content.substring(25, msg.content.length - 1)
+                  ? msg.content.substring(26, msg.content.length - 1)
                   : isCompetitorPricePreview && hasContent
-                  ? msg.content.substring(25, msg.content.length - 1)
+                  ? msg.content.substring(26, msg.content.length - 1)
                   : isFacilityPlatePreview && hasContent
                   ? msg.content.substring(24, msg.content.length - 1)
                   : isFacilityChecklistPreview && hasContent
