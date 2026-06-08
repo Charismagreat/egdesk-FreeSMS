@@ -210,6 +210,159 @@ export async function POST(req: Request) {
     }
 
     // ==================================================
+    // 💡 분기 처리 1.5: 자율 입고 확정 (INVENTORY_INBOUND)
+    // ==================================================
+    if (fileType === 'INVENTORY_INBOUND') {
+      const {
+        partnerName,
+        inboundDate,
+        items = [],
+        pdfFilePath
+      } = reqBody;
+
+      if (!inboundDate) {
+        return NextResponse.json({
+          success: false,
+          error: '입고 일자(inboundDate) 정보가 누락되었습니다.'
+        }, { status: 400 });
+      }
+
+      // 1) crm_inventory_inbounds 레코드 생성
+      const inboundId = 'INB-' + Date.now();
+      let totalAmount = 0;
+
+      for (const item of items) {
+        const qty = Number(item.quantity) || 0;
+        const price = Number(item.price) || 0;
+        totalAmount += qty * price;
+      }
+
+      await insertRows('crm_inventory_inbounds', [{
+        id: inboundId,
+        partner_name: partnerName || '',
+        inbound_date: inboundDate,
+        total_amount: totalAmount,
+        pdf_file_path: pdfFilePath || '',
+        created_at: nowStr,
+        updated_at: nowStr
+      }]);
+
+      // 2) crm_inventory_inbound_items 상세 품목 추가 및 실제 재고(inventory_items / inventory_logs) 반영
+      const existingItemsRes = await queryTable('inventory_items', {});
+      const existingItems = existingItemsRes.rows || [];
+      let maxItemId = existingItems.length > 0 ? Math.max(...existingItems.map((i: any) => Number(i.id) || 0)) : 0;
+
+      const existingLogsRes = await queryTable('inventory_logs', {});
+      const existingLogs = existingLogsRes.rows || [];
+      let maxLogId = existingLogs.length > 0 ? Math.max(...existingLogs.map((l: any) => Number(l.id) || 0)) : 0;
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const inboundItemId = `INB-ITEM-${Date.now()}-${i}`;
+        const qty = Number(item.quantity) || 0;
+        const price = Number(item.price) || 0;
+        const barcode = item.barcode || '';
+        const itemName = item.itemName || '';
+        const spec = item.spec || '';
+        
+        let finalMatchedItemId: number | null = null;
+
+        if (item.matchedItemId && item.matchedItemId !== 'NEW') {
+          // 2-A. 기존 재고 품목에 가산
+          finalMatchedItemId = Number(item.matchedItemId);
+          
+          const matchCheck = await queryTable('inventory_items', { filters: { id: finalMatchedItemId } });
+          if (matchCheck.rows && matchCheck.rows.length > 0) {
+            const currentItem = matchCheck.rows[0];
+            const newStock = (Number(currentItem.stock) || 0) + qty;
+            
+            // 재고 수량 및 최근 단가(값이 있을 때만) 업데이트
+            await updateRows('inventory_items', {
+              stock: newStock,
+              price: price > 0 ? price : currentItem.price,
+              updated_at: nowStr
+            }, { filters: { id: finalMatchedItemId } });
+
+            // 재고 변동 로그 기록
+            maxLogId++;
+            await insertRows('inventory_logs', [{
+              id: maxLogId,
+              itemId: finalMatchedItemId,
+              itemName: itemName,
+              itemType: currentItem.type || '자재',
+              changeType: 'INBOUND',
+              quantity: qty,
+              price: price,
+              operator: 'AI 이지봇',
+              note: `[자율 입고] ${partnerName || ''} 거래명세서 스캔 확정 반영`,
+              createdAt: nowStr
+            }]);
+          }
+        } else {
+          // 2-B. 신규 품목 등록 처리 (matchedItemId === 'NEW' 또는 지정 안 됨)
+          maxItemId++;
+          finalMatchedItemId = maxItemId;
+
+          // 신규 재고 품목 인서트
+          await insertRows('inventory_items', [{
+            id: finalMatchedItemId,
+            type: '자재',
+            name: itemName,
+            category: '기타',
+            price: price,
+            partner: partnerName || '',
+            stock: qty,
+            safeStock: 0,
+            location: '자율입고창고',
+            spec: spec,
+            unitType: '개',
+            unitValue: '1',
+            boxContains: 1,
+            description: 'AI 이지봇 자율 입고 OCR 등록 품목',
+            barcode: barcode,
+            createdAt: nowStr,
+            uuid: `ITEM-${Date.now()}-${i}`
+          }]);
+
+          // 신규 등록 입고 로그 기록
+          maxLogId++;
+          await insertRows('inventory_logs', [{
+            id: maxLogId,
+            itemId: finalMatchedItemId,
+            itemName: itemName,
+            itemType: '자재',
+            changeType: 'INBOUND',
+            quantity: qty,
+            price: price,
+            operator: 'AI 이지봇',
+            note: `[자율 신규 등록] ${partnerName || ''} 거래명세서 스캔 최초 입고`,
+            createdAt: nowStr
+          }]);
+        }
+
+        // crm_inventory_inbound_items 상세 품목 인서트
+        await insertRows('crm_inventory_inbound_items', [{
+          id: inboundItemId,
+          inbound_id: inboundId,
+          item_name: itemName,
+          spec: spec,
+          quantity: qty,
+          price: price,
+          barcode: barcode,
+          matched_item_id: finalMatchedItemId,
+          created_at: nowStr
+        }]);
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `거래처 [${partnerName || '미지정'}]의 총 ${items.length}개 품목에 대한 자율 입고 처리가 성공적으로 완료되었습니다.`,
+        action: 'inbound_completed',
+        inboundId
+      });
+    }
+
+    // ==================================================
     // 📂 분기 처리 2: 명함 확정 (BUSINESS_CARD) - 레거시 완벽 승계
     // ==================================================
     const { 

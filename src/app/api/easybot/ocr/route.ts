@@ -140,10 +140,10 @@ export async function POST(req: Request) {
       : 'gemini-3.5-flash';
 
     // 3. 지능형 하이브리드 OCR 분류/스캔 통합 프롬프트 설계 (멀티 엔티티 탐지 지원)
-    const geminiPrompt = `제공된 문서 이미지나 PDF 속에는 여러 장의 명함, 사업자등록증, 영수증(지출 증빙), 재무제표가 혼재되어 있을 수 있습니다.
+    const geminiPrompt = `제공된 문서 이미지나 PDF 속에는 여러 장의 명함, 사업자등록증, 영수증(지출 증빙), 재무제표, 그리고 거래명세서(또는 바코드 라벨/재고 정보)가 혼재되어 있을 수 있습니다.
 각 문서들을 지능적으로 개별 검출하여 detectedItems 배열 안에 순서대로 담아 응답해 주세요.
 
-각 아이템은 다음 4가지 타입 중 하나여야 합니다:
+각 아이템은 다음 5가지 타입 중 하나여야 합니다:
 1. 명함 ("BUSINESS_CARD"):
    - data 객체에 name (성명), position (직급/직책), phone (전화번호), email (이메일), companyName (회사명/소속) 추출.
 2. 사업자등록증 ("BUSINESS_LICENSE"):
@@ -153,6 +153,9 @@ export async function POST(req: Request) {
 4. 재무제표 ("FINANCIAL_STATEMENT"):
    - data 객체에 companyName (회사명), fiscalYear (회계 연도, 숫자로만), fiscalQuarter (분기, 기본값 "YR"), totalAssets (자산총계, 숫자로만), totalLiabilities (부채총계, 숫자로만), totalEquity (자본총계, 숫자로만), revenue (매출액, 숫자로만), operatingIncome (영업이익, 숫자로만), netIncome (당기순이익, 숫자로만) 추출.
    - 또한, data 객체 내부의 parsedRawJson 속성에 대차대조표와 손익계산서의 세부 계정과목 및 금액 정보를 담은 계층형 트리 JSON 객체를 정밀 추출해 주세요. 이 JSON 객체는 PDF에 기재된 모든 세부 계정과목(예: 현금및현금성자산, 매출채권, 여비교통비, 급여, 임차료 등)의 계층 구조와 원화 단위를 정확히 반영해야 합니다. (예시: {"재무상태표": {"자산": {"유동자산": {"현금및현금성자산": 15000000, "매출채권": 24000000}, "비유동자산": {...}}, "부채": {...}, "자본": {...}}, "손익계산서": {"매출액": 120000000, "매출원가": 70000000, "판매비와관리비": {"여비교통비": 1200000, "복리후생비": 3200000, ...}} 등) 모든 금액 수치는 반드시 원화(KRW) 단위 정수여야 하며, 만약 문서 단위가 백만원 또는 천원 등이라면 원 단위로 환산해서 기입해야 합니다.
+5. 거래명세서/바코드 라벨 ("INVENTORY_INBOUND"):
+   - data 객체에 partnerName (명세서상의 공급자 상호명 또는 거래처명, 예: "주식회사 원컨덕터"), inboundDate (입고일자 또는 작성일자 "YYYY-MM-DD", 기재되어 있지 않다면 오늘 날짜)와 items 배열을 추출해 주세요.
+   - items 배열의 각 요소는 itemName (품명, 예: "구리 와이어"), spec (규격/스펙, 예: "Ø2.0mm", 없을 시 공백), quantity (수량, 숫자로만, 예: 250), price (단가, 숫자로만, 없을 시 0, 예: 12000), barcode (바코드 번호 또는 라벨 식별 번호, 바코드의 기호나 텍스트가 식별되면 기입, 없을 시 공백)를 포함해야 합니다.
 
 추출한 값들은 반드시 아래 JSON 스키마 규격을 빈틈없이 준수하여 순수 JSON 문자열로만 응답해 주세요. 다른 마크다운 백틱(\`\`\`) 기호나 텍스트는 절대 포함하지 마세요.
 
@@ -201,6 +204,22 @@ export async function POST(req: Request) {
             "당기순이익": 9000000
           }
         }
+      }
+    },
+    {
+      "itemType": "INVENTORY_INBOUND",
+      "data": {
+        "partnerName": "(주)대선기공",
+        "inboundDate": "2026-06-08",
+        "items": [
+          {
+            "itemName": "메인샤프트 베어링",
+            "spec": "UC208-24",
+            "quantity": 50,
+            "price": 18500,
+            "barcode": "8809123456789"
+          }
+        ]
       }
     }
   ]
@@ -299,6 +318,9 @@ export async function POST(req: Request) {
     if (!ntsApiKey) {
       ntsApiKey = process.env.NTS_BUSINESS_API_KEY || null;
     }
+
+    const inventoryItemsRes = await queryTable('inventory_items', {});
+    const allInventoryItems = inventoryItemsRes.rows || [];
 
     const processedItems = [];
 
@@ -567,6 +589,50 @@ export async function POST(req: Request) {
           matchedCompanyName,
           pdfFilePath
         });
+
+      } else if (item.itemType === 'INVENTORY_INBOUND') {
+        const inboundData = item.data || {};
+        const parsedItems = [];
+        
+        for (const rawItem of (inboundData.items || [])) {
+          let matchedItemId = null;
+          // 1. 바코드 기준으로 매칭
+          if (rawItem.barcode) {
+            const match = allInventoryItems.find((it: any) => it.barcode && String(it.barcode).trim() === String(rawItem.barcode).trim());
+            if (match) {
+              matchedItemId = match.id;
+            }
+          }
+          // 2. 바코드 매칭 실패 시 이름으로 매칭 (Fuzzy)
+          if (!matchedItemId && rawItem.itemName) {
+            const cleanName = rawItem.itemName.trim().toLowerCase();
+            const match = allInventoryItems.find((it: any) => 
+              it.name && (it.name.trim().toLowerCase().includes(cleanName) || cleanName.includes(it.name.trim().toLowerCase()))
+            );
+            if (match) {
+              matchedItemId = match.id;
+            }
+          }
+
+          parsedItems.push({
+            itemName: rawItem.itemName || '',
+            spec: rawItem.spec || '',
+            quantity: Number(rawItem.quantity) || 0,
+            price: Number(rawItem.price) || 0,
+            barcode: rawItem.barcode || '',
+            matched_item_id: matchedItemId
+          });
+        }
+
+        processedItems.push({
+          itemType: 'INVENTORY_INBOUND',
+          data: {
+            partnerName: inboundData.partnerName || '',
+            inboundDate: inboundData.inboundDate || new Date().toISOString().slice(0, 10),
+            items: parsedItems,
+            pdfFilePath
+          }
+        });
       }
     }
 
@@ -609,7 +675,8 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       detectedItems: processedItems,
-      partnersList: allPartners
+      partnersList: allPartners,
+      inventoryItemsList: allInventoryItems
     });
 
   } catch (error: any) {

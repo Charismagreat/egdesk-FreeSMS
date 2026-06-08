@@ -455,6 +455,30 @@ export async function setupDatabase() {
     { name: 'restored_by', type: 'TEXT' }
   ], { tableName: 'inventory_items', uniqueKeyColumns: ['id'] });
 
+  // 29-1. Inventory Inbounds Table (자율 입고 대장)
+  await safeCreateTable('자율 입고 대장', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'partner_name', type: 'TEXT' },
+    { name: 'inbound_date', type: 'TEXT', notNull: true },
+    { name: 'total_amount', type: 'INTEGER', defaultValue: 0 },
+    { name: 'pdf_file_path', type: 'TEXT' },
+    { name: 'created_at', type: 'TEXT', notNull: true },
+    { name: 'updated_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'crm_inventory_inbounds', uniqueKeyColumns: ['id'] });
+
+  // 29-2. Inventory Inbound Items Table (자율 입고 상세 품목)
+  await safeCreateTable('자율 입고 상세 품목', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'inbound_id', type: 'TEXT', notNull: true },
+    { name: 'item_name', type: 'TEXT', notNull: true },
+    { name: 'spec', type: 'TEXT' },
+    { name: 'quantity', type: 'INTEGER', notNull: true },
+    { name: 'price', type: 'INTEGER', defaultValue: 0 },
+    { name: 'barcode', type: 'TEXT' },
+    { name: 'matched_item_id', type: 'INTEGER' }, // null 이면 신규 품목 등록 대상
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'crm_inventory_inbound_items', uniqueKeyColumns: ['id'] });
+
   // 30. AI Token Usage Logs Table (AI 토큰 소모량 정밀 모니터링 로그 대장)
   await safeCreateTable('AI 토큰 사용량 로그', [
     { name: 'id', type: 'INTEGER', notNull: true },

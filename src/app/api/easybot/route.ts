@@ -145,6 +145,61 @@ export async function POST(req: Request) {
   - 당기순이익률 (%) = (net_income / revenue) * 100
 `;
     dbTablesInfo += "\n" + financialsTablesInfo;
+
+    // ✨ [Inventory] 재고 및 자율 입고 내역 테이블 스키마 텍스트 주입
+    const inventoryTablesInfo = `
+[Inventory Items Table (inventory_items)]
+- Description: 현재 보유한 재고 품목들의 세부 내역 및 수량 정보가 저장된 테이블입니다.
+- Columns:
+  - id (INTEGER PRIMARY KEY AUTOINCREMENT): 고유 식별자
+  - type (TEXT): 품목 유형 ('자재' 또는 '제품')
+  - name (TEXT): 품목명
+  - category (TEXT): 카테고리 (예: '기타')
+  - price (REAL): 단가 (원화)
+  - partner (TEXT): 거래처명/공급처명
+  - stock (INTEGER): 현재 재고 수량
+  - safeStock (INTEGER): 안전 재고 수량
+  - spec (TEXT): 규격 및 스펙
+  - barcode (TEXT): 바코드 번호 (USB 리더기 혹은 EAN-13 식별번호)
+
+[Inventory Logs Table (inventory_logs)]
+- Description: 재고가 변동(입고, 출고, 수정 등)된 모든 감사 이력이 기록된 테이블입니다.
+- Columns:
+  - id (INTEGER PRIMARY KEY AUTOINCREMENT): 로그 식별자
+  - itemId (INTEGER): 연동된 재고 품목 ID (inventory_items.id)
+  - itemName (TEXT): 품목명
+  - itemType (TEXT): 품목 유형
+  - changeType (TEXT): 변동 유형 ('INBOUND': 입고, 'OUTBOUND': 출고, 'ADJUST': 수량조정 등)
+  - quantity (INTEGER): 변동 수량
+  - price (REAL): 단가
+  - operator (TEXT): 변동 처리 작업자 ('AI 이지봇' 등)
+  - note (TEXT): 변동 메모
+  - createdAt (TEXT): 기록 일자 (YYYY-MM-DD HH:MM:SS)
+
+[Inventory Inbounds Table (crm_inventory_inbounds)]
+- Description: 실물 거래명세서/라벨 스캔을 통해 자율적으로 처리된 입고 대장 정보입니다.
+- Columns:
+  - id (TEXT PRIMARY KEY): 입고번호 (예: 'INB-178...')
+  - partner_name (TEXT): 스캔으로 파싱된 거래처/공급처명
+  - inbound_date (TEXT): 입고 날짜 (YYYY-MM-DD)
+  - total_amount (INTEGER): 해당 입고건의 품목 금액 총액 (수량 * 단가 누적액)
+  - pdf_file_path (TEXT): 업로드된 원본 문서 상대 경로
+  - created_at (TEXT): 생성 시간
+
+[Inventory Inbound Items Table (crm_inventory_inbound_items)]
+- Description: 자율 입고건의 상세 품목 매칭 내역 정보입니다.
+- Columns:
+  - id (TEXT PRIMARY KEY): 입고 상세 ID (예: 'INB-ITEM-...')
+  - inbound_id (TEXT): 연계된 입고 대장 ID (crm_inventory_inbounds.id)
+  - item_name (TEXT): 스캔된 품목명
+  - spec (TEXT): 규격/스펙
+  - quantity (INTEGER): 입고 수량
+  - price (INTEGER): 단가
+  - barcode (TEXT): 바코드
+  - matched_item_id (INTEGER): 실제 재고 대장 매칭 품목 ID (inventory_items.id)
+`;
+    dbTablesInfo += "\n" + inventoryTablesInfo;
+
     // 💡 [RAG] 모든 기업의 연도별 재무제표 세부 계정과목 트리(JSON) 로드 및 프롬프트 RAG 인입
     let financialStatementsRAG = '';
     try {

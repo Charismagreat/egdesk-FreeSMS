@@ -24,7 +24,12 @@ export default function InventoryPage() {
   // 상태 정의
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [logs, setLogs] = useState<InventoryLog[]>([]);
-  const [activeTab, setActiveTab] = useState<'material' | 'product'>('material');
+  const [activeTab, setActiveTab] = useState<'material' | 'product' | 'inbound'>('material');
+  const [inbounds, setInbounds] = useState<any[]>([]);
+  const [selectedInboundId, setSelectedInboundId] = useState<string | null>(null);
+  const [inboundDetails, setInboundDetails] = useState<any[]>([]);
+  const [isInboundModalOpen, setIsInboundModalOpen] = useState(false);
+  const [loadingInbounds, setLoadingInbounds] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -273,12 +278,43 @@ export default function InventoryPage() {
       } else {
         setLogs([]);
       }
+
+      // 자율 입고 내역 가져오기
+      const inboundsRes = await fetch('/api/inventory/inbounds');
+      const inboundsData = await inboundsRes.json();
+      if (inboundsData.success) {
+        setInbounds(Array.isArray(inboundsData.data) ? inboundsData.data : []);
+      } else {
+        setInbounds([]);
+      }
     } catch (error) {
       console.error('데이터 로드 실패:', error);
       setItems([]);
       setLogs([]);
+      setInbounds([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 자율 입고 상세 정보 로드
+  const openInboundDetail = async (inboundId: string) => {
+    setSelectedInboundId(inboundId);
+    setIsInboundModalOpen(true);
+    setLoadingInbounds(true);
+    try {
+      const res = await fetch(`/api/inventory/inbounds?inbound_id=${inboundId}`);
+      const data = await res.json();
+      if (data.success) {
+        setInboundDetails(Array.isArray(data.data) ? data.data : []);
+      } else {
+        setInboundDetails([]);
+      }
+    } catch (err) {
+      console.error('입고 상세 로드 실패:', err);
+      setInboundDetails([]);
+    } finally {
+      setLoadingInbounds(false);
     }
   };
 
@@ -529,7 +565,7 @@ export default function InventoryPage() {
   // 폼 리셋
   const resetItemForm = () => {
     setItemForm({
-      type: activeTab,
+      type: activeTab === 'inbound' ? 'material' : activeTab,
       name: '',
       category: '',
       price: '',
@@ -561,7 +597,7 @@ export default function InventoryPage() {
   const openNewItemModal = () => {
     setSelectedItem(null);
     setItemForm({
-      type: activeTab,
+      type: activeTab === 'inbound' ? 'material' : activeTab,
       name: '',
       category: '',
       price: '',
@@ -966,6 +1002,8 @@ export default function InventoryPage() {
           onOpenEditItemModal={openEditItemModal}
           onOpenLabelPrintModal={(item) => { setSelectedPrintItem(item); setIsLabelPrintModalOpen(true); }}
           onDeleteItem={handleItemDelete}
+          inbounds={inbounds}
+          onOpenInboundDetail={openInboundDetail}
         />
 
         {/* 4. 하단 입출고 변동 로그 히스토리 테이블 */}
@@ -1025,6 +1063,112 @@ export default function InventoryPage() {
         onClose={() => { setIsLabelPrintModalOpen(false); setSelectedPrintItem(null); }}
         selectedPrintItem={selectedPrintItem}
       />
+
+      {/* 10. 자율 입고 상세 내역 모달 */}
+      {isInboundModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[85vh] overflow-hidden shadow-2xl border border-slate-100 flex flex-col text-slate-800 animate-in zoom-in-95 duration-200">
+            {/* 헤더 */}
+            <div className="bg-gradient-to-r from-indigo-50/50 to-blue-50/30 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="p-2 bg-indigo-100 text-indigo-600 rounded-xl">
+                  <FileText className="w-5 h-5" />
+                </span>
+                <div>
+                  <h3 className="text-base font-black text-slate-800">자율 입고 상세 내역서</h3>
+                  <p className="text-[10px] text-slate-400 mt-0.5">입고 번호: {selectedInboundId}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsInboundModalOpen(false)}
+                className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 transition-colors font-bold text-xs"
+              >
+                닫기
+              </button>
+            </div>
+
+            {/* 본문 */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {loadingInbounds ? (
+                <div className="py-20 flex flex-col items-center justify-center space-y-3">
+                  <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+                  <span className="text-xs text-slate-500 font-semibold">입고 상세 목록 조회 중...</span>
+                </div>
+              ) : inboundDetails.length === 0 ? (
+                <div className="py-12 text-center text-slate-400">
+                  <p className="text-sm font-semibold">상세 품목 정보가 존재하지 않습니다.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* 기본 정보 */}
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 grid grid-cols-2 gap-4 text-xs">
+                    <div>
+                      <span className="text-slate-400 block mb-0.5">공급처 (거래처)</span>
+                      <span className="font-bold text-slate-800">
+                        {inbounds.find(i => i.id === selectedInboundId)?.partner_name || '미지정'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 block mb-0.5">입고 일자</span>
+                      <span className="font-bold text-slate-800">
+                        {inbounds.find(i => i.id === selectedInboundId)?.inbound_date || '-'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 품목 리스트 */}
+                  <div className="border border-slate-100 rounded-2xl overflow-hidden">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50">
+                          <th className="py-3 px-4">품목명</th>
+                          <th className="py-3 px-4">규격/스펙</th>
+                          <th className="py-3 px-4 text-center">수량</th>
+                          <th className="py-3 px-4 text-right">단가</th>
+                          <th className="py-3 px-4 text-right">금액</th>
+                          <th className="py-3 px-4">바코드</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-700">
+                        {inboundDetails.map((item) => (
+                          <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="py-3.5 px-4 font-semibold text-slate-800">{item.item_name}</td>
+                            <td className="py-3.5 px-4 text-slate-500">{item.spec || '-'}</td>
+                            <td className="py-3.5 px-4 text-center font-bold text-slate-800">{item.quantity}</td>
+                            <td className="py-3.5 px-4 text-right">₩{item.price.toLocaleString()}</td>
+                            <td className="py-3.5 px-4 text-right font-bold text-indigo-600">
+                              ₩{(item.quantity * item.price).toLocaleString()}
+                            </td>
+                            <td className="py-3.5 px-4 text-slate-400 font-mono text-[10px]">{item.barcode || '-'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* 합계금액 */}
+                  <div className="flex justify-between items-center bg-indigo-50/30 p-4 rounded-2xl border border-indigo-50/50">
+                    <span className="text-xs font-bold text-slate-500">최종 합계 금액</span>
+                    <span className="text-base font-black text-indigo-600">
+                      ₩{(inbounds.find(i => i.id === selectedInboundId)?.total_amount || 0).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 푸터 */}
+            <div className="bg-slate-50 px-6 py-4 border-t border-slate-100 flex justify-end">
+              <button
+                onClick={() => setIsInboundModalOpen(false)}
+                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl text-xs transition cursor-pointer shadow-md shadow-indigo-200/50 border-none"
+              >
+                확인 완료
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
