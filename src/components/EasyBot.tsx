@@ -2492,9 +2492,16 @@ function InboundEstimatePreviewMessage({ tagContent, onConfirmSuccess }: { tagCo
         setSaved(true);
         onConfirmSuccess(resData.message);
         
-        // 상세조회 모달이 열린 상태로 페이지 이동
-        if (resData.estimateId) {
-          router.push(`/estimates?detail_id=${resData.estimateId}`);
+        const estId = resData.estimateId;
+        if (estId) {
+          // 현재 위치가 이미 견적 대장 페이지인 경우 새로고침 없이 즉각 모달 오픈 이벤트 전송
+          if (typeof window !== "undefined" && window.location.pathname === '/estimates') {
+            window.history.replaceState({}, "", `/estimates?detail_id=${estId}`);
+            window.dispatchEvent(new CustomEvent('open-estimate-detail', { detail: { estimateId: estId } }));
+          } else {
+            // 다른 페이지에 있다면 쿼리 스트링과 함께 라우팅 이동 (마운트 시 자동 감지됨)
+            router.push(`/estimates?detail_id=${estId}`);
+          }
         } else {
           router.push('/estimates');
         }

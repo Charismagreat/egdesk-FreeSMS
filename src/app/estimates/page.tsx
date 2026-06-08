@@ -150,7 +150,7 @@ export default function EstimatesDashboard() {
     fetchData();
     fetchUserRole();
 
-    // 이지봇 연동을 통한 상세 모달 자동 팝업 처리
+    // 이지봇 연동을 통한 상세 모달 자동 팝업 처리 (마운트 시점 감지)
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const detailId = params.get("detail_id");
@@ -162,6 +162,24 @@ export default function EstimatesDashboard() {
         const newUrl = window.location.pathname;
         window.history.replaceState({}, "", newUrl);
       }
+
+      // 이미 마운트된 상태에서 전송되는 커스텀 이벤트 감지 리스너 등록
+      const handleOpenDetailEvent = (e: Event) => {
+        const customEvent = e as CustomEvent;
+        if (customEvent.detail && customEvent.detail.estimateId) {
+          setSelectedEstimateId(customEvent.detail.estimateId);
+          setIsDetailModalOpen(true);
+          
+          // 클린업
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, "", newUrl);
+        }
+      };
+
+      window.addEventListener('open-estimate-detail', handleOpenDetailEvent);
+      return () => {
+        window.removeEventListener('open-estimate-detail', handleOpenDetailEvent);
+      };
     }
   }, []);
 
