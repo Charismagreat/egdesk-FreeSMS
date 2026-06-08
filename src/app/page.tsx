@@ -1,4 +1,4 @@
-import { Users, MessageSquare, CheckCircle, Clock, AlertTriangle } from "lucide-react";
+import { Users, MessageSquare, CheckCircle, Clock, AlertTriangle, Home as HomeIcon } from "lucide-react";
 import { queryTable } from "@/../egdesk-helpers";
 import MobileHubWidget from "@/components/MobileHubWidget";
 import AiCopilotWidget from "@/components/AiCopilotWidget";
@@ -47,11 +47,23 @@ export default async function Home() {
   const latestLogTime = recentLogs.length > 0 ? new Date(recentLogs[0].created_at).toLocaleString() : "내역 없음";
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-slate-800">모바일 채널</h1>
-        <div className="text-sm text-slate-500 bg-white px-4 py-2 rounded-full shadow-sm">
-          연동 상태: <span className="text-green-500 font-semibold">정상 (Google 메시지)</span>
+    <div className="space-y-8 animate-fade-in relative pb-16">
+      
+      {/* 백그라운드 블루 광채 */}
+      <div className="absolute top-0 right-10 w-96 h-96 bg-blue-600/5 rounded-full blur-3xl -z-10 animate-pulse"></div>
+
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-black text-slate-800 tracking-tight flex items-center gap-2.5">
+            <HomeIcon className="w-8 h-8 text-blue-500" />
+            <span>모바일 채널</span>
+          </h1>
+          <p className="text-slate-505 mt-2 text-sm font-semibold">
+            Gemini AI 비서와 연동하여 실시간 모바일 옴니채널(SMS, 블로그, SNS) 제어 및 AI 고객 마케팅을 통합 관제합니다.
+          </p>
+        </div>
+        <div className="text-sm text-slate-550 bg-white px-4 py-2 rounded-full shadow-sm border border-slate-100 shrink-0 self-start md:self-center font-bold">
+          연동 상태: <span className="text-green-500 font-extrabold">정상 (Google 메시지)</span>
         </div>
       </div>
 
