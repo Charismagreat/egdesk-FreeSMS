@@ -98,7 +98,9 @@ const MENU_METADATA_MAP: Record<string, { label: string; icon: any; color: strin
   "/grant-management": { label: "지원금 관리 AI", icon: Award, color: "text-amber-555" },
   "/labor-management": { label: "노무 관리 AI", icon: Scale, color: "text-red-655" },
   "/credit-risk": { label: "채권 관리 AI", icon: CreditCard, color: "text-rose-555" },
-  "/password-ai": { label: "비밀번호관리 AI", icon: Key, color: "text-purple-555" }
+  "/password-ai": { label: "비밀번호관리 AI", icon: Key, color: "text-purple-555" },
+  "/lawyer-ai": { label: "변호사 AI", icon: Scale, color: "text-indigo-650" },
+  "/rnd-management": { label: "연구소 관리 AI", icon: Award, color: "text-amber-550" }
 };
 
 interface MenuSettingItem {
