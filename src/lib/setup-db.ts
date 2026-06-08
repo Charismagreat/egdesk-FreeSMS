@@ -1341,6 +1341,131 @@ export async function setupDatabase() {
     { name: 'sector', type: 'TEXT' }
   ], { tableName: 'crm_grant_company_profile', uniqueKeyColumns: ['id'] });
 
+  // 54. crm_quality_checklist_submissions Table (체크리스트 제출)
+  await safeCreateTable('체크리스트 제출 내역', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'lotNo', type: 'TEXT', notNull: true },
+    { name: 'inspector', type: 'TEXT', notNull: true },
+    { name: 'checkItems', type: 'TEXT', notNull: true },
+    { name: 'signatureData', type: 'TEXT' },
+    { name: 'photoUrl', type: 'TEXT' },
+    { name: 'status', type: 'TEXT', notNull: true },
+    { name: 'submittedAt', type: 'TEXT', notNull: true }
+  ], { tableName: 'crm_quality_checklist_submissions', uniqueKeyColumns: ['id'] });
+
+  // 55. crm_quality_ncr_items Table (NCR 부적합)
+  await safeCreateTable('NCR 부적합 내역', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'date', type: 'TEXT', notNull: true },
+    { name: 'itemName', type: 'TEXT', notNull: true },
+    { name: 'defectCode', type: 'TEXT' },
+    { name: 'defectType', type: 'TEXT' },
+    { name: 'quantity', type: 'INTEGER' },
+    { name: 'reporter', type: 'TEXT' },
+    { name: 'status', type: 'TEXT', notNull: true },
+    { name: 'description', type: 'TEXT' },
+    { name: 'actionPlan', type: 'TEXT' }
+  ], { tableName: 'crm_quality_ncr_items', uniqueKeyColumns: ['id'] });
+
+  // 56. crm_quality_ncr_similar_cases Table (유사 NCR 사례)
+  await safeCreateTable('유사 NCR 사례', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'title', type: 'TEXT', notNull: true },
+    { name: 'similarity', type: 'REAL' },
+    { name: 'rootCause', type: 'TEXT' },
+    { name: 'actionTaken', type: 'TEXT' }
+  ], { tableName: 'crm_quality_ncr_similar_cases', uniqueKeyColumns: ['id'] });
+
+  // 57. crm_quality_sensors_status Table (설비 센서 상태)
+  await safeCreateTable('설비 센서 상태', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'equipmentName', type: 'TEXT', notNull: true },
+    { name: 'operationalStatus', type: 'TEXT' },
+    { name: 'vibrationRms', type: 'REAL' },
+    { name: 'motorCurrent', type: 'REAL' },
+    { name: 'bearingTemp', type: 'REAL' },
+    { name: 'anomalyScore', type: 'INTEGER' },
+    { name: 'threshold', type: 'INTEGER' }
+  ], { tableName: 'crm_quality_sensors_status', uniqueKeyColumns: ['id'] });
+
+  // 58. crm_quality_sensors_contribution Table (센서 기여도)
+  await safeCreateTable('센서 기여도', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'name', type: 'TEXT', notNull: true },
+    { name: 'rate', type: 'INTEGER' }
+  ], { tableName: 'crm_quality_sensors_contribution', uniqueKeyColumns: ['id'] });
+
+  // 59. crm_quality_sensors_timeline Table (센서 시계열)
+  await safeCreateTable('센서 시계열', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'time', type: 'TEXT' },
+    { name: 'vibration', type: 'REAL' },
+    { name: 'current', type: 'REAL' },
+    { name: 'temperature', type: 'REAL' },
+    { name: 'anomalyScore', type: 'INTEGER' }
+  ], { tableName: 'crm_quality_sensors_timeline', uniqueKeyColumns: ['id'] });
+
+  // 60. crm_quality_spc_config Table (SPC 설정)
+  await safeCreateTable('SPC 공정 제어 설정', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'targetValue', type: 'REAL' },
+    { name: 'ucl', type: 'REAL' },
+    { name: 'lcl', type: 'REAL' },
+    { name: 'usl', type: 'REAL' },
+    { name: 'lsl', type: 'REAL' },
+    { name: 'currentCpk', type: 'REAL' },
+    { name: 'cpkStatus', type: 'TEXT' },
+    { name: 'futureRiskProbability', type: 'INTEGER' }
+  ], { tableName: 'crm_quality_spc_config', uniqueKeyColumns: ['id'] });
+
+  // 61. crm_quality_spc_samples Table (SPC 샘플)
+  await safeCreateTable('SPC 계측 샘플', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'batch', type: 'TEXT', notNull: true },
+    { name: 'value', type: 'REAL' },
+    { name: 'cpk', type: 'REAL' },
+    { name: 'timestamp', type: 'TEXT' }
+  ], { tableName: 'crm_quality_spc_samples', uniqueKeyColumns: ['id'] });
+
+  // 62. crm_quality_spc_predictions Table (SPC 예측)
+  await safeCreateTable('SPC 계측 예측', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'batch', type: 'TEXT', notNull: true },
+    { name: 'value', type: 'REAL' },
+    { name: 'cpk', type: 'REAL' },
+    { name: 'timestamp', type: 'TEXT' },
+    { name: 'risk', type: 'INTEGER' }
+  ], { tableName: 'crm_quality_spc_predictions', uniqueKeyColumns: ['id'] });
+
+  // 63. crm_quality_spc_features Table (SPC 요인 중요도)
+  await safeCreateTable('SPC 요인 중요도', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'name', type: 'TEXT', notNull: true },
+    { name: 'value', type: 'INTEGER' },
+    { name: 'color', type: 'TEXT' }
+  ], { tableName: 'crm_quality_spc_features', uniqueKeyColumns: ['id'] });
+
+  // 64. crm_quality_vision_model Table (품질 비전 AI 모델)
+  await safeCreateTable('품질 비전 AI 모델 상태', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'activeModel', type: 'TEXT' },
+    { name: 'goldenSamplesCount', type: 'INTEGER' },
+    { name: 'lastTrainedAt', type: 'TEXT' },
+    { name: 'anomalyThreshold', type: 'REAL' }
+  ], { tableName: 'crm_quality_vision_model', uniqueKeyColumns: ['id'] });
+
+  // 65. crm_quality_vision_logs Table (품질 비전 판정 이력)
+  await safeCreateTable('품질 비전 판정 이력', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'timestamp', type: 'TEXT' },
+    { name: 'itemName', type: 'TEXT' },
+    { name: 'anomalyScore', type: 'REAL' },
+    { name: 'status', type: 'TEXT' },
+    { name: 'defectType', type: 'TEXT' },
+    { name: 'imageUrl', type: 'TEXT' },
+    { name: 'isReviewed', type: 'INTEGER' }
+  ], { tableName: 'crm_quality_vision_logs', uniqueKeyColumns: ['id'] });
+
   // 40-1. 기존 shared_dashboards 테이블 물리 ALTER TABLE 보정 마이그레이션 (자율 핫픽스)
   try {
     const Database = require('better-sqlite3');
@@ -1458,6 +1583,118 @@ export async function setupDatabase() {
     }
   } catch (seedErr: any) {
     console.error('⚠️ Grant seeding error:', seedErr.message);
+  }
+
+  // 54. 품질 관리 AI 초기 데이터 백필 (Seeding)
+  try {
+    const spcConfigCheck = await queryTable('crm_quality_spc_config', {});
+    if (!spcConfigCheck.rows || spcConfigCheck.rows.length === 0) {
+      await insertRows('crm_quality_spc_config', [{
+        id: 'SPC-CFG',
+        targetValue: 210.0,
+        ucl: 215.0,
+        lcl: 205.0,
+        usl: 218.0,
+        lsl: 202.0,
+        currentCpk: 1.15,
+        cpkStatus: 'WARNING',
+        futureRiskProbability: 89
+      }]);
+    }
+
+    const spcSamplesCheck = await queryTable('crm_quality_spc_samples', {});
+    if (!spcSamplesCheck.rows || spcSamplesCheck.rows.length === 0) {
+      await insertRows('crm_quality_spc_samples', [
+        { id: 1, batch: 'B-201', value: 208.5, cpk: 1.42, timestamp: '18:00' },
+        { id: 2, batch: 'B-202', value: 211.5, cpk: 1.48, timestamp: '19:00' },
+        { id: 3, batch: 'B-203', value: 209.8, cpk: 1.59, timestamp: '20:00' },
+        { id: 4, batch: 'B-204', value: 213.1, cpk: 1.35, timestamp: '21:00' },
+        { id: 5, batch: 'B-205', value: 214.8, cpk: 1.22, timestamp: '22:00' },
+        { id: 6, batch: 'B-206', value: 215.2, cpk: 1.15, timestamp: '23:00' }
+      ]);
+    }
+
+    const spcFeaturesCheck = await queryTable('crm_quality_spc_features', {});
+    if (!spcFeaturesCheck.rows || spcFeaturesCheck.rows.length === 0) {
+      await insertRows('crm_quality_spc_features', [
+        { id: 'SPC-F1', name: '가열 실린더 압력', value: 42, color: 'bg-rose-500' },
+        { id: 'SPC-F2', name: '냉각수 밸브 유량', value: 28, color: 'bg-amber-500' },
+        { id: 'SPC-F3', name: '환경 외부 온도', value: 18, color: 'bg-blue-500' },
+        { id: 'SPC-F4', name: '원자재 용융 지수', value: 12, color: 'bg-indigo-500' }
+      ]);
+    }
+
+    const visionModelCheck = await queryTable('crm_quality_vision_model', {});
+    if (!visionModelCheck.rows || visionModelCheck.rows.length === 0) {
+      await insertRows('crm_quality_vision_model', [{
+        id: 'VIS-MODEL',
+        activeModel: 'Unsupervised PatchCore v2.1',
+        goldenSamplesCount: 85,
+        lastTrainedAt: '2026-06-05 14:30:22',
+        anomalyThreshold: 75.0
+      }]);
+    }
+
+    const sensorsStatusCheck = await queryTable('crm_quality_sensors_status', {});
+    if (!sensorsStatusCheck.rows || sensorsStatusCheck.rows.length === 0) {
+      await insertRows('crm_quality_sensors_status', [{
+        id: 'SEN-SUMMARY',
+        equipmentName: '주력 사출 프레스 M-500',
+        operationalStatus: 'WARNING',
+        vibrationRms: 4.8,
+        motorCurrent: 18.2,
+        bearingTemp: 56.4,
+        anomalyScore: 88,
+        threshold: 70
+      }]);
+    }
+
+    const sensorsContributionCheck = await queryTable('crm_quality_sensors_contribution', {});
+    if (!sensorsContributionCheck.rows || sensorsContributionCheck.rows.length === 0) {
+      await insertRows('crm_quality_sensors_contribution', [
+        { id: 'CON-1', name: '모터 하우징 진동 (Vibration)', rate: 62 },
+        { id: 'CON-2', name: '가동 구동 축 내부 온도 (Temperature)', rate: 23 },
+        { id: 'CON-3', name: '3상 공급 전력 전류 (Current)', rate: 15 }
+      ]);
+    }
+
+    const sensorsTimelineCheck = await queryTable('crm_quality_sensors_timeline', {});
+    if (!sensorsTimelineCheck.rows || sensorsTimelineCheck.rows.length === 0) {
+      await insertRows('crm_quality_sensors_timeline', [
+        { id: 'TIM-1', time: '23:00', vibration: 1.2, current: 12.4, temperature: 45.2, anomalyScore: 15 },
+        { id: 'TIM-2', time: '23:10', vibration: 1.3, current: 12.5, temperature: 45.8, anomalyScore: 18 },
+        { id: 'TIM-3', time: '23:20', vibration: 1.5, current: 13.0, temperature: 46.5, anomalyScore: 28 }
+      ]);
+    }
+
+    const visionLogsCheck = await queryTable('crm_quality_vision_logs', {});
+    if (!visionLogsCheck.rows || visionLogsCheck.rows.length === 0) {
+      await insertRows('crm_quality_vision_logs', [
+        { id: 'VIS-001', timestamp: '2026-06-06 23:15:30', itemName: '사출 성형 커버 A형', anomalyScore: 92.5, status: 'FAIL', defectType: '표면 크랙 (Surface Crack)', imageUrl: 'https://api.placeholder.com/400/300', isReviewed: 0 },
+        { id: 'VIS-002', timestamp: '2026-06-06 23:02:12', itemName: '사출 성형 커버 A형', anomalyScore: 12.4, status: 'PASS', defectType: '없음 (정상)', imageUrl: 'https://api.placeholder.com/400/300', isReviewed: 1 },
+        { id: 'VIS-003', timestamp: '2026-06-06 22:45:18', itemName: '커넥터 하우징 B형', anomalyScore: 88.1, status: 'FAIL', defectType: '미성형 (Under-fill)', imageUrl: 'https://api.placeholder.com/400/300', isReviewed: 1 }
+      ]);
+    }
+
+    const ncrItemsCheck = await queryTable('crm_quality_ncr_items', {});
+    if (!ncrItemsCheck.rows || ncrItemsCheck.rows.length === 0) {
+      await insertRows('crm_quality_ncr_items', [
+        { id: 'NCR-2026-004', date: '2026-06-06 23:45', itemName: '사출 성형 커버 A형', defectCode: 'DEF-022', defectType: '표면 수축 및 함몰', quantity: 120, reporter: '김철수 (공정검사원)', status: 'UNDER_REVIEW', description: '사출 성형 후 냉각 불량으로 인해 전면부 표면에 수축 함몰(Sink Mark)이 발생하여 규격 한계 초과함.', actionPlan: null },
+        { id: 'NCR-2026-003', date: '2026-06-05 10:15', itemName: '커넥터 하우징 B형', defectCode: 'DEF-008', defectType: '미성형 결함', quantity: 45, reporter: '이영희 (출하검사원)', status: 'CAPA_ISSUED', description: '원자재 공급 불균형으로 인해 하단 결속 핀 성형부에 미성형 결함이 관찰되어 출하 대기 격리함.', actionPlan: '노즐 온도 5도 상향 조정 및 원자재 공급 압력 조절 피드 메커니즘 튜닝 완료.' },
+        { id: 'NCR-2026-002', date: '2026-06-02 16:30', itemName: '사출 성형 커버 A형', defectCode: 'DEF-015', defectType: '이물 혼입', quantity: 15, reporter: '박민수 (수입검사원)', status: 'COMPLETED', description: '원재료 피딩 호퍼 세척 관리 소홀로 인한 흑점 이물 혼입 발견.', actionPlan: '호퍼 청소 스케줄 강화(주 1회 -> 매일 작업 전) 및 집진 쉴드 커버 장착 완료.' }
+      ]);
+    }
+
+    const ncrSimilarCasesCheck = await queryTable('crm_quality_ncr_similar_cases', {});
+    if (!ncrSimilarCasesCheck.rows || ncrSimilarCasesCheck.rows.length === 0) {
+      await insertRows('crm_quality_ncr_similar_cases', [
+        { id: 'NCR-2024-118', title: '2024년 11월 사출 커버 표면 수축 불량 발생 건', similarity: 95.8, rootCause: '냉각 순환 밸브 스케일(침전물) 누적으로 인한 냉각 열교환 효율 저하.', actionTaken: '냉각 배관 세척액 플러싱 실시 및 냉각 타이머 2.5초 연장 설정. 조치 후 Cpk 1.45로 복귀.' },
+        { id: 'NCR-2025-042', title: '2025년 4월 금형 온도 편차로 인한 Sink Mark 발생 건', similarity: 88.2, rootCause: '금형 가열 히터 카트리지 3번 단선으로 인한 국부적 온도 저하.', actionTaken: '단선된 가열 카트리지 교체 및 금형 온도 상한 경보 센서 이중화 튜닝.' }
+      ]);
+    }
+    console.log('✓ 스마트 공장 품질 관리 초기 데이터 시딩 완료');
+  } catch (seedErr: any) {
+    console.error('⚠️ Quality seeding error:', seedErr.message);
   }
 
   console.log('Database setup complete.');
