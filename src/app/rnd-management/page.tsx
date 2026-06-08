@@ -5,7 +5,7 @@ import {
   Award, Shield, Calendar, CheckCircle, AlertTriangle, XCircle, 
   UserPlus, FileText, Camera, ShieldAlert, Cpu, Sparkles, 
   ArrowRight, Check, RefreshCw, Upload, Mic, Trash2, Key,
-  Activity, Users, LayoutDashboard, Home, X
+  Activity, Users, LayoutDashboard, Home, X, Info
 } from 'lucide-react';
 
 export default function RndManagementPage() {
@@ -16,6 +16,7 @@ export default function RndManagementPage() {
   const [logs, setLogs] = useState<any[]>([]);
   const [alarms, setAlarms] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showKoitaInfo, setShowKoitaInfo] = useState(false);
 
   // AI 연구일지 생성 관련 상태
   const [logInputSource, setLogInputSource] = useState<'VOICE' | 'GITHUB' | 'JIRA'>('GITHUB');
@@ -348,6 +349,13 @@ export default function RndManagementPage() {
             <Activity className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
             <span className="text-slate-400 font-extrabold">KOITA 연동망:</span>
             <span className="text-emerald-600 font-black">실시간 감시 중</span>
+            <button
+              onClick={() => setShowKoitaInfo(true)}
+              className="text-slate-400 hover:text-slate-600 transition-colors ml-1 p-0.5 rounded-full hover:bg-slate-100/80"
+              title="상세 안내 보기"
+            >
+              <Info className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       </div>
@@ -998,6 +1006,58 @@ export default function RndManagementPage() {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* KOITA 연동망 상세 안내 모달 팝업 */}
+      {showKoitaInfo && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col relative animate-scale-in text-left">
+            <div className="bg-slate-900 p-4 text-white flex justify-between items-center">
+              <div className="flex items-center space-x-2">
+                <Activity className="w-4 h-4 text-emerald-400 animate-pulse" />
+                <h3 className="text-sm font-bold">KOITA 연동망 실시간 감시 역할</h3>
+              </div>
+              <button 
+                onClick={() => setShowKoitaInfo(false)}
+                className="text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4 text-xs text-slate-600 leading-relaxed font-medium">
+              <p className="bg-emerald-50 text-emerald-900 p-3 rounded-xl border border-emerald-100 font-semibold">
+                이지데스크 컴플라이언스 엔진이 한국산업기술진흥협회(KOITA)의 법적 기준을 백그라운드에서 상시 모니터링하는 감시 상태 신호입니다.
+              </p>
+              
+              <div className="space-y-3">
+                <div className="border-l-2 border-amber-500 pl-3">
+                  <h4 className="font-bold text-slate-800 text-xs mb-0.5">1. 법정 설립 요건 상시 모니터링</h4>
+                  <p className="text-slate-500">연구원 필수 인원수 충족 여부, 물적 공간 분리 상태 및 분기 1회 공간 자가진단 주기를 상시 감시합니다.</p>
+                </div>
+                
+                <div className="border-l-2 border-amber-500 pl-3">
+                  <h4 className="font-bold text-slate-800 text-xs mb-0.5">2. 14일 이내 의무 변경신고 방어</h4>
+                  <p className="text-slate-500">인력 퇴사나 공간 변동 발생 시 14일 내 신고 기한을 추적하여 마감 위험이 다가올 때 D-Day 적색 알림을 발행합니다.</p>
+                </div>
+                
+                <div className="border-l-2 border-amber-500 pl-3">
+                  <h4 className="font-bold text-slate-800 text-xs mb-0.5">3. R&D 실적 무결성 증적</h4>
+                  <p className="text-slate-500">작성 완료된 연구일지의 소장 결재 시점 블록체인 해시 각인 및 위변조 방지 감사 이력(Audit Trail)의 가동을 검증합니다.</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+              <button
+                onClick={() => setShowKoitaInfo(false)}
+                className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-colors"
+              >
+                닫기
+              </button>
             </div>
           </div>
         </div>
