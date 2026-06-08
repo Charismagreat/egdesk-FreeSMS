@@ -4086,165 +4086,156 @@ export default function EasyBot() {
         const data = await response.json();
 
         if (data.success && data.detectedItems && data.detectedItems.length > 0) {
-          // 로딩 상태 대화 제거
           setMessages(prev => {
             const updated = [...prev];
+            // 로딩 상태 대화 제거
             updated.pop();
-            return updated;
-          });
 
-          // 검출된 문서 수만큼 대화창에 차례대로 카드 뿌리기
-          data.detectedItems.forEach((item: any) => {
-            if (item.itemType === 'BUSINESS_LICENSE') {
-              const licensePayload = {
-                status: item.status,
-                existingId: item.existingId,
-                existingType: item.existingType,
-                diff: item.diff,
-                checksum: item.checksum,
-                nts: item.nts,
-                data: item.data
-              };
-              setMessages(prev => [
-                ...prev,
-                {
+            // 검출된 문서 수만큼 대화창에 차례대로 카드 뿌리기
+            data.detectedItems.forEach((item: any) => {
+              if (item.itemType === 'BUSINESS_LICENSE') {
+                const licensePayload = {
+                  status: item.status,
+                  existingId: item.existingId,
+                  existingType: item.existingType,
+                  diff: item.diff,
+                  checksum: item.checksum,
+                  nts: item.nts,
+                  data: item.data
+                };
+                updated.push({
                   role: 'bot',
                   content: `[LICENSE_PREVIEW:${JSON.stringify(licensePayload)}]`,
                   timestamp: formatTimestamp()
-                }
-              ]);
-            } else if (item.itemType === 'BUSINESS_CARD') {
-              const cardPayload = {
-                ...item.data,
-                actionType: item.actionType,
-                partnerId: item.partnerId,
-                partnerName: item.partnerName,
-                existingContact: item.existingContact,
-                cardImageUrl: base64Str
-              };
-              setMessages(prev => [
-                ...prev,
-                {
+                });
+              } else if (item.itemType === 'BUSINESS_CARD') {
+                const cardPayload = {
+                  ...item.data,
+                  actionType: item.actionType,
+                  partnerId: item.partnerId,
+                  partnerName: item.partnerName,
+                  existingContact: item.existingContact,
+                  cardImageUrl: base64Str
+                };
+                updated.push({
                   role: 'bot',
                   content: `[CARD_PREVIEW:${JSON.stringify(cardPayload)}]`,
                   timestamp: formatTimestamp()
-                }
-              ]);
-            } else if (item.itemType === 'RECEIPT') {
-              const receiptPayload = {
-                ...item.data
-              };
-              setMessages(prev => [
-                ...prev,
-                {
+                });
+              } else if (item.itemType === 'RECEIPT') {
+                const receiptPayload = {
+                  ...item.data
+                };
+                updated.push({
                   role: 'bot',
                   content: `[RECEIPT_PREVIEW:${JSON.stringify(receiptPayload)}]`,
                   timestamp: formatTimestamp()
-                }
-              ]);
-            } else if (item.itemType === 'FINANCIAL_STATEMENT') {
-              const financialPayload = {
-                status: item.status,
-                partnerId: item.partnerId,
-                companyType: item.companyType,
-                matchedCompanyName: item.matchedCompanyName,
-                pdfFilePath: item.pdfFilePath,
-                data: item.data,
-                partnersList: data.partnersList
-              };
-              setMessages(prev => [
-                ...prev,
-                {
+                });
+              } else if (item.itemType === 'FINANCIAL_STATEMENT') {
+                const financialPayload = {
+                  status: item.status,
+                  partnerId: item.partnerId,
+                  companyType: item.companyType,
+                  matchedCompanyName: item.matchedCompanyName,
+                  pdfFilePath: item.pdfFilePath,
+                  data: item.data,
+                  partnersList: data.partnersList
+                };
+                updated.push({
                   role: 'bot',
                   content: `[FINANCIAL_PREVIEW:${JSON.stringify(financialPayload)}]`,
                   timestamp: formatTimestamp()
-                }
-              ]);
-            } else if (item.itemType === 'RESUME') {
-              const resumePayload = {
-                ...item.data
-              };
-              setMessages(prev => [
-                ...prev,
-                {
+                });
+              } else if (item.itemType === 'RESUME') {
+                const resumePayload = {
+                  ...item.data
+                };
+                updated.push({
                   role: 'bot',
                   content: `[RESUME_PREVIEW:${JSON.stringify(resumePayload)}]`,
                   timestamp: formatTimestamp()
-                }
-              ]);
-            } else if (item.itemType === 'PURCHASE_INVOICE') {
-              const purchasePayload = {
-                partnerId: item.partnerId,
-                data: item.data,
-                trackedItemsList: item.trackedItemsList,
-                partnersList: data.partnersList
-              };
-              setMessages(prev => [
-                ...prev,
-                {
+                });
+              } else if (item.itemType === 'PURCHASE_INVOICE') {
+                const purchasePayload = {
+                  partnerId: item.partnerId,
+                  data: item.data,
+                  trackedItemsList: item.trackedItemsList,
+                  partnersList: data.partnersList
+                };
+                updated.push({
                   role: 'bot',
                   content: `[PURCHASE_INVOICE_PREVIEW:${JSON.stringify(purchasePayload)}]`,
                   timestamp: formatTimestamp()
-                }
-              ]);
-            } else if (item.itemType === 'COMPETITOR_PRICE_CAPTURE') {
-              const competitorPayload = {
-                matchedItemId: item.matchedItemId,
-                matchedItemName: item.matchedItemName,
-                data: item.data,
-                trackedItemsList: item.trackedItemsList
-              };
-              setMessages(prev => [
-                ...prev,
-                {
+                });
+              } else if (item.itemType === 'COMPETITOR_PRICE_CAPTURE') {
+                const competitorPayload = {
+                  matchedItemId: item.matchedItemId,
+                  matchedItemName: item.matchedItemName,
+                  data: item.data,
+                  trackedItemsList: item.trackedItemsList
+                };
+                updated.push({
                   role: 'bot',
                   content: `[COMPETITOR_PRICE_PREVIEW:${JSON.stringify(competitorPayload)}]`,
                   timestamp: formatTimestamp()
-                }
-              ]);
-            } else if (item.itemType === 'MEDICAL_CERTIFICATE') {
-              const medicalPayload = {
-                ...item.data,
-                matchedOperatorId: item.matchedOperatorId,
-                matchedOperatorName: item.matchedOperatorName,
-                operatorsList: item.operatorsList
-              };
-              setMessages(prev => [
-                ...prev,
-                {
+                });
+              } else if (item.itemType === 'MEDICAL_CERTIFICATE') {
+                const medicalPayload = {
+                  ...item.data,
+                  matchedOperatorId: item.matchedOperatorId,
+                  matchedOperatorName: item.matchedOperatorName,
+                  operatorsList: item.operatorsList
+                };
+                updated.push({
                   role: 'bot',
                   content: `[MEDICAL_PREVIEW:${JSON.stringify(medicalPayload)}]`,
                   timestamp: formatTimestamp()
-                }
-              ]);
-            } else if (item.itemType === 'FACILITY_PLATE') {
-              const platePayload = {
-                data: item.data
-              };
-              setMessages(prev => [
-                ...prev,
-                {
+                });
+              } else if (item.itemType === 'FACILITY_PLATE') {
+                const platePayload = {
+                  data: item.data
+                };
+                updated.push({
                   role: 'bot',
                   content: `[FACILITY_PLATE_PREVIEW:${JSON.stringify(platePayload)}]`,
                   timestamp: formatTimestamp()
-                }
-              ]);
-            } else if (item.itemType === 'FACILITY_CHECKLIST') {
-              const checklistPayload = {
-                matchedEquipmentId: item.matchedEquipmentId,
-                matchedEquipmentName: item.matchedEquipmentName,
-                facilitiesList: item.facilitiesList,
-                data: item.data
-              };
-              setMessages(prev => [
-                ...prev,
-                {
+                });
+              } else if (item.itemType === 'FACILITY_CHECKLIST') {
+                const checklistPayload = {
+                  matchedEquipmentId: item.matchedEquipmentId,
+                  matchedEquipmentName: item.matchedEquipmentName,
+                  facilitiesList: item.facilitiesList,
+                  data: item.data
+                };
+                updated.push({
                   role: 'bot',
                   content: `[FACILITY_CHECKLIST_PREVIEW:${JSON.stringify(checklistPayload)}]`,
                   timestamp: formatTimestamp()
-                }
-              ]);
-            }
+                });
+              } else if (item.itemType === 'INBOUND_ESTIMATE') {
+                const estimatePayload = {
+                  partnerId: item.partnerId,
+                  data: item.data,
+                  trackedItemsList: item.trackedItemsList,
+                  partnersList: item.partnersList || data.partnersList
+                };
+                updated.push({
+                  role: 'bot',
+                  content: `[INBOUND_ESTIMATE_PREVIEW:${JSON.stringify(estimatePayload)}]`,
+                  timestamp: formatTimestamp()
+                });
+              } else if (item.itemType === 'LEGAL_DOCUMENT') {
+                const legalPayload = {
+                  ...item.data
+                };
+                updated.push({
+                  role: 'bot',
+                  content: `[LEGAL_PREVIEW:${JSON.stringify(legalPayload)}]`,
+                  timestamp: formatTimestamp()
+                });
+              }
+            });
+            return updated;
           });
         } else {
           setMessages(prev => {
