@@ -35,6 +35,7 @@ const DEFAULT_MENU_ITEMS = [
   { href: "/scm-management", label: "공급망 관리 AI" },
   { href: "/grant-management", label: "지원금 관리 AI" },
   { href: "/labor-management", label: "노무 관리 AI" },
+  { href: "/lawyer-ai", label: "변호사 AI" },
   { href: "/credit-risk", label: "채권 관리 AI" },
   { href: "/password-ai", label: "비밀번호관리 AI" },
   { href: "/hr/attendance", label: "근태 관리 AI" },

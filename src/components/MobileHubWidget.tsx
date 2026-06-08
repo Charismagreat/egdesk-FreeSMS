@@ -235,6 +235,16 @@ export default function MobileHubWidget() {
       smsTemplate: "[이지데스크] 당사 실시간 노무 리스크 모바일 알림입니다. 주 52시간 한도 초과 위험이 발견되었으니 신속하게 시정조치 바랍니다. "
     },
     {
+      id: "lawyer-ai",
+      name: "변호사 AI 모바일 관제",
+      description: "CEO 전용 모바일 법률 비서. 모바일 퀵 노무/안전 진단, 소송 단계별 가이드라인 및 실시간 판례 검색을 한눈에 조회하는 채널",
+      path: "/m/lawyer-ai",
+      icon: Scale,
+      themeColor: "from-amber-600 to-yellow-650 bg-amber-50 text-amber-600 border-amber-100",
+      badge: "소송/법률/CEO 전용",
+      smsTemplate: "[이지데스크] CEO 전용 모바일 법률 비서(변호사 AI) 채널입니다. 모바일 노무/안전 진단 및 판례 검색을 확인하세요! "
+    },
+    {
       id: "credit-risk",
       name: "채권 모바일 관제",
       description: "거래처별 실시간 신용 리스크 분석 상태 및 연체 미수 거래처에 대한 다이렉트 모바일 독촉/공유 채널",

@@ -144,10 +144,10 @@ export async function POST(req: Request) {
     const facilitiesResForRag = await queryTable('crm_facilities', {});
     const facilitiesListForRag = (facilitiesResForRag.rows || []).map((f: any) => ({ id: f.id, name: f.name, model: f.model_name, serial: f.serial_number }));
 
-    const geminiPrompt = `제공된 문서 이미지나 PDF 속에는 여러 장의 명함, 사업자등록증, 영수증(지출 증빙), 재무제표, 거래명세서, 이력서(PDF/이미지), 병원 진단서/처방전, 매입 명세서(원가 청구서), 경쟁사 가격 캡처 화면, 설비 제조 명판, 또는 설비 수기 점검표가 혼재되어 있을 수 있습니다.
+    const geminiPrompt = `제공된 문서 이미지나 PDF 속에는 여러 장의 명함, 사업자등록증, 영수증(지출 증빙), 재무제표, 거래명세서, 이력서(PDF/이미지), 병원 진단서/처방전, 매입 명세서(원가 청구서), 경쟁사 가격 캡처 화면, 설비 제조 명판, 설비 수기 점검표, 또는 법원 소장/송달장/판결문 등의 소송 법률 문서가 혼재되어 있을 수 있습니다.
 각 문서들을 지능적으로 개별 검출하여 detectedItems 배열 안에 순서대로 담아 응답해 주세요.
 
-각 아이템은 다음 11가지 타입 중 하나여야 합니다:
+각 아이템은 다음 12가지 타입 중 하나여야 합니다:
 1. 명함 ("BUSINESS_CARD"):
    - data 객체에 name (성명), position (직급/직책), phone (전화번호), email (이메일), companyName (회사명/소속) 추출.
 2. 사업자등록증 ("BUSINESS_LICENSE"):
@@ -156,7 +156,7 @@ export async function POST(req: Request) {
    - data 객체에 title (상호명과 구매품 요약, 예: "CU - 음료 구매"), category (아래 7대 비목 중 가장 잘 어울리는 중분류 하나만 선택: "복리후생비", "여비교통비", "소모품비", "접대비", "임차료", "세금공과금", "기타"), amount (최종 결제 금액, 숫자로만), expense_date (결제일 "YYYY-MM-DD"), payment_method (결제 수단, 예: "법인카드", "개인카드", "현금", "계좌이체" 등), memo (세부 사항 메모), payee (가맹점명 또는 상호명) 추출.
 4. 재무제표 ("FINANCIAL_STATEMENT"):
    - data 객체에 companyName (회사명), fiscalYear (회계 연도, 숫자로만), fiscalQuarter (분기, 기본값 "YR"), totalAssets (자산총계, 숫자로만), totalLiabilities (부채총계, 숫자로만), totalEquity (자본총계, 숫자로만), revenue (매출액, 숫자로만), operatingIncome (영업이익, 숫자로만), netIncome (당기순이익, 숫자로만) 추출.
-   - 또한, data 객체 내부의 parsedRawJson 속성에 대차대조표와 손익계산서의 세부 계정과목 및 금액 정보를 담은 계층형 트리 JSON 객체를 정밀 추출해 주세요. 이 JSON 객체는 PDF에 기재된 모든 세부 계정과목(예: 현금및현금성자산, 매출채권, 여비교통비, 급여, 임차료 등)의 계층 구조와 원화 단위를 정확히 반영해야 합니다.
+   - 또한, data 객체 내부의 parsedRawJson 속성에 대차대조표 and 손익계산서의 세부 계정과목 및 금액 정보를 담은 계층형 트리 JSON 객체를 정밀 추출해 주세요. 이 JSON 객체는 PDF에 기재된 모든 세부 계정과목(예: 현금및현금성자산, 매출채권, 여비교통비, 급여, 임차료 등)의 계층 구조와 원화 단위를 정확히 반영해야 합니다.
 5. 거래명세서/바코드 라벨 ("INVENTORY_INBOUND"):
    - data 객체에 partnerName (명세서상의 공급자 상호명 또는 거래처명, 예: "주식회사 원컨덕터"), inboundDate (입고일자 또는 작성일자 "YYYY-MM-DD", 기재되어 있지 않다면 오늘 날짜)와 items 배열을 추출해 주세요.
    - items 배열의 각 요소는 itemName (품명, 예: "구리 와이어"), spec (규격/스펙, 예: "Ø2.0mm", 없을 시 공백), quantity (수량, 숫자로만, 예: 250), price (단가, 숫자로만, 없을 시 0, 예: 12000), barcode (바코드 번호 또는 라벨 식별 번호, 바코드의 기호나 텍스트가 식별되면 기입, 없을 시 공백)를 포함해야 합니다.
@@ -170,10 +170,12 @@ export async function POST(req: Request) {
 9. 경쟁 가격 캡처 ("COMPETITOR_PRICE_CAPTURE"):
    - data 객체에 competitorName (경쟁사명 또는 수집 사이트명, 예: "LME 시세 정보" 또는 "마켓컬리"), itemName (캡처 화면 속 경쟁 제품/상품명, 예: "구리 전기동"), capturedPrice (경쟁사 판매가, 숫자로만, 예: 8450), captureUrl (매핑용 출처 URL, 있으면 기입) 추출.
 10. 설비 제조 명판 ("FACILITY_PLATE"):
-   - data 객체에 manufacturer (제조사, 예: "대진중공업"), modelName (모델명/설비명, 예: "M-500"), serialNumber (일련번호/시리얼번호, 예: "SN-M500-9988"), manufactureYear (제조년도, 숫자로만, 예: 2022), specifications (사양 설명 텍스트, 예: "Press Force: 500Ton, Stroke: 400mm") 추출.
+    - data 객체에 manufacturer (제조사, 예: "대진중공업"), modelName (모델명/설비명, 예: "M-500"), serialNumber (일련번호/시리얼번호, 예: "SN-M500-9988"), manufactureYear (제조년도, 숫자로만, 예: 2022), specifications (사양 설명 텍스트, 예: "Press Force: 500Ton, Stroke: 400mm") 추출.
 11. 설비 수기 점검표 ("FACILITY_CHECKLIST"):
-   - data 객체에 equipmentId (점검 대상 설비 ID, 예: "EQ-PRESS-01" 또는 "EQ-PRESS-02" 등), inspector (점검자 성함), checkDate (점검일자 "YYYY-MM-DD", 없으면 오늘)와 checks 배열을 추출해 주세요.
-   - checks 배열의 각 요소는 checkItem (점검 항목명, 예: "가열 압력 상태" 또는 "비상 정지 장치 작동"), status (점검 상태 배지, 양호일 시 "PASS", 불량/조치필요 시 "FAIL"), comment (점검 특이사항 코멘트, 없으면 공백)를 포함해야 합니다.
+    - data 객체에 equipmentId (점검 대상 설비 ID, 예: "EQ-PRESS-01" 또는 "EQ-PRESS-02" 등), inspector (점검자 성함), checkDate (점검일자 "YYYY-MM-DD", 없으면 오늘)와 checks 배열을 추출해 주세요.
+    - checks 배열의 각 요소는 checkItem (점검 항목명, 예: "가열 압력 상태" 또는 "비상 정지 장치 작동"), status (점검 상태 배지, 양호일 시 "PASS", 불량/조치필요 시 "FAIL"), comment (점검 특이사항 코멘트, 없으면 공백)를 포함해야 합니다.
+12. 소송/법률 문서 ("LEGAL_DOCUMENT"):
+    - data 객체에 documentType (문서 구분, 예: "소장", "지급명령 송달장", "판결문" 등), caseNumber (사건번호, 예: "2026가소12345"), summary (사건 및 서류 핵심 요약), deadline (답변서 기한 및 법적 마감일 "YYYY-MM-DD" 혹은 없을 시 null), actions (권장 즉시 행동 조치 목록 배열) 추출.
 
 사내 등록된 거래처 정보(RAG):
 ${JSON.stringify(partnersListForRag)}
@@ -189,6 +191,19 @@ ${JSON.stringify(facilitiesListForRag)}
 응답 JSON 스펙 예시:
 {
   "detectedItems": [
+    {
+      "itemType": "LEGAL_DOCUMENT",
+      "data": {
+        "documentType": "지급명령 송달장",
+        "caseNumber": "2026차단98765",
+        "summary": "원고 주식회사 한성철강이 대금 미지급 건으로 제기한 지급명령서입니다.",
+        "deadline": "2026-06-28",
+        "actions": [
+          "송달일로부터 2주 이내에 이의신청서를 법원에 제출해야 합니다.",
+          "계약서 및 세금계산서 발행 내역을 취합하십시오."
+        ]
+      }
+    },
     {
       "itemType": "FINANCIAL_STATEMENT",
       "data": {
@@ -231,36 +246,6 @@ ${JSON.stringify(facilitiesListForRag)}
             "당기순이익": 9000000
           }
         }
-      }
-    },
-    {
-      "itemType": "FACILITY_PLATE",
-      "data": {
-        "manufacturer": "대진중공업",
-        "modelName": "M-500",
-        "serialNumber": "SN-M500-9988",
-        "manufactureYear": 2022,
-        "specifications": "Press Force: 500Ton, Stroke: 400mm"
-      }
-    },
-    {
-      "itemType": "FACILITY_CHECKLIST",
-      "data": {
-        "equipmentId": "EQ-PRESS-01",
-        "inspector": "홍길동",
-        "checkDate": "2026-06-08",
-        "checks": [
-          {
-            "checkItem": "가열 실린더 압력",
-            "status": "PASS",
-            "comment": "적정 압력 범위 유지"
-          },
-          {
-            "checkItem": "모터 구동부 소음",
-            "status": "FAIL",
-            "comment": "회전 시 미세 고주파 이음 및 베어링 마모 우려"
-          }
-        ]
       }
     }
   ]
@@ -875,6 +860,19 @@ ${JSON.stringify(facilitiesListForRag)}
           matchedEquipmentId,
           matchedEquipmentName,
           facilitiesList
+        });
+      } else if (item.itemType === 'LEGAL_DOCUMENT') {
+        const docData = item.data || {};
+        processedItems.push({
+          itemType: 'LEGAL_DOCUMENT',
+          data: {
+            documentType: docData.documentType || '미식별 법률 문서',
+            caseNumber: docData.caseNumber || '사건번호 미상',
+            summary: docData.summary || '상세 내용 없음',
+            deadline: docData.deadline || null,
+            actions: Array.isArray(docData.actions) ? docData.actions : [],
+            pdfFilePath
+          }
         });
       }
     }
