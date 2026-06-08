@@ -1245,6 +1245,25 @@ export async function setupDatabase() {
     console.error('Error seeding Safety Management AI data:', e.message);
   }
 
+  // 47. Financial Statements Table (재무제표 관리)
+  await safeCreateTable('재무제표 관리', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'company_id', type: 'TEXT', notNull: true },
+    { name: 'company_type', type: 'TEXT', notNull: true },
+    { name: 'fiscal_year', type: 'INTEGER', notNull: true },
+    { name: 'fiscal_quarter', type: 'TEXT', notNull: true, defaultValue: 'YR' },
+    { name: 'total_assets', type: 'INTEGER', defaultValue: 0 },
+    { name: 'total_liabilities', type: 'INTEGER', defaultValue: 0 },
+    { name: 'total_equity', type: 'INTEGER', defaultValue: 0 },
+    { name: 'revenue', type: 'INTEGER', defaultValue: 0 },
+    { name: 'operating_income', type: 'INTEGER', defaultValue: 0 },
+    { name: 'net_income', type: 'INTEGER', defaultValue: 0 },
+    { name: 'pdf_file_path', type: 'TEXT' },
+    { name: 'parsed_raw_json', type: 'TEXT' },
+    { name: 'created_at', type: 'TEXT', notNull: true },
+    { name: 'updated_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'crm_financial_statements', uniqueKeyColumns: ['id'] });
+
   // 40-1. 기존 shared_dashboards 테이블 물리 ALTER TABLE 보정 마이그레이션 (자율 핫픽스)
   try {
     const Database = require('better-sqlite3');

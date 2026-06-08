@@ -120,6 +120,32 @@ export async function POST(req: Request) {
 `;
     dbTablesInfo += "\n" + financeHubTablesInfo;
 
+    // 💡 [Financials] 기업/거래처 재무제표 관리 테이블 스키마 힌트 주입
+    const financialsTablesInfo = `
+[Financial Statements Table (crm_financial_statements)]
+- Description: 본사, 거래처, 관계사들의 연도별 국세청 재무제표 핵심 지표 수치가 보관되는 테이블입니다.
+- Columns:
+  - id (TEXT PRIMARY KEY): 고유 식별자
+  - company_id (TEXT): 회사 식별 키 (본사일 경우 'MY-COMPANY', 거래처는 'PT-XXX' 같은 거래처 ID)
+  - company_type (TEXT): 회사 구분 ('MY_COMPANY': 본사, 'PARTNER': 거래처, 'AFFILIATE': 관계사)
+  - fiscal_year (INTEGER): 회계 연도 (예: 2025)
+  - fiscal_quarter (TEXT): 회계 구분 ('YR': 연도결산, 'Q1'~'Q4')
+  - total_assets (INTEGER): 자산총계 (원 단위 정수)
+  - total_liabilities (INTEGER): 부채총계 (원 단위 정수)
+  - total_equity (INTEGER): 자본총계 (원 단위 정수)
+  - revenue (INTEGER): 매출액 (원 단위 정수)
+  - operating_income (INTEGER): 영업이익 (원 단위 정수)
+  - net_income (INTEGER): 당기순이익 (원 단위 정수)
+  - pdf_file_path (TEXT): 원본 PDF 경로
+
+- 중요 분석 지표 연산 안내:
+  - 영업이익률 (%) = (operating_income / revenue) * 100
+  - 부채비율 (%) = (total_liabilities / total_equity) * 100
+  - 자기자본비율 (%) = (total_equity / total_assets) * 100
+  - 당기순이익률 (%) = (net_income / revenue) * 100
+`;
+    dbTablesInfo += "\n" + financialsTablesInfo;
+
     // 3. STEP 1: 사용자의 질문을 분석하여 DB 조회가 필요한지 확인하고 SELECT 쿼리 생성
     const step1SystemPrompt = `
 You are the database analysis engine of "EasyBot" (이지봇), a premium management assistant.

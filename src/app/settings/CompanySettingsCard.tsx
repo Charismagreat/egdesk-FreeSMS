@@ -30,7 +30,27 @@ export default function CompanySettingsCard() {
   const [isOcrAnalyzing, setIsOcrAnalyzing] = useState<boolean>(false);
   const [fileDragOver, setFileDragOver] = useState<boolean>(false);
 
-  // 1. 회사 정보 로드
+  // 1. 회사 정보 및 재무제표 이력 로드
+  const [financials, setFinancials] = useState<any[]>([]);
+  const [loadingFinancials, setLoadingFinancials] = useState<boolean>(true);
+  const [isFinParsing, setIsFinParsing] = useState<boolean>(false);
+  const [finDragOver, setFinDragOver] = useState<boolean>(false);
+  const [tempFinData, setTempFinData] = useState<any | null>(null);
+
+  const fetchFinancials = async () => {
+    try {
+      const res = await fetch('/api/financials?company_id=MY-COMPANY');
+      const data = await res.json();
+      if (data.success) {
+        setFinancials(data.list);
+      }
+    } catch (err) {
+      console.error('재무제표 로드 실패:', err);
+    } finally {
+      setLoadingFinancials(false);
+    }
+  };
+
   useEffect(() => {
     async function fetchCompanyProfile() {
       try {
@@ -59,6 +79,7 @@ export default function CompanySettingsCard() {
       }
     }
     fetchCompanyProfile();
+    fetchFinancials();
   }, []);
 
   // 2. 사업자등록증 파일 업로드 및 AI 스캔 연동
@@ -166,6 +187,105 @@ export default function CompanySettingsCard() {
       setMessage({ type: 'error', text: '서버 연동 중 네트워크 오류가 발생했습니다.' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  // 재무제표 PDF 자율 업로드 및 AI 판독 실행
+  const handleFinPdfUpload = async (fileObj: File) => {
+    if (!fileObj) return;
+    if (fileObj.type !== 'application/pdf') {
+      alert('⚠️ 재무제표는 국세청 PDF 파일만 지원됩니다.');
+      return;
+    }
+    
+    setIsFinParsing(true);
+    setMessage(null);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', fileObj);
+
+      const res = await fetch('/api/financials/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      const resData = await res.json();
+      if (!resData.success) {
+        throw new Error(resData.error || '재무제표 파싱에 실패했습니다.');
+      }
+
+      setTempFinData({
+        company_id: 'MY-COMPANY',
+        company_type: 'MY_COMPANY',
+        fiscal_year: resData.data.fiscalYear || new Date().getFullYear() - 1,
+        fiscal_quarter: resData.data.fiscalQuarter || 'YR',
+        total_assets: resData.data.totalAssets || 0,
+        total_liabilities: resData.data.totalLiabilities || 0,
+        total_equity: resData.data.totalEquity || 0,
+        revenue: resData.data.revenue || 0,
+        operating_income: resData.data.operatingIncome || 0,
+        net_income: resData.data.netIncome || 0,
+        pdf_file_path: resData.filePath,
+        parsed_raw_json: resData.data
+      });
+      
+      setMessage({ type: 'success', text: 'AI가 재무제표 분석을 성공적으로 마쳤습니다! 하단 검토 양식을 확인 후 저장해 주세요.' });
+    } catch (err: any) {
+      console.error('재무 PDF 파싱 에러:', err);
+      setMessage({ type: 'error', text: err.message || '재무제표 판독 중 오류가 발생했습니다.' });
+    } finally {
+      setIsFinParsing(false);
+    }
+  };
+
+  // 파싱된 임시 재무 데이터 수정 핸들러
+  const handleTempFinDataChange = (field: string, value: number) => {
+    if (!tempFinData) return;
+    setTempFinData((prev: any) => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // 재무 데이터 DB 최종 승인 및 적재
+  const handleSaveFinancials = async () => {
+    if (!tempFinData) return;
+    try {
+      const res = await fetch('/api/financials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tempFinData)
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMessage({ type: 'success', text: data.message });
+        setTempFinData(null);
+        fetchFinancials();
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (err: any) {
+      alert(err.message || '저장 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 재무제표 레코드 삭제
+  const handleDeleteFinancials = async (id: string) => {
+    if (!confirm('정말로 해당 재무제표를 영구 삭제하시겠습니까? 첨부된 PDF 문서 파일도 디스크에서 함께 소멸됩니다.')) return;
+    try {
+      const res = await fetch(`/api/financials?id=${id}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMessage({ type: 'success', text: '재무제표 데이터가 성공적으로 파괴되었습니다.' });
+        fetchFinancials();
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (err: any) {
+      alert(err.message || '삭제 중 오류가 발생했습니다.');
     }
   };
 
@@ -390,6 +510,252 @@ export default function CompanySettingsCard() {
         </div>
 
       </form>
+
+      {/* 📊 본사 재무제표 AI 관리 패널 */}
+      <div className="border-t border-slate-100 bg-slate-50/20 p-6 space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600 border border-purple-100 shadow-sm shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+          </div>
+          <div>
+            <h3 className="text-[16px] font-bold text-slate-800 flex items-center gap-2">
+              본사 국세청 재무제표 AI 관리
+              <span className="text-[10px] font-extrabold bg-purple-50 text-purple-600 px-2 py-0.5 rounded-full border border-purple-100">
+                정책자금 & 이지봇 분석
+              </span>
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">국세청 재무제표 PDF를 업로드하면 AI가 수치를 자동 해독하여 DB에 적재하며, 이지봇(EasyBot)을 통해 실시간 자금 비율 분석이 가능해집니다.</p>
+          </div>
+        </div>
+
+        {/* 재무제표 PDF 드롭존 */}
+        {isFinParsing ? (
+          <div className="border border-purple-200 bg-purple-50/20 rounded-xl p-6 flex flex-col items-center justify-center text-center space-y-3 animate-pulse relative overflow-hidden">
+            <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-purple-400 via-pink-500 to-indigo-400 animate-shimmer"></div>
+            <RefreshCw className="w-8 h-8 text-purple-500 animate-spin" />
+            <div>
+              <span className="text-xs font-black text-slate-700 block">AI 엔진이 국세청 결산 보고서 PDF를 정밀 분석하는 중입니다...</span>
+              <span className="text-[10px] text-slate-400 font-bold block mt-1">6대 주요 지표(자산, 부채, 자본, 매출, 영업이익, 순이익)를 원 단위로 자동 환산하여 추출합니다.</span>
+            </div>
+          </div>
+        ) : (
+          <div
+            onDragOver={(e) => { e.preventDefault(); setFinDragOver(true); }}
+            onDragLeave={() => setFinDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setFinDragOver(false);
+              if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                handleFinPdfUpload(e.dataTransfer.files[0]);
+              }
+            }}
+            onClick={() => document.getElementById('company-fin-uploader')?.click()}
+            className={`border-2 border-dashed rounded-xl p-5 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
+              finDragOver
+                ? 'border-purple-500 bg-purple-50/30'
+                : 'border-slate-200 hover:border-purple-350 hover:bg-slate-50/50'
+            }`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-slate-400 mb-2"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M9 15h6"/><path d="M9 18h6"/><path d="M9 12h3"/></svg>
+            <span className="text-xs font-black text-slate-700 block">이곳에 본사 국세청 재무제표 PDF 파일 드롭 또는 클릭 업로드</span>
+            <span className="text-[9px] text-slate-400 font-semibold block mt-1.5">
+              지원 포맷: PDF 형식 (Gemini AI 자동 재무 분석 적재)
+            </span>
+            <input
+              type="file"
+              id="company-fin-uploader"
+              accept="application/pdf"
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  handleFinPdfUpload(e.target.files[0]);
+                }
+              }}
+              className="hidden"
+            />
+          </div>
+        )}
+
+        {/* 파싱 결과 검토 및 수정 폼 */}
+        {tempFinData && (
+          <div className="bg-purple-50/10 border border-purple-100/70 p-5 rounded-2xl space-y-4 animate-fade-in text-xs font-semibold">
+            <span className="text-[10px] font-black text-purple-600 uppercase tracking-widest block flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-purple-500 animate-pulse" />
+              AI 재무 분석 검토 양식 (최종 확인 후 저장해주세요)
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold text-slate-500">회계 연도 (Year)</label>
+                <input
+                  type="number"
+                  value={tempFinData.fiscal_year}
+                  onChange={(e) => handleTempFinDataChange('fiscal_year', Number(e.target.value))}
+                  className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-white text-slate-800 font-bold"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold text-slate-500">자산 총계 (원)</label>
+                <input
+                  type="number"
+                  value={tempFinData.total_assets}
+                  onChange={(e) => handleTempFinDataChange('total_assets', Number(e.target.value))}
+                  className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-white text-slate-800 font-bold"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold text-slate-500">부채 총계 (원)</label>
+                <input
+                  type="number"
+                  value={tempFinData.total_liabilities}
+                  onChange={(e) => handleTempFinDataChange('total_liabilities', Number(e.target.value))}
+                  className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-white text-slate-800 font-bold"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold text-slate-500">자본 총계 (원)</label>
+                <input
+                  type="number"
+                  value={tempFinData.total_equity}
+                  onChange={(e) => handleTempFinDataChange('total_equity', Number(e.target.value))}
+                  className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-white text-slate-800 font-bold"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold text-slate-500">매출액 (원)</label>
+                <input
+                  type="number"
+                  value={tempFinData.revenue}
+                  onChange={(e) => handleTempFinDataChange('revenue', Number(e.target.value))}
+                  className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-white text-slate-800 font-bold"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold text-slate-500">영업이익 (원)</label>
+                <input
+                  type="number"
+                  value={tempFinData.operating_income}
+                  onChange={(e) => handleTempFinDataChange('operating_income', Number(e.target.value))}
+                  className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-white text-slate-800 font-bold"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold text-slate-500">당기순이익 (원)</label>
+                <input
+                  type="number"
+                  value={tempFinData.net_income}
+                  onChange={(e) => handleTempFinDataChange('net_income', Number(e.target.value))}
+                  className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-white text-slate-800 font-bold"
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setTempFinData(null)}
+                className="px-3.5 py-2 rounded-lg border border-slate-200 text-slate-650 hover:bg-slate-100 font-bold transition-all cursor-pointer"
+              >
+                파싱 취소
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveFinancials}
+                className="px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 shadow-md shadow-purple-500/10 font-bold transition-all cursor-pointer"
+              >
+                검토 완료 및 저장
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 등록된 재무제표 대장 테이블 */}
+        <div className="space-y-3">
+          <span className="text-[10px] font-bold text-slate-400 tracking-wider block">등록된 본사 연도별 재무제표 내역</span>
+          {loadingFinancials ? (
+            <div className="text-center py-6 text-slate-400 font-semibold text-xs animate-pulse">
+              재무 제표 이력을 동기화하는 중...
+            </div>
+          ) : financials.length === 0 ? (
+            <div className="border border-slate-150 border-dashed rounded-xl p-8 text-center text-slate-400 font-semibold text-xs bg-slate-50/30">
+              등록된 본사 재무제표가 없습니다. 위 PDF 업로더를 통해 국세청 문서를 업로드해 주세요.
+            </div>
+          ) : (
+            <div className="border border-slate-150 rounded-xl overflow-hidden bg-white shadow-sm shrink-0">
+              <table className="w-full text-[11px] font-semibold text-slate-700 text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-150 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    <th className="p-3">연도</th>
+                    <th className="p-3">매출액</th>
+                    <th className="p-3">영업이익</th>
+                    <th className="p-3">자산총계</th>
+                    <th className="p-3">부채 / 자본 비율</th>
+                    <th className="p-3">원본</th>
+                    <th className="p-3 text-center">작업</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {financials.map((fin) => {
+                    const revStr = (fin.revenue || 0).toLocaleString();
+                    const opStr = (fin.operating_income || 0).toLocaleString();
+                    const assetStr = (fin.total_assets || 0).toLocaleString();
+                    const liabStr = (fin.total_liabilities || 0).toLocaleString();
+                    const eqStr = (fin.total_equity || 0).toLocaleString();
+                    
+                    // 재무 비율 계산
+                    const opMargin = fin.revenue ? ((fin.operating_income / fin.revenue) * 100).toFixed(1) : '0.0';
+                    const debtRatio = fin.total_equity ? ((fin.total_liabilities / fin.total_equity) * 100).toFixed(1) : '0.0';
+
+                    return (
+                      <tr key={fin.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="p-3 font-bold text-slate-900">{fin.fiscal_year}년</td>
+                        <td className="p-3">
+                          <div>{revStr}원</div>
+                          <span className="text-[9px] font-extrabold bg-emerald-50 text-emerald-600 px-1 py-0.5 rounded border border-emerald-100 mt-0.5 inline-block">
+                            이익률 {opMargin}%
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          <div className={fin.operating_income < 0 ? 'text-rose-600' : 'text-slate-700'}>{opStr}원</div>
+                        </td>
+                        <td className="p-3">{assetStr}원</td>
+                        <td className="p-3">
+                          <div className="text-slate-400 text-[10px]">부채 {liabStr}원 / 자본 {eqStr}원</div>
+                          <span className={`text-[9px] font-extrabold px-1 py-0.5 rounded border mt-0.5 inline-block ${
+                            Number(debtRatio) > 200 
+                              ? 'bg-rose-50 border-rose-100 text-rose-600'
+                              : 'bg-indigo-50 border-indigo-100 text-indigo-600'
+                          }`}>
+                            부채비율 {debtRatio}%
+                          </span>
+                        </td>
+                        <td className="p-3">
+                          {fin.pdf_file_path ? (
+                            <a
+                              href={fin.pdf_file_path}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-purple-600 hover:text-purple-700 hover:underline flex items-center gap-1 font-bold"
+                            >
+                              PDF 📄
+                            </a>
+                          ) : '-'}
+                        </td>
+                        <td className="p-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteFinancials(fin.id)}
+                            className="text-rose-500 hover:text-rose-700 font-bold transition-all p-1 hover:bg-rose-50 rounded"
+                          >
+                            삭제
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
