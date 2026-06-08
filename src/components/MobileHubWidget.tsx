@@ -363,17 +363,6 @@ export default function MobileHubWidget() {
       <div className="absolute bottom-[-100px] right-[-100px] w-[350px] h-[350px] rounded-full bg-red-500/10 blur-[100px] pointer-events-none"></div>
 
       <div className="relative z-10">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pb-4 mb-5 border-b border-slate-800">
-          <div>
-            <h2 className="text-xl md:text-2xl font-extrabold tracking-tight bg-clip-text bg-gradient-to-r from-white via-slate-100 to-slate-400 text-transparent">
-              스마트 모바일 채널
-            </h2>
-            <p className="text-slate-400 text-xs mt-0.5">
-              온·오프라인 비즈니스 성장과 현장 협업을 가동하는 8대 모바일 채널을 이곳에서 실시간으로 배포하고 통제하세요.
-            </p>
-          </div>
-        </div>
-
         {/* 8대 B2B/B2C 채널 목록 - 4열 콤팩트 그리드 레이아웃 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {channels.map((channel) => {
