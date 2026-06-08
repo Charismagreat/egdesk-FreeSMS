@@ -1466,6 +1466,92 @@ export async function setupDatabase() {
     { name: 'isReviewed', type: 'INTEGER' }
   ], { tableName: 'crm_quality_vision_logs', uniqueKeyColumns: ['id'] });
 
+  // 66. crm_facilities Table (설비 대장 마스터)
+  await safeCreateTable('설비 대장 관리', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'name', type: 'TEXT', notNull: true },
+    { name: 'manufacturer', type: 'TEXT' },
+    { name: 'model_name', type: 'TEXT' },
+    { name: 'serial_number', type: 'TEXT' },
+    { name: 'manufacture_year', type: 'INTEGER' },
+    { name: 'specifications', type: 'TEXT' },
+    { name: 'location', type: 'TEXT' },
+    { name: 'status', type: 'TEXT' }, // RUNNING, WARNING, STOPPED
+    { name: 'health_score', type: 'REAL' },
+    { name: 'vibration_rms', type: 'REAL' },
+    { name: 'created_at', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' }
+  ], { tableName: 'crm_facilities', uniqueKeyColumns: ['id'] });
+
+  // 67. crm_facility_checklists Table (모바일/수기 예방 점검표 이력)
+  await safeCreateTable('설비 예방 점검 이력', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'equipmentId', type: 'TEXT', notNull: true },
+    { name: 'inspector', type: 'TEXT', notNull: true },
+    { name: 'checks', type: 'TEXT' }, // JSON String
+    { name: 'signatureData', type: 'TEXT' },
+    { name: 'audioUrl', type: 'TEXT' },
+    { name: 'status', type: 'TEXT' }, // PASS, FAIL
+    { name: 'checkedAt', type: 'TEXT' }
+  ], { tableName: 'crm_facility_checklists', uniqueKeyColumns: ['id'] });
+
+  // 68. crm_facility_repair_logs Table (설비 수리 이력 대장)
+  await safeCreateTable('설비 수리 이력 대장', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'date', type: 'TEXT', notNull: true },
+    { name: 'equipmentId', type: 'TEXT', notNull: true },
+    { name: 'equipmentName', type: 'TEXT' },
+    { name: 'errorCode', type: 'TEXT' },
+    { name: 'symptom', type: 'TEXT' },
+    { name: 'repairDesc', type: 'TEXT' },
+    { name: 'mechanic', type: 'TEXT' },
+    { name: 'cost', type: 'INTEGER' }
+  ], { tableName: 'crm_facility_repair_logs', uniqueKeyColumns: ['id'] });
+
+  // 69. crm_facility_repair_solutions Table (RAG 고장 해결 가이드)
+  await safeCreateTable('설비 고장 해결 가이드', [
+    { name: 'errorCode', type: 'TEXT', notNull: true },
+    { name: 'rootCause', type: 'TEXT' },
+    { name: 'actions', type: 'TEXT' }, // JSON String
+    { name: 'similarHistory', type: 'TEXT' },
+    { name: 'warehouse', type: 'TEXT' }
+  ], { tableName: 'crm_facility_repair_solutions', uniqueKeyColumns: ['errorCode'] });
+
+  // 70. crm_facility_predictive_summary Table (실시간 예지보전 요약)
+  await safeCreateTable('설비 건전도 요약', [
+    { name: 'equipmentId', type: 'TEXT', notNull: true },
+    { name: 'equipmentName', type: 'TEXT' },
+    { name: 'healthScore', type: 'REAL' },
+    { name: 'vibrationRms', type: 'REAL' }
+  ], { tableName: 'crm_facility_predictive_summary', uniqueKeyColumns: ['equipmentId'] });
+
+  // 71. crm_facility_predictive_vibration Table (시계열 진동 데이터)
+  await safeCreateTable('설비 진동 센서 이력', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'equipmentId', type: 'TEXT', notNull: true },
+    { name: 'time', type: 'TEXT', notNull: true },
+    { name: 'value', type: 'REAL', notNull: true }
+  ], { tableName: 'crm_facility_predictive_vibration', uniqueKeyColumns: ['id'] });
+
+  // 72. crm_facility_predictive_fft Table (FFT 주파수 스펙트럼 분석 데이터)
+  await safeCreateTable('설비 주파수 분석', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'equipmentId', type: 'TEXT', notNull: true },
+    { name: 'frequency', type: 'REAL', notNull: true },
+    { name: 'amplitude', type: 'REAL', notNull: true },
+    { name: 'label', type: 'TEXT' }
+  ], { tableName: 'crm_facility_predictive_fft', uniqueKeyColumns: ['id'] });
+
+  // 73. crm_facility_predictive_part_rul Table (부품 잔여 수명 RUL)
+  await safeCreateTable('설비 부품 수명 RUL', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'equipmentId', type: 'TEXT', notNull: true },
+    { name: 'partName', type: 'TEXT', notNull: true },
+    { name: 'rulDays', type: 'INTEGER', notNull: true },
+    { name: 'status', type: 'TEXT' }, // NORMAL, WARNING, CRITICAL
+    { name: 'percent', type: 'INTEGER' }
+  ], { tableName: 'crm_facility_predictive_part_rul', uniqueKeyColumns: ['id'] });
+
   // 40-1. 기존 shared_dashboards 테이블 물리 ALTER TABLE 보정 마이그레이션 (자율 핫픽스)
   try {
     const Database = require('better-sqlite3');
@@ -1587,6 +1673,7 @@ export async function setupDatabase() {
 
   // 54. 품질 관리 AI 초기 데이터 백필 (Seeding)
   try {
+    const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
     const spcConfigCheck = await queryTable('crm_quality_spc_config', {});
     if (!spcConfigCheck.rows || spcConfigCheck.rows.length === 0) {
       await insertRows('crm_quality_spc_config', [{
@@ -1693,8 +1780,91 @@ export async function setupDatabase() {
       ]);
     }
     console.log('✓ 스마트 공장 품질 관리 초기 데이터 시딩 완료');
+
+    const facilityCheck = await queryTable('crm_facilities', {});
+    if (!facilityCheck.rows || facilityCheck.rows.length === 0) {
+      await insertRows('crm_facilities', [
+        { id: 'EQ-PRESS-01', name: '주력 사출 프레스 M-500', manufacturer: 'Daejin Heavy Industries', model_name: 'M-500', serial_number: 'SN-M500-9988', manufacture_year: 2022, specifications: 'Press Force: 500Ton, Stroke: 400mm', location: '사출 1공장 A라인', status: 'RUNNING', health_score: 84.5, vibration_rms: 2.8, created_at: nowStr, updated_at: nowStr },
+        { id: 'EQ-PRESS-02', name: '사출 프레스 M-300', manufacturer: 'Daejin Heavy Industries', model_name: 'M-300', serial_number: 'SN-M300-4422', manufacture_year: 2023, specifications: 'Press Force: 300Ton, Stroke: 300mm', location: '사출 1공장 B라인', status: 'RUNNING', health_score: 92.0, vibration_rms: 1.5, created_at: nowStr, updated_at: nowStr }
+      ]);
+    }
+
+    const facilitySolutionCheck = await queryTable('crm_facility_repair_solutions', {});
+    if (!facilitySolutionCheck.rows || facilitySolutionCheck.rows.length === 0) {
+      await insertRows('crm_facility_repair_solutions', [
+        {
+          errorCode: 'E-102',
+          rootCause: '가열 실린더 압력 리밸브 오작동 및 오링 마모에 의한 압력 유실.',
+          actions: JSON.stringify([
+            '1. 메인 가열 압력 리밸브의 오링 패킹 손상 여부를 스캔합니다.',
+            '2. 실린더 게이트 압력 센서 전선 체결을 재조임합니다.',
+            '3. 유압 모터의 오일 가동 누출을 확인하고 리필 보정합니다.'
+          ]),
+          similarHistory: '2024년 8월 유사 수압 실린더 압력 유실 건으로 가이드 고무 씰 교체 조치함.',
+          warehouse: '공구실 A-3 랙 유압 O링 패킹 자재 여분 5개 보유 중'
+        },
+        {
+          errorCode: 'E-304',
+          rootCause: '구동 모터 회전자 권선 단락 또는 과도 베어링 마모에 의한 과전류 인입.',
+          actions: JSON.stringify([
+            '1. 모터 하우징 온도를 비접촉 온도계로 실시간 계측하여 과열(80도 이상) 여부 체크.',
+            '2. 3상 절연 저항 테스트 실시하여 코일 쇼트 여부 확인.',
+            '3. 베어링 마모 소음 발생 시 베어링 윤활 오일 주입 및 필요시 모터 교체.'
+          ]),
+          similarHistory: '2025년 3월 사출 2호기 모터 축 베어링 과부하로 베어링 교체 조치함.',
+          warehouse: '보전 자재 창고 C-2 구역 표준 3상 모터(7.5kW) 1대 보유 중'
+        }
+      ]);
+    }
+
+    const facilityPredictiveSummaryCheck = await queryTable('crm_facility_predictive_summary', {});
+    if (!facilityPredictiveSummaryCheck.rows || facilityPredictiveSummaryCheck.rows.length === 0) {
+      await insertRows('crm_facility_predictive_summary', [
+        { equipmentId: 'EQ-PRESS-01', equipmentName: '주력 사출 프레스 M-500', healthScore: 84.5, vibrationRms: 2.8 }
+      ]);
+    }
+
+    const facilityVibrationCheck = await queryTable('crm_facility_predictive_vibration', {});
+    if (!facilityVibrationCheck.rows || facilityVibrationCheck.rows.length === 0) {
+      await insertRows('crm_facility_predictive_vibration', [
+        { id: 1, equipmentId: 'EQ-PRESS-01', time: '13:00', value: 2.1 },
+        { id: 2, equipmentId: 'EQ-PRESS-01', time: '13:05', value: 2.3 },
+        { id: 3, equipmentId: 'EQ-PRESS-01', time: '13:10', value: 2.8 },
+        { id: 4, equipmentId: 'EQ-PRESS-01', time: '13:15', value: 3.5 },
+        { id: 5, equipmentId: 'EQ-PRESS-01', time: '13:20', value: 2.9 },
+        { id: 6, equipmentId: 'EQ-PRESS-01', time: '13:25', value: 2.8 }
+      ]);
+    }
+
+    const facilityFftCheck = await queryTable('crm_facility_predictive_fft', {});
+    if (!facilityFftCheck.rows || facilityFftCheck.rows.length === 0) {
+      await insertRows('crm_facility_predictive_fft', [
+        { id: 1, equipmentId: 'EQ-PRESS-01', frequency: 10, amplitude: 0.15, label: '1x RPM' },
+        { id: 2, equipmentId: 'EQ-PRESS-01', frequency: 20, amplitude: 0.82, label: '2x RPM (Unbalance)' },
+        { id: 3, equipmentId: 'EQ-PRESS-01', frequency: 30, amplitude: 0.22, label: '3x RPM' },
+        { id: 4, equipmentId: 'EQ-PRESS-01', frequency: 40, amplitude: 0.45, label: '4x RPM (Misalignment)' }
+      ]);
+    }
+
+    const facilityRulCheck = await queryTable('crm_facility_predictive_part_rul', {});
+    if (!facilityRulCheck.rows || facilityRulCheck.rows.length === 0) {
+      await insertRows('crm_facility_predictive_part_rul', [
+        { id: 1, equipmentId: 'EQ-PRESS-01', partName: '유압 실린더 패킹 (Piston Seal)', rulDays: 45, status: 'NORMAL', percent: 78 },
+        { id: 2, equipmentId: 'EQ-PRESS-01', partName: '메인 드라이브 모터 브러시', rulDays: 12, status: 'WARNING', percent: 22 },
+        { id: 3, equipmentId: 'EQ-PRESS-01', partName: '고압 냉각 라인 펌프 밸브', rulDays: 85, status: 'NORMAL', percent: 92 }
+      ]);
+    }
+
+    const facilityRepairCheck = await queryTable('crm_facility_repair_logs', {});
+    if (!facilityRepairCheck.rows || facilityRepairCheck.rows.length === 0) {
+      await insertRows('crm_facility_repair_logs', [
+        { id: 'REP-2026-001', date: '2026-06-02 14:00', equipmentId: 'EQ-PRESS-01', equipmentName: '주력 사출 프레스 M-500', errorCode: 'E-102', symptom: '가열 실린더 압력 저하 경보 발생', repairDesc: '유압 가이드 실 O링 마모 확인되어 규격품으로 즉각 교체 진행 및 유압 보충 완료.', mechanic: '홍길동', cost: 125000 }
+      ]);
+    }
+
+    console.log('✓ 스마트 공장 설비 관리 초기 데이터 시딩 완료');
   } catch (seedErr: any) {
-    console.error('⚠️ Quality seeding error:', seedErr.message);
+    console.error('⚠️ Quality & Facility seeding error:', seedErr.message);
   }
 
   console.log('Database setup complete.');

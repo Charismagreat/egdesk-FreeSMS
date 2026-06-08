@@ -141,12 +141,13 @@ export async function POST(req: Request) {
     const partnersListForRag = (partnersResForRag.rows || []).map((p: any) => ({ id: p.id, name: p.company_name || p.name }));
     const trackedItemsResForRag = await queryTable('tracked_items', {});
     const trackedItemsListForRag = (trackedItemsResForRag.rows || []).map((t: any) => ({ id: t.item_id, name: t.item_name, code: t.item_code, category: t.category, basePrice: t.base_price }));
+    const facilitiesResForRag = await queryTable('crm_facilities', {});
+    const facilitiesListForRag = (facilitiesResForRag.rows || []).map((f: any) => ({ id: f.id, name: f.name, model: f.model_name, serial: f.serial_number }));
 
-    // 3. 지능형 하이브리드 OCR 분류/스캔 통합 프롬프트 설계 (멀티 엔티티 탐지 지원)
-    const geminiPrompt = `제공된 문서 이미지나 PDF 속에는 여러 장의 명함, 사업자등록증, 영수증(지출 증빙), 재무제표, 거래명세서, 이력서(PDF/이미지), 병원 진단서/처방전, 매입 명세서(원가 청구서), 또는 경쟁사 가격 캡처 화면이 혼재되어 있을 수 있습니다.
+    const geminiPrompt = `제공된 문서 이미지나 PDF 속에는 여러 장의 명함, 사업자등록증, 영수증(지출 증빙), 재무제표, 거래명세서, 이력서(PDF/이미지), 병원 진단서/처방전, 매입 명세서(원가 청구서), 경쟁사 가격 캡처 화면, 설비 제조 명판, 또는 설비 수기 점검표가 혼재되어 있을 수 있습니다.
 각 문서들을 지능적으로 개별 검출하여 detectedItems 배열 안에 순서대로 담아 응답해 주세요.
 
-각 아이템은 다음 9가지 타입 중 하나여야 합니다:
+각 아이템은 다음 11가지 타입 중 하나여야 합니다:
 1. 명함 ("BUSINESS_CARD"):
    - data 객체에 name (성명), position (직급/직책), phone (전화번호), email (이메일), companyName (회사명/소속) 추출.
 2. 사업자등록증 ("BUSINESS_LICENSE"):
@@ -155,7 +156,7 @@ export async function POST(req: Request) {
    - data 객체에 title (상호명과 구매품 요약, 예: "CU - 음료 구매"), category (아래 7대 비목 중 가장 잘 어울리는 중분류 하나만 선택: "복리후생비", "여비교통비", "소모품비", "접대비", "임차료", "세금공과금", "기타"), amount (최종 결제 금액, 숫자로만), expense_date (결제일 "YYYY-MM-DD"), payment_method (결제 수단, 예: "법인카드", "개인카드", "현금", "계좌이체" 등), memo (세부 사항 메모), payee (가맹점명 또는 상호명) 추출.
 4. 재무제표 ("FINANCIAL_STATEMENT"):
    - data 객체에 companyName (회사명), fiscalYear (회계 연도, 숫자로만), fiscalQuarter (분기, 기본값 "YR"), totalAssets (자산총계, 숫자로만), totalLiabilities (부채총계, 숫자로만), totalEquity (자본총계, 숫자로만), revenue (매출액, 숫자로만), operatingIncome (영업이익, 숫자로만), netIncome (당기순이익, 숫자로만) 추출.
-   - 또한, data 객체 내부의 parsedRawJson 속성에 대차대조표와 손익계산서의 세부 계정과목 및 금액 정보를 담은 계층형 트리 JSON 객체를 정밀 추출해 주세요. 이 JSON 객체는 PDF에 기재된 모든 세부 계정과목(예: 현금및현금성자산, 매출채권, 여비교통비, 급여, 임차료 등)의 계층 구조와 원화 단위를 정확히 반영해야 합니다. (예시: {"재무상태표": {"자산": {"유동자산": {"현금및현금성자산": 15000000, "매출채권": 24000000}, "비유동자산": {...}}, "부채": {...}, "자본": {...}}, "손익계산서": {"매출액": 120000000, "매출원가": 70000000, "판매비와관리비": {"여비교통비": 1200000, "복리후생비": 3200000, ...}} 등) 모든 금액 수치는 반드시 원화(KRW) 단위 정수여야 하며, 만약 문서 단위가 백만원 또는 천원 등이라면 원 단위로 환산해서 기입해야 합니다.
+   - 또한, data 객체 내부의 parsedRawJson 속성에 대차대조표와 손익계산서의 세부 계정과목 및 금액 정보를 담은 계층형 트리 JSON 객체를 정밀 추출해 주세요. 이 JSON 객체는 PDF에 기재된 모든 세부 계정과목(예: 현금및현금성자산, 매출채권, 여비교통비, 급여, 임차료 등)의 계층 구조와 원화 단위를 정확히 반영해야 합니다.
 5. 거래명세서/바코드 라벨 ("INVENTORY_INBOUND"):
    - data 객체에 partnerName (명세서상의 공급자 상호명 또는 거래처명, 예: "주식회사 원컨덕터"), inboundDate (입고일자 또는 작성일자 "YYYY-MM-DD", 기재되어 있지 않다면 오늘 날짜)와 items 배열을 추출해 주세요.
    - items 배열의 각 요소는 itemName (품명, 예: "구리 와이어"), spec (규격/스펙, 예: "Ø2.0mm", 없을 시 공백), quantity (수량, 숫자로만, 예: 250), price (단가, 숫자로만, 없을 시 0, 예: 12000), barcode (바코드 번호 또는 라벨 식별 번호, 바코드의 기호나 텍스트가 식별되면 기입, 없을 시 공백)를 포함해야 합니다.
@@ -168,12 +169,20 @@ export async function POST(req: Request) {
    - items 배열의 각 요소는 itemName (품목명, 예: "구리 강선 B형"), spec (규격, 예: "5.0T"), quantity (매입 수량, 숫자로만, 예: 100), unitPrice (매입 단가, 숫자로만, 예: 8200), amount (공급 총액, 숫자로만, 예: 820000)를 포함해야 합니다.
 9. 경쟁 가격 캡처 ("COMPETITOR_PRICE_CAPTURE"):
    - data 객체에 competitorName (경쟁사명 또는 수집 사이트명, 예: "LME 시세 정보" 또는 "마켓컬리"), itemName (캡처 화면 속 경쟁 제품/상품명, 예: "구리 전기동"), capturedPrice (경쟁사 판매가, 숫자로만, 예: 8450), captureUrl (매핑용 출처 URL, 있으면 기입) 추출.
+10. 설비 제조 명판 ("FACILITY_PLATE"):
+   - data 객체에 manufacturer (제조사, 예: "대진중공업"), modelName (모델명/설비명, 예: "M-500"), serialNumber (일련번호/시리얼번호, 예: "SN-M500-9988"), manufactureYear (제조년도, 숫자로만, 예: 2022), specifications (사양 설명 텍스트, 예: "Press Force: 500Ton, Stroke: 400mm") 추출.
+11. 설비 수기 점검표 ("FACILITY_CHECKLIST"):
+   - data 객체에 equipmentId (점검 대상 설비 ID, 예: "EQ-PRESS-01" 또는 "EQ-PRESS-02" 등), inspector (점검자 성함), checkDate (점검일자 "YYYY-MM-DD", 없으면 오늘)와 checks 배열을 추출해 주세요.
+   - checks 배열의 각 요소는 checkItem (점검 항목명, 예: "가열 압력 상태" 또는 "비상 정지 장치 작동"), status (점검 상태 배지, 양호일 시 "PASS", 불량/조치필요 시 "FAIL"), comment (점검 특이사항 코멘트, 없으면 공백)를 포함해야 합니다.
 
 사내 등록된 거래처 정보(RAG):
 ${JSON.stringify(partnersListForRag)}
 
 사내 등록된 가격 추적 품목 정보(RAG):
 ${JSON.stringify(trackedItemsListForRag)}
+
+사내 등록된 설비 정보(RAG):
+${JSON.stringify(facilitiesListForRag)}
 
 추출한 값들은 반드시 아래 JSON 스키마 규격을 빈틈없이 준수하여 순수 JSON 문자열로만 응답해 주세요. 다른 마크다운 백틱(\`\`\`) 기호나 텍스트는 절대 포함하지 마세요.
 
@@ -225,36 +234,38 @@ ${JSON.stringify(trackedItemsListForRag)}
       }
     },
     {
-      "itemType": "PURCHASE_INVOICE",
+      "itemType": "FACILITY_PLATE",
       "data": {
-        "companyName": "한양철강",
-        "invoiceDate": "2026-06-08",
-        "items": [
-          {
-            "itemName": "구리 강선 B형",
-            "spec": "5.0T",
-            "quantity": 100,
-            "unitPrice": 8200,
-            "amount": 820000
-          }
-        ]
+        "manufacturer": "대진중공업",
+        "modelName": "M-500",
+        "serialNumber": "SN-M500-9988",
+        "manufactureYear": 2022,
+        "specifications": "Press Force: 500Ton, Stroke: 400mm"
       }
     },
     {
-      "itemType": "COMPETITOR_PRICE_CAPTURE",
+      "itemType": "FACILITY_CHECKLIST",
       "data": {
-        "competitorName": "LME 시세 정보",
-        "itemName": "구리 전기동",
-        "capturedPrice": 8450,
-        "captureUrl": "https://www.lme.com/en/Metals/Non-ferrous/Copper"
+        "equipmentId": "EQ-PRESS-01",
+        "inspector": "홍길동",
+        "checkDate": "2026-06-08",
+        "checks": [
+          {
+            "checkItem": "가열 실린더 압력",
+            "status": "PASS",
+            "comment": "적정 압력 범위 유지"
+          },
+          {
+            "checkItem": "모터 구동부 소음",
+            "status": "FAIL",
+            "comment": "회전 시 미세 고주파 이음 및 베어링 마모 우려"
+          }
+        ]
       }
     }
   ]
 }
 `;
-
-
-
 
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
     const response = await fetch(geminiUrl, {
@@ -805,6 +816,65 @@ ${JSON.stringify(trackedItemsListForRag)}
           matchedItemId,
           matchedItemName,
           trackedItemsList: allTrackedItems.map((it: any) => ({ id: it.item_id, name: it.item_name }))
+        });
+      } else if (item.itemType === 'FACILITY_PLATE') {
+        const plateData = item.data || {};
+        processedItems.push({
+          itemType: 'FACILITY_PLATE',
+          data: {
+            manufacturer: plateData.manufacturer || '',
+            modelName: plateData.modelName || '',
+            serialNumber: plateData.serialNumber || '',
+            manufactureYear: Number(plateData.manufactureYear) || null,
+            specifications: plateData.specifications || '',
+            pdfFilePath
+          }
+        });
+      } else if (item.itemType === 'FACILITY_CHECKLIST') {
+        const checkData = item.data || {};
+        const checks = (checkData.checks || []).map((c: any) => ({
+          checkItem: c.checkItem || '',
+          status: c.status || 'PASS',
+          comment: c.comment || ''
+        }));
+        
+        let matchedEquipmentId = checkData.equipmentId || null;
+        let matchedEquipmentName = '';
+        
+        if (matchedEquipmentId) {
+          const matchRes = await queryTable('crm_facilities', { filters: { id: matchedEquipmentId } });
+          if (matchRes.rows && matchRes.rows.length > 0) {
+            matchedEquipmentName = matchRes.rows[0].name;
+          } else {
+            const allFacRes = await queryTable('crm_facilities', {});
+            const match = (allFacRes.rows || []).find((f: any) => 
+              (f.id && f.id.includes(matchedEquipmentId)) || 
+              (f.serial_number && f.serial_number.includes(matchedEquipmentId)) || 
+              (f.model_name && f.model_name.includes(matchedEquipmentId))
+            );
+            if (match) {
+              matchedEquipmentId = match.id;
+              matchedEquipmentName = match.name;
+            }
+          }
+        }
+
+        const allFacRes = await queryTable('crm_facilities', {});
+        const facilitiesList = (allFacRes.rows || []).map((f: any) => ({ id: f.id, name: f.name }));
+
+        processedItems.push({
+          itemType: 'FACILITY_CHECKLIST',
+          data: {
+            equipmentId: matchedEquipmentId,
+            equipmentName: matchedEquipmentName,
+            inspector: checkData.inspector || '',
+            checkDate: checkData.checkDate || new Date().toISOString().slice(0, 10),
+            checks,
+            pdfFilePath
+          },
+          matchedEquipmentId,
+          matchedEquipmentName,
+          facilitiesList
         });
       }
     }
