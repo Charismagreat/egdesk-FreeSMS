@@ -2430,6 +2430,7 @@ function InboundEstimatePreviewMessage({ tagContent, onConfirmSuccess }: { tagCo
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [totalAmount, setTotalAmount] = useState(0);
+  const [createdEstimateId, setCreatedEstimateId] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -2465,6 +2466,17 @@ function InboundEstimatePreviewMessage({ tagContent, onConfirmSuccess }: { tagCo
   if (!estimateData) return <div className="text-rose-500 font-bold p-2 text-xs">견적서 데이터를 파싱하지 못했습니다.</div>;
 
   const handleGoToDetail = async () => {
+    // 이미 연동 처리되어 estimateId가 발급된 경우 API 호출 없이 바로 모달 팝업/페이지 이동
+    if (createdEstimateId) {
+      if (typeof window !== "undefined" && window.location.pathname === '/estimates') {
+        window.history.replaceState({}, "", `/estimates?detail_id=${createdEstimateId}`);
+        window.dispatchEvent(new CustomEvent('open-estimate-detail', { detail: { estimateId: createdEstimateId } }));
+      } else {
+        router.push(`/estimates?detail_id=${createdEstimateId}`);
+      }
+      return;
+    }
+
     if (items.length === 0) {
       alert('등록할 견적 품목이 존재하지 않습니다.');
       return;
@@ -2490,6 +2502,7 @@ function InboundEstimatePreviewMessage({ tagContent, onConfirmSuccess }: { tagCo
       const resData = await response.json();
       if (resData.success) {
         setSaved(true);
+        setCreatedEstimateId(resData.estimateId || null);
         onConfirmSuccess(resData.message);
         
         const estId = resData.estimateId;
