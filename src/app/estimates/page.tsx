@@ -33,6 +33,7 @@ export default function EstimatesDashboard() {
   const [selectedEstimateId, setSelectedEstimateId] = useState<string | null>(null);
 
   const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
+  const [ocrInitialData, setOcrInitialData] = useState<any | null>(null);
 
   const [isInspectModalOpen, setIsInspectModalOpen] = useState(false);
   const [inspectPo, setInspectPo] = useState<PurchaseOrder | null>(null);
@@ -149,6 +150,28 @@ export default function EstimatesDashboard() {
   useEffect(() => {
     fetchData();
     fetchUserRole();
+
+    // 이지봇 연동 자동 OCR 팝업 트리거 감지
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("ocr_import") === "true") {
+        try {
+          const pendingStr = sessionStorage.getItem("pending_estimate_ocr");
+          if (pendingStr) {
+            const parsed = JSON.parse(pendingStr);
+            setOcrInitialData(parsed);
+            setIsOcrModalOpen(true);
+            
+            // 중복 실행 및 리로드 방지를 위해 클린업
+            sessionStorage.removeItem("pending_estimate_ocr");
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, "", newUrl);
+          }
+        } catch (e) {
+          console.error("이지봇 OCR 데이터 로드 실패:", e);
+        }
+      }
+    }
   }, []);
 
   // 인라인 태그 저장 실행
@@ -487,8 +510,15 @@ export default function EstimatesDashboard() {
 
       <EstimateOcrModal
         isOpen={isOcrModalOpen}
-        onClose={() => setIsOcrModalOpen(false)}
-        onSuccess={fetchData}
+        onClose={() => {
+          setIsOcrModalOpen(false);
+          setOcrInitialData(null);
+        }}
+        onSuccess={() => {
+          fetchData();
+          setOcrInitialData(null);
+        }}
+        initialData={ocrInitialData}
       />
 
       <InboundInspectModal
