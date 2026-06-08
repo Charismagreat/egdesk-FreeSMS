@@ -847,6 +847,80 @@ export async function POST(req: Request) {
     }
 
     // ==================================================
+    // 📂 분기 처리 1.99: 받은 견적서 확정 (INBOUND_ESTIMATE)
+    // ==================================================
+    if (fileType === 'INBOUND_ESTIMATE') {
+      const { partnerName, partnerPhone, estimateDate, items = [], pdfFilePath } = reqBody;
+
+      if (!partnerName) {
+        return NextResponse.json({
+          success: false,
+          error: '등록할 견적서의 거래처/공급처명(partnerName)이 누락되었습니다.'
+        }, { status: 400 });
+      }
+
+      if (items.length === 0) {
+        return NextResponse.json({
+          success: false,
+          error: '등록할 견적 품목 정보가 없습니다.'
+        }, { status: 400 });
+      }
+
+      // 1. 총 합계 금액 산정
+      let total_amount = 0;
+      const itemRows = items.map((item: any) => {
+        const qty = parseInt(item.quantity) || 0;
+        const price = parseInt(item.unitPrice || item.unit_price) || 0;
+        const amount = qty * price;
+        total_amount += amount;
+
+        return {
+          product_name: item.productName || item.product_name || item.itemName || '',
+          quantity: qty,
+          unit_price: price,
+          amount: amount,
+          matched_item_id: item.matched_item_id ? Number(item.matched_item_id) : null
+        };
+      });
+
+      // 2. 견적서 고유 식별 마스터 ID 생성
+      const estimateId = `EST-${Date.now()}`;
+
+      // 3. crm_estimates 마스터 테이블 삽입
+      await insertRows('crm_estimates', [{
+        id: estimateId,
+        type: 'INBOUND',
+        direction_status: 'RECEIVED', // 이지봇을 통해 받은 것이므로 RECEIVED 상태
+        partner_name: partnerName,
+        partner_phone: partnerPhone || '',
+        total_amount,
+        file_url: pdfFilePath || '',
+        ai_parsed: 1,
+        created_at: nowStr
+      }]);
+
+      // 4. crm_estimate_items 디테일 테이블 품목 삽입
+      const detailRows = itemRows.map((row: any, idx: number) => ({
+        id: Date.now() + idx,
+        estimate_id: estimateId,
+        product_id: row.matched_item_id ? String(row.matched_item_id) : '',
+        product_name: row.product_name,
+        quantity: row.quantity,
+        unit_price: row.unit_price,
+        amount: row.amount
+      }));
+
+      await insertRows('crm_estimate_items', detailRows);
+
+      return NextResponse.json({
+        success: true,
+        message: `받은 견적서 등록 완료: 거래처 [${partnerName}]로부터 총 ${items.length}개 품목(총액 ${total_amount.toLocaleString()}원)의 견적을 정상 연동 접수하였습니다.`,
+        action: 'inbound_estimate_completed',
+        estimateId
+      });
+    }
+
+    // ==================================================
     // 📂 분기 처리 2: 명함 확정 (BUSINESS_CARD) - 레거시 완벽 승계
     // ==================================================
     const { 

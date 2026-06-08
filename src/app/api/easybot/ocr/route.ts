@@ -147,7 +147,7 @@ export async function POST(req: Request) {
     const geminiPrompt = `제공된 문서 이미지나 PDF 속에는 여러 장의 명함, 사업자등록증, 영수증(지출 증빙), 재무제표, 거래명세서, 이력서(PDF/이미지), 병원 진단서/처방전, 매입 명세서(원가 청구서), 경쟁사 가격 캡처 화면, 설비 제조 명판, 설비 수기 점검표, 또는 법원 소장/송달장/판결문 등의 소송 법률 문서가 혼재되어 있을 수 있습니다.
 각 문서들을 지능적으로 개별 검출하여 detectedItems 배열 안에 순서대로 담아 응답해 주세요.
 
-각 아이템은 다음 12가지 타입 중 하나여야 합니다:
+각 아이템은 다음 13가지 타입 중 하나여야 합니다:
 1. 명함 ("BUSINESS_CARD"):
    - data 객체에 name (성명), position (직급/직책), phone (전화번호), email (이메일), companyName (회사명/소속) 추출.
 2. 사업자등록증 ("BUSINESS_LICENSE"):
@@ -176,6 +176,9 @@ export async function POST(req: Request) {
     - checks 배열의 각 요소는 checkItem (점검 항목명, 예: "가열 압력 상태" 또는 "비상 정지 장치 작동"), status (점검 상태 배지, 양호일 시 "PASS", 불량/조치필요 시 "FAIL"), comment (점검 특이사항 코멘트, 없으면 공백)를 포함해야 합니다.
 12. 소송/법률 문서 ("LEGAL_DOCUMENT"):
     - data 객체에 documentType (문서 구분, 예: "소장", "지급명령 송달장", "판결문" 등), caseNumber (사건번호, 예: "2026가소12345"), summary (사건 및 서류 핵심 요약), deadline (답변서 기한 및 법적 마감일 "YYYY-MM-DD" 혹은 없을 시 null), actions (권장 즉시 행동 조치 목록 배열) 추출.
+13. 받은 견적서 ("INBOUND_ESTIMATE"):
+    - data 객체에 partnerName (견적서를 발행한 거래처/공급처명, 예: "태백유통(주)"), partnerPhone (연락처, 없으면 빈 문자열 ""), items 배열 추출.
+    - items 배열의 각 요소는 productName (품목명, 예: "친환경 생분해 컵"), quantity (수량, 숫자로만, 예: 50), unitPrice (단가, 숫자로만, 예: 1500), amount (공급 금액, 수량 * 단가, 숫자로만, 예: 75000)를 포함해야 합니다.
 
 사내 등록된 거래처 정보(RAG):
 ${JSON.stringify(partnersListForRag)}
@@ -712,6 +715,65 @@ ${JSON.stringify(facilitiesListForRag)}
           matchedOperatorId,
           matchedOperatorName,
           operatorsList: operators.map((op: any) => ({ id: op.id, name: op.name }))
+        });
+      } else if (item.itemType === 'INBOUND_ESTIMATE') {
+        const estimateData = item.data || {};
+        const partnerName = estimateData.partnerName ? estimateData.partnerName.trim() : '';
+        
+        // 1. 거래처 매핑
+        let partnerId = null;
+        if (partnerName) {
+          const partnerRes = await queryTable('crm_partners', { filters: { company_name: partnerName } });
+          if (partnerRes.rows && partnerRes.rows.length > 0) {
+            partnerId = partnerRes.rows[0].id;
+          } else {
+            const fuzzyRes = await queryTable('crm_partners', {});
+            const match = fuzzyRes.rows.find((p: any) => 
+              p.company_name && (p.company_name.includes(partnerName) || partnerName.includes(p.company_name))
+            );
+            if (match) partnerId = match.id;
+          }
+        }
+
+        // 2. 개별 견적 품목 매핑 (자사 품목 대장과 Fuzzy 매칭)
+        const parsedItems = (estimateData.items || []).map((rawItem: any) => {
+          let matchedItemId = null;
+          let matchedItemName = '';
+          
+          if (rawItem.productName) {
+            const cleanName = rawItem.productName.trim().toLowerCase();
+            const match = allTrackedItems.find((it: any) => 
+              it.item_name && (it.item_name.trim().toLowerCase().includes(cleanName) || cleanName.includes(it.item_name.trim().toLowerCase()))
+            );
+            if (match) {
+              matchedItemId = match.item_id;
+              matchedItemName = match.item_name;
+            }
+          }
+
+          return {
+            productName: rawItem.productName || '',
+            spec: rawItem.spec || '',
+            quantity: Number(rawItem.quantity) || 0,
+            unitPrice: Number(rawItem.unitPrice) || 0,
+            amount: Number(rawItem.amount) || 0,
+            matched_item_id: matchedItemId,
+            matched_item_name: matchedItemName
+          };
+        });
+
+        processedItems.push({
+          itemType: 'INBOUND_ESTIMATE',
+          data: {
+            partnerName,
+            partnerPhone: estimateData.partnerPhone || '010-0000-0000',
+            estimateDate: estimateData.estimateDate || new Date().toISOString().slice(0, 10),
+            items: parsedItems,
+            pdfFilePath
+          },
+          partnerId,
+          trackedItemsList: allTrackedItems.map((it: any) => ({ id: it.item_id, name: it.item_name })),
+          partnersList: partnersListForRag
         });
       } else if (item.itemType === 'PURCHASE_INVOICE') {
         const invoiceData = item.data || {};
