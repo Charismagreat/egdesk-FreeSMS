@@ -489,7 +489,14 @@ export async function setupDatabase() {
     { name: 'total_tokens', type: 'INTEGER', notNull: true },
     { name: 'user_name', type: 'TEXT' },
     { name: 'menu_path', type: 'TEXT' },
-    { name: 'created_at', type: 'TEXT', notNull: true }
+    { name: 'created_at', type: 'TEXT', notNull: true },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
   ], { tableName: 'ai_token_usage_logs', uniqueKeyColumns: ['id'] });
 
   // 31. 추적 품목 마스터 테이블 (원자재 / 경쟁 제품 분류 및 마진 관리)
@@ -1647,6 +1654,34 @@ export async function setupDatabase() {
     if (!tokenLogCols.includes('menu_path')) {
       db.exec("ALTER TABLE ai_token_usage_logs ADD COLUMN menu_path TEXT;");
       console.log('✓ In-app migration: added menu_path to ai_token_usage_logs');
+    }
+    if (!tokenLogCols.includes('uuid')) {
+      db.exec("ALTER TABLE ai_token_usage_logs ADD COLUMN uuid TEXT;");
+      console.log('✓ In-app migration: added uuid to ai_token_usage_logs');
+    }
+    if (!tokenLogCols.includes('updated_at')) {
+      db.exec("ALTER TABLE ai_token_usage_logs ADD COLUMN updated_at TEXT;");
+      console.log('✓ In-app migration: added updated_at to ai_token_usage_logs');
+    }
+    if (!tokenLogCols.includes('updated_by')) {
+      db.exec("ALTER TABLE ai_token_usage_logs ADD COLUMN updated_by TEXT;");
+      console.log('✓ In-app migration: added updated_by to ai_token_usage_logs');
+    }
+    if (!tokenLogCols.includes('deleted_at')) {
+      db.exec("ALTER TABLE ai_token_usage_logs ADD COLUMN deleted_at TEXT;");
+      console.log('✓ In-app migration: added deleted_at to ai_token_usage_logs');
+    }
+    if (!tokenLogCols.includes('deleted_by')) {
+      db.exec("ALTER TABLE ai_token_usage_logs ADD COLUMN deleted_by TEXT;");
+      console.log('✓ In-app migration: added deleted_by to ai_token_usage_logs');
+    }
+    if (!tokenLogCols.includes('restored_at')) {
+      db.exec("ALTER TABLE ai_token_usage_logs ADD COLUMN restored_at TEXT;");
+      console.log('✓ In-app migration: added restored_at to ai_token_usage_logs');
+    }
+    if (!tokenLogCols.includes('restored_by')) {
+      db.exec("ALTER TABLE ai_token_usage_logs ADD COLUMN restored_by TEXT;");
+      console.log('✓ In-app migration: added restored_by to ai_token_usage_logs');
     }
 
     db.close();
