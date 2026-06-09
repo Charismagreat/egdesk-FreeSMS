@@ -76,6 +76,17 @@ export default function ExpenseManagementAiPage() {
   // 🛎️ 토스트 알림 상태 선언
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "warn" } | null>(null);
 
+  // 💡 AI 마우스 커서 도움말 인디케이터 상태
+  const [cursorIndicator, setCursorIndicator] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+  }>({
+    visible: false,
+    x: 0,
+    y: 0
+  });
+
   // 💡 AI Contextual 도움말 상태 선언
   const [helpInfo, setHelpInfo] = useState<{
     isOpen: boolean;
@@ -133,6 +144,13 @@ export default function ExpenseManagementAiPage() {
       const hintKey = colonIdx !== -1 ? hintText.substring(0, colonIdx).trim() : hintText.trim();
       const hintVal = colonIdx !== -1 ? hintText.substring(colonIdx + 1).trim() : hintText;
 
+      // 즉시 도움말 배지 활성화 및 위치 지정
+      setCursorIndicator({
+        visible: true,
+        x: e.clientX,
+        y: e.clientY
+      });
+
       // 1. 이미 동일한 도움말이 열려 있는 경우라면 닫기 타이머만 취소하고 유지
       if (helpInfoRef.current.isOpen && helpInfoRef.current.hintKey === hintKey) {
         if (leaveTimerRef.current) {
@@ -189,6 +207,22 @@ export default function ExpenseManagementAiPage() {
       }, 1000);
     };
 
+    const handleMouseMove = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target) return;
+
+      const hintElement = target.closest("[data-easybot-hint]");
+      if (hintElement) {
+        setCursorIndicator({
+          visible: true,
+          x: e.clientX,
+          y: e.clientY
+        });
+      } else {
+        setCursorIndicator(prev => prev.visible ? { ...prev, visible: false } : prev);
+      }
+    };
+
     const handleMouseOut = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (!target) return;
@@ -201,6 +235,9 @@ export default function ExpenseManagementAiPage() {
           hoverTimerRef.current = null;
         }
 
+        // 즉시 마우스 배지 숨김
+        setCursorIndicator(prev => prev.visible ? { ...prev, visible: false } : prev);
+
         // 0.5초 뒤 닫기 타이머 예약
         if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
         leaveTimerRef.current = setTimeout(() => {
@@ -210,10 +247,12 @@ export default function ExpenseManagementAiPage() {
     };
 
     window.addEventListener("mouseover", handleMouseOver);
+    window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseout", handleMouseOut);
 
     return () => {
       window.removeEventListener("mouseover", handleMouseOver);
+      window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseout", handleMouseOut);
       if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
       if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
@@ -411,6 +450,20 @@ export default function ExpenseManagementAiPage() {
         fetchExpenses={fetchExpenses}
         showToast={showToast}
       />
+
+      {/* 💡 AI 마우스 커서 도움말 인디케이터 (즉시 반응 툴팁 배지) */}
+      {cursorIndicator.visible && !helpInfo.isOpen && (
+        <div
+          className="fixed pointer-events-none z-55 flex items-center justify-center bg-gradient-to-tr from-rose-500 to-amber-500 text-white rounded-full w-8 h-8 shadow-2xl animate-pulse"
+          style={{
+            left: `${cursorIndicator.x + 12}px`,
+            top: `${cursorIndicator.y + 12}px`,
+            transition: "left 0.04s ease-out, top 0.04s ease-out"
+          }}
+        >
+          <Sparkles className="w-4 h-4 text-white animate-bounce" />
+        </div>
+      )}
 
       {/* AI 도움말 플로팅 팝업창 */}
       {helpInfo.isOpen && (
