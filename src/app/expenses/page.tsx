@@ -76,6 +76,130 @@ export default function ExpenseManagementAiPage() {
   // 🛎️ 토스트 알림 상태 선언
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "warn" } | null>(null);
 
+  // 💡 AI Contextual 도움말 상태 선언
+  const [helpInfo, setHelpInfo] = useState<{
+    isOpen: boolean;
+    hintKey: string;
+    hintText: string;
+    explanation: string;
+    isLoading: boolean;
+    error: string | null;
+  }>({
+    isOpen: false,
+    hintKey: "",
+    hintText: "",
+    explanation: "",
+    isLoading: false,
+    error: null
+  });
+
+  const [mouseLeaveTimer, setMouseLeaveTimer] = useState<any>(null);
+
+  // 도움말 마우스 진입시 해제 방지
+  const handlePopupMouseEnter = () => {
+    if (mouseLeaveTimer) {
+      clearTimeout(mouseLeaveTimer);
+      setMouseLeaveTimer(null);
+    }
+  };
+
+  const handlePopupMouseLeave = () => {
+    const timer = setTimeout(() => {
+      setHelpInfo(prev => ({ ...prev, isOpen: false }));
+    }, 500);
+    setMouseLeaveTimer(timer);
+  };
+
+  // 마우스 오버 힌트 실시간 리스너 훅
+  useEffect(() => {
+    let hoverTimeout: any = null;
+
+    const handleMouseOver = async (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target) return;
+
+      const hintElement = target.closest("[data-easybot-hint]");
+      if (!hintElement) return;
+
+      const hintText = hintElement.getAttribute("data-easybot-hint") || "";
+      if (!hintText) return;
+
+      const colonIdx = hintText.indexOf(":");
+      const hintKey = colonIdx !== -1 ? hintText.substring(0, colonIdx).trim() : hintText.trim();
+      const hintVal = colonIdx !== -1 ? hintText.substring(colonIdx + 1).trim() : hintText;
+
+      // 이미 같은 팝업이 활성화되어 있다면 소멸 방지
+      if (helpInfo.isOpen && helpInfo.hintKey === hintKey) {
+        if (mouseLeaveTimer) {
+          clearTimeout(mouseLeaveTimer);
+          setMouseLeaveTimer(null);
+        }
+        return;
+      }
+
+      if (hoverTimeout) clearTimeout(hoverTimeout);
+      hoverTimeout = setTimeout(async () => {
+        setHelpInfo({
+          isOpen: true,
+          hintKey,
+          hintText: hintVal,
+          explanation: "",
+          isLoading: true,
+          error: null
+        });
+
+        try {
+          const res = await fetch("/api/expenses/contextual-help", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ hintKey, hintText: hintVal })
+          });
+          const data = await res.json();
+          if (data.success) {
+            setHelpInfo(prev => ({
+              ...prev,
+              explanation: data.explanation,
+              isLoading: false
+            }));
+          } else {
+            throw new Error(data.error || "도움말 데이터를 불러오지 못했습니다.");
+          }
+        } catch (err: any) {
+          setHelpInfo(prev => ({
+            ...prev,
+            isLoading: false,
+            error: err.message
+          }));
+        }
+      }, 1000); // 1초 호버 유지
+    };
+
+    const handleMouseOut = (e: MouseEvent) => {
+      if (hoverTimeout) {
+        clearTimeout(hoverTimeout);
+        hoverTimeout = null;
+      }
+
+      const target = e.target as HTMLElement;
+      const hintElement = target.closest("[data-easybot-hint]");
+      if (hintElement) {
+        const timer = setTimeout(() => {
+          setHelpInfo(prev => ({ ...prev, isOpen: false }));
+        }, 500); // 0.5초 유예시간 부여
+        setMouseLeaveTimer(timer);
+      }
+    };
+
+    window.addEventListener("mouseover", handleMouseOver);
+    window.addEventListener("mouseout", handleMouseOut);
+
+    return () => {
+      window.removeEventListener("mouseover", handleMouseOver);
+      window.removeEventListener("mouseout", handleMouseOut);
+      if (hoverTimeout) clearTimeout(hoverTimeout);
+    };
+  }, [helpInfo.isOpen, helpInfo.hintKey, mouseLeaveTimer]);
+
   const showToast = (message: string, type: "success" | "error" | "warn" = "success") => {
     setToast({ message, type });
     setTimeout(() => {
@@ -267,6 +391,54 @@ export default function ExpenseManagementAiPage() {
         fetchExpenses={fetchExpenses}
         showToast={showToast}
       />
+
+      {/* AI 도움말 플로팅 팝업창 */}
+      {helpInfo.isOpen && (
+        <div
+          onMouseEnter={handlePopupMouseEnter}
+          onMouseLeave={handlePopupMouseLeave}
+          className="fixed bottom-24 right-6 w-80 bg-slate-900/90 hover:bg-slate-900/95 border border-slate-700/80 rounded-2xl p-4 shadow-2xl backdrop-blur-md z-50 text-left animate-fade-in text-white transition-all"
+        >
+          <div className="flex items-center justify-between border-b border-slate-700/50 pb-2 mb-3">
+            <div className="flex items-center space-x-2">
+              <div className="p-1.5 rounded-lg bg-rose-500/20 text-rose-400">
+                <Sparkles className="w-4 h-4 animate-pulse" />
+              </div>
+              <span className="text-xs font-black tracking-tight text-slate-100">AI 도움말</span>
+            </div>
+            <button
+              onClick={() => setHelpInfo(prev => ({ ...prev, isOpen: false }))}
+              className="text-slate-400 hover:text-white transition-colors border-none bg-transparent cursor-pointer p-1 text-[10px]"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            <h4 className="text-xs font-bold text-slate-200">📌 {helpInfo.hintKey}</h4>
+            
+            {helpInfo.isLoading ? (
+              <div className="flex items-center space-x-2 py-3">
+                <div className="w-3.5 h-3.5 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
+                <span className="text-[11px] text-slate-400 font-medium">설명을 생성하고 있습니다...</span>
+              </div>
+            ) : helpInfo.error ? (
+              <p className="text-[11px] text-rose-300 leading-relaxed font-semibold">
+                {helpInfo.error}
+              </p>
+            ) : (
+              <p className="text-[11px] text-slate-300 leading-relaxed font-normal whitespace-pre-line">
+                {helpInfo.explanation}
+              </p>
+            )}
+          </div>
+
+          <div className="border-t border-slate-800/80 pt-2.5 mt-3 flex justify-between items-center text-[9px] text-slate-500 font-bold">
+            <span>EGDesk AI 경리 서비스</span>
+            <span>설명 자동 저장됨</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

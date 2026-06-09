@@ -1136,6 +1136,14 @@ export async function setupDatabase() {
     { name: 'created_at', type: 'TEXT', notNull: true }
   ], { tableName: 'system_mail_logs', uniqueKeyColumns: ['id'] });
 
+  // 41-3. AI Contextual Help Table (도움말 캐싱용 컨텍스트)
+  await safeCreateTable('AI 도움말 캐시', [
+    { name: 'hint_key', type: 'TEXT', notNull: true },
+    { name: 'hint_text', type: 'TEXT', notNull: true },
+    { name: 'ai_explanation', type: 'TEXT', notNull: true },
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'ai_contextual_help', uniqueKeyColumns: ['hint_key'] });
+
   // 42. Safety Policies Table (안전보건방침 및 목표 설정 대장)
   await safeCreateTable('안전보건방침 및 목표', [
     { name: 'id', type: 'INTEGER', notNull: true },
