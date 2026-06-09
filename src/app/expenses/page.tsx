@@ -126,7 +126,7 @@ export default function ExpenseManagementAiPage() {
     if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
     leaveTimerRef.current = setTimeout(() => {
       setHelpInfo(prev => ({ ...prev, isOpen: false }));
-    }, 800);
+    }, 1500);
   };
 
   // 마우스 오버 힌트 실시간 리스너 훅 (디펜던시 []로 최초 마운트 시 1회만 등록)
@@ -239,11 +239,11 @@ export default function ExpenseManagementAiPage() {
         // 즉시 마우스 배지 숨김
         setCursorIndicator(prev => prev.visible ? { ...prev, visible: false } : prev);
 
-        // 0.8초 뒤 닫기 타이머 예약
+        // 1.5초 뒤 닫기 타이머 예약
         if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
         leaveTimerRef.current = setTimeout(() => {
           setHelpInfo(prev => ({ ...prev, isOpen: false }));
-        }, 800);
+        }, 1500);
       }
     };
 
