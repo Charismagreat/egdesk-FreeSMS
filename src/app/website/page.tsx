@@ -385,12 +385,12 @@ export default function WebsiteBuilderPage() {
   };
 
   return (
-    <div className="space-y-6 pb-20 w-full min-w-0 text-slate-800">
+    <div className="w-full space-y-6 pb-20 min-w-0 font-sans text-slate-800 animate-fade-in text-left">
       {/* 보이지 않는 QR 코드 드로잉용 캔버스 */}
       <canvas ref={qrCanvasRef} width="150" height="150" className="hidden" />
 
       {/* 상단 타이틀 헤더 */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 pb-6 border-b border-slate-200 relative z-10 shrink-0">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-6 pb-5 border-b border-slate-200 relative z-10 shrink-0">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold text-slate-800 tracking-tight flex items-center">
             <Globe className="w-8 h-8 text-pink-600 mr-3" />
