@@ -1,13 +1,16 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useSnapTasks } from "./hooks/useSnapTasks";
 import { Header } from "./components/Header";
 import { SummaryCards } from "./components/SummaryCards";
 import { KanbanBoard } from "./components/KanbanBoard";
+import { TaskTable } from "./components/TaskTable";
 import { DetailModal } from "./components/DetailModal";
+import { Sparkles, Activity } from "lucide-react";
 
 export default function SnapTasksDashboard() {
+  const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
   const {
     tasks,
     loading,
@@ -63,8 +66,44 @@ export default function SnapTasksDashboard() {
         archivedCount={archivedTasks.length}
       />
 
-      {/* 3대 칸반보드 보드 그리드 */}
-      <KanbanBoard tasks={tasks} onOpenDetail={openDetailPopup} onDeleteTask={handleDeleteTask} />
+      {/* 뷰 모드 토글 세그먼트 */}
+      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div className="flex items-center gap-1.5 text-xs font-black text-slate-700">
+          <Activity className="w-4.5 h-4.5 text-indigo-500" />
+          관제 데이터 디스플레이 설정
+        </div>
+        <div className="flex bg-slate-100 rounded-xl p-1 border border-slate-200">
+          <button
+            onClick={() => setViewMode("kanban")}
+            className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer border-none ${
+              viewMode === "kanban"
+                ? "bg-white text-indigo-650 shadow-3xs"
+                : "text-slate-450 hover:text-slate-700 bg-transparent"
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+            칸반 보드 뷰
+          </button>
+          <button
+            onClick={() => setViewMode("list")}
+            className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer border-none ${
+              viewMode === "list"
+                ? "bg-white text-indigo-650 shadow-3xs"
+                : "text-slate-450 hover:text-slate-700 bg-transparent"
+            }`}
+          >
+            <Activity className="w-3.5 h-3.5 text-indigo-500" />
+            리스트 테이블 뷰
+          </button>
+        </div>
+      </div>
+
+      {/* 3대 칸반보드 또는 리스트 테이블 뷰 */}
+      {viewMode === "kanban" ? (
+        <KanbanBoard tasks={tasks} onOpenDetail={openDetailPopup} onDeleteTask={handleDeleteTask} />
+      ) : (
+        <TaskTable tasks={tasks} onOpenDetail={openDetailPopup} onDeleteTask={handleDeleteTask} />
+      )}
 
       {/* 팝업 모달: 특정 태스크의 전체 타임라인 & AI 액션로그 피드 조망 */}
       {selectedTask && (
