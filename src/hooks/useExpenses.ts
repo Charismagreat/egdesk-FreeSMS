@@ -49,6 +49,7 @@ export interface DbExpenseCategory {
 export interface DbExpenseTag {
   id: string;
   name: string;
+  scope?: string;
   created_at: string;
 }
 
@@ -368,12 +369,12 @@ export function useExpenses() {
     }
   };
 
-  const handleAddTag = async (name: string) => {
+  const handleAddTag = async (name: string, scope?: string) => {
     try {
       const res = await fetch("/api/expenses/tags", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name })
+        body: JSON.stringify({ name, scope: scope || 'global' })
       });
       const json = await res.json();
       if (json.success) {

@@ -33,6 +33,7 @@ export async function GET(req: Request) {
                (SELECT product_name FROM crm_estimate_items WHERE estimate_id = e.id LIMIT 1) AS first_item_name,
                (SELECT COUNT(*) FROM crm_estimate_items WHERE estimate_id = e.id) AS item_count
         FROM crm_estimates e
+        WHERE e.deleted_at IS NULL
         ORDER BY e.id DESC
       `;
       const result = await executeSQL(query);
@@ -58,9 +59,9 @@ export async function GET(req: Request) {
       const items = itemsRes.rows || [];
 
       // 💡 안전 가드: 발주서(crm_purchase_orders) 또는 수주서(crm_sales_orders)로의 전환 여부 검사
-      const poCheck = await executeSQL(`SELECT id FROM crm_purchase_orders WHERE estimate_id = '${estimateId}' LIMIT 1`);
+      const poCheck = await executeSQL(`SELECT id FROM crm_purchase_orders WHERE estimate_id = '${estimateId}' AND deleted_at IS NULL LIMIT 1`);
       const poRows = poCheck?.rows || (Array.isArray(poCheck) ? poCheck : []);
-      const soCheck = await executeSQL(`SELECT id FROM crm_sales_orders WHERE estimate_id = '${estimateId}' LIMIT 1`);
+      const soCheck = await executeSQL(`SELECT id FROM crm_sales_orders WHERE estimate_id = '${estimateId}' AND deleted_at IS NULL LIMIT 1`);
       const soRows = soCheck?.rows || (Array.isArray(soCheck) ? soCheck : []);
       
       const isLinked = poRows.length > 0 || soRows.length > 0;
@@ -70,7 +71,7 @@ export async function GET(req: Request) {
 
     // 기본값: 모바일용 견적 상품 목록 조회
     // 💡 SQL Query 헬퍼를 활용하여 견적가 플래그가 켜진 상품만 확실히 색출!
-    const query = `SELECT * FROM products WHERE is_estimate_price = 1`;
+    const query = `SELECT * FROM products WHERE is_estimate_price = 1 AND deleted_at IS NULL`;
     const result = await executeSQL(query);
     const estimateProducts = (result && result.rows) ? result.rows : (Array.isArray(result) ? result : []);
 
@@ -118,7 +119,7 @@ export async function POST(req: Request) {
     if (type === 'INBOUND' && is_new_partner) {
       let existingPartner = null;
       if (business_number) {
-        const checkQuery = `SELECT * FROM crm_partners WHERE business_number = '${business_number}' LIMIT 1`;
+        const checkQuery = `SELECT * FROM crm_partners WHERE business_number = '${business_number}' AND deleted_at IS NULL LIMIT 1`;
         const checkRes = await executeSQL(checkQuery) || [];
         const rows = (checkRes && (checkRes as any).rows) ? (checkRes as any).rows : (Array.isArray(checkRes) ? checkRes : []);
         if (rows.length > 0) {
@@ -319,9 +320,9 @@ export async function DELETE(req: Request) {
     }
 
     // 💡 안전 가드: 발주서(crm_purchase_orders) 또는 수주서(crm_sales_orders)로의 전환 여부 검사 및 삭제 차단
-    const poCheck = await executeSQL(`SELECT id FROM crm_purchase_orders WHERE estimate_id = '${estimateId}' LIMIT 1`);
+    const poCheck = await executeSQL(`SELECT id FROM crm_purchase_orders WHERE estimate_id = '${estimateId}' AND deleted_at IS NULL LIMIT 1`);
     const poRows = poCheck?.rows || (Array.isArray(poCheck) ? poCheck : []);
-    const soCheck = await executeSQL(`SELECT id FROM crm_sales_orders WHERE estimate_id = '${estimateId}' LIMIT 1`);
+    const soCheck = await executeSQL(`SELECT id FROM crm_sales_orders WHERE estimate_id = '${estimateId}' AND deleted_at IS NULL LIMIT 1`);
     const soRows = soCheck?.rows || (Array.isArray(soCheck) ? soCheck : []);
 
     if (poRows.length > 0 || soRows.length > 0) {

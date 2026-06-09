@@ -306,6 +306,7 @@ If it requires database queries:
 - You can query ANY table (including system_settings, customers, orders, transactions, message_logs, coupons, etc.).
 - Ensure that the query is strictly a SELECT statement. Never suggest UPDATE, INSERT, or DELETE.
 - Use explicit column names or '*' where appropriate.
+- [🚨 CRITICAL] If the table you are querying has a "deleted_at" column, you MUST always add the condition "deleted_at IS NULL" in the WHERE clause (e.g. "WHERE deleted_at IS NULL" or "AND deleted_at IS NULL") to exclude soft-deleted data, unless the user explicitly asks for deleted/removed records.
 - ALWAYS output in JSON format only.
 
 Available Database Tables Info:

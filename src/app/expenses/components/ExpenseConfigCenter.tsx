@@ -15,7 +15,7 @@ export interface ExpenseConfigCenterProps {
   handleBulkAddCategories: (categories: any[]) => Promise<{ success: boolean; addedCount?: number; message?: string; error?: string }>;
   handleDeleteCategory: (id: string) => Promise<void>;
   dbTags: DbExpenseTag[];
-  handleAddTag: (name: string) => Promise<{ success: boolean; error?: string }>;
+  handleAddTag: (name: string, scope?: string) => Promise<{ success: boolean; error?: string }>;
   handleDeleteTag: (id: string) => Promise<void>;
   dbDepartments: any[];
   dbEmployees: any[];
@@ -57,6 +57,7 @@ export default function ExpenseConfigCenter({
   const [newMidCat, setNewMidCat] = useState<string>("");
   const [newSubCat, setNewSubCat] = useState<string>("");
   const [newTagName, setNewTagName] = useState<string>("");
+  const [newTagScope, setNewTagScope] = useState<string>("global");
   const [newDeptName, setNewDeptName] = useState<string>("");
   const [newEmpName, setNewEmpName] = useState<string>("");
   const [newProjName, setNewProjName] = useState<string>("");
@@ -201,11 +202,12 @@ export default function ExpenseConfigCenter({
       return;
     }
     setIsSubmittingTag(true);
-    const result = await handleAddTag(newTagName.trim());
+    const result = await handleAddTag(newTagName.trim(), newTagScope);
     setIsSubmittingTag(false);
     if (result.success) {
       alert("태그가 추가되었습니다.");
       setNewTagName("");
+      setNewTagScope("global");
     } else {
       alert("등록 실패: " + result.error);
     }
@@ -543,33 +545,50 @@ export default function ExpenseConfigCenter({
         </div>
       )}
 
-      {/* 🏷️ 3. 지출 태그 관리 탭 */}
+      {/* 🏷️ 3. 통합 공통 태그 관리 탭 */}
       {activeConfigTab === 'tag' && (
         <div className="space-y-4 animate-fade-in text-xs text-left">
           <div 
-            data-easybot-hint="지출 태그 등록: 지출 항목에 추가적으로 표시할 커스텀 태그를 생성합니다. 예를 들어 특정 프로젝트명, 본부명, 행사 성격 등을 입력하고 등록하면 지출 작성 시 라벨로 부착하여 다차원 분석에 활용할 수 있습니다."
+            data-easybot-hint="통합 공통 태그 등록: 시스템 전반(지출, 재고 등)에 공통으로 표시할 커스텀 태그를 생성합니다. 예를 들어 특정 프로젝트명, 부서명, 공급처 형태, 특별 이벤트 등을 입력하고 등록하면 지출 및 재고 수불부 작성 시 라벨로 부착하여 전사 통합 다차원 분석에 활용할 수 있습니다."
             className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3"
           >
             <h3 className="font-extrabold text-slate-800 text-[11px] flex items-center">
               <Sparkles className="w-3 h-3 text-rose-500 mr-1.5 animate-pulse" />
-              ➕ 태그 등록
+              ➕ 통합 공통 태그 등록
             </h3>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                placeholder="예: SC팀, 마케팅본부, 정기점검"
-                value={newTagName}
-                onChange={e => setNewTagName(e.target.value)}
-                className="flex-1 border border-slate-250 rounded-lg px-3 py-1.5 outline-none font-bold text-xs bg-white text-slate-850 h-[32px]"
-              />
-              <button
-                type="button"
-                onClick={onAddTagClick}
-                disabled={isSubmittingTag || !newTagName.trim()}
-                className="px-4 py-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-lg font-black text-[10px] shadow-sm cursor-pointer disabled:bg-slate-300 border-none transition-all h-[32px] flex items-center"
-              >
-                {isSubmittingTag ? "등록 중..." : "태그 등록"}
-              </button>
+            <div className="flex flex-col sm:flex-row items-end gap-2 w-full">
+              <div className="flex-1 min-w-0 w-full sm:w-auto">
+                <label className="block text-[9px] font-bold text-slate-455 mb-0.5">태그명</label>
+                <input
+                  type="text"
+                  placeholder="예: SC팀, 마케팅본부, 정기점검"
+                  value={newTagName}
+                  onChange={e => setNewTagName(e.target.value)}
+                  className="w-full border border-slate-250 rounded-lg px-3 py-1.5 outline-none font-bold text-xs bg-white text-slate-850 h-[32px]"
+                />
+              </div>
+              <div className="w-full sm:w-[130px] shrink-0">
+                <label className="block text-[9px] font-bold text-slate-455 mb-0.5">적용 범위</label>
+                <select
+                  value={newTagScope}
+                  onChange={e => setNewTagScope(e.target.value)}
+                  className="w-full border border-slate-250 rounded-lg px-2 py-1.5 outline-none font-bold text-xs bg-white text-slate-700 cursor-pointer h-[32px]"
+                >
+                  <option value="global">전사 공통</option>
+                  <option value="expense">지출 전용</option>
+                  <option value="inventory">재고 전용</option>
+                </select>
+              </div>
+              <div className="shrink-0 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={onAddTagClick}
+                  disabled={isSubmittingTag || !newTagName.trim()}
+                  className="w-full sm:w-auto px-4 py-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-lg font-black text-[10px] shadow-sm cursor-pointer disabled:bg-slate-300 border-none transition-all h-[32px] flex items-center justify-center"
+                >
+                  {isSubmittingTag ? "등록 중..." : "태그 등록"}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -582,6 +601,9 @@ export default function ExpenseConfigCenter({
                 dbTags.map(tag => (
                   <div key={tag.id} className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200 text-slate-600 text-[10px] font-extrabold px-3 py-1.5 rounded-full shadow-3xs">
                     <span>#{tag.name}</span>
+                    <span className="text-[8px] px-1 py-0.2 bg-slate-200/60 text-slate-500 rounded font-normal">
+                      {tag.scope === 'expense' ? '지출' : tag.scope === 'inventory' ? '재고' : '공통'}
+                    </span>
                     <button
                       type="button"
                       onClick={() => handleDeleteTag(tag.id)}

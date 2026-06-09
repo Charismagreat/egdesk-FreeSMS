@@ -233,7 +233,7 @@ export async function GET(request: Request) {
           else if (name === 'expense_departments') displayName = '지출 귀속 부서 및 조직 정보';
           else if (name === 'expense_employees') displayName = '지출 청구 대상 임직원 명단';
           else if (name === 'expense_settings') displayName = '지출 관리 결재 한도 및 연동 설정';
-          else if (name === 'expense_tags') displayName = '지출 상세 분석용 태그 관리';
+          else if (name === 'expense_tags') displayName = '통합 공통 태그 관리';
 
           tablesWithCount.push({
             name,

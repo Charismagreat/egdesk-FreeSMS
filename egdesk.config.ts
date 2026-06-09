@@ -1,6 +1,6 @@
 /**
  * EGDesk User Data Configuration
- * Generated at: 2026-06-09T12:44:06.953Z
+ * Generated at: 2026-06-09T13:24:59.006Z
  *
  * This file contains type-safe definitions for your EGDesk tables.
  */
@@ -25,281 +25,281 @@ export const TABLES = {
     name: 'rnd_compliance_alarms',
     displayName: '규제 준수 모니터링 및 알림',
     rowCount: 1,
-    columnCount: 10,
-    columns: ['id', 'alarm_id', 'center_id', 'category', 'severity', 'message', 'due_date', 'is_resolved', 'resolved_at', 'created_at']
+    columnCount: 17,
+    columns: ['id', 'alarm_id', 'center_id', 'category', 'severity', 'message', 'due_date', 'is_resolved', 'resolved_at', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table2: {
     name: 'rnd_logs',
     displayName: 'R&D 연구개발 일지 및 AI 생성 데이터',
     rowCount: 2,
-    columnCount: 16,
-    columns: ['id', 'log_id', 'center_id', 'author_id', 'work_date', 'raw_source', 'raw_content', 'audio_file_url', 'ai_generated_title', 'ai_generated_content', 'approval_status', 'approver_id', 'approved_at', 'blockchain_hash', 'created_at', 'updated_at']
+    columnCount: 22,
+    columns: ['id', 'log_id', 'center_id', 'author_id', 'work_date', 'raw_source', 'raw_content', 'audio_file_url', 'ai_generated_title', 'ai_generated_content', 'approval_status', 'approver_id', 'approved_at', 'blockchain_hash', 'created_at', 'updated_at', 'uuid', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table3: {
     name: 'rnd_spaces',
     displayName: '연구 공간 자가 실사 및 Vision AI 분석 이력',
     rowCount: 1,
-    columnCount: 12,
-    columns: ['id', 'space_check_id', 'center_id', 'check_date', 'image_url_entrance', 'image_url_layout', 'ai_analysis_result', 'signage_status', 'partition_status', 'overall_status', 'inspector_notes', 'created_at']
+    columnCount: 19,
+    columns: ['id', 'space_check_id', 'center_id', 'check_date', 'image_url_entrance', 'image_url_layout', 'ai_analysis_result', 'signage_status', 'partition_status', 'overall_status', 'inspector_notes', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table4: {
     name: 'rnd_staffs',
     displayName: '연구원 정보 및 자격 정보',
     rowCount: 4,
-    columnCount: 13,
-    columns: ['id', 'staff_id', 'center_id', 'user_id', 'staff_role', 'employment_status', 'degree_level', 'major_name', 'major_category', 'graduation_cert_ocr_json', 'qualification_status', 'joined_date', 'resigned_date']
+    columnCount: 20,
+    columns: ['id', 'staff_id', 'center_id', 'user_id', 'staff_role', 'employment_status', 'degree_level', 'major_name', 'major_category', 'graduation_cert_ocr_json', 'qualification_status', 'joined_date', 'resigned_date', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table5: {
     name: 'rnd_centers',
     displayName: '기업부설연구소 기본 정보',
     rowCount: 1,
-    columnCount: 12,
-    columns: ['id', 'center_id', 'company_id', 'center_name', 'center_type', 'established_date', 'koita_reg_number', 'postal_code', 'address_road', 'address_detail', 'total_area_sqm', 'is_active']
+    columnCount: 19,
+    columns: ['id', 'center_id', 'company_id', 'center_name', 'center_type', 'established_date', 'koita_reg_number', 'postal_code', 'address_road', 'address_detail', 'total_area_sqm', 'is_active', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table6: {
     name: 'crm_facility_predictive_part_rul',
     displayName: '설비 부품 수명 RUL',
     rowCount: 3,
-    columnCount: 6,
-    columns: ['id', 'equipmentId', 'partName', 'rulDays', 'status', 'percent']
+    columnCount: 13,
+    columns: ['id', 'equipmentId', 'partName', 'rulDays', 'status', 'percent', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table7: {
     name: 'crm_facility_predictive_fft',
     displayName: '설비 주파수 분석',
     rowCount: 4,
-    columnCount: 5,
-    columns: ['id', 'equipmentId', 'frequency', 'amplitude', 'label']
+    columnCount: 12,
+    columns: ['id', 'equipmentId', 'frequency', 'amplitude', 'label', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table8: {
     name: 'crm_facility_predictive_vibration',
     displayName: '설비 진동 센서 이력',
     rowCount: 6,
-    columnCount: 4,
-    columns: ['id', 'equipmentId', 'time', 'value']
+    columnCount: 11,
+    columns: ['id', 'equipmentId', 'time', 'value', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table9: {
     name: 'crm_facility_predictive_summary',
     displayName: '설비 건전도 요약',
     rowCount: 1,
-    columnCount: 5,
-    columns: ['id', 'equipmentId', 'equipmentName', 'healthScore', 'vibrationRms']
+    columnCount: 12,
+    columns: ['id', 'equipmentId', 'equipmentName', 'healthScore', 'vibrationRms', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table10: {
     name: 'crm_facility_repair_solutions',
     displayName: '설비 고장 해결 가이드',
     rowCount: 2,
-    columnCount: 6,
-    columns: ['id', 'errorCode', 'rootCause', 'actions', 'similarHistory', 'warehouse']
+    columnCount: 13,
+    columns: ['id', 'errorCode', 'rootCause', 'actions', 'similarHistory', 'warehouse', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table11: {
     name: 'crm_facility_repair_logs',
     displayName: '설비 수리 이력 대장',
     rowCount: 1,
-    columnCount: 9,
-    columns: ['id', 'date', 'equipmentId', 'equipmentName', 'errorCode', 'symptom', 'repairDesc', 'mechanic', 'cost']
+    columnCount: 16,
+    columns: ['id', 'date', 'equipmentId', 'equipmentName', 'errorCode', 'symptom', 'repairDesc', 'mechanic', 'cost', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table12: {
     name: 'crm_facility_checklists',
     displayName: '설비 예방 점검 이력',
     rowCount: 0,
-    columnCount: 8,
-    columns: ['id', 'equipmentId', 'inspector', 'checks', 'signatureData', 'audioUrl', 'status', 'checkedAt']
+    columnCount: 15,
+    columns: ['id', 'equipmentId', 'inspector', 'checks', 'signatureData', 'audioUrl', 'status', 'checkedAt', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table13: {
     name: 'crm_facilities',
     displayName: '설비 대장 관리',
     rowCount: 2,
-    columnCount: 13,
-    columns: ['id', 'name', 'manufacturer', 'model_name', 'serial_number', 'manufacture_year', 'specifications', 'location', 'status', 'health_score', 'vibration_rms', 'created_at', 'updated_at']
+    columnCount: 19,
+    columns: ['id', 'name', 'manufacturer', 'model_name', 'serial_number', 'manufacture_year', 'specifications', 'location', 'status', 'health_score', 'vibration_rms', 'created_at', 'updated_at', 'uuid', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table14: {
     name: 'crm_quality_vision_logs',
     displayName: '품질 비전 판정 이력',
     rowCount: 3,
-    columnCount: 8,
-    columns: ['id', 'timestamp', 'itemName', 'anomalyScore', 'status', 'defectType', 'imageUrl', 'isReviewed']
+    columnCount: 15,
+    columns: ['id', 'timestamp', 'itemName', 'anomalyScore', 'status', 'defectType', 'imageUrl', 'isReviewed', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table15: {
     name: 'crm_quality_vision_model',
     displayName: '품질 비전 AI 모델 상태',
     rowCount: 1,
-    columnCount: 5,
-    columns: ['id', 'activeModel', 'goldenSamplesCount', 'lastTrainedAt', 'anomalyThreshold']
+    columnCount: 12,
+    columns: ['id', 'activeModel', 'goldenSamplesCount', 'lastTrainedAt', 'anomalyThreshold', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table16: {
     name: 'crm_quality_spc_features',
     displayName: 'SPC 요인 중요도',
     rowCount: 4,
-    columnCount: 4,
-    columns: ['id', 'name', 'value', 'color']
+    columnCount: 11,
+    columns: ['id', 'name', 'value', 'color', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table17: {
     name: 'crm_quality_spc_predictions',
     displayName: 'SPC 계측 예측',
     rowCount: 0,
-    columnCount: 6,
-    columns: ['id', 'batch', 'value', 'cpk', 'timestamp', 'risk']
+    columnCount: 13,
+    columns: ['id', 'batch', 'value', 'cpk', 'timestamp', 'risk', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table18: {
     name: 'crm_quality_spc_samples',
     displayName: 'SPC 계측 샘플',
     rowCount: 6,
-    columnCount: 5,
-    columns: ['id', 'batch', 'value', 'cpk', 'timestamp']
+    columnCount: 12,
+    columns: ['id', 'batch', 'value', 'cpk', 'timestamp', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table19: {
     name: 'crm_quality_spc_config',
     displayName: 'SPC 공정 제어 설정',
     rowCount: 1,
-    columnCount: 9,
-    columns: ['id', 'targetValue', 'ucl', 'lcl', 'usl', 'lsl', 'currentCpk', 'cpkStatus', 'futureRiskProbability']
+    columnCount: 16,
+    columns: ['id', 'targetValue', 'ucl', 'lcl', 'usl', 'lsl', 'currentCpk', 'cpkStatus', 'futureRiskProbability', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table20: {
     name: 'crm_quality_sensors_timeline',
     displayName: '센서 시계열',
     rowCount: 3,
-    columnCount: 6,
-    columns: ['id', 'time', 'vibration', 'current', 'temperature', 'anomalyScore']
+    columnCount: 13,
+    columns: ['id', 'time', 'vibration', 'current', 'temperature', 'anomalyScore', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table21: {
     name: 'crm_quality_sensors_contribution',
     displayName: '센서 기여도',
     rowCount: 3,
-    columnCount: 3,
-    columns: ['id', 'name', 'rate']
+    columnCount: 10,
+    columns: ['id', 'name', 'rate', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table22: {
     name: 'crm_quality_sensors_status',
     displayName: '설비 센서 상태',
     rowCount: 1,
-    columnCount: 8,
-    columns: ['id', 'equipmentName', 'operationalStatus', 'vibrationRms', 'motorCurrent', 'bearingTemp', 'anomalyScore', 'threshold']
+    columnCount: 15,
+    columns: ['id', 'equipmentName', 'operationalStatus', 'vibrationRms', 'motorCurrent', 'bearingTemp', 'anomalyScore', 'threshold', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table23: {
     name: 'crm_quality_ncr_similar_cases',
     displayName: '유사 NCR 사례',
     rowCount: 2,
-    columnCount: 5,
-    columns: ['id', 'title', 'similarity', 'rootCause', 'actionTaken']
+    columnCount: 12,
+    columns: ['id', 'title', 'similarity', 'rootCause', 'actionTaken', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table24: {
     name: 'crm_quality_ncr_items',
     displayName: 'NCR 부적합 내역',
     rowCount: 3,
-    columnCount: 10,
-    columns: ['id', 'date', 'itemName', 'defectCode', 'defectType', 'quantity', 'reporter', 'status', 'description', 'actionPlan']
+    columnCount: 17,
+    columns: ['id', 'date', 'itemName', 'defectCode', 'defectType', 'quantity', 'reporter', 'status', 'description', 'actionPlan', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table25: {
     name: 'crm_quality_checklist_submissions',
     displayName: '체크리스트 제출 내역',
     rowCount: 0,
-    columnCount: 8,
-    columns: ['id', 'lotNo', 'inspector', 'checkItems', 'signatureData', 'photoUrl', 'status', 'submittedAt']
+    columnCount: 15,
+    columns: ['id', 'lotNo', 'inspector', 'checkItems', 'signatureData', 'photoUrl', 'status', 'submittedAt', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table26: {
     name: 'crm_grant_company_profile',
     displayName: '지원금 매칭용 기업 프로필',
     rowCount: 1,
-    columnCount: 7,
-    columns: ['id', 'establishmentYear', 'employeeCount', 'patentsCount', 'femaleEmployeeRatio', 'youthEmployeeRatio', 'sector']
+    columnCount: 14,
+    columns: ['id', 'establishmentYear', 'employeeCount', 'patentsCount', 'femaleEmployeeRatio', 'youthEmployeeRatio', 'sector', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table27: {
     name: 'crm_grant_rnd_plans',
     displayName: '지원금 R&D 계획서',
     rowCount: 0,
-    columnCount: 3,
-    columns: ['id', 'announcement_id', 'plan_data']
+    columnCount: 10,
+    columns: ['id', 'announcement_id', 'plan_data', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table28: {
     name: 'crm_grant_bookmarks',
     displayName: '지원금 북마크',
     rowCount: 0,
-    columnCount: 2,
-    columns: ['id', 'announcement_id']
+    columnCount: 9,
+    columns: ['id', 'announcement_id', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table29: {
     name: 'crm_grant_announcements',
     displayName: '정부 지원금 추천 공고',
     rowCount: 3,
-    columnCount: 6,
-    columns: ['id', 'title', 'agency', 'match_score', 'budget', 'end_date']
+    columnCount: 13,
+    columns: ['id', 'title', 'agency', 'match_score', 'budget', 'end_date', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table30: {
     name: 'crm_recruitment_applicants',
     displayName: '채용 지원자 관리',
     rowCount: 0,
-    columnCount: 15,
-    columns: ['id', 'name', 'age', 'phone', 'experience', 'motivation', 'matching_score', 'status', 'signature_url', 'signed_at', 'resume_file_path', 'tech_stacks', 'interview_logs', 'ai_evaluation', 'created_at']
+    columnCount: 22,
+    columns: ['id', 'name', 'age', 'phone', 'experience', 'motivation', 'matching_score', 'status', 'signature_url', 'signed_at', 'resume_file_path', 'tech_stacks', 'interview_logs', 'ai_evaluation', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table31: {
     name: 'crm_financial_statements',
     displayName: '재무제표 관리',
     rowCount: 0,
-    columnCount: 15,
-    columns: ['id', 'company_id', 'company_type', 'fiscal_year', 'fiscal_quarter', 'total_assets', 'total_liabilities', 'total_equity', 'revenue', 'operating_income', 'net_income', 'pdf_file_path', 'parsed_raw_json', 'created_at', 'updated_at']
+    columnCount: 21,
+    columns: ['id', 'company_id', 'company_type', 'fiscal_year', 'fiscal_quarter', 'total_assets', 'total_liabilities', 'total_equity', 'revenue', 'operating_income', 'net_income', 'pdf_file_path', 'parsed_raw_json', 'created_at', 'updated_at', 'uuid', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table32: {
     name: 'safety_inspect_logs',
     displayName: '안전점검 감사 대장',
     rowCount: 0,
-    columnCount: 7,
-    columns: ['id', 'inspect_title', 'inspect_date', 'inspector_name', 'checklist_json', 'fail_actions_json', 'created_at']
+    columnCount: 14,
+    columns: ['id', 'inspect_title', 'inspect_date', 'inspector_name', 'checklist_json', 'fail_actions_json', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table33: {
     name: 'safety_near_misses',
     displayName: '아차사고 및 유해요소 제보 대장',
     rowCount: 1,
-    columnCount: 11,
-    columns: ['id', 'reporter_name', 'hazard_location', 'description', 'photo_url', 'risk_grade', 'action_status', 'action_description', 'action_photo_url', 'action_completed_at', 'created_at']
+    columnCount: 18,
+    columns: ['id', 'reporter_name', 'hazard_location', 'description', 'photo_url', 'risk_grade', 'action_status', 'action_description', 'action_photo_url', 'action_completed_at', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table34: {
     name: 'safety_tbm_logs',
     displayName: 'TBM 안전 교육 대장',
     rowCount: 1,
-    columnCount: 8,
-    columns: ['id', 'tbm_date', 'work_leader', 'weather_info', 'tbm_script', 'attendees_count', 'attendee_signatures', 'created_at']
+    columnCount: 15,
+    columns: ['id', 'tbm_date', 'work_leader', 'weather_info', 'tbm_script', 'attendees_count', 'attendee_signatures', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table35: {
     name: 'safety_risk_assessments',
     displayName: 'AI 위험성평가서',
     rowCount: 1,
-    columnCount: 8,
-    columns: ['id', 'work_name', 'work_date', 'hazards_json', 'risk_level', 'evaluated_by', 'approved_at', 'status']
+    columnCount: 15,
+    columns: ['id', 'work_name', 'work_date', 'hazards_json', 'risk_level', 'evaluated_by', 'approved_at', 'status', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table36: {
     name: 'safety_policies',
     displayName: '안전보건방침 및 목표',
     rowCount: 1,
-    columnCount: 6,
-    columns: ['id', 'year', 'policy_title', 'targets_json', 'established_at', 'established_by']
+    columnCount: 13,
+    columns: ['id', 'year', 'policy_title', 'targets_json', 'established_at', 'established_by', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table37: {
     name: 'ai_contextual_help',
     displayName: 'AI 도움말 캐시',
-    rowCount: 10,
-    columnCount: 5,
-    columns: ['id', 'hint_key', 'hint_text', 'ai_explanation', 'created_at']
+    rowCount: 0,
+    columnCount: 12,
+    columns: ['id', 'hint_key', 'hint_text', 'ai_explanation', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table38: {
     name: 'system_mail_logs',
     displayName: '메일 AI 관제 로그',
     rowCount: 0,
-    columnCount: 10,
-    columns: ['id', 'sender', 'subject', 'received_at', 'ai_summary', 'intent', 'risk_level', 'action_type', 'action_result', 'created_at']
+    columnCount: 17,
+    columns: ['id', 'sender', 'subject', 'received_at', 'ai_summary', 'intent', 'risk_level', 'action_type', 'action_result', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table39: {
     name: 'system_menu_settings',
     displayName: '시스템 메뉴 설정',
-    rowCount: 42,
-    columnCount: 4,
-    columns: ['id', 'menu_href', 'is_enabled', 'sort_order']
+    rowCount: 0,
+    columnCount: 11,
+    columns: ['id', 'menu_href', 'is_enabled', 'sort_order', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table40: {
     name: 'shared_dashboards',
     displayName: '공유 대시보드 관리',
     rowCount: 0,
-    columnCount: 15,
-    columns: ['id', 'share_id', 'title', 'sql_query', 'table_name', 'display_name', 'chart_spec_json', 'briefing_markdown', 'refresh_interval', 'last_refreshed_at', 'created_at', 'is_active', 'sort_order', 'is_pinned', 'custom_title']
+    columnCount: 22,
+    columns: ['id', 'share_id', 'title', 'sql_query', 'table_name', 'display_name', 'chart_spec_json', 'briefing_markdown', 'refresh_interval', 'last_refreshed_at', 'created_at', 'is_active', 'sort_order', 'is_pinned', 'custom_title', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table41: {
     name: 'expense_projects',
@@ -312,36 +312,36 @@ export const TABLES = {
     name: 'expense_employees',
     displayName: '지출 임직원 관리',
     rowCount: 6,
-    columnCount: 3,
-    columns: ['id', 'name', 'created_at']
+    columnCount: 10,
+    columns: ['id', 'name', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table43: {
     name: 'expense_departments',
     displayName: '지출 부서 관리',
     rowCount: 8,
-    columnCount: 3,
-    columns: ['id', 'name', 'created_at']
+    columnCount: 10,
+    columns: ['id', 'name', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table44: {
     name: 'expense_tags',
     displayName: '지출 태그 관리',
     rowCount: 10,
-    columnCount: 3,
-    columns: ['id', 'name', 'created_at']
+    columnCount: 10,
+    columns: ['id', 'name', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table45: {
     name: 'expense_categories',
     displayName: '지출 계정과목 관리',
     rowCount: 65,
-    columnCount: 5,
-    columns: ['id', 'main_category', 'mid_category', 'sub_category', 'created_at']
+    columnCount: 12,
+    columns: ['id', 'main_category', 'mid_category', 'sub_category', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table46: {
     name: 'expense_settings',
     displayName: '지출 예산 설정',
     rowCount: 1,
-    columnCount: 7,
-    columns: ['id', 'monthly_budget', 'is_alert_enabled', 'alert_threshold_percent', 'alert_sms_template', 'alert_phone', 'created_at']
+    columnCount: 14,
+    columns: ['id', 'monthly_budget', 'is_alert_enabled', 'alert_threshold_percent', 'alert_sms_template', 'alert_phone', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table47: {
     name: 'crm_expenses',
@@ -354,267 +354,267 @@ export const TABLES = {
     name: 'inventory_logs',
     displayName: '재고 변동 이력',
     rowCount: 0,
-    columnCount: 10,
-    columns: ['id', 'itemId', 'itemName', 'itemType', 'changeType', 'quantity', 'price', 'operator', 'note', 'createdAt']
+    columnCount: 17,
+    columns: ['id', 'itemId', 'itemName', 'itemType', 'changeType', 'quantity', 'price', 'operator', 'note', 'createdAt', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table49: {
     name: 'alert_logs',
     displayName: '가격 알림 발송 로그',
     rowCount: 0,
-    columnCount: 7,
-    columns: ['id', 'log_id', 'rule_id', 'sent_price', 'sent_message', 'sent_at', 'api_response']
+    columnCount: 14,
+    columns: ['id', 'log_id', 'rule_id', 'sent_price', 'sent_message', 'sent_at', 'api_response', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table50: {
     name: 'alert_rules',
     displayName: '가격 알림 규칙',
     rowCount: 1,
-    columnCount: 9,
-    columns: ['id', 'rule_id', 'item_id', 'rule_name', 'condition_type', 'threshold_value', 'phone_number', 'sms_template', 'is_enabled']
+    columnCount: 16,
+    columns: ['id', 'rule_id', 'item_id', 'rule_name', 'condition_type', 'threshold_value', 'phone_number', 'sms_template', 'is_enabled', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table51: {
     name: 'price_histories',
     displayName: '수집 가격 이력',
     rowCount: 10,
-    columnCount: 7,
-    columns: ['id', 'history_id', 'url_id', 'captured_price', 'captured_at', 'status', 'error_message']
+    columnCount: 14,
+    columns: ['id', 'history_id', 'url_id', 'captured_price', 'captured_at', 'status', 'error_message', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table52: {
     name: 'target_urls',
     displayName: '가격 감시 URL',
     rowCount: 1,
-    columnCount: 10,
-    columns: ['id', 'url_id', 'item_id', 'site_name', 'target_url', 'css_selector', 'xpath', 'cron_interval', 'is_active', 'created_at']
+    columnCount: 17,
+    columns: ['id', 'url_id', 'item_id', 'site_name', 'target_url', 'css_selector', 'xpath', 'cron_interval', 'is_active', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table53: {
     name: 'tracked_items',
     displayName: '가격 추적 품목',
     rowCount: 1,
-    columnCount: 9,
-    columns: ['id', 'item_id', 'item_code', 'item_name', 'category', 'spec', 'base_price', 'target_margin_rate', 'created_at']
+    columnCount: 16,
+    columns: ['id', 'item_id', 'item_code', 'item_name', 'category', 'spec', 'base_price', 'target_margin_rate', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table54: {
-    name: 'ai_token_usage_logs',
-    displayName: 'AI 토큰 사용량 로그',
-    rowCount: 9,
-    columnCount: 7,
-    columns: ['id', 'model', 'purpose', 'prompt_tokens', 'completion_tokens', 'total_tokens', 'created_at']
-  } as TableDefinition,
-  table55: {
     name: 'crm_inventory_inbound_items',
     displayName: '자율 입고 상세 품목',
     rowCount: 0,
-    columnCount: 9,
-    columns: ['id', 'inbound_id', 'item_name', 'spec', 'quantity', 'price', 'barcode', 'matched_item_id', 'created_at']
+    columnCount: 16,
+    columns: ['id', 'inbound_id', 'item_name', 'spec', 'quantity', 'price', 'barcode', 'matched_item_id', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table56: {
+  table55: {
     name: 'crm_inventory_inbounds',
     displayName: '자율 입고 대장',
     rowCount: 0,
-    columnCount: 7,
-    columns: ['id', 'partner_name', 'inbound_date', 'total_amount', 'pdf_file_path', 'created_at', 'updated_at']
+    columnCount: 13,
+    columns: ['id', 'partner_name', 'inbound_date', 'total_amount', 'pdf_file_path', 'created_at', 'updated_at', 'uuid', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table57: {
+  table56: {
     name: 'inventory_items',
     displayName: '재고 품목',
     rowCount: 0,
     columnCount: 24,
     columns: ['id', 'type', 'name', 'category', 'price', 'partner', 'stock', 'safeStock', 'location', 'spec', 'unitType', 'unitValue', 'boxContains', 'description', 'tags', 'barcode', 'createdAt', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table58: {
+  table57: {
     name: 'crm_partner_contacts',
     displayName: '거래처 담당자 명함첩',
     rowCount: 0,
-    columnCount: 9,
-    columns: ['id', 'partner_id', 'name', 'position', 'phone', 'email', 'card_image_url', 'is_primary', 'created_at']
+    columnCount: 16,
+    columns: ['id', 'partner_id', 'name', 'position', 'phone', 'email', 'card_image_url', 'is_primary', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table59: {
+  table58: {
     name: 'crm_snaptask_actions',
     displayName: '스냅태스크 AI 액션 감사록',
     rowCount: 0,
-    columnCount: 5,
-    columns: ['id', 'task_id', 'action_type', 'description', 'created_at']
+    columnCount: 12,
+    columns: ['id', 'task_id', 'action_type', 'description', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table60: {
+  table59: {
     name: 'crm_snaptask_items',
     displayName: '스냅태스크 상세 내역',
     rowCount: 0,
-    columnCount: 7,
-    columns: ['id', 'task_id', 'content_text', 'file_url', 'file_type', 'ai_analysis', 'created_at']
+    columnCount: 14,
+    columns: ['id', 'task_id', 'content_text', 'file_url', 'file_type', 'ai_analysis', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table61: {
+  table60: {
     name: 'crm_snaptasks',
     displayName: '스냅태스크 관리',
     rowCount: 0,
-    columnCount: 6,
-    columns: ['id', 'title', 'status', 'partner_id', 'created_at', 'updated_at']
+    columnCount: 12,
+    columns: ['id', 'title', 'status', 'partner_id', 'created_at', 'updated_at', 'uuid', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table62: {
+  table61: {
     name: 'crm_partners',
     displayName: '거래처 관리',
     rowCount: 0,
     columnCount: 22,
     columns: ['id', 'type', 'company_name', 'business_number', 'representative', 'phone', 'manager_name', 'manager_phone', 'email', 'address', 'vip_level', 'credit_limit', 'business_license_url', 'memo', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table63: {
+  table62: {
     name: 'crm_sales_orders',
     displayName: '수주서 관리',
     rowCount: 0,
-    columnCount: 7,
-    columns: ['id', 'estimate_id', 'customer_name', 'customer_phone', 'status', 'total_amount', 'created_at']
+    columnCount: 14,
+    columns: ['id', 'estimate_id', 'customer_name', 'customer_phone', 'status', 'total_amount', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table64: {
+  table63: {
     name: 'crm_purchase_orders',
     displayName: '발주서 관리',
     rowCount: 0,
-    columnCount: 8,
-    columns: ['id', 'estimate_id', 'vendor_name', 'vendor_phone', 'status', 'total_amount', 'created_at', 'completed_at']
+    columnCount: 15,
+    columns: ['id', 'estimate_id', 'vendor_name', 'vendor_phone', 'status', 'total_amount', 'created_at', 'completed_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table65: {
+  table64: {
     name: 'crm_estimate_items',
     displayName: '견적서 품목 상세',
-    rowCount: 10,
-    columnCount: 7,
-    columns: ['id', 'estimate_id', 'product_id', 'product_name', 'quantity', 'unit_price', 'amount']
+    rowCount: 0,
+    columnCount: 14,
+    columns: ['id', 'estimate_id', 'product_id', 'product_name', 'quantity', 'unit_price', 'amount', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table66: {
+  table65: {
     name: 'crm_estimates',
     displayName: '견적서 관리',
-    rowCount: 1,
+    rowCount: 0,
     columnCount: 17,
     columns: ['id', 'type', 'direction_status', 'partner_name', 'partner_phone', 'total_amount', 'file_url', 'business_license_url', 'ai_parsed', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table67: {
+  table66: {
     name: 'crm_point_history',
     displayName: '적립금 내역',
     rowCount: 0,
-    columnCount: 9,
-    columns: ['id', 'customer_id', 'transaction_type', 'amount', 'balance_after', 'description', 'related_entity_type', 'related_entity_id', 'created_at']
+    columnCount: 16,
+    columns: ['id', 'customer_id', 'transaction_type', 'amount', 'balance_after', 'description', 'related_entity_type', 'related_entity_id', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table68: {
+  table67: {
     name: 'crm_coupons_restrictions',
     displayName: '쿠폰 제한 관리',
     rowCount: 0,
-    columnCount: 6,
-    columns: ['id', 'coupon_id', 'restriction_type', 'target_type', 'target_value', 'created_at']
+    columnCount: 13,
+    columns: ['id', 'coupon_id', 'restriction_type', 'target_type', 'target_value', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table69: {
+  table68: {
     name: 'coupons',
     displayName: '쿠폰 관리',
     rowCount: 0,
     columnCount: 16,
     columns: ['id', 'code', 'name', 'discount_type', 'discount_value', 'min_order_amount', 'status', 'expires_at', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table70: {
+  table69: {
     name: 'naver_blog_marketing_settings',
     displayName: '네이버 블로그 마케팅 설정',
     rowCount: 1,
-    columnCount: 8,
-    columns: ['id', 'is_autopilot', 'autopilot_interval', 'autopilot_time', 'tone_style', 'naver_blog_id', 'api_client_id', 'api_client_secret']
+    columnCount: 15,
+    columns: ['id', 'is_autopilot', 'autopilot_interval', 'autopilot_time', 'tone_style', 'naver_blog_id', 'api_client_id', 'api_client_secret', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table71: {
+  table70: {
     name: 'crm_naver_blog_posts',
     displayName: '네이버 블로그 포스팅 이력 및 예약',
     rowCount: 0,
-    columnCount: 13,
-    columns: ['id', 'product_id', 'status', 'title', 'content', 'target_keywords', 'image_url', 'sub_image_url', 'scheduled_at', 'posted_at', 'error_message', 'views_count', 'likes_count']
+    columnCount: 20,
+    columns: ['id', 'product_id', 'status', 'title', 'content', 'target_keywords', 'image_url', 'sub_image_url', 'scheduled_at', 'posted_at', 'error_message', 'views_count', 'likes_count', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table72: {
+  table71: {
     name: 'instagram_marketing_settings',
     displayName: '인스타그램 마케팅 설정',
     rowCount: 1,
-    columnCount: 7,
-    columns: ['id', 'is_autopilot', 'autopilot_interval', 'autopilot_time', 'tone_style', 'instagram_username', 'access_token']
+    columnCount: 14,
+    columns: ['id', 'is_autopilot', 'autopilot_interval', 'autopilot_time', 'tone_style', 'instagram_username', 'access_token', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table73: {
+  table72: {
     name: 'crm_instagram_posts',
     displayName: '인스타그램 포스팅 이력 및 예약',
     rowCount: 0,
-    columnCount: 10,
-    columns: ['id', 'product_id', 'status', 'content', 'image_url', 'scheduled_at', 'posted_at', 'error_message', 'likes_count', 'comments_count']
+    columnCount: 17,
+    columns: ['id', 'product_id', 'status', 'content', 'image_url', 'scheduled_at', 'posted_at', 'error_message', 'likes_count', 'comments_count', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table74: {
+  table73: {
     name: 'crm_operators',
     displayName: '운영자 권한 관리',
     rowCount: 1,
     columnCount: 13,
     columns: ['id', 'username', 'password_hash', 'name', 'role', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table75: {
+  table74: {
     name: 'system_settings',
     displayName: '시스템 설정',
-    rowCount: 5,
-    columnCount: 3,
-    columns: ['id', 'key', 'value']
+    rowCount: 1,
+    columnCount: 10,
+    columns: ['id', 'key', 'value', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table76: {
+  table75: {
     name: 'crm_deliveries',
     displayName: '배송 내역',
     rowCount: 0,
     columnCount: 15,
     columns: ['id', 'customer_name', 'customer_phone', 'address', 'courier', 'tracking_number', 'status', 'order_id', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table77: {
+  table76: {
     name: 'crm_reservations',
     displayName: '예약 내역',
     rowCount: 0,
     columnCount: 14,
     columns: ['id', 'customer_name', 'customer_phone', 'service_name', 'reservation_date', 'reservation_time', 'status', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table78: {
+  table77: {
     name: 'crm_payments',
     displayName: '결제 내역',
     rowCount: 0,
     columnCount: 14,
     columns: ['id', 'customer_name', 'payment_method', 'amount', 'payment_date', 'status', 'order_id', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table79: {
+  table78: {
     name: 'crm_orders',
     displayName: '주문 내역',
     rowCount: 0,
     columnCount: 20,
     columns: ['id', 'customer_name', 'customer_phone', 'product_name', 'quantity', 'total_price', 'delivery_method', 'shipping_address', 'tracking_number', 'attachment_url', 'customer_memo', 'order_date', 'status', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table80: {
+  table79: {
     name: 'crm_transactions',
     displayName: '거래 내역',
     rowCount: 0,
-    columnCount: 8,
-    columns: ['id', 'customer_name', 'customer_phone', 'product_name', 'amount', 'order_date', 'status', 'order_id']
+    columnCount: 15,
+    columns: ['id', 'customer_name', 'customer_phone', 'product_name', 'amount', 'order_date', 'status', 'order_id', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table81: {
+  table80: {
     name: 'products',
     displayName: '광고 상품',
     rowCount: 0,
     columnCount: 19,
     columns: ['id', 'name', 'price', 'url', 'description', 'main_image_url', 'detail_image_url', 'available_methods', 'category', 'menu_category', 'is_coupon_excludable', 'is_estimate_price', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table82: {
+  table81: {
     name: 'ad_templates',
     displayName: '광고 템플릿',
     rowCount: 0,
-    columnCount: 5,
-    columns: ['id', 'name', 'header', 'footer', 'opt_out']
+    columnCount: 12,
+    columns: ['id', 'name', 'header', 'footer', 'opt_out', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table83: {
+  table82: {
     name: 'message_logs',
     displayName: '발송 내역',
     rowCount: 0,
-    columnCount: 6,
-    columns: ['id', 'customer_id', 'phone', 'message', 'status', 'created_at']
+    columnCount: 13,
+    columns: ['id', 'customer_id', 'phone', 'message', 'status', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table84: {
+  table83: {
     name: 'message_templates',
     displayName: '문자 템플릿',
     rowCount: 0,
-    columnCount: 3,
-    columns: ['id', 'title', 'content']
+    columnCount: 10,
+    columns: ['id', 'title', 'content', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table85: {
+  table84: {
     name: 'crm_customers',
     displayName: '고객 명단',
     rowCount: 0,
     columnCount: 18,
     columns: ['id', 'name', 'phone', 'tags', 'memo', 'address', 'shipping_address', 'recipient_name', 'recipient_phone', 'point_balance', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
+  } as TableDefinition,
+  table85: {
+    name: 'ai_token_usage_logs',
+    displayName: 'AI 토큰 사용량 로그',
+    rowCount: 0,
+    columnCount: 16,
+    columns: ['id', 'model', 'purpose', 'prompt_tokens', 'completion_tokens', 'total_tokens', 'user_name', 'menu_path', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table86: {
     name: 'crm_finance_forecasts',
@@ -1020,38 +1020,38 @@ export const TABLE_NAMES = {
   table51: 'price_histories',
   table52: 'target_urls',
   table53: 'tracked_items',
-  table54: 'ai_token_usage_logs',
-  table55: 'crm_inventory_inbound_items',
-  table56: 'crm_inventory_inbounds',
-  table57: 'inventory_items',
-  table58: 'crm_partner_contacts',
-  table59: 'crm_snaptask_actions',
-  table60: 'crm_snaptask_items',
-  table61: 'crm_snaptasks',
-  table62: 'crm_partners',
-  table63: 'crm_sales_orders',
-  table64: 'crm_purchase_orders',
-  table65: 'crm_estimate_items',
-  table66: 'crm_estimates',
-  table67: 'crm_point_history',
-  table68: 'crm_coupons_restrictions',
-  table69: 'coupons',
-  table70: 'naver_blog_marketing_settings',
-  table71: 'crm_naver_blog_posts',
-  table72: 'instagram_marketing_settings',
-  table73: 'crm_instagram_posts',
-  table74: 'crm_operators',
-  table75: 'system_settings',
-  table76: 'crm_deliveries',
-  table77: 'crm_reservations',
-  table78: 'crm_payments',
-  table79: 'crm_orders',
-  table80: 'crm_transactions',
-  table81: 'products',
-  table82: 'ad_templates',
-  table83: 'message_logs',
-  table84: 'message_templates',
-  table85: 'crm_customers',
+  table54: 'crm_inventory_inbound_items',
+  table55: 'crm_inventory_inbounds',
+  table56: 'inventory_items',
+  table57: 'crm_partner_contacts',
+  table58: 'crm_snaptask_actions',
+  table59: 'crm_snaptask_items',
+  table60: 'crm_snaptasks',
+  table61: 'crm_partners',
+  table62: 'crm_sales_orders',
+  table63: 'crm_purchase_orders',
+  table64: 'crm_estimate_items',
+  table65: 'crm_estimates',
+  table66: 'crm_point_history',
+  table67: 'crm_coupons_restrictions',
+  table68: 'coupons',
+  table69: 'naver_blog_marketing_settings',
+  table70: 'crm_naver_blog_posts',
+  table71: 'instagram_marketing_settings',
+  table72: 'crm_instagram_posts',
+  table73: 'crm_operators',
+  table74: 'system_settings',
+  table75: 'crm_deliveries',
+  table76: 'crm_reservations',
+  table77: 'crm_payments',
+  table78: 'crm_orders',
+  table79: 'crm_transactions',
+  table80: 'products',
+  table81: 'ad_templates',
+  table82: 'message_logs',
+  table83: 'message_templates',
+  table84: 'crm_customers',
+  table85: 'ai_token_usage_logs',
   table86: 'crm_finance_forecasts',
   table87: 'crm_finance_products',
   table88: 'crm_facility_layout',

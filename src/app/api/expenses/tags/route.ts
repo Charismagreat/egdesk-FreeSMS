@@ -24,7 +24,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name } = body;
+    const { name, scope } = body;
 
     if (!name) {
       return NextResponse.json({ success: false, error: '태그 명칭이 누락되었습니다.' }, { status: 400 });
@@ -50,6 +50,7 @@ export async function POST(request: Request) {
     await insertRows('expense_tags', [{
       id,
       name: trimmedName,
+      scope: scope || 'global',
       created_at: nowStr
     }]);
 

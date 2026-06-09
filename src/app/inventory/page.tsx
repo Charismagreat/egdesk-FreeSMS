@@ -24,6 +24,13 @@ export default function InventoryPage() {
   // 상태 정의
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [logs, setLogs] = useState<InventoryLog[]>([]);
+  const [dbTags, setDbTags] = useState<{ id: string; name: string }[]>([]);
+  const [autocompleteData, setAutocompleteData] = useState<{
+    partners: string[];
+    staff: string[];
+    departments: string[];
+    projects: string[];
+  }>({ partners: [], staff: [], departments: [], projects: [] });
   const [activeTab, setActiveTab] = useState<'material' | 'product' | 'inbound'>('material');
   const [inbounds, setInbounds] = useState<any[]>([]);
   const [selectedInboundId, setSelectedInboundId] = useState<string | null>(null);
@@ -263,6 +270,32 @@ export default function InventoryPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
+      // 공통 태그 목록 로드
+      try {
+        const tagsRes = await fetch('/api/expenses/tags');
+        const tagsData = await tagsRes.json();
+        if (tagsData.success && Array.isArray(tagsData.tags)) {
+          // scope가 'global'(또는 비어있음)이거나 'inventory'인 태그만 필터링
+          const filteredTags = tagsData.tags.filter((t: any) => 
+            !t.scope || t.scope === 'global' || t.scope === 'inventory'
+          );
+          setDbTags(filteredTags);
+        }
+      } catch (err) {
+        console.warn('공통 태그 목록 로드 실패:', err);
+      }
+
+      // 전사 자동완성 마스터 데이터 로드
+      try {
+        const autoRes = await fetch('/api/expenses/autocomplete');
+        const autoData = await autoRes.json();
+        if (autoData.success && autoData.data) {
+          setAutocompleteData(autoData.data);
+        }
+      } catch (err) {
+        console.warn('자동완성 마스터 데이터 로드 실패:', err);
+      }
+
       const itemsRes = await fetch('/api/inventory');
       const itemsData = await itemsRes.json();
       if (itemsData.success) {
@@ -407,6 +440,7 @@ export default function InventoryPage() {
             const boxContainsVal = row['박스당 입수량'] || row['n개입'] || row['boxContains'] || '';
             const safeStockVal = row['안전 재고'] || row['적정 재고'] || row['안전재고량'] || row['safeStock'] || 0;
             const stockVal = row['최초 재고'] || row['현재 재고'] || row['최초기초재고'] || row['stock'] || 0;
+            const barcodeVal = row['바코드'] || row['품목코드'] || row['바코드/품목코드'] || row['코드'] || row['barcode'] || '';
             const descriptionVal = row['비고'] || row['상세 설명'] || row['description'] || '';
 
             return {
@@ -422,6 +456,7 @@ export default function InventoryPage() {
               boxContains: boxContainsVal,
               safeStock: safeStockVal,
               stock: stockVal,
+              barcode: barcodeVal,
               description: descriptionVal
             };
           }).filter(item => item.name);
@@ -468,6 +503,7 @@ export default function InventoryPage() {
       const headers = [
         '구분',
         '품목명',
+        '바코드/품목코드',
         '카테고리',
         '규격',
         '단위',
@@ -484,6 +520,7 @@ export default function InventoryPage() {
         {
           '구분': '자재',
           '품목명': '초경량 BLDC 모터 V2',
+          '바코드/품목코드': 'MTR-BLDC-002',
           '카테고리': '전동부품',
           '규격': '15mm x 150mm',
           '단위': '박스',
@@ -498,6 +535,7 @@ export default function InventoryPage() {
         {
           '구분': '제품',
           '품목명': '써모글로우 텀블러 500ml',
+          '바코드/품목코드': 'PD-TMB-500G',
           '카테고리': '리빙웨어',
           '규격': '고진공 스테인리스 이중벽',
           '단위': '개수',
@@ -1038,6 +1076,8 @@ export default function InventoryPage() {
         items={items}
         onSubmit={handleTxSubmit}
         highlightFields={highlightFields}
+        commonTags={dbTags}
+        autocompleteData={autocompleteData}
       />
 
       {/* 7. 하드웨어 바코드 리더기 퀵 스캔 수불 모달 */}

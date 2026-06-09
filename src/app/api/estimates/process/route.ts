@@ -99,8 +99,8 @@ export async function POST(req: Request) {
         const checkedQty = parseInt(item.checkedQty) || 0;
         if (checkedQty <= 0) continue;
 
-        // 재고 DB(inventory_items)에 존재하는 품목인지 부분 명칭 매칭 검색
-        const querySearch = `SELECT * FROM inventory_items WHERE name = '${item.product_name}' LIMIT 1`;
+        // 재고 DB(inventory_items)에 존재하는 품목인지 부분 명칭 매칭 검색 (소프트 삭제 제외)
+        const querySearch = `SELECT * FROM inventory_items WHERE name = '${item.product_name}' AND deleted_at IS NULL LIMIT 1`;
         const existingItems = await executeSQL(querySearch);
 
         if (existingItems && existingItems.length > 0) {

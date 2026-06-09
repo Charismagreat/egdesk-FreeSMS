@@ -39,7 +39,7 @@ export async function GET(req: Request) {
         });
       }
 
-      const bizQuery = `SELECT * FROM crm_partners WHERE business_number = '${business_number}' LIMIT 1`;
+      const bizQuery = `SELECT * FROM crm_partners WHERE business_number = '${business_number}' AND deleted_at IS NULL LIMIT 1`;
       const result = await executeSQL(bizQuery) || [];
       const partners = (result && (result as any).rows) ? (result as any).rows : (Array.isArray(result) ? result : []);
       
@@ -63,7 +63,7 @@ export async function GET(req: Request) {
       // 해당 거래처 상호명으로 연동된 발주 내역 마이닝
       let purchaseOrders = [];
       try {
-        const poQuery = `SELECT * FROM crm_purchase_orders WHERE vendor_name = '${partner.company_name}' ORDER BY created_at DESC`;
+        const poQuery = `SELECT * FROM crm_purchase_orders WHERE vendor_name = '${partner.company_name}' AND deleted_at IS NULL ORDER BY created_at DESC`;
         purchaseOrders = await executeSQL(poQuery) || [];
         if (purchaseOrders && (purchaseOrders as any).rows) {
           purchaseOrders = (purchaseOrders as any).rows;
@@ -75,7 +75,7 @@ export async function GET(req: Request) {
       // 해당 거래처 상호명으로 연동된 수주 내역 마이닝
       let salesOrders = [];
       try {
-        const soQuery = `SELECT * FROM crm_sales_orders WHERE customer_name = '${partner.company_name}' ORDER BY created_at DESC`;
+        const soQuery = `SELECT * FROM crm_sales_orders WHERE customer_name = '${partner.company_name}' AND deleted_at IS NULL ORDER BY created_at DESC`;
         salesOrders = await executeSQL(soQuery) || [];
         if (salesOrders && (salesOrders as any).rows) {
           salesOrders = (salesOrders as any).rows;
@@ -102,10 +102,10 @@ export async function GET(req: Request) {
     let allPos: any[] = [];
     let allSos: any[] = [];
     try {
-      const poRes = await executeSQL('SELECT vendor_name, status, total_amount FROM crm_purchase_orders');
+      const poRes = await executeSQL('SELECT vendor_name, status, total_amount FROM crm_purchase_orders WHERE deleted_at IS NULL');
       allPos = (poRes && (poRes as any).rows) ? (poRes as any).rows : (Array.isArray(poRes) ? poRes : []);
       
-      const soRes = await executeSQL('SELECT customer_name, status, total_amount FROM crm_sales_orders');
+      const soRes = await executeSQL('SELECT customer_name, status, total_amount FROM crm_sales_orders WHERE deleted_at IS NULL');
       allSos = (soRes && (soRes as any).rows) ? (soRes as any).rows : (Array.isArray(soRes) ? soRes : []);
     } catch (e) {
       console.error('SCM 집계용 베이스 마이닝 지연:', e);

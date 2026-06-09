@@ -50,5 +50,6 @@ export interface DbExpenseCategory {
 export interface DbExpenseTag {
   id: string;
   name: string;
+  scope?: string;
   created_at: string;
 }

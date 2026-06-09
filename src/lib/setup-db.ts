@@ -882,9 +882,10 @@ export async function setupDatabase() {
   ], { tableName: 'expense_categories', uniqueKeyColumns: ['id'] });
 
   // 39-2. 지출 퀵 태그 프리셋/커스텀 관리 테이블 신설
-  await safeCreateTable('지출 태그 관리', [
+  await safeCreateTable('통합 공통 태그 관리', [
     { name: 'id', type: 'TEXT', notNull: true },
     { name: 'name', type: 'TEXT', notNull: true },
+    { name: 'scope', type: 'TEXT', defaultValue: 'global' },
     { name: 'created_at', type: 'TEXT', notNull: true }
   ], { tableName: 'expense_tags', uniqueKeyColumns: ['id'] });
 

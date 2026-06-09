@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { X, ArrowRightLeft } from 'lucide-react';
 import { InventoryItem } from '../types';
 
@@ -19,6 +19,13 @@ interface TransactionModalProps {
   items: InventoryItem[];
   onSubmit: (e: React.FormEvent) => void;
   highlightFields: Record<string, boolean>;
+  commonTags?: { id: string; name: string }[];
+  autocompleteData?: {
+    partners: string[];
+    staff: string[];
+    departments: string[];
+    projects: string[];
+  };
 }
 
 export const TransactionModal: React.FC<TransactionModalProps> = ({
@@ -29,8 +36,27 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
   setTxForm,
   items,
   onSubmit,
-  highlightFields
+  highlightFields,
+  commonTags = [],
+  autocompleteData = { partners: [], staff: [], departments: [], projects: [] }
 }) => {
+  const [activeTagTab, setActiveTagTab] = useState<'tags' | 'partners' | 'staff' | 'projects'>('tags');
+
+  const handleTagToggle = (tagName: string) => {
+    const noteText = txForm.note || '';
+    if (noteText.includes(`#${tagName}`)) {
+      setTxForm(prev => ({
+        ...prev,
+        note: noteText.replace(new RegExp(`\\s*#${tagName}`, 'g'), '').trim()
+      }));
+    } else {
+      setTxForm(prev => ({
+        ...prev,
+        note: noteText ? `${noteText} #${tagName}` : `#${tagName}`
+      }));
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -141,7 +167,138 @@ export const TransactionModal: React.FC<TransactionModalProps> = ({
 
             {/* 메모 및 변동 사유 */}
             <div className={`transition-all duration-350 ${highlightFields.note ? 'ring-2 ring-emerald-500 rounded-xl p-1 bg-emerald-50/50 animate-pulse' : ''}`}>
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">변동 사유 / 메모</label>
+              <div className="flex justify-between items-center mb-1">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">변동 사유 / 메모</label>
+                <span className="text-[9px] text-slate-400">항목 클릭 시 메모에 자동 추가됨</span>
+              </div>
+              
+              {/* 마스터 데이터 종류별 탭 헤더 */}
+              <div className="flex items-center gap-0.5 mb-1.5 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setActiveTagTab('tags')}
+                  className={`flex-1 py-1 rounded text-[9px] font-black transition-all cursor-pointer border-none ${
+                    activeTagTab === 'tags' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800 bg-transparent'
+                  }`}
+                >
+                  🏷️ 태그
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTagTab('partners')}
+                  className={`flex-1 py-1 rounded text-[9px] font-black transition-all cursor-pointer border-none ${
+                    activeTagTab === 'partners' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800 bg-transparent'
+                  }`}
+                >
+                  🏢 거래처
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTagTab('staff')}
+                  className={`flex-1 py-1 rounded text-[9px] font-black transition-all cursor-pointer border-none ${
+                    activeTagTab === 'staff' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800 bg-transparent'
+                  }`}
+                >
+                  👤 담당자
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTagTab('projects')}
+                  className={`flex-1 py-1 rounded text-[9px] font-black transition-all cursor-pointer border-none ${
+                    activeTagTab === 'projects' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800 bg-transparent'
+                  }`}
+                >
+                  🚀 프로젝트
+                </button>
+              </div>
+
+              {/* 활성화된 탭 기준 칩 버튼 리스트 */}
+              <div className="flex flex-wrap gap-1 mb-2.5 bg-slate-50 p-2 rounded-xl border border-slate-100 max-h-[75px] overflow-y-auto">
+                {activeTagTab === 'tags' && (
+                  commonTags.length === 0 ? (
+                    <span className="text-[8.5px] text-slate-400 py-1 pl-1">등록된 공통 태그가 없습니다.</span>
+                  ) : (
+                    commonTags.map(tag => (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() => handleTagToggle(tag.name)}
+                        className={`px-2 py-0.5 rounded-full text-[9px] font-bold transition-all cursor-pointer border ${
+                          (txForm.note || '').includes(`#${tag.name}`)
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-3xs'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        #{tag.name}
+                      </button>
+                    ))
+                  )
+                )}
+
+                {activeTagTab === 'partners' && (
+                  (autocompleteData?.partners || []).length === 0 ? (
+                    <span className="text-[8.5px] text-slate-400 py-1 pl-1">등록된 거래처가 없습니다.</span>
+                  ) : (
+                    (autocompleteData?.partners || []).map((partner, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleTagToggle(partner)}
+                        className={`px-2 py-0.5 rounded-full text-[9px] font-bold transition-all cursor-pointer border ${
+                          (txForm.note || '').includes(`#${partner}`)
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-3xs'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        #{partner}
+                      </button>
+                    ))
+                  )
+                )}
+
+                {activeTagTab === 'staff' && (
+                  (autocompleteData?.staff || []).length === 0 ? (
+                    <span className="text-[8.5px] text-slate-400 py-1 pl-1">등록된 직원이 없습니다.</span>
+                  ) : (
+                    (autocompleteData?.staff || []).map((staffMember, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleTagToggle(staffMember)}
+                        className={`px-2 py-0.5 rounded-full text-[9px] font-bold transition-all cursor-pointer border ${
+                          (txForm.note || '').includes(`#${staffMember}`)
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-3xs'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        #{staffMember}
+                      </button>
+                    ))
+                  )
+                )}
+
+                {activeTagTab === 'projects' && (
+                  (autocompleteData?.projects || []).length === 0 ? (
+                    <span className="text-[8.5px] text-slate-400 py-1 pl-1">등록된 프로젝트가 없습니다.</span>
+                  ) : (
+                    (autocompleteData?.projects || []).map((project, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleTagToggle(project)}
+                        className={`px-2 py-0.5 rounded-full text-[9px] font-bold transition-all cursor-pointer border ${
+                          (txForm.note || '').includes(`#${project}`)
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-3xs'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        #{project}
+                      </button>
+                    ))
+                  )
+                )}
+              </div>
+
               <textarea
                 value={txForm.note}
                 onChange={(e) => setTxForm(prev => ({ ...prev, note: e.target.value }))}

@@ -23,12 +23,12 @@ export async function GET(req: Request) {
       const task = taskRes.rows[0];
 
       // 타임라인 상세 이력 마이닝
-      const itemsQuery = `SELECT * FROM crm_snaptask_items WHERE task_id = '${taskId}' ORDER BY created_at ASC`;
+      const itemsQuery = `SELECT * FROM crm_snaptask_items WHERE task_id = '${taskId}' AND deleted_at IS NULL ORDER BY created_at ASC`;
       const itemsRes = await executeSQL(itemsQuery) || [];
       const items = (itemsRes && (itemsRes as any).rows) ? (itemsRes as any).rows : (Array.isArray(itemsRes) ? itemsRes : []);
 
       // 자율 조치 감사 로그 마이닝
-      const actionsQuery = `SELECT * FROM crm_snaptask_actions WHERE task_id = '${taskId}' ORDER BY created_at ASC`;
+      const actionsQuery = `SELECT * FROM crm_snaptask_actions WHERE task_id = '${taskId}' AND deleted_at IS NULL ORDER BY created_at ASC`;
       const actionsRes = await executeSQL(actionsQuery) || [];
       const actions = (actionsRes && (actionsRes as any).rows) ? (actionsRes as any).rows : (Array.isArray(actionsRes) ? actionsRes : []);
 
@@ -42,7 +42,7 @@ export async function GET(req: Request) {
             partner = partnerRes.rows[0];
           }
 
-          const contactsQuery = `SELECT * FROM crm_partner_contacts WHERE partner_id = '${task.partner_id}' ORDER BY is_primary DESC, name ASC`;
+          const contactsQuery = `SELECT * FROM crm_partner_contacts WHERE partner_id = '${task.partner_id}' AND deleted_at IS NULL ORDER BY is_primary DESC, name ASC`;
           const contactsRes = await executeSQL(contactsQuery) || [];
           partnerContacts = (contactsRes && (contactsRes as any).rows) ? (contactsRes as any).rows : (Array.isArray(contactsRes) ? contactsRes : []);
         } catch (e) {
@@ -68,6 +68,7 @@ export async function GET(req: Request) {
       SELECT t.*, p.company_name as partner_company_name 
       FROM crm_snaptasks t
       LEFT JOIN crm_partners p ON t.partner_id = p.id
+      WHERE t.deleted_at IS NULL
       ORDER BY t.id DESC
     `;
     const listRes = await executeSQL(listQuery) || [];
