@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Coins, Sparkles, RefreshCw, CheckCircle, ShieldAlert, AlertTriangle } from "lucide-react";
 
 // 커스텀 훅 임포트
@@ -93,28 +93,33 @@ export default function ExpenseManagementAiPage() {
     error: null
   });
 
-  const [mouseLeaveTimer, setMouseLeaveTimer] = useState<any>(null);
+  // useRef를 활용한 타이머 및 상태 레퍼런스 영속화 (리렌더링에 의한 리셋 방지)
+  const helpInfoRef = useRef(helpInfo);
+  const hoverTimerRef = useRef<any>(null);
+  const leaveTimerRef = useRef<any>(null);
+
+  useEffect(() => {
+    helpInfoRef.current = helpInfo;
+  }, [helpInfo]);
 
   // 도움말 마우스 진입시 해제 방지
   const handlePopupMouseEnter = () => {
-    if (mouseLeaveTimer) {
-      clearTimeout(mouseLeaveTimer);
-      setMouseLeaveTimer(null);
+    if (leaveTimerRef.current) {
+      clearTimeout(leaveTimerRef.current);
+      leaveTimerRef.current = null;
     }
   };
 
   const handlePopupMouseLeave = () => {
-    const timer = setTimeout(() => {
+    if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+    leaveTimerRef.current = setTimeout(() => {
       setHelpInfo(prev => ({ ...prev, isOpen: false }));
     }, 500);
-    setMouseLeaveTimer(timer);
   };
 
-  // 마우스 오버 힌트 실시간 리스너 훅
+  // 마우스 오버 힌트 실시간 리스너 훅 (디펜던시 []로 최초 마운트 시 1회만 등록)
   useEffect(() => {
-    let hoverTimeout: any = null;
-
-    const handleMouseOver = async (e: MouseEvent) => {
+    const handleMouseOver = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (!target) return;
 
@@ -128,17 +133,27 @@ export default function ExpenseManagementAiPage() {
       const hintKey = colonIdx !== -1 ? hintText.substring(0, colonIdx).trim() : hintText.trim();
       const hintVal = colonIdx !== -1 ? hintText.substring(colonIdx + 1).trim() : hintText;
 
-      // 이미 같은 팝업이 활성화되어 있다면 소멸 방지
-      if (helpInfo.isOpen && helpInfo.hintKey === hintKey) {
-        if (mouseLeaveTimer) {
-          clearTimeout(mouseLeaveTimer);
-          setMouseLeaveTimer(null);
+      // 1. 이미 동일한 도움말이 열려 있는 경우라면 닫기 타이머만 취소하고 유지
+      if (helpInfoRef.current.isOpen && helpInfoRef.current.hintKey === hintKey) {
+        if (leaveTimerRef.current) {
+          clearTimeout(leaveTimerRef.current);
+          leaveTimerRef.current = null;
         }
         return;
       }
 
-      if (hoverTimeout) clearTimeout(hoverTimeout);
-      hoverTimeout = setTimeout(async () => {
+      // 2. 다른 요소를 호버한 경우 기존 닫기 타이머 및 대기 타이머 클리어
+      if (leaveTimerRef.current) {
+        clearTimeout(leaveTimerRef.current);
+        leaveTimerRef.current = null;
+      }
+
+      if (hoverTimerRef.current) {
+        clearTimeout(hoverTimerRef.current);
+      }
+
+      // 1초 호버 딜레이 개시
+      hoverTimerRef.current = setTimeout(async () => {
         setHelpInfo({
           isOpen: true,
           hintKey,
@@ -171,22 +186,26 @@ export default function ExpenseManagementAiPage() {
             error: err.message
           }));
         }
-      }, 1000); // 1초 호버 유지
+      }, 1000);
     };
 
     const handleMouseOut = (e: MouseEvent) => {
-      if (hoverTimeout) {
-        clearTimeout(hoverTimeout);
-        hoverTimeout = null;
-      }
-
       const target = e.target as HTMLElement;
+      if (!target) return;
+
       const hintElement = target.closest("[data-easybot-hint]");
       if (hintElement) {
-        const timer = setTimeout(() => {
+        // 호버 중 영역을 나가면 로딩 대기 타이머 클리어
+        if (hoverTimerRef.current) {
+          clearTimeout(hoverTimerRef.current);
+          hoverTimerRef.current = null;
+        }
+
+        // 0.5초 뒤 닫기 타이머 예약
+        if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
+        leaveTimerRef.current = setTimeout(() => {
           setHelpInfo(prev => ({ ...prev, isOpen: false }));
-        }, 500); // 0.5초 유예시간 부여
-        setMouseLeaveTimer(timer);
+        }, 500);
       }
     };
 
@@ -196,9 +215,10 @@ export default function ExpenseManagementAiPage() {
     return () => {
       window.removeEventListener("mouseover", handleMouseOver);
       window.removeEventListener("mouseout", handleMouseOut);
-      if (hoverTimeout) clearTimeout(hoverTimeout);
+      if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+      if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
     };
-  }, [helpInfo.isOpen, helpInfo.hintKey, mouseLeaveTimer]);
+  }, []);
 
   const showToast = (message: string, type: "success" | "error" | "warn" = "success") => {
     setToast({ message, type });
