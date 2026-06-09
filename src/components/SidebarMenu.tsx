@@ -285,27 +285,29 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
             </div>
 
             {/* 호버 시 팝업되어 위로 솟아오르는 숨김 메뉴 목록 */}
-            <div className="absolute bottom-full left-0 right-0 mb-2 hidden group-hover/vault:block bg-slate-800/95 border border-slate-700 rounded-xl p-2 shadow-2xl backdrop-blur-md z-50 space-y-1 animate-fade-in max-w-[240px]">
-              <div className="text-[9px] font-bold text-slate-500 px-2.5 py-1.5 border-b border-slate-700 mb-1">
-                클릭하면 원래 메뉴로 복구됩니다
-              </div>
-              <div className="max-h-60 overflow-y-auto space-y-0.5 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
-                {hiddenItems.map((hItem) => {
-                  const HIcon = hItem.icon;
-                  return (
-                    <button
-                      key={hItem.href}
-                      onClick={(e) => unhideMenu(hItem.href, e)}
-                      className="w-full flex items-center justify-between p-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white text-xs font-semibold text-left transition-colors border-none bg-transparent cursor-pointer"
-                    >
-                      <div className="flex items-center space-x-2.5 min-w-0">
-                        <HIcon className={`w-4 h-4 shrink-0 ${hItem.color}`} />
-                        <span className="truncate">{hItem.label}</span>
-                      </div>
-                      <Eye className="w-3.5 h-3.5 text-slate-500 hover:text-emerald-400 shrink-0 ml-2" />
-                    </button>
-                  );
-                })}
+            <div className="absolute bottom-full left-0 right-0 pb-3 hidden group-hover/vault:block z-50">
+              <div className="bg-slate-800/95 border border-slate-700 rounded-xl p-2 shadow-2xl backdrop-blur-md space-y-1 animate-fade-in max-w-[240px]">
+                <div className="text-[9px] font-bold text-slate-500 px-2.5 py-1.5 border-b border-slate-700 mb-1">
+                  클릭하면 원래 메뉴로 복구됩니다
+                </div>
+                <div className="max-h-60 overflow-y-auto space-y-0.5 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+                  {hiddenItems.map((hItem) => {
+                    const HIcon = hItem.icon;
+                    return (
+                      <button
+                        key={hItem.href}
+                        onClick={(e) => unhideMenu(hItem.href, e)}
+                        className="w-full flex items-center justify-between p-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white text-xs font-semibold text-left transition-colors border-none bg-transparent cursor-pointer"
+                      >
+                        <div className="flex items-center space-x-2.5 min-w-0">
+                          <HIcon className={`w-4 h-4 shrink-0 ${hItem.color}`} />
+                          <span className="truncate">{hItem.label}</span>
+                        </div>
+                        <Eye className="w-3.5 h-3.5 text-slate-500 hover:text-emerald-400 shrink-0 ml-2" />
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
