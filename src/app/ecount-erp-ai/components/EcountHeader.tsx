@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { RefreshCw, Database } from "lucide-react";
+import { RefreshCw, Database, ArrowRightLeft } from "lucide-react";
 import Link from "next/link";
 
 interface EcountHeaderProps {
@@ -11,7 +11,10 @@ interface EcountHeaderProps {
 export default function EcountHeader({ fetchScripts }: EcountHeaderProps) {
   return (
     <div className="flex justify-between items-center">
-      <h1 className="text-3xl font-bold text-slate-800">이카운트 ERP AI</h1>
+      <h1 className="text-3xl font-bold text-slate-800 flex items-center tracking-tight">
+        <ArrowRightLeft className="w-8 h-8 text-sky-500 mr-3" />
+        이카운트 ERP AI
+      </h1>
 
       {/* 우측 퀵 액션 */}
       <div className="flex items-center space-x-2">

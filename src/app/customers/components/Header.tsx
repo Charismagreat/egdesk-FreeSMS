@@ -1,5 +1,5 @@
 import React from "react";
-import { Plus } from "lucide-react";
+import { Plus, Users } from "lucide-react";
 
 interface HeaderProps {
   isUploading: boolean;
@@ -12,7 +12,10 @@ export function Header({ isUploading, handleCsvUpload, setShowAddModal }: Header
     <>
       {/* 1. 상단 액션바 (PC용 고정 정렬) */}
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-slate-800 tracking-tight">고객 관리 AI</h1>
+        <h1 className="text-3xl font-bold text-slate-800 tracking-tight flex items-center">
+          <Users className="w-8 h-8 text-green-500 mr-3" />
+          고객 관리 AI
+        </h1>
         <div className="flex space-x-2">
           <label className={`bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-4 py-2 rounded-lg font-medium transition-colors flex items-center shadow-sm text-xs ${isUploading ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}>
             {isUploading ? "업로드 중..." : "CSV/엑셀 일괄 등록"}
