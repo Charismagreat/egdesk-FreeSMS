@@ -116,20 +116,39 @@ export default function AiSettingsCard() {
           <div className="flex flex-col md:flex-row items-end gap-4 w-full">
             {/* API Key 입력 (비율 5) */}
             <div className="flex-[5] min-w-0 w-full">
-              <label className="block text-[11px] font-bold text-indigo-800 mb-1.5 tracking-wider uppercase whitespace-nowrap">Google AI API Key</label>
-              <div className="flex items-center border border-indigo-200 rounded-xl bg-white/90 overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 shadow-sm transition-all w-full">
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="block text-[11px] font-bold text-indigo-800 tracking-wider uppercase whitespace-nowrap">
+                  Google AI API Key
+                </label>
+                {!apiKey && (
+                  <span className="text-[9.5px] font-black text-rose-600 animate-pulse">
+                    ⚠️ 필수 입력 필요
+                  </span>
+                )}
+              </div>
+              <div className={`flex items-center border rounded-xl overflow-hidden shadow-sm transition-all w-full focus-within:ring-2 ${
+                !apiKey 
+                  ? "border-rose-300 bg-rose-50/15 focus-within:ring-rose-500 focus-within:border-rose-500" 
+                  : "border-indigo-200 bg-white/90 focus-within:ring-indigo-500 focus-within:border-indigo-500"
+              }`}>
                 <div className="pl-4 pr-3 flex items-center justify-center shrink-0">
-                  <KeyRound className="h-4 w-4 text-indigo-400" />
+                  <KeyRound className={`h-4 w-4 ${!apiKey ? "text-rose-500" : "text-indigo-400"}`} />
                 </div>
                 <input
                   type="password"
                   placeholder="구글 API Key 입력 (AIzaSy...)"
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
-                  className="w-full py-2.5 outline-none text-xs font-medium placeholder-indigo-300 bg-transparent"
+                  className="w-full py-2.5 outline-none text-xs font-medium placeholder-indigo-300 bg-transparent text-indigo-950 font-bold"
                   title="Google AI API Key"
                 />
               </div>
+              {!apiKey && (
+                <p className="text-[10px] font-black text-rose-600 mt-1.5 leading-normal flex items-start gap-1">
+                  <span>💡</span>
+                  <span>API 키가 등록되지 않았습니다. 입력란에 키를 등록하고 저장해야 AI 견적 OCR, 계약 분석 및 이지봇 등 주요 AI 기능이 정상(실시간 API 연결) 작동합니다.</span>
+                </p>
+              )}
             </div>
 
             {/* 모델 선택 select (비율 4) */}

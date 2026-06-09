@@ -2196,5 +2196,40 @@ export async function setupDatabase() {
     console.error('⚠️ R&D seeding error:', seedErr.message);
   }
 
+  // 40. 우리 회사 (본사) 기본 설정 시딩 (주식회사 쿠스)
+  try {
+    const companyProfileCheck = await queryTable('system_settings', { filters: { key: 'my_company_profile' } });
+    if (!companyProfileCheck.rows || companyProfileCheck.rows.length === 0) {
+      const defaultProfile = {
+        companyName: '(주)쿠스',
+        representative: '차민수',
+        businessNumber: '731-81-02023',
+        phone: '010-7216-5884',
+        email: 'chachogreat@gmail.com',
+        address: '경기도 시흥시 서울대학로 59-69 배곧테크노밸리 609호',
+        sidebarMainTitle: 'EGDESK SMS',
+        sidebarSubTitle: '우리 회사 스마트 AI 시스템'
+      };
+
+      await insertRows('system_settings', [
+        {
+          key: 'my_company_profile',
+          value: JSON.stringify(defaultProfile)
+        },
+        {
+          key: 'company_name',
+          value: '(주)쿠스'
+        },
+        {
+          key: 'company_business_number',
+          value: '731-81-02023'
+        }
+      ]);
+      console.log('Company settings seeded with default values: (주)쿠스');
+    }
+  } catch (e: any) {
+    console.error('Error seeding company settings:', e.message);
+  }
+
   console.log('Database setup complete.');
 }

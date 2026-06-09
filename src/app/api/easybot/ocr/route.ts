@@ -176,8 +176,8 @@ export async function POST(req: Request) {
     - checks 배열의 각 요소는 checkItem (점검 항목명, 예: "가열 압력 상태" 또는 "비상 정지 장치 작동"), status (점검 상태 배지, 양호일 시 "PASS", 불량/조치필요 시 "FAIL"), comment (점검 특이사항 코멘트, 없으면 공백)를 포함해야 합니다.
 12. 소송/법률 문서 ("LEGAL_DOCUMENT"):
     - data 객체에 documentType (문서 구분, 예: "소장", "지급명령 송달장", "판결문" 등), caseNumber (사건번호, 예: "2026가소12345"), summary (사건 및 서류 핵심 요약), deadline (답변서 기한 및 법적 마감일 "YYYY-MM-DD" 혹은 없을 시 null), actions (권장 즉시 행동 조치 목록 배열) 추출.
-13. 받은 견적서 ("INBOUND_ESTIMATE"):
-    - data 객체에 partnerName (견적서를 발행한 거래처/공급처명, 예: "태백유통(주)"), partnerPhone (연락처, 없으면 빈 문자열 ""), items 배열 추출.
+13. 받은 견적서 및 바이어 발주서 ("INBOUND_ESTIMATE"):
+    - data 객체에 partnerName (견적서/발주서를 발행한 거래처/공급처명, 예: "태백유통(주)"), partnerPhone (연락처, 없으면 빈 문자열 ""), buyerName (수신인/공급받는자/주문처리자 상호명, 없으면 빈 문자열 ""), buyerBusinessNumber (수신인/공급받는자 사업자번호, 없으면 ""), items 배열 추출.
     - items 배열의 각 요소는 productName (품목명, 예: "친환경 생분해 컵"), quantity (수량, 숫자로만, 예: 50), unitPrice (단가, 숫자로만, 예: 1500), amount (공급 금액, 수량 * 단가, 숫자로만, 예: 75000)를 포함해야 합니다.
 
 사내 등록된 거래처 정보(RAG):
@@ -368,6 +368,20 @@ ${JSON.stringify(facilitiesListForRag)}
 
     const trackedItemsRes = await queryTable('tracked_items', {});
     const allTrackedItems = trackedItemsRes.rows || [];
+
+    // 본사 프로필 로드 (기본값 차민수/(주)쿠스/731-81-02023)
+    let myCompanyName = '(주)쿠스';
+    let myCompanyBizNo = '731-81-02023';
+    try {
+      const myCompanySetting = await queryTable('system_settings', { filters: { key: 'my_company_profile' } });
+      if (myCompanySetting.rows && myCompanySetting.rows.length > 0) {
+        const parsed = JSON.parse(myCompanySetting.rows[0].value);
+        if (parsed.companyName) myCompanyName = parsed.companyName;
+        if (parsed.businessNumber) myCompanyBizNo = parsed.businessNumber;
+      }
+    } catch (e) {
+      console.error('본사 정보 설정 조회 실패:', e);
+    }
 
     const processedItems = [];
 
@@ -733,6 +747,8 @@ ${JSON.stringify(facilitiesListForRag)}
       } else if (item.itemType === 'INBOUND_ESTIMATE') {
         const estimateData = item.data || {};
         const partnerName = estimateData.partnerName ? estimateData.partnerName.trim() : '';
+        const buyerName = estimateData.buyerName ? estimateData.buyerName.trim() : '';
+        const buyerBizNo = (estimateData.buyerBusinessNumber || '').replace(/\D/g, '');
         
         // 1. 거래처 매핑
         let partnerId = null;
@@ -776,12 +792,28 @@ ${JSON.stringify(facilitiesListForRag)}
           };
         });
 
+        // 3. 수신인/공급자 본사 정보 대조 검증
+        let receiverMatched = true; // 수신자가 명시되어 있지 않은 견적서는 유연하게 승인 허용
+        if (buyerName) {
+          const cleanExtBuyer = buyerName.replace(/[^가-힣a-zA-Z0-9]/g, '');
+          const cleanMyCompName = myCompanyName.replace(/[^가-힣a-zA-Z0-9]/g, '');
+          const hasMyName = cleanExtBuyer.includes(cleanMyCompName) || cleanMyCompName.includes(cleanExtBuyer);
+          const hasMyBiz = buyerBizNo && myCompanyBizNo.replace(/\D/g, '') === buyerBizNo;
+          
+          if (!hasMyName && !hasMyBiz) {
+            receiverMatched = false;
+          }
+        }
+
         processedItems.push({
           itemType: 'INBOUND_ESTIMATE',
           data: {
             partnerName,
             partnerPhone: estimateData.partnerPhone || '010-0000-0000',
             estimateDate: estimateData.estimateDate || new Date().toISOString().slice(0, 10),
+            buyerName,
+            buyerBusinessNumber: estimateData.buyerBusinessNumber || '',
+            receiver_matched: receiverMatched,
             items: parsedItems,
             pdfFilePath
           },

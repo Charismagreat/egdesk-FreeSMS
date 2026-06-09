@@ -10,16 +10,20 @@ interface CompanyProfile {
   address: string;
   phone: string;
   email: string;
+  sidebarMainTitle: string;
+  sidebarSubTitle: string;
 }
 
 export default function CompanySettingsCard() {
   const [profile, setProfile] = useState<CompanyProfile>({
-    companyName: '',
-    representative: '',
-    businessNumber: '',
-    address: '',
-    phone: '',
-    email: '',
+    companyName: '(주)쿠스',
+    representative: '차민수',
+    businessNumber: '731-81-02023',
+    address: '경기도 시흥시 서울대학로 59-69 배곧테크노밸리 609호',
+    phone: '010-7216-5884',
+    email: 'chachogreat@gmail.com',
+    sidebarMainTitle: 'EGDESK SMS',
+    sidebarSubTitle: '우리 회사 스마트 AI 시스템',
   });
 
   const [loading, setLoading] = useState<boolean>(true);
@@ -54,22 +58,47 @@ export default function CompanySettingsCard() {
   useEffect(() => {
     async function fetchCompanyProfile() {
       try {
+        console.log('CompanySettingsCard: Fetching company profile...');
         const res = await fetch('/api/settings?key=my_company_profile');
         const data = await res.json();
+        console.log('CompanySettingsCard: API response:', data);
         if (data.success && data.value) {
           try {
             const parsed = JSON.parse(data.value);
+            console.log('CompanySettingsCard: Parsed profile:', parsed);
             setProfile({
-              companyName: parsed.companyName || '',
-              representative: parsed.representative || '',
-              businessNumber: parsed.businessNumber || '',
-              address: parsed.address || '',
-              phone: parsed.phone || '',
-              email: parsed.email || '',
+              companyName: parsed.companyName || '(주)쿠스',
+              representative: parsed.representative || '차민수',
+              businessNumber: parsed.businessNumber || '731-81-02023',
+              address: parsed.address || '경기도 시흥시 서울대학로 59-69 배곧테크노밸리 609호',
+              phone: parsed.phone || '010-7216-5884',
+              email: parsed.email || 'chachogreat@gmail.com',
+              sidebarMainTitle: parsed.sidebarMainTitle || 'EGDESK SMS',
+              sidebarSubTitle: parsed.sidebarSubTitle || '우리 회사 스마트 AI 시스템',
             });
           } catch (e) {
             console.error('회사 프로필 JSON 파싱 에러:', e);
           }
+        } else if (data.success && !data.value) {
+          // DB가 비어있는 경우 디폴트 본사 정보를 자동으로 DB 세팅 연동 적재
+          const defaultVal = {
+            companyName: '(주)쿠스',
+            representative: '차민수',
+            businessNumber: '731-81-02023',
+            address: '경기도 시흥시 서울대학로 59-69 배곧테크노밸리 609호',
+            phone: '010-7216-5884',
+            email: 'chachogreat@gmail.com',
+            sidebarMainTitle: 'EGDESK SMS',
+            sidebarSubTitle: '우리 회사 스마트 AI 시스템',
+          };
+          setProfile(defaultVal);
+          
+          // 백그라운드 백엔드 캐시/DB 동기화
+          fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: 'my_company_profile', value: JSON.stringify(defaultVal) })
+          }).catch(err => console.error('디폴트 회사 프로필 자동 적재 실패:', err));
         }
       } catch (err) {
         console.error('회사 정보 로드 실패:', err);
@@ -117,12 +146,12 @@ export default function CompanySettingsCard() {
 
         // 폼 필드 자동 입력 (기존 입력 유지하며 덮어쓰기 보완)
         setProfile(prev => ({
+          ...prev,
           companyName: ocrData.companyName || prev.companyName,
           representative: ocrData.representative || prev.representative,
           businessNumber: (ocrData.businessNumber || '').replace(/\D/g, '') || prev.businessNumber,
           address: ocrData.address || prev.address,
           phone: ocrData.phone || prev.phone,
-          email: prev.email, // 이메일은 보통 스캔 데이터가 미흡하므로 보존
         }));
 
         setMessage({ type: 'success', text: 'AI가 사업자등록증을 분석하여 본사 정보를 양식에 자동 입력했습니다! ⚡' });
@@ -178,7 +207,10 @@ export default function CompanySettingsCard() {
         });
 
         setMessage({ type: 'success', text: '우리 회사(본사) 정보가 안전하게 영속 저장되었습니다. 🟢' });
-        setTimeout(() => setMessage(null), 3000);
+        setTimeout(() => {
+          setMessage(null);
+          window.location.reload(); // 사이드바 실시간 동기화를 위해 화면 강제 새로고침
+        }, 1500);
       } else {
         setMessage({ type: 'error', text: data.error || '저장에 실패했습니다.' });
       }
@@ -457,6 +489,32 @@ export default function CompanySettingsCard() {
             />
           </div>
 
+          {/* 5-1. 사이드바 메인 타이틀 설정 */}
+          <div className="space-y-1.5">
+            <label className="block text-[11px] font-extrabold text-slate-700">사이드바 메인 타이틀 (줄바꿈 방지 12자 제한)</label>
+            <input
+              type="text"
+              placeholder="예: EGDESK SMS"
+              value={profile.sidebarMainTitle}
+              onChange={(e) => handleInputChange('sidebarMainTitle', e.target.value)}
+              maxLength={12}
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white text-slate-800 placeholder-slate-400 transition-all font-semibold"
+            />
+          </div>
+
+          {/* 5-2. 사이드바 서브 타이틀 설정 */}
+          <div className="space-y-1.5">
+            <label className="block text-[11px] font-extrabold text-slate-700">사이드바 서브 타이틀 (줄바꿈 방지 24자 제한)</label>
+            <input
+              type="text"
+              placeholder="예: 평생 무료 문자 발송 시스템"
+              value={profile.sidebarSubTitle}
+              onChange={(e) => handleInputChange('sidebarSubTitle', e.target.value)}
+              maxLength={24}
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white text-slate-800 placeholder-slate-400 transition-all font-semibold"
+            />
+          </div>
+
           {/* 6. 본점 소재지 주소 */}
           <div className="space-y-1.5 md:col-span-2">
             <label className="block text-[11px] font-extrabold text-slate-700">본점 소재지 주소</label>
@@ -505,7 +563,7 @@ export default function CompanySettingsCard() {
             ) : (
               <Save className="w-4 h-4" />
             )}
-            <span>본사 정보 저장하기</span>
+            <span>본사 정보 변경</span>
           </button>
         </div>
 

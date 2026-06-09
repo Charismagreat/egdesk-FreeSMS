@@ -252,6 +252,8 @@ export default function ExpenseManagementAiPage() {
             userRole={userRole}
             hasAdminAccess={hasAdminAccess}
             setEditExpense={setEditExpense}
+            dbTags={dbTags}
+            handleUpdateExpense={handleUpdateExpense}
           />
         </div>
       )}

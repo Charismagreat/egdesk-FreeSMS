@@ -17,6 +17,7 @@ export default function EstimateOcrModal({
   const [ocrScanning, setOcrScanning] = useState(false);
   const [ocrSuccess, setOcrSuccess] = useState(false);
   const [ocrFilename, setOcrFilename] = useState("");
+  const [receiverMatched, setReceiverMatched] = useState<boolean>(true);
   const [ocrForm, setOcrForm] = useState({
     partner_name: "",
     partner_phone: "",
@@ -30,6 +31,7 @@ export default function EstimateOcrModal({
     setOcrScanning(false);
     setOcrSuccess(false);
     setOcrFilename("");
+    setReceiverMatched(true);
     setOcrForm({
       partner_name: "",
       partner_phone: "",
@@ -76,6 +78,7 @@ export default function EstimateOcrModal({
             items: data.items,
             file_url: base64Data
           });
+          setReceiverMatched(data.receiver_matched !== false);
         } else {
           setOcrScanning(false);
           alert(data.error || "OCR 파싱 실패");
@@ -176,6 +179,16 @@ export default function EstimateOcrModal({
           {/* 스캔 결과 폼 */}
           {ocrSuccess && (
             <div className="bg-slate-50 p-4.5 rounded-2xl border border-slate-100 space-y-4 animate-scale-up">
+              {!receiverMatched && (
+                <div className="bg-rose-50 border border-rose-100 text-rose-700 p-4 rounded-xl text-xs font-bold leading-normal flex items-start gap-2 text-left">
+                  <span className="text-base shrink-0 mt-0.5">⚠️</span>
+                  <div>
+                    <span className="font-extrabold block text-rose-900 mb-1">수신인 불일치 (접수 거절)</span>
+                    스캔 결과 해당 문서의 수신인이 본사(주식회사 쿠스)와 일치하지 않습니다. 잘못된 외부 문서는 법정/재무적 리스크 방지를 위해 등록이 원천 차단됩니다.
+                  </div>
+                </div>
+              )}
+
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">AI 스캔 분석 결과 자동입력 대기</span>
               
               <div className="grid grid-cols-2 gap-3">
@@ -221,7 +234,7 @@ export default function EstimateOcrModal({
           </button>
           <button 
             onClick={handleSaveOcrEstimate}
-            disabled={!ocrSuccess}
+            disabled={!ocrSuccess || !receiverMatched}
             className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl disabled:opacity-50"
           >
             받은 견적서 등록 승인

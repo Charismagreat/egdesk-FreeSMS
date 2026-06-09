@@ -25,6 +25,20 @@ export default function EstimateWriteModal({
   ]);
   const [pricingLoading, setPricingLoading] = useState(false);
   const [pricingResult, setPricingResult] = useState<any>(null);
+  const [myProfile, setMyProfile] = useState<any>(null);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    fetch('/api/settings?key=my_company_profile')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.value) {
+          try {
+            setMyProfile(JSON.parse(data.value));
+          } catch(e) {}
+        }
+      });
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -112,6 +126,33 @@ export default function EstimateWriteModal({
         </h3>
 
         <div className="space-y-5 flex-1 overflow-y-auto pr-1">
+          {/* 공급자 정보 (우리 회사) - ReadOnly 고정 */}
+          {myProfile && (
+            <div className="bg-slate-50/50 p-4.5 rounded-2xl border border-indigo-100/35 space-y-2.5 text-left">
+              <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest block flex items-center gap-1">
+                🏢 공급자 정보 (우리 회사)
+              </span>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs font-semibold text-slate-600">
+                <div>
+                  <span className="text-[9px] text-slate-400 block font-bold">상호명</span>
+                  <span className="text-slate-800 font-extrabold">{myProfile.companyName || "(주)쿠스"}</span>
+                </div>
+                <div>
+                  <span className="text-[9px] text-slate-400 block font-bold">대표자</span>
+                  <span className="text-slate-800 font-extrabold">{myProfile.representative || "차민수"}</span>
+                </div>
+                <div>
+                  <span className="text-[9px] text-slate-400 block font-bold">사업자번호</span>
+                  <span className="text-slate-800 font-mono font-extrabold">{myProfile.businessNumber || "731-81-02023"}</span>
+                </div>
+                <div>
+                  <span className="text-[9px] text-slate-400 block font-bold">대표전화</span>
+                  <span className="text-slate-800 font-mono font-extrabold">{myProfile.phone || "010-7216-5884"}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* B2B 바이어 선택 및 정보 입력 */}
           <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
             <div>

@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useMemo } from "react";
-import { Filter, Search, Calendar, Trash2, FileText, RefreshCw, AlertCircle, Edit } from "lucide-react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
+import { Filter, Search, Calendar, Trash2, FileText, RefreshCw, AlertCircle, Edit, Plus, X, Tags, Check } from "lucide-react";
 import * as XLSX from "xlsx";
-import { Expense } from "../types";
+import { Expense, DbExpenseTag } from "../types";
 
 export interface ExpenseLedgerTableProps {
   filteredExpenses: Expense[];
@@ -29,6 +29,8 @@ export interface ExpenseLedgerTableProps {
   userRole: string;
   hasAdminAccess: boolean;
   setEditExpense: (expense: any) => void;
+  dbTags: DbExpenseTag[];
+  handleUpdateExpense: (id: string, updatedExpense: any) => Promise<{ success: boolean; error?: string }>;
 }
 
 export default function ExpenseLedgerTable({
@@ -55,12 +57,141 @@ export default function ExpenseLedgerTable({
   userRole,
   hasAdminAccess,
   setEditExpense,
+  dbTags,
+  handleUpdateExpense,
 }: ExpenseLedgerTableProps) {
   // 대장 필터용 고유 카테고리 목록 동적 계산
   const uniqueCategories = useMemo(() => {
     const categories = paginatedExpenses.map(exp => exp.category).concat(filteredExpenses.map(exp => exp.category));
     return Array.from(new Set(categories)).filter(Boolean);
   }, [filteredExpenses, paginatedExpenses]);
+
+  // 🏷️ 태그 인라인 에디팅 관련 상태 선언
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  const [newTagInput, setNewTagInput] = useState<string>("");
+  const [isUpdatingTag, setIsUpdatingTag] = useState<string | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
+
+  // 외부 클릭 시 팝오버 닫기
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        setEditingExpenseId(null);
+        setNewTagInput("");
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // 🏷️ 메모에서 쉼표 구분 태그 목록 파싱
+  const parseTags = (memoStr?: string) => {
+    if (!memoStr) return [];
+    return memoStr
+      .split(",")
+      .map(t => t.trim())
+      .filter(t => t !== "");
+  };
+
+  // 🏷️ 인라인 태그 토글 처리 및 DB 업데이트
+  const handleToggleTag = async (expense: Expense, tag: string) => {
+    if (!hasAdminAccess) return;
+    
+    setIsUpdatingTag(expense.id);
+    try {
+      const currentTags = parseTags(expense.memo);
+      let nextTags: string[];
+      if (currentTags.includes(tag)) {
+        nextTags = currentTags.filter(t => t !== tag);
+      } else {
+        nextTags = [...currentTags, tag];
+      }
+      
+      const updatedMemo = nextTags.join(", ");
+      
+      let parsedAi = {};
+      try {
+        if (expense.ai_analysis) {
+          parsedAi = JSON.parse(expense.ai_analysis);
+        }
+      } catch (e) {}
+
+      const updatedPayload = {
+        title: expense.title,
+        category: expense.category,
+        amount: Number(expense.amount),
+        payment_method: expense.payment_method,
+        actual_expense_date: expense.actual_expense_date || null,
+        deduction_amount: Number(expense.deduction_amount) || 0,
+        transfer_fee: Number(expense.transfer_fee) || 0,
+        memo: updatedMemo,
+        expense_date: expense.expense_date,
+        ai_analysis: expense.ai_analysis || ""
+      };
+
+      const result = await handleUpdateExpense(expense.id, updatedPayload);
+      if (!result.success) {
+        alert("태그 업데이트 실패: " + result.error);
+      }
+    } catch (e) {
+      console.error("태그 업데이트 중 오류 발생:", e);
+      alert("태그 업데이트 중 통신 오류가 발생했습니다.");
+    } finally {
+      setIsUpdatingTag(null);
+    }
+  };
+
+  // 🏷️ 인라인 커스텀 태그 추가 및 DB 업데이트
+  const handleAddCustomTag = async (expense: Expense) => {
+    if (!hasAdminAccess || !newTagInput.trim()) return;
+    
+    const tag = newTagInput.trim();
+    setIsUpdatingTag(expense.id);
+    try {
+      const currentTags = parseTags(expense.memo);
+      if (currentTags.includes(tag)) {
+        setNewTagInput("");
+        return;
+      }
+      
+      const nextTags = [...currentTags, tag];
+      const updatedMemo = nextTags.join(", ");
+      
+      let parsedAi = {};
+      try {
+        if (expense.ai_analysis) {
+          parsedAi = JSON.parse(expense.ai_analysis);
+        }
+      } catch (e) {}
+
+      const updatedPayload = {
+        title: expense.title,
+        category: expense.category,
+        amount: Number(expense.amount),
+        payment_method: expense.payment_method,
+        actual_expense_date: expense.actual_expense_date || null,
+        deduction_amount: Number(expense.deduction_amount) || 0,
+        transfer_fee: Number(expense.transfer_fee) || 0,
+        memo: updatedMemo,
+        expense_date: expense.expense_date,
+        ai_analysis: expense.ai_analysis || ""
+      };
+
+      const result = await handleUpdateExpense(expense.id, updatedPayload);
+      if (result.success) {
+        setNewTagInput("");
+      } else {
+        alert("커스텀 태그 추가 실패: " + result.error);
+      }
+    } catch (e) {
+      console.error("커스텀 태그 추가 중 오류 발생:", e);
+      alert("커스텀 태그 추가 중 통신 오류가 발생했습니다.");
+    } finally {
+      setIsUpdatingTag(null);
+    }
+  };
 
   // 페이지 계산
   const totalPages = Math.ceil(filteredExpenses.length / itemsPerPage);
@@ -353,6 +484,7 @@ export default function ExpenseLedgerTable({
                 <th className="p-3.5 text-left w-24">실지출일</th>
                 <th className="p-3.5 text-left w-28">계정과목</th>
                 <th className="p-3.5 text-left min-w-[200px]">적요 (용도 및 세부내역)</th>
+                <th className="p-3.5 text-left min-w-[150px]">태그</th>
                 <th className="p-3.5 text-left w-32">거래처/영수인</th>
                 <th className="p-3.5 text-left w-24">결제수단</th>
                 <th className="p-3.5 text-right w-24">지출액</th>
@@ -407,6 +539,141 @@ export default function ExpenseLedgerTable({
                     <td className="p-3.5 font-sans font-bold text-rose-600">{exp.category}</td>
                     <td className="p-3.5 truncate max-w-[280px] font-sans font-semibold text-slate-800" title={exp.title}>
                       {exp.title}
+                    </td>
+                    <td className="p-3.5 relative">
+                      <div 
+                        className={`flex flex-wrap gap-1 items-center min-h-[28px] rounded-xl px-2 py-1 transition-all ${
+                          hasAdminAccess 
+                            ? 'cursor-pointer hover:bg-slate-100/70 border border-transparent hover:border-slate-200/60' 
+                            : ''
+                        }`}
+                        onClick={() => {
+                          if (hasAdminAccess) {
+                            setEditingExpenseId(editingExpenseId === exp.id ? null : exp.id);
+                          }
+                        }}
+                        title={hasAdminAccess ? "클릭하여 태그 편집" : "지출 태그 목록"}
+                      >
+                        {parseTags(exp.memo).length === 0 ? (
+                          hasAdminAccess ? (
+                            <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1 opacity-0 hover:opacity-100 transition-opacity">
+                              <Plus className="w-3 h-3" /> 태그 추가
+                            </span>
+                          ) : (
+                            <span className="text-slate-350 font-bold">-</span>
+                          )
+                        ) : (
+                          parseTags(exp.memo).map((tag, idx) => (
+                            <span 
+                              key={idx} 
+                              className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-black bg-rose-50 text-rose-600 border border-rose-100"
+                            >
+                              #{tag}
+                            </span>
+                          ))
+                        )}
+                        {hasAdminAccess && parseTags(exp.memo).length > 0 && (
+                          <span className="text-slate-350 opacity-0 group-hover:opacity-100 transition-opacity ml-auto">
+                            <Edit className="w-3 h-3" />
+                          </span>
+                        )}
+                      </div>
+
+                      {/* 🏷️ 인라인 태그 에디터 팝오버 */}
+                      {editingExpenseId === exp.id && (
+                        <div 
+                          ref={popoverRef}
+                          className="absolute left-0 mt-1 bg-white border border-slate-200 rounded-2xl shadow-xl p-3.5 z-50 w-64 animate-fade-in space-y-3 text-left font-sans text-xs"
+                          style={{ top: "100%" }}
+                        >
+                          <div className="flex items-center justify-between border-b pb-1.5 border-slate-100">
+                            <span className="font-black text-slate-800 text-[10.5px] flex items-center gap-1">
+                              <Tags className="w-3.5 h-3.5 text-rose-500" />
+                              지출 태그 빠른 편집
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingExpenseId(null);
+                                setNewTagInput("");
+                              }}
+                              className="text-slate-400 hover:text-slate-600 p-0.5 hover:bg-slate-100 rounded-full border-none bg-transparent cursor-pointer"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+
+                          {/* 프리셋 태그 목록 */}
+                          <div className="space-y-1.5">
+                            <p className="text-[9.5px] font-extrabold text-slate-400 uppercase tracking-wider">공식 태그</p>
+                            <div className="flex flex-wrap gap-1 max-h-[100px] overflow-y-auto pr-1">
+                              {dbTags.map(tagObj => {
+                                const isSelected = parseTags(exp.memo).includes(tagObj.name);
+                                return (
+                                  <button
+                                    key={tagObj.id}
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleTag(exp, tagObj.name);
+                                    }}
+                                    disabled={isUpdatingTag === exp.id}
+                                    className={`px-2 py-1 rounded-lg text-[9.5px] font-bold border transition-all cursor-pointer shadow-3xs flex items-center gap-1 ${
+                                      isSelected
+                                        ? 'bg-rose-500 text-white border-rose-500 shadow-rose-500/10'
+                                        : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                                    }`}
+                                  >
+                                    #{tagObj.name}
+                                    {isSelected && <Check className="w-2.5 h-2.5 text-white" />}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* 커스텀 태그 직접 입력 */}
+                          <div className="space-y-1.5 border-t border-slate-100 pt-2.5">
+                            <p className="text-[9.5px] font-extrabold text-slate-400 uppercase tracking-wider">커스텀 태그 추가</p>
+                            <div className="flex gap-1.5">
+                              <input
+                                type="text"
+                                placeholder="태그 입력..."
+                                value={newTagInput}
+                                onChange={(e) => setNewTagInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleAddCustomTag(exp);
+                                  }
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                disabled={isUpdatingTag === exp.id}
+                                className="flex-1 border border-slate-250 rounded-lg px-2.5 py-1 text-[10.5px] font-semibold outline-none bg-white text-slate-800 placeholder-slate-400 focus:border-rose-400"
+                              />
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAddCustomTag(exp);
+                                }}
+                                disabled={isUpdatingTag === exp.id || !newTagInput.trim()}
+                                className="px-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[10.5px] font-bold border-none cursor-pointer flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                <Plus className="w-3 h-3 text-white" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {isUpdatingTag === exp.id && (
+                            <div className="absolute inset-0 bg-white/70 backdrop-blur-xs flex items-center justify-center rounded-2xl">
+                              <RefreshCw className="w-5 h-5 text-rose-500 animate-spin" />
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </td>
                     <td className="p-3.5 truncate max-w-[120px] font-sans font-bold text-slate-700" title={payeeText}>
                       {payeeText}

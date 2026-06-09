@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
 import { LogOut } from 'lucide-react';
 import SidebarMenu from './SidebarMenu';
+import { queryTable } from '@/../egdesk-helpers';
 
 export default async function Sidebar() {
   const cookieStore = await cookies();
@@ -20,6 +21,21 @@ export default async function Sidebar() {
     }
   }
 
+  // 🛡️ DB로부터 사이드바 메인/서브 타이틀 로드 (디폴트값 가드)
+  let sidebarMainTitle = 'EGDESK SMS';
+  let sidebarSubTitle = '평생 무료 문자 발송 시스템';
+
+  try {
+    const settingsRes = await queryTable('system_settings', { filters: { key: 'my_company_profile' } });
+    const profileVal = settingsRes.rows?.[0]?.value;
+    if (profileVal) {
+      const parsed = JSON.parse(profileVal);
+      if (parsed.sidebarMainTitle) sidebarMainTitle = parsed.sidebarMainTitle;
+      if (parsed.sidebarSubTitle) sidebarSubTitle = parsed.sidebarSubTitle;
+    }
+  } catch (e) {
+    console.error("Failed to fetch sidebar titles from DB:", e);
+  }
 
   return (
     <div className="w-64 bg-slate-900 text-white h-full min-h-0 flex flex-col shadow-2xl">
@@ -32,11 +48,19 @@ export default async function Sidebar() {
           scrollbar-width: none !important;
         }
       `}} />
-      <div className="p-6 border-b border-slate-800">
-        <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-400">
-          EGDESK SMS
+      <div className="p-6 border-b border-slate-800 w-full min-w-0">
+        <h1 
+          className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-400 truncate whitespace-nowrap"
+          title={sidebarMainTitle}
+        >
+          {sidebarMainTitle}
         </h1>
-        <p className="text-sm text-slate-400 mt-1">평생 무료 문자 발송 시스템</p>
+        <p 
+          className="text-sm text-slate-400 mt-1 truncate whitespace-nowrap"
+          title={sidebarSubTitle}
+        >
+          {sidebarSubTitle}
+        </p>
       </div>
       
       <SidebarMenu userRole={userRole} />

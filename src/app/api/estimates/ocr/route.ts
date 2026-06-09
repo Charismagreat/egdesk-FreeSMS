@@ -14,6 +14,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: '분석할 파일 데이터(Base64)가 누락되었습니다.' }, { status: 400 });
     }
 
+    // 본사 프로필 로드 (기본값 차민수/(주)쿠스/731-81-02023)
+    let myCompanyProfile = { companyName: '(주)쿠스', businessNumber: '731-81-02023' };
+    try {
+      const myCompanySetting = await queryTable('system_settings', { filters: { key: 'my_company_profile' } });
+      if (myCompanySetting.rows && myCompanySetting.rows.length > 0) {
+        const parsed = JSON.parse(myCompanySetting.rows[0].value);
+        if (parsed.companyName) myCompanyProfile.companyName = parsed.companyName;
+        if (parsed.businessNumber) myCompanyProfile.businessNumber = parsed.businessNumber;
+      }
+    } catch (e) {
+      console.error('본사 정보 설정 조회 실패:', e);
+    }
+
     // 1. DB에서 API 키 조회
     let apiKey: string | null = null;
     try {
@@ -54,13 +67,15 @@ Format example of output:
 Do NOT output anything other than this JSON string. No markdown block wrapper.
 `;
         } else {
-          // 기본 견적서 전용 프롬프트
+          // 기본 견적서 전용 프롬프트 (수신자 검증 데이터 추출 포함)
           systemInstruction = `
 You are a highly advanced AI OCR scanner specializing in structured extraction of financial documents, receipts, and supply estimates.
-Your job is to look at the provided image (which is a supply estimate / quote) and extract three things in valid JSON ONLY:
-1. "partner_name": String (The name of the company/vendor who issued the estimate)
+Your job is to look at the provided image (which is a supply estimate / quote / purchase order) and extract the following in valid JSON ONLY:
+1. "partner_name": String (The name of the company/vendor who issued the estimate/PO)
 2. "partner_phone": String (The phone number or contact info of the company/vendor)
-3. "items": Array of objects, each containing:
+3. "buyer_name": String (The recipient of the document / 공급받는자 / 수신인 / 발주처. If not found, output "")
+4. "buyer_business_number": String (The business registration number of the buyer, if found. Format: "XXX-XX-XXXXX", otherwise "")
+5. "items": Array of objects, each containing:
    - "product_name": String (Name of the item)
    - "quantity": Integer (Number of items requested/quoted)
    - "unit_price": Integer (Price per unit)
@@ -69,6 +84,8 @@ Format example of output:
 {
   "partner_name": "태백유통(주)",
   "partner_phone": "02-1234-5678",
+  "buyer_name": "(주)쿠스",
+  "buyer_business_number": "731-81-02023",
   "items": [
     { "product_name": "특A급 아메리카노 원두 10kg", "quantity": 5, "unit_price": 45000 }
   ]
@@ -157,12 +174,32 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
             }
           } else {
             if (ocrJson.partner_name && ocrJson.items) {
+              const buyerName = (ocrJson.buyer_name || '').trim();
+              const buyerBizNo = (ocrJson.buyer_business_number || '').replace(/\D/g, '');
+              
+              const cleanMyCompName = myCompanyProfile.companyName.replace(/[^가-힣a-zA-Z0-9]/g, '');
+              
+              let receiverMatched = true; // 수신자가 명시되어 있지 않은 견적서는 유연하게 승인 허용
+              
+              if (buyerName) {
+                const cleanExtBuyer = buyerName.replace(/[^가-힣a-zA-Z0-9]/g, '');
+                const hasMyName = cleanExtBuyer.includes(cleanMyCompName) || cleanMyCompName.includes(cleanExtBuyer);
+                const hasMyBiz = buyerBizNo && myCompanyProfile.businessNumber.replace(/\D/g, '') === buyerBizNo;
+                
+                if (!hasMyName && !hasMyBiz) {
+                  receiverMatched = false;
+                }
+              }
+
               return NextResponse.json({
                 success: true,
                 document_type: 'estimate',
                 partner_name: ocrJson.partner_name,
                 partner_phone: ocrJson.partner_phone || '010-0000-0000',
                 items: ocrJson.items,
+                buyer_name: buyerName,
+                buyer_business_number: ocrJson.buyer_business_number || '',
+                receiver_matched: receiverMatched,
                 method: 'REAL_GEMINI_OCR'
               });
             }
@@ -244,13 +281,31 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
     } else {
       let mockPartnerName = "오성상사(주)";
       let mockPartnerPhone = "02-555-8899";
+      let mockBuyerName = myCompanyProfile.companyName;
+      let mockBuyerBizNo = myCompanyProfile.businessNumber;
+      let receiverMatched = true;
+
       let mockItems = [
         { product_name: "친환경 다회용 컵 (중형/화이트)", quantity: 200, unit_price: 1500 },
         { product_name: "최고급 유기농 바질 에센스 500ml", quantity: 15, unit_price: 24000 },
         { product_name: "프리미엄 드립 필터 페이퍼 (100매입)", quantity: 50, unit_price: 4500 }
       ];
 
-      if (filename && filename.toLowerCase().includes('bean')) {
+      // 사용자가 타사 대상 문서를 업로드해 검증 실패 경고를 유도할 수 있도록 시뮬레이션
+      if (filename && (
+        filename.toLowerCase().includes('samsung') || 
+        filename.toLowerCase().includes('삼성') || 
+        filename.toLowerCase().includes('intel') || 
+        filename.toLowerCase().includes('인텔') || 
+        filename.toLowerCase().includes('naver') || 
+        filename.toLowerCase().includes('네이버')
+      )) {
+        mockBuyerName = "삼성전자 주식회사";
+        mockBuyerBizNo = "124-81-00998";
+        mockPartnerName = "(주)네오커머스 파트너스";
+        mockPartnerPhone = "02-3470-1000";
+        receiverMatched = false;
+      } else if (filename && filename.toLowerCase().includes('bean')) {
         mockPartnerName = "로스트빈 팩토리";
         mockPartnerPhone = "010-9876-5432";
         mockItems = [
@@ -309,6 +364,9 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
         partner_name: mockPartnerName,
         partner_phone: mockPartnerPhone,
         items: mockItems,
+        buyer_name: mockBuyerName,
+        buyer_business_number: mockBuyerBizNo,
+        receiver_matched: receiverMatched,
         method: 'MOCKUP_INTELLIGENT_OCR'
       });
     }

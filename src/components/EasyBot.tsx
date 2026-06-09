@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { MessageSquare, Sparkles, X, Send, RotateCcw, Bot, Terminal, ShieldAlert, Maximize2, Minimize2, Mic, MicOff, Volume2, VolumeX, Camera, Mail, CheckCircle2, User, Phone, Briefcase, RefreshCw, Calendar, DollarSign, Check, FileText, Plus, Layers, MousePointerClick, Video, VideoOff, Scale, ArrowRight } from 'lucide-react';
+import { MessageSquare, Sparkles, X, Send, RotateCcw, Bot, Terminal, ShieldAlert, Maximize2, Minimize2, Mic, MicOff, Volume2, VolumeX, Camera, Mail, CheckCircle2, User, Phone, Briefcase, RefreshCw, Calendar, DollarSign, Check, FileText, Plus, Layers, MousePointerClick, Video, VideoOff, Scale, ArrowRight, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePathname, useRouter } from 'next/navigation';
 import html2canvas from 'html2canvas';
@@ -3282,7 +3282,7 @@ export default function EasyBot() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'bot',
-      content: '반갑습니다! 무엇을 도와드릴까요?\n- **"AI 브리핑 분석해줘"** 라고 하시면 시각 통계를 분석합니다.\n- 📷 하단의 **카메라 아이콘**을 클릭해 명함 사진을 전송하시면 자동으로 명함첩에 똑똑하게 등록해 드립니다!',
+      content: '반갑습니다! 무엇을 도와드릴까요?\n- **"AI 브리핑 분석해줘"** 라고 하시면 시각 통계를 분석합니다.\n- 📤 하단의 **업로드 아이콘**을 클릭해 명함 또는 영수증 파일을 전송하시면 자동으로 명함첩에 똑똑하게 등록해 드립니다!',
       timestamp: '방금 전'
     }
   ]);
@@ -4437,7 +4437,7 @@ export default function EasyBot() {
                     setMessages([
                       {
                         role: 'bot',
-                        content: '반갑습니다! 무엇을 도와드릴까요?\n- **"AI 브리핑 분석해줘"** 라고 하시면 시각 통계를 분석합니다.\n- 📷 하단의 **카메라 아이콘**을 클릭해 명함 사진을 전송하시면 자동으로 명함첩에 똑똑하게 등록해 드립니다!',
+                        content: '반갑습니다! 무엇을 도와드릴까요?\n- **"AI 브리핑 분석해줘"** 라고 하시면 시각 통계를 분석합니다.\n- 📤 하단의 **업로드 아이콘**을 클릭해 명함 또는 영수증 파일을 전송하시면 자동으로 명함첩에 똑똑하게 등록해 드립니다!',
                         timestamp: '방금 전'
                       }
                     ]);
@@ -4677,15 +4677,15 @@ export default function EasyBot() {
                   boxSizing: 'border-box'
                 }}
               >
-                {/* 1. 명함 카메라 사진 전송 버튼 신규 탑재 */}
+                {/* 1. 명함/영수증 파일 업로드 전송 버튼 신규 탑재 */}
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isLoading}
                   className="shrink-0 mr-1 p-1.5 rounded-full text-slate-400 hover:bg-slate-100 hover:text-indigo-600 transition-all flex items-center justify-center disabled:opacity-50 cursor-pointer"
-                  title="명함 사진 촬영 및 이미지 분석 업로드"
+                  title="명함 또는 영수증 이미지/PDF 파일 업로드 분석"
                 >
-                  <Camera size={18} />
+                  <Upload size={18} />
                 </button>
                 <input 
                   type="file"
