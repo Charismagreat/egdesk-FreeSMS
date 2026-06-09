@@ -417,9 +417,9 @@ export default function ExpenseManagementAiPage() {
         <div
           onMouseEnter={handlePopupMouseEnter}
           onMouseLeave={handlePopupMouseLeave}
-          className="fixed bottom-24 right-6 w-80 bg-slate-900/90 hover:bg-slate-900/95 border border-slate-700/80 rounded-2xl p-4 shadow-2xl backdrop-blur-md z-50 text-left animate-fade-in text-white transition-all"
+          className="fixed bottom-24 right-6 w-96 bg-slate-900/90 hover:bg-slate-900/95 border border-slate-700/80 rounded-2xl p-5 shadow-2xl backdrop-blur-md z-50 text-left animate-fade-in text-white transition-all"
         >
-          <div className="flex items-center justify-between border-b border-slate-700/50 pb-2 mb-3">
+          <div className="flex items-center justify-between border-b border-slate-700/50 pb-2.5 mb-3">
             <div className="flex items-center space-x-2">
               <div className="p-1.5 rounded-lg bg-rose-500/20 text-rose-400">
                 <Sparkles className="w-4 h-4 animate-pulse" />
@@ -434,7 +434,7 @@ export default function ExpenseManagementAiPage() {
             </button>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             <h4 className="text-xs font-bold text-slate-200">📌 {helpInfo.hintKey}</h4>
             
             {helpInfo.isLoading ? (
@@ -443,11 +443,11 @@ export default function ExpenseManagementAiPage() {
                 <span className="text-[11px] text-slate-400 font-medium">설명을 생성하고 있습니다...</span>
               </div>
             ) : helpInfo.error ? (
-              <p className="text-[11px] text-rose-300 leading-relaxed font-semibold">
+              <p className="text-xs text-rose-350 leading-relaxed font-semibold">
                 {helpInfo.error}
               </p>
             ) : (
-              <p className="text-[11px] text-slate-300 leading-relaxed font-normal whitespace-pre-line">
+              <p className="text-xs text-slate-300 leading-relaxed font-normal whitespace-pre-line">
                 {helpInfo.explanation}
               </p>
             )}
