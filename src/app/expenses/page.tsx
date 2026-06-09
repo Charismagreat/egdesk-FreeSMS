@@ -125,7 +125,7 @@ export default function ExpenseManagementAiPage() {
     if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
     leaveTimerRef.current = setTimeout(() => {
       setHelpInfo(prev => ({ ...prev, isOpen: false }));
-    }, 500);
+    }, 800);
   };
 
   // 마우스 오버 힌트 실시간 리스너 훅 (디펜던시 []로 최초 마운트 시 1회만 등록)
@@ -238,11 +238,11 @@ export default function ExpenseManagementAiPage() {
         // 즉시 마우스 배지 숨김
         setCursorIndicator(prev => prev.visible ? { ...prev, visible: false } : prev);
 
-        // 0.5초 뒤 닫기 타이머 예약
+        // 0.8초 뒤 닫기 타이머 예약
         if (leaveTimerRef.current) clearTimeout(leaveTimerRef.current);
         leaveTimerRef.current = setTimeout(() => {
           setHelpInfo(prev => ({ ...prev, isOpen: false }));
-        }, 500);
+        }, 800);
       }
     };
 
@@ -495,7 +495,7 @@ export default function ExpenseManagementAiPage() {
       {/* 💡 AI 마우스 커서 도움말 인디케이터 (즉시 반응 툴팁 배지) */}
       {cursorIndicator.visible && !helpInfo.isOpen && (
         <div
-          className="fixed pointer-events-none z-55 flex items-center justify-center bg-gradient-to-tr from-rose-500 to-amber-500 text-white rounded-full w-8 h-8 shadow-2xl animate-pulse"
+          className="fixed pointer-events-none z-[10000] flex items-center justify-center bg-gradient-to-tr from-rose-500 to-amber-500 text-white rounded-full w-8 h-8 shadow-2xl animate-pulse"
           style={{
             left: `${cursorIndicator.x + 12}px`,
             top: `${cursorIndicator.y + 12}px`,
@@ -511,7 +511,7 @@ export default function ExpenseManagementAiPage() {
         <div
           onMouseEnter={handlePopupMouseEnter}
           onMouseLeave={handlePopupMouseLeave}
-          className="fixed bottom-24 right-6 w-96 bg-slate-900/90 hover:bg-slate-900/95 border border-slate-700/80 rounded-2xl p-5 shadow-2xl backdrop-blur-md z-50 text-left animate-fade-in text-white transition-all"
+          className="fixed bottom-24 right-6 w-96 bg-slate-900/90 hover:bg-slate-900/95 border border-slate-700/80 rounded-2xl p-5 shadow-2xl backdrop-blur-md z-[9999] text-left animate-fade-in text-white transition-all"
         >
           <div className="flex items-center justify-between border-b border-slate-700/50 pb-2.5 mb-3">
             <div className="flex items-center space-x-2">
