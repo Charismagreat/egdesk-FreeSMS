@@ -512,6 +512,7 @@ export default function RndManagementPage() {
                       "예: 오늘 파티션 높이 적격 여부 식별하는 딥러닝 모델 임계값을 0.5에서 0.6으로 바꾸면서 테스트하고 정밀도 높였어."
                     }
                     className="w-full h-24 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 leading-relaxed"
+                    data-easybot-hint="Github/Jira/STT 분석 대상 로그: R&D 연구 일지 초안 작성을 위해 AI가 분석할 소스 로그(커밋 로그, 업무 내역 등)를 입력해 주세요."
                   />
                 </div>
  

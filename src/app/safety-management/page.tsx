@@ -860,6 +860,7 @@ Keep the tone urgent, professional, and clear.
                           value={newRisk.work_name}
                           onChange={(e) => setNewRisk(prev => ({ ...prev, work_name: e.target.value }))}
                           required
+                          data-easybot-hint="평가 예정 작업명: 위험성평가를 실시할 대상 작업의 구체적인 명칭을 입력하십시오. 예: 고소 청소 작업, 외부 지붕 보수 작업 등"
                         />
                       </div>
                       <div>
@@ -870,6 +871,7 @@ Keep the tone urgent, professional, and clear.
                           value={newRisk.work_date}
                           onChange={(e) => setNewRisk(prev => ({ ...prev, work_date: e.target.value }))}
                           required
+                          data-easybot-hint="작업 예정 날짜: 위험성평가 대상 작업이 실제로 현장에서 수행될 예정 날짜를 선택하십시오."
                         />
                       </div>
                       <div className="flex items-center gap-2 py-1 bg-amber-50 rounded-xl p-3 border border-amber-100">

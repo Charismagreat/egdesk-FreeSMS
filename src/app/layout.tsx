@@ -5,6 +5,7 @@ import Sidebar from "@/components/Sidebar";
 import SidebarWrapper from "@/components/SidebarWrapper";
 import MainContentWrapper from "@/components/MainContentWrapper";
 import EasyBot from "@/components/EasyBot";
+import AIHelpManager from "@/components/AIHelpManager";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -32,6 +33,7 @@ export default function RootLayout({
           </MainContentWrapper>
         </main>
         <EasyBot />
+        <AIHelpManager />
       </body>
     </html>
   );
