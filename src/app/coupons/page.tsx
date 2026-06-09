@@ -39,7 +39,7 @@ export default function CouponsPage() {
   } = useCoupons();
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-20" data-easybot-hint="쿠폰 관리 AI: 신규 프로모션 할인 쿠폰을 발행하고 쿠폰 사용 이력 및 마케팅 성과를 분석합니다.">
       {/* 헤더 */}
       <CouponHeader />
       

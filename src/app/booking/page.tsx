@@ -32,7 +32,7 @@ export default function BookingPage() {
   } = useBooking();
 
   return (
-    <div className="w-full bg-[#FAFAFA] min-h-screen">
+    <div className="w-full bg-[#FAFAFA] min-h-screen" data-easybot-hint="예약 관리 AI: 오프라인 매장 및 서비스 방문 예약을 실시간 모니터링하고 예약 스케줄을 조율합니다.">
       {/* Hero 비주얼 배너 섹션 */}
       <BookingHero />
 

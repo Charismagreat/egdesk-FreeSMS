@@ -309,7 +309,7 @@ export default function YoutubeShortsAiLab() {
   };
 
   return (
-    <div className="space-y-6 pb-20 w-full min-w-0 text-slate-800 font-sans text-left">
+    <div className="space-y-6 pb-20 w-full min-w-0 text-slate-800 font-sans text-left" data-easybot-hint="YOUTUBE 쇼츠 AI: 숏폼 영상 제작용 트렌디한 유튜브 쇼츠 비디오 스크립트 대본 작성을 수행합니다.">
 
       {/* 알림 토스트 (framer-motion 애니메이션) */}
       <AnimatePresence>

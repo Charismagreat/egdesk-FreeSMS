@@ -129,7 +129,7 @@ export default function FinancePage() {
   } = useFinance();
 
   return (
-    <div className="w-full space-y-6 pb-20 min-w-0 font-sans text-slate-800 animate-fade-in text-left">
+    <div className="w-full space-y-6 pb-20 min-w-0 font-sans text-slate-800 animate-fade-in text-left" data-easybot-hint="금융 정보 AI: 등록된 사내 법인 계좌의 예적금 현황과 실시간 금융 거래 내역 관리를 통합 제공합니다.">
       {/* 1. 상단 웰컴 및 실시간 동기화 헤더 */}
       <FinanceHeader
         refreshing={refreshing}

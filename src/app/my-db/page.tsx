@@ -172,7 +172,7 @@ export default function MyDBManagementPage() {
   }
 
   return (
-    <div className="space-y-6 pb-20 bg-slate-50/30 p-2 rounded-3xl text-left">
+    <div className="space-y-6 pb-20 bg-slate-50/30 p-2 rounded-3xl text-left" data-easybot-hint="MY DB: SQLite 데이터베이스의 전체 테이블 조회 및 직접 SQL 쿼리문을 실행해 보고서를 생성하는 플레이그라운드입니다.">
       
       {/* 🛎️ 알림 토스트 컴포넌트 */}
       <Toast toast={toast} />

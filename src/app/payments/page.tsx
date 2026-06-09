@@ -31,7 +31,7 @@ export default function PaymentsPage() {
   } = usePayments();
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-20" data-easybot-hint="결제 관리 AI: 거래별 PG 결제 상세 정보 확인 및 채널별 정산 수수료율 설정을 관리합니다.">
       {/* 타이틀 및 헤더 영역 */}
       <PaymentHeader />
 

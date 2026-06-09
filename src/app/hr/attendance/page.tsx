@@ -653,7 +653,7 @@ export default function HrAttendancePage() {
 
   if (loading && employees.length === 0) {
     return (
-      <div className="py-20 text-center animate-pulse text-xs text-slate-400 font-bold">
+      <div className="py-20 text-center animate-pulse text-xs text-slate-400 font-bold" data-easybot-hint="근태 관리 AI: 직원들의 출퇴근 기록, 휴가 신청 승인 및 근로시간(주 52시간) 법적 준수를 관제합니다.">
         전사 인사 근태 데이터를 수립하고 있습니다... ⏳
       </div>
     );

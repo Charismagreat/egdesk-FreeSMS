@@ -55,7 +55,7 @@ export default function EcountErpAiPage() {
   } = useEcountErp();
 
   return (
-    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800">
+    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800" data-easybot-hint="이카운트 ERP AI: 이카운트 ERP 계정 연동 상태와 동기화 스크립트 및 이력 관리를 지원하는 API 통제소입니다.">
       
       {/* 1. 상단 헤더 영역 */}
       <EcountHeader fetchScripts={fetchScripts} />

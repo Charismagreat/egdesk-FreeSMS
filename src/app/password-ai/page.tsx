@@ -393,7 +393,7 @@ export default function PasswordAiPage() {
   return (
     <main className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in text-left">
       {/* 헤더 및 타이틀 */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6" data-easybot-hint="비밀번호관리 AI: 비즈니스 공용 계정의 안전한 암호 보관 및 팀원 권한 공유를 안전하게 통제합니다.">
         <div className="text-left">
           <h1 className="text-3xl font-black text-slate-900 flex items-center tracking-tight">
             <Lock className="w-8 h-8 text-indigo-650 mr-3 animate-pulse" />

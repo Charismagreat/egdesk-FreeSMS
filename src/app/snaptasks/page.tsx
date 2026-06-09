@@ -41,7 +41,7 @@ export default function SnapTasksDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[500px]">
+      <div className="flex items-center justify-center min-h-[500px]" data-easybot-hint="AI 스냅태스크: 스캔된 사진이나 음성을 바탕으로 할 일을 자율적으로 기안하는 업무 지시 플랫폼입니다.">
         <div className="w-10 h-10 border-4 border-indigo-650 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );

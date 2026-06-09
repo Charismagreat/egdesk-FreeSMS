@@ -376,7 +376,7 @@ export default function RecruitmentDashboardPage() {
   };
 
   return (
-    <div className="space-y-6 pb-20 w-full min-w-0 text-slate-800">
+    <div className="space-y-6 pb-20 w-full min-w-0 text-slate-800" data-easybot-hint="채용 매니저 AI: 채용 공고 작성 및 지원자 이력서(PDF) 자동 분석 판독(OCR) 평가를 수행합니다.">
       {/* 상단 헤더 영역 */}
       <RecruitmentHeader liveSyncLog={liveSyncLog} />
 

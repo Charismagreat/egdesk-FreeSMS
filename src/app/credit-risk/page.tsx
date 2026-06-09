@@ -32,7 +32,7 @@ export default function CreditRiskPage() {
   const selectedPartner = stats.find(s => s.id === selectedPartnerId) || null;
 
   return (
-    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in text-left">
+    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in text-left" data-easybot-hint="채권 관리 AI: 미수금 회수 현황을 분석하고 연체 방지를 위한 AI 추심 관리 및 독촉 SMS를 전계합니다.">
       
       {/* 헤더 및 타이틀 */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">

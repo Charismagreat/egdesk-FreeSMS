@@ -54,7 +54,7 @@ export default function FAQHelpCenterPage() {
   const filteredFaqs = getFilteredFAQ();
 
   return (
-    <div className="w-full min-h-screen bg-slate-50 p-6 md:p-8 space-y-8 animate-fade-in block relative overflow-x-hidden">
+    <div className="w-full min-h-screen bg-slate-50 p-6 md:p-8 space-y-8 animate-fade-in block relative overflow-x-hidden" data-easybot-hint="Q&A 헬프센터: EGDesk 플랫폼의 기능별 상세 사용 설명서 조회 및 자주 묻는 질문(FAQ) 해결을 제공합니다.">
       {/* 럭셔리 네온 광원 데코레이션 */}
       <div className="absolute top-0 right-10 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl -z-10"></div>
       <div className="absolute bottom-10 left-10 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl -z-10"></div>

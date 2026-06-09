@@ -50,7 +50,7 @@ export default function CustomersPage() {
   } = useCustomers();
 
   return (
-    <div className="space-y-6 w-full min-w-0 font-sans text-slate-800">
+    <div className="space-y-6 w-full min-w-0 font-sans text-slate-800" data-easybot-hint="고객 관리 AI: 고객 정보 등록, 그룹핑 필터링 및 고객 맞춤 관리를 지원하는 CRM 센터입니다.">
       <Header
         isUploading={isUploading}
         handleCsvUpload={handleCsvUpload}

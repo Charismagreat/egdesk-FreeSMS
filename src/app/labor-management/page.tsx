@@ -29,7 +29,7 @@ export default function LaborManagementPage() {
   const warningCount = stats.filter(s => s.riskLevel === "WARNING").length;
 
   return (
-    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in text-left">
+    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in text-left" data-easybot-hint="노무 관리 AI: 근로시간 초과 직원 실시간 알림 경보 및 사외 근로 예외 설정을 제공합니다.">
       
       {/* 헤더 및 타이틀 */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">

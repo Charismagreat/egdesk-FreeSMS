@@ -85,7 +85,7 @@ export default function SmsPage() {
   } = useSms();
 
   return (
-    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800">
+    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800" data-easybot-hint="무료 문자 발송 AI: SMS/LMS 발송, AI 본문 생성 및 수신 고객 관리를 수행하는 통합 메시징 센터입니다.">
       <h1 className="text-3xl font-bold text-slate-800 flex items-center tracking-tight">
         <MessageSquare className="w-8 h-8 text-purple-500 mr-3" />
         무료 문자 발송 AI

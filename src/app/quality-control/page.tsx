@@ -42,7 +42,7 @@ export default function QualityControlPage() {
   } = useQualityControl();
 
   return (
-    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in text-left">
+    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in text-left" data-easybot-hint="품질 관리 AI: 공정별 불량 통계, 공정 능력 지수(Cp/Cpk) 모니터링 및 NCR 불량 조치 현황을 기록합니다.">
       
       {/* 🛎️ 알림 토스트 */}
       {toast && (

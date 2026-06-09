@@ -460,7 +460,7 @@ export default function EstimatesDashboard() {
   };
 
   return (
-    <div className="space-y-8 animate-fade-in relative pb-16">
+    <div className="space-y-8 animate-fade-in relative pb-16" data-easybot-hint="견적/발주/수주 AI: B2B 기업간 수발주 계약 관리, 단가 마진 계산 및 견적서 기안 관리를 수행합니다.">
       {/* 럭셔리 네온 광원 */}
       <div className="absolute top-0 right-10 w-96 h-96 bg-indigo-600/5 rounded-full blur-3xl -z-10 animate-pulse"></div>
 

@@ -69,7 +69,7 @@ export default function KnowledgeAiDashboard() {
   } = useKnowledgeAi();
 
   return (
-    <div className="w-full space-y-6 pb-20 min-w-0 font-sans text-slate-800 animate-fade-in text-left">
+    <div className="w-full space-y-6 pb-20 min-w-0 font-sans text-slate-800 animate-fade-in text-left" data-easybot-hint="지식 관리 AI: 사내 매뉴얼, 비정형 텍스트 데이터를 RAG 학습용 벡터 데이터로 적재하고 훈련시킵니다.">
       {/* 1. 상단 타이틀 및 권한 제어 */}
       <Header
         currentUser={currentUser}

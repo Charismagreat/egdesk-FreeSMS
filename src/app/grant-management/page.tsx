@@ -30,7 +30,7 @@ export default function GrantManagementPage() {
   );
 
   return (
-    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in text-left">
+    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in text-left" data-easybot-hint="지원금 관리 AI: 정부 정책 무상 출연금 및 R&D 지원 정책의 자격 요건 판별과 매칭을 가이드합니다.">
       
       {/* 헤더 및 타이틀 */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">

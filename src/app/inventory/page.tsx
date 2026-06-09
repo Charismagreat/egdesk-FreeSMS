@@ -832,7 +832,7 @@ export default function InventoryPage() {
   const monthlyTxCount = currentMonthLogs.length;
 
   return (
-    <div className="space-y-6 pb-20 w-full min-w-0 text-slate-800">
+    <div className="space-y-6 pb-20 w-full min-w-0 text-slate-800" data-easybot-hint="재고 관리 AI: 품목별 현재고 관리, 안전 재고 임계값 설정 및 출고 리스크를 모니터링합니다.">
       
       {/* 상단 타이틀 헤더 */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 pb-6 border-b border-slate-200 relative z-10 shrink-0">

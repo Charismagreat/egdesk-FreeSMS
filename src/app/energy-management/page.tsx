@@ -25,7 +25,7 @@ export default function EnergyManagementPage() {
   } = useEnergyManagement();
 
   return (
-    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in text-left">
+    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in text-left" data-easybot-hint="에너지 관리 AI: 한전 최대 부하(피크) 요금 회피를 위한 전력 사용량 분석 및 공장 절감 가이드입니다.">
       
       {/* 🛎️ 알림 토스트 */}
       {toast && (

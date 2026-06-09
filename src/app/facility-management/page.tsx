@@ -48,7 +48,7 @@ export default function FacilityManagementPage() {
   } = useFacilityManagement();
 
   return (
-    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in text-left">
+    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in text-left" data-easybot-hint="설비 관리 AI: 기계 및 설비 종합 효율(OEE) 모니터링, 고장 정비 일지 관리 및 부품 관리를 담당합니다.">
       
       {/* 🛎️ 알림 토스트 */}
       {toast && (

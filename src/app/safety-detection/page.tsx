@@ -23,7 +23,7 @@ export default function SafetyDetectionPage() {
   } = useSafetyDetection();
 
   return (
-    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in text-left">
+    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in text-left" data-easybot-hint="위험 감지 AI: 비전 AI 기반 위험 현장 실시간 침범 모니터링 및 즉시 비상 SMS 경보 발생 내역을 관제합니다.">
       
       {/* 🛎️ 알림 토스트 */}
       {toast && (

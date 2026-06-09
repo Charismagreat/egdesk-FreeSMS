@@ -34,7 +34,7 @@ export default function DeliveriesPage() {
   } = useDeliveries();
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-20" data-easybot-hint="배송 관리 AI: 운송장 번호 등록, 배송 상태 추적 및 담당 배송 기사 배정을 관리합니다.">
       {/* 헤더 및 엑셀 일괄 파일 처리 영역 */}
       <DeliveryHeader 
         isUploadingExcel={isUploadingExcel}

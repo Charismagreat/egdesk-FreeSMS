@@ -302,7 +302,7 @@ export default function LawyerAiPage() {
   };
 
   return (
-    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in text-left">
+    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in text-left" data-easybot-hint="변호사 AI: 계약서 전문을 업로드하여 불공정 조항을 색출하고 독소 특약 유무를 진단하는 법률 AI 지원처입니다.">
       {/* 최상단 헤더 */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div className="text-left">

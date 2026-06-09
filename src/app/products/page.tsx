@@ -37,7 +37,7 @@ export default function ProductsPage() {
   } = useProducts();
 
   return (
-    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800">
+    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800" data-easybot-hint="상품 관리 AI: 플랫폼에 등록된 상품 명세, 규격(BOM), 판매 가격 및 채널별 판매 활성화 상태를 관리합니다.">
       
       {/* 상단 타이틀 및 엑셀 일괄 파일 처리 헤더 영역 */}
       <ProductsHeader

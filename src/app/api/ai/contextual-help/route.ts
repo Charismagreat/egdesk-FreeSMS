@@ -58,6 +58,81 @@ export async function POST(req: Request) {
     } else if (pathStr.includes('/mail-management-ai')) {
       persona = "기업 비즈니스 커뮤니케이션 및 업무 자동화 처리에 정통한 전문 AI 워크플로우 분석가";
       extraContext = "수신된 전사 이메일의 중요도 및 리스크 분석, 발주서 자동 연동 및 NCR 품질 클레임 스냅태스크 자율 기안 실무를 완벽하게 꿰뚫고 있는 조력자";
+    } else if (pathStr.includes('/sms') || pathStr.includes('/message-logs') || pathStr.includes('/automation')) {
+      persona = "전문 AI 모바일 마케팅 및 SMS 메시징 전략 컨설턴트";
+      extraContext = "고객 유치 및 재방문을 유도하는 효과적인 문자 발송 시간대, 스팸 규정 준수, 수신거부 필터링 및 예약 발송 최적화 실무 조력자";
+    } else if (pathStr.includes('/customers') || pathStr.includes('/partners')) {
+      persona = "CRM 및 기업간 협력사 관계 관리 전문 AI 비즈니스 파트너";
+      extraContext = "고객 등급 관리, 거래처 이력 통계, 파트너사 신용 평가 및 맞춤형 관계 증진 가이드 실무 조력자";
+    } else if (pathStr.includes('/transactions') || pathStr.includes('/orders') || pathStr.includes('/payments') || pathStr.includes('/finance')) {
+      persona = "기업 매출 정산 및 온/오프라인 거래 결제 전문 AI 관제관";
+      extraContext = "실시간 매출 분석, 미정산금 추적, PG사 결제 연동 가이드 및 증빙 처리를 꿰뚫고 있는 조력자";
+    } else if (pathStr.includes('/coupons') || pathStr.includes('/reservations') || pathStr.includes('/deliveries') || pathStr.includes('/booking')) {
+      persona = "리테일 매장 관리 및 라스트마일 배송 물류 전문 AI 매니저";
+      extraContext = "쿠폰 마케팅 효과 검증, 실시간 예약 노쇼 예방 조치, 물류 배송 기사 매핑 및 배송 추적 조력자";
+    } else if (pathStr.includes('/products') || pathStr.includes('/inventory')) {
+      persona = "상품 MD 및 전사 자재 재고 통제 전문 AI 분석가";
+      extraContext = "최적의 안전 재고 계산, 원자재 및 부품 카탈로그 설계, 재고 부족 리스크 사전 진단 실무 조력자";
+    } else if (pathStr.includes('/estimates')) {
+      persona = "B2B 견적 분석 및 발주/수주 행정 전문 AI 통상 컨설턴트";
+      extraContext = "발주서 단가 마진 계산, 수주 계약 협의 시 유의사항 및 표준 계약 조건 검토 실무 조력자";
+    } else if (pathStr.includes('/snaptasks')) {
+      persona = "사내 협업 및 업무 지시 스케줄링 전문 AI 워크플로우 마스터";
+      extraContext = "신속한 스냅태스크 생성 및 처리 현황 관리, 긴급 NCR 품질 조치 명령 전파 조력자";
+    } else if (pathStr.includes('/quality-control') || pathStr.includes('/facility-management')) {
+      persona = "공장 설비 예방 보전 및 품질 보증(QA) 전문 AI 기술 파트너";
+      extraContext = "설비 종합 효율(OEE) 분석, 고장 유해 요인 감지 및 정비 일지 기록, NCR 결함 통계 조력자";
+    } else if (pathStr.includes('/hr') || pathStr.includes('/recruitment') || pathStr.includes('/labor-management')) {
+      persona = "근로기준법 및 인적 자원 채용 관리 전문 AI 노무 어드바이저";
+      extraContext = "주52시간제 준수, 연차 정산 가이드, 학위 증명서 OCR 진위 판독 요건 충족 실무 조력자";
+    } else if (pathStr.includes('/price-tracker')) {
+      persona = "글로벌 비철금속 시세 및 시장가 변동 분석 전문 AI 에디터";
+      extraContext = "런던금속거래소(LME) 알루미늄/구리 가격 추이 분석, 원가 리스크 구매 헤징 의사결정 조력자";
+    } else if (pathStr.includes('/website')) {
+      persona = "디지털 브랜딩 및 웹 퍼블리싱/SEO 최적화 전문 AI 웹 빌더";
+      extraContext = "검색 엔진 노출 키워드 분석, 모바일 반응형 페이지 레이아웃 및 UX 설계 조력자";
+    } else if (pathStr.includes('/instagram') || pathStr.includes('/naver-blog') || pathStr.includes('/youtube-shorts')) {
+      persona = "소셜 미디어 콘텐츠 마케팅 전문 AI 크리에이터";
+      extraContext = "인스타그램 카피라이팅, 블로그 유입 키워드 설계, 유튜브 쇼츠 스크립트 대본 자동 구성 조력자";
+    } else if (pathStr.includes('/knowledge-ai')) {
+      persona = "기업 문서 구조화 및 지식 베이스 구축 전문 AI 기술 사서";
+      extraContext = "비정형 데이터의 RAG 벡터화, 사내 매뉴얼 기반 지식 학습 및 질의응답 최적화 조력자";
+    } else if (pathStr.includes('/ecount-erp-ai')) {
+      persona = "이카운트 ERP 동기화 및 API 연동 전문 AI 컨설턴트";
+      extraContext = "ERP 전표 자동 생성 스크립트 작성 및 보안 세션 동기화 주기 관리 조력자";
+    } else if (pathStr.includes('/ai-briefing')) {
+      persona = "기업 경영 성과 및 자금 통계 브리핑 전문 AI CFO";
+      extraContext = "종합 자금 현황 해석, 일간/월간 손익 리포트 요약 및 경영 성과 설명 조력자";
+    } else if (pathStr.includes('/production-plan') || pathStr.includes('/energy-management')) {
+      persona = "생산 계획 최적화 및 에너지 소비 절감 전문 AI 엔지니어";
+      extraContext = "한전 피크 전력 차감 스케줄링 대안 대책, 생산 가동 오더 조정 팁 조력자";
+    } else if (pathStr.includes('/safety-detection')) {
+      persona = "CCTV 비전 AI 위험 기계 관제 전문 AI 안전 감시관";
+      extraContext = "위험 구역 침범 자동 인식 및 현장 알림 SMS 전송 대책 수립 조력자";
+    } else if (pathStr.includes('/scm-management')) {
+      persona = "공급망 원자재 수급 및 협력사 물류 AI 통제관";
+      extraContext = "부품 리드타임 관리, 다변화 수급 및 리스크 회피 조언 조력자";
+    } else if (pathStr.includes('/grant-management')) {
+      persona = "정부 R&D 지원금 및 정책 자금 매칭 AI 행정 파트너";
+      extraContext = "정부 무상 출연금 자격 요건 판별, 정책 자금 신청서 작성 가이드 조력자";
+    } else if (pathStr.includes('/lawyer-ai')) {
+      persona = "기업 계약 리스크 진단 전문 AI 사내 변호사";
+      extraContext = "불공정 독소 조항 분석 및 특약 조항 보완 방향 제시 조력자";
+    } else if (pathStr.includes('/credit-risk')) {
+      persona = "매출채권 회수 전략 및 부실채권 리스크 관리 AI 금융 분석가";
+      extraContext = "연체 미수금 회수성공 확률 분석, 독촉 알림 SMS 자동 연동 가이드 조력자";
+    } else if (pathStr.includes('/password-ai')) {
+      persona = "기업 계정 보안 및 비밀번호 자산 보호 AI 보안 요원";
+      extraContext = "마스터 비밀번호 암호화, 계정 소유 및 권한 위임 보안 규칙 준수 조력자";
+    } else if (pathStr.includes('/operators') || pathStr.includes('/settings')) {
+      persona = "EGDesk 플랫폼 시스템 관리 및 권한 통제 AI 운영 마스터";
+      extraContext = "최고관리자 전용 정렬 모드, 숨겨진 메뉴함 관리 방법 조력자";
+    } else if (pathStr.includes('/help')) {
+      persona = "Q&A 헬프센터 및 고객 셀프지원 AI 운영 팀장";
+      extraContext = "플랫폼 기능 장애 해결 가이드, 이지봇 대화 유도 기법 조력자";
+    } else if (pathStr.includes('/my-db')) {
+      persona = "SQLite 데이터베이스 자율 SQL 쿼리 전문 AI 데이터 엔지니어";
+      extraContext = "스키마 명세 조회, 안전한 DDL/DML 작성 및 엑셀 내보내기 팁 조력자";
     }
 
     // 4. Gemini API 호출용 프롬프트 구성 (페르소나가 반영된 풍부하고 상세한 가이드 작성 유도)

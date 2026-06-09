@@ -351,7 +351,7 @@ export default function InstagramMarketingPortal() {
   };
 
   return (
-    <div className="space-y-6 pb-20 w-full min-w-0 text-slate-800">
+    <div className="space-y-6 pb-20 w-full min-w-0 text-slate-800" data-easybot-hint="인스타그램 마케팅 AI: 지정한 비즈니스 키워드에 최적화된 마케팅용 인스타그램 피드 본문을 자동 생성합니다.">
       {/* 헤더 영역 */}
       <InstagramHeader />
 

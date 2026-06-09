@@ -47,7 +47,7 @@ export default function OrdersPage() {
   } = useOrders();
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-20" data-easybot-hint="주문 관리 AI: 주문 접수 대기, 결제 검토 및 주문 상세 명세 조회를 수행하는 통합 수주창입니다.">
       {/* 헤더 */}
       <OrderHeader />
       

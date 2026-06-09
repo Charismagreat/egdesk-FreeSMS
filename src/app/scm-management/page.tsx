@@ -25,7 +25,7 @@ export default function ScmManagementPage() {
   } = useScmManagement();
 
   return (
-    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in text-left">
+    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in text-left" data-easybot-hint="공급망 관리 AI: 공급망 원자재 수급 분석 및 자재 부족 대안 대책 기획을 조력하는 통제 센터입니다.">
       
       {/* 헤더 및 타이틀 */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">

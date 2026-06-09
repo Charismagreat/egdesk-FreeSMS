@@ -106,7 +106,7 @@ export default function PriceTrackerAIPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3" data-easybot-hint="가격 추적 AI: 등록된 타사 쇼핑몰 상품 URL의 실시간 판매 가격을 모니터링하여 최저가 변동을 분석합니다.">
         <RefreshCw className="w-8 h-8 text-pink-600 animate-spin" />
         <span className="text-sm font-bold text-slate-500">SCM 가격 관제 시스템 로딩 중...</span>
       </div>

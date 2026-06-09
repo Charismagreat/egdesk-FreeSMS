@@ -31,7 +31,7 @@ export default function CashflowSimulatorPage() {
   } = useCashflowSimulator();
 
   return (
-    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in text-left">
+    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in text-left" data-easybot-hint="자금/원가 AI: 환율, 원자재가, 인건비 변동 시나리오에 따른 미래 90일 자금 흐름(Cashflow) 예측 시뮬레이터입니다.">
       
       {/* 🛎️ 알림 토스트 */}
       {toast && (

@@ -17,7 +17,7 @@ export default function AutomationPage() {
   } = useAutomation();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-easybot-hint="자동 발송 설정: 예약 문자, 조건별 자동 발송 등 이벤트 트리거 기반 메시지 자동화 규칙을 설정합니다.">
       {/* 타이틀 및 저장 버튼 헤더 바 */}
       <AutomationHeader 
         isSaving={isSaving}

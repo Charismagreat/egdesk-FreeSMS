@@ -34,7 +34,7 @@ export default function MessageLogsPage() {
   } = useMessageLogs();
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-20" data-easybot-hint="발송 내역 조회: 발송된 SMS/LMS 메시지의 성공 여부, 발송 단말 및 대상자 세부 로그를 조회합니다.">
       {/* 타이틀 헤더 바 */}
       <MessageLogsHeader />
       

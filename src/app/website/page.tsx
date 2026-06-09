@@ -385,7 +385,7 @@ export default function WebsiteBuilderPage() {
   };
 
   return (
-    <div className="w-full space-y-6 pb-20 min-w-0 font-sans text-slate-800 animate-fade-in text-left">
+    <div className="w-full space-y-6 pb-20 min-w-0 font-sans text-slate-800 animate-fade-in text-left" data-easybot-hint="홈페이지 빌더 AI: 중소기업 홍보용 브랜드 사이트의 메타태그 설정 및 빌더 구성을 지원합니다.">
       {/* 보이지 않는 QR 코드 드로잉용 캔버스 */}
       <canvas ref={qrCanvasRef} width="150" height="150" className="hidden" />
 

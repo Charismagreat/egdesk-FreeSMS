@@ -47,7 +47,7 @@ export default function PartnersDashboard() {
   const pendingAlertCount = partners.filter(p => p.pending_count! > 0).length;
 
   return (
-    <div className="space-y-8 animate-fade-in relative pb-16">
+    <div className="space-y-8 animate-fade-in relative pb-16" data-easybot-hint="거래처 관리 AI: 파트너사 정보 등록, 거래처 신용 등급 및 누적 매출 거래 이력을 종합 관제합니다.">
       
       {/* 백그라운드 퍼플 광채 */}
       <div className="absolute top-0 right-10 w-96 h-96 bg-emerald-600/5 rounded-full blur-3xl -z-10 animate-pulse"></div>

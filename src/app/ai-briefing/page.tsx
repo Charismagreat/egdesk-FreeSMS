@@ -38,7 +38,7 @@ export default function AIBriefingDashboardPage() {
 
   if (!isLoading && !isSuperAdmin) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-6 space-y-4 select-none">
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-6 space-y-4 select-none" data-easybot-hint="AI 브리핑: 사내 핵심 비즈니스 지표와 핀 고정 보고서들을 기반으로 한 종합 경영 관제 대시보드입니다.">
         <div className="w-14 h-14 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-500 shadow-sm animate-bounce">
           <ShieldAlert className="w-7 h-7" />
         </div>

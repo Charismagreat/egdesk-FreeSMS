@@ -34,7 +34,7 @@ export default function ProductionPlanPage() {
   } = useProductionPlan();
 
   return (
-    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in text-left">
+    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in text-left" data-easybot-hint="생산 계획 AI: 일일 생산 지시 수량 설정, 라인 가동 생산 계획 수립 및 공정 달성률을 제어합니다.">
       
       {/* 🛎️ 알림 토스트 */}
       {toast && (

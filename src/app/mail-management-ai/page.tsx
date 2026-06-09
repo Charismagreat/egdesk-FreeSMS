@@ -183,7 +183,7 @@ export default function MailManagementAIPage() {
   };
 
   return (
-    <div className="w-full space-y-6 pb-20 min-w-0 font-sans text-slate-800 animate-fade-in text-left">
+    <div className="w-full space-y-6 pb-20 min-w-0 font-sans text-slate-800 animate-fade-in text-left" data-easybot-hint="메일 관리 AI: 하이웍스 등 전사 이메일을 실시간 수집 및 관제하며 리스크를 분석해 자동 협업 액션을 연동합니다.">
       
       {/* 토스트 메시지 */}
       {toast && (

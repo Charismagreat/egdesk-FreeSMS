@@ -675,7 +675,7 @@ export default function NaverBlogMarketingPortal() {
   };
 
   return (
-    <div className="space-y-6 pb-20 w-full min-w-0 text-slate-800">
+    <div className="space-y-6 pb-20 w-full min-w-0 text-slate-800" data-easybot-hint="N-BLOG 포스팅 AI: 네이버 블로그 포스팅에 적합한 인기 키워드 도출 및 포스팅 초안 작성을 수행합니다.">
 
       {/* 4. 마그네틱 원클릭 주입용 비행 플라잉 키워드 노출 */}
       <AnimatePresence>

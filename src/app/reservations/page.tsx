@@ -33,7 +33,7 @@ export default function ReservationsPage() {
   } = useReservations();
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-6 pb-20" data-easybot-hint="예약 관리 AI: 오프라인 매장 및 서비스 방문 예약을 실시간 모니터링하고 예약 스케줄을 조율합니다.">
       {/* 타이틀 및 엑셀 일괄 액션 바 */}
       <ReservationHeader 
         isUploadingExcel={isUploadingExcel}
