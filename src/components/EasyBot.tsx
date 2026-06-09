@@ -3387,8 +3387,8 @@ export default function EasyBot() {
           (window as any).currentEasyBotHint = hintText;
 
           // 자동 가이드 모드가 활성화되어 있고 마우스가 호버한 상태라면 2.5초 후 자동 질문 트리거 시동
-          // 단, 지출관리(/expenses) 페이지에서는 이지봇 대신 자체 팝업 도움말이 동작하므로 이지봇 자동 작동을 건너뜁니다.
-          if (autoGuideEnabled && e.type === "mouseover" && pathnameRef.current !== "/expenses") {
+          // ⚠️ 전사 페이지에 AI 도움말 전용 팝업(AIHelpManager)이 이식되었으므로 이지봇 대화창 내부의 자동 감지 및 쿼리 트리거는 작동을 차단합니다.
+          if (false && autoGuideEnabled && e.type === "mouseover") {
             if (hoverTimerRef.current) {
               clearTimeout(hoverTimerRef.current);
             }
