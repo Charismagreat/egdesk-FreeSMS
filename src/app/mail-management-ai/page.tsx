@@ -183,7 +183,7 @@ export default function MailManagementAIPage() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto text-slate-800">
+    <div className="w-full space-y-6 pb-20 min-w-0 font-sans text-slate-800 animate-fade-in text-left">
       
       {/* 토스트 메시지 */}
       {toast && (
@@ -198,15 +198,13 @@ export default function MailManagementAIPage() {
       )}
 
       {/* 헤더 */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5">
-        <div className="space-y-1 text-left">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-cyan-500/15 rounded-xl text-cyan-500">
-              <Mail className="w-6 h-6" />
-            </div>
-            <h1 className="text-2xl font-black tracking-tight">메일 관리 AI 실시간 관제</h1>
-          </div>
-          <p className="text-xs text-slate-400 font-bold font-sans">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-800 flex items-center tracking-tight">
+            <Mail className="w-8 h-8 text-cyan-500 mr-3" />
+            메일 관리 AI
+          </h1>
+          <p className="text-xs font-semibold text-slate-500 mt-1">
             하이웍스 수신 메일을 지능형 에이전트가 실시간 관제하여 내용 요약, 리스크 측정, 내부 업무를 자율 처리합니다.
           </p>
         </div>
