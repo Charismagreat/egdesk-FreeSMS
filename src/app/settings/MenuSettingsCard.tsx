@@ -284,7 +284,7 @@ export default function MenuSettingsCard() {
           </div>
         ) : (
           /* 메뉴 아이템 편집 리스트 영역 (밝은 백그라운드와 연한 보더 적용) */
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[480px] overflow-y-auto pr-2.5 scrollbar-thin">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 max-h-[480px] overflow-y-auto pr-2.5 scrollbar-thin">
             {menuItems.map((item, idx) => {
               const meta = MENU_METADATA_MAP[item.menu_href] || { label: item.menu_href, icon: HelpCircle, color: "text-slate-500" };
               const Icon = meta.icon;
