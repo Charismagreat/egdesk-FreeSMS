@@ -266,6 +266,47 @@ export default function ExpenseManagementAiPage() {
     }, 3000);
   };
 
+  // 🔄 AI 도움말 재생성 및 캐시 갱신 핸들러 (최고 관리자 전용)
+  const handleRefreshExplanation = async () => {
+    if (helpInfo.isLoading || !helpInfo.hintKey) return;
+
+    setHelpInfo(prev => ({
+      ...prev,
+      isLoading: true,
+      error: null
+    }));
+
+    try {
+      const res = await fetch("/api/expenses/contextual-help", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          hintKey: helpInfo.hintKey,
+          hintText: helpInfo.hintText,
+          forceRefresh: true
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setHelpInfo(prev => ({
+          ...prev,
+          explanation: data.explanation,
+          isLoading: false
+        }));
+        showToast("AI 도움말 설명이 성공적으로 갱신되었습니다.", "success");
+      } else {
+        throw new Error(data.error || "도움말 재생성을 실패했습니다.");
+      }
+    } catch (err: any) {
+      setHelpInfo(prev => ({
+        ...prev,
+        isLoading: false,
+        error: err.message
+      }));
+      showToast(err.message, "error");
+    }
+  };
+
   // 🔑 최고관리자(SUPER_ADMIN) 또는 대표자(PRESIDENT) 권한이 있는지 확인하는 헬퍼 변수
   const hasAdminAccess = useMemo(() => {
     if (!userRole) return false;
@@ -508,7 +549,18 @@ export default function ExpenseManagementAiPage() {
 
           <div className="border-t border-slate-800/80 pt-2.5 mt-3 flex justify-between items-center text-[9px] text-slate-500 font-bold">
             <span>EGDesk AI 경리 서비스</span>
-            <span>설명 자동 저장됨</span>
+            {hasAdminAccess ? (
+              <button
+                onClick={handleRefreshExplanation}
+                disabled={helpInfo.isLoading}
+                className="flex items-center space-x-1 text-rose-400 hover:text-rose-350 transition-colors border-none bg-transparent cursor-pointer font-bold disabled:text-slate-600 disabled:cursor-not-allowed"
+              >
+                <RefreshCw className={`w-2.5 h-2.5 ${helpInfo.isLoading ? 'animate-spin' : ''}`} />
+                <span>재설명 요청</span>
+              </button>
+            ) : (
+              <span>설명 자동 저장됨</span>
+            )}
           </div>
         </div>
       )}

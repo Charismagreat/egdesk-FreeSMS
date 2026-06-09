@@ -1,18 +1,22 @@
 import { NextResponse } from 'next/server';
-import { queryTable, insertRows } from '../../../../../egdesk-helpers';
+import { queryTable, insertRows, deleteRows } from '../../../../../egdesk-helpers';
 
 export async function POST(req: Request) {
   try {
-    const { hintKey, hintText } = await req.json();
+    const { hintKey, hintText, forceRefresh } = await req.json();
 
     if (!hintKey || !hintText) {
       return NextResponse.json({ success: false, error: 'hintKey and hintText are required' }, { status: 400 });
     }
 
-    // 1. DB 캐시 조회
-    console.log(`[AI 도움말] DB 조회 시도: ${hintKey}`);
-    const cacheRes = await queryTable('ai_contextual_help', { filters: { hint_key: hintKey } });
-    const cachedRow = cacheRes.rows && cacheRes.rows.length > 0 ? cacheRes.rows[0] : null;
+    // 1. DB 캐시 조회 (forceRefresh 플래그가 참이면 조회를 우회하고 신규 API 호출 유도)
+    console.log(`[AI 도움말] DB 조회 시도: ${hintKey} (forceRefresh: ${!!forceRefresh})`);
+    let cachedRow = null;
+
+    if (!forceRefresh) {
+      const cacheRes = await queryTable('ai_contextual_help', { filters: { hint_key: hintKey } });
+      cachedRow = cacheRes.rows && cacheRes.rows.length > 0 ? cacheRes.rows[0] : null;
+    }
 
     if (cachedRow) {
       console.log(`[AI 도움말] 캐시 발견! 바로 재사용합니다.`);
@@ -97,8 +101,16 @@ export async function POST(req: Request) {
       console.error('⚠️ AI 토큰 감사 로깅 실패:', e.message);
     }
 
-    // 5. DB 캐시 테이블에 저장 (1회성 생성)
+    // 5. DB 캐시 테이블에 저장 (새로 저장하거나 forceRefresh에 따라 기존 행 교체)
     const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+    
+    try {
+      // SQLite UNIQUE 제약 조건 위반 에러 예방을 위해 동일 키 레코드 우선 삭제
+      await deleteRows('ai_contextual_help', { filters: { hint_key: hintKey } });
+    } catch (e: any) {
+      console.log(`[AI 도움말] 기존 캐시 삭제 시 오류 무시 (최초 적재 가능성): ${e.message}`);
+    }
+
     await insertRows('ai_contextual_help', [{
       hint_key: hintKey,
       hint_text: hintText,
