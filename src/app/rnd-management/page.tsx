@@ -316,7 +316,7 @@ export default function RndManagementPage() {
   const status = getComplianceStatus();
 
   return (
-    <div className="space-y-6 w-full py-4 md:py-6 px-0 font-sans text-slate-800 animate-fade-in text-left">
+    <div className="w-full space-y-6 pb-20 min-w-0 font-sans text-slate-800 animate-fade-in text-left">
       {/* 상단 타이틀 */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
         <div className="text-left">
