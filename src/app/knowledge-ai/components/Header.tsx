@@ -18,13 +18,13 @@ export function Header({
   setCurrentDept,
 }: HeaderProps) {
   return (
-    <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
       <div>
-        <h1 className="text-3xl font-bold text-slate-800 flex items-center">
+        <h1 className="text-3xl font-bold text-slate-800 flex items-center tracking-tight">
           <Compass className="w-8 h-8 text-slate-500 mr-3 animate-spin-slow" />
           지식 관리 AI
         </h1>
-        <p className="text-slate-500 mt-2">
+        <p className="text-xs font-semibold text-slate-500 mt-1">
           비정형 문서의 결재 이력 감사 및 Zero-Trust 사내 지식 RAG 분석을 관제합니다.
         </p>
       </div>

@@ -69,7 +69,7 @@ export default function KnowledgeAiDashboard() {
   } = useKnowledgeAi();
 
   return (
-    <div className="p-8 w-full max-w-none bg-slate-50 min-h-screen text-slate-800">
+    <div className="w-full space-y-6 pb-20 min-w-0 font-sans text-slate-800 animate-fade-in text-left">
       {/* 1. 상단 타이틀 및 권한 제어 */}
       <Header
         currentUser={currentUser}
