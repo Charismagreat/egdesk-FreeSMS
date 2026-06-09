@@ -7,7 +7,8 @@ import {
   Home, Users, MessageSquare, Settings, ShoppingCart, 
   ClipboardList, CreditCard, CalendarDays, Truck, Send, 
   PackageSearch, Package, UserCog, Zap, Ticket, Landmark, Globe, Briefcase, HelpCircle,
-  ArrowRightLeft, Handshake, Sparkles, Coins, Database, Compass, Shield, CheckSquare, Wrench, ShieldAlert, Award, Scale, Key, Mail, Eye, EyeOff
+  ArrowRightLeft, Handshake, Sparkles, Coins, Database, Compass, Shield, CheckSquare, Wrench, ShieldAlert, Award, Scale, Key, Mail, Eye, EyeOff,
+  GripVertical
 } from "lucide-react";
 
 // 커스텀 인스타그램 아이콘 SVG
@@ -137,6 +138,13 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
 
   const [displayMenuItems, setDisplayMenuItems] = useState<any[]>(getInitialDefaultItems());
   const [hiddenHrefs, setHiddenHrefs] = useState<string[]>([]);
+  
+  // 드래그 정렬 상태 정의
+  const [isRearrangeMode, setIsRearrangeMode] = useState<boolean>(false);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [draggedOverIndex, setDraggedOverIndex] = useState<number | null>(null);
+  const [pressTimer, setPressTimer] = useState<any>(null);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
 
   // 활성화 메뉴 감지 도우미
   const isActive = (href: string) => {
@@ -208,6 +216,105 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
     };
   }, [userRole]);
 
+  // ESC 키로 편집 모드 탈출
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isRearrangeMode) {
+        setIsRearrangeMode(false);
+        fetchAndApplyMenuSettings();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isRearrangeMode]);
+
+  // 롱 프레스 감지 핸들러
+  const startPressTimer = (e: React.MouseEvent | React.TouchEvent) => {
+    if (userRole !== "SUPER_ADMIN") return;
+    if ("button" in e && e.button !== 0) return; // 좌클릭만 허용
+    if (isRearrangeMode) return;
+
+    const timer = setTimeout(() => {
+      setIsRearrangeMode(true);
+      if (typeof window !== "undefined" && window.navigator && window.navigator.vibrate) {
+        window.navigator.vibrate(100);
+      }
+    }, 2000); // 2초간 롱 프레스
+    
+    setPressTimer(timer);
+  };
+
+  const clearPressTimer = () => {
+    if (pressTimer) {
+      clearTimeout(pressTimer);
+      setPressTimer(null);
+    }
+  };
+
+  // 드래그 앤 드롭 핸들러
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) return;
+    setDraggedOverIndex(index);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === targetIndex) return;
+
+    const updated = [...displayMenuItems];
+    const draggedItem = updated[draggedIndex];
+    updated.splice(draggedIndex, 1);
+    updated.splice(targetIndex, 0, draggedItem);
+
+    setDisplayMenuItems(updated);
+    setDraggedIndex(null);
+    setDraggedOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDraggedOverIndex(null);
+  };
+
+  // DB에 새 순서 저장
+  const saveMenuOrder = async () => {
+    setIsSaving(true);
+    try {
+      const mapped = displayMenuItems.map((item, idx) => ({
+        menu_href: item.href,
+        is_enabled: true,
+        sort_order: (idx + 1) * 10
+      }));
+
+      const res = await fetch("/api/settings/menu", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ settings: mapped })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        window.dispatchEvent(new CustomEvent("menu-settings-updated"));
+      } else {
+        alert("메뉴 순서 저장 실패: " + data.error);
+      }
+    } catch (e) {
+      console.error("메뉴 순서 저장 중 오류:", e);
+      alert("서버 오류로 메뉴 순서를 저장할 수 없습니다.");
+    } finally {
+      setIsSaving(false);
+      setIsRearrangeMode(false);
+    }
+  };
+
   // 메뉴 숨김 처리
   const hideMenu = (href: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -242,14 +349,69 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
   return (
     <>
       <nav className="p-4 space-y-2 flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800/80 scrollbar-track-transparent">
-        {visibleItems.map((item) => {
+        {/* 편집 모드 알림 배너 */}
+        {isRearrangeMode && (
+          <div className="mx-1 mb-3 bg-blue-950/60 border border-blue-800/50 rounded-lg p-2.5 text-center animate-fade-in shadow-lg shadow-blue-900/10">
+            <div className="text-xs font-semibold text-blue-200 mb-1 flex items-center justify-center space-x-1.5">
+              <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping" />
+              <span>메뉴 순서 변경 모드</span>
+            </div>
+            <p className="text-[10px] text-slate-400 mb-2 leading-relaxed">
+              메뉴를 드래그 앤 드롭하여 정렬하세요.
+            </p>
+            <button
+              onClick={() => saveMenuOrder()}
+              disabled={isSaving}
+              className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 text-white text-[11px] font-bold py-1.5 px-3 rounded transition-colors border-none cursor-pointer"
+            >
+              {isSaving ? "저장 중..." : "정렬 완료 (ESC)"}
+            </button>
+          </div>
+        )}
+
+        {visibleItems.map((item, index) => {
           const active = isActive(item.href);
           const Icon = item.icon;
+          const isDragged = draggedIndex === index;
+          const isOver = draggedOverIndex === index;
+
+          if (isRearrangeMode) {
+            return (
+              <div
+                key={item.href}
+                draggable={true}
+                onDragStart={(e) => handleDragStart(e, index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDrop={(e) => handleDrop(e, index)}
+                onDragEnd={handleDragEnd}
+                className={`group flex items-center justify-between p-3 rounded-lg border transition-all cursor-grab active:cursor-grabbing select-none ${
+                  isDragged ? "opacity-30 border-blue-500 bg-slate-800/20" : ""
+                } ${
+                  isOver ? "border-t-2 border-t-blue-500 border-dashed bg-slate-800/40" : "border-transparent"
+                } ${
+                  active
+                    ? "bg-blue-600/20 text-white font-semibold border-blue-500/30"
+                    : "text-slate-300 bg-slate-800/40 border-slate-750 hover:bg-slate-800/80 hover:text-white"
+                }`}
+              >
+                <div className="flex items-center space-x-3 min-w-0">
+                  <GripVertical className="w-4 h-4 text-slate-500 shrink-0" />
+                  <Icon className={`w-5 h-5 shrink-0 ${active ? "text-white" : item.color}`} />
+                  <span className="truncate text-sm">{item.label}</span>
+                </div>
+              </div>
+            );
+          }
 
           return (
             <Link
               key={item.href}
               href={item.href}
+              onMouseDown={startPressTimer}
+              onMouseUp={clearPressTimer}
+              onMouseLeave={clearPressTimer}
+              onTouchStart={startPressTimer}
+              onTouchEnd={clearPressTimer}
               className={`group flex items-center justify-between p-3 rounded-lg transition-all ${
                 active
                   ? "bg-blue-600 text-white font-semibold shadow-md shadow-blue-500/10 scale-[1.02]"
