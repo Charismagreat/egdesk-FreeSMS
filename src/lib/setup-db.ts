@@ -487,6 +487,8 @@ export async function setupDatabase() {
     { name: 'prompt_tokens', type: 'INTEGER', notNull: true },
     { name: 'completion_tokens', type: 'INTEGER', notNull: true },
     { name: 'total_tokens', type: 'INTEGER', notNull: true },
+    { name: 'user_name', type: 'TEXT' },
+    { name: 'menu_path', type: 'TEXT' },
     { name: 'created_at', type: 'TEXT', notNull: true }
   ], { tableName: 'ai_token_usage_logs', uniqueKeyColumns: ['id'] });
 
@@ -1634,6 +1636,17 @@ export async function setupDatabase() {
     if (!applicantCols.includes('ai_evaluation')) {
       db.exec("ALTER TABLE crm_recruitment_applicants ADD COLUMN ai_evaluation TEXT;");
       console.log('✓ In-app migration: added ai_evaluation to crm_recruitment_applicants');
+    }
+
+    // ai_token_usage_logs 테이블 컬럼 보정 마이그레이션
+    const tokenLogCols = db.prepare("PRAGMA table_info(ai_token_usage_logs);").all().map((c: any) => c.name);
+    if (!tokenLogCols.includes('user_name')) {
+      db.exec("ALTER TABLE ai_token_usage_logs ADD COLUMN user_name TEXT;");
+      console.log('✓ In-app migration: added user_name to ai_token_usage_logs');
+    }
+    if (!tokenLogCols.includes('menu_path')) {
+      db.exec("ALTER TABLE ai_token_usage_logs ADD COLUMN menu_path TEXT;");
+      console.log('✓ In-app migration: added menu_path to ai_token_usage_logs');
     }
 
     db.close();

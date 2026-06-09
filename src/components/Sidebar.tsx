@@ -59,7 +59,7 @@ export default async function Sidebar() {
           const { redirect } = await import("next/navigation");
           redirect('/login');
         }}>
-          <button type="submit" className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors" title="로그아웃">
+          <button type="submit" className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors border-none bg-transparent cursor-pointer flex items-center justify-center" title="로그아웃">
             <LogOut className="w-4 h-4" />
           </button>
         </form>

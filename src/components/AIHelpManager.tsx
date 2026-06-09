@@ -5,6 +5,53 @@ import { Sparkles, RefreshCw, CheckCircle, ShieldAlert, AlertTriangle } from "lu
 import { createPortal } from "react-dom";
 
 export default function AIHelpManager() {
+  // --- SSR Hydration 방지용 mounted 상태 ---
+  const [mounted, setMounted] = useState<boolean>(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // --- ⚙️ 도움말 기능 전역 활성화 상태 (localStorage 연계) ---
+  const [isHelpEnabled, setIsHelpEnabled] = useState<boolean>(true);
+  const isHelpEnabledRef = useRef(isHelpEnabled);
+
+  useEffect(() => {
+    isHelpEnabledRef.current = isHelpEnabled;
+  }, [isHelpEnabled]);
+
+  const toggleHelp = () => {
+    const nextVal = !isHelpEnabled;
+    setIsHelpEnabled(nextVal);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("egdesk_ai_help_enabled", String(nextVal));
+      window.dispatchEvent(
+        new CustomEvent("ai-help-toggle", { detail: { enabled: nextVal } })
+      );
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("egdesk_ai_help_enabled");
+      setIsHelpEnabled(saved !== "false");
+
+      const handleToggle = (e: any) => {
+        setIsHelpEnabled(e.detail.enabled);
+        if (!e.detail.enabled) {
+          // 비활성화 시 즉각 열려 있는 배지 및 팝업 닫기
+          setHelpInfo(prev => ({ ...prev, isOpen: false }));
+          setCursorIndicator(prev => ({ ...prev, visible: false }));
+        }
+      };
+
+      window.addEventListener("ai-help-toggle", handleToggle);
+      return () => {
+        window.removeEventListener("ai-help-toggle", handleToggle);
+      };
+    }
+  }, []);
+
   // --- 🔑 최고관리자 권한 상태 선언 ---
   const [userRole, setUserRole] = useState<string>("SUB_OPERATOR");
   
@@ -66,6 +113,7 @@ export default function AIHelpManager() {
   // 마우스 오버 힌트 실시간 리스너 훅 (디펜던시 []로 최초 마운트 시 1회만 등록)
   useEffect(() => {
     const handleMouseOver = (e: MouseEvent) => {
+      if (!isHelpEnabledRef.current) return;
       const target = e.target as HTMLElement;
       if (!target) return;
 
@@ -155,6 +203,7 @@ export default function AIHelpManager() {
     };
 
     const handleMouseMove = (e: MouseEvent) => {
+      if (!isHelpEnabledRef.current) return;
       const target = e.target as HTMLElement;
       if (!target) return;
 
@@ -181,6 +230,7 @@ export default function AIHelpManager() {
     };
 
     const handleMouseOut = (e: MouseEvent) => {
+      if (!isHelpEnabledRef.current) return;
       const target = e.target as HTMLElement;
       if (!target) return;
 
@@ -293,7 +343,7 @@ export default function AIHelpManager() {
   return (
     <>
       {/* 🛎️ 알림 토스트 컴포넌트 - Portal 렌더링으로 뷰포트 최상단 보장 */}
-      {toast && typeof window !== "undefined" && createPortal(
+      {toast && mounted && createPortal(
         <div className={`fixed top-6 right-6 z-[10001] p-4 rounded-xl shadow-2xl border flex items-center gap-3 animate-fade-in ${
           toast.type === 'success' ? 'bg-green-50 text-green-700 border-green-200' :
           toast.type === 'error' ? 'bg-red-50 text-red-700 border-red-200' :
@@ -308,7 +358,7 @@ export default function AIHelpManager() {
       )}
 
       {/* 💡 AI 마우스 커서 도움말 인디케이터 (즉시 반응 툴팁 배지) - React Portal 사용으로 쌓임 맥락(Stacking Context) 해결 */}
-      {cursorIndicator.visible && !helpInfo.isOpen && typeof window !== "undefined" && createPortal(
+      {cursorIndicator.visible && !helpInfo.isOpen && mounted && createPortal(
         <div
           className="fixed pointer-events-none z-[10000] flex items-center justify-center bg-gradient-to-tr from-rose-500 to-amber-500 text-white rounded-full w-8 h-8 shadow-2xl animate-pulse"
           style={{
@@ -323,7 +373,7 @@ export default function AIHelpManager() {
       )}
 
       {/* AI 도움말 플로팅 팝업창 - React Portal 사용으로 타 컴포넌트 스크롤 영역과의 마우스 이벤트 겹침(z-index 간섭) 완벽 해결 */}
-      {helpInfo.isOpen && typeof window !== "undefined" && createPortal(
+      {helpInfo.isOpen && mounted && createPortal(
         <div
           id="ai-contextual-help-popup"
           onMouseEnter={handlePopupMouseEnter}
@@ -378,6 +428,34 @@ export default function AIHelpManager() {
             ) : (
               <span>설명 자동 저장됨</span>
             )}
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* 💡 AI 도움말 끄고 켜기 플로팅 버튼 (이지봇 위젯 왼쪽 옆 배치) */}
+      {mounted && createPortal(
+        <div className="fixed bottom-[32px] right-[88px] z-50 flex items-center justify-center ignore-capture">
+          <div className="relative group">
+            <button
+              onClick={toggleHelp}
+              className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 shadow-xl border cursor-pointer border-solid ${
+                isHelpEnabled
+                  ? "bg-gradient-to-tr from-rose-500/90 to-amber-500/90 hover:from-rose-500 hover:to-amber-500 text-white border-rose-400/30 hover:scale-110"
+                  : "bg-slate-900/90 hover:bg-slate-950 text-slate-400 hover:text-slate-200 border-slate-700/80 hover:scale-110"
+              }`}
+              aria-label="Toggle AI Help Guide"
+            >
+              <Sparkles className={`w-4.5 h-4.5 ${isHelpEnabled ? "animate-pulse" : ""}`} />
+            </button>
+            
+            {/* 프리미엄 툴팁 가이드 */}
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3.5 hidden group-hover:flex flex-col items-center pointer-events-none z-50 animate-fade-in">
+              <div className="bg-slate-950/95 text-slate-100 text-[10px] font-bold px-2.5 py-1.5 rounded-xl shadow-2xl border border-solid border-slate-800 whitespace-nowrap">
+                {isHelpEnabled ? "AI 도움말 가이드 끄기" : "AI 도움말 가이드 켜기"}
+              </div>
+              <div className="w-1.5 h-1.5 rotate-45 bg-slate-950 border-r border-b border-solid border-slate-800 -mt-[4px]" />
+            </div>
           </div>
         </div>,
         document.body

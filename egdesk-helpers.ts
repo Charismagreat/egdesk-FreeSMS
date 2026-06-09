@@ -204,6 +204,46 @@ export async function insertRows(
   tableName: string,
   rows: Array<Record<string, any>>
 ) {
+  if (tableName === 'ai_token_usage_logs' && typeof window === 'undefined') {
+    let userName = '시스템';
+    let menuPath = '백그라운드';
+
+    try {
+      const { cookies } = await import('next/headers');
+      const cookieStore = await cookies();
+      const token = cookieStore.get('auth_token')?.value;
+      if (token) {
+        const { decodeJwt } = await import('jose');
+        const payload = decodeJwt(token);
+        if (payload.name) userName = payload.name as string;
+      }
+    } catch (e) {
+      // Next.js request context 외부일 때 예외 무시
+    }
+
+    try {
+      const { headers } = await import('next/headers');
+      const headerList = await headers();
+      const referer = headerList.get('referer');
+      if (referer) {
+        try {
+          const url = new URL(referer);
+          menuPath = url.pathname;
+        } catch (urlErr) {
+          menuPath = referer;
+        }
+      }
+    } catch (e) {
+      // Next.js request context 외부일 때 예외 무시
+    }
+
+    rows = rows.map(row => ({
+      ...row,
+      user_name: row.user_name || userName,
+      menu_path: row.menu_path || menuPath
+    }));
+  }
+
   return callUserDataTool('user_data_insert_rows', {
     tableName,
     rows

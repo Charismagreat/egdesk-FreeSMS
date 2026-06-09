@@ -28,6 +28,8 @@ interface TokenLog {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
+  user_name: string;
+  menu_path: string;
   created_at: string;
 }
 
@@ -84,6 +86,9 @@ export default function AiUsageMonitor() {
   };
 
   const getPurposeLabel = (p: string) => {
+    if (p.startsWith('help-')) {
+      return `AI 글로벌 도움말 (${p.substring(5)})`;
+    }
     switch (p) {
       case 'easybot-sql-generation': return '이지봇 SQL 자동 변환';
       case 'easybot-response': return '이지봇 지능형 응답 답변';
@@ -293,7 +298,7 @@ export default function AiUsageMonitor() {
               >
                 <h3 className="text-xs font-extrabold text-slate-700 flex items-center gap-1.5">
                   <CalendarRange className="w-4 h-4 text-slate-500" />
-                  실시간 AI 호출 토큰 감사록 (최근 30건)
+                  실시간 AI 호출 토큰 감사록 (최대 1,000건 실시간 보존)
                 </h3>
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-bold text-slate-400">Real-time AI Auditor</span>
@@ -311,7 +316,9 @@ export default function AiUsageMonitor() {
                     <thead>
                       <tr className="bg-slate-50/50 border-b border-slate-100 text-slate-500 font-bold">
                         <th className="p-3">호출일시</th>
-                        <th className="p-3">사용 모델</th>
+                        <th className="p-3">호출 사용자</th>
+                        <th className="p-3">사용 메뉴</th>
+                        <th className="p-3 font-mono">사용 모델</th>
                         <th className="p-3">수행 목적</th>
                         <th className="p-3 text-right">질문 토큰</th>
                         <th className="p-3 text-right">답변 토큰</th>
@@ -322,7 +329,7 @@ export default function AiUsageMonitor() {
                     <tbody className="divide-y divide-slate-100">
                       {recentLogs.length === 0 ? (
                         <tr>
-                          <td colSpan={7} className="p-8 text-center text-slate-400 font-semibold bg-white">
+                          <td colSpan={9} className="p-8 text-center text-slate-400 font-semibold bg-white">
                             기록된 실시간 AI 호출 이력이 없습니다. 이지봇 대화나 자동 마케팅을 가동해 보세요!
                           </td>
                         </tr>
@@ -330,7 +337,21 @@ export default function AiUsageMonitor() {
                         recentLogs.map(log => (
                           <tr key={log.id} className="hover:bg-slate-50/50 bg-white transition-colors">
                             <td className="p-3 text-slate-400 font-medium">{log.created_at}</td>
-                            <td className="p-3 font-mono font-bold text-slate-700">{log.model}</td>
+                            <td className="p-3 font-semibold text-slate-700">
+                              <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md text-[10px] font-bold">
+                                {log.user_name}
+                              </span>
+                            </td>
+                            <td className="p-3 font-mono text-[11px] text-slate-500">
+                              {log.menu_path === 'background-task' || log.menu_path === '백그라운드' ? (
+                                <span className="text-slate-400 italic font-sans text-[10px]">백그라운드 태스크</span>
+                              ) : (
+                                <span className="bg-slate-100 text-slate-650 px-2 py-0.5 rounded-md font-sans font-bold text-[10px]">
+                                  {log.menu_path}
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-3 font-mono font-bold text-slate-600">{log.model}</td>
                             <td className="p-3 text-slate-650 font-semibold">{getPurposeLabel(log.purpose)}</td>
                             <td className="p-3 text-right text-slate-500 font-semibold">{log.prompt_tokens.toLocaleString()}</td>
                             <td className="p-3 text-right text-slate-500 font-semibold">{log.completion_tokens.toLocaleString()}</td>

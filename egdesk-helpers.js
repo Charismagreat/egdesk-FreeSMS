@@ -306,6 +306,67 @@ function createTable(displayName, schema, options) {
         });
     });
 }
+function interceptTokenLog(tableName, rows) {
+    return __awaiter(this, void 0, void 0, function () {
+        var userName, menuPath, cookies_1, cookieStore, token, decodeJwt_1, payload, headers_1, headerList, referer, url;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    if (!(tableName === 'ai_token_usage_logs' && typeof window === 'undefined')) return [3 /*break*/, 9];
+                    userName = '시스템';
+                    menuPath = '백그라운드';
+                    _a.label = 1;
+                case 1:
+                    _a.trys.push([1, 4, , 5]);
+                    return [4 /*yield*/, Promise.resolve().then(function () { return require('next/headers'); })];
+                case 2:
+                    cookies_1 = _a.sent().cookies;
+                    return [4 /*yield*/, cookies_1()];
+                case 3:
+                    cookieStore = _a.sent();
+                    token = cookieStore.get('auth_token') === null || cookieStore.get('auth_token') === void 0 ? void 0 : cookieStore.get('auth_token').value;
+                    if (token) {
+                        decodeJwt_1 = require('jose').decodeJwt;
+                        payload = decodeJwt_1(token);
+                        if (payload.name)
+                            userName = payload.name;
+                    }
+                    return [3 /*break*/, 5];
+                case 4:
+                    _a.sent();
+                    return [3 /*break*/, 5];
+                case 5:
+                    _a.trys.push([5, 8, , 9]);
+                    return [4 /*yield*/, Promise.resolve().then(function () { return require('next/headers'); })];
+                case 6:
+                    headers_1 = _a.sent().headers;
+                    return [4 /*yield*/, headers_1()];
+                case 7:
+                    headerList = _a.sent();
+                    referer = headerList.get('referer');
+                    if (referer) {
+                        try {
+                            url = new URL(referer);
+                            menuPath = url.pathname;
+                        }
+                        catch (urlErr) {
+                            menuPath = referer;
+                        }
+                    }
+                    return [3 /*break*/, 9];
+                case 8:
+                    _a.sent();
+                    return [3 /*break*/, 9];
+                case 9:
+                    rows = rows.map(function (row) {
+                        return __assign(__assign({}, row), { user_name: row.user_name || userName, menu_path: row.menu_path || menuPath });
+                    });
+                    _a.label = 10;
+                case 10: return [2 /*return*/, rows];
+            }
+        });
+    });
+}
 /**
  * Insert rows into a table
  */
@@ -314,11 +375,14 @@ function insertRows(tableName, rows) {
         var res;
         return __generator(this, function (_a) {
             switch (_a.label) {
-                case 0: return [4 /*yield*/, callUserDataTool('user_data_insert_rows', {
-                        tableName: tableName,
-                        rows: rows
-                    })];
+                case 0: return [4 /*yield*/, interceptTokenLog(tableName, rows)];
                 case 1:
+                    rows = _a.sent();
+                    return [4 /*yield*/, callUserDataTool('user_data_insert_rows', {
+                            tableName: tableName,
+                            rows: rows
+                        })];
+                case 2:
                     res = _a.sent();
                     // 🕒 DB 변경 이벤트 발행
                     try {

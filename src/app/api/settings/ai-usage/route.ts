@@ -75,11 +75,11 @@ export async function GET(req: Request) {
       tokens: stat.tokens
     })).sort((a, b) => b.tokens - a.tokens);
 
-    // 5. 최근 토큰 트랜잭션 30건 조회
+    // 5. 최근 토큰 트랜잭션 전체 조회 (한도 1000건으로 대폭 확장)
     const recentLogsResult = await queryTable('ai_token_usage_logs', {
       orderBy: 'created_at',
       orderDirection: 'DESC',
-      limit: 30
+      limit: 1000
     });
 
     const logsResult = recentLogsResult?.rows || [];
@@ -96,6 +96,8 @@ export async function GET(req: Request) {
         prompt_tokens: l.prompt_tokens,
         completion_tokens: l.completion_tokens,
         total_tokens: l.total_tokens,
+        user_name: l.user_name || '시스템',
+        menu_path: l.menu_path || '백그라운드',
         created_at: l.created_at
       }))
     });
