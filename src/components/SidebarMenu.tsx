@@ -7,7 +7,7 @@ import {
   Home, Users, MessageSquare, Settings, ShoppingCart, 
   ClipboardList, CreditCard, CalendarDays, Truck, Send, 
   PackageSearch, Package, UserCog, Zap, Ticket, Landmark, Globe, Briefcase, HelpCircle,
-  ArrowRightLeft, Handshake, Sparkles, Coins, Database, Compass, Shield, CheckSquare, Wrench, ShieldAlert, Award, Scale, Key, Mail
+  ArrowRightLeft, Handshake, Sparkles, Coins, Database, Compass, Shield, CheckSquare, Wrench, ShieldAlert, Award, Scale, Key, Mail, Eye, EyeOff
 } from "lucide-react";
 
 // 커스텀 인스타그램 아이콘 SVG
@@ -136,6 +136,7 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
   };
 
   const [displayMenuItems, setDisplayMenuItems] = useState<any[]>(getInitialDefaultItems());
+  const [hiddenHrefs, setHiddenHrefs] = useState<string[]>([]);
 
   // 활성화 메뉴 감지 도우미
   const isActive = (href: string) => {
@@ -187,6 +188,18 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
   useEffect(() => {
     fetchAndApplyMenuSettings();
 
+    // 로컬스토리지에서 숨긴 메뉴 목록 불러오기
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("egdesk_hidden_menus");
+      if (saved) {
+        try {
+          setHiddenHrefs(JSON.parse(saved));
+        } catch (e) {
+          console.error("숨김 메뉴 정보 로드 실패", e);
+        }
+      }
+    }
+
     // 최고관리자 카드 저장 시 실시간 동기화를 위한 이벤트 청취
     window.addEventListener("menu-settings-updated", fetchAndApplyMenuSettings);
 
@@ -195,10 +208,41 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
     };
   }, [userRole]);
 
+  // 메뉴 숨김 처리
+  const hideMenu = (href: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const next = [...hiddenHrefs, href];
+    setHiddenHrefs(next);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("egdesk_hidden_menus", JSON.stringify(next));
+    }
+  };
+
+  // 메뉴 숨김 해제
+  const unhideMenu = (href: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const next = hiddenHrefs.filter((h) => h !== href);
+    setHiddenHrefs(next);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("egdesk_hidden_menus", JSON.stringify(next));
+    }
+  };
+
+  // 현재 노출할 메뉴와 숨김 메뉴 분리 (SUPER_ADMIN 권한만 숨김 필터링 적용)
+  const visibleItems = userRole === "SUPER_ADMIN" 
+    ? displayMenuItems.filter((item) => !hiddenHrefs.includes(item.href))
+    : displayMenuItems;
+
+  const hiddenItems = userRole === "SUPER_ADMIN"
+    ? displayMenuItems.filter((item) => hiddenHrefs.includes(item.href))
+    : [];
+
   return (
     <>
       <nav className="p-4 space-y-2 flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800/80 scrollbar-track-transparent">
-        {displayMenuItems.map((item) => {
+        {visibleItems.map((item) => {
           const active = isActive(item.href);
           const Icon = item.icon;
 
@@ -206,17 +250,66 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center space-x-3 p-3 rounded-lg transition-all ${
+              className={`group flex items-center justify-between p-3 rounded-lg transition-all ${
                 active
                   ? "bg-blue-600 text-white font-semibold shadow-md shadow-blue-500/10 scale-[1.02]"
                   : "text-slate-300 hover:bg-slate-800 hover:text-white hover:scale-[1.01]"
               }`}
             >
-              <Icon className={`w-5 h-5 shrink-0 transition-colors ${active ? "text-white" : item.color}`} />
-              <span>{item.label}</span>
+              <div className="flex items-center space-x-3 min-w-0">
+                <Icon className={`w-5 h-5 shrink-0 transition-colors ${active ? "text-white" : item.color}`} />
+                <span className="truncate">{item.label}</span>
+              </div>
+              {userRole === "SUPER_ADMIN" && (
+                <button
+                  onClick={(e) => hideMenu(item.href, e)}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-slate-700/50 rounded text-slate-400 hover:text-white shrink-0 ml-2 z-10 border-none bg-transparent cursor-pointer"
+                  title="메뉴 숨기기"
+                >
+                  <EyeOff className="w-4 h-4" />
+                </button>
+              )}
             </Link>
           );
         })}
+
+        {/* 숨겨진 메뉴함 (SUPER_ADMIN 최고관리자 전용) */}
+        {userRole === "SUPER_ADMIN" && hiddenItems.length > 0 && (
+          <div className="relative group/vault pt-2 mx-1 border-t border-slate-700/60 mt-4">
+            <div className="flex items-center justify-between text-xs font-semibold text-slate-400 hover:text-slate-200 cursor-default p-2 rounded-lg hover:bg-slate-800/30">
+              <div className="flex items-center space-x-2">
+                <EyeOff className="w-4 h-4 text-slate-500" />
+                <span>숨겨진 메뉴함 ({hiddenItems.length})</span>
+              </div>
+              <span className="text-[10px] text-slate-500 font-normal">호버하여 열기</span>
+            </div>
+
+            {/* 호버 시 팝업되어 위로 솟아오르는 숨김 메뉴 목록 */}
+            <div className="absolute bottom-full left-0 right-0 mb-2 hidden group-hover/vault:block bg-slate-800/95 border border-slate-700 rounded-xl p-2 shadow-2xl backdrop-blur-md z-50 space-y-1 animate-fade-in max-w-[240px]">
+              <div className="text-[9px] font-bold text-slate-500 px-2.5 py-1.5 border-b border-slate-700 mb-1">
+                클릭하면 원래 메뉴로 복구됩니다
+              </div>
+              <div className="max-h-60 overflow-y-auto space-y-0.5 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+                {hiddenItems.map((hItem) => {
+                  const HIcon = hItem.icon;
+                  return (
+                    <button
+                      key={hItem.href}
+                      onClick={(e) => unhideMenu(hItem.href, e)}
+                      className="w-full flex items-center justify-between p-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white text-xs font-semibold text-left transition-colors border-none bg-transparent cursor-pointer"
+                    >
+                      <div className="flex items-center space-x-2.5 min-w-0">
+                        <HIcon className={`w-4 h-4 shrink-0 ${hItem.color}`} />
+                        <span className="truncate">{hItem.label}</span>
+                      </div>
+                      <Eye className="w-3.5 h-3.5 text-slate-500 hover:text-emerald-400 shrink-0 ml-2" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
       </nav>
       
       {/* 하단 고정 메뉴 영역 */}
