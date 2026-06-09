@@ -135,6 +135,15 @@ export default function ExpenseManagementAiPage() {
       const target = e.target as HTMLElement;
       if (!target) return;
 
+      // 도움말 팝업창 내부로 마우스가 진입한 경우 닫기 지연 타이머 즉시 초기화 (마우스 좌표 겹침에 의한 진입 이벤트 미발생 대응)
+      if (target.closest("#ai-contextual-help-popup")) {
+        if (leaveTimerRef.current) {
+          clearTimeout(leaveTimerRef.current);
+          leaveTimerRef.current = null;
+        }
+        return;
+      }
+
       const hintElement = target.closest("[data-easybot-hint]");
       if (!hintElement) return;
 
@@ -211,6 +220,16 @@ export default function ExpenseManagementAiPage() {
     const handleMouseMove = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (!target) return;
+
+      // 팝업창 내부에서 마우스가 움직이는 중이라면 닫기 타이머를 계속 초기화하고 커서 배지를 감춤
+      if (target.closest("#ai-contextual-help-popup")) {
+        if (leaveTimerRef.current) {
+          clearTimeout(leaveTimerRef.current);
+          leaveTimerRef.current = null;
+        }
+        setCursorIndicator(prev => prev.visible ? { ...prev, visible: false } : prev);
+        return;
+      }
 
       const hintElement = target.closest("[data-easybot-hint]");
       if (hintElement) {
@@ -511,6 +530,7 @@ export default function ExpenseManagementAiPage() {
       {/* AI 도움말 플로팅 팝업창 - React Portal 사용으로 타 컴포넌트 스크롤 영역과의 마우스 이벤트 겹침(z-index 간섭) 완벽 해결 */}
       {helpInfo.isOpen && typeof window !== "undefined" && createPortal(
         <div
+          id="ai-contextual-help-popup"
           onMouseEnter={handlePopupMouseEnter}
           onMouseLeave={handlePopupMouseLeave}
           className="fixed bottom-24 right-6 w-96 bg-slate-900/90 hover:bg-slate-900/95 border border-slate-700/80 rounded-2xl p-5 shadow-2xl backdrop-blur-md z-[9999] text-left animate-fade-in text-white transition-all"
