@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Coins, Sparkles, RefreshCw, CheckCircle, ShieldAlert, AlertTriangle } from "lucide-react";
+import { createPortal } from "react-dom";
 
 // 커스텀 훅 임포트
 import { useExpenses } from "@/hooks/useExpenses";
@@ -492,8 +493,8 @@ export default function ExpenseManagementAiPage() {
         showToast={showToast}
       />
 
-      {/* 💡 AI 마우스 커서 도움말 인디케이터 (즉시 반응 툴팁 배지) */}
-      {cursorIndicator.visible && !helpInfo.isOpen && (
+      {/* 💡 AI 마우스 커서 도움말 인디케이터 (즉시 반응 툴팁 배지) - React Portal 사용으로 쌓임 맥락(Stacking Context) 해결 */}
+      {cursorIndicator.visible && !helpInfo.isOpen && typeof window !== "undefined" && createPortal(
         <div
           className="fixed pointer-events-none z-[10000] flex items-center justify-center bg-gradient-to-tr from-rose-500 to-amber-500 text-white rounded-full w-8 h-8 shadow-2xl animate-pulse"
           style={{
@@ -503,11 +504,12 @@ export default function ExpenseManagementAiPage() {
           }}
         >
           <Sparkles className="w-4 h-4 text-white animate-bounce" />
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* AI 도움말 플로팅 팝업창 */}
-      {helpInfo.isOpen && (
+      {/* AI 도움말 플로팅 팝업창 - React Portal 사용으로 타 컴포넌트 스크롤 영역과의 마우스 이벤트 겹침(z-index 간섭) 완벽 해결 */}
+      {helpInfo.isOpen && typeof window !== "undefined" && createPortal(
         <div
           onMouseEnter={handlePopupMouseEnter}
           onMouseLeave={handlePopupMouseLeave}
@@ -562,7 +564,8 @@ export default function ExpenseManagementAiPage() {
               <span>설명 자동 저장됨</span>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
