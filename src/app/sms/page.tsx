@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { MessageSquare } from "lucide-react";
 
 // 커스텀 훅 및 모달 컴포넌트 임포트
 import { useSms } from "@/hooks/useSms";
@@ -85,7 +86,10 @@ export default function SmsPage() {
 
   return (
     <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800">
-      <h1 className="text-3xl font-bold text-slate-800">무료 문자 발송 AI</h1>
+      <h1 className="text-3xl font-bold text-slate-800 flex items-center tracking-tight">
+        <MessageSquare className="w-8 h-8 text-purple-500 mr-3" />
+        무료 문자 발송 AI
+      </h1>
 
       {/* PC 전용 3열 고정 레이아웃 (반응형 접두사 디톡스 적용) */}
       <div className="grid grid-cols-3 gap-6">

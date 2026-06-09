@@ -8,7 +8,7 @@ import { SettingsContainer } from "./components/SettingsContainer";
 // 시스템 설정 메인 페이지 오케스트레이터 컴포넌트
 export default function SettingsPage() {
   return (
-    <div className="p-8 w-full max-w-none">
+    <div className="w-full space-y-6 pb-20 min-w-0 font-sans text-slate-800 animate-fade-in text-left">
       {/* 설정 페이지 상단 헤더 영역 */}
       <SettingsHeader />
 

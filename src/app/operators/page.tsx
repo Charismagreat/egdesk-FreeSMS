@@ -18,7 +18,7 @@ export default function OperatorsPage() {
   } = useOperators();
 
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-8">
+    <div className="w-full space-y-6 pb-20 min-w-0 font-sans text-slate-800 animate-fade-in text-left">
       {/* 운영자 관리 헤더 영역 */}
       <OperatorHeader />
 

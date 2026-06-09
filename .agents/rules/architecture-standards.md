@@ -45,15 +45,21 @@
 새로운 AI 관제 및 관리 메뉴 페이지를 설계하거나 기존 페이지를 유지보수할 때는 일관된 사용자 경험을 위해 다음의 레이아웃 및 헤더 표준을 엄격히 준수해야 합니다.
 
 ### 5.1. 최상위 레이아웃 구조 (가로폭 전체 활용)
-- 페이지 최상위 컨테이너는 가로 여백 제한(`max-w-7xl mx-auto`, `p-6` 등)이 없어야 합니다.
-- 전체 화면을 좌우 끝까지 효율적으로 사용할 수 있도록 `w-full min-w-0`을 기본으로 지정합니다.
-- 기본 Tailwind CSS 클래스 예시: `w-full space-y-6 pb-20 min-w-0 font-sans text-slate-800 animate-fade-in text-left`
+- **가로 여백 제한 금지**: 페이지 최상위 컨테이너는 가로 여백 제한(`max-w-7xl`, `max-w-6xl`, `max-w-[1600px]`, `p-6`, `p-8` 등)이 일절 없어야 합니다.
+- **전체 가로폭 활용**: 전체 화면을 좌우 끝까지 효율적으로 사용할 수 있도록 `w-full min-w-0`을 기본으로 지정합니다.
+- **기본 레이아웃 규격**: `w-full space-y-6 pb-20 min-w-0 font-sans text-slate-800 animate-fade-in text-left`
 
-### 5.2. 플랫 텍스트 기반 타이틀 헤더
-- 그라디언트 배너 스타일(과거 스타일)은 지양하고, **위험 감지 AI (`safety-detection/page.tsx`)** 와 동일한 형태의 **플랫 텍스트 중심의 헤더** 구조를 채택합니다.
-- **아이콘과 텍스트 배치**: 좌측에 대표 아이콘을 배치하고, 그 오른쪽에 대제목(`text-xl md:text-2xl font-bold`)과 소제목(설명문, `text-[11px] text-slate-500`)을 상하 구조로 배치합니다.
-- **우측 액션 버튼**: 페이지 내에 신규 등록 등 주요 버튼이 필요한 경우, 헤더의 가장 우측에 Flex 정렬(`flex justify-between items-start`)하여 수평 배치합니다.
+### 5.2. 플랫 텍스트 기반 타이틀 헤더 & 아이콘
+- **디자인 원칙**: 그라디언트 배너 스타일(과거 스타일)은 지양하고, **위험 감지 AI (`safety-detection/page.tsx`)** 와 동일한 형태의 **플랫 텍스트 중심의 헤더** 구조를 채택합니다.
+- **필수 타이틀 아이콘**: 모든 내부 페이지의 대제목 좌측에는 반드시 해당 메뉴에 맞는 대표 Lucide 아이콘을 배치해야 합니다. (아이콘이 없으면 미완성 페이지로 간주)
+- **아이콘 및 타이틀 레이아웃**:
+  - `h1` 태그는 `text-3xl font-bold text-slate-800 flex items-center tracking-tight` 규격을 따릅니다.
+  - 아이콘은 `w-8 h-8 mr-3` 크기로 배치하고, SidebarMenu와 어울리는 컬러 클래스(예: `text-purple-500`, `text-green-500` 등)를 지정합니다.
+  - 소제목(설명문)은 `p` 태그로 `text-xs font-semibold text-slate-500 mt-1` 또는 `text-[11px] text-slate-500` 규격으로 작성하여 타이틀 하단에 상하 구조로 배치합니다.
+- **헤더 정렬선**: 헤더의 하단 간격 및 구분선은 `mb-6 pb-5 border-b border-slate-100` (또는 `border-slate-200`)로 맞추어 페이지 하단 본문과의 조화를 꾀합니다.
+- **우측 액션 버튼**: 페이지 내에 신규 등록 등 주요 버튼이 필요한 경우, 헤더의 가장 우측에 Flex 정렬(`flex justify-between items-start md:items-center`)하여 수평 배치합니다.
 
 ### 5.3. 요약 지표(스코어카드) 독립 배치
 - 기존 헤더 배너 내에 결합되어 있던 통계 정보나 핵심 지표들은 헤더 영역 바깥으로 완전히 격리합니다.
 - 헤더 하단에 독립적인 3열 또는 4열 그리드 형태의 **모던 스코어카드 그리드**(`grid grid-cols-1 md:grid-cols-3 gap-4` 등)를 생성하여 지표 정보를 깔끔하게 렌더링합니다.
+

@@ -129,7 +129,7 @@ export default function FinancePage() {
   } = useFinance();
 
   return (
-    <div className="space-y-6 pb-24 max-w-[1600px] mx-auto px-4 md:px-8">
+    <div className="w-full space-y-6 pb-20 min-w-0 font-sans text-slate-800 animate-fade-in text-left">
       {/* 1. 상단 웰컴 및 실시간 동기화 헤더 */}
       <FinanceHeader
         refreshing={refreshing}
