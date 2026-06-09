@@ -298,14 +298,28 @@ ${JSON.stringify(facilitiesListForRag)}
       const totalTokens = u.totalTokenCount || 0;
 
       if (totalTokens > 0) {
-        await insertRows('ai_token_usage_logs', [{
-          model_name: selectedModel,
-          task_purpose: 'EASYBOT_OCR_SCAN',
-          prompt_tokens: promptTokens,
-          completion_tokens: completionTokens,
-          total_tokens: totalTokens,
-          timestamp: new Date().toISOString()
-        }]);
+        const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+        const Database = require('better-sqlite3');
+        const os = require('os');
+        const path = require('path');
+        const homeDir = os.homedir();
+        const appData = process.env.APPDATA || path.join(homeDir, 'AppData/Roaming');
+        const dbPath = path.join(appData, 'EGDesk/database/user_data.db');
+        
+        const localDb = new Database(dbPath);
+        localDb.prepare(`
+          INSERT INTO ai_token_usage_logs (id, model, purpose, prompt_tokens, completion_tokens, total_tokens, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          `TKC-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          selectedModel,
+          'EASYBOT_OCR_SCAN',
+          promptTokens,
+          completionTokens,
+          totalTokens,
+          nowStr
+        );
+        localDb.close();
       }
     } catch (logErr) {
       console.error('이지봇 OCR AI 토큰 사용량 감사 로그 적재 실패:', logErr);
