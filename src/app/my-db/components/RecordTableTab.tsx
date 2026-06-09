@@ -148,7 +148,7 @@ export default function RecordTableTab({
                 {Object.keys(tableRows[0]).map((key) => (
                   <th
                     key={key}
-                    className="p-4 font-bold text-slate-700 min-w-[120px] whitespace-nowrap"
+                    className="p-4 font-bold text-slate-700 min-w-[120px] whitespace-nowrap sticky top-0 bg-slate-50 z-10"
                   >
                     {key}
                     {tableSchema.find((c) => c.name === key)?.pk === 1 && (
@@ -158,7 +158,7 @@ export default function RecordTableTab({
                     )}
                   </th>
                 ))}
-                <th className="p-4 text-center w-20 sticky right-0 bg-slate-50 border-l border-slate-100/60 z-10">
+                <th className="p-4 text-center w-20 sticky top-0 right-0 bg-slate-50 border-l border-slate-100/60 z-20">
                   제어
                 </th>
               </tr>

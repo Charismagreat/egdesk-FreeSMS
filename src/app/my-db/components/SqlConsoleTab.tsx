@@ -312,7 +312,7 @@ export function SqlConsoleResult({ consoleResult }: SqlConsoleResultProps) {
                 <thead className="bg-slate-50 border-b border-slate-100 text-sm">
                   <tr>
                     {Object.keys(consoleResult.rows[0]).map((key) => (
-                      <th key={key} className="p-4 font-bold text-slate-700 whitespace-nowrap">
+                      <th key={key} className="p-4 font-bold text-slate-700 whitespace-nowrap sticky top-0 bg-slate-50 z-10">
                         {key}
                       </th>
                     ))}
