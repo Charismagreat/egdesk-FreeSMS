@@ -481,7 +481,7 @@ export async function setupDatabase() {
 
   // 30. AI Token Usage Logs Table (AI 토큰 소모량 정밀 모니터링 로그 대장)
   await safeCreateTable('AI 토큰 사용량 로그', [
-    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'id', type: 'TEXT', notNull: true },
     { name: 'model', type: 'TEXT', notNull: true },
     { name: 'purpose', type: 'TEXT', notNull: true },
     { name: 'prompt_tokens', type: 'INTEGER', notNull: true },
@@ -1121,6 +1121,20 @@ export async function setupDatabase() {
     { name: 'is_enabled', type: 'INTEGER', notNull: true, defaultValue: 1 },
     { name: 'sort_order', type: 'INTEGER', notNull: true }
   ], { tableName: 'system_menu_settings', uniqueKeyColumns: ['menu_href'], duplicateAction: 'update' });
+
+  // 41-2. AI Mail Control Logs Table (메일 AI 실시간 관제 및 분석 이력)
+  await safeCreateTable('메일 AI 관제 로그', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'sender', type: 'TEXT', notNull: true },
+    { name: 'subject', type: 'TEXT', notNull: true },
+    { name: 'received_at', type: 'TEXT', notNull: true },
+    { name: 'ai_summary', type: 'TEXT', notNull: true },
+    { name: 'intent', type: 'TEXT', notNull: true },
+    { name: 'risk_level', type: 'TEXT', notNull: true },
+    { name: 'action_type', type: 'TEXT' },
+    { name: 'action_result', type: 'TEXT' },
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'system_mail_logs', uniqueKeyColumns: ['id'] });
 
   // 42. Safety Policies Table (안전보건방침 및 목표 설정 대장)
   await safeCreateTable('안전보건방침 및 목표', [

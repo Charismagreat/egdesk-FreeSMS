@@ -54,7 +54,7 @@ async function seed() {
     'crm_estimate_items', 'crm_purchase_orders', 'crm_sales_orders', 'crm_partners',
     'crm_snaptasks', 'crm_snaptask_items', 'crm_snaptask_actions', 'crm_partner_contacts',
     'inventory_items', 'crm_inventory_inbounds', 'crm_inventory_inbound_items',
-    'ai_token_usage_logs', 'tracked_items', 'target_urls', 'price_histories',
+    'tracked_items', 'target_urls', 'price_histories',
     'alert_rules', 'alert_logs', 'inventory_logs', 'crm_expenses', 'expense_settings',
     'expense_categories', 'expense_tags', 'expense_departments', 'expense_employees',
     'expense_projects', 'shared_dashboards', 'system_menu_settings', 'safety_policies',
@@ -401,46 +401,14 @@ async function seed() {
       ['/expenses', 1, 5],
       ['/finance-cashflow', 1, 6],
       ['/safety-management', 1, 7],
-      ['/rnd-management', 1, 8]
+      ['/rnd-management', 1, 8],
+      ['/mail-management-ai', 1, 9]
     ];
     for (const m of menus) {
       db.prepare("INSERT OR REPLACE INTO system_menu_settings (menu_href, is_enabled, sort_order) VALUES (?, ?, ?)")
         .run(m[0], m[1], m[2]);
     }
 
-    // [21] ai_token_usage_logs (AI API 토큰 실시간 모니터링 로그 대장)
-    const tokenLogs = [
-      // 오늘 데이터 (KST 오늘 날짜 기준)
-      ['gemini-3.5-flash', 'EASYBOT', 320, 180, 500, getPastDateStr(0)],
-      ['gemini-3.5-flash', 'OCR', 580, 220, 800, getPastDateStr(0)],
-      ['gemini-3.5-pro', 'LAWYER_AI', 1200, 800, 2000, getPastDateStr(0)],
-      ['gemini-3.5-flash', 'AI_BRIEFING', 450, 350, 800, getPastDateStr(0)],
-      ['gemini-3.5-flash', 'PRICE_TRACKER', 300, 100, 400, getPastDateStr(0)],
-
-      // 최근 7일 데이터
-      ['gemini-3.5-flash', 'EASYBOT', 310, 190, 500, getPastDateStr(1)],
-      ['gemini-3.5-flash', 'OCR', 600, 250, 850, getPastDateStr(1)],
-      ['gemini-3.5-pro', 'AI_BRIEFING', 1100, 900, 2000, getPastDateStr(2)],
-      ['gemini-3.5-flash', 'TRANSLATE', 200, 80, 280, getPastDateStr(2)],
-      ['gemini-3.5-flash', 'PRICE_TRACKER', 280, 120, 400, getPastDateStr(3)],
-      ['gemini-3.5-flash', 'EASYBOT', 350, 210, 560, getPastDateStr(4)],
-      ['gemini-3.5-flash', 'OCR', 540, 200, 740, getPastDateStr(5)],
-      ['gemini-3.5-pro', 'LAWYER_AI', 1300, 850, 2150, getPastDateStr(6)],
-
-      // 최근 30일 데이터
-      ['gemini-3.5-flash', 'EASYBOT', 330, 170, 500, getPastDateStr(10)],
-      ['gemini-3.5-flash', 'OCR', 550, 210, 760, getPastDateStr(12)],
-      ['gemini-3.5-pro', 'AI_BRIEFING', 1200, 950, 2150, getPastDateStr(15)],
-      ['gemini-3.5-flash', 'TRANSLATE', 220, 90, 310, getPastDateStr(18)],
-      ['gemini-3.5-flash', 'PRICE_TRACKER', 310, 130, 440, getPastDateStr(22)],
-      ['gemini-3.5-flash', 'EASYBOT', 340, 220, 560, getPastDateStr(25)]
-    ];
-
-    for (let i = 0; i < tokenLogs.length; i++) {
-      const log = tokenLogs[i];
-      db.prepare("INSERT INTO ai_token_usage_logs (id, model, purpose, prompt_tokens, completion_tokens, total_tokens, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
-        .run(i + 1, log[0], log[1], log[2], log[3], log[4], log[5]);
-    }
   })();
 
   console.log('✓ 모든 데모 데이터 적재가 트랜잭션 내에서 완료되었습니다.');
