@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { 
   X, FileText, Plus, RefreshCw, CheckCircle2, ExternalLink, ShieldAlert, Info 
 } from "lucide-react";
+import { createPortal } from "react-dom";
 import { EstimateItem } from "../types";
 import { base64ToBlob, parseEstimateMetadata } from "../utils";
 
@@ -303,8 +304,8 @@ export default function EstimateDetailModal({
     }));
   };
 
-  return (
-    <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  return typeof window !== "undefined" ? createPortal(
+    <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
       <div className="bg-white rounded-[32px] max-w-4xl w-full p-6 md:p-8 shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh] animate-scale-up">
         <button 
           onClick={onClose} 
@@ -835,6 +836,7 @@ export default function EstimateDetailModal({
           </div>
         </div>
       </div>
-    </div>
-  );
+    </div>,
+    document.body
+  ) : null;
 }
