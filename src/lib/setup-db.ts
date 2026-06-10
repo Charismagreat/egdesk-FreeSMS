@@ -1,23 +1,35 @@
-import { createTable, queryTable, insertRows, updateRows, deleteRows, deleteTable } from '../../egdesk-helpers';
+import { createTable, queryTable, insertRows, updateRows, deleteRows, deleteTable, executeSQL } from '../../egdesk-helpers';
 
 export async function setupDatabase() {
   const safeCreateTable = async (displayName: string, columns: any[], options: any) => {
+    const tableName = options.tableName;
     try {
-      await createTable(displayName, columns, options);
-      console.log(`Table "${options.tableName}" created/verified.`);
-    } catch (e: any) {
-      if (e.message.includes('UNIQUE constraint failed') || e.message.includes('table_name')) {
-        console.log(`Table metadata mismatch for "${options.tableName}". Attempting auto-healing via drop and recreate...`);
-        try {
-          await deleteTable(options.tableName);
-          await createTable(displayName, columns, options);
-          console.log(`Table "${options.tableName}" auto-healed and created successfully.`);
-          return;
-        } catch (recreateErr: any) {
-          console.error(`Failed to auto-heal table "${options.tableName}":`, recreateErr.message);
-        }
+      // 1. 물리 SQLite DB에 테이블이 이미 존재하는지 검증하여 무분별한 드롭 방지
+      let exists = false;
+      try {
+        const checkRes = await executeSQL(`SELECT name FROM sqlite_master WHERE type='table' AND name='${tableName}'`);
+        exists = checkRes && checkRes.rows && checkRes.rows.length > 0;
+      } catch (err) {
+        exists = false;
       }
-      console.error(`Error creating table "${options.tableName}":`, e.message);
+
+      if (exists) {
+        console.log(`Table "${tableName}" already exists physically. Skipping creation.`);
+        return;
+      }
+
+      // 2. 물리적으로는 없는데 메타데이터만 꼬여있는 경우, 선제 정리 후 깨끗하게 생성
+      console.log(`Table "${tableName}" does not exist physically. Re-creating...`);
+      try {
+        await deleteTable(tableName);
+      } catch (e) {
+        // 이미 테이블이 없는 경우 무시
+      }
+
+      await createTable(displayName, columns, options);
+      console.log(`Table "${tableName}" created successfully.`);
+    } catch (e: any) {
+      console.error(`Error creating table "${tableName}":`, e.message);
     }
   };
 
@@ -1161,7 +1173,16 @@ export async function setupDatabase() {
     { name: 'document_type', type: 'TEXT', notNull: true },
     { name: 'file_path', type: 'TEXT', notNull: true },
     { name: 'orientation', type: 'TEXT', notNull: true },
-    { name: 'is_active', type: 'INTEGER', notNull: true }
+    { name: 'is_active', type: 'INTEGER', notNull: true },
+    { name: 'query_sql', type: 'TEXT' },
+    { name: 'query_params', type: 'TEXT' },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
   ], { tableName: 'form_templates', uniqueKeyColumns: ['id'] });
 
   // 41-5. 양식 데이터 필드 매핑 (form_mappings)
@@ -1174,7 +1195,14 @@ export async function setupDatabase() {
     { name: 'pos_y', type: 'REAL', notNull: true },
     { name: 'font_size', type: 'INTEGER' },
     { name: 'font_weight', type: 'TEXT' },
-    { name: 'text_align', type: 'TEXT' }
+    { name: 'text_align', type: 'TEXT' },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
   ], { tableName: 'form_mappings', uniqueKeyColumns: ['id'] });
 
   // 42. Safety Policies Table (안전보건방침 및 목표 설정 대장)
@@ -1706,6 +1734,33 @@ export async function setupDatabase() {
     if (!tokenLogCols.includes('restored_by')) {
       db.exec("ALTER TABLE ai_token_usage_logs ADD COLUMN restored_by TEXT;");
       console.log('✓ In-app migration: added restored_by to ai_token_usage_logs');
+    }
+
+    // form_templates 테이블 컬럼 보정 마이그레이션
+    const templateCols = db.prepare("PRAGMA table_info(form_templates);").all().map((c: any) => c.name);
+    if (!templateCols.includes('query_sql')) {
+      db.exec("ALTER TABLE form_templates ADD COLUMN query_sql TEXT;");
+      console.log('✓ In-app migration: added query_sql to form_templates');
+    }
+    if (!templateCols.includes('query_params')) {
+      db.exec("ALTER TABLE form_templates ADD COLUMN query_params TEXT;");
+      console.log('✓ In-app migration: added query_params to form_templates');
+    }
+    const auditCols = ['uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by'];
+    for (const auditCol of auditCols) {
+      if (!templateCols.includes(auditCol)) {
+        db.exec(`ALTER TABLE form_templates ADD COLUMN ${auditCol} TEXT;`);
+        console.log(`✓ In-app migration: added ${auditCol} to form_templates`);
+      }
+    }
+
+    // form_mappings 테이블 컬럼 보정 마이그레이션
+    const mappingCols = db.prepare("PRAGMA table_info(form_mappings);").all().map((c: any) => c.name);
+    for (const auditCol of auditCols) {
+      if (!mappingCols.includes(auditCol)) {
+        db.exec(`ALTER TABLE form_mappings ADD COLUMN ${auditCol} TEXT;`);
+        console.log(`✓ In-app migration: added ${auditCol} to form_mappings`);
+      }
     }
 
     db.close();
@@ -2253,6 +2308,66 @@ export async function setupDatabase() {
   } catch (e: any) {
     console.error('Error seeding company settings:', e.message);
   }
+
+  // 41. CRM Credential Vault Table (보안 인증 정보 금고)
+  await safeCreateTable('보안 인증 정보 금고', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'category', type: 'TEXT', notNull: true },
+    { name: 'asset_name', type: 'TEXT', notNull: true },
+    { name: 'login_id', type: 'TEXT' },
+    { name: 'encrypted_password', type: 'TEXT', notNull: true },
+    { name: 'iv', type: 'TEXT', notNull: true },
+    { name: 'auth_tag', type: 'TEXT', notNull: true },
+    { name: 'remarks', type: 'TEXT' },
+    { name: 'owner_operator_id', type: 'INTEGER' },
+    { name: 'status', type: 'TEXT', notNull: true, defaultValue: 'ACTIVE' },
+    { name: 'created_at', type: 'TEXT', notNull: true },
+    { name: 'updated_at', type: 'TEXT', notNull: true },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
+  ], { tableName: 'crm_credential_vault', uniqueKeyColumns: ['id'] });
+
+  // 42. CRM Credential Emergency Requests Table (보안 인증 비상 요청 대장)
+  await safeCreateTable('보안 인증 비상 요청 대장', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'credential_id', type: 'INTEGER', notNull: true },
+    { name: 'requester_id', type: 'INTEGER', notNull: true },
+    { name: 'request_reason', type: 'TEXT', notNull: true },
+    { name: 'status', type: 'TEXT', notNull: true, defaultValue: 'PENDING' },
+    { name: 'approved_by', type: 'TEXT' },
+    { name: 'approved_at', type: 'TEXT' },
+    { name: 'expires_at', type: 'TEXT' },
+    { name: 'created_at', type: 'TEXT', notNull: true },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
+  ], { tableName: 'crm_credential_emergency_requests', uniqueKeyColumns: ['id'] });
+
+  // 43. CRM Credential Audit Logs Table (보안 인증 감사록)
+  await safeCreateTable('보안 인증 감사록', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'credential_id', type: 'INTEGER' },
+    { name: 'operator_id', type: 'INTEGER' },
+    { name: 'operator_name', type: 'TEXT' },
+    { name: 'action_type', type: 'TEXT', notNull: true },
+    { name: 'access_reason', type: 'TEXT' },
+    { name: 'created_at', type: 'TEXT', notNull: true },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
+  ], { tableName: 'crm_credential_audit_logs', uniqueKeyColumns: ['id'] });
 
   console.log('Database setup complete.');
 }

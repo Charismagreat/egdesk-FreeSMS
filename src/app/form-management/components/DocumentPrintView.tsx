@@ -23,7 +23,7 @@ interface MappingItem {
 
 interface DocumentPrintViewProps {
   templateId: number;
-  estimateId: string;
+  estimateId?: string; // Optional로 완화하여 범용 연동 지원
   onBack: () => void;
 }
 
@@ -67,11 +67,18 @@ function convertToKoreanNumber(num: number): string {
 export default function DocumentPrintView({ templateId, estimateId, onBack }: DocumentPrintViewProps) {
   const [template, setTemplate] = useState<any>(null);
   const [mappings, setMappings] = useState<MappingItem[]>([]);
-  const [estimate, setEstimate] = useState<any>(null);
-  const [estimateItems, setEstimateItems] = useState<any[]>([]);
   const [companyProfile, setCompanyProfile] = useState<any>({});
   
+  // 범용 동적 쿼리 및 데이터 바인딩 상태
+  const [querySql, setQuerySql] = useState<string>('');
+  const [queryParamsList, setQueryParamsList] = useState<any[]>([]);
+  const [paramValues, setParamValues] = useState<Record<string, any>>({});
+  const [paramOptions, setParamOptions] = useState<Record<string, string[]>>({});
+  const [queriedData, setQueriedData] = useState<any>(null);
+  const [estimateItems, setEstimateItems] = useState<any[]>([]); // 기존 품목 상세 테이블 하위 호환성 유지
+
   const [loading, setLoading] = useState(true);
+  const [queryRunning, setQueryRunning] = useState(false);
   const [pdfGenerating, setPdfGenerating] = useState(false);
   const printAreaRef = useRef<HTMLDivElement>(null);
 
@@ -87,10 +94,9 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
   const [commonTag, setCommonTag] = useState<string>('[제출용]');
   const [showStamp, setShowStamp] = useState<boolean>(true);
 
-  // 1) 템플릿 ID 결정 및 로딩 완료 시점의 인쇄 설정 세션 복원
+  // 1) 인쇄 설정 세션 복원
   useEffect(() => {
     if (loading || !templateId) return;
-
     try {
       const savedConfig = localStorage.getItem(`egdesk_form_print_config_${templateId}`);
       if (savedConfig) {
@@ -105,10 +111,9 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
     }
   }, [loading, templateId]);
 
-  // 2) 인쇄 설정 변경 시 자동 세션 영속화
+  // 2) 인쇄 설정 자동 세션 영속화
   useEffect(() => {
     if (loading || !templateId) return;
-
     try {
       const config = {
         commonDate,
@@ -122,43 +127,82 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
     }
   }, [loading, templateId, commonDate, commonInput, commonTag, showStamp]);
 
-  // 데이터 로드
+  // 3) 초기 마스터 데이터 로드 (템플릿 및 자사 프로필)
   useEffect(() => {
-    async function loadData() {
+    async function loadMasterData() {
       setLoading(true);
       try {
-        // 1. 템플릿 마스터 & 매핑 로드
+        // A. 템플릿 로드
         const tempRes = await fetch(`/api/templates?action=detail&id=${templateId}`);
         const tempData = await tempRes.json();
         
-        // 2. 견적서 마스터 & 품목 로드
-        const estRes = await fetch(`/api/estimates?action=detail&estimateId=${estimateId}`);
-        const estData = await estRes.json();
-
-        // 3. 자사 프로필 정보 로드
+        // B. 자사 프로필 로드
         const compRes = await fetch('/api/settings?key=my_company_profile');
         const compData = await compRes.json();
 
-        if (tempData.success && estData.success) {
-          setTemplate(tempData.template);
+        if (tempData.success) {
+          const temp = tempData.template;
+          setTemplate(temp);
           setMappings(tempData.mappings);
-          setEstimate(estData.estimate);
-          setEstimateItems(estData.items);
+          setQuerySql(temp.query_sql || '');
           
+          let parsedParams = [];
+          try {
+            parsedParams = JSON.parse(temp.query_params || '[]');
+          } catch (pe) {
+            console.error('파라미터 파싱 에러:', pe);
+          }
+          setQueryParamsList(parsedParams);
+
           if (compData.success && compData.value) {
             setCompanyProfile(JSON.parse(compData.value));
           } else {
-            // 기본값 매핑
             setCompanyProfile({
               companyName: '(주)쿠스',
-              businessNumber: '731-81-02023',
               representative: '차민수',
               address: '서울특별시 금천구 가산디지털2로 123',
               phone: '02-1234-5678'
             });
           }
+
+          // C. 조건 파라미터 드롭다운 옵션 로드
+          if (temp.document_type) {
+            const listRes = await fetch(`/api/db?action=query&tableName=${temp.document_type}&limit=300`);
+            const listData = await listRes.json();
+            
+            if (listData.success && listData.rows) {
+              const optionsMap: Record<string, string[]> = {};
+              
+              parsedParams.forEach((param: any) => {
+                const uniqueVals = Array.from(
+                  new Set(
+                    listData.rows
+                      .map((row: any) => {
+                        return row[param.name] || row[param.name.toUpperCase()] || row['id'] || '';
+                      })
+                      .filter(Boolean)
+                  )
+                ) as string[];
+                optionsMap[param.name] = uniqueVals;
+              });
+              setParamOptions(optionsMap);
+
+              // D. 초기 파라미터 값 결정
+              const initialVals: Record<string, any> = {};
+              parsedParams.forEach((param: any) => {
+                if (estimateId && (param.name.toLowerCase().includes('id') || param.name.toLowerCase().includes('estimate'))) {
+                  initialVals[param.name] = estimateId;
+                } else if (optionsMap[param.name] && optionsMap[param.name].length > 0) {
+                  initialVals[param.name] = optionsMap[param.name][0];
+                } else {
+                  initialVals[param.name] = '';
+                }
+              });
+              setParamValues(initialVals);
+            }
+          }
         } else {
-          alert('인쇄에 필요한 양식 정보 또는 견적서 내역을 조회하지 못했습니다.');
+          alert('양식 템플릿 설정 정보를 조회하지 못했습니다.');
         }
       } catch (e) {
         console.error(e);
@@ -168,63 +212,100 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
       }
     }
 
-    if (templateId && estimateId) {
-      loadData();
+    if (templateId) {
+      loadMasterData();
     }
   }, [templateId, estimateId]);
 
+  // 4) paramValues 상태가 설정되거나 변경될 때마다 실시간 쿼리 실행
+  useEffect(() => {
+    if (loading || !querySql || Object.keys(paramValues).length === 0) return;
+
+    async function runLiveQuery() {
+      setQueryRunning(true);
+      try {
+        const res = await fetch('/api/templates/run-query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            querySql,
+            queryParams: paramValues
+          })
+        });
+        const data = await res.json();
+        if (data.success && data.data) {
+          setQueriedData(data.data);
+
+          // crm_estimates (견적서) 이고 테이블 상세 품목 바인딩이 필요한 경우 품목 로드 트리거 (하위호환 보장)
+          const recordId = data.data.id || data.data.estimate_id;
+          if (template?.document_type === 'crm_estimates' && recordId) {
+            const estRes = await fetch(`/api/estimates?action=detail&estimateId=${recordId}`);
+            const estData = await estRes.json();
+            if (estData.success) {
+              setEstimateItems(estData.items || []);
+            }
+          } else {
+            setEstimateItems([]);
+          }
+        } else {
+          setQueriedData(null);
+          setEstimateItems([]);
+        }
+      } catch (e) {
+        console.error('Live SQL Query execution error:', e);
+      } finally {
+        setQueryRunning(false);
+      }
+    }
+
+    runLiveQuery();
+  }, [loading, querySql, paramValues, template?.document_type]);
+
   // 바인딩 데이터 값 매핑 변환기
   const getBindingValue = (fieldKey: string) => {
-    if (!estimate) return '';
+    if (fieldKey === 'common_date') return commonDate;
+    if (fieldKey === 'common_input') return commonInput;
+    if (fieldKey === 'common_tag') return commonTag;
+    if (fieldKey === 'common_stamp') return '';
 
-    const createdDate = estimate.created_at ? new Date(estimate.created_at.replace(' ', 'T')) : new Date();
-    const isInvalidDate = isNaN(createdDate.getTime());
+    // 자사 프로필 정보 매핑 연동
+    if (fieldKey === 'company_name') return companyProfile.companyName || '';
+    if (fieldKey === 'company_biz_num') return companyProfile.businessNumber || '';
+    if (fieldKey === 'company_owner') return companyProfile.representative || '';
+    if (fieldKey === 'company_address') return companyProfile.address || '';
+    if (fieldKey === 'company_phone') return companyProfile.phone || '';
 
-    switch (fieldKey) {
-      // 1) 공통 양식 요소 연동
-      case 'common_date':
-        return commonDate;
-      case 'common_input':
-        return commonInput;
-      case 'common_tag':
-        return commonTag;
-      case 'common_stamp':
-        // 도장은 텍스트가 아니라 적색 인장 SVG로 직접 렌더링하므로 텍스트로 값 매핑 시 빈 값을 리턴합니다.
-        return '';
+    if (!queriedData) return '';
 
-      // 2) 기존 DB 필드 연동
-      case 'estimate_id':
-        return estimate.id || '';
-      case 'partner_name':
-        return estimate.partner_name || '';
-      case 'partner_phone':
-        return estimate.partner_phone || '';
-      case 'total_amount':
-        return (estimate.total_amount || 0).toLocaleString() + ' 원';
-      case 'total_amount_krw':
-        const amountVal = estimate.total_amount || 0;
-        return `일금 ${convertToKoreanNumber(amountVal)}원정 (\\${amountVal.toLocaleString()})`;
-      case 'created_at_date':
-        return estimate.created_at ? estimate.created_at.substring(0, 10) : '';
-      case 'created_at_year':
-        return isInvalidDate ? '' : createdDate.getFullYear().toString();
-      case 'created_at_month':
-        return isInvalidDate ? '' : (createdDate.getMonth() + 1).toString().padStart(2, '0');
-      case 'created_at_day':
-        return isInvalidDate ? '' : createdDate.getDate().toString().padStart(2, '0');
-      case 'company_name':
-        return companyProfile.companyName || '';
-      case 'company_biz_num':
-        return companyProfile.businessNumber || '';
-      case 'company_owner':
-        return companyProfile.representative || '';
-      case 'company_address':
-        return companyProfile.address || '';
-      case 'company_phone':
-        return companyProfile.phone || '';
-      default:
-        return '';
+    const val = queriedData[fieldKey];
+    if (val === undefined || val === null) {
+      if (fieldKey.includes('_year') || fieldKey.includes('_month') || fieldKey.includes('_day')) {
+        const dateVal = queriedData['created_at'] || queriedData['joined_date'] || queriedData['order_date'] || '';
+        if (dateVal) {
+          const d = new Date(dateVal.toString().replace(' ', 'T'));
+          if (!isNaN(d.getTime())) {
+            if (fieldKey.includes('_year')) return d.getFullYear().toString();
+            if (fieldKey.includes('_month')) return (d.getMonth() + 1).toString().padStart(2, '0');
+            if (fieldKey.includes('_day')) return d.getDate().toString().padStart(2, '0');
+          }
+        }
+      }
+      return '';
     }
+
+    if (fieldKey === 'total_amount_krw') {
+      const numVal = Number(queriedData['total_amount'] || queriedData['amount'] || 0);
+      return `일금 ${convertToKoreanNumber(numVal)}원정 (\\${numVal.toLocaleString()})`;
+    }
+
+    if (typeof val === 'number') {
+      if (fieldKey.toLowerCase().includes('id') || fieldKey.toLowerCase().includes('phone') || fieldKey.toLowerCase().includes('number')) {
+        return val.toString();
+      }
+      return val.toLocaleString() + ' 원';
+    }
+
+    return val.toString();
   };
 
   // 브라우저 윈도우 인쇄
@@ -264,7 +345,8 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
 
       pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
       
-      const fileName = `견적서_${estimate.partner_name || '양식출력'}_${estimateId}.pdf`;
+      const documentName = queriedData ? (queriedData.partner_name || queriedData.name || '문서') : '양식출력';
+      const fileName = `${template.template_name || '양식'}_${documentName}_${Date.now()}.pdf`;
       pdf.save(fileName);
 
     } catch (error) {
@@ -284,12 +366,12 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
     );
   }
 
-  if (!template || !estimate) {
+  if (!template) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-6 bg-white border border-slate-100 rounded-3xl shadow-sm">
         <AlertCircle className="w-16 h-16 text-rose-500 mb-4 animate-bounce" />
         <h3 className="text-lg font-black text-slate-800 mb-2">데이터 로드 실패</h3>
-        <p className="text-xs font-semibold text-slate-500 mb-5">인쇄 양식 설정 혹은 실물 견적 내역을 찾을 수 없습니다.</p>
+        <p className="text-xs font-semibold text-slate-500 mb-5">인쇄 양식 설정 데이터를 찾을 수 없습니다.</p>
         <button onClick={onBack} className="px-5 py-2.5 bg-slate-900 hover:bg-slate-850 transition rounded-xl text-xs font-black text-white cursor-pointer shadow-md">
           목록으로 돌아가기
         </button>
@@ -345,7 +427,7 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
               <FileText className="w-5 h-5 text-indigo-600" />
               양식 오버레이 출력 미리보기
             </h1>
-            <p className="text-xs font-semibold text-slate-400 mt-0.5">선택한 견적서 정보를 양식의 매핑 좌표에 정합하여 출력합니다.</p>
+            <p className="text-xs font-semibold text-slate-400 mt-0.5">선택한 조건 정보를 기반으로 실시간 DB 쿼리를 수행하여 출력합니다.</p>
           </div>
         </div>
 
@@ -365,7 +447,7 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
           >
             {pdfGenerating ? (
               <>
-                <RefreshCw className="w-4 h-4 animate-spin animate-spin-slow" />
+                <RefreshCw className="w-4 h-4 animate-spin" />
                 PDF 생성 중...
               </>
             ) : (
@@ -384,11 +466,64 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
         {/* 좌측 인터랙티브 조작 패널 (인쇄 대상 제외) */}
         <div className="w-full md:w-[380px] p-6 border-r border-slate-100 bg-slate-50/50 overflow-y-auto flex flex-col gap-6 no-print">
           
+          {/* A. 동적 데이터베이스 조건 선택 패널 */}
+          {queryParamsList.length > 0 && (
+            <div className="flex flex-col gap-4 p-5 rounded-2xl bg-indigo-50/40 border border-indigo-100">
+              <div className="flex items-center gap-2 border-b border-indigo-100 pb-2 mb-1">
+                <Sparkles className="w-4.5 h-4.5 text-indigo-600 animate-pulse" />
+                <h3 className="text-xs font-black text-indigo-900">데이터 조회 조건</h3>
+              </div>
+              
+              <div className="flex flex-col gap-3">
+                {queryParamsList.map((param: any) => {
+                  const options = paramOptions[param.name] || [];
+                  const value = paramValues[param.name] || '';
+                  
+                  return (
+                    <div key={param.name} className="flex flex-col gap-1.5 text-left">
+                      <label className="text-[10px] font-bold text-indigo-900/80">
+                        {param.label} ({param.name})
+                      </label>
+                      
+                      {options.length > 0 ? (
+                        <select
+                          value={value}
+                          onChange={e => setParamValues(prev => ({ ...prev, [param.name]: e.target.value }))}
+                          className="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold focus:border-indigo-600 focus:outline-none shadow-sm"
+                        >
+                          {options.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type={param.type === 'number' ? 'number' : 'text'}
+                          value={value}
+                          onChange={e => setParamValues(prev => ({ ...prev, [param.name]: e.target.value }))}
+                          placeholder={`${param.label} 직접 입력`}
+                          className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 focus:border-indigo-600 focus:outline-none text-xs font-semibold shadow-sm transition"
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {queryRunning && (
+                <div className="flex items-center justify-center gap-2 py-1 text-slate-500">
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                  <span className="text-[10px] font-bold">DB 실시간 조회 중...</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* B. 수기 조작 영역 */}
           <div className="flex flex-col gap-4">
             <h3 className="text-xs font-black text-slate-800 border-l-4 border-indigo-600 pl-2">실시간 양식 항목 조작</h3>
             
             {/* 1. 인쇄 일자 */}
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5 text-left">
               <label className="text-[10px] font-bold text-slate-500">인쇄 일자 (common_date)</label>
               <input 
                 type="date" 
@@ -399,7 +534,7 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
             </div>
 
             {/* 2. 추가 입력 사항 */}
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5 text-left">
               <label className="text-[10px] font-bold text-slate-500">수기 추가 내용 (common_input)</label>
               <input 
                 type="text" 
@@ -411,7 +546,7 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
             </div>
 
             {/* 3. 양식 태그 */}
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5 text-left">
               <label className="text-[10px] font-bold text-slate-500">용도 태그 (common_tag)</label>
               <select 
                 value={commonTag}
@@ -426,7 +561,7 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
 
             {/* 4. 도장 날인 여부 */}
             <div className="flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-200 shadow-sm mt-2">
-              <div className="flex flex-col">
+              <div className="flex flex-col text-left">
                 <span className="text-xs font-bold text-slate-700">회사 대표 직인 오버레이</span>
                 <span className="text-[10px] text-slate-400 font-semibold mt-0.5">common_stamp 위치에 날인</span>
               </div>
@@ -444,9 +579,9 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
           </div>
 
           {/* 안내 메시지 */}
-          <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100/50 text-[11px] text-indigo-800 leading-relaxed font-medium">
+          <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100/50 text-[11px] text-indigo-800 leading-relaxed font-medium text-left">
             <p className="font-bold mb-1">💡 실시간 조작 팁</p>
-            좌측에서 수기 내용을 작성하거나 인쇄 일자를 조정하면, 우측의 A4 미리보기 화면에 즉각적으로 반영됩니다. 이 상태 그대로 인쇄하거나 PDF를 다운로드할 수 있습니다.
+            좌측 조건 선택 옵션에서 대상을 고르면 DB에서 실시간 쿼리하여 우측 서식 캔버스 위로 바인딩 처리합니다. 수기 추가 요소도 즉시 얹어집니다.
           </div>
 
         </div>
@@ -465,8 +600,17 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
             className="relative bg-white shadow-2xl border border-slate-300 aspect-[1/1.414] w-[700px] md:w-[750px] overflow-hidden select-none shrink-0"
           >
             
+            {/* 데이터가 없을 때의 경고 안내 */}
+            {!queriedData && (
+              <div className="absolute inset-0 bg-slate-50/70 z-40 flex flex-col items-center justify-center p-6 text-center">
+                <AlertCircle className="w-12 h-12 text-slate-400 mb-2" />
+                <span className="text-xs font-bold text-slate-600">조건에 부합하는 데이터가 존재하지 않습니다.</span>
+                <span className="text-[10px] text-slate-400 mt-1">좌측 조회 조건을 다시 설정해주십시오.</span>
+              </div>
+            )}
+
             {/* 매핑된 데이터들 오버레이 */}
-            {mappings.map((mapping, idx) => {
+            {queriedData && mappings.map((mapping, idx) => {
               const isTable = mapping.field_key === 'estimate_items_table';
               const value = getBindingValue(mapping.field_key);
 
@@ -486,7 +630,7 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
                     }}
                     className="pointer-events-none"
                   >
-                    <svg width="65" height="65" viewBox="0 0 100 100" className="text-red-655 text-red-600/80 fill-none stroke-current" style={{ transform: 'rotate(-5deg)', opacity: 0.85 }}>
+                    <svg width="65" height="65" viewBox="0 0 100 100" className="text-red-600/80 fill-none stroke-current" style={{ transform: 'rotate(-5deg)', opacity: 0.85 }}>
                       <circle cx="50" cy="50" r="46" strokeWidth="4" />
                       <circle cx="50" cy="50" r="41" strokeWidth="1.5" strokeDasharray="3 3" />
                       <text x="50" y="32" textAnchor="middle" fontSize="11" fontWeight="black" fill="currentColor">주식회사</text>
@@ -550,7 +694,7 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
                             </td>
                             <td className="p-1.5 border-r border-slate-400 text-right"></td>
                             <td className="p-1.5 text-right pr-2 text-indigo-700">
-                              {(estimate.total_amount || 0).toLocaleString()}
+                              {Number(queriedData['total_amount'] || queriedData['amount'] || 0).toLocaleString()}
                             </td>
                           </tr>
                         )}

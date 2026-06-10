@@ -225,6 +225,11 @@ export async function GET(request: Request) {
           else if (name === 'pms_projects') displayName = '사내 프로젝트 및 태스크 관리 대장';
           else if (name === 'tenant_menu_settings') displayName = '고객사(테넌트)별 활성화된 메뉴 정보';
           else if (name === 'system_shared_views') displayName = '대시보드 뷰 템플릿 구성 정보';
+          else if (name === 'rnd_centers') displayName = '연구 센터 정보';
+          else if (name === 'rnd_staffs') displayName = '연구원 대장 / 재직자 정보';
+          else if (name === 'rnd_spaces') displayName = '연구원 활용 공간 정보';
+          else if (name === 'rnd_logs') displayName = '연구소 근태 로그';
+          else if (name === 'rnd_compliance_alarms') displayName = '연구소 규제 준수 경고 현황';
           
           // 4차 보완: 잔여 시스템 테이블(7개) 한글 매핑 추가
           else if (name === 'crm_estimate_items') displayName = '견적 및 발주서 상세 품목 대장';
@@ -234,6 +239,12 @@ export async function GET(request: Request) {
           else if (name === 'expense_employees') displayName = '지출 청구 대상 임직원 명단';
           else if (name === 'expense_settings') displayName = '지출 관리 결재 한도 및 연동 설정';
           else if (name === 'expense_tags') displayName = '통합 공통 태그 관리';
+          
+          // 5차 보완: 누락된 핵심 및 보안 인증 테이블 한글 매핑 추가
+          else if (name === 'ai_contextual_help') displayName = 'AI 도움말 캐시';
+          else if (name === 'crm_credential_vault') displayName = '보안 인증 정보 금고';
+          else if (name === 'crm_credential_audit_logs') displayName = '보안 인증 감사록';
+          else if (name === 'crm_credential_emergency_requests') displayName = '보안 인증 비상 요청 대장';
 
           tablesWithCount.push({
             name,

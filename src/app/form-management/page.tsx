@@ -50,6 +50,11 @@ export default function FormManagementPage() {
   const [estimatesLoading, setEstimatesLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // 현재 모달 출력 대상 템플릿 정보 계산
+  const activeTemplate = templates.find(t => t.id === printTemplateId);
+  const activeDocType = activeTemplate ? activeTemplate.document_type : '';
+  const activeTemplateName = activeTemplate ? activeTemplate.template_name : '양식';
+
   // 1) 마운트 완료 후 로컬 스토리지에서 세션 복원
   useEffect(() => {
     try {
@@ -134,24 +139,64 @@ export default function FormManagementPage() {
     }
   };
 
-  // 테스트 출력 버튼 클릭 시 견적서 목록 가져오기 및 모달 열기
+  // 테스트 출력 버튼 클릭 시 연동 데이터 소스 테이블에 맞추어 목록 가져오기 및 모달 열기
   const handleOpenPrintModal = async (templateId: number) => {
     setPrintTemplateId(templateId);
+    
+    // 현재 선택된 템플릿의 연동 데이터 소스(document_type) 알아내기
+    const template = templates.find(t => t.id === templateId);
+    const docType = template ? template.document_type : 'crm_estimates';
+    
     setIsEstimateModalOpen(true);
     setEstimatesLoading(true);
+    setSearchTerm(''); // 검색 초기화
     
     try {
-      // 견적서 목록 조회 API
-      const res = await fetch('/api/estimates?action=list');
-      const data = await res.json();
-      if (data.success) {
-        setEstimates(data.estimates || []);
+      let dataList: any[] = [];
+      
+      // 만약 docType이 'crm_estimates'이면 기존과 마찬가지로 /api/estimates?action=list 를 우선 부르고
+      // 그 외의 동적 테이블인 경우 범용 DB 조회 API(/api/db?action=query)를 활용
+      if (docType === 'crm_estimates' || !docType) {
+        const res = await fetch('/api/estimates?action=list');
+        const data = await res.json();
+        if (data.success) {
+          dataList = data.estimates || [];
+        } else {
+          throw new Error(data.error || '견적서 조회 실패');
+        }
       } else {
-        alert('견적서 목록을 조회할 수 없습니다.');
+        // 범용 DB 레코드 쿼리 API 호출
+        const res = await fetch(`/api/db?action=query&tableName=${docType}&limit=100`);
+        const data = await res.json();
+        if (data.success) {
+          // 각 테이블 레코드를 견적서 양식과 유사한 포맷으로 매핑
+          dataList = (data.rows || []).map((row: any) => {
+            const idVal = row.id || row.key || row.item_id || row.staff_id || row.uuid || '';
+            const partnerVal = row.partner_name || row.name || row.title || row.company_name || row.username || '-';
+            const firstItemVal = row.service_name || row.product_name || row.category || row.remarks || row.content || row.action_type || '-';
+            const totalAmountVal = row.total_amount || row.amount || row.price || 0;
+            const dateVal = row.created_at || row.order_date || row.reservation_date || row.captured_at || '-';
+            
+            return {
+              id: String(idVal),
+              partner_name: partnerVal,
+              first_item_name: firstItemVal,
+              total_amount: Number(totalAmountVal),
+              created_at: dateVal,
+              item_count: 1,
+              originalRow: row
+            };
+          });
+        } else {
+          throw new Error(data.error || '테이블 데이터 조회 실패');
+        }
       }
-    } catch (e) {
+      
+      setEstimates(dataList);
+    } catch (e: any) {
       console.error(e);
-      alert('견적서 목록 로딩 중 에러가 발생했습니다.');
+      alert(`데이터 목록 로딩 중 에러가 발생했습니다:\n${e.message}`);
+      setEstimates([]);
     } finally {
       setEstimatesLoading(false);
     }
@@ -208,6 +253,10 @@ export default function FormManagementPage() {
             <Plus className="w-4 h-4 stroke-[3px]" />
             새 문서 양식 등록
           </button>
+        )}
+
+        {viewMode === 'editor' && (
+          <div id="form-editor-actions-portal" className="flex items-center gap-2 shrink-0"></div>
         )}
       </div>
 
@@ -381,9 +430,9 @@ export default function FormManagementPage() {
               <div>
                 <h3 className="text-lg font-black flex items-center gap-2 text-slate-800">
                   <Sparkles className="w-5 h-5 text-indigo-600" />
-                  연동할 실물 견적 데이터 선택
+                  [{activeTemplateName}] 연동 데이터 선택
                 </h3>
-                <p className="text-xs text-slate-500 mt-1 font-semibold">양식의 지정된 좌표에 기입하여 렌더링할 견적서 대상을 고르십시오.</p>
+                <p className="text-xs text-slate-500 mt-1 font-semibold">양식의 지정된 좌표에 기입하여 렌더링할 [{activeDocType || '지정 테이블'}] 레코드를 선택하십시오.</p>
               </div>
               <button 
                 onClick={() => setIsEstimateModalOpen(false)}
@@ -398,7 +447,7 @@ export default function FormManagementPage() {
               <Search className="w-4 h-4 text-slate-400 shrink-0" />
               <input 
                 type="text" 
-                placeholder="견적번호, 바이어 상호, 혹은 품목명으로 검색..."
+                placeholder="식별값, 명칭, 혹은 분류/항목으로 검색..."
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 className="w-full bg-transparent text-xs text-slate-800 focus:outline-none placeholder-slate-400 font-bold"
@@ -410,24 +459,24 @@ export default function FormManagementPage() {
               {estimatesLoading ? (
                 <div className="flex flex-col items-center justify-center py-12 text-slate-400">
                   <RefreshCw className="w-8 h-8 animate-spin text-indigo-600 mb-2" />
-                  <span className="text-xs font-bold">최근 견적 내역을 조회하는 중...</span>
+                  <span className="text-xs font-bold">최근 데이터를 조회하는 중...</span>
                 </div>
               ) : filteredEstimates.length === 0 ? (
                 <div className="text-center py-16 text-slate-400 border border-dashed border-slate-200 rounded-2xl bg-white">
                   <AlertCircle className="w-12 h-12 text-slate-300 mx-auto mb-2" />
-                  <p className="text-sm font-black text-slate-500">조회된 견적 내역이 없습니다</p>
-                  <p className="text-xs text-slate-400 mt-1">거래처에 보낸 견적서가 DB에 존재하는지 확인해 주세요.</p>
+                  <p className="text-sm font-black text-slate-500">조회된 데이터가 없습니다</p>
+                  <p className="text-xs text-slate-400 mt-1">[{activeDocType || '지정 테이블'}] 테이블에 연동 데이터가 존재하는지 확인해 주세요.</p>
                 </div>
               ) : (
                 <div className="border border-slate-100 rounded-3xl overflow-hidden bg-white shadow-sm">
                   <table className="w-full border-collapse text-left text-xs font-semibold">
                     <thead>
                       <tr className="bg-slate-50 text-slate-400 font-bold border-b border-slate-100">
-                        <th className="p-4">견적 번호</th>
-                        <th className="p-4">바이어 상호</th>
-                        <th className="p-4">대표 품목</th>
-                        <th className="p-4 text-right">총 금액</th>
-                        <th className="p-4 text-center">발행일</th>
+                        <th className="p-4">식별 번호/ID</th>
+                        <th className="p-4">대표자/명칭</th>
+                        <th className="p-4">분류/항목</th>
+                        <th className="p-4 text-right">금액/수치</th>
+                        <th className="p-4 text-center">생성/일시</th>
                         <th className="p-4 text-center">선택</th>
                       </tr>
                     </thead>
@@ -445,7 +494,7 @@ export default function FormManagementPage() {
                             {est.item_count > 1 && ` 외 ${est.item_count - 1}건`}
                           </td>
                           <td className="p-4 text-right font-black text-slate-800">
-                            {(est.total_amount || 0).toLocaleString()}원
+                            {(est.total_amount || 0).toLocaleString()}{activeDocType === 'crm_estimates' ? '원' : ''}
                           </td>
                           <td className="p-4 text-center text-slate-400">
                             {est.created_at ? est.created_at.substring(0, 10) : '-'}

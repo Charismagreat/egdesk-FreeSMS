@@ -28,16 +28,40 @@ export async function GET(req: Request) {
 
     // 만약 견적서 목록을 조회하고 싶다면 (관리자용)
     if (action === 'list') {
-      const query = `
-        SELECT e.*, 
-               (SELECT product_name FROM crm_estimate_items WHERE estimate_id = e.id LIMIT 1) AS first_item_name,
-               (SELECT COUNT(*) FROM crm_estimate_items WHERE estimate_id = e.id) AS item_count
-        FROM crm_estimates e
-        WHERE e.deleted_at IS NULL
-        ORDER BY e.id DESC
-      `;
-      const result = await executeSQL(query);
-      const estimates = (result && result.rows) ? result.rows : (Array.isArray(result) ? result : []);
+      // 1. 견적서 마스터 목록 조회 (deleted_at IS NULL은 queryTable 내부에서 자체 처리됨)
+      const estRes = await queryTable('crm_estimates', {
+        orderBy: 'id',
+        orderDirection: 'DESC',
+        limit: 500
+      });
+      const rawEstimates = estRes.rows || [];
+
+      // 2. 견적서 상세 아이템 목록 조회
+      const itemsRes = await queryTable('crm_estimate_items', {
+        limit: 5000
+      });
+      const rawItems = itemsRes.rows || [];
+
+      // 3. estimate_id 별로 아이템 그룹화
+      const itemsMap: Record<string, any[]> = {};
+      for (const item of rawItems) {
+        const estId = item.estimate_id;
+        if (!itemsMap[estId]) {
+          itemsMap[estId] = [];
+        }
+        itemsMap[estId].push(item);
+      }
+
+      // 4. 결과 병합 조인
+      const estimates = rawEstimates.map((e: any) => {
+        const estItems = itemsMap[e.id] || [];
+        return {
+          ...e,
+          first_item_name: estItems.length > 0 ? estItems[0].product_name : null,
+          item_count: estItems.length
+        };
+      });
+
       return NextResponse.json({ success: true, estimates });
     }
 
@@ -58,11 +82,11 @@ export async function GET(req: Request) {
       const itemsRes = await queryTable('crm_estimate_items', { filters: { estimate_id: estimateId } });
       const items = itemsRes.rows || [];
 
-      // 💡 안전 가드: 발주서(crm_purchase_orders) 또는 수주서(crm_sales_orders)로의 전환 여부 검사
-      const poCheck = await executeSQL(`SELECT id FROM crm_purchase_orders WHERE estimate_id = '${estimateId}' AND deleted_at IS NULL LIMIT 1`);
-      const poRows = poCheck?.rows || (Array.isArray(poCheck) ? poCheck : []);
-      const soCheck = await executeSQL(`SELECT id FROM crm_sales_orders WHERE estimate_id = '${estimateId}' AND deleted_at IS NULL LIMIT 1`);
-      const soRows = soCheck?.rows || (Array.isArray(soCheck) ? soCheck : []);
+      // 💡 안전 가드: 발주서(crm_purchase_orders) 또는 수주서(crm_sales_orders)로의 전환 여부 검사 (queryTable 우회)
+      const poRes = await queryTable('crm_purchase_orders', { filters: { estimate_id: estimateId }, limit: 1 });
+      const poRows = poRes.rows || [];
+      const soRes = await queryTable('crm_sales_orders', { filters: { estimate_id: estimateId }, limit: 1 });
+      const soRows = soRes.rows || [];
       
       const isLinked = poRows.length > 0 || soRows.length > 0;
 
@@ -70,10 +94,12 @@ export async function GET(req: Request) {
     }
 
     // 기본값: 모바일용 견적 상품 목록 조회
-    // 💡 SQL Query 헬퍼를 활용하여 견적가 플래그가 켜진 상품만 확실히 색출!
-    const query = `SELECT * FROM products WHERE is_estimate_price = 1 AND deleted_at IS NULL`;
-    const result = await executeSQL(query);
-    const estimateProducts = (result && result.rows) ? result.rows : (Array.isArray(result) ? result : []);
+    // 💡 SQL Query 헬퍼를 활용하여 견적가 플래그가 켜진 상품만 확실히 색출 (queryTable 우회)
+    const prodRes = await queryTable('products', {
+      filters: { is_estimate_price: '1' },
+      limit: 1000
+    });
+    const estimateProducts = prodRes.rows || [];
 
     return NextResponse.json({ success: true, products: estimateProducts });
   } catch (error: any) {
@@ -119,9 +145,8 @@ export async function POST(req: Request) {
     if (type === 'INBOUND' && is_new_partner) {
       let existingPartner = null;
       if (business_number) {
-        const checkQuery = `SELECT * FROM crm_partners WHERE business_number = '${business_number}' AND deleted_at IS NULL LIMIT 1`;
-        const checkRes = await executeSQL(checkQuery) || [];
-        const rows = (checkRes && (checkRes as any).rows) ? (checkRes as any).rows : (Array.isArray(checkRes) ? checkRes : []);
+        const partnerRes = await queryTable('crm_partners', { filters: { business_number }, limit: 1 });
+        const rows = partnerRes.rows || [];
         if (rows.length > 0) {
           existingPartner = rows[0];
         }
@@ -319,11 +344,11 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ success: false, error: '삭제할 견적 번호가 누락되었습니다.' }, { status: 400 });
     }
 
-    // 💡 안전 가드: 발주서(crm_purchase_orders) 또는 수주서(crm_sales_orders)로의 전환 여부 검사 및 삭제 차단
-    const poCheck = await executeSQL(`SELECT id FROM crm_purchase_orders WHERE estimate_id = '${estimateId}' AND deleted_at IS NULL LIMIT 1`);
-    const poRows = poCheck?.rows || (Array.isArray(poCheck) ? poCheck : []);
-    const soCheck = await executeSQL(`SELECT id FROM crm_sales_orders WHERE estimate_id = '${estimateId}' AND deleted_at IS NULL LIMIT 1`);
-    const soRows = soCheck?.rows || (Array.isArray(soCheck) ? soCheck : []);
+    // 💡 안전 가드: 발주서(crm_purchase_orders) 또는 수주서(crm_sales_orders)로의 전환 여부 검사 및 삭제 차단 (queryTable 우회)
+    const poRes = await queryTable('crm_purchase_orders', { filters: { estimate_id: estimateId }, limit: 1 });
+    const poRows = poRes.rows || [];
+    const soRes = await queryTable('crm_sales_orders', { filters: { estimate_id: estimateId }, limit: 1 });
+    const soRows = soRes.rows || [];
 
     if (poRows.length > 0 || soRows.length > 0) {
       return NextResponse.json({ 
