@@ -1,6 +1,6 @@
 /**
  * EGDesk User Data Configuration
- * Generated at: 2026-06-09T13:24:59.006Z
+ * Generated at: 2026-06-10T00:29:55.242Z
  *
  * This file contains type-safe definitions for your EGDesk tables.
  */
@@ -276,7 +276,7 @@ export const TABLES = {
   table37: {
     name: 'ai_contextual_help',
     displayName: 'AI 도움말 캐시',
-    rowCount: 0,
+    rowCount: 1,
     columnCount: 12,
     columns: ['id', 'hint_key', 'hint_text', 'ai_explanation', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
@@ -290,7 +290,7 @@ export const TABLES = {
   table39: {
     name: 'system_menu_settings',
     displayName: '시스템 메뉴 설정',
-    rowCount: 0,
+    rowCount: 42,
     columnCount: 11,
     columns: ['id', 'menu_href', 'is_enabled', 'sort_order', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
@@ -535,7 +535,7 @@ export const TABLES = {
   table74: {
     name: 'system_settings',
     displayName: '시스템 설정',
-    rowCount: 1,
+    rowCount: 6,
     columnCount: 10,
     columns: ['id', 'key', 'value', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
