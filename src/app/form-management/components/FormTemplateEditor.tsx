@@ -74,11 +74,52 @@ export default function FormTemplateEditor({ templateId, onBack, onSaved }: Form
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // AI 자동 매핑용 신규 상태
-  const [selectedTables, setSelectedTables] = useState<string[]>(['crm_estimates', 'rnd_staffs', 'crm_customers', 'crm_orders']);
+  // AI 자동 매핑용 상태 및 DB 물리 테이블 동적 수집 훅
+  const [selectedTables, setSelectedTables] = useState<string[]>([]);
+  const [availableTables, setAvailableTables] = useState<{ name: string; displayName: string; count: any }[]>([]);
+  const [tablesLoading, setTablesLoading] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [rawFileBase64, setRawFileBase64] = useState<string>('');
   const [uploadFilename, setUploadFilename] = useState<string>('');
+
+  // 물리 테이블 목록 동적 API 연동
+  useEffect(() => {
+    async function fetchDBTables() {
+      setTablesLoading(true);
+      try {
+        const res = await fetch('/api/db?action=list');
+        const data = await res.json();
+        if (data.success && data.tables) {
+          setAvailableTables(data.tables);
+          // 기본값: 전체 테이블 자동 선택
+          setSelectedTables(data.tables.map((t: any) => t.name));
+        } else {
+          // 폴백 데이터
+          const fallback = [
+            { name: 'crm_estimates', displayName: '견적서 대장', count: 0 },
+            { name: 'rnd_staffs', displayName: '연구원 대장', count: 0 },
+            { name: 'crm_customers', displayName: '고객 명단', count: 0 },
+            { name: 'crm_orders', displayName: '주문 내역', count: 0 }
+          ];
+          setAvailableTables(fallback);
+          setSelectedTables(fallback.map(t => t.name));
+        }
+      } catch (err) {
+        console.error('테이블 목록 조회 실패:', err);
+        const fallback = [
+          { name: 'crm_estimates', displayName: '견적서 대장', count: 0 },
+          { name: 'rnd_staffs', displayName: '연구원 대장', count: 0 },
+          { name: 'crm_customers', displayName: '고객 명단', count: 0 },
+          { name: 'crm_orders', displayName: '주문 내역', count: 0 }
+        ];
+        setAvailableTables(fallback);
+        setSelectedTables(fallback.map(t => t.name));
+      } finally {
+        setTablesLoading(false);
+      }
+    }
+    fetchDBTables();
+  }, []);
   
   // 드래그 상태 관리
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -669,33 +710,52 @@ export default function FormTemplateEditor({ templateId, onBack, onSaved }: Form
               
               <div className="flex flex-col gap-2">
                 <label className="text-[10px] font-black text-indigo-900/85">분석 대상 DB 테이블 (멀티 선택)</label>
-                <div className="grid grid-cols-2 gap-1.5 bg-white/60 p-2 rounded-xl border border-indigo-100/30">
-                  {[
-                    { key: 'crm_estimates', label: '견적서 대장' },
-                    { key: 'rnd_staffs', label: '연구원 대장' },
-                    { key: 'crm_customers', label: '고객 명단' },
-                    { key: 'crm_orders', label: '주문 내역' }
-                  ].map(table => {
-                    const isChecked = selectedTables.includes(table.key);
-                    return (
-                      <label 
-                        key={table.key} 
-                        className={`flex items-center gap-1.5 p-1.5 rounded-lg border text-[10px] font-bold cursor-pointer transition-colors ${
-                          isChecked 
-                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' 
-                          : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
-                        }`}
-                      >
-                        <input 
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => handleToggleTable(table.key)}
-                          className="hidden"
-                        />
-                        <span>{table.label}</span>
-                      </label>
-                    );
-                  })}
+                <div className="max-h-[160px] overflow-y-auto pr-1 bg-white/60 p-2 rounded-xl border border-indigo-100/30 flex flex-col gap-1.5 scrollbar-thin">
+                  {tablesLoading ? (
+                    <div className="flex flex-col items-center justify-center py-6 text-slate-400">
+                      <RefreshCw className="w-5 h-5 animate-spin text-indigo-650 mb-1" />
+                      <span className="text-[9px] font-semibold">테이블 목록 로딩 중...</span>
+                    </div>
+                  ) : availableTables.length === 0 ? (
+                    <span className="text-[10px] text-slate-400 text-center py-4 font-bold">조회된 테이블이 없습니다.</span>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {availableTables.map(table => {
+                        const isChecked = selectedTables.includes(table.name);
+                        return (
+                          <label 
+                            key={table.name} 
+                            title={`${table.displayName} (${table.name})`}
+                            className={`flex items-center justify-between gap-1.5 p-1.5 rounded-xl border text-[10px] font-bold cursor-pointer transition-all min-w-0 ${
+                              isChecked 
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' 
+                              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                            }`}
+                          >
+                            <input 
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => handleToggleTable(table.name)}
+                              className="hidden"
+                            />
+                            <div className="flex flex-col min-w-0 text-left">
+                              <span className="truncate block leading-tight">{table.displayName}</span>
+                              <span className={`text-[8px] font-mono truncate block leading-none mt-0.5 ${isChecked ? 'text-indigo-200' : 'text-slate-400'}`}>
+                                {table.name}
+                              </span>
+                            </div>
+                            {table.count !== undefined && table.count !== 'Error' && table.count > 0 && (
+                              <span className={`text-[8px] px-1.5 py-0.5 rounded-full shrink-0 font-bold leading-none ${
+                                isChecked ? 'bg-indigo-500 text-white' : 'bg-slate-100 text-slate-500'
+                              }`}>
+                                {table.count}
+                              </span>
+                            )}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
 
