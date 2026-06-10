@@ -905,7 +905,7 @@ export default function FormTemplateEditor({ templateId, onBack, onSaved }: Form
                     min={2}
                     max={98}
                     step={0.5}
-                    value={selectedMapping.pos_x ?? ''}
+                    value={selectedMapping.pos_x === undefined || selectedMapping.pos_x === null || isNaN(selectedMapping.pos_x) ? '' : selectedMapping.pos_x}
                     onChange={e => updateSelectedProperty('pos_x', Math.max(2, Math.min(parseFloat(e.target.value) || 2, 98)))}
                     className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-600"
                   />
@@ -917,7 +917,7 @@ export default function FormTemplateEditor({ templateId, onBack, onSaved }: Form
                     min={2}
                     max={98}
                     step={0.5}
-                    value={selectedMapping.pos_y ?? ''}
+                    value={selectedMapping.pos_y === undefined || selectedMapping.pos_y === null || isNaN(selectedMapping.pos_y) ? '' : selectedMapping.pos_y}
                     onChange={e => updateSelectedProperty('pos_y', Math.max(2, Math.min(parseFloat(e.target.value) || 2, 98)))}
                     className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-600"
                   />
