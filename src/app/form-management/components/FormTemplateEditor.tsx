@@ -625,7 +625,15 @@ export default function FormTemplateEditor({ templateId, onBack, onSaved }: Form
                   onChange={e => setDocumentType(e.target.value)}
                   className="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold focus:border-indigo-600 focus:outline-none"
                 >
-                  <option value="crm_estimates">견적서 (crm_estimates)</option>
+                  {availableTables.length === 0 ? (
+                    <option value="crm_estimates">견적서 (crm_estimates)</option>
+                  ) : (
+                    availableTables.map(table => (
+                      <option key={table.name} value={table.name}>
+                        {table.displayName} ({table.name})
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
 
