@@ -66,10 +66,98 @@ export default function FormTemplateEditor({ templateId, onBack, onSaved }: Form
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // AI 자동 매핑용 신규 상태
+  const [selectedTables, setSelectedTables] = useState<string[]>(['crm_estimates', 'rnd_staffs', 'crm_customers', 'crm_orders']);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [rawFileBase64, setRawFileBase64] = useState<string>('');
+  const [uploadFilename, setUploadFilename] = useState<string>('');
   
   // 드래그 상태 관리
   const canvasRef = useRef<HTMLDivElement>(null);
   const dragItemRef = useRef<{ index: number; startX: number; startY: number; startLeft: number; startTop: number } | null>(null);
+
+  // URL -> Base64 헬퍼 함수
+  const urlToBase64 = async (url: string): Promise<string> => {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  const handleToggleTable = (tableKey: string) => {
+    setSelectedTables(prev => 
+      prev.includes(tableKey) 
+        ? prev.filter(t => t !== tableKey) 
+        : [...prev, tableKey]
+    );
+  };
+
+  const handleAutoMappingByAI = async () => {
+    if (!filePath) return;
+    setIsAnalyzing(true);
+
+    try {
+      let base64Data = rawFileBase64;
+      if (!base64Data) {
+        try {
+          base64Data = await urlToBase64(filePath);
+        } catch (err) {
+          console.error('URL Base64 변환 실패:', err);
+        }
+      }
+
+      if (!base64Data) {
+        alert('양식 이미지의 Base64 데이터를 추출할 수 없습니다. 파일을 다시 업로드해 주세요.');
+        setIsAnalyzing(false);
+        return;
+      }
+
+      const res = await fetch('/api/templates/auto-map', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageBase64: base64Data,
+          filename: uploadFilename || filePath.split('/').pop(),
+          selectedTables
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setDocumentType(data.suggested_document_type);
+        
+        const generatedMappings = data.mappings.map((m: any, idx: number) => ({
+          id: Date.now() + idx,
+          field_key: m.field_key,
+          field_label: m.field_label,
+          pos_x: m.pos_x,
+          pos_y: m.pos_y,
+          font_size: m.field_key === 'estimate_items_table' ? 11 : 13,
+          font_weight: 'bold',
+          text_align: m.field_key === 'estimate_items_table' || m.field_key === 'company_address' ? 'left' : 'center'
+        }));
+        
+        setMappings(generatedMappings);
+        if (generatedMappings.length > 0) {
+          setSelectedMappingId(generatedMappings[0].id);
+        }
+        
+        alert(`AI 분석 완료! 신뢰도(${(data.confidence_score * 100).toFixed(0)}%)\n배경 서식을 분석하여 '${data.suggested_document_type}' 데이터 소스에 맞춘 ${generatedMappings.length}개 필드를 자동 배치하였습니다.`);
+      } else {
+        alert(`AI 자동 매핑 분석 실패: ${data.error}`);
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert('AI 분석 통신 중 에러가 발생했습니다.');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   // 템플릿 수정 시 기존 정보 로드
   useEffect(() => {
@@ -112,6 +200,13 @@ export default function FormTemplateEditor({ templateId, onBack, onSaved }: Form
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    setUploadFilename(file.name);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setRawFileBase64(reader.result as string);
+    };
+    reader.readAsDataURL(file);
 
     const formData = new FormData();
     formData.append('file', file);
@@ -444,6 +539,69 @@ export default function FormTemplateEditor({ templateId, onBack, onSaved }: Form
               </div>
             )}
           </div>
+
+          {/* AI 자동 매핑 관제 */}
+          {filePath && (
+            <div className="p-5 rounded-2xl bg-indigo-50/40 border border-indigo-100/50 flex flex-col gap-4 shadow-sm text-left relative overflow-hidden">
+              <div className="absolute top-[-50px] right-[-50px] w-24 h-24 rounded-full bg-indigo-200/20 blur-xl pointer-events-none"></div>
+              
+              <div className="flex items-center gap-2 border-b border-indigo-100/50 pb-2">
+                <Sparkles className="w-4.5 h-4.5 text-indigo-600 animate-pulse" />
+                <h3 className="text-xs font-black text-indigo-955">AI 자율 매핑 파일럿</h3>
+              </div>
+              
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black text-indigo-900/85">분석 대상 DB 테이블 (멀티 선택)</label>
+                <div className="grid grid-cols-2 gap-1.5 bg-white/60 p-2 rounded-xl border border-indigo-100/30">
+                  {[
+                    { key: 'crm_estimates', label: '견적서 대장' },
+                    { key: 'rnd_staffs', label: '연구원 대장' },
+                    { key: 'crm_customers', label: '고객 명단' },
+                    { key: 'crm_orders', label: '주문 내역' }
+                  ].map(table => {
+                    const isChecked = selectedTables.includes(table.key);
+                    return (
+                      <label 
+                        key={table.key} 
+                        className={`flex items-center gap-1.5 p-1.5 rounded-lg border text-[10px] font-bold cursor-pointer transition-colors ${
+                          isChecked 
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' 
+                          : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        <input 
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => handleToggleTable(table.key)}
+                          className="hidden"
+                        />
+                        <span>{table.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleAutoMappingByAI}
+                disabled={isAnalyzing || selectedTables.length === 0}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold py-2.5 rounded-xl transition-all shadow-md shadow-indigo-600/10 flex items-center justify-center space-x-2 disabled:opacity-50 hover:scale-102 active:scale-98 cursor-pointer"
+              >
+                {isAnalyzing ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>AI가 서식 파싱 및 매핑 중...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>AI 1초 자동 매핑 실행</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
 
           {/* 오버레이 필드 선택기 */}
           {filePath && (
