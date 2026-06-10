@@ -1154,6 +1154,29 @@ export async function setupDatabase() {
     { name: 'created_at', type: 'TEXT', notNull: true }
   ], { tableName: 'ai_contextual_help', uniqueKeyColumns: ['hint_key'] });
 
+  // 41-4. 양식 템플릿 마스터 (form_templates)
+  await safeCreateTable('양식 템플릿 마스터', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'template_name', type: 'TEXT', notNull: true },
+    { name: 'document_type', type: 'TEXT', notNull: true },
+    { name: 'file_path', type: 'TEXT', notNull: true },
+    { name: 'orientation', type: 'TEXT', notNull: true },
+    { name: 'is_active', type: 'INTEGER', notNull: true }
+  ], { tableName: 'form_templates', uniqueKeyColumns: ['id'] });
+
+  // 41-5. 양식 데이터 필드 매핑 (form_mappings)
+  await safeCreateTable('양식 데이터 필드 매핑', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'template_id', type: 'INTEGER', notNull: true },
+    { name: 'field_key', type: 'TEXT', notNull: true },
+    { name: 'field_label', type: 'TEXT', notNull: true },
+    { name: 'pos_x', type: 'REAL', notNull: true },
+    { name: 'pos_y', type: 'REAL', notNull: true },
+    { name: 'font_size', type: 'INTEGER' },
+    { name: 'font_weight', type: 'TEXT' },
+    { name: 'text_align', type: 'TEXT' }
+  ], { tableName: 'form_mappings', uniqueKeyColumns: ['id'] });
+
   // 42. Safety Policies Table (안전보건방침 및 목표 설정 대장)
   await safeCreateTable('안전보건방침 및 목표', [
     { name: 'id', type: 'INTEGER', notNull: true },

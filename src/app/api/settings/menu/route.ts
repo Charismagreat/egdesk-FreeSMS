@@ -48,6 +48,7 @@ const DEFAULT_MENU_ITEMS = [
   { href: "/knowledge-ai", label: "지식 관리 AI" },
   { href: "/ecount-erp-ai", label: "이카운트 ERP AI" },
   { href: "/rnd-management", label: "연구소 관리 AI" },
+  { href: "/form-management", label: "양식 관리 AI" },
   { href: "/ai-briefing", label: "AI 브리핑" }
 ];
 

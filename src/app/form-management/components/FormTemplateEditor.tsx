@@ -1,0 +1,665 @@
+'use client';
+
+import React, { useState, useRef, useEffect } from 'react';
+import { 
+  ArrowLeft, 
+  Upload, 
+  Plus, 
+  Trash2, 
+  Save, 
+  Maximize2, 
+  Type, 
+  AlignLeft, 
+  AlignCenter, 
+  AlignRight, 
+  Bold, 
+  Sparkles,
+  RefreshCw
+} from 'lucide-react';
+
+// 바인딩 가능한 필드 리스트 정의
+export const FIELD_DEFINITIONS = [
+  { key: 'estimate_id', label: '견적번호', category: '견적 마스터' },
+  { key: 'partner_name', label: '수신처(거래처 상호)', category: '견적 마스터' },
+  { key: 'partner_phone', label: '수신처 연락처', category: '견적 마스터' },
+  { key: 'total_amount', label: '총 견적합계 금액 (원)', category: '견적 마스터' },
+  { key: 'total_amount_krw', label: '총 견적합계 한글 표기', category: '견적 마스터' },
+  { key: 'created_at_date', label: '견적일자 (YYYY-MM-DD)', category: '견적 마스터' },
+  { key: 'created_at_year', label: '견적일자 (년)', category: '견적 마스터' },
+  { key: 'created_at_month', label: '견적일자 (월)', category: '견적 마스터' },
+  { key: 'created_at_day', label: '견적일자 (일)', category: '견적 마스터' },
+  { key: 'company_name', label: '공급자(자사 상호)', category: '자사 정보' },
+  { key: 'company_biz_num', label: '공급자 사업자번호', category: '자사 정보' },
+  { key: 'company_owner', label: '공급자 대표자명', category: '자사 정보' },
+  { key: 'company_address', label: '공급자 주소', category: '자사 정보' },
+  { key: 'company_phone', label: '공급자 연락처', category: '자사 정보' },
+  { key: 'estimate_items_table', label: '품목 상세 내역 테이블 (표)', category: '품목 상세(특수)' }
+];
+
+interface MappingItem {
+  id?: number;
+  field_key: string;
+  field_label: string;
+  pos_x: number; // 퍼센트 좌표 (0 ~ 100)
+  pos_y: number; // 퍼센트 좌표 (0 ~ 100)
+  font_size: number;
+  font_weight: string; // 'normal' | 'bold'
+  text_align: string; // 'left' | 'center' | 'right'
+}
+
+interface FormTemplateEditorProps {
+  templateId?: number; // 수정 시 전달받는 ID
+  onBack: () => void;
+  onSaved: () => void;
+}
+
+export default function FormTemplateEditor({ templateId, onBack, onSaved }: FormTemplateEditorProps) {
+  const [templateName, setTemplateName] = useState('');
+  const [documentType, setDocumentType] = useState('crm_estimates');
+  const [filePath, setFilePath] = useState('');
+  const [orientation, setOrientation] = useState('portrait');
+  const [isActive, setIsActive] = useState(true);
+  const [mappings, setMappings] = useState<MappingItem[]>([]);
+  const [selectedMappingId, setSelectedMappingId] = useState<number | null>(null);
+  
+  // 업로드 진행상태 & 로딩
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(false);
+  
+  // 드래그 상태 관리
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const dragItemRef = useRef<{ index: number; startX: number; startY: number; startLeft: number; startTop: number } | null>(null);
+
+  // 템플릿 수정 시 기존 정보 로드
+  useEffect(() => {
+    if (templateId) {
+      loadTemplateData(templateId);
+    }
+  }, [templateId]);
+
+  const loadTemplateData = async (id: number) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/templates?action=detail&id=${id}`);
+      const data = await res.json();
+      if (data.success) {
+        const { template, mappings: loadedMappings } = data;
+        setTemplateName(template.template_name);
+        setDocumentType(template.document_type);
+        setFilePath(template.file_path);
+        setOrientation(template.orientation || 'portrait');
+        setIsActive(template.is_active === 1);
+        
+        // mappings에 클라이언트 식별용 고유 임시 ID(idx) 부여
+        const formattedMappings = loadedMappings.map((m: any, idx: number) => ({
+          ...m,
+          id: idx // 드래그 앤 드롭 및 선택 처리를 위한 임시 key
+        }));
+        setMappings(formattedMappings);
+      } else {
+        alert(`템플릿 조회 실패: ${data.error}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('템플릿 데이터를 불러오는 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 이미지 파일 업로드 핸들러
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    setUploading(true);
+    try {
+      const res = await fetch('/api/templates/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFilePath(data.url);
+        // 파일 이름을 템플릿명 디폴트로 설정 (비어있을 때만)
+        if (!templateName) {
+          setTemplateName(data.filename.split('.')[0] + ' 양식');
+        }
+      } else {
+        alert(`업로드 실패: ${data.error}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('이미지 업로드 처리 도중 서버 통신 에러가 발생했습니다.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // 캔버스에 맵핑 항목 추가
+  const handleAddField = (fieldKey: string) => {
+    const fieldDef = FIELD_DEFINITIONS.find(f => f.key === fieldKey);
+    if (!fieldDef) return;
+
+    // 중복 추가 방지
+    if (mappings.some(m => m.field_key === fieldKey)) {
+      alert('이미 추가된 필드입니다.');
+      return;
+    }
+
+    const newItem: MappingItem = {
+      id: Date.now(), // 고유 식별자
+      field_key: fieldKey,
+      field_label: fieldDef.label,
+      pos_x: 50, // 초기 퍼센트 좌표 (A4 중앙)
+      pos_y: 50,
+      font_size: fieldKey === 'estimate_items_table' ? 11 : 13,
+      font_weight: 'normal',
+      text_align: 'left'
+    };
+
+    setMappings([...mappings, newItem]);
+    setSelectedMappingId(newItem.id!);
+  };
+
+  // 선택한 매핑 삭제
+  const handleRemoveField = (id: number) => {
+    setMappings(mappings.filter(m => m.id !== id));
+    if (selectedMappingId === id) {
+      setSelectedMappingId(null);
+    }
+  };
+
+  // 드래그 시작 이벤트
+  const handleMouseDown = (e: React.MouseEvent, index: number) => {
+    e.preventDefault();
+    if (!canvasRef.current) return;
+
+    const mapping = mappings[index];
+    setSelectedMappingId(mapping.id!);
+
+    const rect = canvasRef.current.getBoundingClientRect();
+    
+    // 현재 픽셀 위치 구하기
+    const leftPx = (mapping.pos_x / 100) * rect.width;
+    const topPx = (mapping.pos_y / 100) * rect.height;
+
+    dragItemRef.current = {
+      index,
+      startX: e.clientX,
+      startY: e.clientY,
+      startLeft: leftPx,
+      startTop: topPx
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
+  // 드래그 이동 중 이벤트
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!dragItemRef.current || !canvasRef.current) return;
+
+    const { index, startX, startY, startLeft, startTop } = dragItemRef.current;
+    const canvasRect = canvasRef.current.getBoundingClientRect();
+
+    // 마우스 이동 거리 계산
+    const deltaX = e.clientX - startX;
+    const deltaY = e.clientY - startY;
+
+    // 새로운 픽셀 위치 (캔버스 내 바운더리 체크)
+    let newLeftPx = startLeft + deltaX;
+    let newTopPx = startTop + deltaY;
+
+    // 0 ~ 캔버스 가로/세로 제한
+    newLeftPx = Math.max(0, Math.min(newLeftPx, canvasRect.width));
+    newTopPx = Math.max(0, Math.min(newTopPx, canvasRect.height));
+
+    // 퍼센트 좌표로 재환산
+    const newPosX = parseFloat(((newLeftPx / canvasRect.width) * 100).toFixed(2));
+    const newPosY = parseFloat(((newTopPx / canvasRect.height) * 100).toFixed(2));
+
+    setMappings(prev => {
+      const updated = [...prev];
+      updated[index] = {
+        ...updated[index],
+        pos_x: newPosX,
+        pos_y: newPosY
+      };
+      return updated;
+    });
+  };
+
+  // 드래그 끝 이벤트
+  const handleMouseUp = () => {
+    dragItemRef.current = null;
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+  };
+
+  // 특정 맵핑 아이템의 상세 속성 변경
+  const updateSelectedProperty = (key: keyof MappingItem, value: any) => {
+    if (selectedMappingId === null) return;
+    setMappings(prev => 
+      prev.map(m => m.id === selectedMappingId ? { ...m, [key]: value } : m)
+    );
+  };
+
+  // 템플릿 최종 보관/서버 전송
+  const handleSaveTemplate = async () => {
+    if (!templateName.trim()) {
+      alert('템플릿 이름을 입력해주세요.');
+      return;
+    }
+    if (!filePath) {
+      alert('A4 양식 이미지 파일을 먼저 업로드해주세요.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload = {
+        id: templateId, // 수정 시 존재
+        template_name: templateName,
+        document_type: documentType,
+        file_path: filePath,
+        orientation,
+        is_active: isActive ? 1 : 0,
+        mappings: mappings.map(m => ({
+          field_key: m.field_key,
+          field_label: m.field_label,
+          pos_x: m.pos_x,
+          pos_y: m.pos_y,
+          font_size: m.font_size,
+          font_weight: m.font_weight,
+          text_align: m.text_align
+        }))
+      };
+
+      const res = await fetch('/api/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        alert(templateId ? '템플릿이 성공적으로 수정되었습니다!' : '새 양식 템플릿이 안전하게 등록되었습니다!');
+        onSaved();
+      } else {
+        alert(`저장 실패: ${data.error}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('템플릿을 저장하는 도중 네트워크 통신 에러가 발생했습니다.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const selectedMapping = mappings.find(m => m.id === selectedMappingId);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[500px] text-slate-400">
+        <RefreshCw className="w-12 h-12 animate-spin mb-4 text-indigo-600" />
+        <p className="text-base font-bold text-slate-700">템플릿 설정 정보를 로드하고 있습니다...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full flex flex-col bg-white text-slate-800 border border-slate-100 rounded-3xl shadow-sm overflow-hidden min-h-[85vh]">
+      
+      {/* 1. 상단 바 */}
+      <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-white/90 backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={onBack}
+            className="p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 transition text-slate-600 cursor-pointer"
+          >
+            <ArrowLeft className="w-5 h-5 stroke-[2.5]" />
+          </button>
+          <div>
+            <h1 className="text-xl font-black flex items-center gap-2 text-slate-800">
+              <Sparkles className="w-5 h-5 text-indigo-600 animate-pulse" />
+              {templateId ? 'A4 양식 좌표 매핑 에디터' : '신규 A4 양식 등록 및 매핑'}
+            </h1>
+            <p className="text-xs font-semibold text-slate-400 mt-0.5">양식 배경 이미지 위로 데이터 필드를 마우스 드래그하여 좌표를 매핑하십시오.</p>
+          </div>
+        </div>
+
+        <button
+          onClick={handleSaveTemplate}
+          disabled={saving}
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs transition shadow-md shadow-indigo-600/10 cursor-pointer disabled:opacity-50"
+        >
+          <Save className="w-4 h-4" />
+          {saving ? '저장 중...' : '매핑 설정 저장'}
+        </button>
+      </div>
+
+      {/* 2. 메인 워크스페이스 (좌우 분할) */}
+      <div className="flex flex-1 flex-col md:flex-row min-h-0 overflow-hidden">
+        
+        {/* 좌측 컨트롤 패널 */}
+        <div className="w-full md:w-[380px] p-6 border-r border-slate-100 bg-slate-50/50 overflow-y-auto flex flex-col gap-6">
+          
+          {/* 기본 양식 메타 정보 */}
+          <div className="flex flex-col gap-4">
+            <h3 className="text-xs font-black text-slate-800 border-l-4 border-indigo-600 pl-2">양식 기본 정보</h3>
+            
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-bold text-slate-500">양식 템플릿명</label>
+              <input 
+                type="text" 
+                value={templateName}
+                onChange={e => setTemplateName(e.target.value)}
+                placeholder="예: (주)쿠스 공식 견적서 양식"
+                className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 focus:border-indigo-600 focus:outline-none text-xs font-semibold transition"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold text-slate-500">데이터 소스</label>
+                <select 
+                  value={documentType}
+                  onChange={e => setDocumentType(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold focus:border-indigo-600 focus:outline-none"
+                >
+                  <option value="crm_estimates">견적서 (crm_estimates)</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold text-slate-500">인쇄 방향</label>
+                <select 
+                  value={orientation}
+                  onChange={e => setOrientation(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold focus:border-indigo-600 focus:outline-none"
+                >
+                  <option value="portrait">세로형 (Portrait)</option>
+                  <option value="landscape" disabled>가로형 (준비중)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-3 rounded-xl bg-white border border-slate-250 border-slate-200">
+              <span className="text-xs font-bold text-slate-700">사용 여부 (활성화)</span>
+              <input 
+                type="checkbox"
+                checked={isActive}
+                onChange={e => setIsActive(e.target.checked)}
+                className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 bg-white border-slate-300"
+              />
+            </div>
+          </div>
+
+          {/* 배경 이미지 업로드 */}
+          <div className="flex flex-col gap-4">
+            <h3 className="text-xs font-black text-slate-800 border-l-4 border-indigo-600 pl-2">배경 양식 파일</h3>
+            
+            {!filePath ? (
+              <div className="relative border-2 border-dashed border-slate-200 hover:border-indigo-600/50 rounded-2xl p-6 transition flex flex-col items-center justify-center bg-white text-center shadow-sm">
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  disabled={uploading}
+                />
+                <Upload className="w-10 h-10 text-slate-400 mb-2" />
+                <span className="text-xs font-bold text-slate-700">A4 원본 이미지 양식 업로드</span>
+                <span className="text-[10px] font-semibold text-slate-400 mt-1">PNG, JPG 이미지 권장 (최대 10MB)</span>
+                {uploading && (
+                  <div className="absolute inset-0 bg-white/95 rounded-2xl flex flex-col items-center justify-center">
+                    <RefreshCw className="w-8 h-8 text-indigo-600 animate-spin mb-2" />
+                    <span className="text-xs font-bold text-slate-600">업로드 중...</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <div className="relative group rounded-xl overflow-hidden border border-slate-200 max-h-[140px] shadow-sm">
+                  <img 
+                    src={filePath} 
+                    alt="양식 템플릿" 
+                    className="w-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                    <button 
+                      onClick={() => setFilePath('')}
+                      className="p-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold flex items-center gap-1 transition cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> 양식 교체
+                    </button>
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-400 truncate">{filePath}</p>
+              </div>
+            )}
+          </div>
+
+          {/* 오버레이 필드 선택기 */}
+          {filePath && (
+            <div className="flex flex-col gap-4 flex-1">
+              <h3 className="text-xs font-black text-slate-800 border-l-4 border-indigo-600 pl-2">오버레이 필드 삽입</h3>
+              
+              <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1">
+                {['견적 마스터', '자사 정보', '품목 상세(특수)'].map(cat => {
+                  const items = FIELD_DEFINITIONS.filter(f => f.category === cat);
+                  return (
+                    <div key={cat} className="flex flex-col gap-1 mt-1">
+                      <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">{cat}</span>
+                      <div className="grid grid-cols-1 gap-1">
+                        {items.map(field => {
+                          const isAdded = mappings.some(m => m.field_key === field.key);
+                          return (
+                            <button
+                              key={field.key}
+                              onClick={() => handleAddField(field.key)}
+                              disabled={isAdded}
+                              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs text-left transition cursor-pointer ${
+                                isAdded 
+                                ? 'bg-slate-100 text-slate-350 text-slate-400 cursor-not-allowed border border-transparent'
+                                : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 shadow-sm'
+                              }`}
+                            >
+                              <span className="font-bold">{field.label}</span>
+                              <Plus className={`w-3.5 h-3.5 ${isAdded ? 'text-slate-300' : 'text-indigo-650'}`} />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 특정 필드 포맷 제어 패널 */}
+          {selectedMapping && (
+            <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-md flex flex-col gap-3.5">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <span className="text-xs font-black text-indigo-600 flex items-center gap-1.5">
+                  <Type className="w-4 h-4" />
+                  {selectedMapping.field_label} 설정
+                </span>
+                <button 
+                  onClick={() => handleRemoveField(selectedMapping.id!)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                  title="필드 삭제"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* 폰트 사이즈 조절 */}
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-600">글자 크기</span>
+                <div className="flex items-center gap-1.5">
+                  <input 
+                    type="number"
+                    value={selectedMapping.font_size}
+                    onChange={e => updateSelectedProperty('font_size', parseInt(e.target.value) || 11)}
+                    className="w-16 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-center text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-600"
+                  />
+                  <span className="text-xs font-bold text-slate-400">px</span>
+                </div>
+              </div>
+
+              {/* 글꼴 굵기 */}
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-600">글자 두께</span>
+                <button
+                  onClick={() => updateSelectedProperty('font_weight', selectedMapping.font_weight === 'bold' ? 'normal' : 'bold')}
+                  className={`px-3 py-1 rounded-xl text-xs font-extrabold border transition cursor-pointer ${
+                    selectedMapping.font_weight === 'bold'
+                    ? 'bg-indigo-55 bg-indigo-50 border-indigo-200 text-indigo-600'
+                    : 'bg-slate-50 border-slate-200 text-slate-500'
+                  }`}
+                >
+                  <Bold className="w-3.5 h-3.5 inline mr-1" /> Bold
+                </button>
+              </div>
+
+              {/* 정렬 방향 */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-xs font-bold text-slate-600">글자 정렬</span>
+                <div className="grid grid-cols-3 gap-1 bg-slate-50 p-0.5 rounded-xl border border-slate-200">
+                  {[
+                    { val: 'left', icon: AlignLeft },
+                    { val: 'center', icon: AlignCenter },
+                    { val: 'right', icon: AlignRight }
+                  ].map(align => (
+                    <button
+                      key={align.val}
+                      onClick={() => updateSelectedProperty('text_align', align.val)}
+                      className={`py-1.5 rounded-lg text-xs flex justify-center items-center transition cursor-pointer ${
+                        selectedMapping.text_align === align.val
+                        ? 'bg-indigo-600 text-white shadow-md'
+                        : 'text-slate-400 hover:text-slate-700'
+                      }`}
+                    >
+                      <align.icon className="w-4 h-4" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="text-[10px] font-bold text-slate-400 text-right">
+                좌표: X({selectedMapping.pos_x}%), Y({selectedMapping.pos_y}%)
+              </div>
+            </div>
+          )}
+
+        </div>
+
+        {/* 우측 도화지(A4 캔버스) 영역 */}
+        <div className="flex-1 p-8 bg-slate-100/50 overflow-y-auto flex justify-center items-start min-w-0 shadow-inner">
+          {!filePath ? (
+            <div className="flex flex-col items-center justify-center max-w-md mt-24 text-center">
+              <Upload className="w-16 h-16 text-slate-300 animate-bounce mb-4" />
+              <h3 className="text-lg font-black text-slate-800 mb-1">A4 양식 이미지 없음</h3>
+              <p className="text-xs font-medium text-slate-400 leading-relaxed">
+                왼쪽 메뉴에서 사내에서 사용하는 공식 A4 인쇄용 배경 이미지 파일(JPG, PNG)을 먼저 업로드해 주십시오. 
+                그 후 각 텍스트 데이터의 위치를 설정할 수 있습니다.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-4">
+              <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-sm">
+                <Maximize2 className="w-3.5 h-3.5 text-indigo-600" />
+                배치된 필드를 마우스로 드래그하여 원하는 위치에 고정시키십시오.
+              </span>
+              
+              {/* A4 실비율(가로세로 1:1.414) 도화지 컨테이너 */}
+              <div 
+                ref={canvasRef}
+                id="template-canvas"
+                style={{ 
+                  backgroundImage: `url(${filePath})`,
+                  backgroundSize: '100% 100%'
+                }}
+                className="relative bg-white shadow-2xl rounded-sm border border-slate-300 aspect-[1/1.414] w-[540px] md:w-[600px] select-none overflow-hidden"
+              >
+                
+                {/* 매핑 리스트 오버레이 */}
+                {mappings.map((mapping, idx) => {
+                  const isSelected = mapping.id === selectedMappingId;
+                  const isTable = mapping.field_key === 'estimate_items_table';
+                  
+                  return (
+                    <div
+                      key={mapping.id}
+                      onMouseDown={(e) => handleMouseDown(e, idx)}
+                      style={{
+                        position: 'absolute',
+                        left: `${mapping.pos_x}%`,
+                        top: `${mapping.pos_y}%`,
+                        transform: 'translate(-50%, -50%)', // 센터 중심 정렬
+                        fontSize: `${mapping.font_size}px`,
+                        fontWeight: mapping.font_weight as any,
+                        textAlign: mapping.text_align as any,
+                        cursor: 'move',
+                        whiteSpace: isTable ? 'normal' : 'nowrap',
+                        width: isTable ? '450px' : 'auto'
+                      }}
+                      className={`px-2 py-1 rounded transition text-slate-900 border ${
+                        isSelected 
+                        ? 'bg-indigo-50/95 border-indigo-500 ring-2 ring-indigo-500 shadow-md z-30'
+                        : 'bg-white/95 border-slate-300 hover:border-slate-400 shadow-sm z-20'
+                      }`}
+                    >
+                      {isTable ? (
+                        <div className="w-full flex flex-col pointer-events-none text-[10px] text-slate-700">
+                          <span className="bg-slate-100 py-1 font-bold text-center border-b border-slate-200 block mb-1 text-slate-800">
+                            📊 [특수] 품목 상세 리스트 출력 영역 (예시)
+                          </span>
+                          <table className="w-full border-collapse">
+                            <thead>
+                              <tr className="bg-slate-50 text-slate-800 font-bold border-b border-slate-200">
+                                <th className="p-0.5 border-r border-slate-200">순번</th>
+                                <th className="p-0.5 border-r border-slate-200">품목명</th>
+                                <th className="p-0.5 border-r border-slate-200">수량</th>
+                                <th className="p-0.5 border-r border-slate-200">단가</th>
+                                <th className="p-0.5">금액</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              <tr>
+                                <td className="p-0.5 border-r border-slate-200 text-center">1</td>
+                                <td className="p-0.5 border-r border-slate-200">A4용지 백상지 75g</td>
+                                <td className="p-0.5 border-r border-slate-200 text-center">10</td>
+                                <td className="p-0.5 border-r border-slate-200 text-right">3,500</td>
+                                <td className="p-0.5 text-right font-bold">35,000</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <span className="pointer-events-none flex items-center gap-1.5 font-bold text-slate-800">
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+                          {mapping.field_label}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+
+              </div>
+            </div>
+          )}
+        </div>
+
+      </div>
+      
+    </div>
+  );
+}
