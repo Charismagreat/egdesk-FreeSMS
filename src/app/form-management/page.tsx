@@ -136,7 +136,10 @@ export default function FormManagementPage() {
   });
 
   return (
-    <div className="w-full space-y-6 pb-20 min-w-0 font-sans text-slate-800 animate-fade-in text-left">
+    <div 
+      data-easybot-hint="양식 관리 AI: 사내 고유 A4 문서 양식 이미지(JPG/PNG)를 등록하고 DB의 견적서 데이터를 원하는 X/Y 좌표에 오버레이 매핑하여 실시간 조작 출력 및 PDF 다운로드를 지원합니다."
+      className="w-full space-y-6 pb-20 min-w-0 font-sans text-slate-800 animate-fade-in text-left"
+    >
       
       {/* 타이틀 헤더 (항상 노출되어 일관된 상단 여백 유지) */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">

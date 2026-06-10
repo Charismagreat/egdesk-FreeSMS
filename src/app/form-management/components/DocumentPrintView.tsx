@@ -75,6 +75,18 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
   const [pdfGenerating, setPdfGenerating] = useState(false);
   const printAreaRef = useRef<HTMLDivElement>(null);
 
+  // 공통 양식 요소 실시간 값 관리용 상태
+  const [commonDate, setCommonDate] = useState<string>(() => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  });
+  const [commonInput, setCommonInput] = useState<string>('대외 제출용');
+  const [commonTag, setCommonTag] = useState<string>('[제출용]');
+  const [showStamp, setShowStamp] = useState<boolean>(true);
+
   // 데이터 로드
   useEffect(() => {
     async function loadData() {
@@ -134,6 +146,18 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
     const isInvalidDate = isNaN(createdDate.getTime());
 
     switch (fieldKey) {
+      // 1) 공통 양식 요소 연동
+      case 'common_date':
+        return commonDate;
+      case 'common_input':
+        return commonInput;
+      case 'common_tag':
+        return commonTag;
+      case 'common_stamp':
+        // 도장은 텍스트가 아니라 적색 인장 SVG로 직접 렌더링하므로 텍스트로 값 매핑 시 빈 값을 리턴합니다.
+        return '';
+
+      // 2) 기존 DB 필드 연동
       case 'estimate_id':
         return estimate.id || '';
       case 'partner_name':
@@ -219,7 +243,7 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[500px] text-slate-400">
-        <RefreshCw className="w-12 h-12 animate-spin mb-4 text-indigo-655 text-indigo-600" />
+        <RefreshCw className="w-12 h-12 animate-spin mb-4 text-indigo-600" />
         <p className="text-base font-bold text-slate-700">인쇄할 데이터를 정제하는 중입니다...</p>
       </div>
     );
@@ -227,7 +251,7 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
 
   if (!template || !estimate) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-6 bg-white border border-slate-150 border-slate-100 rounded-3xl shadow-sm">
+      <div className="flex flex-col items-center justify-center min-h-[400px] text-center p-6 bg-white border border-slate-100 rounded-3xl shadow-sm">
         <AlertCircle className="w-16 h-16 text-rose-500 mb-4 animate-bounce" />
         <h3 className="text-lg font-black text-slate-800 mb-2">데이터 로드 실패</h3>
         <p className="text-xs font-semibold text-slate-500 mb-5">인쇄 양식 설정 혹은 실물 견적 내역을 찾을 수 없습니다.</p>
@@ -262,6 +286,9 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
             box-shadow: none !important;
             background: white !important;
           }
+          .no-print {
+            display: none !important;
+          }
           @page {
             size: A4 portrait;
             margin: 0;
@@ -280,7 +307,7 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
           </button>
           <div>
             <h1 className="text-lg font-black flex items-center gap-2 text-slate-800">
-              <FileText className="w-5 h-5 text-indigo-650 text-indigo-600" />
+              <FileText className="w-5 h-5 text-indigo-600" />
               양식 오버레이 출력 미리보기
             </h1>
             <p className="text-xs font-semibold text-slate-400 mt-0.5">선택한 견적서 정보를 양식의 매핑 좌표에 정합하여 출력합니다.</p>
@@ -299,7 +326,7 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
           <button
             onClick={handleDownloadPDF}
             disabled={pdfGenerating}
-            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-655 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs transition shadow-md shadow-indigo-600/10 cursor-pointer disabled:opacity-50"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs transition shadow-md shadow-indigo-600/10 cursor-pointer disabled:opacity-50"
           >
             {pdfGenerating ? (
               <>
@@ -316,27 +343,189 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
         </div>
       </div>
 
-      {/* 2. 실물 미리보기 영역 */}
-      <div className="flex-1 bg-slate-100/50 p-8 overflow-y-auto flex justify-center items-start shadow-inner">
+      {/* 2. 메인 워크스페이스 (좌우 분할) */}
+      <div className="flex flex-1 flex-col md:flex-row min-h-0 overflow-hidden">
         
-        {/* 인쇄 및 캡처 전용 A4 사이즈 래퍼 */}
-        <div 
-          ref={printAreaRef}
-          id="print-area-wrapper"
-          style={{ 
-            backgroundImage: `url(${template.file_path})`,
-            backgroundSize: '100% 100%'
-          }}
-          className="relative bg-white shadow-2xl border border-slate-300 aspect-[1/1.414] w-[700px] md:w-[750px] overflow-hidden select-none"
-        >
+        {/* 좌측 인터랙티브 조작 패널 (인쇄 대상 제외) */}
+        <div className="w-full md:w-[380px] p-6 border-r border-slate-100 bg-slate-50/50 overflow-y-auto flex flex-col gap-6 no-print">
           
-          {/* 매핑된 데이터들 오버레이 */}
-          {mappings.map((mapping, idx) => {
-            const isTable = mapping.field_key === 'estimate_items_table';
-            const value = getBindingValue(mapping.field_key);
+          <div className="flex flex-col gap-4">
+            <h3 className="text-xs font-black text-slate-800 border-l-4 border-indigo-600 pl-2">실시간 양식 항목 조작</h3>
+            
+            {/* 1. 인쇄 일자 */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-bold text-slate-500">인쇄 일자 (common_date)</label>
+              <input 
+                type="date" 
+                value={commonDate}
+                onChange={e => setCommonDate(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 focus:border-indigo-600 focus:outline-none text-xs font-semibold transition shadow-sm"
+              />
+            </div>
 
-            // 품목표일 경우 별도 표 마크업 렌더링
-            if (isTable) {
+            {/* 2. 추가 입력 사항 */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-bold text-slate-500">수기 추가 내용 (common_input)</label>
+              <input 
+                type="text" 
+                value={commonInput}
+                onChange={e => setCommonInput(e.target.value)}
+                placeholder="예: 대외 제출용, 담당자 코멘트 등"
+                className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 focus:border-indigo-600 focus:outline-none text-xs font-semibold transition shadow-sm"
+              />
+            </div>
+
+            {/* 3. 양식 태그 */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[10px] font-bold text-slate-500">용도 태그 (common_tag)</label>
+              <select 
+                value={commonTag}
+                onChange={e => setCommonTag(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold focus:border-indigo-600 focus:outline-none shadow-sm"
+              >
+                {['[제출용]', '[보관용]', '[결재용]', '[원청 전달용]'].map(tag => (
+                  <option key={tag} value={tag}>{tag}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* 4. 도장 날인 여부 */}
+            <div className="flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-200 shadow-sm mt-2">
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-slate-700">회사 대표 직인 오버레이</span>
+                <span className="text-[10px] text-slate-400 font-semibold mt-0.5">common_stamp 위치에 날인</span>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input 
+                  type="checkbox"
+                  checked={showStamp}
+                  onChange={e => setShowStamp(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600 animate-transition"></div>
+              </label>
+            </div>
+
+          </div>
+
+          {/* 안내 메시지 */}
+          <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100/50 text-[11px] text-indigo-800 leading-relaxed font-medium">
+            <p className="font-bold mb-1">💡 실시간 조작 팁</p>
+            좌측에서 수기 내용을 작성하거나 인쇄 일자를 조정하면, 우측의 A4 미리보기 화면에 즉각적으로 반영됩니다. 이 상태 그대로 인쇄하거나 PDF를 다운로드할 수 있습니다.
+          </div>
+
+        </div>
+
+        {/* 우측 실물 미리보기 영역 */}
+        <div className="flex-1 bg-slate-100/50 p-8 overflow-y-auto flex justify-center items-start shadow-inner min-w-0">
+          
+          {/* 인쇄 및 캡처 전용 A4 사이즈 래퍼 */}
+          <div 
+            ref={printAreaRef}
+            id="print-area-wrapper"
+            style={{ 
+              backgroundImage: `url(${template.file_path})`,
+              backgroundSize: '100% 100%'
+            }}
+            className="relative bg-white shadow-2xl border border-slate-300 aspect-[1/1.414] w-[700px] md:w-[750px] overflow-hidden select-none shrink-0"
+          >
+            
+            {/* 매핑된 데이터들 오버레이 */}
+            {mappings.map((mapping, idx) => {
+              const isTable = mapping.field_key === 'estimate_items_table';
+              const value = getBindingValue(mapping.field_key);
+
+              // 1. 도장(common_stamp) 전용 SVG 렌더링
+              if (mapping.field_key === 'common_stamp') {
+                if (!showStamp) return null;
+                const representativeName = companyProfile.representative || '차민수';
+                return (
+                  <div
+                    key={idx}
+                    style={{
+                      position: 'absolute',
+                      left: `${mapping.pos_x}%`,
+                      top: `${mapping.pos_y}%`,
+                      transform: 'translate(-50%, -50%)',
+                      zIndex: 15
+                    }}
+                    className="pointer-events-none"
+                  >
+                    <svg width="65" height="65" viewBox="0 0 100 100" className="text-red-655 text-red-600/80 fill-none stroke-current" style={{ transform: 'rotate(-5deg)', opacity: 0.85 }}>
+                      <circle cx="50" cy="50" r="46" strokeWidth="4" />
+                      <circle cx="50" cy="50" r="41" strokeWidth="1.5" strokeDasharray="3 3" />
+                      <text x="50" y="32" textAnchor="middle" fontSize="11" fontWeight="black" fill="currentColor">주식회사</text>
+                      <text x="50" y="49" textAnchor="middle" fontSize="13" fontWeight="black" fill="currentColor">쿠 스</text>
+                      <text x="50" y="66" textAnchor="middle" fontSize="12" fontWeight="black" fill="currentColor">대표이사</text>
+                      <text x="50" y="82" textAnchor="middle" fontSize="11" fontWeight="black" fill="currentColor">{representativeName} (인)</text>
+                    </svg>
+                  </div>
+                );
+              }
+
+              // 2. 품목표일 경우 별도 표 마크업 렌더링
+              if (isTable) {
+                return (
+                  <div
+                    key={idx}
+                    style={{
+                      position: 'absolute',
+                      left: `${mapping.pos_x}%`,
+                      top: `${mapping.pos_y}%`,
+                      transform: 'translate(-50%, -50%)',
+                      width: '90%',
+                      fontSize: `${mapping.font_size}px`,
+                      textAlign: mapping.text_align as any
+                    }}
+                    className="z-10 px-2 py-1 text-slate-800 font-medium"
+                  >
+                    <table className="w-full border-collapse border border-slate-400 text-slate-900 bg-white/70">
+                      <thead>
+                        <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-400 text-center text-[10px] md:text-xs">
+                          <th className="p-1 border-r border-slate-400 w-12">순번</th>
+                          <th className="p-1 border-r border-slate-400">품목명</th>
+                          <th className="p-1 border-r border-slate-400 w-16">수량</th>
+                          <th className="p-1 border-r border-slate-400 w-24">단가</th>
+                          <th className="p-1 w-28">금액</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {estimateItems.length === 0 ? (
+                          <tr>
+                            <td colSpan={5} className="p-3 text-center text-slate-400 text-[10px] md:text-xs">상세 품목 내역이 없습니다.</td>
+                          </tr>
+                        ) : (
+                          estimateItems.map((item, index) => (
+                            <tr key={item.id || index} className="border-b border-slate-300 text-[10px] md:text-xs">
+                              <td className="p-1 border-r border-slate-400 text-center">{index + 1}</td>
+                              <td className="p-1 border-r border-slate-400 text-left pl-2 truncate max-w-[200px]" title={item.product_name}>{item.product_name}</td>
+                              <td className="p-1 border-r border-slate-400 text-center font-bold">{(item.quantity || 0).toLocaleString()}</td>
+                              <td className="p-1 border-r border-slate-400 text-right pr-2">{(item.unit_price || 0).toLocaleString()}</td>
+                              <td className="p-1 text-right pr-2 font-bold">{(item.amount || 0).toLocaleString()}</td>
+                            </tr>
+                          ))
+                        )}
+                        
+                        {/* 합계행 */}
+                        {estimateItems.length > 0 && (
+                          <tr className="bg-indigo-50/30 font-bold border-t border-slate-400 text-[10px] md:text-xs text-slate-900">
+                            <td colSpan={2} className="p-1.5 border-r border-slate-400 text-center">합 계</td>
+                            <td className="p-1.5 border-r border-slate-400 text-center">
+                              {estimateItems.reduce((acc, cur) => acc + (parseInt(cur.quantity) || 0), 0).toLocaleString()}
+                            </td>
+                            <td className="p-1.5 border-r border-slate-400 text-right"></td>
+                            <td className="p-1.5 text-right pr-2 text-indigo-700">
+                              {(estimate.total_amount || 0).toLocaleString()}
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              }
+
+              // 3. 일반 텍스트 필드 렌더링
               return (
                 <div
                   key={idx}
@@ -345,79 +534,20 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
                     left: `${mapping.pos_x}%`,
                     top: `${mapping.pos_y}%`,
                     transform: 'translate(-50%, -50%)',
-                    width: '90%',
                     fontSize: `${mapping.font_size}px`,
-                    textAlign: mapping.text_align as any
+                    fontWeight: mapping.font_weight as any,
+                    textAlign: mapping.text_align as any,
+                    color: '#1e293b',
+                    whiteSpace: 'nowrap'
                   }}
-                  className="z-10 px-2 py-1 text-slate-800 font-medium"
+                  className="z-10 px-1 py-0.5 rounded font-medium"
                 >
-                  <table className="w-full border-collapse border border-slate-400 text-slate-900 bg-white/70">
-                    <thead>
-                      <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-400 text-center text-[10px] md:text-xs">
-                        <th className="p-1 border-r border-slate-400 w-12">순번</th>
-                        <th className="p-1 border-r border-slate-400">품목명</th>
-                        <th className="p-1 border-r border-slate-400 w-16">수량</th>
-                        <th className="p-1 border-r border-slate-400 w-24">단가</th>
-                        <th className="p-1 w-28">금액</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {estimateItems.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="p-3 text-center text-slate-450 text-[10px] md:text-xs">상세 품목 내역이 없습니다.</td>
-                        </tr>
-                      ) : (
-                        estimateItems.map((item, index) => (
-                          <tr key={item.id || index} className="border-b border-slate-300 text-[10px] md:text-xs">
-                            <td className="p-1 border-r border-slate-400 text-center">{index + 1}</td>
-                            <td className="p-1 border-r border-slate-400 text-left pl-2 truncate max-w-[200px]" title={item.product_name}>{item.product_name}</td>
-                            <td className="p-1 border-r border-slate-400 text-center font-bold">{(item.quantity || 0).toLocaleString()}</td>
-                            <td className="p-1 border-r border-slate-400 text-right pr-2">{(item.unit_price || 0).toLocaleString()}</td>
-                            <td className="p-1 text-right pr-2 font-bold">{(item.amount || 0).toLocaleString()}</td>
-                          </tr>
-                        ))
-                      )}
-                      
-                      {/* 합계행 */}
-                      {estimateItems.length > 0 && (
-                        <tr className="bg-indigo-50/30 font-bold border-t border-slate-400 text-[10px] md:text-xs text-slate-900">
-                          <td colSpan={2} className="p-1.5 border-r border-slate-400 text-center">합 계</td>
-                          <td className="p-1.5 border-r border-slate-400 text-center">
-                            {estimateItems.reduce((acc, cur) => acc + (parseInt(cur.quantity) || 0), 0).toLocaleString()}
-                          </td>
-                          <td className="p-1.5 border-r border-slate-400 text-right"></td>
-                          <td className="p-1.5 text-right pr-2 text-indigo-700">
-                            {(estimate.total_amount || 0).toLocaleString()}
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
+                  {value}
                 </div>
               );
-            }
+            })}
 
-            // 일반 텍스트 필드 렌더링
-            return (
-              <div
-                key={idx}
-                style={{
-                  position: 'absolute',
-                  left: `${mapping.pos_x}%`,
-                  top: `${mapping.pos_y}%`,
-                  transform: 'translate(-50%, -50%)',
-                  fontSize: `${mapping.font_size}px`,
-                  fontWeight: mapping.font_weight as any,
-                  textAlign: mapping.text_align as any,
-                  color: '#1e293b',
-                  whiteSpace: 'nowrap'
-                }}
-                className="z-10 px-1 py-0.5 rounded font-medium"
-              >
-                {value}
-              </div>
-            );
-          })}
+          </div>
 
         </div>
 

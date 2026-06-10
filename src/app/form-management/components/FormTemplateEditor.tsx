@@ -19,6 +19,13 @@ import {
 
 // 바인딩 가능한 필드 리스트 정의
 export const FIELD_DEFINITIONS = [
+  // 공통 양식 요소
+  { key: 'common_date', label: '일자 (달력 선택)', category: '공통 양식 요소' },
+  { key: 'common_input', label: '입력 박스 (텍스트 기입)', category: '공통 양식 요소' },
+  { key: 'common_stamp', label: '도장 (회사 직인 오버레이)', category: '공통 양식 요소' },
+  { key: 'common_tag', label: '태그 (보관용/제출용 선택)', category: '공통 양식 요소' },
+
+  // 기존 DB 필드
   { key: 'estimate_id', label: '견적번호', category: '견적 마스터' },
   { key: 'partner_name', label: '수신처(거래처 상호)', category: '견적 마스터' },
   { key: 'partner_phone', label: '수신처 연락처', category: '견적 마스터' },
@@ -609,7 +616,7 @@ export default function FormTemplateEditor({ templateId, onBack, onSaved }: Form
               <h3 className="text-xs font-black text-slate-800 border-l-4 border-indigo-600 pl-2">오버레이 필드 삽입</h3>
               
               <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1">
-                {['견적 마스터', '자사 정보', '품목 상세(특수)'].map(cat => {
+                {['공통 양식 요소', '견적 마스터', '자사 정보', '품목 상세(특수)'].map(cat => {
                   const items = FIELD_DEFINITIONS.filter(f => f.category === cat);
                   return (
                     <div key={cat} className="flex flex-col gap-1 mt-1">
