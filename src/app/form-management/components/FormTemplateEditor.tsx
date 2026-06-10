@@ -84,6 +84,82 @@ export default function FormTemplateEditor({ templateId, onBack, onSaved }: Form
   const canvasRef = useRef<HTMLDivElement>(null);
   const dragItemRef = useRef<{ index: number; startX: number; startY: number; startLeft: number; startTop: number } | null>(null);
 
+  // 임시 세션 드래프트 복원 관련 상태
+  const [draftData, setDraftData] = useState<any>(null);
+  const [showDraftBanner, setShowDraftBanner] = useState(false);
+  const isInitialLoadRef = useRef(true);
+
+  // 1) 마운트 완료 시 임시 저장본(Draft) 확인
+  useEffect(() => {
+    try {
+      const savedDraft = localStorage.getItem('egdesk_form_editor_draft');
+      if (savedDraft) {
+        const parsed = JSON.parse(savedDraft);
+        // 현재 열려있는 templateId와 일치하는 드래프트가 있거나, 둘 다 신규인 경우
+        if (parsed.templateId === templateId) {
+          setDraftData(parsed);
+          setShowDraftBanner(true);
+        }
+      }
+    } catch (e) {
+      console.error('드래프트 확인 실패:', e);
+    }
+  }, [templateId]);
+
+  // 2) 실시간 자동 저장 (로딩 완료 후에만 동작)
+  useEffect(() => {
+    if (loading) return; // 로딩 중에는 저장 차단
+
+    // 최초 마운트 후 첫 변경 전까지는 자동 저장 스킵하여 덮어쓰기 방지
+    if (isInitialLoadRef.current) {
+      isInitialLoadRef.current = false;
+      return;
+    }
+
+    try {
+      const draft = {
+        templateId,
+        templateName,
+        documentType,
+        filePath,
+        orientation,
+        isActive,
+        mappings
+      };
+      // 최소한의 의미 있는 값이 입력되었을 때만 세션 임시 보관
+      if (filePath || templateName || mappings.length > 0) {
+        localStorage.setItem('egdesk_form_editor_draft', JSON.stringify(draft));
+      }
+    } catch (e) {
+      console.error('드래프트 자동 저장 실패:', e);
+    }
+  }, [loading, templateId, templateName, documentType, filePath, orientation, isActive, mappings]);
+
+  // 3) 드래프트 복원 및 무시(삭제) 핸들러
+  const handleRestoreDraft = () => {
+    if (!draftData) return;
+    setTemplateName(draftData.templateName || '');
+    setDocumentType(draftData.documentType || 'crm_estimates');
+    setFilePath(draftData.filePath || '');
+    setOrientation(draftData.orientation || 'portrait');
+    setIsActive(draftData.isActive !== false);
+    setMappings(draftData.mappings || []);
+    if (draftData.mappings && draftData.mappings.length > 0) {
+      setSelectedMappingId(draftData.mappings[0].id || null);
+    }
+    setShowDraftBanner(false);
+  };
+
+  const handleDiscardDraft = () => {
+    try {
+      localStorage.removeItem('egdesk_form_editor_draft');
+    } catch (e) {
+      console.error('드래프트 삭제 실패:', e);
+    }
+    setShowDraftBanner(false);
+    setDraftData(null);
+  };
+
   // URL -> Base64 헬퍼 함수
   const urlToBase64 = async (url: string): Promise<string> => {
     const res = await fetch(url);
@@ -391,6 +467,11 @@ export default function FormTemplateEditor({ templateId, onBack, onSaved }: Form
 
       if (data.success) {
         alert(templateId ? '템플릿이 성공적으로 수정되었습니다!' : '새 양식 템플릿이 안전하게 등록되었습니다!');
+        try {
+          localStorage.removeItem('egdesk_form_editor_draft'); // 최종 저장 성공 시 임시 드래프트 파기
+        } catch (e) {
+          console.error(e);
+        }
         onSaved();
       } else {
         alert(`저장 실패: ${data.error}`);
@@ -444,6 +525,35 @@ export default function FormTemplateEditor({ templateId, onBack, onSaved }: Form
           {saving ? '저장 중...' : '매핑 설정 저장'}
         </button>
       </div>
+
+      {/* 임시 드래프트 복원 배너 */}
+      {showDraftBanner && draftData && (
+        <div className="bg-indigo-50 border-b border-indigo-100 px-6 py-3.5 flex items-center justify-between gap-4 animate-fade-in no-print">
+          <div className="flex items-center gap-2.5 text-left">
+            <Sparkles className="w-5 h-5 text-indigo-600 shrink-0 animate-pulse" />
+            <div>
+              <p className="text-xs font-black text-indigo-900">이전에 작성 중이던 임시 저장된 양식 매핑 내역이 있습니다.</p>
+              <p className="text-[10px] text-indigo-700/80 font-bold mt-0.5">
+                (보관 유형: {templateId ? '기존 템플릿 수정 중' : '신규 양식 등록 중'} | 매핑 필드 {draftData.mappings?.length || 0}개)
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleRestoreDraft}
+              className="px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black shadow-sm transition cursor-pointer"
+            >
+              임시본 복원하기
+            </button>
+            <button
+              onClick={handleDiscardDraft}
+              className="px-3.5 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-[11px] font-bold transition cursor-pointer"
+            >
+              새로 시작 (삭제)
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 2. 메인 워크스페이스 (좌우 분할) */}
       <div className="flex flex-1 flex-col md:flex-row min-h-0 overflow-hidden">

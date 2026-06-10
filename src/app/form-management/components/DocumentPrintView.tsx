@@ -87,6 +87,41 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
   const [commonTag, setCommonTag] = useState<string>('[제출용]');
   const [showStamp, setShowStamp] = useState<boolean>(true);
 
+  // 1) 템플릿 ID 결정 및 로딩 완료 시점의 인쇄 설정 세션 복원
+  useEffect(() => {
+    if (loading || !templateId) return;
+
+    try {
+      const savedConfig = localStorage.getItem(`egdesk_form_print_config_${templateId}`);
+      if (savedConfig) {
+        const parsed = JSON.parse(savedConfig);
+        if (parsed.commonDate) setCommonDate(parsed.commonDate);
+        if (parsed.commonInput !== undefined) setCommonInput(parsed.commonInput);
+        if (parsed.commonTag) setCommonTag(parsed.commonTag);
+        if (parsed.showStamp !== undefined) setShowStamp(parsed.showStamp);
+      }
+    } catch (e) {
+      console.error('인쇄 설정 세션 복원 실패:', e);
+    }
+  }, [loading, templateId]);
+
+  // 2) 인쇄 설정 변경 시 자동 세션 영속화
+  useEffect(() => {
+    if (loading || !templateId) return;
+
+    try {
+      const config = {
+        commonDate,
+        commonInput,
+        commonTag,
+        showStamp
+      };
+      localStorage.setItem(`egdesk_form_print_config_${templateId}`, JSON.stringify(config));
+    } catch (e) {
+      console.error('인쇄 설정 세션 저장 실패:', e);
+    }
+  }, [loading, templateId, commonDate, commonInput, commonTag, showStamp]);
+
   // 데이터 로드
   useEffect(() => {
     async function loadData() {

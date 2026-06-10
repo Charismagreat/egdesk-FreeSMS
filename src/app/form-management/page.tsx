@@ -50,6 +50,45 @@ export default function FormManagementPage() {
   const [estimatesLoading, setEstimatesLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // 1) 마운트 완료 후 로컬 스토리지에서 세션 복원
+  useEffect(() => {
+    try {
+      const savedState = localStorage.getItem('egdesk_form_page_state');
+      if (savedState) {
+        const parsed = JSON.parse(savedState);
+        if (parsed.viewMode) {
+          setViewMode(parsed.viewMode);
+        }
+        if (parsed.selectedTemplateId !== undefined) {
+          setSelectedTemplateId(parsed.selectedTemplateId);
+        }
+        if (parsed.printTemplateId !== undefined) {
+          setPrintTemplateId(parsed.printTemplateId);
+        }
+        if (parsed.printEstimateId !== undefined) {
+          setPrintEstimateId(parsed.printEstimateId);
+        }
+      }
+    } catch (e) {
+      console.error('세션 복원 실패:', e);
+    }
+  }, []);
+
+  // 2) 상태 변경 시마다 로컬 스토리지 동기화
+  useEffect(() => {
+    try {
+      const stateToSave = {
+        viewMode,
+        selectedTemplateId,
+        printTemplateId,
+        printEstimateId
+      };
+      localStorage.setItem('egdesk_form_page_state', JSON.stringify(stateToSave));
+    } catch (e) {
+      console.error('세션 저장 실패:', e);
+    }
+  }, [viewMode, selectedTemplateId, printTemplateId, printEstimateId]);
+
   // 템플릿 목록 로드
   const loadTemplates = async () => {
     setLoading(true);
@@ -302,8 +341,16 @@ export default function FormManagementPage() {
       {viewMode === 'editor' && (
         <FormTemplateEditor 
           templateId={selectedTemplateId}
-          onBack={() => setViewMode('list')}
+          onBack={() => {
+            setSelectedTemplateId(undefined);
+            setPrintTemplateId(null);
+            setPrintEstimateId(null);
+            setViewMode('list');
+          }}
           onSaved={() => {
+            setSelectedTemplateId(undefined);
+            setPrintTemplateId(null);
+            setPrintEstimateId(null);
             setViewMode('list');
             loadTemplates();
           }}
@@ -315,7 +362,12 @@ export default function FormManagementPage() {
         <DocumentPrintView 
           templateId={printTemplateId}
           estimateId={printEstimateId}
-          onBack={() => setViewMode('list')}
+          onBack={() => {
+            setSelectedTemplateId(undefined);
+            setPrintTemplateId(null);
+            setPrintEstimateId(null);
+            setViewMode('list');
+          }}
         />
       )}
 
