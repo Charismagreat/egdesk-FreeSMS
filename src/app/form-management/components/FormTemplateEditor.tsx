@@ -438,9 +438,9 @@ export default function FormTemplateEditor({ templateId, onBack, onSaved }: Form
     newLeftPx = Math.max(0, Math.min(newLeftPx, canvasRect.width));
     newTopPx = Math.max(0, Math.min(newTopPx, canvasRect.height));
 
-    // 퍼센트 좌표로 재환산
-    const newPosX = parseFloat(((newLeftPx / canvasRect.width) * 100).toFixed(2));
-    const newPosY = parseFloat(((newTopPx / canvasRect.height) * 100).toFixed(2));
+    // 퍼센트 좌표로 재환산 및 안전 캔버스 경계 마진(2% ~ 98%) 가드 적용
+    const newPosX = Math.max(2, Math.min(parseFloat(((newLeftPx / canvasRect.width) * 100).toFixed(2)), 98));
+    const newPosY = Math.max(2, Math.min(parseFloat(((newTopPx / canvasRect.height) * 100).toFixed(2)), 98));
 
     setMappings(prev => {
       const updated = [...prev];
@@ -888,8 +888,76 @@ export default function FormTemplateEditor({ templateId, onBack, onSaved }: Form
                 </div>
               </div>
 
+              {/* 좌표 직접 수치 입력 패널 (겹쳤을 때 구출용) */}
+              <div className="grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
+                <div className="flex flex-col gap-1 text-left">
+                  <span className="text-[10px] font-extrabold text-slate-500">X 좌표 (%)</span>
+                  <input 
+                    type="number"
+                    min={2}
+                    max={98}
+                    step={0.5}
+                    value={selectedMapping.pos_x}
+                    onChange={e => updateSelectedProperty('pos_x', Math.max(2, Math.min(parseFloat(e.target.value) || 2, 98)))}
+                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-600"
+                  />
+                </div>
+                <div className="flex flex-col gap-1 text-left">
+                  <span className="text-[10px] font-extrabold text-slate-500">Y 좌표 (%)</span>
+                  <input 
+                    type="number"
+                    min={2}
+                    max={98}
+                    step={0.5}
+                    value={selectedMapping.pos_y}
+                    onChange={e => updateSelectedProperty('pos_y', Math.max(2, Math.min(parseFloat(e.target.value) || 2, 98)))}
+                    className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-600"
+                  />
+                </div>
+              </div>
+
               <div className="text-[10px] font-bold text-slate-400 text-right">
                 좌표: X({selectedMapping.pos_x}%), Y({selectedMapping.pos_y}%)
+              </div>
+            </div>
+          )}
+
+          {/* 배치 완료된 필드 목록 (중첩 및 쏠림 구출 선택기) */}
+          {filePath && mappings.length > 0 && (
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between border-l-4 border-indigo-600 pl-2">
+                <h3 className="text-xs font-black text-slate-800">배치 완료 필드 ({mappings.length})</h3>
+                {selectedMappingId && (
+                  <button 
+                    onClick={() => setSelectedMappingId(null)}
+                    className="text-[9px] font-bold text-slate-400 hover:text-indigo-600 transition"
+                  >
+                    선택 해제
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-col gap-1.5 max-h-[160px] overflow-y-auto pr-1 scrollbar-thin">
+                {mappings.map(mapping => {
+                  const isSelected = mapping.id === selectedMappingId;
+                  return (
+                    <button
+                      key={mapping.id}
+                      onClick={() => setSelectedMappingId(mapping.id!)}
+                      className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold text-left border transition-all ${
+                        isSelected
+                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <span className="truncate">{mapping.field_label}</span>
+                      <span className={`text-[9px] font-mono shrink-0 px-1.5 py-0.5 rounded ${
+                        isSelected ? 'bg-indigo-500 text-indigo-100' : 'bg-slate-100 text-slate-400'
+                      }`}>
+                        X:{mapping.pos_x}% | Y:{mapping.pos_y}%
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
