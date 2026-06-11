@@ -659,8 +659,8 @@ export default function FormManagementPage() {
                   {/* 동적 템플릿 개별 수기 추가 입력 필드 렌더링 */}
                   {activeMappings
                     .filter(m => m.field_key.startsWith('common_input'))
-                    .map(mapping => (
-                      <div key={mapping.field_key} className="flex flex-col gap-1.5">
+                    .map((mapping, idx) => (
+                      <div key={mapping.id || `${mapping.field_key}_${idx}`} className="flex flex-col gap-1.5">
                         <label className="text-xs font-extrabold text-indigo-650">{mapping.field_label} (직접 입력)</label>
                         <input 
                           type="text"

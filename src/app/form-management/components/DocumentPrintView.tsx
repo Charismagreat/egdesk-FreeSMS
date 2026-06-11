@@ -632,8 +632,8 @@ export default function DocumentPrintView({ templateId, estimateId, certificateL
               }
               
               // 템플릿에 등록된 수기 입력 필드 개별 목록 렌더링
-              return manualInputMappings.map((mapping) => (
-                <div key={mapping.field_key} className="flex flex-col gap-1.5 text-left">
+              return manualInputMappings.map((mapping, idx) => (
+                <div key={mapping.id || `${mapping.field_key}_${idx}`} className="flex flex-col gap-1.5 text-left">
                   <label className="text-[10px] font-bold text-slate-500">
                     {mapping.field_label}
                   </label>
