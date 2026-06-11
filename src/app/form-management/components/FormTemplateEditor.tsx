@@ -872,37 +872,6 @@ export default function FormTemplateEditor({ templateId, onBack, onSaved }: Form
                     </option>
                   ))}
                 </select>
-
-                {/* AI 추천 테이블 배지 목록 (데이터 소스 바로 아래에 컴팩트하게 밀착) */}
-                {(aiRecommendedTables.length > 0 || isRecommending) && (
-                  <div className="flex flex-wrap gap-1 mt-1 text-left">
-                    {isRecommending ? (
-                      <div className="flex items-center gap-1 py-1 text-slate-400">
-                        <RefreshCw className="w-3 h-3 animate-spin text-indigo-600" />
-                        <span className="text-[9px] font-semibold text-slate-550">추천 중...</span>
-                      </div>
-                    ) : (
-                      aiRecommendedTables.map(table => {
-                        const isChecked = selectedTables.includes(table.name);
-                        return (
-                          <button
-                            key={table.name}
-                            type="button"
-                            onClick={() => handleToggleTable(table.name)}
-                            title={`${table.displayName} (${table.name})${table.reason ? '\n사유: ' + table.reason : ''}`}
-                            className={`flex items-center gap-0.5 px-2 py-1 rounded-lg border text-[9px] font-extrabold transition-all cursor-pointer ${
-                              isChecked
-                              ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
-                              : 'bg-white border-slate-200 text-slate-655 hover:bg-slate-50'
-                            }`}
-                          >
-                            <span>{table.displayName}</span>
-                          </button>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
               </div>
 
               <div className="flex flex-col gap-1.5">
@@ -1201,6 +1170,71 @@ export default function FormTemplateEditor({ templateId, onBack, onSaved }: Form
           )}
 
         </div>
+
+        {/* AI 추천 테이블 세로 패널 (좌측 사이드 패널 오른쪽) */}
+        {(aiRecommendedTables.length > 0 || isRecommending) && (
+          <div className="w-full md:w-[220px] p-5 border-r border-slate-100 bg-slate-50/20 overflow-y-auto flex flex-col gap-4 animate-fade-in shrink-0">
+            <div className="flex items-center gap-1.5 border-l-4 border-indigo-650 pl-2 text-left">
+              <Sparkles className="w-4 h-4 text-indigo-650" />
+              <h3 className="text-xs font-black text-slate-800">AI 추천 테이블</h3>
+            </div>
+            <p className="text-[10px] font-semibold text-slate-400 leading-relaxed text-left">
+              양식 문서를 분석하여 추천된 연동 후보 테이블입니다. 클릭하여 연동 상태를 토글할 수 있습니다.
+            </p>
+
+            <div className="flex flex-col gap-2 text-left">
+              {isRecommending ? (
+                <div className="flex flex-col items-center justify-center py-10 text-slate-400 gap-2">
+                  <RefreshCw className="w-6 h-6 animate-spin text-indigo-600" />
+                  <span className="text-[10px] font-bold text-slate-500">후보군 분석 추천 중...</span>
+                </div>
+              ) : (
+                aiRecommendedTables.map(table => {
+                  const isChecked = selectedTables.includes(table.name);
+                  return (
+                    <button
+                      key={table.name}
+                      type="button"
+                      onClick={() => handleToggleTable(table.name)}
+                      className={`group w-full p-3 rounded-2xl border text-xs font-bold text-left transition-all cursor-pointer flex flex-col gap-1 shadow-sm ${
+                        isChecked
+                        ? 'bg-indigo-600 border-indigo-600 text-white hover:bg-indigo-700'
+                        : 'bg-white border-slate-200 text-slate-700 hover:border-indigo-650/35 hover:bg-slate-50/50'
+                      }`}
+                    >
+                      <span className="truncate block font-black">{table.displayName}</span>
+                      <span className={`text-[9px] font-mono block ${isChecked ? 'text-indigo-200' : 'text-slate-400'}`}>
+                        {table.name}
+                      </span>
+                      {table.count !== undefined && (
+                        <span className={`text-[9px] font-semibold block mt-0.5 ${isChecked ? 'text-indigo-200/90' : 'text-slate-400'}`}>
+                          • 데이터: {table.count}건
+                        </span>
+                      )}
+                      {table.reason && (
+                        <p className={`text-[9px] font-medium leading-tight mt-1.5 border-t pt-1.5 ${isChecked ? 'text-indigo-200 border-indigo-500/50' : 'text-slate-500 border-slate-100'}`}>
+                          {table.reason}
+                        </p>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            {filePath && !isRecommending && (
+              <button
+                type="button"
+                onClick={() => handleApplyAiMapping()}
+                disabled={isAnalyzing || selectedTables.length === 0}
+                className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition cursor-pointer shadow-md shadow-indigo-600/10 disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                {isAnalyzing ? '매핑 분석 중...' : 'AI 자동 매핑 적용'}
+              </button>
+            )}
+          </div>
+        )}
 
         {/* 우측 도화지(A4 캔버스) 영역 */}
         <div className="flex-1 p-8 bg-slate-100/50 overflow-y-auto flex justify-center items-start min-w-0 shadow-inner">
