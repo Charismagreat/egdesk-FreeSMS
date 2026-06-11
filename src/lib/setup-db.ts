@@ -1205,7 +1205,6 @@ export async function setupDatabase() {
     { name: 'restored_by', type: 'TEXT' }
   ], { tableName: 'form_mappings', uniqueKeyColumns: ['id'] });
 
-  // 41-6. 재직증명서 발급대장 테이블 (crm_employment_certificate_logs)
   await safeCreateTable('재직증명서 발급대장', [
     { name: 'id', type: 'INTEGER', notNull: true },
     { name: 'staff_id', type: 'INTEGER', notNull: true },
@@ -1218,6 +1217,7 @@ export async function setupDatabase() {
     { name: 'issue_date', type: 'TEXT' },
     { name: 'issue_dept', type: 'TEXT' },
     { name: 'issue_by', type: 'TEXT' },
+    { name: 'extra_data', type: 'TEXT' },
     { name: 'uuid', type: 'TEXT' },
     { name: 'updated_at', type: 'TEXT' },
     { name: 'updated_by', type: 'TEXT' },

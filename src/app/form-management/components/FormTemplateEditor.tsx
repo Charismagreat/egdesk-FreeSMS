@@ -587,9 +587,14 @@ export default function FormTemplateEditor({ templateId, onBack, onSaved }: Form
     const fieldDef = bindingFields.find(f => f.key === fieldKey);
     if (!fieldDef) return;
 
+    // 수기 입력 필드는 개별적으로 구분될 수 있도록 고유한 key 생성
+    const uniqueFieldKey = fieldKey === 'common_input'
+      ? `common_input_${Date.now()}`
+      : fieldKey;
+
     const newItem: MappingItem = {
       id: Date.now(), // 고유 식별자
-      field_key: fieldKey,
+      field_key: uniqueFieldKey,
       field_label: fieldDef.label,
       pos_x: 50, // 초기 퍼센트 좌표 (A4 중앙)
       pos_y: 50,
@@ -1054,6 +1059,18 @@ export default function FormTemplateEditor({ templateId, onBack, onSaved }: Form
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
+              </div>
+
+              {/* 필드 표시 이름 (라벨) 편집 */}
+              <div className="flex flex-col gap-1.5 text-left">
+                <label className="text-[10px] font-bold text-slate-500">필드 표시 이름 (라벨)</label>
+                <input 
+                  type="text"
+                  value={selectedMapping.field_label}
+                  onChange={e => updateSelectedProperty('field_label', e.target.value)}
+                  placeholder="예: 주민등록번호, 소속 등"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-indigo-600 focus:outline-none text-xs font-bold transition"
+                />
               </div>
 
               {/* 폰트 사이즈 조절 */}

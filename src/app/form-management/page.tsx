@@ -44,6 +44,8 @@ export default function FormManagementPage() {
   const [printTemplateId, setPrintTemplateId] = useState<number | null>(null);
   const [printEstimateId, setPrintEstimateId] = useState<string | null>(null);
   const [printCertificateLogId, setPrintCertificateLogId] = useState<number | null>(null);
+  const [activeMappings, setActiveMappings] = useState<any[]>([]);
+  const [extraInputs, setExtraInputs] = useState<Record<string, string>>({});
   
   // 견적서 선택 모달 상태
   const [isEstimateModalOpen, setIsEstimateModalOpen] = useState(false);
@@ -161,6 +163,7 @@ export default function FormManagementPage() {
   // 양식 출력 버튼 클릭 시 연동 데이터 소스 테이블에 맞추어 목록 가져오기 및 모달 열기
   const handleOpenPrintModal = async (templateId: number) => {
     setPrintTemplateId(templateId);
+    setExtraInputs({});
     
     // 현재 선택된 템플릿의 연동 데이터 소스(document_type) 알아내기
     const template = templates.find(t => t.id === templateId);
@@ -177,6 +180,18 @@ export default function FormManagementPage() {
     setIssueDept('연구소');
     setIssueBy('최고관리자');
     setPrintCertificateLogId(null);
+    setActiveMappings([]);
+
+    // 상세 템플릿 매핑 정보 동적 로드
+    try {
+      const detailRes = await fetch(`/api/templates?action=detail&id=${templateId}`);
+      const detailData = await detailRes.json();
+      if (detailData.success) {
+        setActiveMappings(detailData.mappings || []);
+      }
+    } catch (err) {
+      console.error('Template detail loading error:', err);
+    }
     
     try {
       let dataList: any[] = [];
@@ -279,7 +294,8 @@ export default function FormManagementPage() {
             usage: usage,
             issue_date: issueDate,
             issue_dept: issueDept,
-            issue_by: issueBy
+            issue_by: issueBy,
+            extra_data: JSON.stringify(extraInputs)
           }]
         })
       });
@@ -639,6 +655,23 @@ export default function FormManagementPage() {
                       className="w-full px-4 py-3 rounded-2xl bg-white border border-slate-200 focus:border-indigo-600 focus:outline-none text-xs font-bold shadow-sm transition"
                     />
                   </div>
+
+                  {/* 동적 템플릿 개별 수기 추가 입력 필드 렌더링 */}
+                  {activeMappings
+                    .filter(m => m.field_key.startsWith('common_input'))
+                    .map(mapping => (
+                      <div key={mapping.field_key} className="flex flex-col gap-1.5">
+                        <label className="text-xs font-extrabold text-indigo-650">{mapping.field_label} (직접 입력)</label>
+                        <input 
+                          type="text"
+                          value={extraInputs[mapping.field_key] || ''}
+                          onChange={e => setExtraInputs(prev => ({ ...prev, [mapping.field_key]: e.target.value }))}
+                          placeholder={`${mapping.field_label} 내용을 입력해 주세요.`}
+                          className="w-full px-4 py-3 rounded-2xl bg-indigo-50/20 border border-indigo-250 focus:border-indigo-650 focus:outline-none text-xs font-bold shadow-sm transition"
+                        />
+                      </div>
+                    ))
+                  }
                 </div>
 
                 {/* 모달 하단 동작 버튼 */}

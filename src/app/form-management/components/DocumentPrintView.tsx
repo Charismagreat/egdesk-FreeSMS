@@ -91,7 +91,7 @@ export default function DocumentPrintView({ templateId, estimateId, certificateL
     const dd = String(today.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
   });
-  const [commonInput, setCommonInput] = useState<string>('대외 제출용');
+  const [commonInputs, setCommonInputs] = useState<Record<string, string>>({});
   const [commonTag, setCommonTag] = useState<string>('[제출용]');
   const [showStamp, setShowStamp] = useState<boolean>(true);
 
@@ -103,7 +103,7 @@ export default function DocumentPrintView({ templateId, estimateId, certificateL
       if (savedConfig) {
         const parsed = JSON.parse(savedConfig);
         if (parsed.commonDate) setCommonDate(parsed.commonDate);
-        if (parsed.commonInput !== undefined) setCommonInput(parsed.commonInput);
+        if (parsed.commonInputs) setCommonInputs(parsed.commonInputs);
         if (parsed.commonTag) setCommonTag(parsed.commonTag);
         if (parsed.showStamp !== undefined) setShowStamp(parsed.showStamp);
       }
@@ -118,7 +118,7 @@ export default function DocumentPrintView({ templateId, estimateId, certificateL
     try {
       const config = {
         commonDate,
-        commonInput,
+        commonInputs,
         commonTag,
         showStamp
       };
@@ -126,7 +126,7 @@ export default function DocumentPrintView({ templateId, estimateId, certificateL
     } catch (e) {
       console.error('인쇄 설정 세션 저장 실패:', e);
     }
-  }, [loading, templateId, commonDate, commonInput, commonTag, showStamp]);
+  }, [loading, templateId, commonDate, commonInputs, commonTag, showStamp]);
 
   // 3) 초기 마스터 데이터 로드 (템플릿 및 자사 프로필)
   useEffect(() => {
@@ -156,8 +156,20 @@ export default function DocumentPrintView({ templateId, estimateId, certificateL
               
               // 발급대장의 값을 로컬 상태에 동기화
               if (logItem.issue_date) setCommonDate(logItem.issue_date);
-              if (logItem.address) setCommonInput(logItem.address);
               if (logItem.usage) setCommonTag(logItem.usage);
+              
+              // 개별 수기 추가 정보(extra_data) 파싱 복원
+              if (logItem.extra_data) {
+                try {
+                  const extra = JSON.parse(logItem.extra_data);
+                  setCommonInputs(extra);
+                } catch (pe) {
+                  console.error('extra_data JSON 파싱 에러:', pe);
+                }
+              } else if (logItem.address) {
+                // 구 데이터 하위 호환성 복원
+                setCommonInputs({ common_input: logItem.address });
+              }
             }
             setQuerySql('');
           } else {
@@ -281,6 +293,11 @@ export default function DocumentPrintView({ templateId, estimateId, certificateL
 
   // 바인딩 데이터 값 매핑 변환기
   const getBindingValue = (fieldKey: string) => {
+    // 수기 추가 필드 (개별화)
+    if (fieldKey.startsWith('common_input')) {
+      return commonInputs[fieldKey] || '';
+    }
+
     // 발급 대장 로그를 읽어온 경우의 특수 매핑 바인딩
     if (certificateLogId && queriedData) {
       if (fieldKey === 'common_date' || fieldKey === 'issue_date') return queriedData.issue_date || '';
@@ -327,7 +344,7 @@ export default function DocumentPrintView({ templateId, estimateId, certificateL
     }
 
     if (fieldKey === 'common_date') return commonDate;
-    if (fieldKey === 'common_input') return commonInput;
+    if (fieldKey === 'common_input') return commonInputs['common_input'] || '';
     if (fieldKey === 'common_tag') return commonTag;
     if (fieldKey === 'common_stamp') return '';
 
@@ -596,17 +613,40 @@ export default function DocumentPrintView({ templateId, estimateId, certificateL
               />
             </div>
 
-            {/* 2. 추가 입력 사항 */}
-            <div className="flex flex-col gap-1.5 text-left">
-              <label className="text-[10px] font-bold text-slate-500">수기 추가 내용 (common_input)</label>
-              <input 
-                type="text" 
-                value={commonInput}
-                onChange={e => setCommonInput(e.target.value)}
-                placeholder="예: 대외 제출용, 담당자 코멘트 등"
-                className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 focus:border-indigo-600 focus:outline-none text-xs font-semibold transition shadow-sm"
-              />
-            </div>
+            {/* 2. 추가 입력 사항 (수기 입력 항목 개별화) */}
+            {(() => {
+              const manualInputMappings = mappings.filter(m => m.field_key.startsWith('common_input'));
+              if (manualInputMappings.length === 0) {
+                return (
+                  <div className="flex flex-col gap-1.5 text-left">
+                    <label className="text-[10px] font-bold text-slate-500">수기 추가 내용 (common_input)</label>
+                    <input 
+                      type="text" 
+                      value={commonInputs['common_input'] || ''}
+                      onChange={e => setCommonInputs(prev => ({ ...prev, common_input: e.target.value }))}
+                      placeholder="예: 대외 제출용, 담당자 코멘트 등"
+                      className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 focus:border-indigo-600 focus:outline-none text-xs font-semibold transition shadow-sm"
+                    />
+                  </div>
+                );
+              }
+              
+              // 템플릿에 등록된 수기 입력 필드 개별 목록 렌더링
+              return manualInputMappings.map((mapping) => (
+                <div key={mapping.field_key} className="flex flex-col gap-1.5 text-left">
+                  <label className="text-[10px] font-bold text-slate-500">
+                    {mapping.field_label}
+                  </label>
+                  <input 
+                    type="text" 
+                    value={commonInputs[mapping.field_key] || ''}
+                    onChange={e => setCommonInputs(prev => ({ ...prev, [mapping.field_key]: e.target.value }))}
+                    placeholder={`${mapping.field_label} 직접 입력`}
+                    className="w-full px-4 py-2.5 rounded-xl bg-white border border-slate-200 focus:border-indigo-600 focus:outline-none text-xs font-semibold transition shadow-sm"
+                  />
+                </div>
+              ));
+            })()}
 
             {/* 3. 양식 태그 */}
             <div className="flex flex-col gap-1.5 text-left">
