@@ -1257,7 +1257,7 @@ export default function FormTemplateEditor({ templateId, onBack, onSaved }: Form
                   backgroundImage: `url(${filePath})`,
                   backgroundSize: '100% 100%'
                 }}
-                className="relative bg-white shadow-2xl rounded-sm border border-slate-300 aspect-[1/1.414] w-[540px] md:w-[600px] select-none overflow-hidden"
+                className="relative bg-white shadow-2xl rounded-sm border border-slate-300 aspect-[1/1.414] w-full max-w-[820px] select-none overflow-hidden"
               >
                 
                 {/* 매핑 리스트 오버레이 */}
@@ -1279,7 +1279,7 @@ export default function FormTemplateEditor({ templateId, onBack, onSaved }: Form
                         textAlign: mapping.text_align as any,
                         cursor: 'move',
                         whiteSpace: isTable ? 'normal' : 'nowrap',
-                        width: isTable ? '450px' : 'auto'
+                        width: isTable ? '80%' : 'auto'
                       }}
                       className={`px-2 py-1 rounded transition text-slate-900 border flex items-center gap-1.5 ${
                         isSelected 
