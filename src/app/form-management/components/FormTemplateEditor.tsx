@@ -589,7 +589,7 @@ export default function FormTemplateEditor({ templateId, onBack, onSaved }: Form
 
     // 수기 입력 필드는 개별적으로 구분될 수 있도록 고유한 key 생성
     const uniqueFieldKey = fieldKey === 'common_input'
-      ? `common_input_${Date.now()}`
+      ? `common_input_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`
       : fieldKey;
 
     const newItem: MappingItem = {
