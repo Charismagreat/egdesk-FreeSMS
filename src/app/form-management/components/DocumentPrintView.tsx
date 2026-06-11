@@ -103,7 +103,6 @@ export default function DocumentPrintView({ templateId, estimateId, certificateL
       if (savedConfig) {
         const parsed = JSON.parse(savedConfig);
         if (parsed.commonDate) setCommonDate(parsed.commonDate);
-        if (parsed.commonInputs) setCommonInputs(parsed.commonInputs);
         if (parsed.commonTag) setCommonTag(parsed.commonTag);
         if (parsed.showStamp !== undefined) setShowStamp(parsed.showStamp);
       }
@@ -118,7 +117,6 @@ export default function DocumentPrintView({ templateId, estimateId, certificateL
     try {
       const config = {
         commonDate,
-        commonInputs,
         commonTag,
         showStamp
       };
@@ -126,7 +124,7 @@ export default function DocumentPrintView({ templateId, estimateId, certificateL
     } catch (e) {
       console.error('인쇄 설정 세션 저장 실패:', e);
     }
-  }, [loading, templateId, commonDate, commonInputs, commonTag, showStamp]);
+  }, [loading, templateId, commonDate, commonTag, showStamp]);
 
   // 3) 초기 마스터 데이터 로드 (템플릿 및 자사 프로필)
   useEffect(() => {

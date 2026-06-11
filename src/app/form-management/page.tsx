@@ -67,6 +67,21 @@ export default function FormManagementPage() {
   const [issueDept, setIssueDept] = useState<string>('연구소');
   const [issueBy, setIssueBy] = useState<string>('최고관리자');
 
+  // 재직증명서 관련 수기 입력 상태 초기화 헬퍼 함수
+  const resetCertificateInputs = () => {
+    setAddress('');
+    setUsage('제출용');
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    setIssueDate(`${yyyy}-${mm}-${dd}`);
+    setIssueDept('연구소');
+    setIssueBy('최고관리자');
+    setExtraInputs({});
+    setPrintCertificateLogId(null);
+  };
+
   // 현재 모달 출력 대상 템플릿 정보 계산
   const activeTemplate = templates.find(t => t.id === printTemplateId);
   const activeDocType = activeTemplate ? activeTemplate.document_type : '';
@@ -163,7 +178,6 @@ export default function FormManagementPage() {
   // 양식 출력 버튼 클릭 시 연동 데이터 소스 테이블에 맞추어 목록 가져오기 및 모달 열기
   const handleOpenPrintModal = async (templateId: number) => {
     setPrintTemplateId(templateId);
-    setExtraInputs({});
     
     // 현재 선택된 템플릿의 연동 데이터 소스(document_type) 알아내기
     const template = templates.find(t => t.id === templateId);
@@ -175,11 +189,7 @@ export default function FormManagementPage() {
     
     // 수기 입력 및 발급용 상태 초기화
     setSelectedStaff(null);
-    setAddress('');
-    setUsage('제출용');
-    setIssueDept('연구소');
-    setIssueBy('최고관리자');
-    setPrintCertificateLogId(null);
+    resetCertificateInputs();
     setActiveMappings([]);
 
     // 상세 템플릿 매핑 정보 동적 로드
@@ -679,7 +689,10 @@ export default function FormManagementPage() {
                 {/* 모달 하단 동작 버튼 */}
                 <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 mt-2">
                   <button
-                    onClick={() => setSelectedStaff(null)}
+                    onClick={() => {
+                      resetCertificateInputs();
+                      setSelectedStaff(null);
+                    }}
                     className="px-5 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs transition cursor-pointer"
                   >
                     사원 목록으로 돌아가기
@@ -739,6 +752,7 @@ export default function FormManagementPage() {
                               key={est.id}
                               onClick={() => {
                                 if (activeDocType === 'rnd_staffs' || activeDocType === 'crm_employment_certificate_logs') {
+                                  resetCertificateInputs();
                                   setSelectedStaff(est.originalRow);
                                 } else {
                                   handleSelectEstimate(est.id);
