@@ -158,7 +158,7 @@ export default function FormManagementPage() {
     }
   };
 
-  // 테스트 출력 버튼 클릭 시 연동 데이터 소스 테이블에 맞추어 목록 가져오기 및 모달 열기
+  // 양식 출력 버튼 클릭 시 연동 데이터 소스 테이블에 맞추어 목록 가져오기 및 모달 열기
   const handleOpenPrintModal = async (templateId: number) => {
     setPrintTemplateId(templateId);
     
@@ -388,7 +388,7 @@ export default function FormManagementPage() {
               <p className="font-extrabold text-indigo-900">💡 양식 매핑 자율 가이드라인</p>
               <p className="font-semibold text-indigo-800/80">1. 사내 양식이 PDF일 경우, 캡처 프로그램을 사용하여 깔끔하게 A4 비율의 JPG/PNG 이미지 파일로 변환하여 업로드합니다.</p>
               <p className="font-semibold text-indigo-800/80">2. [매핑 설정] 에디터에서 필요한 필드들을 마우스로 드래그하여 정확한 위치(%)에 배치할 수 있습니다.</p>
-              <p className="font-semibold text-indigo-800/80">3. [테스트 출력]을 누르면 실제 작성된 견적서를 선택하여 오버레이 인쇄(`window.print()`) 하거나 고화질 PDF로 저장할 수 있습니다.</p>
+              <p className="font-semibold text-indigo-800/80">3. [양식 출력]을 누르면 실제 작성된 견적서를 선택하여 오버레이 인쇄(`window.print()`) 하거나 고화질 PDF로 저장할 수 있습니다.</p>
             </div>
           </div>
 
@@ -470,7 +470,7 @@ export default function FormManagementPage() {
                         <button
                           onClick={() => handleOpenPrintModal(tmpl.id)}
                           className="p-2 rounded-xl bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 transition cursor-pointer"
-                          title="테스트 출력"
+                          title="양식 출력"
                         >
                           <Printer className="w-4 h-4" />
                         </button>
