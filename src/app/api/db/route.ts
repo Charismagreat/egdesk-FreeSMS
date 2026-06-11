@@ -175,6 +175,7 @@ export async function GET(request: Request) {
           else if (name === 'crm_grant_company_profile') displayName = '지원금 적합도 매칭용 회사 스펙';
 
           // 3차 이관: 전사 잔여 테이블(55개) 한글 매핑 추가
+          else if (name === 'crm_employment_certificate_logs') displayName = '재직증명서 발급대장';
           else if (name === 'crm_operator_profiles') displayName = '임직원 인사 마스터 정보';
           else if (name === 'crm_operator_salaries') displayName = '월별 급여 대장 및 명세서';
           else if (name === 'crm_operator_leave_balances') displayName = '임직원별 연차/휴가 잔여 현황';

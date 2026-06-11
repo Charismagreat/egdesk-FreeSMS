@@ -43,12 +43,27 @@ export default function FormManagementPage() {
   // 인쇄 및 테스트용 상태
   const [printTemplateId, setPrintTemplateId] = useState<number | null>(null);
   const [printEstimateId, setPrintEstimateId] = useState<string | null>(null);
+  const [printCertificateLogId, setPrintCertificateLogId] = useState<number | null>(null);
   
   // 견적서 선택 모달 상태
   const [isEstimateModalOpen, setIsEstimateModalOpen] = useState(false);
   const [estimates, setEstimates] = useState<any[]>([]);
   const [estimatesLoading, setEstimatesLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // 재직증명서 수기 입력 및 발급용 상태
+  const [selectedStaff, setSelectedStaff] = useState<any | null>(null);
+  const [address, setAddress] = useState<string>('');
+  const [usage, setUsage] = useState<string>('제출용');
+  const [issueDate, setIssueDate] = useState<string>(() => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  });
+  const [issueDept, setIssueDept] = useState<string>('연구소');
+  const [issueBy, setIssueBy] = useState<string>('최고관리자');
 
   // 현재 모달 출력 대상 템플릿 정보 계산
   const activeTemplate = templates.find(t => t.id === printTemplateId);
@@ -73,6 +88,9 @@ export default function FormManagementPage() {
         if (parsed.printEstimateId !== undefined) {
           setPrintEstimateId(parsed.printEstimateId);
         }
+        if (parsed.printCertificateLogId !== undefined) {
+          setPrintCertificateLogId(parsed.printCertificateLogId);
+        }
       }
     } catch (e) {
       console.error('세션 복원 실패:', e);
@@ -86,13 +104,14 @@ export default function FormManagementPage() {
         viewMode,
         selectedTemplateId,
         printTemplateId,
-        printEstimateId
+        printEstimateId,
+        printCertificateLogId
       };
       localStorage.setItem('egdesk_form_page_state', JSON.stringify(stateToSave));
     } catch (e) {
       console.error('세션 저장 실패:', e);
     }
-  }, [viewMode, selectedTemplateId, printTemplateId, printEstimateId]);
+  }, [viewMode, selectedTemplateId, printTemplateId, printEstimateId, printCertificateLogId]);
 
   // 템플릿 목록 로드
   const loadTemplates = async () => {
@@ -151,12 +170,48 @@ export default function FormManagementPage() {
     setEstimatesLoading(true);
     setSearchTerm(''); // 검색 초기화
     
+    // 수기 입력 및 발급용 상태 초기화
+    setSelectedStaff(null);
+    setAddress('');
+    setUsage('제출용');
+    setIssueDept('연구소');
+    setIssueBy('최고관리자');
+    setPrintCertificateLogId(null);
+    
     try {
       let dataList: any[] = [];
       
-      // 만약 docType이 'crm_estimates'이면 기존과 마찬가지로 /api/estimates?action=list 를 우선 부르고
-      // 그 외의 동적 테이블인 경우 범용 DB 조회 API(/api/db?action=query)를 활용
-      if (docType === 'crm_estimates' || !docType) {
+      if (docType === 'rnd_staffs') {
+        // 연구원 대장인 경우 crm_operators와 LEFT JOIN하여 한글 성명 가져오기
+        const res = await fetch('/api/db', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'execute',
+            query: `
+              SELECT s.staff_id, o.name as staff_name, s.joined_date, s.degree_level, s.major_name
+              FROM rnd_staffs s
+              LEFT JOIN crm_operators o ON s.user_id = o.id
+            `
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          dataList = (data.rows || []).map((row: any) => {
+            return {
+              id: String(row.staff_id),
+              partner_name: row.staff_name || '-',
+              first_item_name: `${row.degree_level || ''} (${row.major_name || ''})`,
+              total_amount: 0,
+              created_at: row.joined_date || '-',
+              item_count: 1,
+              originalRow: row
+            };
+          });
+        } else {
+          throw new Error(data.error || '연구원 목록 조회 실패');
+        }
+      } else if (docType === 'crm_estimates' || !docType) {
         const res = await fetch('/api/estimates?action=list');
         const data = await res.json();
         if (data.success) {
@@ -199,6 +254,69 @@ export default function FormManagementPage() {
       setEstimates([]);
     } finally {
       setEstimatesLoading(false);
+    }
+  };
+
+  // 재직증명서 이력 적재 및 출력 화면 전환 실행
+  const handlePrintCertificate = async () => {
+    if (!selectedStaff) return;
+    
+    try {
+      // 1) crm_employment_certificate_logs에 수기 입력 내용 포함하여 인서트
+      const insertRes = await fetch('/api/db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'insert',
+          tableName: 'crm_employment_certificate_logs',
+          rows: [{
+            staff_id: Number(selectedStaff.staff_id),
+            staff_name: selectedStaff.staff_name || '-',
+            joined_date: selectedStaff.joined_date || '-',
+            degree_level: selectedStaff.degree_level || '-',
+            major_name: selectedStaff.major_name || '-',
+            address: address,
+            usage: usage,
+            issue_date: issueDate,
+            issue_dept: issueDept,
+            issue_by: issueBy
+          }]
+        })
+      });
+      
+      const insertData = await insertRes.json();
+      if (!insertData.success) {
+        throw new Error(insertData.error || '발급 이력 저장에 실패했습니다.');
+      }
+      
+      // 2) 최근 생성된 ID 가져오기
+      const idRes = await fetch('/api/db', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'execute',
+          query: 'SELECT MAX(id) as maxId FROM crm_employment_certificate_logs'
+        })
+      });
+      const idData = await idRes.json();
+      let logId = 0;
+      if (idData.success && idData.rows && idData.rows.length > 0) {
+        logId = idData.rows[0].maxId;
+      }
+      
+      if (!logId) {
+        throw new Error('생성된 발급 이력 ID를 조회하지 못했습니다.');
+      }
+      
+      // 3) 상태 반영 및 출력 모드 활성화
+      setPrintCertificateLogId(logId);
+      setPrintEstimateId(String(selectedStaff.staff_id)); // 하위호환
+      setIsEstimateModalOpen(false);
+      setViewMode('print');
+      
+    } catch (e: any) {
+      console.error(e);
+      alert(`재직증명서 발급 중 오류가 발생했습니다:\n${e.message}`);
     }
   };
 
@@ -411,10 +529,12 @@ export default function FormManagementPage() {
         <DocumentPrintView 
           templateId={printTemplateId}
           estimateId={printEstimateId}
+          certificateLogId={printCertificateLogId || undefined}
           onBack={() => {
             setSelectedTemplateId(undefined);
             setPrintTemplateId(null);
             setPrintEstimateId(null);
+            setPrintCertificateLogId(null);
             setViewMode('list');
           }}
         />
@@ -432,7 +552,11 @@ export default function FormManagementPage() {
                   <Sparkles className="w-5 h-5 text-indigo-600" />
                   [{activeTemplateName}] 연동 데이터 선택
                 </h3>
-                <p className="text-xs text-slate-500 mt-1 font-semibold">양식의 지정된 좌표에 기입하여 렌더링할 [{activeDocType || '지정 테이블'}] 레코드를 선택하십시오.</p>
+                <p className="text-xs text-slate-500 mt-1 font-semibold">
+                  {selectedStaff 
+                    ? '2단계: 사내 양식 출력을 위한 수기 추가 항목을 작성해 주세요.'
+                    : `양식의 지정된 좌표에 기입하여 렌더링할 [${activeDocType || '지정 테이블'}] 레코드를 선택하십시오.`}
+                </p>
               </div>
               <button 
                 onClick={() => setIsEstimateModalOpen(false)}
@@ -442,75 +566,177 @@ export default function FormManagementPage() {
               </button>
             </div>
 
-            {/* 검색바 */}
-            <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
-              <Search className="w-4 h-4 text-slate-400 shrink-0" />
-              <input 
-                type="text" 
-                placeholder="식별값, 명칭, 혹은 분류/항목으로 검색..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="w-full bg-transparent text-xs text-slate-800 focus:outline-none placeholder-slate-400 font-bold"
-              />
-            </div>
+            {selectedStaff ? (
+              /* 2단계: 수기 입력 폼 */
+              <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/20 text-left">
+                {/* 선택된 사원 정보 카드 */}
+                <div className="p-4 rounded-2xl bg-indigo-50/40 border border-indigo-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="text-left">
+                    <span className="text-[10px] font-black text-indigo-600 tracking-wider uppercase block">선택된 사원 정보</span>
+                    <strong className="text-lg font-black text-slate-900 mt-0.5 block">{selectedStaff.staff_name} 연구원</strong>
+                    <span className="text-xs text-slate-500 font-semibold block mt-1">
+                      {selectedStaff.degree_level === 'DOCTOR' ? '박사' : selectedStaff.degree_level === 'MASTER' ? '석사' : '학사'} • {selectedStaff.major_name}
+                    </span>
+                  </div>
+                  <div className="text-left sm:text-right text-xs font-semibold text-slate-500">
+                    <div>입사일자: <span className="font-bold text-slate-700">{selectedStaff.joined_date}</span></div>
+                    <div className="mt-1">사원 ID: <span className="font-mono font-bold text-slate-700">{selectedStaff.staff_id}</span></div>
+                  </div>
+                </div>
 
-            {/* 모달 컨텐트 */}
-            <div className="flex-1 overflow-y-auto p-4 bg-slate-50/20">
-              {estimatesLoading ? (
-                <div className="flex flex-col items-center justify-center py-12 text-slate-400">
-                  <RefreshCw className="w-8 h-8 animate-spin text-indigo-600 mb-2" />
-                  <span className="text-xs font-bold">최근 데이터를 조회하는 중...</span>
+                {/* 수기 입력 필드 영역 */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                  <div className="flex flex-col gap-1.5 md:col-span-2">
+                    <label className="text-xs font-extrabold text-slate-700">주소 (수기 입력)</label>
+                    <input 
+                      type="text"
+                      value={address}
+                      onChange={e => setAddress(e.target.value)}
+                      placeholder="주민등록등본상 주소를 기재해 주세요."
+                      className="w-full px-4 py-3 rounded-2xl bg-white border border-slate-200 focus:border-indigo-600 focus:outline-none text-xs font-bold shadow-sm transition"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-extrabold text-slate-700">용도</label>
+                    <input 
+                      type="text"
+                      value={usage}
+                      onChange={e => setUsage(e.target.value)}
+                      placeholder="예: 금융기관 제출용, 관공서 제출용 등"
+                      className="w-full px-4 py-3 rounded-2xl bg-white border border-slate-200 focus:border-indigo-600 focus:outline-none text-xs font-bold shadow-sm transition"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-extrabold text-slate-700">발급 일자</label>
+                    <input 
+                      type="date"
+                      value={issueDate}
+                      onChange={e => setIssueDate(e.target.value)}
+                      className="w-full px-4 py-3 rounded-2xl bg-white border border-slate-200 focus:border-indigo-600 focus:outline-none text-xs font-bold shadow-sm transition"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-extrabold text-slate-700">발급 부서</label>
+                    <input 
+                      type="text"
+                      value={issueDept}
+                      onChange={e => setIssueDept(e.target.value)}
+                      placeholder="예: 인사총무부, 관리부 등"
+                      className="w-full px-4 py-3 rounded-2xl bg-white border border-slate-200 focus:border-indigo-600 focus:outline-none text-xs font-bold shadow-sm transition"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-extrabold text-slate-700">발급 담당자</label>
+                    <input 
+                      type="text"
+                      value={issueBy}
+                      onChange={e => setIssueBy(e.target.value)}
+                      placeholder="예: 최고관리자, 인사담당자 등"
+                      className="w-full px-4 py-3 rounded-2xl bg-white border border-slate-200 focus:border-indigo-600 focus:outline-none text-xs font-bold shadow-sm transition"
+                    />
+                  </div>
                 </div>
-              ) : filteredEstimates.length === 0 ? (
-                <div className="text-center py-16 text-slate-400 border border-dashed border-slate-200 rounded-2xl bg-white">
-                  <AlertCircle className="w-12 h-12 text-slate-300 mx-auto mb-2" />
-                  <p className="text-sm font-black text-slate-500">조회된 데이터가 없습니다</p>
-                  <p className="text-xs text-slate-400 mt-1">[{activeDocType || '지정 테이블'}] 테이블에 연동 데이터가 존재하는지 확인해 주세요.</p>
+
+                {/* 모달 하단 동작 버튼 */}
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 mt-2">
+                  <button
+                    onClick={() => setSelectedStaff(null)}
+                    className="px-5 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs transition cursor-pointer"
+                  >
+                    사원 목록으로 돌아가기
+                  </button>
+                  <button
+                    onClick={handlePrintCertificate}
+                    className="px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs transition shadow-md shadow-indigo-600/10 cursor-pointer"
+                  >
+                    이력 저장 및 출력하기
+                  </button>
                 </div>
-              ) : (
-                <div className="border border-slate-100 rounded-3xl overflow-hidden bg-white shadow-sm">
-                  <table className="w-full border-collapse text-left text-xs font-semibold">
-                    <thead>
-                      <tr className="bg-slate-50 text-slate-400 font-bold border-b border-slate-100">
-                        <th className="p-4">식별 번호/ID</th>
-                        <th className="p-4">대표자/명칭</th>
-                        <th className="p-4">분류/항목</th>
-                        <th className="p-4 text-right">금액/수치</th>
-                        <th className="p-4 text-center">생성/일시</th>
-                        <th className="p-4 text-center">선택</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredEstimates.map(est => (
-                        <tr 
-                          key={est.id}
-                          onClick={() => handleSelectEstimate(est.id)}
-                          className="border-b border-slate-100 hover:bg-slate-50/70 transition cursor-pointer group"
-                        >
-                          <td className="p-4 font-mono font-black text-indigo-600 group-hover:underline">{est.id}</td>
-                          <td className="p-4 font-bold text-slate-800">{est.partner_name || '-'}</td>
-                          <td className="p-4 text-slate-500 max-w-[160px] truncate">
-                            {est.first_item_name || '-'}
-                            {est.item_count > 1 && ` 외 ${est.item_count - 1}건`}
-                          </td>
-                          <td className="p-4 text-right font-black text-slate-800">
-                            {(est.total_amount || 0).toLocaleString()}{activeDocType === 'crm_estimates' ? '원' : ''}
-                          </td>
-                          <td className="p-4 text-center text-slate-400">
-                            {est.created_at ? est.created_at.substring(0, 10) : '-'}
-                          </td>
-                          <td className="p-4 text-center">
-                            <button className="p-1.5 rounded-xl bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition cursor-pointer">
-                              <ChevronRight className="w-4 h-4" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              </div>
+            ) : (
+              /* 1단계: 사원 검색 및 선택 리스트 */
+              <>
+                {/* 검색바 */}
+                <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
+                  <Search className="w-4 h-4 text-slate-400 shrink-0" />
+                  <input 
+                    type="text" 
+                    placeholder="식별값, 명칭, 혹은 분류/항목으로 검색..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="w-full bg-transparent text-xs text-slate-800 focus:outline-none placeholder-slate-400 font-bold"
+                  />
                 </div>
-              )}
-            </div>
+
+                {/* 모달 컨텐트 */}
+                <div className="flex-1 overflow-y-auto p-4 bg-slate-50/20">
+                  {estimatesLoading ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+                      <RefreshCw className="w-8 h-8 animate-spin text-indigo-600 mb-2" />
+                      <span className="text-xs font-bold">최근 데이터를 조회하는 중...</span>
+                    </div>
+                  ) : filteredEstimates.length === 0 ? (
+                    <div className="text-center py-16 text-slate-400 border border-dashed border-slate-200 rounded-2xl bg-white">
+                      <AlertCircle className="w-12 h-12 text-slate-300 mx-auto mb-2" />
+                      <p className="text-sm font-black text-slate-500">조회된 데이터가 없습니다</p>
+                      <p className="text-xs text-slate-400 mt-1">[{activeDocType || '지정 테이블'}] 테이블에 연동 데이터가 존재하는지 확인해 주세요.</p>
+                    </div>
+                  ) : (
+                    <div className="border border-slate-100 rounded-3xl overflow-hidden bg-white shadow-sm">
+                      <table className="w-full border-collapse text-left text-xs font-semibold">
+                        <thead>
+                          <tr className="bg-slate-50 text-slate-400 font-bold border-b border-slate-100">
+                            <th className="p-4">식별 번호/ID</th>
+                            <th className="p-4">대표자/명칭</th>
+                            <th className="p-4">분류/항목</th>
+                            <th className="p-4 text-right">금액/수치</th>
+                            <th className="p-4 text-center">생성/일시</th>
+                            <th className="p-4 text-center">선택</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredEstimates.map(est => (
+                            <tr 
+                              key={est.id}
+                              onClick={() => {
+                                if (activeDocType === 'rnd_staffs') {
+                                  setSelectedStaff(est.originalRow);
+                                } else {
+                                  handleSelectEstimate(est.id);
+                                }
+                              }}
+                              className="border-b border-slate-100 hover:bg-slate-50/70 transition cursor-pointer group"
+                            >
+                              <td className="p-4 font-mono font-black text-indigo-600 group-hover:underline">{est.id}</td>
+                              <td className="p-4 font-bold text-slate-800">{est.partner_name || '-'}</td>
+                              <td className="p-4 text-slate-500 max-w-[160px] truncate">
+                                {est.first_item_name || '-'}
+                                {est.item_count > 1 && ` 외 ${est.item_count - 1}건`}
+                              </td>
+                              <td className="p-4 text-right font-black text-slate-800">
+                                {(est.total_amount || 0).toLocaleString()}{activeDocType === 'crm_estimates' ? '원' : ''}
+                              </td>
+                              <td className="p-4 text-center text-slate-400">
+                                {est.created_at ? est.created_at.substring(0, 10) : '-'}
+                              </td>
+                              <td className="p-4 text-center">
+                                <button className="p-1.5 rounded-xl bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition cursor-pointer">
+                                  <ChevronRight className="w-4 h-4" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
 
           </div>
         </div>

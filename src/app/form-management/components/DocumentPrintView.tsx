@@ -24,6 +24,7 @@ interface MappingItem {
 interface DocumentPrintViewProps {
   templateId: number;
   estimateId?: string; // Optional로 완화하여 범용 연동 지원
+  certificateLogId?: number; // 추가!
   onBack: () => void;
 }
 
@@ -64,7 +65,7 @@ function convertToKoreanNumber(num: number): string {
   return result;
 }
 
-export default function DocumentPrintView({ templateId, estimateId, onBack }: DocumentPrintViewProps) {
+export default function DocumentPrintView({ templateId, estimateId, certificateLogId, onBack }: DocumentPrintViewProps) {
   const [template, setTemplate] = useState<any>(null);
   const [mappings, setMappings] = useState<MappingItem[]>([]);
   const [companyProfile, setCompanyProfile] = useState<any>({});
@@ -144,7 +145,24 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
           const temp = tempData.template;
           setTemplate(temp);
           setMappings(tempData.mappings);
-          setQuerySql(temp.query_sql || '');
+          
+          if (certificateLogId) {
+            // 발급대장 이력 직접 조회
+            const logRes = await fetch(`/api/db?action=query&tableName=crm_employment_certificate_logs&searchKey=id&searchValue=${certificateLogId}`);
+            const logData = await logRes.json();
+            if (logData.success && logData.rows && logData.rows.length > 0) {
+              const logItem = logData.rows[0];
+              setQueriedData(logItem);
+              
+              // 발급대장의 값을 로컬 상태에 동기화
+              if (logItem.issue_date) setCommonDate(logItem.issue_date);
+              if (logItem.address) setCommonInput(logItem.address);
+              if (logItem.usage) setCommonTag(logItem.usage);
+            }
+            setQuerySql('');
+          } else {
+            setQuerySql(temp.query_sql || '');
+          }
           
           let parsedParams = [];
           try {
@@ -166,7 +184,7 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
           }
 
           // C. 조건 파라미터 드롭다운 옵션 로드
-          if (temp.document_type) {
+          if (temp.document_type && !certificateLogId) {
             const listRes = await fetch(`/api/db?action=query&tableName=${temp.document_type}&limit=300`);
             const listData = await listRes.json();
             
@@ -215,7 +233,7 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
     if (templateId) {
       loadMasterData();
     }
-  }, [templateId, estimateId]);
+  }, [templateId, estimateId, certificateLogId]);
 
   // 4) paramValues 상태가 설정되거나 변경될 때마다 실시간 쿼리 실행
   useEffect(() => {
@@ -263,6 +281,51 @@ export default function DocumentPrintView({ templateId, estimateId, onBack }: Do
 
   // 바인딩 데이터 값 매핑 변환기
   const getBindingValue = (fieldKey: string) => {
+    // 발급 대장 로그를 읽어온 경우의 특수 매핑 바인딩
+    if (certificateLogId && queriedData) {
+      if (fieldKey === 'common_date' || fieldKey === 'issue_date') return queriedData.issue_date || '';
+      if (fieldKey === 'common_input' || fieldKey === 'address') return queriedData.address || '';
+      if (fieldKey === 'common_tag' || fieldKey === 'usage') return queriedData.usage || '';
+      if (fieldKey === 'common_stamp') return '';
+
+      // 자사 프로필 정보 매핑 연동
+      if (fieldKey === 'company_name') return companyProfile.companyName || '';
+      if (fieldKey === 'company_biz_num') return companyProfile.businessNumber || '';
+      if (fieldKey === 'company_owner') return companyProfile.representative || '';
+      if (fieldKey === 'company_address') return companyProfile.address || '';
+      if (fieldKey === 'company_phone') return companyProfile.phone || '';
+
+      if (fieldKey === 'staff_name' || fieldKey === 'name') return queriedData.staff_name || '';
+      if (fieldKey === 'joined_date') return queriedData.joined_date || '';
+      if (fieldKey === 'degree_level') {
+        const deg = queriedData.degree_level || '';
+        if (deg === 'DOCTOR') return '박사';
+        if (deg === 'MASTER') return '석사';
+        if (deg === 'BACHELOR') return '학사';
+        if (deg === 'ASSOCIATE') return '전문학사';
+        return deg;
+      }
+      if (fieldKey === 'major_name') return queriedData.major_name || '';
+      if (fieldKey === 'issue_dept') return queriedData.issue_dept || '';
+      if (fieldKey === 'issue_by') return queriedData.issue_by || '';
+
+      // 날짜 개별 컴포넌트 처리
+      if (fieldKey.includes('_year') || fieldKey.includes('_month') || fieldKey.includes('_day')) {
+        let dateVal = '';
+        if (fieldKey.startsWith('joined_')) dateVal = queriedData.joined_date || '';
+        else if (fieldKey.startsWith('issue_') || fieldKey.startsWith('common_')) dateVal = queriedData.issue_date || '';
+        
+        if (dateVal) {
+          const d = new Date(dateVal.toString().replace(' ', 'T'));
+          if (!isNaN(d.getTime())) {
+            if (fieldKey.includes('_year')) return d.getFullYear().toString();
+            if (fieldKey.includes('_month')) return (d.getMonth() + 1).toString().padStart(2, '0');
+            if (fieldKey.includes('_day')) return d.getDate().toString().padStart(2, '0');
+          }
+        }
+      }
+    }
+
     if (fieldKey === 'common_date') return commonDate;
     if (fieldKey === 'common_input') return commonInput;
     if (fieldKey === 'common_tag') return commonTag;

@@ -1205,6 +1205,28 @@ export async function setupDatabase() {
     { name: 'restored_by', type: 'TEXT' }
   ], { tableName: 'form_mappings', uniqueKeyColumns: ['id'] });
 
+  // 41-6. 재직증명서 발급대장 테이블 (crm_employment_certificate_logs)
+  await safeCreateTable('재직증명서 발급대장', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'staff_id', type: 'INTEGER', notNull: true },
+    { name: 'staff_name', type: 'TEXT', notNull: true },
+    { name: 'joined_date', type: 'TEXT' },
+    { name: 'degree_level', type: 'TEXT' },
+    { name: 'major_name', type: 'TEXT' },
+    { name: 'address', type: 'TEXT' },
+    { name: 'usage', type: 'TEXT' },
+    { name: 'issue_date', type: 'TEXT' },
+    { name: 'issue_dept', type: 'TEXT' },
+    { name: 'issue_by', type: 'TEXT' },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
+  ], { tableName: 'crm_employment_certificate_logs', uniqueKeyColumns: ['id'] });
+
   // 42. Safety Policies Table (안전보건방침 및 목표 설정 대장)
   await safeCreateTable('안전보건방침 및 목표', [
     { name: 'id', type: 'INTEGER', notNull: true },
@@ -2098,11 +2120,14 @@ export async function setupDatabase() {
     { name: 'created_at', type: 'TEXT' }
   ], { tableName: 'rnd_compliance_alarms', uniqueKeyColumns: ['alarm_id'] });
 
-  // 78. 최고관리자 초기 계정 자동 주입
+  // 78. 최고관리자 및 연구원 임직원 초기 계정 자동 주입
   try {
-    const operatorCheck = await queryTable('crm_operators', { filters: { username: 'admin' } });
-    if (!operatorCheck.rows || operatorCheck.rows.length === 0) {
-      const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+    const operatorCheck = await queryTable('crm_operators', {});
+    const ops = operatorCheck.rows || [];
+    const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+    
+    // admin 주입
+    if (!ops.some((o: any) => o.username === 'admin')) {
       await insertRows('crm_operators', [{
         id: 1,
         username: 'admin',
@@ -2114,8 +2139,60 @@ export async function setupDatabase() {
       }]);
       console.log('Super admin account (admin) seeded.');
     }
+    // gildong 주입 (홍길동)
+    if (!ops.some((o: any) => o.username === 'gildong')) {
+      await insertRows('crm_operators', [{
+        id: 2,
+        username: 'gildong',
+        password_hash: '$2b$10$wJx1.955Ypx9znqV8x6KVuFTrZaxAaf6TaEFc77Rz29ctUUD7jgz.',
+        name: '홍길동',
+        role: 'SUPER_ADMIN',
+        created_at: nowStr,
+        uuid: 'op-uuid-2'
+      }]);
+      console.log('gildong account seeded.');
+    }
+    // chulsoo 주입 (이철수)
+    if (!ops.some((o: any) => o.username === 'chulsoo')) {
+      await insertRows('crm_operators', [{
+        id: 3,
+        username: 'chulsoo',
+        password_hash: '$2b$10$wJx1.955Ypx9znqV8x6KVuFTrZaxAaf6TaEFc77Rz29ctUUD7jgz.',
+        name: '이철수',
+        role: 'SUB_OPERATOR',
+        created_at: nowStr,
+        uuid: 'op-uuid-3'
+      }]);
+      console.log('chulsoo account seeded.');
+    }
+    // younghee 주입 (박영희)
+    if (!ops.some((o: any) => o.username === 'younghee')) {
+      await insertRows('crm_operators', [{
+        id: 4,
+        username: 'younghee',
+        password_hash: '$2b$10$wJx1.955Ypx9znqV8x6KVuFTrZaxAaf6TaEFc77Rz29ctUUD7jgz.',
+        name: '박영희',
+        role: 'SUB_OPERATOR',
+        created_at: nowStr,
+        uuid: 'op-uuid-4'
+      }]);
+      console.log('younghee account seeded.');
+    }
+    // minsu 주입 (최민수)
+    if (!ops.some((o: any) => o.username === 'minsu')) {
+      await insertRows('crm_operators', [{
+        id: 6,
+        username: 'minsu',
+        password_hash: '$2b$10$wJx1.955Ypx9znqV8x6KVuFTrZaxAaf6TaEFc77Rz29ctUUD7jgz.',
+        name: '최민수',
+        role: 'SUB_OPERATOR',
+        created_at: nowStr,
+        uuid: 'op-uuid-6'
+      }]);
+      console.log('minsu account seeded.');
+    }
   } catch (e: any) {
-    console.error('Error seeding super admin account:', e.message);
+    console.error('Error seeding operator accounts:', e.message);
   }
 
   // 79. 기업부설연구소 초기 시드 데이터 자동 주입
