@@ -181,7 +181,7 @@ export default function FormManagementPage() {
     try {
       let dataList: any[] = [];
       
-      if (docType === 'rnd_staffs') {
+      if (docType === 'rnd_staffs' || docType === 'crm_employment_certificate_logs') {
         // 연구원 대장인 경우 crm_operators와 LEFT JOIN하여 한글 성명 가져오기
         const res = await fetch('/api/db', {
           method: 'POST',
@@ -703,7 +703,7 @@ export default function FormManagementPage() {
                             <tr 
                               key={est.id}
                               onClick={() => {
-                                if (activeDocType === 'rnd_staffs') {
+                                if (activeDocType === 'rnd_staffs' || activeDocType === 'crm_employment_certificate_logs') {
                                   setSelectedStaff(est.originalRow);
                                 } else {
                                   handleSelectEstimate(est.id);
