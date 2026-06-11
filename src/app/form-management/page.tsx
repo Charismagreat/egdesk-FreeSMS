@@ -324,11 +324,11 @@ export default function FormManagementPage() {
         throw new Error('생성된 발급 이력 ID를 조회하지 못했습니다.');
       }
       
-      // 3) 상태 반영 및 출력 모드 활성화
-      setPrintCertificateLogId(logId);
-      setPrintEstimateId(String(selectedStaff.staff_id)); // 하위호환
+      // 3) 상태 반영 및 출력 모드 활성화 (새 창 팝업)
       setIsEstimateModalOpen(false);
-      setViewMode('print');
+      
+      const url = `/form-management/print?templateId=${printTemplateId}&estimateId=${selectedStaff.staff_id}&logId=${logId}`;
+      window.open(url, `FormPrint_${Date.now()}`, 'width=1280,height=900,scrollbars=yes,resizable=yes');
       
     } catch (e: any) {
       console.error(e);
@@ -336,11 +336,13 @@ export default function FormManagementPage() {
     }
   };
 
-  // 견적서 선택 완료 -> 프리뷰 화면으로 전환
+  // 견적서 선택 완료 -> 프리뷰 화면으로 전환 (새 창 팝업)
   const handleSelectEstimate = (estimateId: string) => {
-    setPrintEstimateId(estimateId);
+    if (!printTemplateId) return;
     setIsEstimateModalOpen(false);
-    setViewMode('print');
+    
+    const url = `/form-management/print?templateId=${printTemplateId}&estimateId=${estimateId}`;
+    window.open(url, `FormPrint_${Date.now()}`, 'width=1280,height=900,scrollbars=yes,resizable=yes');
   };
 
   // 검색어에 따른 견적 필터링

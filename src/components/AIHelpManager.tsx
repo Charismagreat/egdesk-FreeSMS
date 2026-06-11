@@ -3,8 +3,15 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Sparkles, RefreshCw, CheckCircle, ShieldAlert, AlertTriangle } from "lucide-react";
 import { createPortal } from "react-dom";
+import { usePathname } from "next/navigation";
 
 export default function AIHelpManager() {
+  const pathname = usePathname();
+
+  if (pathname === '/login' || pathname.startsWith('/form-management/print') || pathname.startsWith('/shared/view') || pathname.startsWith('/store') || pathname.startsWith('/table-order') || pathname.startsWith('/booking') || pathname.startsWith('/m/') || pathname.startsWith('/expenses/mobile-approve')) {
+    return null;
+  }
+
   // --- SSR Hydration 방지용 mounted 상태 ---
   const [mounted, setMounted] = useState<boolean>(false);
 
