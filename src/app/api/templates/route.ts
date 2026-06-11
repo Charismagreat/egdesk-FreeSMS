@@ -249,10 +249,7 @@ export async function POST(req: Request) {
         });
 
       } else {
-        const templateId = Date.now();
-
         const insertRes = await insertRows('form_templates', [{
-          id: templateId,
           template_name,
           document_type: document_type || 'none',
           file_path,
@@ -266,6 +263,11 @@ export async function POST(req: Request) {
         if (insertRes && insertRes.errors && insertRes.errors.length > 0) {
           return NextResponse.json({ success: false, error: `양식 등록 실패: ${insertRes.errors.join(', ')}` }, { status: 400 });
         }
+
+        // AUTOINCREMENT로 생성된 실제 ID 획득 (없는 경우 대비한 fallback으로 Date.now() 지정)
+        const templateId = insertRes && insertRes.insertedIds && insertRes.insertedIds[0]
+          ? insertRes.insertedIds[0]
+          : Date.now();
 
         if (mappings.length > 0) {
           const detailRows = mappings.map((row: any, idx: number) => ({
