@@ -82,6 +82,7 @@ export default function FormTemplateEditor({ templateId, onBack, onSaved }: Form
   const [selectedTables, setSelectedTables] = useState<string[]>([]);
   const [availableTables, setAvailableTables] = useState<{ name: string; displayName: string; count: any }[]>([]);
   const [tablesLoading, setTablesLoading] = useState(false);
+  const [showAllTables, setShowAllTables] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [rawFileBase64, setRawFileBase64] = useState<string>('');
   const [uploadFilename, setUploadFilename] = useState<string>('');
@@ -497,9 +498,6 @@ export default function FormTemplateEditor({ templateId, onBack, onSaved }: Form
       : [...selectedTables, tableKey];
     
     setSelectedTables(nextSelected);
-    
-    // 배지 클릭 시 즉시 실시간으로 해당 테이블들에 최적화된 매핑 정보를 API 재실행하여 적용
-    await handleApplyAiMapping(nextSelected);
   };
 
 
@@ -859,13 +857,13 @@ export default function FormTemplateEditor({ templateId, onBack, onSaved }: Form
 
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] font-bold text-slate-500">데이터 소스</label>
+                <label className="text-[10px] font-bold text-slate-500">테이블 선택 (직접 선택)</label>
                 <select 
                   value={documentType}
                   onChange={e => setDocumentType(e.target.value)}
                   className="w-full px-3 py-2.5 rounded-xl bg-white border border-slate-200 text-xs font-bold focus:border-indigo-600 focus:outline-none"
                 >
-                  <option value="">(데이터 소스 선택 안함)</option>
+                  <option value="">(테이블 선택 안함)</option>
                   {availableTables.map(table => (
                     <option key={table.name} value={table.name}>
                       {table.displayName} ({table.name})
@@ -1219,6 +1217,47 @@ export default function FormTemplateEditor({ templateId, onBack, onSaved }: Form
                     </button>
                   );
                 })
+              )}
+            </div>
+
+            {/* 전체 테이블 리스트 아코디언 (멀티 선택 지원) */}
+            <div className="border-t border-slate-100 pt-3 mt-1 text-left">
+              <button
+                type="button"
+                onClick={() => setShowAllTables(!showAllTables)}
+                className="w-full flex items-center justify-between text-[10px] font-black text-slate-550 hover:text-slate-800 transition cursor-pointer py-1"
+              >
+                <span>🌐 전체 테이블 목록 직접 추가 ({availableTables.length})</span>
+                <span className="text-[10px] font-mono">{showAllTables ? '▼' : '▶'}</span>
+              </button>
+
+              {showAllTables && (
+                <div className="flex flex-col gap-1.5 mt-2 max-h-[180px] overflow-y-auto pr-1 scrollbar-thin animate-slide-down">
+                  {availableTables.map(table => {
+                    const isChecked = selectedTables.includes(table.name);
+                    return (
+                      <label
+                        key={table.name}
+                        className={`flex items-center gap-2 p-2 rounded-xl border text-[10px] font-bold cursor-pointer transition ${
+                          isChecked
+                          ? 'bg-indigo-50/40 border-indigo-200 text-indigo-700 font-extrabold'
+                          : 'bg-white border-slate-150 text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => handleToggleTable(table.name)}
+                          className="w-3 h-3 rounded text-indigo-600 focus:ring-indigo-500 bg-white border-slate-300 cursor-pointer"
+                        />
+                        <div className="flex flex-col min-w-0">
+                          <span className="truncate block">{table.displayName}</span>
+                          <span className="text-[8px] font-mono text-slate-400 block truncate">{table.name}</span>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
               )}
             </div>
 
