@@ -36,6 +36,18 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
   const [targetWeb, setTargetWeb] = useState(true);   // 웹용 양식 수정 활성화 여부
   const [isTuning, setIsTuning] = useState(false);
   
+  // 최신 상태 실시간 동기화용 refs (iframe 내부 stale closure 버그 방지)
+  const targetPrintRef = useRef(targetPrint);
+  const targetWebRef = useRef(targetWeb);
+
+  useEffect(() => {
+    targetPrintRef.current = targetPrint;
+  }, [targetPrint]);
+
+  useEffect(() => {
+    targetWebRef.current = targetWeb;
+  }, [targetWeb]);
+  
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   // 모바일/소형 화면 탭 전환 상태
@@ -174,6 +186,11 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
         }
         doc.write(styledHtml);
         doc.close();
+
+        // iframe 내부 클릭 시에도 부모의 토글 작동 지원 (pointer-events-none을 풀기 위함)
+        doc.body.addEventListener('click', () => {
+          handleToggleTarget('print');
+        });
       }
     }
   }, [htmlContent]);
@@ -205,6 +222,11 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
         }
         doc.write(styledHtml);
         doc.close();
+
+        // iframe 내부 클릭 시에도 부모의 토글 작동 지원 (pointer-events-none을 풀기 위함)
+        doc.body.addEventListener('click', () => {
+          handleToggleTarget('web');
+        });
       }
     }
   }, [webHtmlContent]);
@@ -254,18 +276,21 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
 
   // 디자인 수정 타겟 토글 제어 헬퍼 (최소 1개 선택 강제)
   const handleToggleTarget = (type: 'print' | 'web') => {
+    const currentPrint = targetPrintRef.current;
+    const currentWeb = targetWebRef.current;
+
     if (type === 'print') {
-      if (targetPrint && !targetWeb) {
+      if (currentPrint && !currentWeb) {
         alert('디자인 수정 대상은 최소 하나 이상 선택되어야 합니다.');
         return;
       }
-      setTargetPrint(!targetPrint);
+      setTargetPrint(!currentPrint);
     } else {
-      if (!targetPrint && targetWeb) {
+      if (!currentPrint && currentWeb) {
         alert('디자인 수정 대상은 최소 하나 이상 선택되어야 합니다.');
         return;
       }
-      setTargetWeb(!targetWeb);
+      setTargetWeb(!currentWeb);
     }
   };
 
@@ -630,8 +655,8 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
                         ref={printIframeRef}
                         title="A4 인쇄용 양식 프리뷰"
                         scrolling="no"
-                        className="w-full h-full border-none pointer-events-none"
-                        style={{ overflow: 'hidden', pointerEvents: 'none' }}
+                        className="w-full h-full border-none"
+                        style={{ overflow: 'hidden' }}
                       />
                     </div>
                   </div>
@@ -692,8 +717,7 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
                     <iframe 
                       ref={webIframeRef}
                       title="모던 웹페이지 프리뷰"
-                      className="w-full h-full border-none pointer-events-none"
-                      style={{ pointerEvents: 'none' }}
+                      className="w-full h-full border-none"
                     />
                   </div>
                 ) : (
