@@ -27,7 +27,8 @@ import {
   ShieldAlert,
   Globe,
   Award,
-  Scale
+  Scale,
+  ClipboardList
 } from "lucide-react";
 
 interface MobileChannel {
@@ -250,9 +251,19 @@ export default function MobileHubWidget() {
       description: "거래처별 실시간 신용 리스크 분석 상태 및 연체 미수 거래처에 대한 다이렉트 모바일 독촉/공유 채널",
       path: "/m/credit-risk",
       icon: Coins,
-      themeColor: "from-rose-650 to-pink-650 bg-rose-50 text-rose-600 border-rose-100",
+      themeColor: "from-rose-655 to-pink-650 bg-rose-50 text-rose-600 border-rose-100",
       badge: "채권/신용 관리",
       smsTemplate: "[이지데스크] 당사 채권 리스크 모바일 관제 센터 링크입니다. 연체 미수 거래처의 신용 점수 모니터링 및 즉시 독촉을 진행해주세요. "
+    },
+    {
+      id: "form-management-new",
+      name: "모바일 양식 발급 AI",
+      description: "임직원이 본인의 모바일 기기에서 재직/경력증명서 등의 행정 서류를 신청하고 간편하게 즉석 발급/출력하는 임직원 전용 채널",
+      path: "/m/form-management-new",
+      icon: ClipboardList,
+      themeColor: "from-indigo-600 to-emerald-650 bg-indigo-50 text-indigo-650 border-indigo-100",
+      badge: "임직원 행정/자가 발급",
+      smsTemplate: "[이지데스크] 임직원 자가 서류 발급(재직/경력증명서 등) 모바일 웹 링크입니다. 로그인 후 즉석 신청 및 출력을 진행해 주세요. "
     }
   ];
 

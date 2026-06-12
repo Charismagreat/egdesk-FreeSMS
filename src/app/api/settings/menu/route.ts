@@ -111,7 +111,7 @@ export async function GET() {
     if (staleHrefs.length > 0) {
       console.log(`더 이상 사용되지 않는 구버전 메뉴 ${staleHrefs.length}건을 감지하여 DB에서 제거합니다:`, staleHrefs);
       for (const staleHref of staleHrefs) {
-        await deleteRows('system_menu_settings', { menu_href: staleHref });
+        await deleteRows('system_menu_settings', { filters: { menu_href: staleHref } });
       }
       
       // 삭제 완료 후 최종 목록 재조회
@@ -119,10 +119,24 @@ export async function GET() {
       rows = finalResult.rows || [];
     }
 
-    return NextResponse.json({ success: true, menuSettings: rows });
+    return NextResponse.json(
+      { success: true, menuSettings: rows },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      }
+    );
   } catch (error: any) {
     console.error('메뉴 설정 조회 오류:', error);
-    return NextResponse.json({ success: false, error: '메뉴 설정을 조회하는 도중 오류가 발생했습니다.' }, { status: 500 });
+    return NextResponse.json({ 
+      success: false, 
+      error: '메뉴 설정을 조회하는 도중 오류가 발생했습니다.',
+      details: error.message || String(error),
+      stack: error.stack
+    }, { status: 500 });
   }
 }
 

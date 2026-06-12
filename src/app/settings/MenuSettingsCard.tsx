@@ -100,7 +100,8 @@ const MENU_METADATA_MAP: Record<string, { label: string; icon: any; color: strin
   "/credit-risk": { label: "채권 관리 AI", icon: CreditCard, color: "text-rose-555" },
   "/password-ai": { label: "비밀번호관리 AI", icon: Key, color: "text-purple-555" },
   "/lawyer-ai": { label: "변호사 AI", icon: Scale, color: "text-indigo-650" },
-  "/rnd-management": { label: "연구소 관리 AI", icon: Award, color: "text-amber-550" }
+  "/rnd-management": { label: "연구소 관리 AI", icon: Award, color: "text-amber-550" },
+  "/form-management-new": { label: "뉴 양식관리 AI", icon: ClipboardList, color: "text-emerald-500" }
 };
 
 interface MenuSettingItem {
@@ -133,7 +134,7 @@ export default function MenuSettingsCard() {
       .catch(() => setIsAdmin(false));
 
     // 1-2. 메뉴 설정 조회
-    fetch("/api/settings/menu")
+    fetch("/api/settings/menu", { cache: "no-store" })
       .then(res => res.json())
       .then(data => {
         if (data.success && data.menuSettings) {
