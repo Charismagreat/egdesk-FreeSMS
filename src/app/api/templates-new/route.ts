@@ -569,18 +569,14 @@ Based on the guidelines, choose the most appropriate tables for this document pu
 
     if (action === 'detail' && id) {
       const templateId = parseInt(id);
-      const res = await queryTable('crm_web_templates', { filters: { id: String(templateId) } });
-      const rows = res.rows || [];
-      const template = rows.find((r: any) => !r.deleted_at) || null;
-
-      if (!template) {
-        return NextResponse.json({ success: false, error: '해당 템플릿을 찾을 수 없거나 삭제되었습니다.' }, { status: 404 });
-      }
-
-      // 시스템 설정에서 우리 회사 정보(회사명, 대표이사 등) 가져오기
       const db = getDirectDB();
+      let template = null;
       let companyProfile: Record<string, any> = {};
+      
       try {
+        template = db.prepare('SELECT * FROM crm_web_templates WHERE id = ? AND deleted_at IS NULL').get(templateId) || null;
+        
+        // 시스템 설정에서 우리 회사 정보(회사명, 대표이사 등) 가져오기
         const row = db.prepare(`SELECT value FROM system_settings WHERE key = 'my_company_profile'`).get() as any;
         if (row && row.value) {
           const parsed = JSON.parse(row.value);
@@ -619,18 +615,28 @@ Based on the guidelines, choose the most appropriate tables for this document pu
           };
         }
       } catch (e) {
-        console.error('회사 프로필 로드 실패:', e);
+        console.error('회사 프로필 또는 템플릿 상세 로드 실패:', e);
+      } finally {
+        db.close();
+      }
+
+      if (!template) {
+        return NextResponse.json({ success: false, error: '해당 템플릿을 찾을 수 없거나 삭제되었습니다.' }, { status: 404 });
       }
 
       return NextResponse.json({ success: true, template, companyProfile });
     }
 
     // 목록 조회
-    const res = await queryTable('crm_web_templates', {});
-    const rows = res.rows || [];
-    const templates = rows
-      .filter((r: any) => !r.deleted_at)
-      .sort((a: any, b: any) => b.id - a.id);
+    const db = getDirectDB();
+    let templates = [];
+    try {
+      templates = db.prepare('SELECT * FROM crm_web_templates WHERE deleted_at IS NULL ORDER BY id DESC').all();
+    } catch (e) {
+      console.error('템플릿 목록 로드 실패:', e);
+    } finally {
+      db.close();
+    }
 
     return NextResponse.json({ success: true, templates });
   } catch (err: any) {
@@ -658,42 +664,54 @@ export async function POST(req: Request) {
 
     const webHtml = web_html_content || webHtmlContent || '';
     const timestamp = getKoreanTimestamp();
+    const db = getDirectDB();
 
-    if (id) {
-      // 수정 (Update)
-      const templateId = parseInt(id);
-      const updateData = {
-        template_name,
-        html_content,
-        web_html_content: webHtml,
-        document_type: document_type || '',
-        is_active: is_active !== undefined ? Number(is_active) : 1,
-        updated_at: timestamp,
-        updated_by: username || 'admin'
-      };
-
-      await updateRows('crm_web_templates', updateData, { filters: { id: String(templateId) } });
-      return NextResponse.json({ success: true, message: '템플릿이 성공적으로 수정되었습니다.', id: templateId });
-    } else {
-      // 등록 (Insert)
-      const insertData = {
-        template_name,
-        html_content,
-        web_html_content: webHtml,
-        document_type: document_type || '',
-        is_active: is_active !== undefined ? Number(is_active) : 1,
-        uuid: crypto.randomUUID(),
-        updated_at: timestamp,
-        updated_by: username || 'admin'
-      };
-
-      await insertRows('crm_web_templates', [insertData]);
-      
-      // 방금 생성된 ID 조회
-      const maxIdRes = await executeSQL('SELECT MAX(id) as maxId FROM crm_web_templates');
-      const newId = maxIdRes.rows?.[0]?.maxId || 0;
-
-      return NextResponse.json({ success: true, message: '템플릿이 성공적으로 등록되었습니다.', id: newId });
+    try {
+      if (id) {
+        // 수정 (Update)
+        const templateId = parseInt(id);
+        db.prepare(`
+          UPDATE crm_web_templates 
+          SET template_name = ?, 
+              html_content = ?, 
+              web_html_content = ?, 
+              document_type = ?, 
+              is_active = ?, 
+              updated_at = ?, 
+              updated_by = ? 
+          WHERE id = ?
+        `).run(
+          template_name, 
+          html_content, 
+          webHtml, 
+          document_type || '', 
+          is_active !== undefined ? Number(is_active) : 1, 
+          timestamp, 
+          username || 'admin', 
+          templateId
+        );
+        return NextResponse.json({ success: true, message: '템플릿이 성공적으로 수정되었습니다.', id: templateId });
+      } else {
+        // 등록 (Insert)
+        const info = db.prepare(`
+          INSERT INTO crm_web_templates 
+          (template_name, html_content, web_html_content, document_type, is_active, uuid, updated_at, updated_by) 
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          template_name, 
+          html_content, 
+          webHtml, 
+          document_type || '', 
+          is_active !== undefined ? Number(is_active) : 1, 
+          crypto.randomUUID(), 
+          timestamp, 
+          username || 'admin'
+        );
+        const newId = Number(info.lastInsertRowid);
+        return NextResponse.json({ success: true, message: '템플릿이 성공적으로 등록되었습니다.', id: newId });
+      }
+    } finally {
+      db.close();
     }
   } catch (err: any) {
     console.error('POST /api/templates-new error:', err);
@@ -719,12 +737,20 @@ export async function DELETE(req: Request) {
     }
 
     const timestamp = getKoreanTimestamp();
-    const deleteData = {
-      deleted_at: timestamp,
-      deleted_by: username || 'admin'
-    };
+    const templateId = parseInt(id);
+    const db = getDirectDB();
+    
+    try {
+      db.prepare(`
+        UPDATE crm_web_templates 
+        SET deleted_at = ?, 
+            deleted_by = ? 
+        WHERE id = ?
+      `).run(timestamp, username || 'admin', templateId);
+    } finally {
+      db.close();
+    }
 
-    await updateRows('crm_web_templates', deleteData, { filters: { id: String(id) } });
     return NextResponse.json({ success: true, message: '템플릿이 성공적으로 삭제(소프트 삭제)되었습니다.' });
   } catch (err: any) {
     console.error('DELETE /api/templates-new error:', err);
