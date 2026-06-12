@@ -32,7 +32,8 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
   
   // AI 피드백 튜닝 상태
   const [feedback, setFeedback] = useState('');
-  const [tuningTarget, setTuningTarget] = useState<'all' | 'print' | 'web'>('all'); // 수정 대상 타겟
+  const [targetPrint, setTargetPrint] = useState(true); // 인쇄용 양식 수정 활성화 여부
+  const [targetWeb, setTargetWeb] = useState(true);   // 웹용 양식 수정 활성화 여부
   const [isTuning, setIsTuning] = useState(false);
   
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -251,6 +252,23 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
     }
   };
 
+  // 디자인 수정 타겟 토글 제어 헬퍼 (최소 1개 선택 강제)
+  const handleToggleTarget = (type: 'print' | 'web') => {
+    if (type === 'print') {
+      if (targetPrint && !targetWeb) {
+        alert('디자인 수정 대상은 최소 하나 이상 선택되어야 합니다.');
+        return;
+      }
+      setTargetPrint(!targetPrint);
+    } else {
+      if (!targetPrint && targetWeb) {
+        alert('디자인 수정 대상은 최소 하나 이상 선택되어야 합니다.');
+        return;
+      }
+      setTargetWeb(!targetWeb);
+    }
+  };
+
   // 자연어 피드백 기반 디자인 튜닝 적용
   const handleApplyTuning = async () => {
     if (!feedback.trim()) {
@@ -262,6 +280,11 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
       return;
     }
 
+    // 전송할 타겟 값 연산
+    let targetVal: 'all' | 'print' | 'web' = 'all';
+    if (targetPrint && !targetWeb) targetVal = 'print';
+    else if (!targetPrint && targetWeb) targetVal = 'web';
+
     setIsTuning(true);
     try {
       const res = await fetch('/api/templates-new/tune', {
@@ -271,7 +294,7 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
           html: htmlContent,
           webHtml: webHtmlContent,
           feedback: feedback,
-          target: tuningTarget
+          target: targetVal
         })
       });
 
@@ -356,7 +379,7 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
               {templateId ? '뉴 양식관리 AI - 양식 수정' : '뉴 양식관리 AI - 2열 듀얼 양식 제작'}
             </h2>
             <p className="text-[10px] text-slate-500 font-bold mt-0.5">
-              인쇄 전용 A4 서식과 반응형 디지털 웹페이지 서식을 동시 변환하고 자유롭게 튜닝합니다.
+              각 미리보기 화면 창을 직접 클릭하여 디자인 수정 대상(타겟)을 시각적으로 지정할 수 있습니다.
             </p>
           </div>
         </div>
@@ -493,19 +516,42 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
           <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-0 overflow-hidden min-h-0">
             
             {/* 좌열: 인쇄용 A4 프리뷰 */}
-            <div className={`flex-1 flex flex-col min-h-0 border-r border-slate-850 ${activeTab === 'print' ? 'flex' : 'hidden lg:flex'}`}>
-              <div className="px-5 py-2 bg-slate-900/60 border-b border-slate-850/60 flex items-center justify-between text-[11px] font-bold text-slate-400 shrink-0">
+            <div 
+              onClick={() => handleToggleTarget('print')}
+              className={`flex-1 flex flex-col min-h-0 border-r border-slate-850 cursor-pointer select-none transition-all duration-200 border-2 ${
+                targetPrint 
+                  ? 'border-violet-650/40 bg-violet-950/5' 
+                  : 'border-transparent bg-transparent'
+              } ${activeTab === 'print' ? 'flex' : 'hidden lg:flex'}`}
+            >
+              <div className="px-5 py-2.5 bg-slate-900/60 border-b border-slate-850/60 flex items-center justify-between text-[11px] font-bold text-slate-400 shrink-0">
                 <span className="flex items-center gap-1.5">
-                  <Laptop className="w-3.5 h-3.5 text-violet-400" />
+                  <Laptop className={`w-3.5 h-3.5 transition-colors ${targetPrint ? 'text-violet-400' : 'text-slate-500'}`} />
                   인쇄용 A4 미리보기 샌드박스
                 </span>
-                <span className="text-[9px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full font-bold">
-                  A4 비율 고정
-                </span>
+                
+                {/* 체크 박스 서클 */}
+                <div className="flex items-center gap-2">
+                  {targetPrint && (
+                    <span className="text-[9px] text-violet-400 font-extrabold uppercase tracking-wider bg-violet-950/50 px-2 py-0.5 rounded border border-violet-800/30">
+                      수정 대상
+                    </span>
+                  )}
+                  <div className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center transition-all ${
+                    targetPrint 
+                      ? 'bg-violet-600 border-violet-500 text-white shadow-sm shadow-violet-600/30 scale-105' 
+                      : 'border-slate-700 bg-slate-900/60 text-transparent'
+                  }`}>
+                    <Check className="w-3 h-3 stroke-[3]" />
+                  </div>
+                </div>
               </div>
+              
               <div 
                 ref={containerRef} 
-                className="flex-1 bg-slate-950/40 p-4 flex items-center justify-center overflow-auto select-none"
+                className={`flex-1 p-4 flex items-center justify-center overflow-auto transition-opacity duration-200 ${
+                  targetPrint ? 'bg-slate-950/40' : 'bg-slate-950/70 opacity-40 grayscale-[20%]'
+                }`}
                 style={{ minHeight: 0 }}
               >
                 {htmlContent ? (
@@ -548,18 +594,41 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
             </div>
 
             {/* 우열: 모던 웹페이지 프리뷰 */}
-            <div className={`flex-1 flex flex-col min-h-0 ${activeTab === 'web' ? 'flex' : 'hidden lg:flex'}`}>
-              <div className="px-5 py-2 bg-slate-900/60 border-b border-slate-850/60 flex items-center justify-between text-[11px] font-bold text-slate-400 shrink-0">
+            <div 
+              onClick={() => handleToggleTarget('web')}
+              className={`flex-1 flex flex-col min-h-0 cursor-pointer select-none transition-all duration-200 border-2 ${
+                targetWeb 
+                  ? 'border-emerald-650/40 bg-emerald-950/5' 
+                  : 'border-transparent bg-transparent'
+              } ${activeTab === 'web' ? 'flex' : 'hidden lg:flex'}`}
+            >
+              <div className="px-5 py-2.5 bg-slate-900/60 border-b border-slate-850/60 flex items-center justify-between text-[11px] font-bold text-slate-400 shrink-0">
                 <span className="flex items-center gap-1.5">
-                  <Globe className="w-3.5 h-3.5 text-emerald-400" />
+                  <Globe className={`w-3.5 h-3.5 transition-colors ${targetWeb ? 'text-emerald-400' : 'text-slate-500'}`} />
                   모던 웹페이지 미리보기 샌드박스
                 </span>
-                <span className="text-[9px] bg-emerald-950/50 text-emerald-400 px-2 py-0.5 rounded-full font-bold">
-                  반응형 플로우
-                </span>
+                
+                {/* 체크 박스 서클 */}
+                <div className="flex items-center gap-2">
+                  {targetWeb && (
+                    <span className="text-[9px] text-emerald-400 font-extrabold uppercase tracking-wider bg-emerald-950/50 px-2 py-0.5 rounded border border-emerald-800/30">
+                      수정 대상
+                    </span>
+                  )}
+                  <div className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center transition-all ${
+                    targetWeb 
+                      ? 'bg-emerald-600 border-emerald-500 text-white shadow-sm shadow-emerald-600/30 scale-105' 
+                      : 'border-slate-700 bg-slate-900/60 text-transparent'
+                  }`}>
+                    <Check className="w-3 h-3 stroke-[3]" />
+                  </div>
+                </div>
               </div>
+              
               <div 
-                className="flex-1 bg-slate-950/20 p-4 flex items-stretch justify-stretch overflow-hidden select-none"
+                className={`flex-1 p-4 flex items-stretch justify-stretch overflow-hidden transition-opacity duration-200 ${
+                  targetWeb ? 'bg-slate-950/20' : 'bg-slate-950/70 opacity-40 grayscale-[20%]'
+                }`}
                 style={{ minHeight: 0 }}
               >
                 {webHtmlContent ? (
@@ -567,7 +636,8 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
                     <iframe 
                       ref={webIframeRef}
                       title="모던 웹페이지 프리뷰"
-                      className="w-full h-full border-none"
+                      className="w-full h-full border-none pointer-events-none"
+                      style={{ pointerEvents: 'none' }}
                     />
                   </div>
                 ) : (
@@ -590,25 +660,6 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
           {htmlContent && (
             <div className="p-4 bg-slate-950 border-t border-slate-850 flex flex-col gap-2.5 shrink-0 z-15">
               
-              {/* 수정 타겟 세그먼트 단추 */}
-              <div className="flex gap-1.5 items-center text-left">
-                <span className="text-[10px] text-slate-500 font-bold self-center mr-1">디자인 수정 대상:</span>
-                {(['all', 'print', 'web'] as const).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setTuningTarget(t)}
-                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black transition cursor-pointer ${
-                      tuningTarget === t 
-                        ? 'bg-violet-650 text-white border border-violet-500/20 shadow-md shadow-violet-600/10' 
-                        : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200'
-                    }`}
-                  >
-                    {t === 'all' ? '전체 적용' : t === 'print' ? '인쇄용만' : '웹용만'}
-                  </button>
-                ))}
-              </div>
-
               {/* 텍스트 입력창 영역 */}
               <div className="flex items-center gap-3 w-full">
                 <div className="relative flex-1">
@@ -617,11 +668,11 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
                     value={feedback}
                     onChange={e => setFeedback(e.target.value)}
                     placeholder={
-                      tuningTarget === 'print' 
-                        ? "예: '인쇄 시 직인 영역을 5mm 아래로 이동해줘', '표의 테두리를 얇게 해줘'"
-                        : tuningTarget === 'web'
-                        ? "예: '카드의 그림자 크기를 줄이고, 둥글게 만들어줘', '웹 배경색을 민트톤으로 바꿀래'"
-                        : "예: '폰트를 전체적으로 Outfit으로 맞춰줘', '이름 항목에 강조색 추가해줘'"
+                      targetPrint && !targetWeb
+                        ? "예: '인쇄 시 직인 영역을 5mm 아래로 이동해줘', '표의 테두리를 얇게 해줘' (인쇄용만 수정)"
+                        : !targetPrint && targetWeb
+                        ? "예: '카드의 그림자 크기를 줄이고, 둥글게 만들어줘', '웹 배경색을 민트톤으로 바꿀래' (웹용만 수정)"
+                        : "예: '폰트를 전체적으로 Outfit으로 맞춰줘', '이름 항목에 강조색 추가해줘' (인쇄용 & 웹용 동시 수정)"
                     }
                     className="w-full pl-4 pr-12 py-3 rounded-2xl bg-slate-900 border border-slate-800 focus:border-violet-650 focus:outline-none text-xs text-white placeholder-slate-550 font-bold transition shadow-inner"
                     onKeyDown={e => {
