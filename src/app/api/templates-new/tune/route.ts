@@ -39,7 +39,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const { html, feedback } = body;
+    const { html, webHtml, feedback, target = 'all' } = body;
 
     if (!html || !feedback) {
       return NextResponse.json({ success: false, error: '기존 HTML 코드와 수정 요청 사항(feedback)은 필수입니다.' }, { status: 400 });
@@ -52,7 +52,6 @@ export async function POST(req: Request) {
       const settingsKeyRes = await queryTable('system_settings', { filters: { key: 'google_ai_api_key' } });
       apiKey = settingsKeyRes.rows && settingsKeyRes.rows.length > 0 ? settingsKeyRes.rows[0].value : null;
 
-      // 설정에 명시된 모델이 있다면 그것을 사용하되, Pro 모델(또는 Flash 모델)로 활용
       const settingsModelRes = await queryTable('system_settings', { filters: { key: 'google_ai_model' } });
       if (settingsModelRes.rows && settingsModelRes.rows.length > 0 && settingsModelRes.rows[0].value) {
         selectedModel = settingsModelRes.rows[0].value;
@@ -71,25 +70,29 @@ export async function POST(req: Request) {
 
     const systemPrompt = `
 You are an expert web designer and frontend engineer.
-Your task is to take the provided HTML code (which represents an A4 page-sized document form) and apply modifications based on the user's natural language feedback.
+Your task is to take the provided HTML codes (printHtml and/or webHtml) and apply modifications based on the user's natural language feedback.
 
-Follow these strict constraints:
-1. Output format MUST be a raw, valid HTML document starting with <!DOCTYPE html> and ending with </html>. Do not wrap the HTML code inside a JSON object or markdown code block like \`\`\`html.
-2. Ensure you PRESERVE all existing Mustache placeholders (like {{staff_name}}, {{joined_date}}, etc.) unless the user explicitly asks you to remove, rename, or change them.
-3. Keep the layout optimized for A4 document size (210mm x 297mm) and print-friendly. Ensure styles look neat and professional.
-4. Modify layout structure, padding, margins, colors, fonts, borders, alignments, and text contents as requested by the user's feedback.
-5. Output only the raw HTML text without any introductory text, explanation, or markdown backticks.
+The user can choose to update:
+- "printHtml": A classic, print-friendly A4 portrait HTML layout (210mm x 297mm).
+- "webHtml": A modern, responsive, and visually stunning web page representation of the same form.
+
+Strict Constraints:
+- Output MUST be a single valid JSON object. Do not wrap the JSON in markdown code blocks like \`\`\`json.
+- The JSON object must have exactly two keys:
+  - "printHtml" (string): The modified (or original) print-friendly HTML.
+  - "webHtml" (string): The modified (or original) web page HTML.
+- If target is "print", apply feedback ONLY to printHtml, and return webHtml exactly as provided.
+- If target is "web", apply feedback ONLY to webHtml, and return printHtml exactly as provided.
+- If target is "all", apply feedback to both printHtml and webHtml.
+- Ensure you PRESERVE all existing Mustache placeholders (like {{staff_name}}, {{joined_date}}, etc.) unless explicitly asked to modify them.
 `;
 
-    const userContent = `
-Current HTML Code:
-\`\`\`html
-${html}
-\`\`\`
-
-User Feedback / Request:
-"${feedback}"
-`;
+    const userContent = JSON.stringify({
+      target: target,
+      feedback: feedback,
+      printHtml: html,
+      webHtml: webHtml || ''
+    });
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
       method: 'POST',
@@ -104,7 +107,8 @@ User Feedback / Request:
           }
         ],
         generationConfig: {
-          temperature: 0.1
+          temperature: 0.1,
+          responseMimeType: 'application/json'
         }
       })
     });
@@ -117,20 +121,31 @@ User Feedback / Request:
     const data = await response.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     
-    // 마크다운 블록 및 불필요한 감싸기 문자 가드 제거
-    let htmlCode = text.trim();
-    if (htmlCode.startsWith('```')) {
-      const lines = htmlCode.split('\n');
-      if (lines[0].startsWith('```')) lines.shift();
-      if (lines[lines.length - 1].startsWith('```')) lines.pop();
-      htmlCode = lines.join('\n').trim();
+    // JSON 파싱 시도
+    let updatedPrintHtml = '';
+    let updatedWebHtml = '';
+
+    try {
+      let cleanedText = text.trim();
+      if (cleanedText.startsWith('```')) {
+        const lines = cleanedText.split('\n');
+        if (lines[0].startsWith('```')) lines.shift();
+        if (lines[lines.length - 1].startsWith('```')) lines.pop();
+        cleanedText = lines.join('\n').trim();
+      }
+      const parsedJson = JSON.parse(cleanedText);
+      updatedPrintHtml = parsedJson.printHtml || '';
+      updatedWebHtml = parsedJson.webHtml || '';
+    } catch (parseErr) {
+      console.error('Gemini JSON 파싱 오류. Raw text:', text, parseErr);
+      throw new Error('AI의 JSON 응답을 파싱하는 데 실패했습니다. 다시 시도해 주세요.');
     }
 
-    // HTML 내의 모든 {{placeholder}} 감지 및 추출
-    const fieldRegex = /\{\{([^}]+)\}\}/g;
+    // HTML 내의 모든 {{placeholder}} 감지 및 추출 (정합성 확인 목적)
     const detectedFields: string[] = [];
+    const fieldRegex = /\{\{([^}]+)\}\}/g;
     let match;
-    while ((match = fieldRegex.exec(htmlCode)) !== null) {
+    while ((match = fieldRegex.exec(updatedPrintHtml)) !== null) {
       const fieldKey = match[1].trim();
       if (fieldKey && !detectedFields.includes(fieldKey)) {
         detectedFields.push(fieldKey);
@@ -145,7 +160,7 @@ User Feedback / Request:
         await insertRows('ai_token_usage_logs', [{
           id: `TKN-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
           model: selectedModel,
-          purpose: 'template-natural-language-tuning',
+          purpose: `template-natural-language-tuning-${target}`,
           prompt_tokens: u.promptTokenCount || 0,
           completion_tokens: u.candidatesTokenCount || 0,
           total_tokens: u.totalTokenCount || 0,
@@ -160,7 +175,8 @@ User Feedback / Request:
 
     return NextResponse.json({
       success: true,
-      html: htmlCode,
+      html: updatedPrintHtml,
+      webHtml: updatedWebHtml,
       detectedFields: detectedFields
     });
 

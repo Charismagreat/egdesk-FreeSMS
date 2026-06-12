@@ -1232,6 +1232,7 @@ export async function setupDatabase() {
     { name: 'id', type: 'INTEGER', notNull: true },
     { name: 'template_name', type: 'TEXT', notNull: true },
     { name: 'html_content', type: 'TEXT', notNull: true },
+    { name: 'web_html_content', type: 'TEXT' },
     { name: 'document_type', type: 'TEXT' },
     { name: 'is_active', type: 'INTEGER', defaultValue: 1 },
     { name: 'uuid', type: 'TEXT' },

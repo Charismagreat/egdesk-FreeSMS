@@ -71,30 +71,18 @@ export async function POST(req: Request) {
     // 템플릿 기본 예시/가이드라인이 포함된 프롬프트 작성
     const systemPrompt = `
 You are a top-tier frontend developer and AI document transformation expert.
-Your job is to look at the provided document (an image or a PDF page of a form/certificate) and recreate it into a single, fully responsive, print-friendly A4 HTML document.
+Your job is to look at the provided document (an image or a PDF page of a form/certificate) and recreate it into TWO different, complete versions:
+1. "printHtml": A classic, print-friendly A4 portrait HTML layout (210mm x 297mm) with proper print-friendly margins (e.g., 15mm-20mm padding), light borders, clean structures, and neutral fonts. This will be used for actual physical printing.
+2. "webHtml": A modern, responsive, and visually stunning web page representation of the same form. Use clean card structures, soft drop-shadows, rounded borders, modern sans-serif typography (e.g., Outfit, Inter), subtle background color, and responsive grid layouts. It must look like a premium digital intranet/ERP application form, not a paper draft.
 
-Follow these strict constraints:
-1. Output format MUST be a raw, valid HTML document starting with <!DOCTYPE html> and ending with </html>. Do not wrap the HTML code inside a JSON object or markdown code block like \`\`\`html.
-2. The HTML MUST represent an A4 page layout (210mm x 297mm) with proper print-friendly margins (e.g., 20mm padding) and look clean, premium, and professional. Use beautiful, neutral fonts, light borders, and elegant layout structures. Do not make it look like a low-fidelity draft.
-3. You must replace variable content areas (e.g., Names, Dates, Certificate Numbers, Departments) with Mustache placeholders like {{placeholder_key}}.
-4. You should detect if the document looks like a:
-   - Certificate of Employment / 재직증명서 / 경력증명서
-   - Purchase Invoice / 거래명세서 / 영수증
-   - Business License / 사업자등록증
-   - Medical Certificate / 진단서 / 병가원
-   Based on the context, place appropriate placeholders. For a Certificate of Employment (재직증명서), try to match variables like:
-   - {{staff_name}} (성명)
-   - {{joined_date}} (입사일/지정일)
-   - {{degree_level}} (학위)
-   - {{major_name}} (전공)
-   - {{address}} (주소)
-   - {{usage}} (용도)
-   - {{issue_date}} (발급일자)
-   - {{issue_dept}} (발급부서)
-   - {{issue_by}} (발급자/대표)
-   For other documents, create reasonable and descriptive placeholder keys.
-5. All CSS styles must be embedded in a <style> block within the <head> of the generated HTML. Ensure that margins, heights, and padding are designed for A4 screen previews and physical A4 printing (using CSS page-break properties if needed, but normally constraint within a single page container).
-6. Output only the raw HTML text without any introductory text, explanation, or markdown backticks.
+Strict Constraints:
+- Output MUST be a single valid JSON object. Do not wrap the JSON in markdown code blocks like \`\`\`json.
+- The JSON object must have exactly three keys:
+  - "printHtml" (string): The raw HTML code for the print-friendly A4 version.
+  - "webHtml" (string): The raw HTML code for the modern web page version.
+  - "detectedFields" (array of strings): The list of Mustache placeholders detected in both documents (e.g., "staff_name", "joined_date").
+- In both HTML codes, embed all CSS styles inside a <style> block within the <head>.
+- Detect document context (e.g., Certificate of Employment/재직증명서, Purchase Invoice/거래명세서) and insert appropriate Mustache placeholders like {{staff_name}}, {{joined_date}}, {{usage}}, etc.
 `;
 
     if (!apiKey) {
@@ -119,7 +107,8 @@ Follow these strict constraints:
           }
         ],
         generationConfig: {
-          temperature: 0.2
+          temperature: 0.2,
+          responseMimeType: 'application/json'
         }
       })
     });
@@ -132,23 +121,50 @@ Follow these strict constraints:
     const data = await response.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
     
-    // 마크다운 블록 및 불필요한 감싸기 문자 가드 제거
-    let htmlCode = text.trim();
-    if (htmlCode.startsWith('```')) {
-      const lines = htmlCode.split('\n');
-      if (lines[0].startsWith('```')) lines.shift();
-      if (lines[lines.length - 1].startsWith('```')) lines.pop();
-      htmlCode = lines.join('\n').trim();
+    // JSON 파싱 시도
+    let printHtml = '';
+    let webHtml = '';
+    let detectedFields: string[] = [];
+
+    try {
+      let cleanedText = text.trim();
+      if (cleanedText.startsWith('```')) {
+        const lines = cleanedText.split('\n');
+        if (lines[0].startsWith('```')) lines.shift();
+        if (lines[lines.length - 1].startsWith('```')) lines.pop();
+        cleanedText = lines.join('\n').trim();
+      }
+      const parsedJson = JSON.parse(cleanedText);
+      printHtml = parsedJson.printHtml || '';
+      webHtml = parsedJson.webHtml || '';
+      detectedFields = parsedJson.detectedFields || [];
+    } catch (parseErr) {
+      console.error('Gemini JSON 파싱 오류. Raw text:', text, parseErr);
+      
+      // Fallback 파싱 시도 (단순 텍스트 추출 가드)
+      if (text.includes('printHtml')) {
+        const printMatch = text.match(/"printHtml"\s*:\s*"([\s\S]*?)"\s*,\s*"webHtml"/);
+        const webMatch = text.match(/"webHtml"\s*:\s*"([\s\S]*?)"\s*,\s*"detectedFields"/);
+        if (printMatch && webMatch) {
+          printHtml = printMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
+          webHtml = webMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"');
+        }
+      }
+      
+      if (!printHtml) {
+        throw new Error('AI의 JSON 응답을 파싱하는 데 실패했습니다. 다시 시도해 주세요.');
+      }
     }
 
-    // HTML 내의 모든 {{placeholder}} 감지 및 추출
-    const fieldRegex = /\{\{([^}]+)\}\}/g;
-    const detectedFields: string[] = [];
-    let match;
-    while ((match = fieldRegex.exec(htmlCode)) !== null) {
-      const fieldKey = match[1].trim();
-      if (fieldKey && !detectedFields.includes(fieldKey)) {
-        detectedFields.push(fieldKey);
+    // 혹시 detectedFields가 비어있다면 정규식 폴백 기동
+    if (detectedFields.length === 0) {
+      const fieldRegex = /\{\{([^}]+)\}\}/g;
+      let match;
+      while ((match = fieldRegex.exec(printHtml)) !== null) {
+        const fieldKey = match[1].trim();
+        if (fieldKey && !detectedFields.includes(fieldKey)) {
+          detectedFields.push(fieldKey);
+        }
       }
     }
 
@@ -175,7 +191,8 @@ Follow these strict constraints:
 
     return NextResponse.json({
       success: true,
-      html: htmlCode,
+      html: printHtml,
+      webHtml: webHtml,
       detectedFields: detectedFields
     });
 
