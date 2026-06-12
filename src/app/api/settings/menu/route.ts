@@ -48,7 +48,7 @@ const DEFAULT_MENU_ITEMS = [
   { href: "/knowledge-ai", label: "지식 관리 AI" },
   { href: "/ecount-erp-ai", label: "이카운트 ERP AI" },
   { href: "/rnd-management", label: "연구소 관리 AI" },
-  { href: "/form-management", label: "양식 관리 AI" },
+  { href: "/form-management-new", label: "뉴 양식관리 AI" },
   { href: "/ai-briefing", label: "AI 브리핑" }
 ];
 
@@ -102,6 +102,21 @@ export async function GET() {
         const refreshedResult = await queryTable('system_menu_settings', { orderBy: 'sort_order', orderDirection: 'ASC' });
         rows = refreshedResult.rows || [];
       }
+    }
+
+    // 4. DB에는 존재하지만 현재 기본 메뉴 정의(DEFAULT_MENU_ITEMS)에는 존재하지 않는 구버전 메뉴 청소
+    const defaultHrefs = new Set(DEFAULT_MENU_ITEMS.map(item => item.href));
+    const staleHrefs = rows.filter((r: any) => !defaultHrefs.has(r.menu_href)).map((r: any) => r.menu_href);
+
+    if (staleHrefs.length > 0) {
+      console.log(`더 이상 사용되지 않는 구버전 메뉴 ${staleHrefs.length}건을 감지하여 DB에서 제거합니다:`, staleHrefs);
+      for (const staleHref of staleHrefs) {
+        await deleteRows('system_menu_settings', { menu_href: staleHref });
+      }
+      
+      // 삭제 완료 후 최종 목록 재조회
+      const finalResult = await queryTable('system_menu_settings', { orderBy: 'sort_order', orderDirection: 'ASC' });
+      rows = finalResult.rows || [];
     }
 
     return NextResponse.json({ success: true, menuSettings: rows });

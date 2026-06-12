@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 export default function MainContentWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   
-  if (pathname === '/login' || pathname.startsWith('/form-management/print') || pathname.startsWith('/shared/view') || pathname.startsWith('/store') || pathname.startsWith('/table-order') || pathname.startsWith('/booking') || pathname.startsWith('/m/') || pathname.startsWith('/expenses/mobile-approve')) {
+  if (pathname === '/login' || pathname.startsWith('/form-management-new/print') || pathname.startsWith('/shared/view') || pathname.startsWith('/store') || pathname.startsWith('/table-order') || pathname.startsWith('/booking') || pathname.startsWith('/m/') || pathname.startsWith('/expenses/mobile-approve')) {
     return <>{children}</>;
   }
 

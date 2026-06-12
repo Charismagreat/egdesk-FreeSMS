@@ -8,10 +8,6 @@ import { usePathname } from "next/navigation";
 export default function AIHelpManager() {
   const pathname = usePathname();
 
-  if (pathname === '/login' || pathname.startsWith('/form-management/print') || pathname.startsWith('/shared/view') || pathname.startsWith('/store') || pathname.startsWith('/table-order') || pathname.startsWith('/booking') || pathname.startsWith('/m/') || pathname.startsWith('/expenses/mobile-approve')) {
-    return null;
-  }
-
   // --- SSR Hydration 방지용 mounted 상태 ---
   const [mounted, setMounted] = useState<boolean>(false);
 
@@ -346,6 +342,19 @@ export default function AIHelpManager() {
     };
     fetchUserRole();
   }, []);
+
+  if (
+    pathname === '/login' || 
+    pathname.startsWith('/form-management-new/print') || 
+    pathname.startsWith('/shared/view') || 
+    pathname.startsWith('/store') || 
+    pathname.startsWith('/table-order') || 
+    pathname.startsWith('/booking') || 
+    pathname.startsWith('/m/') || 
+    pathname.startsWith('/expenses/mobile-approve')
+  ) {
+    return null;
+  }
 
   return (
     <>

@@ -104,7 +104,7 @@ const MENU_STATIC_MAP: Record<string, { label: string; icon: any; color: string 
   "/password-ai": { label: "비밀번호관리 AI", icon: Key, color: "text-purple-400" },
   "/rnd-management": { label: "연구소 관리 AI", icon: Award, color: "text-amber-400" },
   "/mail-management-ai": { label: "메일 관리 AI", icon: Mail, color: "text-cyan-400" },
-  "/form-management": { label: "양식 관리 AI", icon: ClipboardList, color: "text-emerald-500" }
+  "/form-management-new": { label: "뉴 양식관리 AI", icon: ClipboardList, color: "text-emerald-500" }
 };
 
 interface SidebarMenuProps {

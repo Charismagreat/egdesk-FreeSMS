@@ -24,12 +24,17 @@ export async function GET(req: Request) {
       filters['date(created_at) >='] = monthStr;
     }
 
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limit = Math.max(1, parseInt(searchParams.get('limit') || '20', 10));
+    const offset = (page - 1) * limit;
+
     // 2. 누적 소비량 통계 집계 실행 (aggregateTable API 사용)
-    const [countRes, promptRes, completionRes, totalRes] = await Promise.all([
+    const [countRes, promptRes, completionRes, totalRes, totalLogsRes] = await Promise.all([
       aggregateTable('ai_token_usage_logs', 'id', 'COUNT', { filters }),
       aggregateTable('ai_token_usage_logs', 'prompt_tokens', 'SUM', { filters }),
       aggregateTable('ai_token_usage_logs', 'completion_tokens', 'SUM', { filters }),
       aggregateTable('ai_token_usage_logs', 'total_tokens', 'SUM', { filters }),
+      aggregateTable('ai_token_usage_logs', 'id', 'COUNT'), // 감사록 총 데이터 수 (필터 없음)
     ]);
 
     const summary = {
@@ -38,6 +43,8 @@ export async function GET(req: Request) {
       total_completion_tokens: Number(completionRes?.value || 0),
       total_tokens: Number(totalRes?.value || 0)
     };
+
+    const totalLogs = Number(totalLogsRes?.value || 0);
 
     // 3. 사용 목적(Purpose)별 통계 집계 실행 (queryTable에서 limit 적용 후 가공 처리)
     // GROUP BY 대신 전체 데이터를 안전하게 뽑아 JS단에서 Reduce 집계 처리하여 완벽하고 확실히 반환합니다.
@@ -75,11 +82,12 @@ export async function GET(req: Request) {
       tokens: stat.tokens
     })).sort((a, b) => b.tokens - a.tokens);
 
-    // 5. 최근 토큰 트랜잭션 전체 조회 (한도 1000건으로 대폭 확장)
+    // 5. 최근 토큰 트랜잭션 페이지네이션 조회
     const recentLogsResult = await queryTable('ai_token_usage_logs', {
       orderBy: 'created_at',
       orderDirection: 'DESC',
-      limit: 1000
+      limit,
+      offset
     });
 
     const logsResult = recentLogsResult?.rows || [];
@@ -99,7 +107,13 @@ export async function GET(req: Request) {
         user_name: l.user_name || '시스템',
         menu_path: l.menu_path || '백그라운드',
         created_at: l.created_at
-      }))
+      })),
+      pagination: {
+        total: totalLogs,
+        page,
+        limit,
+        totalPages: Math.ceil(totalLogs / limit)
+      }
     });
 
   } catch (error: any) {

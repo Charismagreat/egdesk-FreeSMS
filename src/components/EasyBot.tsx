@@ -3323,9 +3323,6 @@ export default function EasyBot() {
   const pathname = usePathname();
   const router = useRouter();
 
-  if (pathname === '/login' || pathname.startsWith('/form-management/print') || pathname.startsWith('/shared/view') || pathname.startsWith('/store') || pathname.startsWith('/table-order') || pathname.startsWith('/booking') || pathname.startsWith('/m/') || pathname.startsWith('/expenses/mobile-approve')) {
-    return null;
-  }
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -4331,6 +4328,19 @@ export default function EasyBot() {
       handleSendMessage(e);
     }
   };
+
+  if (
+    pathname === '/login' || 
+    pathname.startsWith('/form-management-new/print') || 
+    pathname.startsWith('/shared/view') || 
+    pathname.startsWith('/store') || 
+    pathname.startsWith('/table-order') || 
+    pathname.startsWith('/booking') || 
+    pathname.startsWith('/m/') || 
+    pathname.startsWith('/expenses/mobile-approve')
+  ) {
+    return null;
+  }
 
   return (
     <>

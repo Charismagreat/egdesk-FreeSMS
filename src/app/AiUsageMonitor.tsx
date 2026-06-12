@@ -39,6 +39,14 @@ export default function AiUsageMonitor() {
   const [purposes, setPurposes] = useState<PurposeStat[]>([]);
   const [models, setModels] = useState<ModelStat[]>([]);
   const [recentLogs, setRecentLogs] = useState<TokenLog[]>([]);
+  const [page, setPage] = useState<number>(1);
+  const [limit, setLimit] = useState<number>(15); // 한 페이지당 15건 기본 노출
+  const [pagination, setPagination] = useState<{ total: number; page: number; limit: number; totalPages: number }>({
+    total: 0,
+    page: 1,
+    limit: 15,
+    totalPages: 0
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,19 +70,22 @@ export default function AiUsageMonitor() {
 
   useEffect(() => {
     fetchStats();
-  }, [range]);
+  }, [range, page, limit]);
 
   const fetchStats = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/settings/ai-usage?range=${range}`);
+      const res = await fetch(`/api/settings/ai-usage?range=${range}&page=${page}&limit=${limit}`);
       const json = await res.json();
       if (json.success) {
         setSummary(json.summary);
         setPurposes(json.purposes);
         setModels(json.models);
         setRecentLogs(json.recentLogs);
+        if (json.pagination) {
+          setPagination(json.pagination);
+        }
       } else {
         setError(json.error || '데이터 조회 실패');
       }
@@ -135,7 +146,10 @@ export default function AiUsageMonitor() {
             ].map(r => (
               <button
                 key={r.id}
-                onClick={() => setRange(r.id as any)}
+                onClick={() => {
+                  setRange(r.id as any);
+                  setPage(1);
+                }}
                 className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${range === r.id ? 'bg-white text-indigo-600 shadow-xs' : 'text-slate-500 hover:text-slate-850'}`}
               >
                 {r.label}
@@ -364,6 +378,99 @@ export default function AiUsageMonitor() {
                       )}
                     </tbody>
                   </table>
+
+                  {/* 5. 페이지네이션 바 🎯 */}
+                  {recentLogs.length > 0 && (
+                    <div className="p-4 bg-slate-50/50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 select-none">
+                      <div className="text-[11px] text-slate-500 font-semibold order-2 sm:order-1">
+                        총 <span className="text-indigo-600 font-extrabold">{pagination.total.toLocaleString()}</span>건 중{" "}
+                        <span className="font-bold text-slate-700">
+                          {((page - 1) * limit + 1).toLocaleString()} - {Math.min(page * limit, pagination.total).toLocaleString()}
+                        </span>번째 표시
+                      </div>
+                      
+                      {pagination.totalPages > 1 && (
+                        <div className="flex items-center gap-1 order-1 sm:order-2">
+                          <button
+                            onClick={() => setPage(1)}
+                            disabled={page === 1}
+                            className="px-2 py-1 text-slate-500 bg-white border border-slate-200 rounded-lg text-[10px] font-bold hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                            title="처음 페이지"
+                          >
+                            &lt;&lt;
+                          </button>
+                          <button
+                            onClick={() => setPage(prev => Math.max(1, prev - 1))}
+                            disabled={page === 1}
+                            className="px-2.5 py-1 text-slate-500 bg-white border border-slate-200 rounded-lg text-[11px] font-bold hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                          >
+                            이전
+                          </button>
+                          
+                          {(() => {
+                            const buttons = [];
+                            const maxVisible = 5;
+                            let start = Math.max(1, page - Math.floor(maxVisible / 2));
+                            let end = start + maxVisible - 1;
+                            
+                            if (end > pagination.totalPages) {
+                              end = pagination.totalPages;
+                              start = Math.max(1, end - maxVisible + 1);
+                            }
+                            
+                            for (let i = start; i <= end; i++) {
+                              buttons.push(
+                                <button
+                                  key={i}
+                                  onClick={() => setPage(i)}
+                                  className={`px-3 py-1 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer ${
+                                    page === i
+                                      ? "bg-indigo-600 text-white shadow-xs"
+                                      : "bg-white border border-slate-200 text-slate-600 hover:bg-slate-50"
+                                  }`}
+                                >
+                                  {i}
+                                </button>
+                              );
+                            }
+                            return buttons;
+                          })()}
+                          
+                          <button
+                            onClick={() => setPage(prev => Math.min(pagination.totalPages, prev + 1))}
+                            disabled={page === pagination.totalPages}
+                            className="px-2.5 py-1 text-slate-500 bg-white border border-slate-200 rounded-lg text-[11px] font-bold hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                          >
+                            다음
+                          </button>
+                          <button
+                            onClick={() => setPage(pagination.totalPages)}
+                            disabled={page === pagination.totalPages}
+                            className="px-2 py-1 text-slate-500 bg-white border border-slate-200 rounded-lg text-[10px] font-bold hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                            title="마지막 페이지"
+                          >
+                            &gt;&gt;
+                          </button>
+                        </div>
+                      )}
+                      
+                      <div className="flex items-center gap-1.5 order-3">
+                        <span className="text-[10px] text-slate-400 font-bold">페이지당</span>
+                        <select
+                          value={limit}
+                          onChange={(e) => {
+                            setLimit(Number(e.target.value));
+                            setPage(1);
+                          }}
+                          className="text-[10px] font-bold text-slate-700 bg-white border border-slate-200 rounded-lg p-1 outline-hidden cursor-pointer"
+                        >
+                          {[10, 15, 20, 30, 50, 100].map(size => (
+                            <option key={size} value={size}>{size}개씩</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

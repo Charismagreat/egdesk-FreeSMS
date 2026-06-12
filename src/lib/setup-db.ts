@@ -1227,6 +1227,39 @@ export async function setupDatabase() {
     { name: 'restored_by', type: 'TEXT' }
   ], { tableName: 'crm_employment_certificate_logs', uniqueKeyColumns: ['id'] });
 
+  // 41-6. 웹 양식 템플릿 마스터 (crm_web_templates)
+  await safeCreateTable('웹 양식 템플릿 마스터', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'template_name', type: 'TEXT', notNull: true },
+    { name: 'html_content', type: 'TEXT', notNull: true },
+    { name: 'document_type', type: 'TEXT' },
+    { name: 'is_active', type: 'INTEGER', defaultValue: 1 },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
+  ], { tableName: 'crm_web_templates', uniqueKeyColumns: ['id'] });
+
+  // 41-7. 웹 양식 발급대장 (crm_web_form_logs)
+  await safeCreateTable('웹 양식 발급대장', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'template_id', type: 'INTEGER', notNull: true },
+    { name: 'record_id', type: 'TEXT', notNull: true },
+    { name: 'record_name', type: 'TEXT' },
+    { name: 'print_data', type: 'TEXT', notNull: true },
+    { name: 'issue_date', type: 'TEXT', notNull: true },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
+  ], { tableName: 'crm_web_form_logs', uniqueKeyColumns: ['id'] });
+
   // 42. Safety Policies Table (안전보건방침 및 목표 설정 대장)
   await safeCreateTable('안전보건방침 및 목표', [
     { name: 'id', type: 'INTEGER', notNull: true },
