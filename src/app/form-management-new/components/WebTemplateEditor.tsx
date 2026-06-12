@@ -470,7 +470,7 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
                 감지된 바인딩 필드
               </h3>
               <p className="text-[9px] text-slate-500 font-bold leading-normal mb-1">
-                아래 필드를 복사해 양식 내에 붙여넣어 활용하세요. (출력 시 AI가 매핑 테이블에서 해당 데이터들을 자동 로드합니다.)
+                아래 필드를 복사해 양식 내에 붙여넣어 활용하세요.
               </p>
               <div className="flex flex-wrap gap-1.5 pt-1">
                 {detectedFields.map(f => (
@@ -487,6 +487,62 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
                     )}
                   </button>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* AI 자연어 디자인 튜닝 입력창 (이동 적용) */}
+          {htmlContent && (
+            <div className="space-y-2.5 text-left border-t border-slate-850 pt-5 mt-auto">
+              <h3 className="text-xs font-black text-slate-400 tracking-wider uppercase flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                디자인 수정 요청
+              </h3>
+              <p className="text-[9px] text-slate-500 font-bold leading-normal">
+                {targetPrint && !targetWeb
+                  ? "선택된 '인쇄용 A4' 양식에 대한 수정 요구사항을 입력하세요."
+                  : !targetPrint && targetWeb
+                  ? "선택된 '모던 웹페이지' 양식에 대한 수정 요구사항을 입력하세요."
+                  : "인쇄용 및 웹용 양식 '모두'에 적용할 디자인 수정 사항을 입력하세요."}
+              </p>
+              <div className="pt-1 space-y-2.5">
+                <textarea
+                  rows={4}
+                  value={feedback}
+                  onChange={e => setFeedback(e.target.value)}
+                  placeholder={
+                    targetPrint && !targetWeb
+                      ? "예: '인쇄 시 직인 영역을 5mm 아래로 이동해줘', '표의 테두리를 얇게 해줘' (인쇄용만 수정)"
+                      : !targetPrint && targetWeb
+                      ? "예: '카드의 그림자 크기를 줄이고, 둥글게 만들어줘', '웹 배경색을 민트톤으로 바꿀래' (웹용만 수정)"
+                      : "예: '폰트를 전체적으로 Outfit으로 맞춰줘', '이름 항목에 강조색 추가해줘' (인쇄용 & 웹용 동시 수정)"
+                  }
+                  className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-800 focus:border-violet-650 focus:outline-none text-xs text-white font-bold placeholder-slate-550 shadow-inner resize-none transition"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleApplyTuning();
+                    }
+                  }}
+                  disabled={isTuning}
+                />
+                <button
+                  onClick={handleApplyTuning}
+                  disabled={isTuning || !feedback.trim()}
+                  className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-750 text-white font-extrabold text-xs transition disabled:bg-slate-900 disabled:text-slate-600 border border-slate-850 cursor-pointer shadow-md"
+                >
+                  {isTuning ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1" />
+                      디자인 튜닝 적용 중...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5" />
+                      자연어 수정 요청 실행
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           )}
@@ -518,7 +574,7 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
             {/* 좌열: 인쇄용 A4 프리뷰 */}
             <div 
               onClick={() => handleToggleTarget('print')}
-              className={`flex-1 flex flex-col min-h-0 border-r border-slate-850 cursor-pointer select-none transition-all duration-200 border-2 ${
+              className={`flex-1 flex flex-col min-h-0 border-r border-slate-850 cursor-pointer select-none transition-all duration-205 border-2 ${
                 targetPrint 
                   ? 'border-violet-650/40 bg-violet-950/5' 
                   : 'border-transparent bg-transparent'
@@ -549,7 +605,7 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
               
               <div 
                 ref={containerRef} 
-                className={`flex-1 p-4 flex items-center justify-center overflow-auto transition-opacity duration-200 ${
+                className={`flex-1 p-4 flex items-center justify-center overflow-auto transition-opacity duration-205 ${
                   targetPrint ? 'bg-slate-950/40' : 'bg-slate-950/70 opacity-40 grayscale-[20%]'
                 }`}
                 style={{ minHeight: 0 }}
@@ -596,7 +652,7 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
             {/* 우열: 모던 웹페이지 프리뷰 */}
             <div 
               onClick={() => handleToggleTarget('web')}
-              className={`flex-1 flex flex-col min-h-0 cursor-pointer select-none transition-all duration-200 border-2 ${
+              className={`flex-1 flex flex-col min-h-0 cursor-pointer select-none transition-all duration-205 border-2 ${
                 targetWeb 
                   ? 'border-emerald-650/40 bg-emerald-950/5' 
                   : 'border-transparent bg-transparent'
@@ -626,7 +682,7 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
               </div>
               
               <div 
-                className={`flex-1 p-4 flex items-stretch justify-stretch overflow-hidden transition-opacity duration-200 ${
+                className={`flex-1 p-4 flex items-stretch justify-stretch overflow-hidden transition-opacity duration-205 ${
                   targetWeb ? 'bg-slate-950/20' : 'bg-slate-950/70 opacity-40 grayscale-[20%]'
                 }`}
                 style={{ minHeight: 0 }}
@@ -655,66 +711,6 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
             </div>
 
           </div>
-
-          {/* 하단 자연어 디자인 튜닝 컨트롤 */}
-          {htmlContent && (
-            <div className="p-4 bg-slate-950 border-t border-slate-850 flex flex-col gap-2.5 shrink-0 z-15">
-              
-              {/* 텍스트 입력창 영역 */}
-              <div className="flex items-center gap-3 w-full">
-                <div className="relative flex-1">
-                  <input 
-                    type="text" 
-                    value={feedback}
-                    onChange={e => setFeedback(e.target.value)}
-                    placeholder={
-                      targetPrint && !targetWeb
-                        ? "예: '인쇄 시 직인 영역을 5mm 아래로 이동해줘', '표의 테두리를 얇게 해줘' (인쇄용만 수정)"
-                        : !targetPrint && targetWeb
-                        ? "예: '카드의 그림자 크기를 줄이고, 둥글게 만들어줘', '웹 배경색을 민트톤으로 바꿀래' (웹용만 수정)"
-                        : "예: '폰트를 전체적으로 Outfit으로 맞춰줘', '이름 항목에 강조색 추가해줘' (인쇄용 & 웹용 동시 수정)"
-                    }
-                    className="w-full pl-4 pr-12 py-3 rounded-2xl bg-slate-900 border border-slate-800 focus:border-violet-650 focus:outline-none text-xs text-white placeholder-slate-550 font-bold transition shadow-inner"
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') handleApplyTuning();
-                    }}
-                    disabled={isTuning}
-                  />
-                  <button
-                    onClick={handleApplyTuning}
-                    disabled={isTuning}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 rounded-xl bg-violet-600 text-white hover:bg-violet-700 transition cursor-pointer disabled:bg-slate-800 disabled:text-slate-600"
-                    title="튜닝 적용"
-                  >
-                    {isTuning ? (
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Sparkles className="w-3.5 h-3.5" />
-                    )}
-                  </button>
-                </div>
-
-                <button
-                  onClick={handleApplyTuning}
-                  disabled={isTuning}
-                  className="flex items-center gap-1 px-5 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-violet-400 font-extrabold text-xs transition cursor-pointer disabled:bg-slate-950 disabled:text-slate-800 shrink-0"
-                >
-                  {isTuning ? (
-                    <>
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1" />
-                      디자인 튜닝 적용 중...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-3.5 h-3.5 text-violet-400" />
-                      자연어 수정 요청
-                    </>
-                  )}
-                </button>
-              </div>
-
-            </div>
-          )}
 
         </div>
 
