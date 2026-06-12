@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { RefreshCw, AlertCircle, Printer, X } from 'lucide-react';
+import { RefreshCw, AlertCircle, Printer, X, Laptop, Globe } from 'lucide-react';
 
 function PrintViewContent() {
   const searchParams = useSearchParams();
@@ -10,6 +10,9 @@ function PrintViewContent() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // 인쇄 출력 모드 분기 상태: 'print' (클래식 A4) vs 'web' (세련된 모던 웹)
+  const [printMode, setPrintMode] = useState<'print' | 'web'>('print');
   const [renderedHtml, setRenderedHtml] = useState<string>('');
   
   // 발급 완료 상태 기록 완료 여부
@@ -22,9 +25,10 @@ function PrintViewContent() {
   // DB 및 localStorage에서 읽어온 상태 보존용
   const [rawData, setRawData] = useState<any>(null);
   const [templateHtml, setTemplateHtml] = useState<string>('');
+  const [webTemplateHtml, setWebTemplateHtml] = useState<string>(''); // 웹 전용 HTML 템플릿
   const [companyProfileData, setCompanyProfileData] = useState<any>(null);
 
-  // 수동 입력 값들 상태 관리 (UI는 안보이지만 Mustache 바인딩 상태 유지용)
+  // 수동 입력 값들 상태 관리 (Mustache 바인딩 상태 유지용)
   const [manualData, setManualData] = useState({
     resident_id: '',
     usage: '',
@@ -77,7 +81,7 @@ function PrintViewContent() {
     return `${formatDate(start)} ~ ${resignedDateStr ? formatDate(end) : '현재 재직 중'} (${periodText.trim()})`;
   };
 
-  // 브라우저 윈도우 크기 변화 감지하여 용지 축소 스케일 계산
+  // 브라우저 윈도우 크기 변화 감지하여 용지 축소 스케일 계산 (794x1123 A4 프레임 기준)
   const handleResize = () => {
     const containerWidth = window.innerWidth;
     const containerHeight = window.innerHeight;
@@ -157,7 +161,13 @@ function PrintViewContent() {
         // 원본 및 회사 프로필 상태 보존
         setRawData(bindingData);
         setTemplateHtml(template.html_content);
+        setWebTemplateHtml(template.web_html_content || ''); // 웹 전용 HTML 보존
         setCompanyProfileData(companyProfile);
+
+        // 만약 웹 양식이 메인으로 설정되어 있거나 웹 전용 인쇄가 주 목적일 경우 웹 탭 활성화 지원을 위해 상태 동기화
+        if (!template.html_content && template.web_html_content) {
+          setPrintMode('web');
+        }
 
         // 덮어쓸 수동 필드 상태 동기화
         setManualData({
@@ -191,7 +201,7 @@ function PrintViewContent() {
 
   // 실시간 Mustache 치환 및 데이터 업데이트
   useEffect(() => {
-    if (!loading && !error && rawData && templateHtml) {
+    if (!loading && !error && rawData) {
       const now = new Date();
       const issue_year = String(now.getFullYear());
       const issue_month = String(now.getMonth() + 1);
@@ -210,7 +220,7 @@ function PrintViewContent() {
         department: manualData.department,
         issue_dept: manualData.issue_dept,
         issue_phone: manualData.issue_phone,
-        issue_email: manualData.issue_email,
+        issue_email: manualData.issue_phone,
         issue_fax: manualData.issue_fax,
         
         issue_year,
@@ -218,13 +228,16 @@ function PrintViewContent() {
         issue_day
       };
 
-      const compiled = compileMustache(templateHtml, finalBindingData);
+      // 현재 선택된 출력 모드에 맞는 소스 템플릿 선택
+      const activeTemplateSource = printMode === 'print' ? templateHtml : (webTemplateHtml || templateHtml);
+      const compiled = compileMustache(activeTemplateSource, finalBindingData);
       setRenderedHtml(compiled);
     }
-  }, [manualData, loading, error, rawData, templateHtml, companyProfileData]);
+  }, [manualData, loading, error, rawData, templateHtml, webTemplateHtml, companyProfileData, printMode]);
 
   // Mustache 치환 엔진
   const compileMustache = (html: string, data: Record<string, any>) => {
+    if (!html) return '';
     return html.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
       const cleanKey = key.trim();
       return data[cleanKey] !== undefined ? String(data[cleanKey]) : '';
@@ -258,8 +271,39 @@ function PrintViewContent() {
 
   const handlePrint = () => {
     if (iframeRef.current && iframeRef.current.contentWindow) {
+      if (printMode === 'web') {
+        try {
+          const doc = iframeRef.current.contentDocument || iframeRef.current.contentWindow.document;
+          const body = doc.body;
+          const html = doc.documentElement;
+          
+          // 콘텐츠의 전체 높이를 구함
+          const height = Math.max(
+            body.scrollHeight,
+            body.offsetHeight,
+            html.clientHeight,
+            html.scrollHeight,
+            html.offsetHeight
+          );
+          
+          // iframe 높이를 임시로 가득 채워서 잘림 방지
+          iframeRef.current.style.height = `${height}px`;
+        } catch (e) {
+          console.warn('iframe 높이 동적 계산 실패:', e);
+        }
+      }
+
       iframeRef.current.contentWindow.focus();
       iframeRef.current.contentWindow.print();
+
+      if (printMode === 'web') {
+        // 인쇄창 호출 후 원래 높이로 복구
+        setTimeout(() => {
+          if (iframeRef.current) {
+            iframeRef.current.style.height = '100%';
+          }
+        }, 1000);
+      }
     } else {
       window.print();
     }
@@ -272,13 +316,14 @@ function PrintViewContent() {
   const buildIframeContent = () => {
     const hasHtmlTag = renderedHtml.includes('<html') || renderedHtml.includes('<HTML');
     
-    const inlineStyles = `
+    // 모드별 여백 및 컨테이너 스타일 차별화
+    const inlineStyles = printMode === 'print' ? `
       <style>
         html, body {
           margin: 0 !important;
           padding: 0 !important;
-          width: 100% !important;
-          height: 100% !important;
+          width: 794px !important;
+          height: 1123px !important;
           box-sizing: border-box !important;
           overflow: hidden !important;
           background-color: #ffffff !important;
@@ -286,27 +331,16 @@ function PrintViewContent() {
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
         }
-        
         body {
           padding: 0 !important;
           position: relative !important;
         }
-
-        body > div,
-        div,
-        table,
-        thead,
-        tbody,
-        tr {
+        body > div, div, table, thead, tbody, tr {
           width: 100% !important;
           max-width: 100% !important;
           min-width: 100% !important;
         }
-
-        .page,
-        [class*="page"],
-        .A4,
-        .a4 {
+        .page, [class*="page"], .A4, .a4 {
           width: 100% !important;
           height: 100% !important;
           padding: 15mm 10mm !important;
@@ -317,27 +351,52 @@ function PrintViewContent() {
           flex-direction: column !important;
           justify-content: space-between !important;
         }
-
         table {
           border-collapse: collapse !important;
           margin-top: 10px;
           margin-bottom: 10px;
         }
-        
         td, th {
           border-collapse: collapse !important;
           vertical-align: middle;
         }
-
         img {
           max-width: 100% !important;
           height: auto !important;
         }
-
         @media print {
           html, body {
             overflow: visible !important;
             height: auto !important;
+          }
+        }
+      </style>
+    ` : `
+      <style>
+        html, body {
+          margin: 0 !important;
+          padding: 0 !important;
+          width: 100% !important;
+          height: 100% !important;
+          box-sizing: border-box !important;
+          background-color: #ffffff !important;
+          font-family: 'Malgun Gothic', '맑은 고딕', Arial, sans-serif;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+        body {
+          padding: 15mm 20mm !important; /* 모던 웹용 인쇄 표준 여백 */
+          overflow-y: auto !important;
+        }
+        /* 인쇄 시 스크롤바 감추고 적절한 폰트/레이아웃 크기 조정 */
+        @media print {
+          html, body {
+            overflow: visible !important;
+            height: auto !important;
+            background-color: #ffffff !important;
+          }
+          body {
+            padding: 10mm 15mm !important;
           }
         }
       </style>
@@ -397,12 +456,47 @@ function PrintViewContent() {
   return (
     <div className="bg-slate-100 h-screen overflow-hidden flex flex-col justify-start items-center">
       {/* 화면 상단에만 노출되는 인쇄 제어 툴바 (인쇄 시 숨김 처리) */}
-      <div className="w-full bg-slate-900 px-6 py-3 border-b border-slate-800 flex items-center justify-between no-print shrink-0 shadow-md">
-        <div className="flex items-center gap-2.5">
-          <Printer className="w-4 h-4 text-violet-400" />
-          <span className="text-xs font-black text-white">
-            A4 인쇄 출력 프리뷰
-          </span>
+      <div className="w-full bg-slate-900 px-6 py-3 border-b border-slate-880 flex items-center justify-between no-print shrink-0 shadow-md">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Printer className="w-4 h-4 text-violet-400" />
+            <span className="text-xs font-black text-white mr-2">
+              양식 출력 프리뷰
+            </span>
+          </div>
+
+          {/* 출력용 포맷 탭 스위치 */}
+          <div className="flex bg-slate-950 p-1.5 rounded-xl shrink-0 gap-1.5 border border-slate-850">
+            <button
+              onClick={() => setPrintMode('print')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[10px] font-black transition cursor-pointer ${
+                printMode === 'print' 
+                  ? 'bg-violet-600 text-white shadow-sm shadow-violet-650/30' 
+                  : 'text-slate-400 hover:text-white bg-slate-900/40'
+              }`}
+            >
+              <Laptop className="w-3 h-3" />
+              인쇄용 A4 형식
+            </button>
+            <button
+              onClick={() => {
+                if (!webTemplateHtml) {
+                  alert('변환된 모던 웹페이지 템플릿이 존재하지 않습니다. 먼저 에디터에서 양식을 AI 분석해 주세요.');
+                  return;
+                }
+                setPrintMode('web');
+              }}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[10px] font-black transition cursor-pointer ${
+                printMode === 'web' 
+                  ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-650/30' 
+                  : 'text-slate-400 hover:text-white bg-slate-900/40'
+              }`}
+            >
+              <Globe className="w-3 h-3" />
+              모던 웹페이지 형식
+            </button>
+          </div>
+
           {isLogged && (
             <span className="text-[9px] bg-emerald-950 text-emerald-400 border border-emerald-900 px-2 py-0.5 rounded font-extrabold">
               대장 기록 보존 완료
@@ -413,7 +507,9 @@ function PrintViewContent() {
         <div className="flex items-center gap-2">
           <button
             onClick={handlePrint}
-            className="flex items-center gap-1.5 px-4.5 py-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-extrabold text-xs transition cursor-pointer shadow-md"
+            className={`flex items-center gap-1.5 px-4.5 py-2 rounded-xl text-white font-extrabold text-xs transition cursor-pointer shadow-md ${
+              printMode === 'print' ? 'bg-violet-600 hover:bg-violet-755' : 'bg-emerald-600 hover:bg-emerald-750'
+            }`}
           >
             <Printer className="w-3.5 h-3.5" />
             인쇄 (Print)
@@ -450,8 +546,8 @@ function PrintViewContent() {
               border: none !important;
               box-shadow: none !important;
               margin: 0 !important;
-              width: 210mm !important;
-              height: 297mm !important;
+              width: ${printMode === 'print' ? '210mm' : '100%'} !important;
+              height: ${printMode === 'print' ? '297mm' : 'auto'} !important;
               transform: none !important;
               transform-origin: none !important;
               page-break-after: avoid !important;
@@ -467,7 +563,9 @@ function PrintViewContent() {
             transformOrigin: 'top center',
             transition: 'transform 0.15s ease-out',
           }}
-          className="bg-white shadow-2xl border border-slate-300 overflow-hidden a4-print-box text-left shrink-0 flex flex-col"
+          className={`bg-white shadow-2xl border overflow-hidden a4-print-box text-left shrink-0 flex flex-col transition-colors duration-200 ${
+            printMode === 'print' ? 'border-slate-300' : 'border-emerald-500/30'
+          }`}
         >
           <iframe
             ref={iframeRef}
@@ -476,9 +574,9 @@ function PrintViewContent() {
               width: '100%',
               height: '100%',
               border: 'none',
-              overflow: 'hidden'
+              overflow: printMode === 'print' ? 'hidden' : 'auto'
             }}
-            scrolling="no"
+            scrolling={printMode === 'print' ? 'no' : 'auto'}
           />
         </div>
       </div>

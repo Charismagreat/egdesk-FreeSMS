@@ -1819,6 +1819,17 @@ export async function setupDatabase() {
       }
     }
 
+    // crm_web_templates 테이블 컬럼 보정 마이그레이션
+    try {
+      const webTemplateCols = db.prepare("PRAGMA table_info(crm_web_templates);").all().map((c: any) => c.name);
+      if (!webTemplateCols.includes('web_html_content')) {
+        db.exec("ALTER TABLE crm_web_templates ADD COLUMN web_html_content TEXT;");
+        console.log('✓ In-app migration: added web_html_content to crm_web_templates');
+      }
+    } catch (e: any) {
+      console.warn('⚠️ crm_web_templates migration check warning:', e.message);
+    }
+
     db.close();
   } catch (err: any) {
     console.error('⚠️ In-app migration error:', err.message);
