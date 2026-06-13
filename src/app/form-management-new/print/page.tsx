@@ -37,6 +37,7 @@ function PrintViewContent() {
 
   // 수동 입력 값들 상태 관리 (Mustache 바인딩 상태 유지용)
   const [manualData, setManualData] = useState({
+    staff_name: '',
     resident_id: '',
     usage: '',
     address: '',
@@ -200,6 +201,7 @@ function PrintViewContent() {
 
         // 덮어쓸 수동 필드 상태 동기화
         setManualData({
+          staff_name: bindingData.staff_name || bindingData.name || '',
           resident_id: bindingData.resident_id || '',
           usage: bindingData.usage || '',
           address: bindingData.address || '',
@@ -242,15 +244,26 @@ function PrintViewContent() {
         
         employment_period: rawData.employment_period || calculateEmploymentPeriod(rawData.joined_date, rawData.resigned_date),
         
+        // 성명 바인딩 불일치 보정 (template.html 에는 {{name}}이 사용됨)
+        name: manualData.staff_name || rawData.staff_name || rawData.name || '',
+        staff_name: manualData.staff_name || rawData.staff_name || '',
+        
         resident_id: manualData.resident_id,
         usage: manualData.usage,
         address: manualData.address || rawData.address || '',
         position: manualData.position,
         department: manualData.department,
+        
+        // 템플릿의 접두사 불일치 (issue_ vs issuer_) 조율 및 이메일 오타 수정
         issue_dept: manualData.issue_dept,
         issue_phone: manualData.issue_phone,
-        issue_email: manualData.issue_phone,
+        issue_email: manualData.issue_email,
         issue_fax: manualData.issue_fax,
+        
+        issuer_dept: manualData.issue_dept,
+        issuer_phone: manualData.issue_phone,
+        issuer_email: manualData.issue_email,
+        issuer_fax: manualData.issue_fax,
         
         issue_year,
         issue_month,

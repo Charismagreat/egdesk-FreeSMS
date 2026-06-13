@@ -1,6 +1,6 @@
 /**
  * EGDesk User Data Configuration
- * Generated at: 2026-06-13T06:38:51.765Z
+ * Generated at: 2026-06-13T08:23:48.894Z
  *
  * This file contains type-safe definitions for your EGDesk tables.
  */
@@ -647,7 +647,7 @@ export const TABLES = {
   table90: {
     name: 'crm_web_form_logs',
     displayName: '웹 양식 발급대장',
-    rowCount: 2,
+    rowCount: 41,
     columnCount: 13,
     columns: ['id', 'template_id', 'record_id', 'record_name', 'print_data', 'issue_date', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
