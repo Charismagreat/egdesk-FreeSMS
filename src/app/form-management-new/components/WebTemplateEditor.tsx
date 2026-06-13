@@ -34,6 +34,8 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
   const [feedback, setFeedback] = useState('');
   const [targetPrint, setTargetPrint] = useState(true); // 인쇄용 양식 수정 활성화 여부
   const [targetWeb, setTargetWeb] = useState(true);   // 웹용 양식 수정 활성화 여부
+  const [isPrintActive, setIsPrintActive] = useState(true); // 인쇄용 양식 사용 여부
+  const [isWebActive, setIsWebActive] = useState(true);     // 웹용 양식 사용 여부
   const [isTuning, setIsTuning] = useState(false);
   
   // 최신 상태 실시간 동기화용 refs (iframe 내부 stale closure 버그 방지)
@@ -134,13 +136,15 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
             setHtmlContent(data.template.html_content || '');
             setWebHtmlContent(data.template.web_html_content || '');
             setIsActive(data.template.is_active === 1);
+            setIsPrintActive(data.template.is_print_active !== 0);
+            setIsWebActive(data.template.is_web_active !== 0);
 
             // 데이터 존재 여부에 따른 타겟 자동 체크 제어 (데이터가 존재하는 것만 활성화)
             const hasPrint = !!data.template.html_content;
             const hasWeb = !!data.template.web_html_content;
             if (hasPrint || hasWeb) {
-              setTargetPrint(hasPrint);
-              setTargetWeb(hasWeb);
+              setTargetPrint(hasPrint && data.template.is_print_active !== 0);
+              setTargetWeb(hasWeb && data.template.is_web_active !== 0);
             }
           }
         } catch (err) {
@@ -395,7 +399,9 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
           document_type: '',
           html_content: htmlContent,
           web_html_content: webHtmlContent,
-          is_active: isActive ? 1 : 0
+          is_active: isActive ? 1 : 0,
+          is_print_active: isPrintActive ? 1 : 0,
+          is_web_active: isWebActive ? 1 : 0
         })
       });
 
@@ -637,7 +643,26 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
                 </span>
                 
                 {/* 체크 박스 서클 */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
+                  <label 
+                    onClick={(e) => e.stopPropagation()} 
+                    className="flex items-center gap-1.5 cursor-pointer select-none text-[10px] bg-slate-950/50 px-2 py-0.5 rounded border border-slate-800 text-slate-300 hover:text-white"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isPrintActive}
+                      onChange={(e) => {
+                        if (!e.target.checked && !isWebActive) {
+                          alert('최소 하나 이상의 양식 형식(인쇄용 또는 웹용)은 사용하도록 설정되어야 합니다.');
+                          return;
+                        }
+                        setIsPrintActive(e.target.checked);
+                      }}
+                      className="w-3 h-3 rounded accent-violet-650 cursor-pointer"
+                    />
+                    <span>사용 중</span>
+                  </label>
+
                   {targetPrint && (
                     <span className="text-[9px] text-violet-400 font-extrabold uppercase tracking-wider bg-violet-950/50 px-2 py-0.5 rounded border border-violet-800/30">
                       수정 대상
@@ -715,7 +740,26 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
                 </span>
                 
                 {/* 체크 박스 서클 */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
+                  <label 
+                    onClick={(e) => e.stopPropagation()} 
+                    className="flex items-center gap-1.5 cursor-pointer select-none text-[10px] bg-slate-950/50 px-2 py-0.5 rounded border border-slate-800 text-slate-300 hover:text-white"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isWebActive}
+                      onChange={(e) => {
+                        if (!e.target.checked && !isPrintActive) {
+                          alert('최소 하나 이상의 양식 형식(인쇄용 또는 웹용)은 사용하도록 설정되어야 합니다.');
+                          return;
+                        }
+                        setIsWebActive(e.target.checked);
+                      }}
+                      className="w-3 h-3 rounded accent-emerald-600 cursor-pointer"
+                    />
+                    <span>사용 중</span>
+                  </label>
+
                   {targetWeb && (
                     <span className="text-[9px] text-emerald-400 font-extrabold uppercase tracking-wider bg-emerald-950/50 px-2 py-0.5 rounded border border-emerald-800/30">
                       수정 대상

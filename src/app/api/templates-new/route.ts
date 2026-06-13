@@ -650,7 +650,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const { id, template_name, html_content, web_html_content, webHtmlContent, document_type, is_active } = body;
+    const { id, template_name, html_content, web_html_content, webHtmlContent, document_type, is_active, is_print_active, is_web_active } = body;
 
     if (!template_name || !html_content) {
       return NextResponse.json({ success: false, error: '템플릿명과 HTML 내용은 필수입니다.' }, { status: 400 });
@@ -668,6 +668,8 @@ export async function POST(req: Request) {
         web_html_content: webHtml,
         document_type: document_type || '',
         is_active: is_active !== undefined ? Number(is_active) : 1,
+        is_print_active: is_print_active !== undefined ? Number(is_print_active) : 1,
+        is_web_active: is_web_active !== undefined ? Number(is_web_active) : 1,
         updated_at: timestamp,
         updated_by: username || 'admin'
       };
@@ -682,6 +684,8 @@ export async function POST(req: Request) {
         web_html_content: webHtml,
         document_type: document_type || '',
         is_active: is_active !== undefined ? Number(is_active) : 1,
+        is_print_active: is_print_active !== undefined ? Number(is_print_active) : 1,
+        is_web_active: is_web_active !== undefined ? Number(is_web_active) : 1,
         uuid: crypto.randomUUID(),
         updated_at: timestamp,
         updated_by: username || 'admin'

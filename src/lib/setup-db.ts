@@ -1236,6 +1236,8 @@ export async function setupDatabase() {
     { name: 'web_html_content', type: 'TEXT' },
     { name: 'document_type', type: 'TEXT' },
     { name: 'is_active', type: 'INTEGER', defaultValue: 1 },
+    { name: 'is_print_active', type: 'INTEGER', defaultValue: 1 },
+    { name: 'is_web_active', type: 'INTEGER', defaultValue: 1 },
     { name: 'uuid', type: 'TEXT' },
     { name: 'updated_at', type: 'TEXT' },
     { name: 'updated_by', type: 'TEXT' },
@@ -1826,6 +1828,14 @@ export async function setupDatabase() {
       if (!webTemplateCols.includes('web_html_content')) {
         db.exec("ALTER TABLE crm_web_templates ADD COLUMN web_html_content TEXT;");
         console.log('✓ In-app migration: added web_html_content to crm_web_templates');
+      }
+      if (!webTemplateCols.includes('is_print_active')) {
+        db.exec("ALTER TABLE crm_web_templates ADD COLUMN is_print_active INTEGER DEFAULT 1;");
+        console.log('✓ In-app migration: added is_print_active to crm_web_templates');
+      }
+      if (!webTemplateCols.includes('is_web_active')) {
+        db.exec("ALTER TABLE crm_web_templates ADD COLUMN is_web_active INTEGER DEFAULT 1;");
+        console.log('✓ In-app migration: added is_web_active to crm_web_templates');
       }
     } catch (e: any) {
       console.warn('⚠️ crm_web_templates migration check warning:', e.message);

@@ -13,6 +13,8 @@ function PrintViewContent() {
   
   // 인쇄 출력 모드 분기 상태: 'print' (클래식 A4) vs 'web' (세련된 모던 웹)
   const [printMode, setPrintMode] = useState<'print' | 'web'>('print');
+  const [isPrintActive, setIsPrintActive] = useState(true);
+  const [isWebActive, setIsWebActive] = useState(true);
   const [renderedHtml, setRenderedHtml] = useState<string>('');
   
   // 발급 완료 상태 기록 완료 여부
@@ -165,8 +167,18 @@ function PrintViewContent() {
         setWebTemplateHtml(template.web_html_content || ''); // 웹 전용 HTML 보존
         setCompanyProfileData(companyProfile);
 
-        // 만약 웹 양식이 메인으로 설정되어 있거나 웹 전용 인쇄가 주 목적일 경우 웹 탭 활성화 지원을 위해 상태 동기화
-        if (!template.html_content && template.web_html_content) {
+        // 개별 활성 상태 동기화
+        const printActive = template.is_print_active !== 0;
+        const webActive = template.is_web_active !== 0;
+        setIsPrintActive(printActive);
+        setIsWebActive(webActive);
+
+        // 사용 가능 상태에 따른 기본 printMode 분기 처리
+        if (!printActive && webActive) {
+          setPrintMode('web');
+        } else if (printActive && !webActive) {
+          setPrintMode('print');
+        } else if (!template.html_content && template.web_html_content) {
           setPrintMode('web');
         }
 
@@ -568,36 +580,52 @@ function PrintViewContent() {
           </div>
 
           {/* 출력용 포맷 탭 스위치 */}
-          <div className="flex bg-slate-950 p-1.5 rounded-xl shrink-0 gap-1.5 border border-slate-850">
-            <button
-              onClick={() => setPrintMode('print')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[10px] font-black transition cursor-pointer ${
-                printMode === 'print' 
-                  ? 'bg-violet-600 text-white shadow-sm shadow-violet-650/30' 
-                  : 'text-slate-400 hover:text-white bg-slate-900/40'
-              }`}
-            >
-              <Laptop className="w-3 h-3" />
-              인쇄용 A4 형식
-            </button>
-            <button
-              onClick={() => {
-                if (!webTemplateHtml) {
-                  alert('변환된 모던 웹페이지 템플릿이 존재하지 않습니다. 먼저 에디터에서 양식을 AI 분석해 주세요.');
-                  return;
-                }
-                setPrintMode('web');
-              }}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[10px] font-black transition cursor-pointer ${
-                printMode === 'web' 
-                  ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-650/30' 
-                  : 'text-slate-400 hover:text-white bg-slate-900/40'
-              }`}
-            >
-              <Globe className="w-3 h-3" />
-              모던 웹페이지 형식
-            </button>
-          </div>
+          {isPrintActive && isWebActive ? (
+            <div className="flex bg-slate-950 p-1.5 rounded-xl shrink-0 gap-1.5 border border-slate-850">
+              <button
+                onClick={() => setPrintMode('print')}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[10px] font-black transition cursor-pointer ${
+                  printMode === 'print' 
+                    ? 'bg-violet-600 text-white shadow-sm shadow-violet-650/30' 
+                    : 'text-slate-400 hover:text-white bg-slate-900/40'
+                }`}
+              >
+                <Laptop className="w-3 h-3" />
+                인쇄용 A4 형식
+              </button>
+              <button
+                onClick={() => {
+                  if (!webTemplateHtml) {
+                    alert('변환된 모던 웹페이지 템플릿이 존재하지 않습니다. 먼저 에디터에서 양식을 AI 분석해 주세요.');
+                    return;
+                  }
+                  setPrintMode('web');
+                }}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[10px] font-black transition cursor-pointer ${
+                  printMode === 'web' 
+                    ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-650/30' 
+                    : 'text-slate-400 hover:text-white bg-slate-900/40'
+                }`}
+              >
+                <Globe className="w-3 h-3" />
+                모던 웹페이지 형식
+              </button>
+            </div>
+          ) : (
+            <div className="text-[10px] font-black px-3.5 py-1.5 rounded-lg bg-slate-950 border border-slate-850 text-slate-350 flex items-center gap-1.5 select-none">
+              {isPrintActive ? (
+                <>
+                  <Laptop className="w-3 h-3 text-violet-400" />
+                  인쇄용 A4 형식 전용
+                </>
+              ) : (
+                <>
+                  <Globe className="w-3 h-3 text-emerald-400" />
+                  모던 웹페이지 형식 전용
+                </>
+              )}
+            </div>
+          )}
 
           {isLogged && (
             <span className="text-[9px] bg-emerald-950 text-emerald-400 border border-emerald-900 px-2 py-0.5 rounded font-extrabold">
