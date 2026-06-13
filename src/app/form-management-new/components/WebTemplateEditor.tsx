@@ -131,9 +131,17 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
           const data = await res.json();
           if (data.success && data.template) {
             setTemplateName(data.template.template_name);
-            setHtmlContent(data.template.html_content);
+            setHtmlContent(data.template.html_content || '');
             setWebHtmlContent(data.template.web_html_content || '');
             setIsActive(data.template.is_active === 1);
+
+            // 데이터 존재 여부에 따른 타겟 자동 체크 제어 (데이터가 존재하는 것만 활성화)
+            const hasPrint = !!data.template.html_content;
+            const hasWeb = !!data.template.web_html_content;
+            if (hasPrint || hasWeb) {
+              setTargetPrint(hasPrint);
+              setTargetWeb(hasWeb);
+            }
           }
         } catch (err) {
           console.error('템플릿 상세 로드 실패:', err);
@@ -268,8 +276,12 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
 
         const data = await res.json();
         if (data.success) {
-          setHtmlContent(data.html); // 인쇄용 HTML
-          setWebHtmlContent(data.webHtml || ''); // 웹용 HTML
+          if (targetPrint) {
+            setHtmlContent(data.html); // 인쇄용 HTML 업데이트
+          }
+          if (targetWeb) {
+            setWebHtmlContent(data.webHtml || ''); // 웹용 HTML 업데이트
+          }
           setDetectedFields(data.detectedFields || []);
           if (!templateName) {
             const defaultName = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
