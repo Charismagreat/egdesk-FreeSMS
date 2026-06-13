@@ -1,6 +1,6 @@
 /**
  * EGDesk User Data Configuration
- * Generated at: 2026-06-12T23:34:40.919Z
+ * Generated at: 2026-06-13T06:38:51.765Z
  *
  * This file contains type-safe definitions for your EGDesk tables.
  */
@@ -437,7 +437,7 @@ export const TABLES = {
   table60: {
     name: 'ai_token_usage_logs',
     displayName: 'AI 토큰 사용량 로그',
-    rowCount: 0,
+    rowCount: 6,
     columnCount: 16,
     columns: ['id', 'model', 'purpose', 'prompt_tokens', 'completion_tokens', 'total_tokens', 'user_name', 'menu_path', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
@@ -647,21 +647,21 @@ export const TABLES = {
   table90: {
     name: 'crm_web_form_logs',
     displayName: '웹 양식 발급대장',
-    rowCount: 23,
+    rowCount: 2,
     columnCount: 13,
     columns: ['id', 'template_id', 'record_id', 'record_name', 'print_data', 'issue_date', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table91: {
     name: 'crm_web_templates',
     displayName: '웹 양식 템플릿 마스터',
-    rowCount: 5,
+    rowCount: 1,
     columnCount: 12,
     columns: ['id', 'template_name', 'html_content', 'document_type', 'is_active', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table92: {
     name: 'system_settings',
     displayName: '시스템 설정',
-    rowCount: 1,
+    rowCount: 7,
     columnCount: 3,
     columns: ['id', 'key', 'value']
   } as TableDefinition,

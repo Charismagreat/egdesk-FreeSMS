@@ -204,53 +204,6 @@ export async function insertRows(
   tableName: string,
   rows: Array<Record<string, any>>
 ) {
-  if (typeof window === 'undefined') {
-    try {
-      const os = require('os');
-      const path = require('path');
-      const fs = require('fs');
-      const homeDir = os.homedir();
-      const appData = process.env.APPDATA || path.join(homeDir, 'AppData/Roaming');
-      const paths = [
-        path.join(appData, 'EGDesk/database/user_data.db'),
-        path.join(appData, 'egdesk/database/user_data.db')
-      ];
-      
-      let targetPath = '';
-      for (const p of paths) {
-        if (fs.existsSync(p)) {
-          targetPath = p;
-          break;
-        }
-      }
-      
-      if (!targetPath) {
-        targetPath = paths[0];
-      }
-
-      const normalizedPath = targetPath.replace(/\\/g, '/');
-      if (fs.existsSync(normalizedPath)) {
-        const Database = require('better-sqlite3');
-        const db = new Database(normalizedPath);
-        
-        db.transaction(() => {
-          for (const row of rows) {
-            const keys = Object.keys(row);
-            const columns = keys.join(', ');
-            const placeholders = keys.map(() => '?').join(', ');
-            const sql = `INSERT INTO ${tableName} (${columns}) VALUES (${placeholders})`;
-            db.prepare(sql).run(...keys.map(k => row[k]));
-          }
-        })();
-        
-        db.close();
-        return { success: true };
-      }
-    } catch (err) {
-      console.error('Direct DB insert failed in egdesk-helpers, falling back to MCP:', err);
-    }
-  }
-
   return callUserDataTool('user_data_insert_rows', {
     tableName,
     rows
@@ -268,62 +221,6 @@ export async function updateRows(
     filters?: Record<string, string>;
   }
 ) {
-  if (typeof window === 'undefined') {
-    try {
-      const os = require('os');
-      const path = require('path');
-      const fs = require('fs');
-      const homeDir = os.homedir();
-      const appData = process.env.APPDATA || path.join(homeDir, 'AppData/Roaming');
-      const paths = [
-        path.join(appData, 'EGDesk/database/user_data.db'),
-        path.join(appData, 'egdesk/database/user_data.db')
-      ];
-      
-      let targetPath = '';
-      for (const p of paths) {
-        if (fs.existsSync(p)) {
-          targetPath = p;
-          break;
-        }
-      }
-      
-      if (!targetPath) {
-        targetPath = paths[0];
-      }
-
-      const normalizedPath = targetPath.replace(/\\/g, '/');
-      if (fs.existsSync(normalizedPath)) {
-        const Database = require('better-sqlite3');
-        const db = new Database(normalizedPath);
-        
-        const keys = Object.keys(updates);
-        const setClause = keys.map(k => `${k} = ?`).join(', ');
-        const params: any[] = keys.map(k => updates[k]);
-        
-        let whereClause = '';
-        if (options.ids && options.ids.length > 0) {
-          whereClause = `id IN (${options.ids.map(() => '?').join(', ')})`;
-          params.push(...options.ids);
-        } else if (options.filters && Object.keys(options.filters).length > 0) {
-          const filterKeys = Object.keys(options.filters);
-          whereClause = filterKeys.map(k => `${k} = ?`).join(' AND ');
-          params.push(...filterKeys.map(k => options.filters![k]));
-        }
-        
-        if (whereClause) {
-          const sql = `UPDATE ${tableName} SET ${setClause} WHERE ${whereClause}`;
-          db.prepare(sql).run(...params);
-          db.close();
-          return { success: true };
-        }
-        db.close();
-      }
-    } catch (err) {
-      console.error('Direct DB update failed in egdesk-helpers, falling back to MCP:', err);
-    }
-  }
-
   return callUserDataTool('user_data_update_rows', {
     tableName,
     updates,

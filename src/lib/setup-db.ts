@@ -199,7 +199,7 @@ export async function setupDatabase() {
 
   // 11. System Settings Table
   await safeCreateTable('시스템 설정', [
-    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'id', type: 'TEXT', notNull: false }, // 하위 호환성 및 누락 에러 방지를 위해 Nullable로 변경
     { name: 'key', type: 'TEXT', notNull: true },
     { name: 'value', type: 'TEXT', notNull: true }
   ], { tableName: 'system_settings', uniqueKeyColumns: ['key'] });

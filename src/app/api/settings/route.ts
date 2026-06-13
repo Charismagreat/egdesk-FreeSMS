@@ -31,7 +31,8 @@ export async function POST(req: Request) {
     }
 
     await deleteRows('system_settings', { filters: { key } });
-    await insertRows('system_settings', [{ key, value }]);
+    // 신규 설치 환경의 system_settings 테이블 id 컬럼(NOT NULL 제약조건) 누락 에러 방지를 위해 id 값에 key 주입
+    await insertRows('system_settings', [{ id: key, key, value }]);
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
