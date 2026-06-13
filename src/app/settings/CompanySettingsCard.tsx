@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Building2, Save, CheckCircle2, AlertCircle, RefreshCw, Sparkles } from 'lucide-react';
+import { Building2, Save, CheckCircle2, AlertCircle, RefreshCw, Sparkles, Plus } from 'lucide-react';
 
 interface CompanyProfile {
   companyName: string;
@@ -12,6 +12,7 @@ interface CompanyProfile {
   email: string;
   sidebarMainTitle: string;
   sidebarSubTitle: string;
+  sealImages?: string[];
 }
 
 export default function CompanySettingsCard() {
@@ -24,6 +25,7 @@ export default function CompanySettingsCard() {
     email: 'chachogreat@gmail.com',
     sidebarMainTitle: 'EGDESK SMS',
     sidebarSubTitle: '우리 회사 스마트 AI 시스템',
+    sealImages: [],
   });
 
   const [loading, setLoading] = useState<boolean>(true);
@@ -75,6 +77,7 @@ export default function CompanySettingsCard() {
               email: parsed.email || 'chachogreat@gmail.com',
               sidebarMainTitle: parsed.sidebarMainTitle || 'EGDESK SMS',
               sidebarSubTitle: parsed.sidebarSubTitle || '우리 회사 스마트 AI 시스템',
+              sealImages: parsed.sealImages || [],
             });
           } catch (e) {
             console.error('회사 프로필 JSON 파싱 에러:', e);
@@ -90,6 +93,7 @@ export default function CompanySettingsCard() {
             email: 'chachogreat@gmail.com',
             sidebarMainTitle: 'EGDESK SMS',
             sidebarSubTitle: '우리 회사 스마트 AI 시스템',
+            sealImages: [],
           };
           setProfile(defaultVal);
           
@@ -527,6 +531,74 @@ export default function CompanySettingsCard() {
             />
           </div>
 
+        </div>
+
+        {/* 🏢 회사 도장 이미지 관리 (최대 3개) */}
+        <div className="bg-slate-50/50 border border-slate-100 p-4.5 rounded-2xl space-y-3 shrink-0">
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
+            회사 도장 이미지 관리 (배경이 투명한 PNG만 가능, 최대 3개)
+          </span>
+          
+          <div className="flex flex-wrap gap-4 items-center">
+            {/* 업로드된 도장 썸네일 표시 */}
+            {(profile.sealImages || []).map((seal, idx) => (
+              <div key={idx} className="relative w-20 h-20 border border-slate-200 bg-slate-100/50 rounded-xl flex items-center justify-center group overflow-hidden shadow-sm">
+                <img src={seal} alt={`회사 도장 ${idx + 1}`} className="max-w-[85%] max-h-[85%] object-contain" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newSeals = [...(profile.sealImages || [])];
+                    newSeals.splice(idx, 1);
+                    setProfile({ ...profile, sealImages: newSeals });
+                  }}
+                  className="absolute inset-0 bg-slate-900/60 text-white font-extrabold text-[10px] items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity flex cursor-pointer"
+                >
+                  삭제
+                </button>
+              </div>
+            ))}
+
+            {/* 업로드 버튼 */}
+            {(!profile.sealImages || profile.sealImages.length < 3) && (
+              <div
+                onClick={() => document.getElementById('company-seal-uploader')?.click()}
+                className="w-20 h-20 border-2 border-dashed border-slate-200 hover:border-indigo-400 bg-white rounded-xl flex flex-col items-center justify-center text-center cursor-pointer transition-colors group"
+                title="도장 업로드"
+              >
+                <Plus className="w-5 h-5 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+                <span className="text-[8px] text-slate-400 font-bold mt-1.5">PNG 업로드</span>
+                <input
+                  type="file"
+                  id="company-seal-uploader"
+                  accept="image/png"
+                  onChange={async (e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      const file = e.target.files[0];
+                      if (file.type !== 'image/png') {
+                        alert('⚠️ 배경이 투명한 PNG 형식의 도장 파일만 등록할 수 있습니다.');
+                        return;
+                      }
+                      const reader = new FileReader();
+                      reader.onload = (ev) => {
+                        const base64 = ev.target?.result as string;
+                        const currentSeals = profile.sealImages || [];
+                        setProfile({
+                          ...profile,
+                          sealImages: [...currentSeals, base64]
+                        });
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  className="hidden"
+                />
+              </div>
+            )}
+          </div>
+          <span className="text-[9px] text-slate-400 font-semibold block leading-relaxed">
+            ※ 배경 투명화 처리가 완료된 PNG 형태의 도장(직인) 이미지를 업로드해 주세요. 뉴 양식관리 AI 에디터에서 선택하여 양식에 바로 삽입할 수 있습니다.
+          </span>
         </div>
 
         {/* 저장 알림 메시지 */}

@@ -20,7 +20,8 @@ import {
   Database,
   History,
   Info,
-  Copy
+  Copy,
+  Download
 } from 'lucide-react';
 
 import WebTemplateEditor from './components/WebTemplateEditor';
@@ -56,6 +57,11 @@ export default function FormManagementNewPage() {
   const [logs, setLogs] = useState<PrintLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [logsLoading, setLogsLoading] = useState(false);
+  
+  // 발급/출력 이력 조회 관련 상태 (검색, 페이징)
+  const [logSearchQuery, setLogSearchQuery] = useState('');
+  const [logCurrentPage, setLogCurrentPage] = useState(1);
+  const [logPerPage, setLogPerPage] = useState(10);
   
   // 편집용 상태
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | undefined>(undefined);
@@ -113,7 +119,7 @@ export default function FormManagementNewPage() {
     }
   };
 
-  // 발급대장 목록 로드
+  // 발급/출력 이력 목록 로드
   const loadLogs = async () => {
     setLogsLoading(true);
     try {
@@ -122,7 +128,7 @@ export default function FormManagementNewPage() {
       if (data.success) {
         setLogs(data.logs || []);
       } else {
-        console.error('발급 대장 조회 실패:', data.error);
+        console.error('발급/출력 이력 조회 실패:', data.error);
       }
     } catch (e) {
       console.error(e);
@@ -140,6 +146,79 @@ export default function FormManagementNewPage() {
       loadLogs();
     }
   }, [activeTab]);
+
+  // 발급/출력 이력 실시간 검색 필터링 로직
+  const filteredLogs = logs.filter((log) => {
+    const query = logSearchQuery.toLowerCase().trim();
+    if (!query) return true;
+    
+    return (
+      (log.template_name && log.template_name.toLowerCase().includes(query)) ||
+      (log.record_id && log.record_id.toLowerCase().includes(query)) ||
+      (log.record_name && log.record_name.toLowerCase().includes(query)) ||
+      (log.updated_by && log.updated_by.toLowerCase().includes(query)) ||
+      (log.document_type && log.document_type.toLowerCase().includes(query)) ||
+      String(log.id).includes(query)
+    );
+  });
+
+  // 페이징 계산
+  const totalLogPages = Math.ceil(filteredLogs.length / logPerPage) || 1;
+  const pagedLogs = filteredLogs.slice(
+    (logCurrentPage - 1) * logPerPage,
+    logCurrentPage * logPerPage
+  );
+
+  // 엑셀(CSV) 다운로드 함수
+  const handleDownloadExcel = () => {
+    if (filteredLogs.length === 0) {
+      alert('다운로드할 발급/출력 이력이 없습니다.');
+      return;
+    }
+    
+    // CSV 헤더 정의
+    const headers = ['발급/출력번호', '양식 템플릿명', '연동 데이터 소스', '출력 대상 식별(ID)', '대상 명칭', '출력 담당자', '출력 일자'];
+    
+    // 데이터 행 생성
+    const rows = filteredLogs.map(log => [
+      log.id,
+      log.template_name || '(삭제된 양식)',
+      log.document_type || 'AI 동적 쿼리',
+      log.record_id,
+      log.record_name,
+      log.updated_by,
+      log.issue_date
+    ]);
+    
+    // CSV 포맷팅 (쉼표 및 개행 처리, 한글 및 특수문자 안전 처리)
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(val => {
+        const strVal = String(val === null || val === undefined ? '' : val);
+        return `"${strVal.replace(/"/g, '""')}"`;
+      }).join(','))
+    ].join('\r\n');
+    
+    // 한글 깨짐 방지 BOM 추가
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    // 파일명 생성 (YYYYMMDD 포맷)
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const filename = `발급_출력대장_출력로그_${yyyy}${mm}${dd}.csv`;
+    
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   // 템플릿 삭제 (소프트 삭제)
   const handleDeleteTemplate = async (id: number, name: string) => {
@@ -358,7 +437,7 @@ export default function FormManagementNewPage() {
           </div>
           {viewMode === 'list' && (
             <p className="text-xs font-semibold text-slate-500 mt-1">
-              최고관리자가 등록한 HTML 기반 반응형 웹 양식을 통해 사내 대장을 출력하고 안전하게 발급 로그를 저장 관리합니다.
+              최고관리자가 등록한 HTML 기반 반응형 웹 양식을 통해 사내 대장을 출력하고 안전하게 발급/출력 로그를 저장 관리합니다.
             </p>
           )}
         </div>
@@ -379,7 +458,7 @@ export default function FormManagementNewPage() {
 
       {viewMode === 'list' ? (
         <div className="flex-1 min-h-0 overflow-y-auto pt-4 pb-10 space-y-6">
-          {/* 탭 컨트롤러 (양식 템플릿 목록 vs 발급 대장) */}
+          {/* 탭 컨트롤러 (양식 템플릿 목록 vs 발급/출력 이력) */}
           <div className="flex border-b border-slate-200 gap-1.5 p-1 bg-slate-50 rounded-2xl w-fit">
             <button
               onClick={() => setActiveTab('templates')}
@@ -401,7 +480,7 @@ export default function FormManagementNewPage() {
               }`}
             >
               <History className="w-4 h-4 text-indigo-600" />
-              발급 대장 조회 (출력 로그)
+              발급/출력 이력 조회
             </button>
           </div>
 
@@ -412,10 +491,10 @@ export default function FormManagementNewPage() {
               <div className="p-4 rounded-2xl bg-violet-50/50 border border-violet-100/80 flex items-start gap-3">
                 <Info className="w-5 h-5 text-violet-600 shrink-0 mt-0.5" />
                 <div className="text-xs text-violet-850 space-y-1 font-bold">
-                  <p className="font-extrabold text-violet-900">💡 반응형 웹 양식 발급 방법</p>
+                  <p className="font-extrabold text-violet-900">💡 웹 양식 발급/출력 방법</p>
                   <p className="font-semibold text-violet-850/80">1. 최고관리자가 양식 파일을 업로드하여 AI 분석 후 HTML 디자인 양식으로 등록합니다.</p>
                   <p className="font-semibold text-violet-850/80">2. 사용자는 [양식 출력]을 클릭하여 바인딩에 필요한 사원 정보 또는 고객 데이터를 매핑 선택합니다.</p>
-                  <p className="font-semibold text-violet-850/80">3. 독립 브라우저 팝업창에서 Mustache 렌더링된 완벽한 A4 문서를 인쇄 출력할 수 있으며, 이력은 발급대장에 안전하게 적재됩니다.</p>
+                  <p className="font-semibold text-violet-850/80">3. 독립 브라우저 팝업창에서 Mustache 렌더링된 완벽한 A4 문서를 인쇄 출력할 수 있으며, 이력은 발급/출력 이력에 안전하게 적재됩니다.</p>
                 </div>
               </div>
 
@@ -533,58 +612,173 @@ export default function FormManagementNewPage() {
             </div>
           )}
 
-          {/* 탭 내용 2: 발급 대장 조회 */}
+          {/* 탭 내용 2: 발급/출력 이력 조회 */}
           {activeTab === 'logs' && (
             <div className="space-y-6">
-              {/* 발급대장 안내 정보 */}
+              {/* 발급/출력 안내 */}
               <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100 flex items-start gap-3">
                 <History className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
                 <div className="text-xs text-indigo-850 font-bold">
-                  <p className="font-extrabold text-indigo-900">발급 이력 감사 데이터 대장</p>
-                  <p className="font-semibold text-indigo-850/80 mt-1">임직원 또는 사용자가 새로운 HTML 양식을 출력할 때마다 출력 시점에 바인딩되었던 원본 데이터와 함께 발급 기록이 보관됩니다.</p>
+                  <p className="font-extrabold text-indigo-900">발급/출력 이력 감사 데이터 대장</p>
+                  <p className="font-semibold text-indigo-850/80 mt-1">임직원 또는 사용자가 새로운 HTML 양식을 출력할 때마다 출력 시점에 바인딩되었던 원본 데이터와 함께 발급/출력 기록이 보관됩니다.</p>
                 </div>
               </div>
 
               {logsLoading ? (
                 <div className="flex flex-col items-center justify-center py-20 text-slate-400">
                   <RefreshCw className="w-10 h-10 animate-spin text-indigo-600 mb-3" />
-                  <p className="text-sm font-semibold">발급 대장을 로드하는 중...</p>
+                  <p className="text-sm font-semibold">발급/출력 이력을 로드하는 중...</p>
                 </div>
               ) : logs.length === 0 ? (
                 <div className="text-center py-20 border border-slate-100 bg-white rounded-3xl text-slate-400">
                   <AlertCircle className="w-12 h-12 text-slate-300 mx-auto mb-2" />
-                  <p className="text-sm font-black text-slate-500">조회할 발급 이력이 없습니다</p>
-                  <p className="text-xs text-slate-400 mt-1">출력 완료 시 여기에 발급 로그가 기록됩니다.</p>
+                  <p className="text-sm font-black text-slate-500">조회할 발급/출력 이력이 없습니다</p>
+                  <p className="text-xs text-slate-400 mt-1">출력 완료 시 여기에 발급/출력 로그가 기록됩니다.</p>
                 </div>
               ) : (
-                <div className="border border-slate-100 rounded-3xl overflow-hidden bg-white shadow-sm">
-                  <table className="w-full border-collapse text-left text-xs font-semibold">
-                    <thead>
-                      <tr className="bg-slate-50 text-slate-400 font-bold border-b border-slate-100">
-                        <th className="p-4 text-center">발급번호</th>
-                        <th className="p-4">양식 템플릿명</th>
-                        <th className="p-4">연동 데이터 소스</th>
-                        <th className="p-4">출력 대상 식별(ID)</th>
-                        <th className="p-4">대상 명칭</th>
-                        <th className="p-4">출력 담당자</th>
-                        <th className="p-4 text-center">출력 일자</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {logs.map(log => (
-                        <tr key={log.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition">
-                          <td className="p-4 text-center font-mono text-slate-400">{log.id}</td>
-                          <td className="p-4 font-bold text-slate-800">{log.template_name || '(삭제된 양식)'}</td>
-                          <td className="p-4 text-slate-500 font-semibold">{log.document_type || 'AI 동적 쿼리'}</td>
-                          <td className="p-4 font-mono font-bold text-indigo-600">{log.record_id}</td>
-                          <td className="p-4 font-bold text-slate-800">{log.record_name}</td>
-                          <td className="p-4 text-slate-600">{log.updated_by}</td>
-                          <td className="p-4 text-center text-slate-500">{log.issue_date}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <>
+                  {/* 검색 및 엑셀 다운로드 제어부 */}
+                  <div className="flex flex-col md:flex-row gap-3 justify-between items-center bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                    {/* 검색 필터 */}
+                    <div className="relative w-full md:w-80">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none">
+                        <Search className="w-4 h-4 text-slate-400" />
+                      </span>
+                      <input
+                        type="text"
+                        placeholder="템플릿명, ID, 대상자, 담당자 검색..."
+                        value={logSearchQuery}
+                        onChange={(e) => {
+                          setLogSearchQuery(e.target.value);
+                          setLogCurrentPage(1); // 검색 시 1페이지로 리셋
+                        }}
+                        className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:border-violet-500 focus:bg-white focus:outline-none text-xs font-semibold text-slate-800 transition"
+                      />
+                    </div>
+
+                    {/* 페이지당 표시 개수 & 엑셀 다운로드 버튼 */}
+                    <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+                      <select
+                        value={logPerPage}
+                        onChange={(e) => {
+                          setLogPerPage(Number(e.target.value));
+                          setLogCurrentPage(1);
+                        }}
+                        className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:border-violet-500 cursor-pointer"
+                      >
+                        <option value={10}>10개씩 보기</option>
+                        <option value={30}>30개씩 보기</option>
+                        <option value={50}>50개씩 보기</option>
+                      </select>
+                      <button
+                        onClick={handleDownloadExcel}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs transition shadow-sm cursor-pointer"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        엑셀 다운로드
+                      </button>
+                    </div>
+                  </div>
+
+                  {filteredLogs.length === 0 ? (
+                    <div className="text-center py-20 border border-slate-100 bg-white rounded-3xl text-slate-400 w-full">
+                      <Search className="w-10 h-10 text-slate-350 mx-auto mb-2" />
+                      <p className="text-sm font-black text-slate-500">검색 조건에 맞는 발급/출력 이력이 없습니다</p>
+                      <p className="text-xs text-slate-400 mt-1">검색어를 다른 단어로 변경해 보세요.</p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* 테이블 영역 */}
+                      <div className="border border-slate-100 rounded-3xl overflow-hidden bg-white shadow-sm">
+                        <table className="w-full border-collapse text-left text-xs font-semibold">
+                          <thead>
+                            <tr className="bg-slate-50 text-slate-400 font-bold border-b border-slate-100">
+                              <th className="p-4 text-center">발급/출력번호</th>
+                              <th className="p-4">양식 템플릿명</th>
+                              <th className="p-4">연동 데이터 소스</th>
+                              <th className="p-4">출력 대상 식별(ID)</th>
+                              <th className="p-4">대상 명칭</th>
+                              <th className="p-4">출력 담당자</th>
+                              <th className="p-4 text-center">출력 일자</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {pagedLogs.map(log => (
+                              <tr key={log.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition">
+                                <td className="p-4 text-center font-mono text-slate-400">{log.id}</td>
+                                <td className="p-4 font-bold text-slate-800">{log.template_name || '(삭제된 양식)'}</td>
+                                <td className="p-4 text-slate-500 font-semibold">{log.document_type || 'AI 동적 쿼리'}</td>
+                                <td className="p-4 font-mono font-bold text-indigo-600">{log.record_id}</td>
+                                <td className="p-4 font-bold text-slate-800">{log.record_name}</td>
+                                <td className="p-4 text-slate-600">{log.updated_by}</td>
+                                <td className="p-4 text-center text-slate-500">{log.issue_date}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* 페이지네이션 패널 */}
+                      <div className="flex flex-col sm:flex-row items-center justify-between bg-white px-6 py-4 border border-slate-100 rounded-3xl shadow-sm gap-4">
+                        <div className="text-xs text-slate-550 font-semibold">
+                          전체 <span className="text-indigo-600 font-extrabold">{filteredLogs.length}</span>건 중{' '}
+                          <span className="text-slate-850 font-extrabold">
+                            {Math.min((logCurrentPage - 1) * logPerPage + 1, filteredLogs.length)}
+                          </span>
+                          {' '}-{' '}
+                          <span className="text-slate-850 font-extrabold">
+                            {Math.min(logCurrentPage * logPerPage, filteredLogs.length)}
+                          </span>
+                          건 표시
+                        </div>
+                        
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => setLogCurrentPage(Math.max(1, logCurrentPage - 1))}
+                            disabled={logCurrentPage === 1}
+                            className="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer text-xs font-extrabold"
+                          >
+                            이전
+                          </button>
+                          
+                          {Array.from({ length: totalLogPages }).map((_, idx) => {
+                            const pageNum = idx + 1;
+                            const isVisible = pageNum === 1 || pageNum === totalLogPages || Math.abs(logCurrentPage - pageNum) <= 2;
+                            
+                            if (!isVisible) {
+                              if (pageNum === 2 || pageNum === totalLogPages - 1) {
+                                return <span key={`dots-${pageNum}`} className="px-2 text-slate-400 text-xs font-bold">...</span>;
+                              }
+                              return null;
+                            }
+
+                            return (
+                              <button
+                                key={pageNum}
+                                onClick={() => setLogCurrentPage(pageNum)}
+                                className={`w-8 h-8 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center border ${
+                                  logCurrentPage === pageNum
+                                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-600/10'
+                                    : 'bg-white border-slate-200 text-slate-650 hover:bg-slate-50'
+                                }`}
+                              >
+                                {pageNum}
+                              </button>
+                            );
+                          })}
+                          
+                          <button
+                            onClick={() => setLogCurrentPage(Math.min(totalLogPages, logCurrentPage + 1))}
+                            disabled={logCurrentPage === totalLogPages}
+                            className="px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer text-xs font-extrabold"
+                          >
+                            다음
+                          </button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -612,7 +806,7 @@ export default function FormManagementNewPage() {
               <div>
                 <h3 className="text-lg font-black flex items-center gap-2 text-slate-900">
                   <Printer className="w-5 h-5 text-violet-600 animate-pulse" />
-                  스마트 양식 인쇄 발급 마법사
+                  스마트 양식 인쇄 발급/출력 마법사
                 </h3>
                 <p className="text-xs text-slate-500 mt-1 font-semibold">
                   [{printTemplateName}] 양식을 안전하게 출력하기 위해 데이터를 조율하고 이력을 적재합니다.
@@ -634,9 +828,9 @@ export default function FormManagementNewPage() {
                 </div>
                 
                 <div className="text-center max-w-md">
-                  <h4 className="text-sm font-black text-slate-800">1단계: 발급 대상자 검색 및 AI 연동</h4>
+                  <h4 className="text-sm font-black text-slate-800">1단계: 발급/출력 대상자 검색 및 AI 연동</h4>
                   <p className="text-xs text-slate-500 mt-2 font-medium leading-relaxed">
-                    발급하고자 하는 임직원의 성명 또는 키워드를 입력하십시오. AI가 실시간으로 MY DB의 테이블 구조를 자동 스캔하여 적절한 조인 쿼리를 동적 생성 및 실행합니다.
+                    발급/출력하고자 하는 임직원의 성명 또는 키워드를 입력하십시오. AI가 실시간으로 MY DB의 테이블 구조를 자동 스캔하여 적절한 조인 쿼리를 동적 생성 및 실행합니다.
                   </p>
                 </div>
 
@@ -670,7 +864,7 @@ export default function FormManagementNewPage() {
                         onClick={handleForceManualConfigure}
                         className="text-[11px] text-violet-600 hover:text-violet-800 font-extrabold underline block transition"
                       >
-                        👉 DB 검색 건너뛰고, 정보 수기로 직접 채워 발급하기
+                        👉 DB 검색 건너뛰고, 정보 수기로 직접 채워 발급/출력하기
                       </button>
                     </div>
                   )}
@@ -769,7 +963,7 @@ export default function FormManagementNewPage() {
 
                   {/* 거주 주소 및 출력 용도 */}
                   <div className="space-y-3 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-left">
-                    <span className="text-[11px] font-black text-slate-400 block border-b border-slate-100 pb-1.5 uppercase tracking-wider">주소 및 발급 정보</span>
+                    <span className="text-[11px] font-black text-slate-400 block border-b border-slate-100 pb-1.5 uppercase tracking-wider">주소 및 발급/출력 정보</span>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 mb-1">거주 주소 (Address)</label>
                       <textarea
@@ -807,11 +1001,11 @@ export default function FormManagementNewPage() {
 
                   {/* 발급 회사 부서 정보 */}
                   <div className="space-y-3 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-left">
-                    <span className="text-[11px] font-black text-slate-400 block border-b border-slate-100 pb-1.5 uppercase tracking-wider">회사 발급부서 정보</span>
+                    <span className="text-[11px] font-black text-slate-400 block border-b border-slate-100 pb-1.5 uppercase tracking-wider">회사 발급/출력부서 정보</span>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 mb-1 flex items-center gap-1">
-                          발급 부서명
+                          발급/출력 부서명
                           <span className="text-amber-600 text-[7px] font-black bg-amber-100 px-1 py-0.5 rounded shrink-0">수기</span>
                         </label>
                         <input
@@ -823,7 +1017,7 @@ export default function FormManagementNewPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1">발급 연락처</label>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1">발급/출력 연락처</label>
                         <input
                           type="text"
                           value={manualData.issue_phone}

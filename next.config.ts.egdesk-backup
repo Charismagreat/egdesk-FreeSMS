@@ -28,6 +28,7 @@ const getLocalIPs = () => {
 console.log('🔍 DEBUG next.config: EGDESK_BASE_PATH env var =', process.env.EGDESK_BASE_PATH);
 
 const nextConfig = {
+  // Trigger config reload: 2026-06-12T14:28:00
   // Allow LAN/IP access to the dev server (Next.js 15+)
   allowedDevOrigins: getLocalIPs(),
   experimental: {

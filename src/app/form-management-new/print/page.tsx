@@ -24,11 +24,16 @@ function PrintViewContent() {
   const [scale, setScale] = useState(1);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
+  // 동적 콘텐츠 높이 감지 및 A4 핏 대응
+  const [contentWidth, setContentWidth] = useState(794);
+  const [contentHeight, setContentHeight] = useState(1123);
+
   // DB 및 localStorage에서 읽어온 상태 보존용
   const [rawData, setRawData] = useState<any>(null);
   const [templateHtml, setTemplateHtml] = useState<string>('');
   const [webTemplateHtml, setWebTemplateHtml] = useState<string>(''); // 웹 전용 HTML 템플릿
   const [companyProfileData, setCompanyProfileData] = useState<any>(null);
+  const [templateName, setTemplateName] = useState<string>(''); // 템플릿 이름 저장용
 
   // 수동 입력 값들 상태 관리 (Mustache 바인딩 상태 유지용)
   const [manualData, setManualData] = useState({
@@ -83,24 +88,31 @@ function PrintViewContent() {
     return `${formatDate(start)} ~ ${resignedDateStr ? formatDate(end) : '현재 재직 중'} (${periodText.trim()})`;
   };
 
-  // 브라우저 윈도우 크기 변화 감지하여 용지 축소 스케일 계산 (794x1123 A4 또는 모던 웹 기준)
+  // 브라우저 윈도우 크기 변화 감지하여 용지 축소 스케일 계산 (동적 콘텐츠 크기 대응)
   const handleResize = () => {
     const containerWidth = window.innerWidth;
     const containerHeight = window.innerHeight;
     
-    // 모드별 가로/세로 기준 설정 (A4는 794x1123, 웹 프리뷰는 800x1200 기준)
-    const targetWidth = printMode === 'print' ? 794 : 800;
-    const targetHeight = printMode === 'print' ? 1123 : 1200;
-    
     const availableWidth = containerWidth - 64;
     const availableHeight = containerHeight - 52 - 64;
     
-    const scaleX = availableWidth / targetWidth;
-    const scaleY = availableHeight / targetHeight;
+    const scaleX = availableWidth / contentWidth;
+    const scaleY = availableHeight / contentHeight;
     const computedScale = Math.min(scaleX, scaleY);
     
     setScale(Math.max(0.1, Math.min(computedScale, 1.0)));
   };
+
+  useEffect(() => {
+    // 모드 전환 시 기본 값 초기 세팅
+    if (printMode === 'print') {
+      setContentWidth(794);
+      setContentHeight(1123);
+    } else {
+      setContentWidth(794);
+      setContentHeight(1150);
+    }
+  }, [printMode]);
 
   useEffect(() => {
     handleResize();
@@ -108,7 +120,7 @@ function PrintViewContent() {
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-  }, [printMode]);
+  }, [printMode, contentWidth, contentHeight]);
 
   useEffect(() => {
     if (!templateId) {
@@ -166,6 +178,10 @@ function PrintViewContent() {
         setTemplateHtml(template.html_content);
         setWebTemplateHtml(template.web_html_content || ''); // 웹 전용 HTML 보존
         setCompanyProfileData(companyProfile);
+        setTemplateName(template.template_name || '');
+        if (typeof window !== 'undefined' && template.template_name) {
+          document.title = template.template_name;
+        }
 
         // 개별 활성 상태 동기화
         const printActive = template.is_print_active !== 0;
@@ -247,6 +263,91 @@ function PrintViewContent() {
       setRenderedHtml(compiled);
     }
   }, [manualData, loading, error, rawData, templateHtml, webTemplateHtml, companyProfileData, printMode]);
+
+  // renderedHtml이 변경되거나 로딩이 완료된 후 iframe 내부의 도장 위치 강제 앵커링 조치 (Card 자식으로 편입)
+  useEffect(() => {
+    if (!loading && !error && iframeRef.current) {
+      let attempts = 0;
+      const maxAttempts = 20; // 100ms * 20 = 2초간 폴링 대기
+
+      const handleAnchorSeal = () => {
+        try {
+          const iframe = iframeRef.current;
+          if (!iframe) return false;
+          const doc = iframe.contentDocument || iframe.contentWindow?.document;
+          if (!doc) return false;
+
+          const wrapper = doc.querySelector('.company-seal-wrapper') as HTMLElement;
+          const card = doc.querySelector('.card, .web-card, .page, [class*="page"], .A4, .a4') as HTMLElement;
+          
+          // 콘텐츠 실제 높이를 측정하여 동적 스케일 조율
+          const targetElement = card || doc.body;
+          if (targetElement) {
+            const actualWidth = printMode === 'print' ? 794 : (targetElement.offsetWidth || 800);
+            const actualHeight = targetElement.scrollHeight || targetElement.offsetHeight || 1123;
+            
+            // 무한 렌더링 루프 방지 조건
+            if (Math.abs(contentWidth - actualWidth) > 10 || Math.abs(contentHeight - actualHeight) > 10) {
+              setContentWidth(actualWidth);
+              setContentHeight(actualHeight);
+            }
+          }
+
+          if (wrapper && card) {
+            if (wrapper.parentElement !== card) {
+              const wrapperRect = wrapper.getBoundingClientRect();
+              const cardRect = card.getBoundingClientRect();
+              
+              // 렌더링 스케일(DPR 및 transform scale) 고려한 정확한 상대 좌표 복원
+              const scale = cardRect.width / card.offsetWidth || 1;
+              let relativeLeft = (wrapperRect.left - cardRect.left) / scale;
+              let relativeTop = (wrapperRect.top - cardRect.top) / scale;
+              
+              const cardHeight = card.offsetHeight || card.clientHeight || 1000;
+              
+              // 구버전 절대좌표 오염 검출 및 대표이사 성명 우측으로 강제 리셋
+              if (relativeTop > cardHeight - 120 || relativeTop > 800) {
+                relativeTop = cardHeight - 100;
+                relativeLeft = printMode === 'print' ? 520 : 320;
+                console.log(`⚠️ [Seal Anchor] 비정상적인 구버전 절대좌표를 대표이사 성명 우측으로 자동 리셋했습니다: left=${relativeLeft}px, top=${relativeTop}px`);
+              }
+              
+              card.appendChild(wrapper);
+              
+              wrapper.style.left = `${relativeLeft}px`;
+              wrapper.style.top = `${relativeTop}px`;
+              console.log(`✅ [Seal Anchor] 도장을 카드 내부로 상대좌표 보정 이동 완료: left=${relativeLeft}px, top=${relativeTop}px`);
+            }
+            return true;
+          }
+        } catch (e) {
+          console.warn('[Seal Anchor] 도장 앵커링 중 오류 발생:', e);
+        }
+        return false;
+      };
+
+      // 100ms 마다 DOM 렌더링 완료 상태를 폴링하여 체크
+      const intervalId = setInterval(() => {
+        const success = handleAnchorSeal();
+        attempts++;
+        if (success || attempts >= maxAttempts) {
+          clearInterval(intervalId);
+        }
+      }, 100);
+
+      const iframe = iframeRef.current;
+      const onLoadHandler = () => {
+        handleAnchorSeal();
+      };
+      iframe.addEventListener('load', onLoadHandler);
+      handleAnchorSeal(); // 즉시 실행
+
+      return () => {
+        clearInterval(intervalId);
+        iframe.removeEventListener('load', onLoadHandler);
+      };
+    }
+  }, [renderedHtml, loading, error, printMode]);
 
   // Mustache 치환 엔진
   const compileMustache = (html: string, data: Record<string, any>) => {
@@ -392,6 +493,14 @@ function PrintViewContent() {
             margin: 0 !important;
           }
         }
+        /* 🏢 회사 도장 인쇄용 뷰 가이드라인 제거 */
+        .company-seal-wrapper {
+          border: none !important;
+          outline: none !important;
+        }
+        .seal-resizer {
+          display: none !important;
+        }
       </style>
     ` : `
       <style>
@@ -407,15 +516,24 @@ function PrintViewContent() {
           print-color-adjust: exact;
         }
         body {
-          padding: 40px 20px !important; /* 상하 여백을 확보해 렌더링 영역 확장 */
+          padding: 20px 10px !important; /* 상하 여백 압축 */
           overflow: hidden !important; /* 스크롤바 원천 제거 */
           display: flex !important;
           justify-content: center !important;
-          align-items: flex-start !important; /* 세로 정렬 시 위쪽이 잘리지 않도록 상단 정렬 */
+          align-items: flex-start !important; /* 상단 정렬하여 윗 공간 둥둥 뜸 현상 해결 */
         }
         /* 화면 프리뷰 상태에서도 아래 직인 영역이 잘리지 않도록 간격을 조율 */
         .card, .web-card {
           box-sizing: border-box !important;
+          position: relative !important;
+          width: 794px !important; /* A4 가로폭인 794px로 고정 */
+          max-width: 794px !important;
+          height: auto !important; /* 고정 높이 제거하여 콘텐츠 내용이 다 나오도록 함 */
+          min-height: 1000px !important; /* 최소 높이 보장 */
+          padding: 40px 30px !important; /* 내부 패딩 조율 */
+          background-color: #ffffff !important;
+          border-radius: 12px !important;
+          box-shadow: 0 10px 25px rgba(0,0,0,0.05) !important;
         }
         .header {
           margin-bottom: 25px !important;
@@ -439,7 +557,7 @@ function PrintViewContent() {
         .footer-brand {
           margin-top: 35px !important;
         }
-        /* 인쇄 시 브라우저 머리글/바닥글 숨김 및 배경/여백 보정 */
+        /* 인쇄 시 브라우저 머리글/바닥글 숨김 및 화면 레이아웃과 100% 동기화 */
         @media print {
           * {
             -webkit-print-color-adjust: exact !important;
@@ -452,87 +570,115 @@ function PrintViewContent() {
           html, body {
             overflow: visible !important;
             height: auto !important;
-            background-color: #ffffff !important; /* 인쇄 시 배경을 흰색으로 변경 */
-            display: block !important; /* flex 정렬 해제 */
+            background-color: #ffffff !important;
+            display: flex !important;
+            justify-content: center !important;
+            align-items: flex-start !important;
           }
           body {
-            padding: 15mm 20mm !important; /* A4 맞춤 표준 안쪽 여백 */
+            padding: 20px 10px !important; /* 화면 프리뷰와 동일한 여백 보장 */
             margin: 0 !important;
           }
           .card, .web-card {
             border: none !important;
             box-shadow: none !important;
-            padding: 0 !important;
+            padding: 40px 30px !important; /* 화면 프리뷰와 동일한 패딩 유지하여 레이아웃 어긋남 방지 */
             margin: 0 !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            background: transparent !important;
+            width: 794px !important;
+            max-width: 794px !important;
+            background: #ffffff !important;
+            height: auto !important;
+            min-height: 1000px !important;
           }
-          /* 인쇄 시 모던 웹 템플릿의 전체적인 여백 및 마진 축소로 A4 1페이지 맞춤 대응 */
-          .header {
-            margin-bottom: 20px !important;
-            padding-bottom: 15px !important;
-          }
-          .header h1 {
-            font-size: 26px !important;
-          }
-          .section-title {
-            font-size: 13px !important;
-            margin-bottom: 12px !important;
-            margin-top: 20px !important;
-          }
-          .grid {
-            gap: 12px !important;
-            margin-bottom: 20px !important;
-          }
-          .field-value {
-            padding: 10px 12px !important;
-            font-size: 13px !important;
-            border: 1px solid #cbd5e1 !important; /* 배경 그래픽 해제 대비 테두리선 강화 */
-          }
-          .statement-box {
-            padding: 20px !important;
-            font-size: 15px !important;
-            margin: 25px 0 !important;
-            border: 1px solid #bfdbfe !important; /* 배경 그래픽 해제 대비 파란 테두리 추가 */
-          }
-          .meta-info {
-            margin-top: 20px !important;
-            padding-top: 15px !important;
-          }
-          .issuer-card {
-            padding: 16px !important;
-            margin-top: 15px !important;
-            border: 1px solid #cbd5e1 !important; /* 배경 그래픽 해제 대비 테두리선 강화 */
-          }
-          .issuer-grid {
-            gap: 12px !important;
-          }
-          .footer-brand {
-            margin-top: 30px !important;
-            padding-top: 15px !important;
-          }
+        }
+        /* 🏢 회사 도장 인쇄용 뷰 가이드라인 제거 */
+        .company-seal-wrapper {
+          border: none !important;
+          outline: none !important;
+        }
+        .seal-resizer {
+          display: none !important;
         }
       </style>
     `;
 
+    const autoAnchorScript = `
+      <script>
+        (function() {
+          function moveSeal() {
+            const wrapper = document.querySelector('.company-seal-wrapper');
+            const card = document.querySelector('.card, .web-card, .page, [class*="page"], .A4, .a4');
+            if (wrapper && card && wrapper.parentElement !== card) {
+              const wrapperRect = wrapper.getBoundingClientRect();
+              const cardRect = card.getBoundingClientRect();
+              const scale = cardRect.width / card.offsetWidth || 1;
+              let relativeLeft = (wrapperRect.left - cardRect.left) / scale;
+              let relativeTop = (wrapperRect.top - cardRect.top) / scale;
+              
+              const cardHeight = card.offsetHeight || card.clientHeight || 1000;
+              const cardWidth = card.offsetWidth || card.clientWidth || 800;
+              if (relativeTop > cardHeight - 120 || relativeTop > 800) {
+                relativeTop = cardHeight - 100;
+                const isPrint = cardWidth > 790 && cardWidth < 800;
+                relativeLeft = isPrint ? 520 : 320;
+              }
+              
+              card.appendChild(wrapper);
+              
+              wrapper.style.left = relativeLeft + 'px';
+              wrapper.style.top = relativeTop + 'px';
+            }
+          }
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', moveSeal);
+          } else {
+            moveSeal();
+          }
+        })();
+      </script>
+    `;
+
     if (hasHtmlTag) {
-      const headCloseIndex = renderedHtml.toLowerCase().indexOf('</head>');
-      if (headCloseIndex !== -1) {
-        return renderedHtml.substring(0, headCloseIndex) + inlineStyles + renderedHtml.substring(headCloseIndex);
+      let finalHtml = renderedHtml;
+      
+      // 타이틀 태그 주입 및 치환
+      const titleTag = `<title>${templateName || 'Print Document'}</title>`;
+      if (finalHtml.toLowerCase().includes('<title>') || finalHtml.toLowerCase().includes('<title ')) {
+        finalHtml = finalHtml.replace(/<title>[\s\S]*?<\/title>/gi, titleTag);
+        finalHtml = finalHtml.replace(/<title [^>]*>[\s\S]*?<\/title>/gi, titleTag);
+      } else {
+        const headCloseIndex = finalHtml.toLowerCase().indexOf('</head>');
+        if (headCloseIndex !== -1) {
+          finalHtml = finalHtml.substring(0, headCloseIndex) + titleTag + finalHtml.substring(headCloseIndex);
+        }
       }
-      return inlineStyles + renderedHtml;
+
+      const headCloseIndex = finalHtml.toLowerCase().indexOf('</head>');
+      if (headCloseIndex !== -1) {
+        finalHtml = finalHtml.substring(0, headCloseIndex) + inlineStyles + finalHtml.substring(headCloseIndex);
+      } else {
+        finalHtml = inlineStyles + finalHtml;
+      }
+      
+      const bodyCloseIndex = finalHtml.toLowerCase().indexOf('</body>');
+      if (bodyCloseIndex !== -1) {
+        finalHtml = finalHtml.substring(0, bodyCloseIndex) + autoAnchorScript + finalHtml.substring(bodyCloseIndex);
+      } else {
+        finalHtml = finalHtml + autoAnchorScript;
+      }
+      return finalHtml;
     } else {
       return `
         <!DOCTYPE html>
         <html>
           <head>
             <meta charset="utf-8">
-            <title>Print Document</title>
+            <title>${templateName || 'Print Document'}</title>
             ${inlineStyles}
           </head>
           <body>
             ${renderedHtml}
+            ${autoAnchorScript}
           </body>
         </html>
       `;
@@ -688,7 +834,7 @@ function PrintViewContent() {
         <div 
           style={{
             width: printMode === 'print' ? '794px' : '800px',
-            height: printMode === 'print' ? '1123px' : '1200px',
+            height: printMode === 'print' ? '1123px' : '1450px',
             transform: `scale(${scale})`,
             transformOrigin: 'top center',
             transition: 'transform 0.15s ease-out',
