@@ -434,7 +434,10 @@ export default function FormManagementNewPage() {
                     최고관리자 권한으로 첫 번째 웹 양식 파일(이미지/PDF)을 업로드하여 Gemini AI가 코딩한 반응형 문서를 획득해 보세요.
                   </p>
                   <button
-                    onClick={() => setViewMode('editor')}
+                    onClick={() => {
+                      setSelectedTemplateId(undefined);
+                      setViewMode('editor');
+                    }}
                     className="mt-6 px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white transition rounded-xl text-xs font-black cursor-pointer shadow-md"
                   >
                     양식 생성하기

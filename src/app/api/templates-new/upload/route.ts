@@ -83,6 +83,8 @@ Strict Constraints:
   - "detectedFields" (array of strings): The list of Mustache placeholders detected in both documents (e.g., "staff_name", "joined_date").
 - In both HTML codes, embed all CSS styles inside a <style> block within the <head>.
 - Detect document context (e.g., Certificate of Employment/재직증명서, Purchase Invoice/거래명세서) and insert appropriate Mustache placeholders like {{staff_name}}, {{joined_date}}, {{usage}}, etc.
+- DO NOT generate any system headers, navigation bars, footer bars, or operation buttons (such as "인쇄하기", "PDF 다운로드", "Print", "Download", "Save").
+- The "webHtml" should strictly contain ONLY the card body/form area of the document itself, without external system chrome/controls.
 `;
 
     if (!apiKey) {

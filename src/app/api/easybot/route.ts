@@ -370,27 +370,15 @@ If the user is asking about how to use the system, menus, manuals, guides, or tr
         const u = step1Data.usageMetadata;
         const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
         
-        const Database = require('better-sqlite3');
-        const os = require('os');
-        const path = require('path');
-        const homeDir = os.homedir();
-        const appData = process.env.APPDATA || path.join(homeDir, 'AppData/Roaming');
-        const dbPath = path.join(appData, 'EGDesk/database/user_data.db');
-        
-        const localDb = new Database(dbPath);
-        localDb.prepare(`
-          INSERT INTO ai_token_usage_logs (id, model, purpose, prompt_tokens, completion_tokens, total_tokens, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          `TK1-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-          selectedModel,
-          'easybot-sql-generation',
-          u.promptTokenCount || 0,
-          u.candidatesTokenCount || 0,
-          u.totalTokenCount || 0,
-          nowStr
-        );
-        localDb.close();
+        await insertRows('ai_token_usage_logs', [{
+          id: `TK1-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          model: selectedModel,
+          purpose: 'easybot-sql-generation',
+          prompt_tokens: u.promptTokenCount || 0,
+          completion_tokens: u.candidatesTokenCount || 0,
+          total_tokens: u.totalTokenCount || 0,
+          created_at: nowStr
+        }]);
       } catch (logErr: any) {
         console.error('Step 1 토큰 로깅 실패:', logErr);
         try {
@@ -630,27 +618,15 @@ ${JSON.stringify(localStorageContext, null, 2)}
         const u = step2Data.usageMetadata;
         const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
         
-        const Database = require('better-sqlite3');
-        const os = require('os');
-        const path = require('path');
-        const homeDir = os.homedir();
-        const appData = process.env.APPDATA || path.join(homeDir, 'AppData/Roaming');
-        const dbPath = path.join(appData, 'EGDesk/database/user_data.db');
-        
-        const localDb = new Database(dbPath);
-        localDb.prepare(`
-          INSERT INTO ai_token_usage_logs (id, model, purpose, prompt_tokens, completion_tokens, total_tokens, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          `TK2-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-          selectedModel,
-          'easybot-response',
-          u.promptTokenCount || 0,
-          u.candidatesTokenCount || 0,
-          u.totalTokenCount || 0,
-          nowStr
-        );
-        localDb.close();
+        await insertRows('ai_token_usage_logs', [{
+          id: `TK2-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          model: selectedModel,
+          purpose: 'easybot-response',
+          prompt_tokens: u.promptTokenCount || 0,
+          completion_tokens: u.candidatesTokenCount || 0,
+          total_tokens: u.totalTokenCount || 0,
+          created_at: nowStr
+        }]);
       } catch (logErr) {
         console.error('Step 2 토큰 로깅 실패:', logErr);
       }

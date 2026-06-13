@@ -1,6 +1,6 @@
 /**
  * EGDesk User Data Configuration
- * Generated at: 2026-06-12T00:27:58.800Z
+ * Generated at: 2026-06-12T23:34:40.919Z
  *
  * This file contains type-safe definitions for your EGDesk tables.
  */
@@ -22,296 +22,296 @@ export interface TableDefinition {
 
 export const TABLES = {
   table1: {
-    name: 'crm_employment_certificate_logs',
-    displayName: '재직증명서 발급대장',
-    rowCount: 0,
-    columnCount: 18,
-    columns: ['id', 'staff_id', 'staff_name', 'joined_date', 'degree_level', 'major_name', 'address', 'usage', 'issue_date', 'issue_dept', 'issue_by', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
-  } as TableDefinition,
-  table2: {
     name: 'crm_credential_audit_logs',
     displayName: '보안 인증 감사록',
     rowCount: 0,
     columnCount: 14,
     columns: ['id', 'credential_id', 'operator_id', 'operator_name', 'action_type', 'access_reason', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table3: {
+  table2: {
     name: 'crm_credential_emergency_requests',
     displayName: '보안 인증 비상 요청 대장',
     rowCount: 0,
     columnCount: 16,
     columns: ['id', 'credential_id', 'requester_id', 'request_reason', 'status', 'approved_by', 'approved_at', 'expires_at', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table4: {
+  table3: {
     name: 'crm_credential_vault',
     displayName: '보안 인증 정보 금고',
     rowCount: 0,
     columnCount: 18,
     columns: ['id', 'category', 'asset_name', 'login_id', 'encrypted_password', 'iv', 'auth_tag', 'remarks', 'owner_operator_id', 'status', 'created_at', 'updated_at', 'uuid', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table5: {
+  table4: {
     name: 'rnd_compliance_alarms',
     displayName: '규제 준수 모니터링 및 알림',
     rowCount: 1,
     columnCount: 10,
     columns: ['id', 'alarm_id', 'center_id', 'category', 'severity', 'message', 'due_date', 'is_resolved', 'resolved_at', 'created_at']
   } as TableDefinition,
-  table6: {
+  table5: {
     name: 'rnd_logs',
     displayName: 'R&D 연구개발 일지 및 AI 생성 데이터',
     rowCount: 2,
     columnCount: 16,
     columns: ['id', 'log_id', 'center_id', 'author_id', 'work_date', 'raw_source', 'raw_content', 'audio_file_url', 'ai_generated_title', 'ai_generated_content', 'approval_status', 'approver_id', 'approved_at', 'blockchain_hash', 'created_at', 'updated_at']
   } as TableDefinition,
-  table7: {
+  table6: {
     name: 'rnd_spaces',
     displayName: '연구 공간 자가 실사 및 Vision AI 분석 이력',
     rowCount: 1,
     columnCount: 12,
     columns: ['id', 'space_check_id', 'center_id', 'check_date', 'image_url_entrance', 'image_url_layout', 'ai_analysis_result', 'signage_status', 'partition_status', 'overall_status', 'inspector_notes', 'created_at']
   } as TableDefinition,
-  table8: {
+  table7: {
     name: 'rnd_staffs',
     displayName: '연구원 정보 및 자격 정보',
     rowCount: 4,
     columnCount: 13,
     columns: ['id', 'staff_id', 'center_id', 'user_id', 'staff_role', 'employment_status', 'degree_level', 'major_name', 'major_category', 'graduation_cert_ocr_json', 'qualification_status', 'joined_date', 'resigned_date']
   } as TableDefinition,
-  table9: {
+  table8: {
     name: 'rnd_centers',
     displayName: '기업부설연구소 기본 정보',
     rowCount: 1,
     columnCount: 12,
     columns: ['id', 'center_id', 'company_id', 'center_name', 'center_type', 'established_date', 'koita_reg_number', 'postal_code', 'address_road', 'address_detail', 'total_area_sqm', 'is_active']
   } as TableDefinition,
-  table10: {
+  table9: {
     name: 'crm_facility_predictive_part_rul',
     displayName: '설비 부품 수명 RUL',
     rowCount: 3,
     columnCount: 6,
     columns: ['id', 'equipmentId', 'partName', 'rulDays', 'status', 'percent']
   } as TableDefinition,
-  table11: {
+  table10: {
     name: 'crm_facility_predictive_fft',
     displayName: '설비 주파수 분석',
     rowCount: 4,
     columnCount: 5,
     columns: ['id', 'equipmentId', 'frequency', 'amplitude', 'label']
   } as TableDefinition,
-  table12: {
+  table11: {
     name: 'crm_facility_predictive_vibration',
     displayName: '설비 진동 센서 이력',
     rowCount: 6,
     columnCount: 4,
     columns: ['id', 'equipmentId', 'time', 'value']
   } as TableDefinition,
-  table13: {
+  table12: {
     name: 'crm_facility_predictive_summary',
     displayName: '설비 건전도 요약',
     rowCount: 1,
     columnCount: 5,
     columns: ['id', 'equipmentId', 'equipmentName', 'healthScore', 'vibrationRms']
   } as TableDefinition,
-  table14: {
+  table13: {
     name: 'crm_facility_repair_solutions',
     displayName: '설비 고장 해결 가이드',
     rowCount: 2,
     columnCount: 6,
     columns: ['id', 'errorCode', 'rootCause', 'actions', 'similarHistory', 'warehouse']
   } as TableDefinition,
-  table15: {
+  table14: {
     name: 'crm_facility_repair_logs',
     displayName: '설비 수리 이력 대장',
     rowCount: 1,
     columnCount: 9,
     columns: ['id', 'date', 'equipmentId', 'equipmentName', 'errorCode', 'symptom', 'repairDesc', 'mechanic', 'cost']
   } as TableDefinition,
-  table16: {
+  table15: {
     name: 'crm_facility_checklists',
     displayName: '설비 예방 점검 이력',
     rowCount: 0,
     columnCount: 8,
     columns: ['id', 'equipmentId', 'inspector', 'checks', 'signatureData', 'audioUrl', 'status', 'checkedAt']
   } as TableDefinition,
-  table17: {
+  table16: {
     name: 'crm_facilities',
     displayName: '설비 대장 관리',
     rowCount: 2,
     columnCount: 13,
     columns: ['id', 'name', 'manufacturer', 'model_name', 'serial_number', 'manufacture_year', 'specifications', 'location', 'status', 'health_score', 'vibration_rms', 'created_at', 'updated_at']
   } as TableDefinition,
-  table18: {
+  table17: {
     name: 'crm_quality_vision_logs',
     displayName: '품질 비전 판정 이력',
     rowCount: 3,
     columnCount: 8,
     columns: ['id', 'timestamp', 'itemName', 'anomalyScore', 'status', 'defectType', 'imageUrl', 'isReviewed']
   } as TableDefinition,
-  table19: {
+  table18: {
     name: 'crm_quality_vision_model',
     displayName: '품질 비전 AI 모델 상태',
     rowCount: 1,
     columnCount: 5,
     columns: ['id', 'activeModel', 'goldenSamplesCount', 'lastTrainedAt', 'anomalyThreshold']
   } as TableDefinition,
-  table20: {
+  table19: {
     name: 'crm_quality_spc_features',
     displayName: 'SPC 요인 중요도',
     rowCount: 4,
     columnCount: 4,
     columns: ['id', 'name', 'value', 'color']
   } as TableDefinition,
-  table21: {
+  table20: {
     name: 'crm_quality_spc_predictions',
     displayName: 'SPC 계측 예측',
     rowCount: 0,
     columnCount: 6,
     columns: ['id', 'batch', 'value', 'cpk', 'timestamp', 'risk']
   } as TableDefinition,
-  table22: {
+  table21: {
     name: 'crm_quality_spc_samples',
     displayName: 'SPC 계측 샘플',
     rowCount: 6,
     columnCount: 5,
     columns: ['id', 'batch', 'value', 'cpk', 'timestamp']
   } as TableDefinition,
-  table23: {
+  table22: {
     name: 'crm_quality_spc_config',
     displayName: 'SPC 공정 제어 설정',
     rowCount: 1,
     columnCount: 9,
     columns: ['id', 'targetValue', 'ucl', 'lcl', 'usl', 'lsl', 'currentCpk', 'cpkStatus', 'futureRiskProbability']
   } as TableDefinition,
-  table24: {
+  table23: {
     name: 'crm_quality_sensors_timeline',
     displayName: '센서 시계열',
     rowCount: 3,
     columnCount: 6,
     columns: ['id', 'time', 'vibration', 'current', 'temperature', 'anomalyScore']
   } as TableDefinition,
-  table25: {
+  table24: {
     name: 'crm_quality_sensors_contribution',
     displayName: '센서 기여도',
     rowCount: 3,
     columnCount: 3,
     columns: ['id', 'name', 'rate']
   } as TableDefinition,
-  table26: {
+  table25: {
     name: 'crm_quality_sensors_status',
     displayName: '설비 센서 상태',
     rowCount: 1,
     columnCount: 8,
     columns: ['id', 'equipmentName', 'operationalStatus', 'vibrationRms', 'motorCurrent', 'bearingTemp', 'anomalyScore', 'threshold']
   } as TableDefinition,
-  table27: {
+  table26: {
     name: 'crm_quality_ncr_similar_cases',
     displayName: '유사 NCR 사례',
     rowCount: 2,
     columnCount: 5,
     columns: ['id', 'title', 'similarity', 'rootCause', 'actionTaken']
   } as TableDefinition,
-  table28: {
+  table27: {
     name: 'crm_quality_ncr_items',
     displayName: 'NCR 부적합 내역',
     rowCount: 3,
     columnCount: 10,
     columns: ['id', 'date', 'itemName', 'defectCode', 'defectType', 'quantity', 'reporter', 'status', 'description', 'actionPlan']
   } as TableDefinition,
-  table29: {
+  table28: {
     name: 'crm_quality_checklist_submissions',
     displayName: '체크리스트 제출 내역',
     rowCount: 0,
     columnCount: 8,
     columns: ['id', 'lotNo', 'inspector', 'checkItems', 'signatureData', 'photoUrl', 'status', 'submittedAt']
   } as TableDefinition,
-  table30: {
+  table29: {
     name: 'crm_grant_company_profile',
     displayName: '지원금 매칭용 기업 프로필',
     rowCount: 1,
     columnCount: 7,
     columns: ['id', 'establishmentYear', 'employeeCount', 'patentsCount', 'femaleEmployeeRatio', 'youthEmployeeRatio', 'sector']
   } as TableDefinition,
-  table31: {
+  table30: {
     name: 'crm_grant_rnd_plans',
     displayName: '지원금 R&D 계획서',
     rowCount: 0,
     columnCount: 3,
     columns: ['id', 'announcement_id', 'plan_data']
   } as TableDefinition,
-  table32: {
+  table31: {
     name: 'crm_grant_bookmarks',
     displayName: '지원금 북마크',
     rowCount: 0,
     columnCount: 2,
     columns: ['id', 'announcement_id']
   } as TableDefinition,
-  table33: {
+  table32: {
     name: 'crm_grant_announcements',
     displayName: '정부 지원금 추천 공고',
     rowCount: 3,
     columnCount: 6,
     columns: ['id', 'title', 'agency', 'match_score', 'budget', 'end_date']
   } as TableDefinition,
-  table34: {
+  table33: {
     name: 'crm_recruitment_applicants',
     displayName: '채용 지원자 관리',
     rowCount: 0,
     columnCount: 15,
     columns: ['id', 'name', 'age', 'phone', 'experience', 'motivation', 'matching_score', 'status', 'signature_url', 'signed_at', 'resume_file_path', 'tech_stacks', 'interview_logs', 'ai_evaluation', 'created_at']
   } as TableDefinition,
-  table35: {
+  table34: {
     name: 'crm_financial_statements',
     displayName: '재무제표 관리',
     rowCount: 0,
     columnCount: 15,
     columns: ['id', 'company_id', 'company_type', 'fiscal_year', 'fiscal_quarter', 'total_assets', 'total_liabilities', 'total_equity', 'revenue', 'operating_income', 'net_income', 'pdf_file_path', 'parsed_raw_json', 'created_at', 'updated_at']
   } as TableDefinition,
-  table36: {
+  table35: {
     name: 'safety_inspect_logs',
     displayName: '안전점검 감사 대장',
     rowCount: 0,
     columnCount: 7,
     columns: ['id', 'inspect_title', 'inspect_date', 'inspector_name', 'checklist_json', 'fail_actions_json', 'created_at']
   } as TableDefinition,
-  table37: {
+  table36: {
     name: 'safety_near_misses',
     displayName: '아차사고 및 유해요소 제보 대장',
     rowCount: 1,
     columnCount: 11,
     columns: ['id', 'reporter_name', 'hazard_location', 'description', 'photo_url', 'risk_grade', 'action_status', 'action_description', 'action_photo_url', 'action_completed_at', 'created_at']
   } as TableDefinition,
-  table38: {
+  table37: {
     name: 'safety_tbm_logs',
     displayName: 'TBM 안전 교육 대장',
     rowCount: 1,
     columnCount: 8,
     columns: ['id', 'tbm_date', 'work_leader', 'weather_info', 'tbm_script', 'attendees_count', 'attendee_signatures', 'created_at']
   } as TableDefinition,
-  table39: {
+  table38: {
     name: 'safety_risk_assessments',
     displayName: 'AI 위험성평가서',
     rowCount: 1,
     columnCount: 8,
     columns: ['id', 'work_name', 'work_date', 'hazards_json', 'risk_level', 'evaluated_by', 'approved_at', 'status']
   } as TableDefinition,
-  table40: {
+  table39: {
     name: 'safety_policies',
     displayName: '안전보건방침 및 목표',
     rowCount: 1,
     columnCount: 6,
     columns: ['id', 'year', 'policy_title', 'targets_json', 'established_at', 'established_by']
   } as TableDefinition,
+  table40: {
+    name: 'crm_employment_certificate_logs',
+    displayName: '재직증명서 발급대장',
+    rowCount: 0,
+    columnCount: 19,
+    columns: ['id', 'staff_id', 'staff_name', 'joined_date', 'degree_level', 'major_name', 'address', 'usage', 'issue_date', 'issue_dept', 'issue_by', 'extra_data', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
+  } as TableDefinition,
   table41: {
     name: 'form_mappings',
     displayName: '양식 데이터 필드 매핑',
-    rowCount: 37,
+    rowCount: 0,
     columnCount: 16,
     columns: ['id', 'template_id', 'field_key', 'field_label', 'pos_x', 'pos_y', 'font_size', 'font_weight', 'text_align', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table42: {
     name: 'form_templates',
     displayName: '양식 템플릿 마스터',
-    rowCount: 6,
+    rowCount: 0,
     columnCount: 15,
     columns: ['id', 'template_name', 'document_type', 'file_path', 'orientation', 'is_active', 'query_sql', 'query_params', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
@@ -582,237 +582,251 @@ export const TABLES = {
     columns: ['id', 'username', 'password_hash', 'name', 'role', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table81: {
-    name: 'system_settings',
-    displayName: '시스템 설정',
-    rowCount: 8,
-    columnCount: 3,
-    columns: ['id', 'key', 'value']
-  } as TableDefinition,
-  table82: {
     name: 'crm_deliveries',
     displayName: '배송 내역',
     rowCount: 0,
     columnCount: 15,
     columns: ['id', 'customer_name', 'customer_phone', 'address', 'courier', 'tracking_number', 'status', 'order_id', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table83: {
+  table82: {
     name: 'crm_reservations',
     displayName: '예약 내역',
     rowCount: 0,
     columnCount: 14,
     columns: ['id', 'customer_name', 'customer_phone', 'service_name', 'reservation_date', 'reservation_time', 'status', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table84: {
+  table83: {
     name: 'crm_payments',
     displayName: '결제 내역',
     rowCount: 0,
     columnCount: 14,
     columns: ['id', 'customer_name', 'payment_method', 'amount', 'payment_date', 'status', 'order_id', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table85: {
+  table84: {
     name: 'crm_orders',
     displayName: '주문 내역',
     rowCount: 0,
     columnCount: 20,
     columns: ['id', 'customer_name', 'customer_phone', 'product_name', 'quantity', 'total_price', 'delivery_method', 'shipping_address', 'tracking_number', 'attachment_url', 'customer_memo', 'order_date', 'status', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table86: {
+  table85: {
     name: 'crm_transactions',
     displayName: '거래 내역',
     rowCount: 0,
     columnCount: 8,
     columns: ['id', 'customer_name', 'customer_phone', 'product_name', 'amount', 'order_date', 'status', 'order_id']
   } as TableDefinition,
-  table87: {
+  table86: {
     name: 'products',
     displayName: '광고 상품',
     rowCount: 0,
     columnCount: 19,
     columns: ['id', 'name', 'price', 'url', 'description', 'main_image_url', 'detail_image_url', 'available_methods', 'category', 'menu_category', 'is_coupon_excludable', 'is_estimate_price', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table88: {
+  table87: {
     name: 'ad_templates',
     displayName: '광고 템플릿',
     rowCount: 0,
     columnCount: 5,
     columns: ['id', 'name', 'header', 'footer', 'opt_out']
   } as TableDefinition,
-  table89: {
+  table88: {
     name: 'message_logs',
     displayName: '발송 내역',
     rowCount: 0,
     columnCount: 6,
     columns: ['id', 'customer_id', 'phone', 'message', 'status', 'created_at']
   } as TableDefinition,
-  table90: {
+  table89: {
     name: 'message_templates',
     displayName: '문자 템플릿',
     rowCount: 0,
     columnCount: 3,
     columns: ['id', 'title', 'content']
   } as TableDefinition,
+  table90: {
+    name: 'crm_web_form_logs',
+    displayName: '웹 양식 발급대장',
+    rowCount: 23,
+    columnCount: 13,
+    columns: ['id', 'template_id', 'record_id', 'record_name', 'print_data', 'issue_date', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
+  } as TableDefinition,
   table91: {
+    name: 'crm_web_templates',
+    displayName: '웹 양식 템플릿 마스터',
+    rowCount: 5,
+    columnCount: 12,
+    columns: ['id', 'template_name', 'html_content', 'document_type', 'is_active', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
+  } as TableDefinition,
+  table92: {
+    name: 'system_settings',
+    displayName: '시스템 설정',
+    rowCount: 1,
+    columnCount: 3,
+    columns: ['id', 'key', 'value']
+  } as TableDefinition,
+  table93: {
     name: 'crm_customers',
     displayName: '고객 명단',
     rowCount: 0,
     columnCount: 18,
     columns: ['id', 'name', 'phone', 'tags', 'memo', 'address', 'shipping_address', 'recipient_name', 'recipient_phone', 'point_balance', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table92: {
+  table94: {
     name: 'crm_finance_forecasts',
     displayName: '수금 및 지출 예정 대장',
     rowCount: 10,
     columnCount: 8,
     columns: ['id', 'date', 'type', 'title', 'partnerName', 'amount', 'isOverdue', 'contact']
   } as TableDefinition,
-  table93: {
+  table95: {
     name: 'crm_finance_products',
     displayName: '제품 원가 기초 데이터',
     rowCount: 4,
     columnCount: 7,
     columns: ['id', 'productId', 'productName', 'rawMaterialCost', 'laborCost', 'expenseCost', 'sellingPrice']
   } as TableDefinition,
-  table94: {
+  table96: {
     name: 'crm_facility_layout',
     displayName: '공장 설비 평면 배치 및 상태',
     rowCount: 5,
     columnCount: 6,
     columns: ['id', 'name', 'status', 'oee', 'x', 'y']
   } as TableDefinition,
-  table95: {
+  table97: {
     name: 'crm_facility_oee_downtime',
     displayName: '비가동 원인 통계',
     rowCount: 5,
     columnCount: 4,
     columns: ['id', 'reason', 'minutes', 'rate']
   } as TableDefinition,
-  table96: {
+  table98: {
     name: 'crm_facility_oee_stats',
     displayName: 'OEE 설비 종합 효율 통계',
     rowCount: 1,
     columnCount: 11,
     columns: ['id', 'overallOee', 'availability', 'performance', 'quality', 'totalLoaded', 'actualRun', 'plannedStop', 'breakdownStop', 'opportunityLossKrw', 'preventedLossKrw']
   } as TableDefinition,
-  table97: {
+  table99: {
     name: 'crm_facility_parts',
     displayName: '소모성 부품 재고 관리',
     rowCount: 3,
     columnCount: 7,
     columns: ['id', 'name', 'safetyStock', 'currentStock', 'unit', 'leadTimeDays', 'risk']
   } as TableDefinition,
-  table98: {
+  table100: {
     name: 'crm_facility_events',
     displayName: '월간 정비 일정',
     rowCount: 5,
     columnCount: 5,
     columns: ['id', 'date', 'title', 'type', 'assignee']
   } as TableDefinition,
-  table99: {
+  table101: {
     name: 'crm_production_due_risk',
     displayName: '납기 준수 위험 분석',
     rowCount: 3,
     columnCount: 5,
     columns: ['id', 'orderId', 'productName', 'probability', 'status']
   } as TableDefinition,
-  table100: {
+  table102: {
     name: 'crm_production_bottlenecks',
     displayName: '설비별 누적 로드 및 병목 지수',
     rowCount: 4,
     columnCount: 5,
     columns: ['id', 'name', 'loadRate', 'status', 'queueTasks']
   } as TableDefinition,
-  table101: {
+  table103: {
     name: 'crm_production_unscheduled_orders',
     displayName: '미배정 수주 대장',
     rowCount: 3,
     columnCount: 6,
     columns: ['id', 'orderId', 'productName', 'qty', 'dueDate', 'status']
   } as TableDefinition,
-  table102: {
+  table104: {
     name: 'crm_production_gantt_tasks',
     displayName: '생산 간트 차트 작업 목록',
     rowCount: 5,
     columnCount: 9,
     columns: ['id', 'title', 'equipmentId', 'equipmentName', 'operatorName', 'startHour', 'endHour', 'progress', 'status']
   } as TableDefinition,
-  table103: {
+  table105: {
     name: 'crm_partner_credit_risks',
     displayName: '거래처 신용 위험 및 연체 지표 대장',
     rowCount: 4,
     columnCount: 8,
     columns: ['id', 'overdue_amount', 'overdue_days', 'credit_rating', 'default_probability', 'risk_level', 'last_action', 'action_date']
   } as TableDefinition,
-  table104: {
+  table106: {
     name: 'crm_labor_contracts',
     displayName: '근로계약서 독소조항 스캔 현황',
     rowCount: 2,
     columnCount: 7,
     columns: ['id', 'clause_id', 'title', 'is_illegal', 'current_text', 'recommended_text', 'reason']
   } as TableDefinition,
-  table105: {
+  table107: {
     name: 'crm_labor_stats',
     displayName: '임직원 근태 리스크 요약',
     rowCount: 4,
     columnCount: 6,
     columns: ['id', 'weekly_hours', 'overtime_hours', 'lateness_count', 'early_leave_count', 'risk_level']
   } as TableDefinition,
-  table106: {
+  table108: {
     name: 'crm_scm_suppliers',
     displayName: '협력사 스코어카드',
     rowCount: 3,
     columnCount: 5,
     columns: ['id', 'supplier_name', 'delivery_rate', 'defect_rate', 'score']
   } as TableDefinition,
-  table107: {
+  table109: {
     name: 'crm_scm_shipments',
     displayName: '실시간 수입 조달 화물 리스트',
     rowCount: 3,
     columnCount: 7,
     columns: ['id', 'item_name', 'supplier_name', 'status', 'eta', 'delay_probability', 'current_step']
   } as TableDefinition,
-  table108: {
+  table110: {
     name: 'crm_safety_zones',
     displayName: '안전 제어 구역 설정',
     rowCount: 3,
     columnCount: 4,
     columns: ['id', 'zone_name', 'risk_score', 'status']
   } as TableDefinition,
-  table109: {
+  table111: {
     name: 'crm_safety_alerts',
     displayName: 'CCTV 비상 위험 알림 로그',
     rowCount: 2,
     columnCount: 6,
     columns: ['id', 'zone_name', 'alert_level', 'detector_type', 'created_at', 'is_resolved']
   } as TableDefinition,
-  table110: {
+  table112: {
     name: 'crm_energy_equipments',
     displayName: '에너지 소모 설비 대장',
     rowCount: 4,
     columnCount: 5,
     columns: ['id', 'equipment_name', 'status', 'current_load', 'monthly_bill']
   } as TableDefinition,
-  table111: {
+  table113: {
     name: 'crm_energy_savings',
     displayName: '에너지 절감 스케줄',
     rowCount: 1,
     columnCount: 4,
     columns: ['id', 'apply_date', 'saving_amount', 'is_active']
   } as TableDefinition,
-  table112: {
+  table114: {
     name: 'pms_projects',
     displayName: 'PMS 프로젝트 대장',
     rowCount: 1,
     columnCount: 13,
     columns: ['id', 'client', 'bizNo', 'name', 'type', 'dueDate', 'folderUrl', 'estimateUrl', 'status', 'createdAt', 'details', 'processStep', 'inboundChannel']
   } as TableDefinition,
-  table113: {
+  table115: {
     name: 'ecount_rpa_lock',
     displayName: '이카운트 RPA 실행 락',
     rowCount: 0,
     columnCount: 5,
     columns: ['id', 'is_locked', 'locked_by', 'locked_at', 'cooldown_until']
   } as TableDefinition,
-  table114: {
+  table116: {
     name: 'ecount_sync_schedules',
     displayName: '이카운트 ERP 동기화 스케줄',
     description: '이카운트 RPA 스크립트 백그라운드 자동 동기화 일정 저장소',
@@ -820,175 +834,175 @@ export const TABLES = {
     columnCount: 10,
     columns: ['id', 'script_file', 'script_title', 'target_table', 'period_preset', 'run_time', 'is_active', 'last_run_at', 'next_run_at', 'created_at']
   } as TableDefinition,
-  table115: {
+  table117: {
     name: 'crm_company_event_types',
     displayName: '회사 일정 유형 마스터 대장',
     rowCount: 6,
     columnCount: 7,
     columns: ['id', 'type_key', 'type_name', 'color_theme', 'is_system', 'created_at', 'updated_at']
   } as TableDefinition,
-  table116: {
+  table118: {
     name: 'crm_operator_ai_briefing_histories',
     displayName: '임직원 AI 전사 업무 분석 이력 대장',
     rowCount: 3,
     columnCount: 10,
     columns: ['id', 'target_year_month', 'risk_score', 'alert_title', 'alert_message', 'briefing_text', 'created_at', 'created_by', 'token_usage_input', 'token_usage_output']
   } as TableDefinition,
-  table117: {
+  table119: {
     name: 'crm_operator_projects',
     displayName: '임직원 참여 프로젝트 대장',
     rowCount: 4,
     columnCount: 10,
     columns: ['id', 'operator_id', 'project_name', 'role_in_project', 'start_date', 'end_date', 'contribution_rate', 'performance_score', 'performance_evaluation', 'outcome_link']
   } as TableDefinition,
-  table118: {
+  table120: {
     name: 'crm_operator_job_history',
     displayName: '임직원 담당업무 변경이력 대장',
     rowCount: 4,
     columnCount: 6,
     columns: ['id', 'operator_id', 'assignment_date', 'job_description', 'prev_job_description', 'is_current']
   } as TableDefinition,
-  table119: {
+  table121: {
     name: 'crm_operator_families',
     displayName: '임직원 부양가족 대장',
     rowCount: 4,
     columnCount: 8,
     columns: ['id', 'operator_id', 'relation_type', 'name', 'birth_date', 'phone_number', 'is_dependent', 'remarks']
   } as TableDefinition,
-  table120: {
+  table122: {
     name: 'crm_operator_reputations',
     displayName: '임직원 다차원 평판 대장',
     rowCount: 5,
     columnCount: 9,
     columns: ['id', 'operator_id', 'evaluation_date', 'evaluator_id', 'source_type', 'score', 'positive_feedback', 'constructive_feedback', 'updated_at']
   } as TableDefinition,
-  table121: {
+  table123: {
     name: 'crm_operator_incidents',
     displayName: '임직원 대내외 사건사고 대장',
     rowCount: 2,
     columnCount: 9,
     columns: ['id', 'operator_id', 'occurred_date', 'severity', 'title', 'description', 'status', 'outcome', 'updated_at']
   } as TableDefinition,
-  table122: {
+  table124: {
     name: 'crm_operator_medical',
     displayName: '임직원 병력 치료 대장',
     rowCount: 1,
     columnCount: 8,
     columns: ['id', 'operator_id', 'diagnosis_name', 'treatment_start_date', 'treatment_end_date', 'hospital_name', 'sick_leave_days', 'work_limitations']
   } as TableDefinition,
-  table123: {
+  table125: {
     name: 'crm_operator_family_events',
     displayName: '임직원 경조사 지원 대장',
     rowCount: 2,
     columnCount: 7,
     columns: ['id', 'operator_id', 'event_date', 'relation', 'type', 'congratulation_money', 'wreath_provided']
   } as TableDefinition,
-  table124: {
+  table126: {
     name: 'crm_operator_awards',
     displayName: '임직원 상벌 징계 대장',
     rowCount: 2,
     columnCount: 8,
     columns: ['id', 'operator_id', 'record_date', 'type', 'title', 'content', 'authority', 'remarks']
   } as TableDefinition,
-  table125: {
+  table127: {
     name: 'crm_operator_promotions',
     displayName: '임직원 승진발령 대장',
     rowCount: 2,
     columnCount: 8,
     columns: ['id', 'operator_id', 'change_date', 'prev_dept', 'next_dept', 'prev_role', 'next_role', 'promotion_reason']
   } as TableDefinition,
-  table126: {
+  table128: {
     name: 'crm_operator_salaries',
     displayName: '임직원 급여상여 이력 대장',
     rowCount: 6,
     columnCount: 12,
     columns: ['id', 'operator_id', 'payment_year_month', 'base_salary', 'bonus_amount', 'weekly_holiday_allowance', 'overtime_allowance', 'meal_allowance', 'deduction_amount', 'net_salary', 'payment_date', 'status']
   } as TableDefinition,
-  table127: {
+  table129: {
     name: 'crm_operator_careers',
     displayName: '임직원 이전경력 대장',
     rowCount: 3,
     columnCount: 9,
     columns: ['id', 'operator_id', 'company_name', 'department', 'job_title', 'join_date', 'retire_date', 'assigned_task', 'leaving_reason']
   } as TableDefinition,
-  table128: {
+  table130: {
     name: 'crm_operator_licenses',
     displayName: '임직원 자격면허 대장',
     rowCount: 6,
     columnCount: 7,
     columns: ['id', 'operator_id', 'license_name', 'issuer', 'license_no', 'acquisition_date', 'expiry_date']
   } as TableDefinition,
-  table129: {
+  table131: {
     name: 'crm_operator_education',
     displayName: '임직원 학력이력 대장',
     rowCount: 1,
     columnCount: 8,
     columns: ['id', 'operator_id', 'school_name', 'major', 'degree', 'entrance_date', 'graduation_date', 'status']
   } as TableDefinition,
-  table130: {
+  table132: {
     name: 'crm_operator_profiles',
     displayName: '임직원 인적사항 상세 대장',
     rowCount: 4,
     columnCount: 8,
     columns: ['id', 'operator_id', 'department', 'hire_date', 'commute_area', 'skills', 'backup_operator_id', 'updated_at']
   } as TableDefinition,
-  table131: {
+  table133: {
     name: 'crm_operator_contract_settings',
     displayName: '임직원 근로 계약 조건 대장',
     rowCount: 4,
     columnCount: 8,
     columns: ['id', 'operator_id', 'hourly_wage', 'weekly_hours', 'allow_weekly_holiday_paid', 'work_days', 'contract_memo', 'updated_at']
   } as TableDefinition,
-  table132: {
+  table134: {
     name: 'crm_company_events',
     displayName: '전사 회사 일정 공유 대장',
     rowCount: 3,
     columnCount: 8,
     columns: ['id', 'title', 'start_date', 'end_date', 'event_type', 'description', 'created_by', 'created_at']
   } as TableDefinition,
-  table133: {
+  table135: {
     name: 'crm_operator_leave_balances',
     displayName: '직원별 연차 잔액 관리',
     rowCount: 4,
     columnCount: 6,
     columns: ['id', 'operator_id', 'total_allowed', 'used', 'remaining', 'updated_at']
   } as TableDefinition,
-  table134: {
+  table136: {
     name: 'crm_annual_leaves',
     displayName: '직원 연차 신청 결재 대장',
     rowCount: 2,
     columnCount: 12,
     columns: ['id', 'operator_id', 'leave_type', 'start_date', 'end_date', 'days_spent', 'status', 'reason', 'reject_reason', 'approver_id', 'created_at', 'updated_at']
   } as TableDefinition,
-  table135: {
+  table137: {
     name: 'crm_attendance',
     displayName: '직원 근태 대장',
     rowCount: 7,
     columnCount: 10,
     columns: ['id', 'operator_id', 'work_date', 'clock_in', 'clock_out', 'status', 'working_hours', 'memo', 'created_at', 'updated_at']
   } as TableDefinition,
-  table136: {
+  table138: {
     name: 'user_feedbacks',
     displayName: '사용자 피드백 및 버그 제보',
     rowCount: 11,
     columnCount: 6,
     columns: ['id', 'user_prompt', 'detected_type', 'current_url', 'resolved_status', 'created_at']
   } as TableDefinition,
-  table137: {
+  table139: {
     name: 'tenant_menu_settings',
     displayName: '테넌트 메뉴 설정',
     rowCount: 0,
     columnCount: 5,
     columns: ['id', 'tenant_id', 'menu_href', 'is_enabled', 'sort_order']
   } as TableDefinition,
-  table138: {
+  table140: {
     name: 'exchange_rate_histories',
     displayName: '환율 변동 이력',
     rowCount: 440,
     columnCount: 5,
     columns: ['id', 'history_id', 'currency_code', 'rate_value', 'captured_date']
   } as TableDefinition,
-  table139: {
+  table141: {
     name: 'exchange_rates',
     displayName: '실시간 환율',
     rowCount: 4,
@@ -1009,46 +1023,46 @@ export function getTableByName(tableName: string): TableDefinition | undefined {
 
 // Export table names for easy access
 export const TABLE_NAMES = {
-  table1: 'crm_employment_certificate_logs',
-  table2: 'crm_credential_audit_logs',
-  table3: 'crm_credential_emergency_requests',
-  table4: 'crm_credential_vault',
-  table5: 'rnd_compliance_alarms',
-  table6: 'rnd_logs',
-  table7: 'rnd_spaces',
-  table8: 'rnd_staffs',
-  table9: 'rnd_centers',
-  table10: 'crm_facility_predictive_part_rul',
-  table11: 'crm_facility_predictive_fft',
-  table12: 'crm_facility_predictive_vibration',
-  table13: 'crm_facility_predictive_summary',
-  table14: 'crm_facility_repair_solutions',
-  table15: 'crm_facility_repair_logs',
-  table16: 'crm_facility_checklists',
-  table17: 'crm_facilities',
-  table18: 'crm_quality_vision_logs',
-  table19: 'crm_quality_vision_model',
-  table20: 'crm_quality_spc_features',
-  table21: 'crm_quality_spc_predictions',
-  table22: 'crm_quality_spc_samples',
-  table23: 'crm_quality_spc_config',
-  table24: 'crm_quality_sensors_timeline',
-  table25: 'crm_quality_sensors_contribution',
-  table26: 'crm_quality_sensors_status',
-  table27: 'crm_quality_ncr_similar_cases',
-  table28: 'crm_quality_ncr_items',
-  table29: 'crm_quality_checklist_submissions',
-  table30: 'crm_grant_company_profile',
-  table31: 'crm_grant_rnd_plans',
-  table32: 'crm_grant_bookmarks',
-  table33: 'crm_grant_announcements',
-  table34: 'crm_recruitment_applicants',
-  table35: 'crm_financial_statements',
-  table36: 'safety_inspect_logs',
-  table37: 'safety_near_misses',
-  table38: 'safety_tbm_logs',
-  table39: 'safety_risk_assessments',
-  table40: 'safety_policies',
+  table1: 'crm_credential_audit_logs',
+  table2: 'crm_credential_emergency_requests',
+  table3: 'crm_credential_vault',
+  table4: 'rnd_compliance_alarms',
+  table5: 'rnd_logs',
+  table6: 'rnd_spaces',
+  table7: 'rnd_staffs',
+  table8: 'rnd_centers',
+  table9: 'crm_facility_predictive_part_rul',
+  table10: 'crm_facility_predictive_fft',
+  table11: 'crm_facility_predictive_vibration',
+  table12: 'crm_facility_predictive_summary',
+  table13: 'crm_facility_repair_solutions',
+  table14: 'crm_facility_repair_logs',
+  table15: 'crm_facility_checklists',
+  table16: 'crm_facilities',
+  table17: 'crm_quality_vision_logs',
+  table18: 'crm_quality_vision_model',
+  table19: 'crm_quality_spc_features',
+  table20: 'crm_quality_spc_predictions',
+  table21: 'crm_quality_spc_samples',
+  table22: 'crm_quality_spc_config',
+  table23: 'crm_quality_sensors_timeline',
+  table24: 'crm_quality_sensors_contribution',
+  table25: 'crm_quality_sensors_status',
+  table26: 'crm_quality_ncr_similar_cases',
+  table27: 'crm_quality_ncr_items',
+  table28: 'crm_quality_checklist_submissions',
+  table29: 'crm_grant_company_profile',
+  table30: 'crm_grant_rnd_plans',
+  table31: 'crm_grant_bookmarks',
+  table32: 'crm_grant_announcements',
+  table33: 'crm_recruitment_applicants',
+  table34: 'crm_financial_statements',
+  table35: 'safety_inspect_logs',
+  table36: 'safety_near_misses',
+  table37: 'safety_tbm_logs',
+  table38: 'safety_risk_assessments',
+  table39: 'safety_policies',
+  table40: 'crm_employment_certificate_logs',
   table41: 'form_mappings',
   table42: 'form_templates',
   table43: 'ai_contextual_help',
@@ -1089,63 +1103,65 @@ export const TABLE_NAMES = {
   table78: 'instagram_marketing_settings',
   table79: 'crm_instagram_posts',
   table80: 'crm_operators',
-  table81: 'system_settings',
-  table82: 'crm_deliveries',
-  table83: 'crm_reservations',
-  table84: 'crm_payments',
-  table85: 'crm_orders',
-  table86: 'crm_transactions',
-  table87: 'products',
-  table88: 'ad_templates',
-  table89: 'message_logs',
-  table90: 'message_templates',
-  table91: 'crm_customers',
-  table92: 'crm_finance_forecasts',
-  table93: 'crm_finance_products',
-  table94: 'crm_facility_layout',
-  table95: 'crm_facility_oee_downtime',
-  table96: 'crm_facility_oee_stats',
-  table97: 'crm_facility_parts',
-  table98: 'crm_facility_events',
-  table99: 'crm_production_due_risk',
-  table100: 'crm_production_bottlenecks',
-  table101: 'crm_production_unscheduled_orders',
-  table102: 'crm_production_gantt_tasks',
-  table103: 'crm_partner_credit_risks',
-  table104: 'crm_labor_contracts',
-  table105: 'crm_labor_stats',
-  table106: 'crm_scm_suppliers',
-  table107: 'crm_scm_shipments',
-  table108: 'crm_safety_zones',
-  table109: 'crm_safety_alerts',
-  table110: 'crm_energy_equipments',
-  table111: 'crm_energy_savings',
-  table112: 'pms_projects',
-  table113: 'ecount_rpa_lock',
-  table114: 'ecount_sync_schedules',
-  table115: 'crm_company_event_types',
-  table116: 'crm_operator_ai_briefing_histories',
-  table117: 'crm_operator_projects',
-  table118: 'crm_operator_job_history',
-  table119: 'crm_operator_families',
-  table120: 'crm_operator_reputations',
-  table121: 'crm_operator_incidents',
-  table122: 'crm_operator_medical',
-  table123: 'crm_operator_family_events',
-  table124: 'crm_operator_awards',
-  table125: 'crm_operator_promotions',
-  table126: 'crm_operator_salaries',
-  table127: 'crm_operator_careers',
-  table128: 'crm_operator_licenses',
-  table129: 'crm_operator_education',
-  table130: 'crm_operator_profiles',
-  table131: 'crm_operator_contract_settings',
-  table132: 'crm_company_events',
-  table133: 'crm_operator_leave_balances',
-  table134: 'crm_annual_leaves',
-  table135: 'crm_attendance',
-  table136: 'user_feedbacks',
-  table137: 'tenant_menu_settings',
-  table138: 'exchange_rate_histories',
-  table139: 'exchange_rates'
+  table81: 'crm_deliveries',
+  table82: 'crm_reservations',
+  table83: 'crm_payments',
+  table84: 'crm_orders',
+  table85: 'crm_transactions',
+  table86: 'products',
+  table87: 'ad_templates',
+  table88: 'message_logs',
+  table89: 'message_templates',
+  table90: 'crm_web_form_logs',
+  table91: 'crm_web_templates',
+  table92: 'system_settings',
+  table93: 'crm_customers',
+  table94: 'crm_finance_forecasts',
+  table95: 'crm_finance_products',
+  table96: 'crm_facility_layout',
+  table97: 'crm_facility_oee_downtime',
+  table98: 'crm_facility_oee_stats',
+  table99: 'crm_facility_parts',
+  table100: 'crm_facility_events',
+  table101: 'crm_production_due_risk',
+  table102: 'crm_production_bottlenecks',
+  table103: 'crm_production_unscheduled_orders',
+  table104: 'crm_production_gantt_tasks',
+  table105: 'crm_partner_credit_risks',
+  table106: 'crm_labor_contracts',
+  table107: 'crm_labor_stats',
+  table108: 'crm_scm_suppliers',
+  table109: 'crm_scm_shipments',
+  table110: 'crm_safety_zones',
+  table111: 'crm_safety_alerts',
+  table112: 'crm_energy_equipments',
+  table113: 'crm_energy_savings',
+  table114: 'pms_projects',
+  table115: 'ecount_rpa_lock',
+  table116: 'ecount_sync_schedules',
+  table117: 'crm_company_event_types',
+  table118: 'crm_operator_ai_briefing_histories',
+  table119: 'crm_operator_projects',
+  table120: 'crm_operator_job_history',
+  table121: 'crm_operator_families',
+  table122: 'crm_operator_reputations',
+  table123: 'crm_operator_incidents',
+  table124: 'crm_operator_medical',
+  table125: 'crm_operator_family_events',
+  table126: 'crm_operator_awards',
+  table127: 'crm_operator_promotions',
+  table128: 'crm_operator_salaries',
+  table129: 'crm_operator_careers',
+  table130: 'crm_operator_licenses',
+  table131: 'crm_operator_education',
+  table132: 'crm_operator_profiles',
+  table133: 'crm_operator_contract_settings',
+  table134: 'crm_company_events',
+  table135: 'crm_operator_leave_balances',
+  table136: 'crm_annual_leaves',
+  table137: 'crm_attendance',
+  table138: 'user_feedbacks',
+  table139: 'tenant_menu_settings',
+  table140: 'exchange_rate_histories',
+  table141: 'exchange_rates'
 } as const;

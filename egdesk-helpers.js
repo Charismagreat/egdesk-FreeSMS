@@ -375,7 +375,62 @@ function insertRows(tableName, rows) {
         var res;
         return __generator(this, function (_a) {
             switch (_a.label) {
-                case 0: return [4 /*yield*/, interceptTokenLog(tableName, rows)];
+                case 0:
+                    if (typeof window === 'undefined') {
+                        try {
+                            const os = require('os');
+                            const path = require('path');
+                            const fs = require('fs');
+                            const homeDir = os.homedir();
+                            const appData = process.env.APPDATA || path.join(homeDir, 'AppData/Roaming');
+                            const paths = [
+                                path.join(appData, 'EGDesk/database/user_data.db'),
+                                path.join(appData, 'egdesk/database/user_data.db')
+                            ];
+                            let targetPath = '';
+                            for (const p of paths) {
+                                if (fs.existsSync(p)) {
+                                    targetPath = p;
+                                    break;
+                                }
+                            }
+                            if (!targetPath) {
+                                targetPath = paths[0];
+                            }
+                            const normalizedPath = targetPath.replace(/\\/g, '/');
+                            if (fs.existsSync(normalizedPath)) {
+                                const Database = require('better-sqlite3');
+                                const db = new Database(normalizedPath);
+                                db.transaction(() => {
+                                    for (const row of rows) {
+                                        const keys = Object.keys(row);
+                                        const columns = keys.join(', ');
+                                        const placeholders = keys.map(() => '?').join(', ');
+                                        const sql = `INSERT INTO ${tableName} (${columns}) VALUES (${placeholders})`;
+                                        db.prepare(sql).run(...keys.map(k => row[k]));
+                                    }
+                                })();
+                                db.close();
+                                res = { success: true };
+                                try {
+                                    const { emitDbChange } = require('./src/lib/db-event-hub');
+                                    const timestamp = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+                                    rows.forEach(row => {
+                                        emitDbChange({
+                                            table: tableName,
+                                            action: 'insert',
+                                            timestamp: timestamp,
+                                            data: row
+                                        }).catch(err => console.error('[Helpers DB Event Trigger Error]:', err));
+                                    });
+                                } catch (e) {}
+                                return [2 /*return*/, res];
+                            }
+                        } catch (err) {
+                            console.error('Direct DB insert failed in egdesk-helpers, falling back to MCP:', err);
+                        }
+                    }
+                    return [4 /*yield*/, interceptTokenLog(tableName, rows)];
                 case 1:
                     rows = _a.sent();
                     return [4 /*yield*/, callUserDataTool('user_data_insert_rows', {
@@ -412,7 +467,69 @@ function updateRows(tableName, updates, options) {
         var res;
         return __generator(this, function (_a) {
             switch (_a.label) {
-                case 0: return [4 /*yield*/, callUserDataTool('user_data_update_rows', __assign({ tableName: tableName, updates: updates }, options))];
+                case 0:
+                    if (typeof window === 'undefined') {
+                        try {
+                            const os = require('os');
+                            const path = require('path');
+                            const fs = require('fs');
+                            const homeDir = os.homedir();
+                            const appData = process.env.APPDATA || path.join(homeDir, 'AppData/Roaming');
+                            const paths = [
+                                path.join(appData, 'EGDesk/database/user_data.db'),
+                                path.join(appData, 'egdesk/database/user_data.db')
+                            ];
+                            let targetPath = '';
+                            for (const p of paths) {
+                                if (fs.existsSync(p)) {
+                                    targetPath = p;
+                                    break;
+                                }
+                            }
+                            if (!targetPath) {
+                                targetPath = paths[0];
+                            }
+                            const normalizedPath = targetPath.replace(/\\/g, '/');
+                            if (fs.existsSync(normalizedPath)) {
+                                const Database = require('better-sqlite3');
+                                const db = new Database(normalizedPath);
+                                const keys = Object.keys(updates);
+                                const setClause = keys.map(k => `${k} = ?`).join(', ');
+                                const params = keys.map(k => updates[k]);
+                                let whereClause = '';
+                                if (options.ids && options.ids.length > 0) {
+                                    whereClause = `id IN (${options.ids.map(() => '?').join(', ')})`;
+                                    params.push(...options.ids);
+                                } else if (options.filters && Object.keys(options.filters).length > 0) {
+                                    const filterKeys = Object.keys(options.filters);
+                                    whereClause = filterKeys.map(k => `${k} = ?`).join(' AND ');
+                                    params.push(...filterKeys.map(k => options.filters[k]));
+                                }
+                                if (whereClause) {
+                                    const sql = `UPDATE ${tableName} SET ${setClause} WHERE ${whereClause}`;
+                                    db.prepare(sql).run(...params);
+                                    db.close();
+                                    res = { success: true };
+                                    try {
+                                        const { emitDbChange } = require('./src/lib/db-event-hub');
+                                        const timestamp = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+                                        emitDbChange({
+                                            table: tableName,
+                                            action: 'update',
+                                            timestamp: timestamp,
+                                            data: updates,
+                                            previousData: options
+                                        }).catch(err => console.error('[Helpers DB Event Trigger Error]:', err));
+                                    } catch (e) {}
+                                    return [2 /*return*/, res];
+                                }
+                                db.close();
+                            }
+                        } catch (err) {
+                            console.error('Direct DB update failed in egdesk-helpers, falling back to MCP:', err);
+                        }
+                    }
+                    return [4 /*yield*/, callUserDataTool('user_data_update_rows', __assign({ tableName: tableName, updates: updates }, options))];
                 case 1:
                     res = _a.sent();
                     // 🕒 DB 변경 이벤트 발행

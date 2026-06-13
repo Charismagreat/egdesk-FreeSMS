@@ -1,37 +1,30 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import Database from 'better-sqlite3';
-import path from 'path';
-import os from 'os';
-import fs from 'fs';
-
-// 로컬 user_data.db 연결 헬퍼 함수
-function getDbConnection() {
-  const homeDir = os.homedir();
-  const appData = process.env.APPDATA || path.join(homeDir, 'AppData/Roaming');
-  const dbPath = path.join(appData, 'EGDesk/database/user_data.db');
-  return new Database(dbPath);
-}
+import { queryTable, insertRows, deleteRows } from '../../../../egdesk-helpers';
 
 // GET: 관제 히스토리 조회 및 대시보드 통계 정보 생성
 export async function GET(req: Request) {
-  let db;
   try {
-    db = getDbConnection();
-
     // 1. 수집 설정 키 가져오기
     let mailInterval = '5';
     let mailEnabled = '1';
     try {
-      const rowInterval = db.prepare("SELECT value FROM system_settings WHERE key = ?").get('mail_collection_interval');
-      if (rowInterval) mailInterval = rowInterval.value;
+      const rowInterval = await queryTable('system_settings', { filters: { key: 'mail_collection_interval' } });
+      if (rowInterval.rows && rowInterval.rows.length > 0) {
+        mailInterval = rowInterval.rows[0].value;
+      }
 
-      const rowEnabled = db.prepare("SELECT value FROM system_settings WHERE key = ?").get('mail_collection_enabled');
-      if (rowEnabled) mailEnabled = rowEnabled.value;
-    } catch (e) {}
+      const rowEnabled = await queryTable('system_settings', { filters: { key: 'mail_collection_enabled' } });
+      if (rowEnabled.rows && rowEnabled.rows.length > 0) {
+        mailEnabled = rowEnabled.rows[0].value;
+      }
+    } catch (e) {
+      console.error('설정값 조회 중 오류 발생:', e);
+    }
 
     // 2. 메일 관제 로그 전체 가져오기
-    const logs = db.prepare("SELECT * FROM system_mail_logs ORDER BY created_at DESC").all();
+    const logsResult = await queryTable('system_mail_logs', { orderBy: 'created_at', orderDirection: 'DESC' });
+    const logs = logsResult.rows || [];
 
     // 3. 통계 분석
     const totalCalls = logs.length;
@@ -39,7 +32,6 @@ export async function GET(req: Request) {
     let mediumRiskCount = 0;
     let lowRiskCount = 0;
 
-    const purposeMap: Record<string, { calls: number; tokens: number }> = {};
     const intentCounts: Record<string, number> = {
       ORDER_REQUEST: 0,
       ESTIMATE_REQUEST: 0,
@@ -89,25 +81,21 @@ export async function GET(req: Request) {
   } catch (error: any) {
     console.error('메일 관제 AI API GET 에러:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-  } finally {
-    if (db) db.close();
   }
 }
 
 // POST: 관제 설정 갱신 및 가상 메일 강제 수집 (자율 에이전트 구동)
 export async function POST(req: Request) {
-  let db;
   try {
     const { action, interval, enabled } = await req.json();
-    db = getDbConnection();
 
     // [Action 1] 설정 업데이트 처리
     if (action === 'save_settings') {
-      const stmt = db.prepare("INSERT OR REPLACE INTO system_settings (key, value) VALUES (?, ?)");
-      db.transaction(() => {
-        stmt.run('mail_collection_interval', String(interval || '5'));
-        stmt.run('mail_collection_enabled', enabled ? '1' : '0');
-      })();
+      await deleteRows('system_settings', { filters: { key: 'mail_collection_interval' } });
+      await insertRows('system_settings', [{ key: 'mail_collection_interval', value: String(interval || '5') }]);
+
+      await deleteRows('system_settings', { filters: { key: 'mail_collection_enabled' } });
+      await insertRows('system_settings', [{ key: 'mail_collection_enabled', value: enabled ? '1' : '0' }]);
 
       return NextResponse.json({ success: true, message: '관제 설정이 성공적으로 저장되었습니다.' });
     }
@@ -170,104 +158,90 @@ export async function POST(req: Request) {
       ];
 
       let addedCount = 0;
-      let aiTokenUsage = 0;
 
-      // 트랜잭션 내에서 메일 수집 적재 및 비즈니스 연동 처리 실행
-      db.transaction(() => {
-        for (const mail of demoMails) {
-          // 중복 수집 방지
-          const exists = db.prepare("SELECT 1 FROM system_mail_logs WHERE subject = ?").get(mail.subject);
-          if (exists) continue;
-
-          // 1. 관제 로그 테이블에 저장
-          db.prepare(`
-            INSERT INTO system_mail_logs (id, sender, subject, received_at, ai_summary, intent, risk_level, action_type, action_result, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `).run(
-            mail.id,
-            mail.sender,
-            mail.subject,
-            nowStr,
-            mail.ai_summary,
-            mail.intent,
-            mail.risk_level,
-            mail.action_type,
-            mail.action_result,
-            nowStr
-          );
-
-          // 2. 비즈니스 자동 연동 액션 수행
-          if (mail.action_type === 'CREATE_ESTIMATE' && mail.orderData) {
-            const od = mail.orderData;
-            // crm_estimates 추가
-            db.prepare(`
-              INSERT INTO crm_estimates (id, type, direction_status, partner_name, partner_phone, total_amount, file_url, ai_parsed, created_at, uuid)
-              VALUES (?, 'INBOUND', 'RECEIVED', ?, ?, ?, NULL, 1, ?, ?)
-            `).run(
-              od.estimateId,
-              od.partnerName,
-              od.partnerPhone,
-              od.totalAmount,
-              nowStr,
-              `est-uuid-${od.estimateId}`
-            );
-
-            // crm_estimate_items 추가
-            db.prepare(`
-              INSERT INTO crm_estimate_items (estimate_id, product_id, product_name, quantity, unit_price, amount)
-              VALUES (?, ?, ?, ?, ?, ?)
-            `).run(
-              od.estimateId,
-              od.productId,
-              od.productName,
-              od.quantity,
-              od.unitPrice,
-              od.totalAmount
-            );
-          } else if (mail.action_type === 'CREATE_TASK' && mail.taskData) {
-            const td = mail.taskData;
-            // crm_snaptasks 추가
-            db.prepare(`
-              INSERT INTO crm_snaptasks (id, title, status, partner_id, created_at, updated_at)
-              VALUES (?, ?, 'ACTIVE', ?, ?, ?)
-            `).run(
-              td.taskId,
-              td.title,
-              td.partnerId,
-              nowStr,
-              nowStr
-            );
-
-            // crm_snaptask_items 추가
-            db.prepare(`
-              INSERT INTO crm_snaptask_items (task_id, content_text, file_url, file_type, ai_analysis, created_at)
-              VALUES (?, ?, NULL, 'TEXT', ?, ?)
-            `).run(
-              td.taskId,
-              td.contentText,
-              JSON.stringify({ risk: "HIGH", alert: "품질 NCR 크랙 클레임" }),
-              nowStr
-            );
-          }
-
-          // 3. 자율 관제 중 Gemini API 사용 가상 토큰 로그 적재 (감사 대시보드 연동용)
-          aiTokenUsage += 1650; // 메일당 평균 1,650 토큰 소모
-          db.prepare(`
-            INSERT INTO ai_token_usage_logs (id, model, purpose, prompt_tokens, completion_tokens, total_tokens, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-          `).run(
-            `TKM-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-            'gemini-3.5-flash',
-            'mail-ai-agent',
-            1200,
-            450,
-            1650,
-            nowStr
-          );
-
-          addedCount++;
+      for (const mail of demoMails) {
+        // 중복 수집 방지
+        const existsRes = await queryTable('system_mail_logs', { filters: { subject: mail.subject } });
+        if (existsRes.rows && existsRes.rows.length > 0) {
+          continue;
         }
-      })();
+
+        // 1. 관제 로그 테이블에 저장
+        await insertRows('system_mail_logs', [{
+          id: mail.id,
+          sender: mail.sender,
+          subject: mail.subject,
+          received_at: nowStr,
+          ai_summary: mail.ai_summary,
+          intent: mail.intent,
+          risk_level: mail.risk_level,
+          action_type: mail.action_type,
+          action_result: mail.action_result,
+          created_at: nowStr
+        }]);
+
+        // 2. 비즈니스 자동 연동 액션 수행
+        if (mail.action_type === 'CREATE_ESTIMATE' && mail.orderData) {
+          const od = mail.orderData;
+          // crm_estimates 추가
+          await insertRows('crm_estimates', [{
+            id: od.estimateId,
+            type: 'INBOUND',
+            direction_status: 'RECEIVED',
+            partner_name: od.partnerName,
+            partner_phone: od.partnerPhone,
+            total_amount: od.totalAmount,
+            file_url: null,
+            ai_parsed: 1,
+            created_at: nowStr,
+            uuid: `est-uuid-${od.estimateId}`
+          }]);
+
+          // crm_estimate_items 추가
+          await insertRows('crm_estimate_items', [{
+            estimate_id: od.estimateId,
+            product_id: od.productId,
+            product_name: od.productName,
+            quantity: od.quantity,
+            unit_price: od.unitPrice,
+            amount: od.totalAmount
+          }]);
+        } else if (mail.action_type === 'CREATE_TASK' && mail.taskData) {
+          const td = mail.taskData;
+          // crm_snaptasks 추가
+          await insertRows('crm_snaptasks', [{
+            id: td.taskId,
+            title: td.title,
+            status: 'ACTIVE',
+            partner_id: td.partnerId,
+            created_at: nowStr,
+            updated_at: nowStr
+          }]);
+
+          // crm_snaptask_items 추가
+          await insertRows('crm_snaptask_items', [{
+            task_id: td.taskId,
+            content_text: td.contentText,
+            file_url: null,
+            file_type: 'TEXT',
+            ai_analysis: JSON.stringify({ risk: "HIGH", alert: "품질 NCR 크랙 클레임" }),
+            created_at: nowStr
+          }]);
+        }
+
+        // 3. 자율 관제 중 Gemini API 사용 가상 토큰 로그 적재 (감사 대시보드 연동용)
+        await insertRows('ai_token_usage_logs', [{
+          id: `TKM-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          model: 'gemini-3.5-flash',
+          purpose: 'mail-ai-agent',
+          prompt_tokens: 1200,
+          completion_tokens: 450,
+          total_tokens: 1650,
+          created_at: nowStr
+        }]);
+
+        addedCount++;
+      }
 
       return NextResponse.json({
         success: true,
@@ -282,7 +256,5 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error('메일 관제 AI API POST 에러:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-  } finally {
-    if (db) db.close();
   }
 }

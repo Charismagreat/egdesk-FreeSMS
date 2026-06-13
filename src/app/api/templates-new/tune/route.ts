@@ -85,6 +85,8 @@ Strict Constraints:
 - If target is "web", apply feedback ONLY to webHtml, and return printHtml exactly as provided.
 - If target is "all", apply feedback to both printHtml and webHtml.
 - Ensure you PRESERVE all existing Mustache placeholders (like {{staff_name}}, {{joined_date}}, etc.) unless explicitly asked to modify them.
+- DO NOT generate or inject any system headers, navigation bars, footer bars, or operation buttons (such as "인쇄하기", "PDF 다운로드", "Print", "Download", "Save").
+- Ensure "webHtml" strictly contains ONLY the card body/form area of the document itself, without external system controls.
 `;
 
     const userContent = JSON.stringify({

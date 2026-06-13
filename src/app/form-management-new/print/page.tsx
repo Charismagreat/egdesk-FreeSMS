@@ -81,13 +81,14 @@ function PrintViewContent() {
     return `${formatDate(start)} ~ ${resignedDateStr ? formatDate(end) : '현재 재직 중'} (${periodText.trim()})`;
   };
 
-  // 브라우저 윈도우 크기 변화 감지하여 용지 축소 스케일 계산 (794x1123 A4 프레임 기준)
+  // 브라우저 윈도우 크기 변화 감지하여 용지 축소 스케일 계산 (794x1123 A4 또는 모던 웹 기준)
   const handleResize = () => {
     const containerWidth = window.innerWidth;
     const containerHeight = window.innerHeight;
     
-    const targetWidth = 794;
-    const targetHeight = 1123;
+    // 모드별 가로/세로 기준 설정 (A4는 794x1123, 웹 프리뷰는 800x1200 기준)
+    const targetWidth = printMode === 'print' ? 794 : 800;
+    const targetHeight = printMode === 'print' ? 1123 : 1200;
     
     const availableWidth = containerWidth - 64;
     const availableHeight = containerHeight - 52 - 64;
@@ -105,7 +106,7 @@ function PrintViewContent() {
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-  }, []);
+  }, [printMode]);
 
   useEffect(() => {
     if (!templateId) {
@@ -293,17 +294,22 @@ function PrintViewContent() {
         }
       }
 
-      iframeRef.current.contentWindow.focus();
-      iframeRef.current.contentWindow.print();
-
-      if (printMode === 'web') {
-        // 인쇄창 호출 후 원래 높이로 복구
-        setTimeout(() => {
-          if (iframeRef.current) {
-            iframeRef.current.style.height = '100%';
-          }
-        }, 1000);
-      }
+      // 비동기 렌더링 페인팅 대기용 지연 시간 추가 (150ms)
+      setTimeout(() => {
+        if (iframeRef.current && iframeRef.current.contentWindow) {
+          iframeRef.current.contentWindow.focus();
+          iframeRef.current.contentWindow.print();
+        }
+        
+        if (printMode === 'web') {
+          // 인쇄창 호출 후 원래 높이로 복구
+          setTimeout(() => {
+            if (iframeRef.current) {
+              iframeRef.current.style.height = '100%';
+            }
+          }, 1000);
+        }
+      }, 150);
     } else {
       window.print();
     }
@@ -332,13 +338,9 @@ function PrintViewContent() {
           print-color-adjust: exact;
         }
         body {
-          padding: 0 !important;
+          padding: 0 !important; /* 기존 패딩 덮어쓰기 해제하여 템플릿의 원래 여백 보존 */
           position: relative !important;
-        }
-        body > div, div, table, thead, tbody, tr {
-          width: 100% !important;
-          max-width: 100% !important;
-          min-width: 100% !important;
+          box-sizing: border-box !important;
         }
         .page, [class*="page"], .A4, .a4 {
           width: 100% !important;
@@ -365,9 +367,17 @@ function PrintViewContent() {
           height: auto !important;
         }
         @media print {
+          @page {
+            size: A4;
+            margin: 0 !important; /* 브라우저 기본 헤더/푸터 강제 감춤 */
+          }
           html, body {
             overflow: visible !important;
             height: auto !important;
+          }
+          body {
+            padding: 0 !important; /* 인쇄용 표준 A4 여백은 템플릿 내 container 스타일 사용 */
+            margin: 0 !important;
           }
         }
       </style>
@@ -379,24 +389,116 @@ function PrintViewContent() {
           width: 100% !important;
           height: 100% !important;
           box-sizing: border-box !important;
-          background-color: #ffffff !important;
+          background-color: #f4f7fa !important; /* 모던 웹용 연한 배경색 노출 */
           font-family: 'Malgun Gothic', '맑은 고딕', Arial, sans-serif;
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
         }
         body {
-          padding: 15mm 20mm !important; /* 모던 웹용 인쇄 표준 여백 */
-          overflow-y: auto !important;
+          padding: 40px 20px !important; /* 상하 여백을 확보해 렌더링 영역 확장 */
+          overflow: hidden !important; /* 스크롤바 원천 제거 */
+          display: flex !important;
+          justify-content: center !important;
+          align-items: flex-start !important; /* 세로 정렬 시 위쪽이 잘리지 않도록 상단 정렬 */
         }
-        /* 인쇄 시 스크롤바 감추고 적절한 폰트/레이아웃 크기 조정 */
+        /* 화면 프리뷰 상태에서도 아래 직인 영역이 잘리지 않도록 간격을 조율 */
+        .card, .web-card {
+          box-sizing: border-box !important;
+        }
+        .header {
+          margin-bottom: 25px !important;
+          padding-bottom: 20px !important;
+        }
+        .grid {
+          gap: 15px !important;
+          margin-bottom: 25px !important;
+        }
+        .field-value {
+          padding: 12px 14px !important;
+        }
+        .statement-box {
+          padding: 24px !important;
+          margin: 30px 0 !important;
+        }
+        .issuer-card {
+          padding: 20px !important;
+          margin-top: 20px !important;
+        }
+        .footer-brand {
+          margin-top: 35px !important;
+        }
+        /* 인쇄 시 브라우저 머리글/바닥글 숨김 및 배경/여백 보정 */
         @media print {
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          @page {
+            size: A4;
+            margin: 0 !important; /* 브라우저 기본 헤더/푸터 강제 감춤 */
+          }
           html, body {
             overflow: visible !important;
             height: auto !important;
-            background-color: #ffffff !important;
+            background-color: #ffffff !important; /* 인쇄 시 배경을 흰색으로 변경 */
+            display: block !important; /* flex 정렬 해제 */
           }
           body {
-            padding: 10mm 15mm !important;
+            padding: 15mm 20mm !important; /* A4 맞춤 표준 안쪽 여백 */
+            margin: 0 !important;
+          }
+          .card, .web-card {
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            background: transparent !important;
+          }
+          /* 인쇄 시 모던 웹 템플릿의 전체적인 여백 및 마진 축소로 A4 1페이지 맞춤 대응 */
+          .header {
+            margin-bottom: 20px !important;
+            padding-bottom: 15px !important;
+          }
+          .header h1 {
+            font-size: 26px !important;
+          }
+          .section-title {
+            font-size: 13px !important;
+            margin-bottom: 12px !important;
+            margin-top: 20px !important;
+          }
+          .grid {
+            gap: 12px !important;
+            margin-bottom: 20px !important;
+          }
+          .field-value {
+            padding: 10px 12px !important;
+            font-size: 13px !important;
+            border: 1px solid #cbd5e1 !important; /* 배경 그래픽 해제 대비 테두리선 강화 */
+          }
+          .statement-box {
+            padding: 20px !important;
+            font-size: 15px !important;
+            margin: 25px 0 !important;
+            border: 1px solid #bfdbfe !important; /* 배경 그래픽 해제 대비 파란 테두리 추가 */
+          }
+          .meta-info {
+            margin-top: 20px !important;
+            padding-top: 15px !important;
+          }
+          .issuer-card {
+            padding: 16px !important;
+            margin-top: 15px !important;
+            border: 1px solid #cbd5e1 !important; /* 배경 그래픽 해제 대비 테두리선 강화 */
+          }
+          .issuer-grid {
+            gap: 12px !important;
+          }
+          .footer-brand {
+            margin-top: 30px !important;
+            padding-top: 15px !important;
           }
         }
       </style>
@@ -546,8 +648,8 @@ function PrintViewContent() {
               border: none !important;
               box-shadow: none !important;
               margin: 0 !important;
-              width: ${printMode === 'print' ? '210mm' : '100%'} !important;
-              height: ${printMode === 'print' ? '297mm' : 'auto'} !important;
+              width: 210mm !important;
+              height: 297mm !important;
               transform: none !important;
               transform-origin: none !important;
               page-break-after: avoid !important;
@@ -557,14 +659,16 @@ function PrintViewContent() {
         `}} />
         <div 
           style={{
-            width: '794px',
-            height: '1123px',
+            width: printMode === 'print' ? '794px' : '800px',
+            height: printMode === 'print' ? '1123px' : '1200px',
             transform: `scale(${scale})`,
             transformOrigin: 'top center',
             transition: 'transform 0.15s ease-out',
           }}
-          className={`bg-white shadow-2xl border overflow-hidden a4-print-box text-left shrink-0 flex flex-col transition-colors duration-200 ${
-            printMode === 'print' ? 'border-slate-300' : 'border-emerald-500/30'
+          className={`overflow-hidden a4-print-box text-left shrink-0 flex flex-col transition-colors duration-200 ${
+            printMode === 'print' 
+              ? 'bg-white shadow-2xl border border-slate-300' 
+              : 'bg-transparent border-none shadow-none'
           }`}
         >
           <iframe
@@ -574,9 +678,9 @@ function PrintViewContent() {
               width: '100%',
               height: '100%',
               border: 'none',
-              overflow: printMode === 'print' ? 'hidden' : 'auto'
+              overflow: 'hidden'
             }}
-            scrolling={printMode === 'print' ? 'no' : 'auto'}
+            scrolling="no"
           />
         </div>
       </div>

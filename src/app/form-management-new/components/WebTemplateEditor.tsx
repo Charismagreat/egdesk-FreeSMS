@@ -202,13 +202,26 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
       if (doc) {
         doc.open();
         const styleTag = `<style>
-          html, body { 
+          html { 
             margin: 0 !important; 
             padding: 0 !important; 
             width: 100% !important; 
             height: 100% !important; 
             box-sizing: border-box !important;
-            background-color: #f8fafc !important; /* 깔끔한 Slate 50 배경색 */
+          }
+          body { 
+            margin: 0 !important; 
+            padding: 40px 20px !important; 
+            width: 100% !important; 
+            min-height: 100% !important; 
+            height: auto !important;
+            box-sizing: border-box !important;
+            background-color: #f8fafc !important;
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: flex-start !important;
+            align-items: center !important;
+            overflow-y: auto !important;
           }
         </style>`;
         
