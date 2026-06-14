@@ -490,7 +490,7 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
               }`}
             >
               <UserCog className={`w-5 h-5 shrink-0 ${isActive("/operators") ? "text-white" : "text-indigo-400"}`} />
-              <span>운영자 관리</span>
+              <span>직원 관리</span>
             </Link>
 
             <Link

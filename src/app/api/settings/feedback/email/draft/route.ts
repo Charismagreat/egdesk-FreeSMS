@@ -95,7 +95,7 @@ export async function POST(req: Request) {
       "/naver-blog": "N-BLOG 포스팅 AI",
       "/youtube-shorts": "YOUTUBE 쇼츠 AI",
       "/ai-briefing": "AI 브리핑",
-      "/operators": "운영자 관리",
+      "/operators": "직원 관리",
       "/my-db": "MY DB",
       "/help": "Q&A 헬프센터",
       "/settings": "시스템 설정"
