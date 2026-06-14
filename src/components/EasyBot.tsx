@@ -3014,7 +3014,7 @@ function LegalPreviewCard({ tagContent, onConfirmSuccess }: { tagContent: string
     <div className="my-3 border border-amber-200 rounded-2xl bg-white shadow-md overflow-hidden text-slate-800 max-w-sm animate-in zoom-in-95 duration-200 text-left">
       <div className="bg-gradient-to-r from-amber-50 to-orange-50/50 px-4 py-3 border-b border-amber-200 flex items-center gap-2">
         <Scale size={14} className="text-amber-600 animate-pulse" />
-        <span className="text-xs font-black text-slate-800">변호사 AI 법률 리스크 분석 결과</span>
+        <span className="text-xs font-black text-slate-800">법률 상담 AI 법률 리스크 분석 결과</span>
       </div>
 
       <div className="p-4 space-y-3.5 text-[11px]">
@@ -3079,7 +3079,7 @@ function LegalPreviewCard({ tagContent, onConfirmSuccess }: { tagContent: string
             href="/lawyer-ai"
             className="w-full py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200/70 text-slate-650 font-black rounded-xl text-xs transition-all flex items-center justify-center gap-1"
           >
-            변호사 AI 본 화면에서 정밀 진단받기 <ArrowRight size={11} className="text-slate-400" />
+            법률 상담 AI 본 화면에서 정밀 진단받기 <ArrowRight size={11} className="text-slate-400" />
           </a>
         </div>
       </div>

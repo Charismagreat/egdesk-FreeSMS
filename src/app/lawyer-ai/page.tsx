@@ -213,7 +213,7 @@ export default function LawyerAiPage() {
             summary: litigationReport.split("## 3. ")[0] || litigationReport.slice(0, 400), // 리포트 앞부분 요약 전달
             deadline: deadlineVal,
             actions: [
-              "변호사 AI 본 화면을 통한 대응 가이드 참조",
+              "법률 상담 AI 본 화면을 통한 대응 가이드 참조",
               "관련 입증 자료 실시간 취합 및 답변서 기안"
             ],
             pdfFilePath: ""
@@ -302,13 +302,13 @@ export default function LawyerAiPage() {
   };
 
   return (
-    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in text-left" data-easybot-hint="변호사 AI: 계약서 전문을 업로드하여 불공정 조항을 색출하고 독소 특약 유무를 진단하는 법률 AI 지원처입니다.">
+    <div className="space-y-6 pb-20 w-full min-w-0 font-sans text-slate-800 animate-fade-in text-left" data-easybot-hint="법률 상담 AI: 계약서 전문을 업로드하여 불공정 조항을 색출하고 독소 특약 유무를 진단하는 법률 AI 지원처입니다.">
       {/* 최상단 헤더 */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div className="text-left">
           <h1 className="text-3xl font-black text-slate-900 flex items-center tracking-tight">
             <Scale className="w-8 h-8 text-amber-600 mr-3 shrink-0" />
-            변호사 AI
+            법률 상담 AI
             <span className="text-[10px] bg-amber-100 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-full font-bold ml-2.5">
               CEO 전용 법률 관제
             </span>

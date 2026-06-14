@@ -28,7 +28,7 @@ export async function handleLegalDocument(reqBody: any, nowStr: string) {
     ? actions.map((a: any, idx: number) => `${idx + 1}. ${a}`).join('\n')
     : '';
 
-  const contentText = `변호사 AI 분석 결과 도출된 중요 일정입니다.\n\n[사건번호] ${caseNumber || '미상'}\n[문서유형] ${documentType}\n[제출기한] ${deadline || '기한 정보 없음'}\n\n[문서 요약]\n${summary || '요약 없음'}\n\n[행동지침]\n${actionsStr}`;
+  const contentText = `법률 상담 AI 분석 결과 도출된 중요 일정입니다.\n\n[사건번호] ${caseNumber || '미상'}\n[문서유형] ${documentType}\n[제출기한] ${deadline || '기한 정보 없음'}\n\n[문서 요약]\n${summary || '요약 없음'}\n\n[행동지침]\n${actionsStr}`;
 
   await insertRows('crm_snaptask_items', [{
     id: newTimelineId,

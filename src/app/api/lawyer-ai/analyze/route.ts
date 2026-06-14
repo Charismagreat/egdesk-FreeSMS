@@ -159,7 +159,7 @@ export async function POST(req: Request) {
         }]);
       }
     } catch (logErr) {
-      console.error('변호사 AI 분석 감사 로그 적재 실패:', logErr);
+      console.error('법률 상담 AI 분석 감사 로그 적재 실패:', logErr);
     }
 
     return NextResponse.json({

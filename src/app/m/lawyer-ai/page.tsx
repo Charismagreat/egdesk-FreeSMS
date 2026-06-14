@@ -134,7 +134,7 @@ export default function MobileLawyerAiPage() {
             summary: litigationReport.split("## 3. ")[0] || litigationReport.slice(0, 400),
             deadline: deadlineVal,
             actions: [
-              "변호사 AI 모바일 채널을 통한 법적 기한 관리",
+              "법률 상담 AI 모바일 채널을 통한 법적 기한 관리",
               "주요 입증자료 실시간 취합"
             ],
             pdfFilePath: ""
@@ -242,7 +242,7 @@ export default function MobileLawyerAiPage() {
         </Link>
         <div className="flex items-center gap-2">
           <Scale className="w-5 h-5 text-amber-600" />
-          <h1 className="text-base font-extrabold text-slate-900">변호사 AI</h1>
+          <h1 className="text-base font-extrabold text-slate-900">법률 상담 AI</h1>
           <span className="text-[9px] bg-amber-100 text-amber-800 border border-amber-250 px-1.5 py-0.5 rounded-full font-bold">
             CEO 모바일
           </span>

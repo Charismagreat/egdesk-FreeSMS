@@ -237,13 +237,13 @@ export default function MobileHubWidget() {
     },
     {
       id: "lawyer-ai",
-      name: "변호사 AI 모바일 관제",
+      name: "법률 상담 AI 모바일 관제",
       description: "CEO 전용 모바일 법률 비서. 모바일 퀵 노무/안전 진단, 소송 단계별 가이드라인 및 실시간 판례 검색을 한눈에 조회하는 채널",
       path: "/m/lawyer-ai",
       icon: Scale,
       themeColor: "from-amber-600 to-yellow-650 bg-amber-50 text-amber-600 border-amber-100",
       badge: "소송/법률/CEO 전용",
-      smsTemplate: "[이지데스크] CEO 전용 모바일 법률 비서(변호사 AI) 채널입니다. 모바일 노무/안전 진단 및 판례 검색을 확인하세요! "
+      smsTemplate: "[이지데스크] CEO 전용 모바일 법률 비서(법률 상담 AI) 채널입니다. 모바일 노무/안전 진단 및 판례 검색을 확인하세요! "
     },
     {
       id: "credit-risk",

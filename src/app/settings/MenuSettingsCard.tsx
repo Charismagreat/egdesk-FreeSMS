@@ -99,7 +99,7 @@ const MENU_METADATA_MAP: Record<string, { label: string; icon: any; color: strin
   "/labor-management": { label: "노무 관리 AI", icon: Scale, color: "text-red-655" },
   "/credit-risk": { label: "채권 관리 AI", icon: CreditCard, color: "text-rose-555" },
   "/password-ai": { label: "비밀번호관리 AI", icon: Key, color: "text-purple-555" },
-  "/lawyer-ai": { label: "변호사 AI", icon: Scale, color: "text-indigo-650" },
+  "/lawyer-ai": { label: "법률 상담 AI", icon: Scale, color: "text-indigo-650" },
   "/rnd-management": { label: "연구소 관리 AI", icon: Award, color: "text-amber-550" },
   "/form-management-new": { label: "뉴 양식관리 AI", icon: ClipboardList, color: "text-emerald-500" }
 };
