@@ -6,6 +6,7 @@ import { Database, ShieldAlert, CheckCircle2, AlertCircle, RefreshCw, ExternalLi
 export default function DatabaseInitCard() {
   const [dbLoading, setDbLoading] = useState<boolean>(false);
   const [adminLoading, setAdminLoading] = useState<boolean>(false);
+  const [cleanLoading, setCleanLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
@@ -68,6 +69,48 @@ export default function DatabaseInitCard() {
     }
   };
 
+  // 3. 클린 DB 초기화 API 호출 (/api/setup-clean)
+  const handleDbClean = async () => {
+    const confirm1 = window.confirm(
+      '⚠️ 경고: 정말로 클린 데이터베이스 초기화를 진행하시겠습니까?\n' +
+      '이 작업은 최고관리자(admin) 계정과 필수 시스템 설정을 제외한 모든 비즈니스 샘플 데이터를 완전히 삭제합니다.\n' +
+      '삭제된 데이터는 복구할 수 없습니다.'
+    );
+    if (!confirm1) return;
+
+    const confirm2 = window.confirm(
+      '🚨 최종 확인: 삭제되는 데이터는 복구할 수 없습니다.\n' +
+      '진행하시려면 확인을 눌러주십시오.'
+    );
+    if (!confirm2) return;
+
+    setCleanLoading(true);
+    setMessage(null);
+    try {
+      const res = await fetch('/api/setup-clean');
+      const data = await res.json();
+      if (data.success) {
+        setMessage({
+          type: 'success',
+          text: data.message || '클린 데이터베이스 초기화가 성공적으로 완료되었습니다! 🧹✨'
+        });
+      } else {
+        setMessage({
+          type: 'error',
+          text: data.error || '클린 초기화 도중 오류가 발생했습니다.'
+        });
+      }
+    } catch (err: any) {
+      console.error('Clean DB setup fetch error:', err);
+      setMessage({
+        type: 'error',
+        text: '서버와 통신하는 중 네트워크 오류가 발생했습니다.'
+      });
+    } finally {
+      setCleanLoading(false);
+    }
+  };
+
   return (
     <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md">
       
@@ -121,7 +164,7 @@ export default function DatabaseInitCard() {
           </div>
 
           {/* 제어 도구 버튼 영역 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             
             {/* 1. DB 스키마 셋업 */}
             <div className="border border-slate-100 rounded-xl p-5 bg-slate-50/30 flex flex-col justify-between space-y-4">
@@ -135,7 +178,7 @@ export default function DatabaseInitCard() {
                 <button
                   type="button"
                   onClick={handleDbSetup}
-                  disabled={dbLoading || adminLoading}
+                  disabled={dbLoading || adminLoading || cleanLoading}
                   className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all border-0 shadow-sm ${
                     dbLoading
                       ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
@@ -169,7 +212,7 @@ export default function DatabaseInitCard() {
                 <button
                   type="button"
                   onClick={handleAdminSetup(false)}
-                  disabled={dbLoading || adminLoading}
+                  disabled={dbLoading || adminLoading || cleanLoading}
                   className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all border-0 shadow-sm ${
                     adminLoading
                       ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
@@ -182,7 +225,7 @@ export default function DatabaseInitCard() {
                 <button
                   type="button"
                   onClick={handleAdminSetup(true)}
-                  disabled={dbLoading || adminLoading}
+                  disabled={dbLoading || adminLoading || cleanLoading}
                   className="px-3 py-2.5 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 text-[11px] font-bold active:scale-95 transition-all"
                   title="기존 계정 제거 후 재설정"
                 >
@@ -193,6 +236,40 @@ export default function DatabaseInitCard() {
                   target="_blank"
                   rel="noreferrer"
                   className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-55/60 hover:text-slate-700 transition-colors"
+                  title="새 창으로 API 직접 실행"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              </div>
+            </div>
+
+            {/* 3. 클린 DB 초기화 */}
+            <div className="border border-rose-100 rounded-xl p-5 bg-rose-50/10 flex flex-col justify-between space-y-4">
+              <div>
+                <span className="text-xs font-bold text-rose-700 block">3단계: 클린 DB 초기화 (실서비스 도입 필수)</span>
+                <span className="text-[11px] text-slate-400 font-medium block mt-1 leading-relaxed">
+                  시스템을 실서비스에 도입하기 전에 기존 테스트용 샘플 데이터를 모두 삭제하고, 최고관리자(admin) 및 시스템 설정 정보만 남긴 깨끗한 상태로 준비합니다.
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleDbClean}
+                  disabled={dbLoading || adminLoading || cleanLoading}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all border border-rose-200 shadow-sm ${
+                    cleanLoading
+                      ? 'bg-slate-200 text-slate-400 cursor-not-allowed border-slate-250'
+                      : 'bg-rose-600 text-white hover:bg-rose-500 active:scale-95 cursor-pointer shadow-rose-100/50'
+                  }`}
+                >
+                  {cleanLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <span>🧹</span>}
+                  <span>클린 DB 초기화</span>
+                </button>
+                <a
+                  href="/api/setup-clean"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-10 h-10 rounded-xl border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-55/60 hover:text-slate-700 transition-colors bg-white"
                   title="새 창으로 API 직접 실행"
                 >
                   <ExternalLink className="w-4 h-4" />
