@@ -6,7 +6,7 @@ import { decodeJwt } from 'jose';
 import { updateRows, insertRows, queryTable } from '../../../../../../egdesk-helpers';
 
 /**
- * 최고관리자(SUPER_ADMIN) 권한 검증 공통 헬퍼
+ * 최고관리자(SUPER_ADMIN) 권한 검증 및 사용자명 추출 공통 헬퍼
  */
 async function verifySuperAdmin() {
   const cookieStore = await cookies();
@@ -19,6 +19,54 @@ async function verifySuperAdmin() {
   const payload = decodeJwt(token);
   if (payload.role !== 'SUPER_ADMIN') {
     throw new Error('등록 확정 권한이 없습니다. 최고관리자 계정으로 로그인해주세요.');
+  }
+
+  return (payload.username || payload.name || 'SUPER_ADMIN') as string;
+}
+
+// 자율 액션 감사 로그 적재 함수 (OCR용)
+async function logActionAudit({
+  prompt,
+  actionName,
+  args,
+  status,
+  result,
+  errorMessage,
+  operator
+}: {
+  prompt: string;
+  actionName: string;
+  args: any;
+  status: 'SUCCESS' | 'FAILED';
+  result?: any;
+  errorMessage?: string;
+  operator: string;
+}) {
+  try {
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const nowStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    const logId = `AUD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const uuid = `uuid-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+    
+    await insertRows('easybot_action_audit_logs', [{
+      id: logId,
+      operator_username: operator,
+      original_prompt: prompt,
+      action_name: actionName,
+      arguments_json: JSON.stringify(args || {}),
+      status: status,
+      execution_result: result ? JSON.stringify(result) : null,
+      error_message: errorMessage || null,
+      created_at: nowStr,
+      uuid: uuid,
+      updated_at: nowStr,
+      updated_by: operator
+    }]);
+
+    console.log(`[감사 로그(OCR) 기록 완료] Action: ${actionName}, Status: ${status}`);
+  } catch (err) {
+    console.error('감사 로그 DB 기록 실패(OCR):', err);
   }
 }
 
@@ -33,8 +81,20 @@ function getNowTimestamp(): string {
 
 export async function POST(req: Request) {
   try {
-    // 1. 최고관리자 세션 검증
-    await verifySuperAdmin();
+    // 1. 최고관리자 세션 검증 및 작업자명 획득
+    const operator = await verifySuperAdmin();
+
+    // 1.5. AI 컨트롤타워 이미지 OCR 자율 대행 활성화 여부 검증
+    const toggleRes = await queryTable('system_settings', { filters: { key: 'easybot_action_ocr_confirm_enabled' } });
+    const toggleVal = toggleRes.rows && toggleRes.rows.length > 0 ? toggleRes.rows[0].value : '1';
+    const isEnabled = toggleVal !== '0' && toggleVal !== 'false' && toggleVal !== false;
+
+    if (!isEnabled) {
+      return NextResponse.json({
+        success: false,
+        error: '이미지 OCR 자율 대행(등록 확정) 기능이 AI 컨트롤타워 설정에 의해 비활성화되어 있습니다. 관리자에게 문의하세요.'
+      }, { status: 403 });
+    }
 
     const reqBody = await req.json();
     const { fileType } = reqBody;
@@ -106,6 +166,16 @@ export async function POST(req: Request) {
           filters: { id: existingId }
         });
 
+        const auditPrompt = `[이지봇 AI 이미지 OCR 자율 대행] 기존 등록된 회사 재무제표(회계 연도: ${fiscalYear}년) 정보를 분석하여 재무제표 DB에 업데이트 대행하였습니다.`;
+        await logActionAudit({
+          prompt: auditPrompt,
+          actionName: 'ocr_confirm_financial_statement',
+          args: { partnerId, companyType, data, pdfFilePath },
+          status: 'SUCCESS',
+          result: { action: 'updated', partnerId, fiscalYear },
+          operator
+        });
+
         return NextResponse.json({
           success: true,
           message: '기존 등록된 ' + fiscalYear + '년도 재무제표 정보 갱신을 성공적으로 완료하였습니다.',
@@ -130,6 +200,16 @@ export async function POST(req: Request) {
           created_at: nowStr,
           updated_at: nowStr
         }]);
+
+        const auditPrompt = `[이지봇 AI 이미지 OCR 자율 대행] 신규 회사 재무제표(회계 연도: ${fiscalYear}년) 정보를 분석하여 재무제표 DB에 등록 대행하였습니다.`;
+        await logActionAudit({
+          prompt: auditPrompt,
+          actionName: 'ocr_confirm_financial_statement',
+          args: { partnerId, companyType, data, pdfFilePath },
+          status: 'SUCCESS',
+          result: { action: 'inserted', partnerId, fiscalYear },
+          operator
+        });
 
         return NextResponse.json({
           success: true,
@@ -172,6 +252,16 @@ export async function POST(req: Request) {
           created_at: nowStr
         }]);
 
+        const auditPrompt = `[이지봇 AI 이미지 OCR 자율 대행] 신규 사업자등록증 정보를 분석하여 신규 거래처 [${data.companyName}] 등록을 대행하였습니다.`;
+        await logActionAudit({
+          prompt: auditPrompt,
+          actionName: 'ocr_confirm_business_license',
+          args: { status, data, existingId },
+          status: 'SUCCESS',
+          result: { action: 'inserted', companyName: data.companyName },
+          operator
+        });
+
         return NextResponse.json({
           success: true,
           message: `이지봇 AI 비서가 신규 바이어 [${data.companyName}] 님의 정보와 국세청 가동 정보를 대조 및 등록 완수했습니다! 🚀`,
@@ -196,9 +286,19 @@ export async function POST(req: Request) {
           memo: data.memo || ''
         }, { filters: { id: existingId } });
 
+        const auditPrompt = `[이지봇 AI 이미지 OCR 자율 대행] 사업자등록증 정보를 분석하여 기존 거래처 [${data.companyName}] 정보 갱신을 대행하였습니다.`;
+        await logActionAudit({
+          prompt: auditPrompt,
+          actionName: 'ocr_confirm_business_license',
+          args: { status, data, existingId },
+          status: 'SUCCESS',
+          result: { action: 'updated', companyName: data.companyName, existingId },
+          operator
+        });
+
         return NextResponse.json({
           success: true,
-          message: `기존 B2B 거래처 [${data.companyName}] 님의 최신 사업자 가동 및 대표자/본점 이전 정보 갱신과 AI 이력 백업을 완수했습니다! ⚡`,
+          message: `이지봇 AI 비서가 기존 바이어 [${data.companyName}] 님의 변동된 주소/전화번호 등을 대조 및 갱신 완료했습니다! 🔄`,
           action: 'updated'
         });
       }
@@ -354,6 +454,16 @@ export async function POST(req: Request) {
         }]);
       }
 
+      const auditPrompt = `[이지봇 AI 이미지 OCR 자율 대행] 거래처 [${partnerName || '미지정'}]의 총 ${items.length}개 품목에 대한 자율 입고 처리를 대행하였습니다.`;
+      await logActionAudit({
+        prompt: auditPrompt,
+        actionName: 'ocr_confirm_inventory_inbound',
+        args: { partnerName, inboundDate, items, pdfFilePath },
+        status: 'SUCCESS',
+        result: { action: 'inbound_completed', inboundId },
+        operator
+      });
+
       return NextResponse.json({
         success: true,
         message: `거래처 [${partnerName || '미지정'}]의 총 ${items.length}개 품목에 대한 자율 입고 처리가 성공적으로 완료되었습니다.`,
@@ -394,6 +504,16 @@ export async function POST(req: Request) {
       };
 
       await insertRows('crm_recruitment_applicants', [applicantRecord]);
+
+      const auditPrompt = `[이지봇 AI 이미지 OCR 자율 대행] 지원자 [${data.name}] 님의 이력서 프로필을 채용 인재풀에 등록 대행하였습니다.`;
+      await logActionAudit({
+        prompt: auditPrompt,
+        actionName: 'ocr_confirm_resume',
+        args: { data },
+        status: 'SUCCESS',
+        result: { action: 'inserted', name: data.name },
+        operator
+      });
 
       return NextResponse.json({
         success: true,
@@ -449,6 +569,16 @@ export async function POST(req: Request) {
         created_at: nowStr,
         updated_at: nowStr
       }]);
+
+      const auditPrompt = `[이지봇 AI 이미지 OCR 자율 대행] 병가 신청을 위한 진단서 증빙 자료를 판독하여 병가 건(결재 대기) 상신 등록을 대행하였습니다.`;
+      await logActionAudit({
+        prompt: auditPrompt,
+        actionName: 'ocr_confirm_medical_certificate',
+        args: { data, operatorId },
+        status: 'SUCCESS',
+        result: { action: 'inserted', leaveId: generatedId },
+        operator
+      });
 
       return NextResponse.json({
         success: true,
@@ -518,6 +648,16 @@ export async function POST(req: Request) {
           insertedCount++;
         }
       }
+
+      const auditPrompt = `[이지봇 AI 이미지 OCR 자율 대행] 매입 명세서(총 ${items.length}건)를 분석하여 자재 단가 갱신 및 신규 품목 등록을 대행하였습니다.`;
+      await logActionAudit({
+        prompt: auditPrompt,
+        actionName: 'ocr_confirm_purchase_invoice',
+        args: { items },
+        status: 'SUCCESS',
+        result: { action: 'purchase_invoice_completed', updatedCount, insertedCount },
+        operator
+      });
 
       return NextResponse.json({
         success: true,
@@ -628,6 +768,16 @@ export async function POST(req: Request) {
         }
       }
 
+      const auditPrompt = `[이지봇 AI 이미지 OCR 자율 대행] 경쟁사 [${competitorName}]의 제품 [${itemName}] 시세(${capturedPrice.toLocaleString()}원) 매핑 등록을 대행하였습니다.`;
+      await logActionAudit({
+        prompt: auditPrompt,
+        actionName: 'ocr_confirm_competitor_price',
+        args: { matchedItemId, data },
+        status: 'SUCCESS',
+        result: { action: 'competitor_price_completed', competitorName, itemName, capturedPrice },
+        operator
+      });
+
       return NextResponse.json({
         success: true,
         message: `경쟁사 [${competitorName}]의 제품 [${itemName}] 시세(${capturedPrice.toLocaleString()}원) 매핑 등록이 정상 완료되었습니다. ${isMarginCollapsed ? '⚠️ 마진 붕괴 위험 감지!' : '🟢 마진 양호'}`,
@@ -669,6 +819,16 @@ export async function POST(req: Request) {
           filters: { id: existingId }
         });
 
+        const auditPrompt = `[이지봇 AI 이미지 OCR 자율 대행] 기존 등록된 설비 [${modelName}]의 제조 사양 정보를 분석하여 설비 대장에 업데이트 대행하였습니다.`;
+        await logActionAudit({
+          prompt: auditPrompt,
+          actionName: 'ocr_confirm_facility_plate',
+          args: { data },
+          status: 'SUCCESS',
+          result: { action: 'updated', modelName },
+          operator
+        });
+
         return NextResponse.json({
           success: true,
           message: `기존 등록된 설비 [${modelName}]의 제조 사양 정보를 성공적으로 업데이트 완료했습니다. ⚡`,
@@ -691,6 +851,16 @@ export async function POST(req: Request) {
           created_at: nowStr,
           updated_at: nowStr
         }]);
+
+        const auditPrompt = `[이지봇 AI 이미지 OCR 자율 대행] 신규 설비 [${modelName}]의 명판 사양 정보를 분석하여 설비 대장에 등록 대행하였습니다.`;
+        await logActionAudit({
+          prompt: auditPrompt,
+          actionName: 'ocr_confirm_facility_plate',
+          args: { data },
+          status: 'SUCCESS',
+          result: { action: 'inserted', modelName },
+          operator
+        });
 
         return NextResponse.json({
           success: true,
@@ -781,6 +951,16 @@ export async function POST(req: Request) {
         taskCreated = true;
       }
 
+      const auditPrompt = `[이지봇 AI 이미지 OCR 자율 대행] 설비 [${equipmentId}]의 수기 점검표(점검자: ${inspector}) 데이터를 점검 이력에 등록 대행하였습니다. ${overallStatus === 'FAIL' ? '(부적합에 따른 보전 지시 자동 발령)' : ''}`;
+      await logActionAudit({
+        prompt: auditPrompt,
+        actionName: 'ocr_confirm_facility_checklist',
+        args: { data },
+        status: 'SUCCESS',
+        result: { action: 'checklist_completed', checklistId, status: overallStatus, taskId: taskId || null },
+        operator
+      });
+
       return NextResponse.json({
         success: true,
         message: `수기 점검표 데이터를 점검 이력에 성공적으로 적재 완료하였습니다. ${
@@ -837,6 +1017,16 @@ export async function POST(req: Request) {
         ai_analysis: JSON.stringify({ documentType, caseNumber, summary, deadline, actions }),
         created_at: nowStr
       }]);
+
+      const auditPrompt = `[이지봇 AI 이미지 OCR 자율 대행] 소송 문서 [${documentType}]에서 추출한 중요 일정 및 조치 사항을 회사 태스크(지시번호: ${taskId})에 등록 대행하였습니다.`;
+      await logActionAudit({
+        prompt: auditPrompt,
+        actionName: 'ocr_confirm_legal_document',
+        args: { data },
+        status: 'SUCCESS',
+        result: { action: 'legal_task_completed', taskId },
+        operator
+      });
 
       return NextResponse.json({
         success: true,
@@ -912,6 +1102,16 @@ export async function POST(req: Request) {
 
       await insertRows('crm_estimate_items', detailRows);
 
+      const auditPrompt = `[이지봇 AI 이미지 OCR 자율 대행] 공급처 [${partnerName}]로부터 접수한 견적서(총 ${items.length}개 품목)를 견적 대장에 등록 대행하였습니다.`;
+      await logActionAudit({
+        prompt: auditPrompt,
+        actionName: 'ocr_confirm_inbound_estimate',
+        args: { partnerName, partnerPhone, estimateDate, items, pdfFilePath },
+        status: 'SUCCESS',
+        result: { action: 'inbound_estimate_completed', estimateId },
+        operator
+      });
+
       return NextResponse.json({
         success: true,
         message: `받은 견적서 등록 완료: 거래처 [${partnerName}]로부터 총 ${items.length}개 품목(총액 ${total_amount.toLocaleString()}원)의 견적을 정상 연동 접수하였습니다.`,
@@ -983,6 +1183,16 @@ export async function POST(req: Request) {
         { filters: { id: existingContactId } }
       );
 
+      const auditPrompt = `[이지봇 AI 이미지 OCR 자율 대행] 담당자 '${name}' 님의 명함 정보를 분석하여 기존 연락망의 최신 정보 업데이트를 대행하였습니다.`;
+      await logActionAudit({
+        prompt: auditPrompt,
+        actionName: 'ocr_confirm_business_card',
+        args: reqBody,
+        status: 'SUCCESS',
+        result: { action: 'updated', name },
+        operator
+      });
+
       return NextResponse.json({
         success: true,
         message: `기존 등록된 '${name}' 담당자의 연락망 및 부서/직책 최신 정보 갱신을 성공적으로 완료하였습니다.`,
@@ -1022,6 +1232,16 @@ export async function POST(req: Request) {
         }
       ]);
 
+      const auditPrompt = `[이지봇 AI 이미지 OCR 자율 대행] 담당자 '${name}' 님의 명함 정보를 분석하여 이직(비활성) 처리 및 신규 파트너사 연락망 이적 등록을 대행하였습니다.`;
+      await logActionAudit({
+        prompt: auditPrompt,
+        actionName: 'ocr_confirm_business_card',
+        args: reqBody,
+        status: 'SUCCESS',
+        result: { action: 'transitioned', name },
+        operator
+      });
+
       return NextResponse.json({
         success: true,
         message: `'${name}' 담당자의 기존 회사 재직 정보를 '이직(비활성)' 보존 처리하고, 신규 파트너사의 대표 연락망으로 이적 등록을 정상 완료하였습니다.`,
@@ -1047,6 +1267,16 @@ export async function POST(req: Request) {
         created_at: nowStr
       }
     ]);
+
+    const auditPrompt = `[이지봇 AI 이미지 OCR 자율 대행] 담당자 '${name}' 님의 명함 정보를 분석하여 연락망 신규 등록을 대행하였습니다.`;
+    await logActionAudit({
+      prompt: auditPrompt,
+      actionName: 'ocr_confirm_business_card',
+      args: reqBody,
+      status: 'SUCCESS',
+      result: { action: 'inserted', name },
+      operator
+    });
 
     return NextResponse.json({
       success: true,

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { queryTable, executeSQL, listTables, insertRows, createTable } from '../../../../egdesk-helpers';
 import fs from 'fs';
 import path from 'path';
+import { cookies } from 'next/headers';
+import { decodeJwt } from 'jose';
 
 let isFeedbackTableInitialized = false;
 
@@ -42,6 +44,116 @@ async function ensureFeedbackTableExists() {
     isFeedbackTableInitialized = true;
   } catch (err) {
     console.error('user_feedbacks 테이블 초기화 실패:', err);
+  }
+}
+
+// 로컬 API를 호출하는 헬퍼 함수
+async function callLocalApi(path: string, body: any, cookieHeader: string | null) {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (cookieHeader) {
+    headers['Cookie'] = cookieHeader;
+  }
+  const url = `http://localhost:4000${path}`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+  const resData = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(resData.error || `로컬 API 호출 실패 (상태: ${response.status})`);
+  }
+  return resData;
+}
+
+// 툴 명칭에 맞춰 대행 액션 처리하는 함수
+async function executeActionTool(name: string, args: any, cookieHeader: string | null): Promise<any> {
+  if (name === 'send_sms') {
+    const { receiver_phone, message_content } = args;
+    if (!receiver_phone || !message_content) {
+      throw new Error('수신자 번호(receiver_phone)와 메시지 내용(message_content)이 모두 필요합니다.');
+    }
+    return await callLocalApi('/api/sms/send', {
+      phoneNumber: receiver_phone,
+      message: message_content
+    }, cookieHeader);
+  } 
+  
+  if (name === 'register_customer') {
+    const { name: custName, phone, tags, memo, address } = args;
+    if (!custName || !phone) {
+      throw new Error('고객 성명(name)과 연락처(phone)는 필수 항목입니다.');
+    }
+    return await callLocalApi('/api/customers', {
+      name: custName,
+      phone,
+      tags: tags || '',
+      memo: memo || '',
+      address: address || ''
+    }, cookieHeader);
+  } 
+  
+  if (name === 'approve_expense') {
+    const { expense_id, status, comment } = args;
+    if (!expense_id || !status) {
+      throw new Error('지출 결의서 ID(expense_id)와 상태(status)는 필수 항목입니다.');
+    }
+    if (status !== 'APPROVED' && status !== 'REJECTED') {
+      throw new Error("상태는 'APPROVED' 또는 'REJECTED' 중 하나여야 합니다.");
+    }
+    return await callLocalApi('/api/expenses/approve', {
+      id: expense_id,
+      status: status,
+      memo: comment || ''
+    }, cookieHeader);
+  }
+
+  throw new Error(`알 수 없는 도구명입니다: ${name}`);
+}
+
+// 자율 액션 감사 로그 적재 함수
+async function logActionAudit({
+  prompt,
+  actionName,
+  args,
+  status,
+  result,
+  errorMessage,
+  operator
+}: {
+  prompt: string;
+  actionName: string;
+  args: any;
+  status: 'SUCCESS' | 'FAILED';
+  result?: any;
+  errorMessage?: string;
+  operator: string;
+}) {
+  try {
+    const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+    const logId = `AUD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const uuid = `uuid-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+    
+    await insertRows('easybot_action_audit_logs', [{
+      id: logId,
+      operator_username: operator,
+      original_prompt: prompt,
+      action_name: actionName,
+      arguments_json: JSON.stringify(args || {}),
+      status: status,
+      execution_result: result ? JSON.stringify(result) : null,
+      error_message: errorMessage || null,
+      created_at: nowStr,
+      uuid: uuid,
+      updated_at: nowStr,
+      updated_by: operator
+    }]);
+
+    console.log(`[감사 로그 기록 완료] Action: ${actionName}, Status: ${status}`);
+  } catch (err) {
+    console.error('감사 로그 DB 기록 실패:', err);
   }
 }
 
@@ -89,6 +201,220 @@ export async function POST(req: Request) {
     const selectedModel = modelRes.rows && modelRes.rows.length > 0 && modelRes.rows[0].value
       ? modelRes.rows[0].value
       : 'gemini-3.5-flash';
+
+    // === [NEW] 자율 액션 에이전트 (Function Calling) 선제 판별 및 실행 로직 ===
+    let operatorUsername = 'admin';
+    try {
+      const cookieStore = await cookies();
+      const token = cookieStore.get('auth_token')?.value;
+      if (token) {
+        const payload = decodeJwt(token);
+        operatorUsername = (payload.username || payload.name || 'admin') as string;
+      }
+    } catch (e) {
+      console.warn('토큰 사용자명 분석 실패, admin 대체:', e);
+    }
+
+    const toolDeclarations = [
+      {
+        name: "send_sms",
+        description: "지정한 전화번호로 알림 문자(SMS)를 발송합니다. 사용자가 문자 발송, SMS 전송 등을 요청했을 때 사용합니다.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            receiver_phone: { type: "STRING", description: "수신자 전화번호 (예: 010-1234-5678)" },
+            message_content: { type: "STRING", description: "발송할 문자 메시지 내용" }
+          },
+          required: ["receiver_phone", "message_content"]
+        }
+      },
+      {
+        name: "register_customer",
+        description: "신규 고객 정보를 데이터베이스에 신설/등록합니다. 고객 추가, 고객 등록 요청 시 사용합니다.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            name: { type: "STRING", description: "고객의 성명" },
+            phone: { type: "STRING", description: "고객의 연락처 전화번호 (예: 010-1234-5678)" },
+            tags: { type: "STRING", description: "고객 분류 태그 (콤마로 구분, 옵션)" },
+            memo: { type: "STRING", description: "고객 관련 특이사항 메모 (옵션)" },
+            address: { type: "STRING", description: "고객 주소 (옵션)" }
+          },
+          required: ["name", "phone"]
+        }
+      },
+      {
+        name: "approve_expense",
+        description: "지출 결의서(경비 청구 내역)의 결재 상태를 승인(APPROVED) 또는 반려(REJECTED)로 변경합니다.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            expense_id: { type: "STRING", description: "지출 결의서의 고유 ID (예: exp-01, exp-02 등)" },
+            status: { type: "STRING", description: "결재 처리할 상태값. 'APPROVED' (승인) 또는 'REJECTED' (반려)" },
+            comment: { type: "STRING", description: "승인/반려 관련 코멘트 의견 (옵션)" }
+          },
+          required: ["expense_id", "status"]
+        }
+      }
+    ];
+
+    // 첫 번째 모델 호출: 도구 사용 여부 감색
+    const initialResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: "당신은 이지봇이며, 최고관리자의 업무 대행이 가능한 자율 액션 에이전트입니다. 사용자가 문자 발송, 고객 등록, 지출 승인 등을 요구하면 선언된 적절한 도구(tool)를 호출해야 합니다." }] },
+        contents: [
+          ...chatHistory.map((msg: any) => ({
+            role: msg.role === 'user' ? 'user' : 'model',
+            parts: [{ text: msg.content }]
+          })),
+          { role: 'user', parts: [{ text: prompt }] }
+        ],
+        tools: [{ functionDeclarations: toolDeclarations }]
+      })
+    });
+
+    if (!initialResponse.ok) {
+      const err = await initialResponse.json();
+      throw new Error(err.error?.message || 'Gemini Initial API 호출 중 오류가 발생했습니다.');
+    }
+
+    const initialData = await initialResponse.json();
+    const candidate = initialData.candidates?.[0];
+    const parts = candidate?.content?.parts || [];
+    const functionCallPart = parts.find((p: any) => p.functionCall);
+
+    if (functionCallPart) {
+      const { name, args } = functionCallPart.functionCall;
+      console.log(`[이지봇 자율 액션 감지] Tool: ${name}, Args:`, args);
+
+      // 1. 활성화 토글 검증 (system_settings 조회)
+      let toggleKey = `easybot_action_${name}_enabled`;
+      
+      // approve_expense의 경우 승인/반려 세부 토글 키 분기 적용
+      if (name === 'approve_expense') {
+        const status = args.status || 'APPROVED';
+        if (status === 'APPROVED') {
+          toggleKey = 'easybot_action_approve_expense_approved_enabled';
+        } else if (status === 'REJECTED') {
+          toggleKey = 'easybot_action_approve_expense_rejected_enabled';
+        }
+      }
+
+      const toggleRes = await queryTable('system_settings', { filters: { key: toggleKey } });
+      const toggleVal = toggleRes.rows && toggleRes.rows.length > 0 ? toggleRes.rows[0].value : '1'; // 설정이 없으면 기본 활성
+      const isEnabled = toggleVal !== '0' && toggleVal !== 'false' && toggleVal !== false;
+
+      if (!isEnabled) {
+        console.warn(`[자율 액션 가드 발동] ${name} 도구가 시스템 설정에 의해 비활성화되어 있습니다.`);
+        
+        // 감사 로그에 실패 기록 적재
+        await logActionAudit({
+          prompt,
+          actionName: name,
+          args,
+          status: 'FAILED',
+          errorMessage: '관리자 설정에 의해 비활성화된 기능입니다.',
+          operator: operatorUsername
+        });
+
+        return NextResponse.json({
+          success: true,
+          answer: `⚠️ 이 기능(\`${name}\`)은 현재 **AI 컨트롤타워** 설정에 의해 일시적으로 비활성화되어 있습니다. 관리자에게 설정 활성화를 요청해 주세요.`
+        });
+      }
+
+      // 2. 로컬 API 실행
+      let actionResult: any = null;
+      let actionError: string | null = null;
+      
+      const reqCookie = req.headers.get('cookie');
+
+      try {
+        actionResult = await executeActionTool(name, args, reqCookie);
+      } catch (err: any) {
+        console.error(`[자율 액션 실행 에러] Tool: ${name}, Msg:`, err.message);
+        actionError = err.message || String(err);
+      }
+
+      // 3. 실행 결과 감사 로그 적재
+      await logActionAudit({
+        prompt,
+        actionName: name,
+        args,
+        status: actionError ? 'FAILED' : 'SUCCESS',
+        result: actionResult,
+        errorMessage: actionError || undefined,
+        operator: operatorUsername
+      });
+
+      // 4. 실행 결과를 Gemini에 보내 최종 자연어 답변 유도
+      const toolOutput = actionError 
+        ? { success: false, error: actionError }
+        : { success: true, result: actionResult };
+
+      const secondResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: "당신은 이지봇입니다. 방금 실행한 도구(tool)의 실행 결과 데이터(toolOutput)를 참고하여, 사용자에게 업무 처리가 어떻게 완료되었거나 실패했는지를 밝고 신뢰감 주는 말투로 한글로 정성껏 응답해 주세요." }] },
+          contents: [
+            ...chatHistory.map((msg: any) => ({
+              role: msg.role === 'user' ? 'user' : 'model',
+              parts: [{ text: msg.content }]
+            })),
+            { role: 'user', parts: [{ text: prompt }] },
+            candidate.content,
+            {
+              role: 'function',
+              parts: [
+                {
+                  functionResponse: {
+                    name: name,
+                    response: { output: toolOutput }
+                  }
+                }
+              ]
+            }
+          ]
+        })
+      });
+
+      if (!secondResponse.ok) {
+        const err = await secondResponse.json();
+        throw new Error(err.error?.message || 'Gemini Second API 호출 중 오류가 발생했습니다.');
+      }
+
+      const secondData = await secondResponse.json();
+      const finalAnswer = secondData.candidates?.[0]?.content?.parts?.[0]?.text || "업무 대행 처리를 완료했으나 안내 응답을 생성하지 못했습니다.";
+
+      // 🕒 토큰 사용량 기록 (1차 + 2차 합산 기록)
+      const t1 = initialData.usageMetadata || {};
+      const t2 = secondData.usageMetadata || {};
+      try {
+        const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+        await insertRows('ai_token_usage_logs', [{
+          id: `TKA-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          model: selectedModel,
+          purpose: 'easybot-action-execution',
+          prompt_tokens: (t1.promptTokenCount || 0) + (t2.promptTokenCount || 0),
+          completion_tokens: (t1.candidatesTokenCount || 0) + (t2.candidatesTokenCount || 0),
+          total_tokens: (t1.totalTokenCount || 0) + (t2.totalTokenCount || 0),
+          created_at: nowStr
+        }]);
+      } catch (logErr) {
+        console.error('Action 토큰 로깅 실패:', logErr);
+      }
+
+      return NextResponse.json({
+        success: true,
+        answer: finalAnswer,
+        reply: finalAnswer
+      });
+    }
+
+    // === 자율 액션 감지 안 되었을 시 기존 조회 및 분석 로직 작동 ===
 
     // 2. 현재 DB에 어떤 테이블들이 존재하는지 동적으로 리스트업
     let dbTablesInfo = '알 수 없음';

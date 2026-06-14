@@ -1264,6 +1264,26 @@ export async function setupDatabase() {
     { name: 'restored_by', type: 'TEXT' }
   ], { tableName: 'crm_web_form_logs', uniqueKeyColumns: ['id'] });
 
+  // 41-8. 이지봇 자율 액션 감사 로그 대장 (easybot_action_audit_logs)
+  await safeCreateTable('이지봇 AI 감사 로그', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'operator_username', type: 'TEXT' },
+    { name: 'original_prompt', type: 'TEXT' },
+    { name: 'action_name', type: 'TEXT' },
+    { name: 'arguments_json', type: 'TEXT' },
+    { name: 'status', type: 'TEXT' },
+    { name: 'execution_result', type: 'TEXT' },
+    { name: 'error_message', type: 'TEXT' },
+    { name: 'created_at', type: 'TEXT', notNull: true },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
+  ], { tableName: 'easybot_action_audit_logs', uniqueKeyColumns: ['id'] });
+
   // 42. Safety Policies Table (안전보건방침 및 목표 설정 대장)
   await safeCreateTable('안전보건방침 및 목표', [
     { name: 'id', type: 'INTEGER', notNull: true },

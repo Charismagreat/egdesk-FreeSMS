@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { insertRows } from '../../../../../egdesk-helpers';
+import { insertRows, queryTable } from '../../../../../egdesk-helpers';
 import fs from 'fs';
 import path from 'path';
 
@@ -138,6 +138,25 @@ ${feedbackText}${attachmentsText}`;
   } catch (error: any) {
     console.error('Feedback DB Store API Support Error:', error);
     return NextResponse.json({ success: false, error: error.message || '서버 오류로 인해 피드백 저장에 실패했습니다.' }, { status: 500 });
+  }
+}
+
+/**
+ * GET: 제출된 피드백/기안 리스트 조회
+ */
+export async function GET() {
+  try {
+    const result = await queryTable('user_feedbacks', {
+      orderBy: 'created_at',
+      orderDirection: 'DESC'
+    });
+    return NextResponse.json({
+      success: true,
+      data: result.rows || []
+    });
+  } catch (error: any) {
+    console.error('Feedback Fetch API Error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 

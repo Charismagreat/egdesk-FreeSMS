@@ -8,7 +8,7 @@ import {
   ClipboardList, CreditCard, CalendarDays, Truck, Send, 
   PackageSearch, Package, UserCog, Zap, Ticket, Landmark, Globe, Briefcase, HelpCircle,
   ArrowRightLeft, Handshake, Sparkles, Coins, Database, Compass, Shield, CheckSquare, Wrench, ShieldAlert, Award, Scale, Key, Mail, Eye, EyeOff,
-  GripVertical
+  GripVertical, Activity
 } from "lucide-react";
 
 // 커스텀 인스타그램 아이콘 SVG
@@ -517,6 +517,19 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
           <HelpCircle className={`w-5 h-5 shrink-0 ${isActive("/help") ? "text-white" : "text-amber-400"}`} />
           <span>Q&A 헬프센터</span>
         </Link>
+        {userRole === "SUPER_ADMIN" && (
+          <Link
+            href="/ai-control-tower"
+            className={`flex items-center space-x-3 p-3 rounded-lg transition-all ${
+              isActive("/ai-control-tower")
+                ? "bg-blue-600 text-white font-semibold shadow-md shadow-blue-500/10 scale-[1.02]"
+                : "text-slate-300 hover:bg-slate-800 hover:text-white hover:scale-[1.01]"
+            }`}
+          >
+            <Activity className={`w-5 h-5 shrink-0 ${isActive("/ai-control-tower") ? "text-white" : "text-emerald-400"}`} />
+            <span>AI 컨트롤타워</span>
+          </Link>
+        )}
         <Link
           href="/settings"
           className={`flex items-center space-x-3 p-3 rounded-lg transition-all ${
