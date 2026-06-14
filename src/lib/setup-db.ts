@@ -2449,7 +2449,8 @@ export async function setupDatabase() {
         businessNumber: '731-81-02023',
         phone: '010-7216-5884',
         email: 'chachogreat@gmail.com',
-        address: '경기도 시흥시 서울대학로 59-69 배곧테크노밸리 609호',
+        homepage: 'https://egdesk.cloud',
+        address: '경기도 시흥시 서울대학로 59-69',
         sidebarMainTitle: 'EGDESK SMS',
         sidebarSubTitle: '우리 회사 스마트 AI 시스템'
       };
