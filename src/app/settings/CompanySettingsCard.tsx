@@ -160,6 +160,7 @@ export default function CompanySettingsCard() {
           businessNumber: (ocrData.businessNumber || '').replace(/\D/g, '') || prev.businessNumber,
           address: ocrData.address || prev.address,
           phone: ocrData.phone || prev.phone,
+          email: ocrData.email || prev.email,
         }));
 
         setMessage({ type: 'success', text: 'AI가 사업자등록증을 분석하여 본사 정보를 양식에 자동 입력했습니다! ⚡' });

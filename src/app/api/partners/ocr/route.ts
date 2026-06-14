@@ -120,6 +120,7 @@ export async function POST(req: Request) {
 - 대표자 성명 (representative)
 - 사업장 주소/소재지 (address)
 - 대표 연락처/전화번호 (phone): 등록증에 명시된 연락처나 팩스번호 중 전화번호를 정제해서 "010-0000-0000" 또는 "02-000-0000" 형식으로 반환, 없으면 빈칸
+- 실무 이메일 주소 (email): 등록증에 명시된 국세청 신고 및 세금계산서 통보용 전자우편 주소를 추출해 이메일 형식으로 반환, 없으면 빈칸
 - 실무 담당자명 (managerName): 공동대표나 인쇄된 유의미한 이름이 있을 시 기재, 없으면 빈칸
 - 개업연월일 (openingDate): "YYYY-MM-DD" 형식으로 정제해서 반환, 없으면 빈칸
 - 업태 (businessType)
@@ -134,6 +135,7 @@ export async function POST(req: Request) {
   "representative": "홍길동",
   "address": "서울특별시 영등포구 양평로 123",
   "phone": "02-1234-5678",
+  "email": "contact@easytech.com",
   "managerName": "",
   "openingDate": "2020-05-15",
   "businessType": "제조업",
@@ -198,6 +200,7 @@ export async function POST(req: Request) {
       representative: parsedData.representative ? parsedData.representative.trim() : '',
       address: parsedData.address ? parsedData.address.trim() : '',
       phone: cleanedPhone,
+      email: parsedData.email ? parsedData.email.trim() : '',
       managerName: parsedData.managerName ? parsedData.managerName.trim() : '',
       openingDate: parsedData.openingDate || '',
       businessType: parsedData.businessType || '',
