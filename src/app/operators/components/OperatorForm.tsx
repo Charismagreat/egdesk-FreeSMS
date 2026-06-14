@@ -19,7 +19,7 @@ export function OperatorForm({
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
       <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center">
         <Plus className="w-5 h-5 mr-2 text-indigo-500" />
-        새 운영자 추가
+        새 직원 추가
       </h2>
       <form onSubmit={onSubmit} className="space-y-4">
         <div>
@@ -45,14 +45,26 @@ export function OperatorForm({
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">이름/직급</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">이름</label>
           <input
             type="text"
             required
             value={form.name}
             onChange={(e) => onUpdateField("name", e.target.value)}
             className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
-            placeholder="예: 홍길동 대리"
+            placeholder="예: 홍길동"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            사원번호 <span className="text-xs text-slate-400 font-normal">(미입력 시 자동 생성)</span>
+          </label>
+          <input
+            type="text"
+            value={form.employee_number}
+            onChange={(e) => onUpdateField("employee_number", e.target.value)}
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm"
+            placeholder="예: 26-001"
           />
         </div>
         <div>

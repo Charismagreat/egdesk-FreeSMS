@@ -12,7 +12,8 @@ export function useOperators() {
     username: "",
     password: "",
     name: "",
-    role: "SUB_OPERATOR"
+    role: "SUB_OPERATOR",
+    employee_number: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -31,7 +32,7 @@ export function useOperators() {
         alert(data.error);
       }
     } catch (e) {
-      console.error("운영자 목록 조회 에러:", e);
+      console.error("직원 목록 조회 에러:", e);
     } finally {
       setIsLoading(false);
     }
@@ -60,7 +61,8 @@ export function useOperators() {
           username: form.username, 
           password: form.password, 
           name: form.name, 
-          newRole: form.role 
+          newRole: form.role,
+          employee_number: form.employee_number
         })
       });
       const data = await res.json();
@@ -70,7 +72,8 @@ export function useOperators() {
           username: "",
           password: "",
           name: "",
-          role: "SUB_OPERATOR"
+          role: "SUB_OPERATOR",
+          employee_number: ""
         });
         fetchOperators();
       } else {
@@ -84,7 +87,7 @@ export function useOperators() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("정말 이 운영자 계정을 삭제하시겠습니까?")) return;
+    if (!confirm("정말 이 직원 계정을 삭제하시겠습니까?")) return;
     
     try {
       const res = await fetch(`/api/operators?id=${id}`, { method: 'DELETE' });

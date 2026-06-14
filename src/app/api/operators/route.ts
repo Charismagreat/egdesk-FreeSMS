@@ -38,7 +38,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: '권한이 없습니다.' }, { status: 403 });
     }
 
-    const { username, password, name, newRole } = await req.json();
+    const { username, password, name, newRole, employee_number } = await req.json();
 
     if (!username || !password || !name) {
       return NextResponse.json({ success: false, error: '모든 필드를 입력해주세요.' }, { status: 400 });
@@ -50,6 +50,36 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: '이미 존재하는 아이디입니다.' }, { status: 400 });
     }
 
+    // 사원번호 검증 및 자동 생성 체계 [입사년도(2자리)]-[일련번호(3자리)]
+    let finalEmpNumber = (employee_number || '').trim();
+
+    if (finalEmpNumber) {
+      // 수동 입력 시 중복 체크
+      const existingEmpNum = await queryTable('crm_operators', { filters: { employee_number: finalEmpNumber } });
+      if (existingEmpNum.rows && existingEmpNum.rows.length > 0) {
+        return NextResponse.json({ success: false, error: '이미 존재하는 사원번호입니다.' }, { status: 400 });
+      }
+    } else {
+      // 미입력 시 26-001 형식 자동 사번 생성
+      const yy = new Date().getFullYear().toString().slice(-2);
+      const prefix = `${yy}-`;
+
+      const allOpsRes = await queryTable('crm_operators', {});
+      const allOps = allOpsRes.rows || [];
+
+      // 현재 연도로 시작하는 사번 필터링 및 일련번호 추출
+      const seqList = allOps
+        .filter((op: any) => op.employee_number && op.employee_number.startsWith(prefix))
+        .map((op: any) => {
+          const numPart = op.employee_number.replace(prefix, '');
+          return Number(numPart) || 0;
+        });
+
+      const maxSeq = seqList.length > 0 ? Math.max(...seqList) : 0;
+      const nextSeq = maxSeq + 1;
+      finalEmpNumber = `${prefix}${String(nextSeq).padStart(3, '0')}`;
+    }
+
     const password_hash = await bcrypt.hash(password, 10);
     const dateStr = new Date().toISOString();
 
@@ -59,6 +89,7 @@ export async function POST(req: Request) {
       password_hash,
       name,
       role: newRole || 'SUB_OPERATOR',
+      employee_number: finalEmpNumber,
       created_at: dateStr
     }]);
 

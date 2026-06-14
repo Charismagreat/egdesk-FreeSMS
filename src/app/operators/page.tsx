@@ -18,7 +18,7 @@ export default function OperatorsPage() {
   } = useOperators();
 
   return (
-    <div className="w-full space-y-6 pb-20 min-w-0 font-sans text-slate-800 animate-fade-in text-left" data-easybot-hint="직원 관리: 이지데스크 플랫폼에 접근할 수 있는 사내 서브 운영자 계정 추가 및 접근 권한을 관리합니다.">
+    <div className="w-full space-y-6 pb-20 min-w-0 font-sans text-slate-800 animate-fade-in text-left" data-easybot-hint="직원 관리: 이지데스크 플랫폼에 접근할 수 있는 사내 서브 운영자 및 일반 직원 계정을 추가하고 접근 권한을 관리합니다.">
       {/* 직원 관리 헤더 영역 */}
       <OperatorHeader />
 

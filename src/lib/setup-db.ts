@@ -211,6 +211,7 @@ export async function setupDatabase() {
     { name: 'password_hash', type: 'TEXT', notNull: true },
     { name: 'name', type: 'TEXT', notNull: true },
     { name: 'role', type: 'TEXT', notNull: true }, // 'SUPER_ADMIN' or 'SUB_OPERATOR'
+    { name: 'employee_number', type: 'TEXT' },
     { name: 'created_at', type: 'TEXT' },
     { name: 'uuid', type: 'TEXT' },
     { name: 'updated_at', type: 'TEXT' },

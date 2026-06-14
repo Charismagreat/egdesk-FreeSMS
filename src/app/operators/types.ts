@@ -3,6 +3,7 @@ export interface Operator {
   username: string;
   name: string;
   role: string;
+  employee_number?: string;
   created_at: string;
 }
 
@@ -11,4 +12,5 @@ export interface OperatorForm {
   password: string;
   name: string;
   role: string;
+  employee_number: string;
 }

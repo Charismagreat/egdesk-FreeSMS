@@ -10,7 +10,7 @@ export function OperatorHeader() {
           직원 관리
         </h1>
         <p className="text-slate-500 mt-2">
-          최고관리자 권한 전용 화면입니다. 부운영자 계정을 생성하고 권한을 관리하세요.
+          최고관리자 권한 전용 화면입니다. 부운영자 및 일반 직원 계정을 생성하고 권한을 관리하세요.
         </p>
       </div>
     </div>
