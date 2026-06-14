@@ -31,8 +31,12 @@ export function useLogin(): UseLoginResult {
         return;
       }
 
-      // 로그인 성공 시 대시보드로 이동하고 페이지 갱신
-      router.push("/");
+      // 로그인 성공 시 역할(Role)에 맞춰 리다이렉트 지점 분기 설정
+      if (data.user?.role === 'EMPLOYEE') {
+        router.push("/m/grant-management");
+      } else {
+        router.push("/");
+      }
       router.refresh();
     } catch (err: any) {
       setError("서버와 통신할 수 없습니다.");

@@ -3,6 +3,7 @@ import { decodeJwt } from 'jose';
 import { LogOut } from 'lucide-react';
 import SidebarMenu from './SidebarMenu';
 import { queryTable } from '@/../egdesk-helpers';
+import { redirect } from 'next/navigation';
 
 export default async function Sidebar() {
   const cookieStore = await cookies();
@@ -19,6 +20,11 @@ export default async function Sidebar() {
     } catch (e) {
       console.error("Invalid token in Sidebar");
     }
+  }
+
+  // 일반 직원(EMPLOYEE)은 PC 대시보드 진입을 차단하고 모바일 지원금 신청 페이지로 즉시 리다이렉트
+  if (userRole === 'EMPLOYEE') {
+    redirect('/m/grant-management');
   }
 
   // 🛡️ DB로부터 사이드바 메인/서브 타이틀 로드 (디폴트값 가드)
@@ -72,7 +78,9 @@ export default async function Sidebar() {
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-medium text-slate-200 leading-tight">{userName}</span>
-            <span className="text-[10px] text-slate-500 leading-tight">{userRole === 'SUPER_ADMIN' ? '최고관리자' : '부운영자'}</span>
+            <span className="text-[10px] text-slate-500 leading-tight">
+              {userRole === 'SUPER_ADMIN' ? '최고관리자' : userRole === 'EMPLOYEE' ? '일반직원' : '부운영자'}
+            </span>
           </div>
         </div>
         <form action={async () => {

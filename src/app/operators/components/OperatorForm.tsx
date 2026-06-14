@@ -64,6 +64,7 @@ export function OperatorForm({
           >
             <option value="SUB_OPERATOR">부운영자 (일반 기능만)</option>
             <option value="SUPER_ADMIN">최고관리자 (전체 권한)</option>
+            <option value="EMPLOYEE">일반 직원 (모바일 전용)</option>
           </select>
         </div>
         <button
