@@ -55,6 +55,17 @@ export const PayrollContractCenter: React.FC<PayrollContractCenterProps> = ({
   const isAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'PRESIDENT';
   if (!isAdmin) return null;
 
+  const getRoleKorean = (role: string) => {
+    if (!role) return "";
+    switch (role.toUpperCase()) {
+      case 'SUPER_ADMIN': return '최고관리자';
+      case 'SUB_OPERATOR': return '부운영자';
+      case 'EMPLOYEE': return '일반직원';
+      case 'PRESIDENT': return '대표이사';
+      default: return role;
+    }
+  };
+
   return (
     <div className="bg-white border border-slate-100 p-6 rounded-3xl shadow-sm space-y-6 relative overflow-hidden">
       {/* 럭셔리 데코 백그라운드 */}
@@ -100,7 +111,7 @@ export const PayrollContractCenter: React.FC<PayrollContractCenterProps> = ({
                 <option value="">직원을 선택하세요...</option>
                 {employees.map((emp) => (
                   <option key={emp.id} value={emp.id}>
-                    {emp.name} {emp.employee_number ? `(${emp.employee_number})` : ''} ({emp.role})
+                    {emp.name} {emp.employee_number ? `(${emp.employee_number})` : ''} ({getRoleKorean(emp.role)})
                   </option>
                 ))}
               </select>

@@ -49,6 +49,17 @@ export const BasicProfileEditor: React.FC<BasicProfileEditorProps> = ({
   const isAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'PRESIDENT';
   if (!isAdmin) return null;
 
+  const getRoleKorean = (role: string) => {
+    if (!role) return "";
+    switch (role.toUpperCase()) {
+      case 'SUPER_ADMIN': return '최고관리자';
+      case 'SUB_OPERATOR': return '부운영자';
+      case 'EMPLOYEE': return '일반직원';
+      case 'PRESIDENT': return '대표이사';
+      default: return role;
+    }
+  };
+
   return (
     <div className="bg-white border border-slate-100 p-6 rounded-3xl shadow-sm space-y-6 relative overflow-hidden mt-6">
       <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl -z-10"></div>
@@ -83,7 +94,7 @@ export const BasicProfileEditor: React.FC<BasicProfileEditorProps> = ({
                 <option value="">직원을 선택하세요...</option>
                 {employees.map(emp => (
                   <option key={emp.id} value={emp.id}>
-                    {emp.name} {emp.employee_number ? `(${emp.employee_number})` : ''} ({emp.role})
+                    {emp.name} {emp.employee_number ? `(${emp.employee_number})` : ''} ({getRoleKorean(emp.role)})
                   </option>
                 ))}
               </select>
@@ -149,7 +160,7 @@ export const BasicProfileEditor: React.FC<BasicProfileEditorProps> = ({
                   .filter(emp => String(emp.id) !== String(selectedProfileOperatorId))
                   .map(emp => (
                     <option key={emp.id} value={emp.id}>
-                      {emp.name} {emp.employee_number ? `(${emp.employee_number})` : ''} ({emp.role})
+                      {emp.name} {emp.employee_number ? `(${emp.employee_number})` : ''} ({getRoleKorean(emp.role)})
                     </option>
                   ))}
               </select>
@@ -204,7 +215,7 @@ export const BasicProfileEditor: React.FC<BasicProfileEditorProps> = ({
                         </td>
                         <td className="py-3.5 px-4">
                           <span className="block text-[10px] text-emerald-600 font-black">{pf.department}</span>
-                          <span className="text-slate-450 font-bold text-[10.5px]">{pf.role}</span>
+                          <span className="text-slate-450 font-bold text-[10.5px]">{getRoleKorean(pf.role)}</span>
                         </td>
                         <td className="py-3.5 px-4 text-center font-mono text-slate-650">{pf.hire_date}</td>
                         <td className="py-3.5 px-4 text-slate-750 font-semibold">{pf.commute_area}</td>

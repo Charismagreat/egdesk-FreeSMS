@@ -200,6 +200,17 @@ export const ComprehensiveProfile360: React.FC<ComprehensiveProfile360Props> = (
   const isAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'PRESIDENT';
   if (!isAdmin) return null;
 
+  const getRoleKorean = (role: string) => {
+    if (!role) return "";
+    switch (role.toUpperCase()) {
+      case 'SUPER_ADMIN': return '최고관리자';
+      case 'SUB_OPERATOR': return '부운영자';
+      case 'EMPLOYEE': return '일반직원';
+      case 'PRESIDENT': return '대표이사';
+      default: return role;
+    }
+  };
+
   return (
     <div className="bg-white border border-slate-100 p-6 rounded-3xl shadow-sm space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
@@ -222,7 +233,7 @@ export const ComprehensiveProfile360: React.FC<ComprehensiveProfile360Props> = (
             <option value="">임직원을 선택해 주세요...</option>
             {employees.map((emp) => (
               <option key={emp.id} value={emp.id}>
-                {emp.name} {emp.employee_number ? `(${emp.employee_number})` : ''} ({emp.role})
+                {emp.name} {emp.employee_number ? `(${emp.employee_number})` : ''} ({getRoleKorean(emp.role)})
               </option>
             ))}
           </select>
@@ -274,7 +285,7 @@ export const ComprehensiveProfile360: React.FC<ComprehensiveProfile360Props> = (
                       <div>
                         <span className="block text-[9px] text-slate-400 font-bold uppercase">부서/직급</span>
                         <span className="text-slate-800 font-black">
-                          {pf?.department || '미정'} / {current360.role}
+                          {pf?.department || '미정'} / {getRoleKorean(current360.role)}
                         </span>
                       </div>
                       <div>
