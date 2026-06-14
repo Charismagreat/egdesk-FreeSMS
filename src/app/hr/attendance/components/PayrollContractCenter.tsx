@@ -62,7 +62,7 @@ export const PayrollContractCenter: React.FC<PayrollContractCenterProps> = ({
 
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
         <div className="flex items-center gap-3">
-          <span className="w-1.5 h-4.5 bg-indigo-650 rounded-full"></span>
+          <span className="w-1.5 h-4.5 bg-indigo-600 rounded-full"></span>
           <h3 className="text-sm font-black text-slate-800 flex items-center gap-1.5">
             근로계약 & 실시간 급여 정산 AI 관제
             <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">SUPER OWNER</span>
@@ -181,7 +181,7 @@ export const PayrollContractCenter: React.FC<PayrollContractCenterProps> = ({
             <button
               type="submit"
               disabled={submitLoading || !getIsContractModified()}
-              className="w-full py-2.5 bg-indigo-650 hover:bg-indigo-755 text-white disabled:opacity-40 rounded-xl font-black transition-all shadow-md cursor-pointer border-0 text-center"
+              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-40 rounded-xl font-black transition-all shadow-md cursor-pointer border-0 text-center"
             >
               {submitLoading ? '전송 중...' : '근로계약 변경 적용 및 모바일 락해제 🔑'}
             </button>

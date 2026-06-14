@@ -539,7 +539,7 @@ export const ComprehensiveProfile360: React.FC<ComprehensiveProfile360Props> = (
                                 {sal.net_salary?.toLocaleString()}원
                               </span>
                               <div
-                                className="w-4 bg-indigo-500 rounded-t group-hover:bg-indigo-650 transition-all shadow-inner"
+                                className="w-4 bg-indigo-600 rounded-t group-hover:bg-indigo-700 transition-all shadow-inner"
                                 style={{ height: `${heightPercent}px` }}
                               ></div>
                               <span className="text-[9.5px] font-black font-mono text-slate-500 mt-1">{sal.payment_year_month}</span>
@@ -684,7 +684,7 @@ export const ComprehensiveProfile360: React.FC<ComprehensiveProfile360Props> = (
                               </div>
                               <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
                                 <div
-                                  className="bg-indigo-650 h-full rounded-full transition-all"
+                                  className="bg-indigo-600 h-full rounded-full transition-all"
                                   style={{ width: `${prj.contribution_rate}%` }}
                                 ></div>
                               </div>
@@ -1601,7 +1601,7 @@ export const ComprehensiveProfile360: React.FC<ComprehensiveProfile360Props> = (
                     <button
                       type="submit"
                       disabled={submitLoading || !getIs360Modified()}
-                      className="w-full py-3 bg-indigo-650 hover:bg-indigo-755 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-xl text-xs font-black shadow-md cursor-pointer transition-all flex items-center justify-center gap-1.5 border-0"
+                      className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-xl text-xs font-black shadow-md cursor-pointer transition-all flex items-center justify-center gap-1.5 border-0"
                     >
                       <Send size={12} />
                       360도 인사 이력 저장 및 AI RAG 실시간 융합

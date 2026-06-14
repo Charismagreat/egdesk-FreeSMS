@@ -194,7 +194,7 @@ export const CalendarEventModal: React.FC<CalendarEventModalProps> = ({
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 bg-indigo-650 hover:bg-indigo-755 text-white rounded-xl text-xs font-black shadow-md cursor-pointer transition-all flex items-center justify-center gap-1.5 border-0"
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-md cursor-pointer transition-all flex items-center justify-center gap-1.5 border-0"
               >
                 <Plus size={12} />
                 캘린더 일정 배포 등록

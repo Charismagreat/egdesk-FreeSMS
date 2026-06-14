@@ -115,7 +115,7 @@ export const CompanyCalendar: React.FC<CompanyCalendarProps> = ({
               {day}
             </span>
             {isToday && (
-              <span className="text-[7.5px] font-black bg-indigo-650 text-white px-1 py-0.2 rounded-sm shrink-0 shadow-2xs tracking-tighter">
+              <span className="text-[7.5px] font-black bg-indigo-600 text-white px-1 py-0.2 rounded-sm shrink-0 shadow-2xs tracking-tighter">
                 TODAY ⚡
               </span>
             )}
@@ -254,7 +254,7 @@ export const CompanyCalendar: React.FC<CompanyCalendarProps> = ({
           {(currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'PRESIDENT') && (
             <button
               onClick={() => setIsEventModalOpen(true)}
-              className="px-3 py-1.5 text-[10px] font-extrabold text-white bg-indigo-650 hover:bg-indigo-755 rounded-xl flex items-center gap-1 cursor-pointer transition-all shadow-sm border-0"
+              className="px-3 py-1.5 text-[10px] font-extrabold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl flex items-center gap-1 cursor-pointer transition-all shadow-sm border-0"
             >
               <Plus size={11} />
               일정 추가

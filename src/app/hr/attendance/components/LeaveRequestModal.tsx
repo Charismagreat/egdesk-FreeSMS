@@ -225,7 +225,7 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setLeaveStep(2)}
-                    className="flex-1 py-2.5 bg-indigo-650 hover:bg-indigo-755 text-white rounded-xl text-xs font-black cursor-pointer shadow-md transition-all text-center border-0"
+                    className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black cursor-pointer shadow-md transition-all text-center border-0"
                   >
                     다음 단계 →
                   </button>
@@ -343,7 +343,7 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
                       }
                       setLeaveStep(3);
                     }}
-                    className="flex-1 py-2.5 bg-indigo-650 hover:bg-indigo-755 text-white rounded-xl text-xs font-black cursor-pointer shadow-md transition-all text-center border-0"
+                    className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black cursor-pointer shadow-md transition-all text-center border-0"
                   >
                     다음 단계 →
                   </button>
@@ -410,7 +410,7 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
                     type="button"
                     onClick={handleApplyLeave}
                     disabled={loading}
-                    className="w-full py-3 bg-indigo-650 hover:bg-indigo-755 text-white rounded-xl text-xs font-black shadow-md cursor-pointer transition-all flex items-center justify-center gap-1.5 border-0"
+                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black shadow-md cursor-pointer transition-all flex items-center justify-center gap-1.5 border-0"
                   >
                     <Send size={12} className={loading ? "animate-spin" : ""} />
                     ⚡ 신청서 최종 제출 및 상신
