@@ -10,6 +10,7 @@ interface CompanyProfile {
   address: string;
   phone: string;
   email: string;
+  homepage?: string;
   sidebarMainTitle: string;
   sidebarSubTitle: string;
   sealImages?: string[];
@@ -23,6 +24,7 @@ export default function CompanySettingsCard() {
     address: '경기도 시흥시 서울대학로 59-69 배곧테크노밸리 609호',
     phone: '010-7216-5884',
     email: 'chachogreat@gmail.com',
+    homepage: '',
     sidebarMainTitle: 'EGDESK SMS',
     sidebarSubTitle: '우리 회사 스마트 AI 시스템',
     sealImages: [],
@@ -75,6 +77,7 @@ export default function CompanySettingsCard() {
               address: parsed.address || '경기도 시흥시 서울대학로 59-69 배곧테크노밸리 609호',
               phone: parsed.phone || '010-7216-5884',
               email: parsed.email || 'chachogreat@gmail.com',
+              homepage: parsed.homepage || '',
               sidebarMainTitle: parsed.sidebarMainTitle || 'EGDESK SMS',
               sidebarSubTitle: parsed.sidebarSubTitle || '우리 회사 스마트 AI 시스템',
               sealImages: parsed.sealImages || [],
@@ -91,6 +94,7 @@ export default function CompanySettingsCard() {
             address: '경기도 시흥시 서울대학로 59-69 배곧테크노밸리 609호',
             phone: '010-7216-5884',
             email: 'chachogreat@gmail.com',
+            homepage: '',
             sidebarMainTitle: 'EGDESK SMS',
             sidebarSubTitle: '우리 회사 스마트 AI 시스템',
             sealImages: [],
@@ -489,6 +493,18 @@ export default function CompanySettingsCard() {
               placeholder="예: contact@egdesk.cloud"
               value={profile.email}
               onChange={(e) => handleInputChange('email', e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white text-slate-800 placeholder-slate-400 transition-all font-semibold"
+            />
+          </div>
+
+          {/* 5-0. 회사 홈페이지 주소 */}
+          <div className="space-y-1.5">
+            <label className="block text-[11px] font-extrabold text-slate-700">회사 홈페이지 주소</label>
+            <input
+              type="text"
+              placeholder="예: https://www.egdesk.cloud"
+              value={profile.homepage || ''}
+              onChange={(e) => handleInputChange('homepage', e.target.value)}
               className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white text-slate-800 placeholder-slate-400 transition-all font-semibold"
             />
           </div>

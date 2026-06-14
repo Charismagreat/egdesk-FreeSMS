@@ -97,7 +97,7 @@ const MENU_STATIC_MAP: Record<string, { label: string; icon: any; color: string 
   "/energy-management": { label: "에너지 관리 AI", icon: Zap, color: "text-amber-400" },
   "/safety-detection": { label: "위험 감지 AI", icon: ShieldAlert, color: "text-red-400" },
   "/scm-management": { label: "공급망 관리 AI", icon: Globe, color: "text-indigo-400" },
-  "/grant-management": { label: "지원금 관리 AI", icon: Award, color: "text-amber-400" },
+  "/grant-management": { label: "지원금 신청 AI", icon: Award, color: "text-amber-400" },
   "/labor-management": { label: "노무 관리 AI", icon: Scale, color: "text-red-400" },
   "/lawyer-ai": { label: "변호사 AI", icon: Scale, color: "text-amber-400" },
   "/credit-risk": { label: "채권 관리 AI", icon: CreditCard, color: "text-rose-400" },

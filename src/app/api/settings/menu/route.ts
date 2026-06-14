@@ -33,7 +33,7 @@ const DEFAULT_MENU_ITEMS = [
   { href: "/energy-management", label: "에너지 관리 AI" },
   { href: "/safety-detection", label: "위험 감지 AI" },
   { href: "/scm-management", label: "공급망 관리 AI" },
-  { href: "/grant-management", label: "지원금 관리 AI" },
+  { href: "/grant-management", label: "지원금 신청 AI" },
   { href: "/labor-management", label: "노무 관리 AI" },
   { href: "/lawyer-ai", label: "변호사 AI" },
   { href: "/credit-risk", label: "채권 관리 AI" },

@@ -10,35 +10,43 @@ export function useGrantManagement() {
   const [companyProfile, setCompanyProfile] = useState<CompanyProfile | null>(null);
   const [selectedAnnId, setSelectedAnnId] = useState<string | null>(null);
   const [rndPlan, setRndPlan] = useState<RndPlan | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
 
   const showToast = useCallback((message: string, type: "success" | "error" | "warn" = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   }, []);
 
-  // 1. 기초 데이터 조회 (GET)
-  const fetchGrantData = useCallback(async () => {
+  // 1. 수동 지원금 매칭 검색 수행 (POST)
+  const handleSearchGrants = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/production/grant");
+      const res = await fetch("/api/production/grant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "search_grants" })
+      });
       const data = await res.json();
       if (data.success) {
         setAnnouncements(data.announcements);
         setCompanyProfile(data.companyProfile);
+        setHasSearched(true);
+        showToast(data.message, "success");
       } else {
         throw new Error(data.error);
       }
     } catch (e: any) {
-      console.error("지원금 정보 수집 실패:", e);
-      showToast("정부 지원금 관제 데이터를 가져오는 데 실패했습니다.", "error");
+      console.error("지원금 검색 실패:", e);
+      showToast(`지원금 매칭 검색에 실패했습니다: ${e.message}`, "error");
     } finally {
       setIsLoading(false);
     }
-  }, [showToast]);
+  };
 
+  // 1-1. 기초 데이터 조회 (초기 진입 시 빈 상태 세팅)
   useEffect(() => {
-    fetchGrantData();
-  }, [fetchGrantData]);
+    setIsLoading(false);
+  }, []);
 
   // 2. 관심 공고 즐겨찾기 토글 (POST)
   const handleToggleBookmark = async (id: string) => {
@@ -159,6 +167,8 @@ export function useGrantManagement() {
     companyProfile,
     selectedAnnId,
     rndPlan,
+    hasSearched,
+    handleSearchGrants,
     handleToggleBookmark,
     handleGenerateRndPlan,
     handleUpdateSection,

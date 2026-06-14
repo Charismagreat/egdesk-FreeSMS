@@ -41,7 +41,7 @@ export default function MobileGrantManagementPage() {
             <ChevronLeft className="w-5 h-5" />
           </Link>
           <div className="text-left">
-            <h1 className="text-xs font-black text-slate-800">지원금 관리 AI</h1>
+            <h1 className="text-xs font-black text-slate-800">지원금 신청 AI</h1>
             <p className="text-[7.5px] text-slate-400 font-bold uppercase tracking-wider">Mobile Grant Tracker</p>
           </div>
         </div>
