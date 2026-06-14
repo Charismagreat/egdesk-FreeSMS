@@ -1862,6 +1862,17 @@ export async function setupDatabase() {
       console.warn('⚠️ crm_web_templates migration check warning:', e.message);
     }
 
+    // crm_operators 테이블 사원번호 컬럼 보정 마이그레이션
+    try {
+      const opCols = db.prepare("PRAGMA table_info(crm_operators);").all().map((c: any) => c.name);
+      if (!opCols.includes('employee_number')) {
+        db.exec("ALTER TABLE crm_operators ADD COLUMN employee_number TEXT;");
+        console.log('✓ In-app migration: added employee_number to crm_operators');
+      }
+    } catch (e: any) {
+      console.warn('⚠️ crm_operators migration check warning:', e.message);
+    }
+
     db.close();
   } catch (err: any) {
     console.error('⚠️ In-app migration error:', err.message);
