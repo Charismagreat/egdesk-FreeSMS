@@ -194,6 +194,70 @@ export async function POST(request: Request) {
     }
     // ----------------------------------------------------
 
+    // --- 🚨 [경조사비 자동 연동 파이프라인] 복리후생비 경조사비 지출 시 360도 경조사 대장에 자동 Upsert ---
+    try {
+      const isWelfare = category === '복리후생비';
+      const keywords = ['축의', '조의', '경조', '결혼', '장례', '부의', '부모', '부친', '모친', '조부', '조모', '장인', '장모', '화환', '조화', '돌잔치', '출산'];
+      const hasKeyword = keywords.some(k => title.includes(k) || (memo && memo.includes(k)));
+
+      if (isWelfare && hasKeyword) {
+        // 1. 임직원 매칭 (이름이 제목이나 메모에 포함되어 있는지)
+        const opsRes = await queryTable('crm_operators', {});
+        const ops = opsRes.rows || [];
+        const matchedOp = ops.find((op: any) => title.includes(op.name) || (memo && memo.includes(op.name)));
+
+        if (matchedOp) {
+          // 2. 가족 관계 파싱
+          let relation = '본인';
+          if (title.includes('부친') || title.includes('친부') || title.includes('아버지')) relation = '부친';
+          else if (title.includes('모친') || title.includes('친모') || title.includes('어머니')) relation = '모친';
+          else if (title.includes('장인')) relation = '장인';
+          else if (title.includes('장모')) relation = '장모';
+          else if (title.includes('조부')) relation = '조부';
+          else if (title.includes('조모')) relation = '조모';
+          else if (title.includes('배우자') || title.includes('와이프') || title.includes('남편')) relation = '배우자';
+          else if (title.includes('자녀') || title.includes('아들') || title.includes('딸')) relation = '자녀';
+
+          // 3. 경조 구분 파싱
+          let eventType = '결혼';
+          if (title.includes('장례') || title.includes('상(喪)') || title.includes('조의') || title.includes('부의') || title.includes('사망')) {
+            eventType = '장례';
+          } else if (title.includes('돌') || title.includes('첫돌')) {
+            eventType = '돌잔치';
+          } else if (title.includes('출산') || title.includes('득남') || title.includes('득녀')) {
+            eventType = '출산';
+          } else if (title.includes('칠순') || title.includes('고희')) {
+            eventType = '칠순';
+          } else if (title.includes('팔순')) {
+            eventType = '팔순';
+          } else if (title.includes('화환') || title.includes('조화')) {
+            eventType = '기타(화환제공)';
+          }
+
+          // 4. 화환/조화 제공 여부
+          const wreath_provided = (title.includes('화환') || title.includes('조화') || (memo && (memo.includes('화환') || memo.includes('조화')))) ? 1 : 0;
+
+          // 5. 경조금
+          const congratulation_money = Number(amount) || 0;
+
+          // 6. 경조사 지원 대장에 자동 추가
+          const eventId = `fev-auto-${Date.now()}`;
+          await insertRows('crm_operator_family_events', [{
+            id: eventId,
+            operator_id: String(matchedOp.id),
+            event_date: expense_date,
+            relation,
+            type: eventType,
+            congratulation_money,
+            wreath_provided
+          }]);
+          console.log(`[Family Event Link] 지출 등록 연동으로 경조사 대장에 자동 등록되었습니다. 직원: ${matchedOp.name}, 사번: ${matchedOp.employee_number || '없음'}, 관계: ${relation}, 구분: ${eventType}, 금액: ${congratulation_money}원`);
+        }
+      }
+    } catch (linkError) {
+      console.error('[Family Event Link] Failed to auto-insert family event:', linkError);
+    }
+
     return NextResponse.json({ success: true, id });
 
   } catch (error: any) {
