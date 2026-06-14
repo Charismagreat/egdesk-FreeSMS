@@ -184,6 +184,29 @@ export async function POST(req: Request) {
           updated_at: now.toISOString()
         }, { filters: { id: leave_id } });
 
+        // (4) 🚨 [병가 연동 파이프라인] 승인된 휴가가 '병가' 계열인 경우 360도 병가/의료 대장에 자동 적재
+        try {
+          const leaveType = (leaveDoc.leave_type || '').trim();
+          const isSickLeave = leaveType === '병가' || leaveType === '질병휴가' || leaveType.toLowerCase().includes('sick');
+
+          if (isSickLeave) {
+            const medId = `med-auto-${Date.now()}`;
+            await insertRows('crm_operator_medical', [{
+              id: medId,
+              operator_id: String(leaveDoc.operator_id),
+              diagnosis_name: leaveDoc.reason || '병가 요양 (근태 연동)',
+              treatment_start_date: leaveDoc.start_date,
+              treatment_end_date: leaveDoc.end_date,
+              hospital_name: '사내 근태 승인 연동',
+              sick_leave_days: Number(leaveDoc.days_spent) || 0,
+              work_limitations: '없음'
+            }]);
+            console.log(`[Medical Link] 근태 휴가(병가) 승인 연동으로 360도 의료대장에 자동 등록되었습니다. 직원 ID: ${leaveDoc.operator_id}, 기간: ${leaveDoc.start_date} ~ ${leaveDoc.end_date}, 일수: ${leaveDoc.days_spent}일`);
+          }
+        } catch (medLinkError) {
+          console.error('[Medical Link] Failed to auto-insert medical history:', medLinkError);
+        }
+
         return NextResponse.json({
           success: true,
           message: '연차 휴가 신청서가 성공적으로 승인 처리되었습니다. 전사 근태 캘린더에 휴가 일정이 자동 연동 동기화되었습니다 🟢'
