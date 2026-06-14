@@ -1293,6 +1293,269 @@ export const ComprehensiveProfile360: React.FC<ComprehensiveProfile360Props> = (
                         </div>
                       )}
 
+                      {editTableName === 'crm_operator_promotions' && (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3 block">
+                            <div>
+                              <label className="text-[9.5px] text-slate-400 block mb-1">발령 일자</label>
+                              <input
+                                type="date"
+                                value={editFormData.change_date || ''}
+                                onChange={(e) => setEditFormData({ ...editFormData, change_date: e.target.value })}
+                                className="w-full p-2 border rounded-lg text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9.5px] text-slate-400 block mb-1">발령 사유</label>
+                              <input
+                                type="text"
+                                value={editFormData.promotion_reason || ''}
+                                onChange={(e) => setEditFormData({ ...editFormData, promotion_reason: e.target.value })}
+                                className="w-full p-2 border rounded-lg text-xs"
+                                placeholder="예: 정기 인사평가 반영"
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3 block">
+                            <div>
+                              <label className="text-[9.5px] text-slate-400 block mb-1">이전 부서</label>
+                              <input
+                                type="text"
+                                value={editFormData.prev_dept || ''}
+                                onChange={(e) => setEditFormData({ ...editFormData, prev_dept: e.target.value })}
+                                className="w-full p-2 border rounded-lg text-xs"
+                                placeholder="예: 구매팀"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9.5px] text-slate-400 block mb-1">변경 부서</label>
+                              <input
+                                type="text"
+                                value={editFormData.next_dept || ''}
+                                onChange={(e) => setEditFormData({ ...editFormData, next_dept: e.target.value })}
+                                className="w-full p-2 border rounded-lg text-xs"
+                                placeholder="예: 구매전략팀"
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3 block">
+                            <div>
+                              <label className="text-[9.5px] text-slate-400 block mb-1">이전 직급</label>
+                              <input
+                                type="text"
+                                value={editFormData.prev_role || ''}
+                                onChange={(e) => setEditFormData({ ...editFormData, prev_role: e.target.value })}
+                                className="w-full p-2 border rounded-lg text-xs"
+                                placeholder="예: 사원"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9.5px] text-slate-400 block mb-1">변경 직급</label>
+                              <input
+                                type="text"
+                                value={editFormData.next_role || ''}
+                                onChange={(e) => setEditFormData({ ...editFormData, next_role: e.target.value })}
+                                className="w-full p-2 border rounded-lg text-xs"
+                                placeholder="예: 대리"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {editTableName === 'crm_operator_awards' && (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3 block">
+                            <div>
+                              <label className="text-[9.5px] text-slate-400 block mb-1">상벌/징계 일자</label>
+                              <input
+                                type="date"
+                                value={editFormData.record_date || ''}
+                                onChange={(e) => setEditFormData({ ...editFormData, record_date: e.target.value })}
+                                className="w-full p-2 border rounded-lg text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9.5px] text-slate-400 block mb-1">구분</label>
+                              <select
+                                value={editFormData.type || 'AWARD'}
+                                onChange={(e) => setEditFormData({ ...editFormData, type: e.target.value })}
+                                className="w-full p-2 border rounded-lg text-xs cursor-pointer"
+                              >
+                                <option value="AWARD">포상 (AWARD)</option>
+                                <option value="PENALTY">징계/감봉 (PENALTY)</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3 block">
+                            <div>
+                              <label className="text-[9.5px] text-slate-400 block mb-1">상벌 명칭</label>
+                              <input
+                                type="text"
+                                value={editFormData.title || ''}
+                                onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+                                className="w-full p-2 border rounded-lg text-xs"
+                                placeholder="예: 우수사원 포상, 경고 처분"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9.5px] text-slate-400 block mb-1">수여/시행 주체</label>
+                              <input
+                                type="text"
+                                value={editFormData.authority || ''}
+                                onChange={(e) => setEditFormData({ ...editFormData, authority: e.target.value })}
+                                className="w-full p-2 border rounded-lg text-xs"
+                                placeholder="예: 대표이사, 공장장"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-[9.5px] text-slate-400 block mb-1">세부 내용</label>
+                            <textarea
+                              value={editFormData.content || ''}
+                              onChange={(e) => setEditFormData({ ...editFormData, content: e.target.value })}
+                              rows={2}
+                              className="w-full p-2 border rounded-lg resize-none text-xs"
+                              placeholder="포상 기여 사유 혹은 징계 경위를 기입합니다."
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9.5px] text-slate-400 block mb-1">비고 및 부상 내역</label>
+                            <input
+                              type="text"
+                              value={editFormData.remarks || ''}
+                              onChange={(e) => setEditFormData({ ...editFormData, remarks: e.target.value })}
+                              className="w-full p-2 border rounded-lg text-xs"
+                              placeholder="예: 포상금 50만원 수여"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {editTableName === 'crm_operator_family_events' && (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3 block">
+                            <div>
+                              <label className="text-[9.5px] text-slate-400 block mb-1">경조 일자</label>
+                              <input
+                                type="date"
+                                value={editFormData.event_date || ''}
+                                onChange={(e) => setEditFormData({ ...editFormData, event_date: e.target.value })}
+                                className="w-full p-2 border rounded-lg text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9.5px] text-slate-400 block mb-1">경조 구분</label>
+                              <input
+                                type="text"
+                                value={editFormData.type || ''}
+                                onChange={(e) => setEditFormData({ ...editFormData, type: e.target.value })}
+                                className="w-full p-2 border rounded-lg text-xs"
+                                placeholder="예: 결혼, 장례, 칠순"
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-3 gap-3 block">
+                            <div>
+                              <label className="text-[9.5px] text-slate-400 block mb-1">대상 가족 관계</label>
+                              <input
+                                type="text"
+                                value={editFormData.relation || ''}
+                                onChange={(e) => setEditFormData({ ...editFormData, relation: e.target.value })}
+                                className="w-full p-2 border rounded-lg text-xs"
+                                placeholder="예: 본인, 모친, 부친"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9.5px] text-slate-400 block mb-1">경조금 지급액 (원)</label>
+                              <input
+                                type="number"
+                                value={editFormData.congratulation_money || 0}
+                                onChange={(e) => setEditFormData({ ...editFormData, congratulation_money: parseInt(e.target.value) || 0 })}
+                                className="w-full p-2 border rounded-lg text-xs font-mono"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9.5px] text-slate-400 block mb-1">화환/조화 제공 여부</label>
+                              <select
+                                value={editFormData.wreath_provided || 0}
+                                onChange={(e) => setEditFormData({ ...editFormData, wreath_provided: parseInt(e.target.value) })}
+                                className="w-full p-2 border rounded-lg text-xs cursor-pointer"
+                              >
+                                <option value={0}>미제공</option>
+                                <option value={1}>화환/조화 제공</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {editTableName === 'crm_operator_medical' && (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3 block">
+                            <div>
+                              <label className="text-[9.5px] text-slate-400 block mb-1">병명 / 상해 진단명</label>
+                              <input
+                                type="text"
+                                value={editFormData.diagnosis_name || ''}
+                                onChange={(e) => setEditFormData({ ...editFormData, diagnosis_name: e.target.value })}
+                                className="w-full p-2 border rounded-lg text-xs"
+                                placeholder="예: 급성 맹장염, 디스크 탈출증"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9.5px] text-slate-400 block mb-1">요양 병원/의료기관</label>
+                              <input
+                                type="text"
+                                value={editFormData.hospital_name || ''}
+                                onChange={(e) => setEditFormData({ ...editFormData, hospital_name: e.target.value })}
+                                className="w-full p-2 border rounded-lg text-xs"
+                                placeholder="예: 인천성모병원"
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-3 gap-3 block">
+                            <div>
+                              <label className="text-[9.5px] text-slate-400 block mb-1">치료 시작일</label>
+                              <input
+                                type="date"
+                                value={editFormData.treatment_start_date || ''}
+                                onChange={(e) => setEditFormData({ ...editFormData, treatment_start_date: e.target.value })}
+                                className="w-full p-2 border rounded-lg text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9.5px] text-slate-400 block mb-1">치료 종료일</label>
+                              <input
+                                type="date"
+                                value={editFormData.treatment_end_date || ''}
+                                onChange={(e) => setEditFormData({ ...editFormData, treatment_end_date: e.target.value })}
+                                className="w-full p-2 border rounded-lg text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9.5px] text-slate-400 block mb-1">총 병가/요양 일수</label>
+                              <input
+                                type="number"
+                                value={editFormData.sick_leave_days || 0}
+                                onChange={(e) => setEditFormData({ ...editFormData, sick_leave_days: parseInt(e.target.value) || 0 })}
+                                className="w-full p-2 border rounded-lg text-xs font-mono"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-[9.5px] text-slate-400 block mb-1">복직 후 현장 근무 제한 사항</label>
+                            <input
+                              type="text"
+                              value={editFormData.work_limitations || '없음'}
+                              onChange={(e) => setEditFormData({ ...editFormData, work_limitations: e.target.value })}
+                              className="w-full p-2 border rounded-lg text-xs"
+                              placeholder="예: 수술 부위 회복을 위해 2주간 중량물 운반 금지 조치"
+                            />
+                          </div>
+                        </div>
+                      )}
+
                       {editTableName === 'crm_operator_incidents' && (
                         <div className="space-y-3">
                           <div className="grid grid-cols-2 gap-3 block">
@@ -1507,6 +1770,53 @@ export const ComprehensiveProfile360: React.FC<ComprehensiveProfile360Props> = (
                         </div>
                       )}
 
+                      {editTableName === 'crm_operator_job_history' && (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3 block">
+                            <div>
+                              <label className="text-[9.5px] text-slate-400 block mb-1">실무 변경/발령일</label>
+                              <input
+                                type="date"
+                                value={editFormData.assignment_date || ''}
+                                onChange={(e) => setEditFormData({ ...editFormData, assignment_date: e.target.value })}
+                                className="w-full p-2 border rounded-lg text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9.5px] text-slate-400 block mb-1">현재 담당 여부</label>
+                              <select
+                                value={editFormData.is_current || 1}
+                                onChange={(e) => setEditFormData({ ...editFormData, is_current: parseInt(e.target.value) })}
+                                className="w-full p-2 border rounded-lg text-xs cursor-pointer"
+                              >
+                                <option value={1}>현재 담당 업무 적용</option>
+                                <option value={0}>과거 변경 이력</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-[9.5px] text-slate-400 block mb-1">신규 담당 실무 설명</label>
+                            <textarea
+                              value={editFormData.job_description || ''}
+                              onChange={(e) => setEditFormData({ ...editFormData, job_description: e.target.value })}
+                              rows={2}
+                              className="w-full p-2 border rounded-lg resize-none text-xs"
+                              placeholder="예: 공장 1라인 공정 총괄 및 무재해 현장 안전 관리자"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9.5px] text-slate-400 block mb-1">직전 담당 실무</label>
+                            <input
+                              type="text"
+                              value={editFormData.prev_job_description || '없음'}
+                              onChange={(e) => setEditFormData({ ...editFormData, prev_job_description: e.target.value })}
+                              className="w-full p-2 border rounded-lg text-xs"
+                              placeholder="예: 생산라인 기계 장비 오퍼레이팅"
+                            />
+                          </div>
+                        </div>
+                      )}
+
                       {editTableName === 'crm_operator_projects' && (
                         <div className="space-y-3">
                           <div>
@@ -1596,7 +1906,7 @@ export const ComprehensiveProfile360: React.FC<ComprehensiveProfile360Props> = (
                         </div>
                       )}
 
-                      {!['crm_operator_education', 'crm_operator_licenses', 'crm_operator_careers', 'crm_operator_salaries', 'crm_operator_incidents', 'crm_operator_reputations', 'crm_operator_families', 'crm_operator_projects'].includes(editTableName) && (
+                      {!['crm_operator_education', 'crm_operator_licenses', 'crm_operator_careers', 'crm_operator_salaries', 'crm_operator_promotions', 'crm_operator_awards', 'crm_operator_family_events', 'crm_operator_medical', 'crm_operator_incidents', 'crm_operator_reputations', 'crm_operator_families', 'crm_operator_job_history', 'crm_operator_projects'].includes(editTableName) && (
                         <div className="p-4 bg-slate-50 rounded text-center text-slate-400 text-xs">
                           🛠️ 이 테이블은 360 기본 연산에 따른 기본값 자동 Upsert를 지원합니다.
                           <textarea
