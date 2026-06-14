@@ -15,6 +15,7 @@ export function useOperators() {
     role: "SUB_OPERATOR",
     employee_number: ""
   });
+  const [editingOperator, setEditingOperator] = useState<Operator | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -45,36 +46,66 @@ export function useOperators() {
     }));
   };
 
+  const startEdit = (op: Operator) => {
+    setEditingOperator(op);
+    setForm({
+      username: op.username,
+      password: "", // 보안상 비움 (수정 시 미기입하면 기존 비밀번호 유지)
+      name: op.name,
+      role: op.role,
+      employee_number: op.employee_number || ""
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingOperator(null);
+    setForm({
+      username: "",
+      password: "",
+      name: "",
+      role: "SUB_OPERATOR",
+      employee_number: ""
+    });
+  };
+
   const handleAddOperator = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.username || !form.password || !form.name) {
+    
+    const isEditMode = !!editingOperator;
+    if (!form.username || !form.name || (!isEditMode && !form.password)) {
       alert("모든 항목을 입력해주세요.");
       return;
     }
     
     setIsSubmitting(true);
     try {
-      const res = await fetch('/api/operators', {
-        method: 'POST',
+      const url = '/api/operators';
+      const method = isEditMode ? 'PUT' : 'POST';
+      const bodyPayload = isEditMode 
+        ? {
+            id: editingOperator.id,
+            password: form.password,
+            name: form.name,
+            newRole: form.role,
+            employee_number: form.employee_number
+          }
+        : {
+            username: form.username,
+            password: form.password,
+            name: form.name,
+            newRole: form.role,
+            employee_number: form.employee_number
+          };
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          username: form.username, 
-          password: form.password, 
-          name: form.name, 
-          newRole: form.role,
-          employee_number: form.employee_number
-        })
+        body: JSON.stringify(bodyPayload)
       });
       const data = await res.json();
       
       if (data.success) {
-        setForm({
-          username: "",
-          password: "",
-          name: "",
-          role: "SUB_OPERATOR",
-          employee_number: ""
-        });
+        cancelEdit();
         fetchOperators();
       } else {
         alert(data.error);
@@ -106,10 +137,13 @@ export function useOperators() {
     operators,
     isLoading,
     form,
+    editingOperator,
     isSubmitting,
     updateForm,
     handleAddOperator,
     handleDelete,
+    startEdit,
+    cancelEdit,
     fetchOperators
   };
 }

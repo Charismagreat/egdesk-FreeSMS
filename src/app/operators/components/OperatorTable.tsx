@@ -1,17 +1,19 @@
 import React from "react";
-import { ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Trash2, Edit2 } from "lucide-react";
 import { Operator } from "../types";
 
 interface OperatorTableProps {
   isLoading: boolean;
   operators: Operator[];
   onDelete: (id: number) => Promise<void>;
+  onEdit: (op: Operator) => void;
 }
 
 export function OperatorTable({
   isLoading,
   operators,
-  onDelete
+  onDelete,
+  onEdit
 }: OperatorTableProps) {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
@@ -63,6 +65,15 @@ export function OperatorTable({
                   {new Date(op.created_at).toLocaleDateString()}
                 </td>
                 <td className="p-4 text-center">
+                  <button
+                    type="button"
+                    onClick={() => onEdit(op)}
+                    disabled={op.username === 'admin'}
+                    className="p-2 text-slate-400 hover:text-indigo-500 transition-colors disabled:opacity-20 border-0 bg-transparent cursor-pointer mr-1"
+                    title="정보 수정"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
                   <button
                     type="button"
                     onClick={() => onDelete(op.id)}

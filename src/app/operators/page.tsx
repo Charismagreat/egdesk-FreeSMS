@@ -11,10 +11,13 @@ export default function OperatorsPage() {
     operators,
     isLoading,
     form,
+    editingOperator,
     isSubmitting,
     updateForm,
     handleAddOperator,
-    handleDelete
+    handleDelete,
+    startEdit,
+    cancelEdit
   } = useOperators();
 
   return (
@@ -23,22 +26,25 @@ export default function OperatorsPage() {
       <OperatorHeader />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* 새 운영자 추가 폼 영역 */}
+        {/* 새 직원 추가 및 정보 수정 폼 영역 */}
         <div className="lg:col-span-1">
           <OperatorForm 
             form={form}
             isSubmitting={isSubmitting}
+            editingOperator={editingOperator}
             onUpdateField={updateForm}
             onSubmit={handleAddOperator}
+            onCancelEdit={cancelEdit}
           />
         </div>
 
-        {/* 운영자 목록 테이블 영역 */}
+        {/* 직원 목록 테이블 영역 */}
         <div className="lg:col-span-2">
           <OperatorTable 
             isLoading={isLoading}
             operators={operators}
             onDelete={handleDelete}
+            onEdit={startEdit}
           />
         </div>
       </div>
