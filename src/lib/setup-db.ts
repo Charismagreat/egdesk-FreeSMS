@@ -2523,5 +2523,41 @@ export async function setupDatabase() {
     { name: 'restored_by', type: 'TEXT' }
   ], { tableName: 'crm_credential_audit_logs', uniqueKeyColumns: ['id'] });
 
+  // crm_operators 빈 사원번호 보정 마이그레이션 (대표자, 최고관리자 포함)
+  try {
+    const allOpsRes = await queryTable('crm_operators');
+    const allOps = allOpsRes.rows || [];
+    
+    // 현재 연도 앞 2자리
+    const yy = new Date().getFullYear().toString().slice(-2);
+    const prefix = `${yy}-`;
+    
+    // 이미 존재하는 사원번호 중 prefix로 시작하는 일련번호 추출
+    const seqList = allOps
+      .filter((op: any) => op.employee_number && op.employee_number.startsWith(prefix))
+      .map((op: any) => {
+        const numPart = op.employee_number.replace(prefix, '');
+        return Number(numPart) || 0;
+      });
+      
+    let maxSeq = seqList.length > 0 ? Math.max(...seqList) : 0;
+    
+    // 사번이 없는 직원 추출
+    const emptyOps = allOps.filter((op: any) => !op.employee_number || op.employee_number.trim() === '');
+    
+    if (emptyOps.length > 0) {
+      console.log(`➡️ 사원번호가 없는 직원 ${emptyOps.length}명 감지. egdesk-helpers를 사용하여 순차적 사번 부여를 시작합니다.`);
+      for (const op of emptyOps) {
+        maxSeq += 1;
+        const newEmpNum = `${prefix}${String(maxSeq).padStart(3, '0')}`;
+        await updateRows('crm_operators', { employee_number: newEmpNum }, { filters: { id: op.id } });
+        console.log(`   [ID: ${op.id}] ${op.name} (${op.username}) ➡️ 사번: ${newEmpNum} 주입 완료`);
+      }
+      console.log('✓ 기존 무사번 직원 대상 일괄 사번 주입 성공.');
+    }
+  } catch (err: any) {
+    console.error('⚠️ 직원 사번 마이그레이션 에러:', err.message);
+  }
+
   console.log('Database setup complete.');
 }

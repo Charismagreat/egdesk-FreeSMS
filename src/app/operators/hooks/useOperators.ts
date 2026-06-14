@@ -72,8 +72,8 @@ export function useOperators() {
     e.preventDefault();
     
     const isEditMode = !!editingOperator;
-    if (!form.username || !form.name || (!isEditMode && !form.password)) {
-      alert("모든 항목을 입력해주세요.");
+    if (!form.username || !form.name || (!isEditMode && !form.password) || !form.employee_number.trim()) {
+      alert("모든 필수 항목을 입력해주세요. (사원번호는 필수입니다)");
       return;
     }
     

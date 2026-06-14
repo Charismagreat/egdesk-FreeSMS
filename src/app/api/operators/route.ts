@@ -50,34 +50,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: '이미 존재하는 아이디입니다.' }, { status: 400 });
     }
 
-    // 사원번호 검증 및 자동 생성 체계 [입사년도(2자리)]-[일련번호(3자리)]
-    let finalEmpNumber = (employee_number || '').trim();
+    // 사원번호 검증
+    const finalEmpNumber = (employee_number || '').trim();
 
-    if (finalEmpNumber) {
-      // 수동 입력 시 중복 체크
-      const existingEmpNum = await queryTable('crm_operators', { filters: { employee_number: finalEmpNumber } });
-      if (existingEmpNum.rows && existingEmpNum.rows.length > 0) {
-        return NextResponse.json({ success: false, error: '이미 존재하는 사원번호입니다.' }, { status: 400 });
-      }
-    } else {
-      // 미입력 시 26-001 형식 자동 사번 생성
-      const yy = new Date().getFullYear().toString().slice(-2);
-      const prefix = `${yy}-`;
+    if (!finalEmpNumber) {
+      return NextResponse.json({ success: false, error: '사원번호를 입력해주세요.' }, { status: 400 });
+    }
 
-      const allOpsRes = await queryTable('crm_operators', {});
-      const allOps = allOpsRes.rows || [];
-
-      // 현재 연도로 시작하는 사번 필터링 및 일련번호 추출
-      const seqList = allOps
-        .filter((op: any) => op.employee_number && op.employee_number.startsWith(prefix))
-        .map((op: any) => {
-          const numPart = op.employee_number.replace(prefix, '');
-          return Number(numPart) || 0;
-        });
-
-      const maxSeq = seqList.length > 0 ? Math.max(...seqList) : 0;
-      const nextSeq = maxSeq + 1;
-      finalEmpNumber = `${prefix}${String(nextSeq).padStart(3, '0')}`;
+    // 중복 체크
+    const existingEmpNum = await queryTable('crm_operators', { filters: { employee_number: finalEmpNumber } });
+    if (existingEmpNum.rows && existingEmpNum.rows.length > 0) {
+      return NextResponse.json({ success: false, error: '이미 존재하는 사원번호입니다.' }, { status: 400 });
     }
 
     const password_hash = await bcrypt.hash(password, 10);
@@ -151,38 +134,18 @@ export async function PUT(req: Request) {
       return NextResponse.json({ success: false, error: '기본 관리자 계정의 권한 등급은 변경할 수 없습니다.' }, { status: 400 });
     }
 
-    // 사원번호 검증 및 중복 가드
-    let finalEmpNumber = (employee_number || '').trim();
-    if (finalEmpNumber) {
-      // 본인 제외 타인과 겹치는지 체크
-      const allOpsRes = await queryTable('crm_operators', {});
-      const allOps = allOpsRes.rows || [];
-      const duplicate = allOps.some((op: any) => op.id !== Number(id) && op.employee_number === finalEmpNumber);
-      if (duplicate) {
-        return NextResponse.json({ success: false, error: '이미 존재하는 사원번호입니다.' }, { status: 400 });
-      }
-    } else {
-      // 사번 미입력 시 기존 사번이 있으면 그대로 유지, 없으면 신규 자동 생성
-      if (currentOp.employee_number) {
-        finalEmpNumber = currentOp.employee_number;
-      } else {
-        const yy = new Date().getFullYear().toString().slice(-2);
-        const prefix = `${yy}-`;
+    // 사원번호 검증
+    const finalEmpNumber = (employee_number || '').trim();
+    if (!finalEmpNumber) {
+      return NextResponse.json({ success: false, error: '사원번호를 입력해주세요.' }, { status: 400 });
+    }
 
-        const allOpsRes = await queryTable('crm_operators', {});
-        const allOps = allOpsRes.rows || [];
-
-        const seqList = allOps
-          .filter((op: any) => op.employee_number && op.employee_number.startsWith(prefix))
-          .map((op: any) => {
-            const numPart = op.employee_number.replace(prefix, '');
-            return Number(numPart) || 0;
-          });
-
-        const maxSeq = seqList.length > 0 ? Math.max(...seqList) : 0;
-        const nextSeq = maxSeq + 1;
-        finalEmpNumber = `${prefix}${String(nextSeq).padStart(3, '0')}`;
-      }
+    // 본인 제외 타인과 겹치는지 체크
+    const allOpsRes = await queryTable('crm_operators', {});
+    const allOps = allOpsRes.rows || [];
+    const duplicate = allOps.some((op: any) => op.id !== Number(id) && op.employee_number === finalEmpNumber);
+    if (duplicate) {
+      return NextResponse.json({ success: false, error: '이미 존재하는 사원번호입니다.' }, { status: 400 });
     }
 
     const updates: any = {
