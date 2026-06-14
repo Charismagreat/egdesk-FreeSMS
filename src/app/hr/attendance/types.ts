@@ -6,6 +6,7 @@ export interface Employee {
   name: string;
   username: string;
   role: string;
+  employee_number?: string;
   clock_in: string | null;
   clock_out: string | null;
   status: 'NORMAL' | 'LATE' | 'EARLY_LEAVE' | 'ABSENT' | 'LEAVE';
@@ -30,6 +31,7 @@ export interface LeaveRequest {
   id: string;
   operator_id: string;
   employee_name: string;
+  employee_number?: string;
   leave_type: 'ANNUAL' | 'HALF' | 'SICK' | 'SPECIAL';
   start_date: string;
   end_date: string;
@@ -59,6 +61,7 @@ export interface Payroll {
   name: string;
   username: string;
   role: string;
+  employee_number?: string;
   hourly_wage: number;
   weekly_hours: number;
   allow_weekly_holiday_paid: number;
@@ -75,6 +78,8 @@ export interface Payroll {
 // 임직원 상세 인적사항 프로필 인터페이스
 export interface EmployeeProfile {
   operator_id: string;
+  name?: string;
+  employee_number?: string;
   department: string;
   hire_date: string;
   commute_area: string;

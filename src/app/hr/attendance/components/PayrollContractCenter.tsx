@@ -100,7 +100,7 @@ export const PayrollContractCenter: React.FC<PayrollContractCenterProps> = ({
                 <option value="">직원을 선택하세요...</option>
                 {employees.map((emp) => (
                   <option key={emp.id} value={emp.id}>
-                    {emp.name} ({emp.role})
+                    {emp.name} {emp.employee_number ? `(${emp.employee_number})` : ''} ({emp.role})
                   </option>
                 ))}
               </select>
@@ -223,7 +223,9 @@ export const PayrollContractCenter: React.FC<PayrollContractCenterProps> = ({
                   ) : (
                     payroll.map((pay) => (
                       <tr key={pay.operator_id} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="p-3 font-extrabold text-slate-800">{pay.name}</td>
+                        <td className="p-3 font-extrabold text-slate-800">
+                          {pay.name} {pay.employee_number ? `(${pay.employee_number})` : ''}
+                        </td>
                         <td className="p-3 text-slate-500">
                           {pay.role === 'PRESIDENT' ? '대표이사' : pay.role === 'SUPER_ADMIN' ? '최고관리자' : '일반직원'}
                         </td>

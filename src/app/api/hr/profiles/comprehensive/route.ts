@@ -412,6 +412,7 @@ export async function GET() {
         name: emp.name,
         username: emp.username,
         role: emp.role,
+        employee_number: emp.employee_number,
         education: education.filter((x: any) => String(x.operator_id) === empIdStr),
         licenses: licenses.filter((x: any) => String(x.operator_id) === empIdStr),
         careers: careers.filter((x: any) => String(x.operator_id) === empIdStr),

@@ -32,6 +32,7 @@ export async function GET(req: Request) {
       return {
         ...leave,
         employee_name: emp ? emp.name : '알수없음',
+        employee_number: emp ? emp.employee_number : null,
         approver_name: app ? app.name : null
       };
     });

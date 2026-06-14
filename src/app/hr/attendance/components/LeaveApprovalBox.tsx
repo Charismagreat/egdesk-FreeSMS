@@ -49,7 +49,9 @@ export const LeaveApprovalBox: React.FC<LeaveApprovalBoxProps> = ({
             <div key={req.id} className="py-3.5 space-y-2.5 first:pt-0">
               <div className="flex items-start justify-between">
                 <div>
-                  <span className="text-xs font-black text-slate-850">{req.employee_name} </span>
+                  <span className="text-xs font-black text-slate-850">
+                    {req.employee_name} {req.employee_number ? `(${req.employee_number})` : ''}{' '}
+                  </span>
                   <span className="px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-650 font-extrabold text-[8px]">
                     {req.leave_type === 'ANNUAL'
                       ? '연차'

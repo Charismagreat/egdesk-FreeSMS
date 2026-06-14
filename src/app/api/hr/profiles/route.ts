@@ -106,6 +106,7 @@ export async function GET() {
         name: emp.name,
         username: emp.username,
         role: emp.role,
+        employee_number: emp.employee_number,
         department: pf.department,
         hire_date: pf.hire_date,
         commute_area: pf.commute_area,

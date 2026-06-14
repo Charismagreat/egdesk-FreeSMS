@@ -222,7 +222,7 @@ export const ComprehensiveProfile360: React.FC<ComprehensiveProfile360Props> = (
             <option value="">임직원을 선택해 주세요...</option>
             {employees.map((emp) => (
               <option key={emp.id} value={emp.id}>
-                {emp.name} ({emp.role})
+                {emp.name} {emp.employee_number ? `(${emp.employee_number})` : ''} ({emp.role})
               </option>
             ))}
           </select>
@@ -288,7 +288,11 @@ export const ComprehensiveProfile360: React.FC<ComprehensiveProfile360Props> = (
                       <div>
                         <span className="block text-[9px] text-slate-400 font-bold uppercase">비상 백업자</span>
                         <span className="text-slate-850 font-black">
-                          {employees.find((e) => String(e.id) === String(pf?.backup_operator_id))?.name || '지정 없음'}
+                          {(() => {
+                            const found = employees.find((e) => String(e.id) === String(pf?.backup_operator_id));
+                            if (!found) return '지정 없음';
+                            return `${found.name} ${found.employee_number ? `(${found.employee_number})` : ''}`;
+                          })()}
                         </span>
                       </div>
                     </div>

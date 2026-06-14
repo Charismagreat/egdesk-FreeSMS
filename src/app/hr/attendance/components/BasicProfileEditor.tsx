@@ -83,7 +83,7 @@ export const BasicProfileEditor: React.FC<BasicProfileEditorProps> = ({
                 <option value="">직원을 선택하세요...</option>
                 {employees.map(emp => (
                   <option key={emp.id} value={emp.id}>
-                    {emp.name} ({emp.role})
+                    {emp.name} {emp.employee_number ? `(${emp.employee_number})` : ''} ({emp.role})
                   </option>
                 ))}
               </select>
@@ -149,7 +149,7 @@ export const BasicProfileEditor: React.FC<BasicProfileEditorProps> = ({
                   .filter(emp => String(emp.id) !== String(selectedProfileOperatorId))
                   .map(emp => (
                     <option key={emp.id} value={emp.id}>
-                      {emp.name} ({emp.role})
+                      {emp.name} {emp.employee_number ? `(${emp.employee_number})` : ''} ({emp.role})
                     </option>
                   ))}
               </select>
@@ -199,7 +199,9 @@ export const BasicProfileEditor: React.FC<BasicProfileEditorProps> = ({
                     const backupEmp = employees.find(e => String(e.id) === String(pf.backup_operator_id));
                     return (
                       <tr key={pf.operator_id} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="py-3.5 px-4 font-black text-slate-800">{pf.name}</td>
+                        <td className="py-3.5 px-4 font-black text-slate-800">
+                          {pf.name} {pf.employee_number ? `(${pf.employee_number})` : ''}
+                        </td>
                         <td className="py-3.5 px-4">
                           <span className="block text-[10px] text-emerald-600 font-black">{pf.department}</span>
                           <span className="text-slate-450 font-bold text-[10.5px]">{pf.role}</span>
@@ -218,7 +220,7 @@ export const BasicProfileEditor: React.FC<BasicProfileEditorProps> = ({
                         <td className="py-3.5 px-4 text-center font-bold text-slate-800">
                           {backupEmp ? (
                             <span className="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-650 text-[9px] font-black">
-                              {backupEmp.name}
+                              {backupEmp.name} {backupEmp.employee_number ? `(${backupEmp.employee_number})` : ''}
                             </span>
                           ) : (
                             <span className="text-slate-350">-</span>

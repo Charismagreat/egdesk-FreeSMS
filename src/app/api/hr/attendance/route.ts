@@ -219,6 +219,7 @@ export async function GET(req: Request) {
         name: emp.name,
         username: emp.username,
         role: emp.role,
+        employee_number: emp.employee_number,
         clock_in: att ? att.clock_in : null,
         clock_out: att ? att.clock_out : null,
         status: att ? att.status : 'ABSENT', // 기록 없으면 결근 또는 휴가 판별 필요

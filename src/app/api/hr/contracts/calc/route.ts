@@ -71,6 +71,7 @@ export async function GET(req: Request) {
         operator_id: emp.id,
         name: emp.name,
         role: emp.role,
+        employee_number: emp.employee_number,
         department: emp.department || '미정',
         hourly_wage: contract.hourly_wage,
         weekly_hours: contract.weekly_hours,
