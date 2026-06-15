@@ -161,44 +161,60 @@ export async function POST(req: Request) {
       decision = useFallbackRuleAnalysis(table, action, data);
     } else {
       try {
-        // 🏢 DB에서 동적 회사 컨텍스트 및 AI 자율 지침 조회
+        // 🏢 DB에서 동적 회사 컨텍스트 조회
         let companyContext = "";
-        let agentInstructions = "";
-        
         try {
           const companyContextRes = await queryTable('system_settings', { filters: { key: 'easybot_company_context' } });
           if (companyContextRes.rows && companyContextRes.rows.length > 0) {
             companyContext = companyContextRes.rows[0].value || "";
           }
-          
-          const agentInstructionsRes = await queryTable('system_settings', { filters: { key: 'easybot_agent_instructions' } });
-          if (agentInstructionsRes.rows && agentInstructionsRes.rows.length > 0) {
-            agentInstructions = agentInstructionsRes.rows[0].value || "";
-          }
         } catch (dbErr) {
-          console.warn('[EasyBot Event Handler] 지침 조회 중 DB 오류가 발생했습니다:', dbErr);
+          console.warn('[EasyBot Event Handler] 회사 컨텍스트 조회 중 DB 오류:', dbErr);
         }
 
-        // 지침 설정값이 비어있거나 누락된 경우 경보 발동 (설정 방법 안내)
-        if (!companyContext.trim() || !agentInstructions.trim()) {
-          console.warn('[EasyBot Event Handler] 이지봇 지침 설정이 누락되어 경보 스냅태스크를 발행합니다.');
+        // 🏢 DB에서 해당 테이블 전용 활성 규칙 목록 조회
+        let matchedRules: any[] = [];
+        try {
+          const rulesRes = await queryTable('easybot_rules', { 
+            filters: { target_table: table, is_active: 1 } 
+          });
+          matchedRules = (rulesRes.rows || []).filter((r: any) => !r.deleted_at);
+        } catch (dbRulesErr) {
+          console.warn('[EasyBot Event Handler] 관제 규칙 조회 중 DB 오류:', dbRulesErr);
+        }
+
+        // 회사 정보 또는 이 테이블에 매핑된 활성 규칙이 누락된 경우 경보 발동 (설정 방법 안내)
+        if (!companyContext.trim() || matchedRules.length === 0) {
+          console.warn('[EasyBot Event Handler] 회사 정보 또는 감시 규칙이 누락되어 경보 스냅태스크를 발행합니다.');
           const todayStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
           decision = {
             requiresAction: true,
-            reason: "[이지봇 관제 경보] 이지봇 에이전트 자율 대행 작동 지침 및 회사 정보가 등록되지 않았습니다.",
+            reason: `[이지봇 관제 경보] 감시 대상 테이블(${table})에 대한 이지봇 에이전트 자율 지침/규칙이 구성되지 않았습니다.`,
             task: {
               title: "⚠️ 이지봇 자율 대행 작동 지침 누락 경보",
-              content: "이지봇이 실시간 DB 이벤트를 모니터링하여 위험 감지 및 자동 업무 지시를 내리기 위해 필요한 '회사 소개(Context)' 및 '작동 지침(Instructions)'이 등록되지 않았습니다.\n\n지식 관리 AI 페이지로 이동하셔서 사내 지식 기반 자율 지침 생성 기능을 통해 작동 지침을 설정 및 저장해 주십시오.",
+              content: `이지봇이 실시간 DB 이벤트를 모니터링하여 위험 감지 및 자동 업무 지시를 내리기 위해 필요한 '회사 소개(Context)' 또는 테이블 [${table}]에 대한 '자율 감시 규칙(Rules)'이 등록되어 있지 않습니다.\n\n지식 관리 AI 페이지로 이동하셔서 사내 지식 기반 자율 지침 생성 기능을 통해 작동 지침과 규칙을 설정 및 저장해 주십시오.`,
               operator_id: "1", // 최고관리자
               priority: "critical",
               due_date: todayStr
             }
           };
         } else {
+          // 규칙 정보 프롬프트 조립
+          const rulesPromptText = matchedRules.map((rule, idx) => {
+            return `[규칙 ${idx + 1}]
+- 규칙 ID: ${rule.id}
+- 규칙명: ${rule.title}
+- 감시 조건식 (conditions_sql): ${rule.conditions_sql}
+- 후속 업무 배정자 ID (assignee_id): ${rule.assignee_id}
+- 태스크 우선순위 (task_priority): ${rule.task_priority}
+- 태스크 제목 템플릿: ${rule.task_title_template}
+- 태스크 본문 템플릿: ${rule.task_content_template}`;
+          }).join('\n\n');
+
           // AI에게 제공할 테이블별 상황 분석 프롬프트 설계
           const analysisPrompt = `
 You are the Event-Driven Intelligent Agent of "EasyBot" (이지봇).
-Your role is to analyze a database change event (INSERT/UPDATE/DELETE) and decide if it poses a business risk or requires a follow-up action (task).
+Your role is to analyze a database change event (INSERT/UPDATE/DELETE) and decide if it poses a business risk or requires a follow-up action (task) based on the active business rules of the company.
 
 [Company Context]:
 ${companyContext}
@@ -211,33 +227,37 @@ ${companyContext}
 ${JSON.stringify(data, null, 2)}
 ${previousData ? `- Previous Data (JSON):\n${JSON.stringify(previousData, null, 2)}` : ''}
 
-[Your Task]:
-Analyze this event based on the business rules of the company:
-${agentInstructions}
+[Active Business Rules for Table "${table}"]:
+${rulesPromptText}
 
-If you determine that a follow-up action/task (SnapTask) is required to fix, inspect, or alert a human worker:
-- Output a JSON instruction to insert a new row in "crm_snaptasks" table.
-- Set a reasonable assignee (operator_id: e.g., '1' for Admin/CEO, '2' for Sales, '3' for Quality/Factory Manager).
-- Write a clear, professional Korean title and content.
+[Your Instruction]:
+1. Evaluate if the changed data satisfies the "감시 조건식 (conditions_sql)" of any of the rules listed above. 
+   - Note: The SQL expression in "conditions_sql" describes the condition on the changed data. For example, "amount >= 300000" means you should check if data.amount >= 300000.
+2. If the changed data satisfies a rule's condition:
+   - Set "requiresAction" to true.
+   - Set "reason" to explain why in Korean (e.g. "[규칙명] 조건에 충족하는 이벤트 감지").
+   - Set "task" fields:
+     - "title": Render the rule's "태스크 제목 템플릿". Replace placeholders in braces like {amount}, {name}, {title}, {expense_date}, etc. with actual values from the Changed Data.
+     - "content": Render the rule's "태스크 본문 템플릿". Replace placeholders in braces like {amount}, {name}, {title}, {expense_date}, etc. with actual values from the Changed Data.
+     - "operator_id": The rule's "assignee_id" (should be a string like '1', '2', '3', '4').
+     - "priority": The rule's "task_priority" ('low', 'medium', 'high', 'critical').
+     - "due_date": YYYY-MM-DD (typically today or 1-2 days from now in KST).
+3. If the changed data does NOT satisfy any rule's condition:
+   - Set "requiresAction" to false.
+   - Set "reason" to "No matching rule conditions found."
+   - Set "task" to null.
 
 Your response must be in valid JSON format ONLY:
 {
   "requiresAction": true,
-  "reason": "Explain why this action is required in Korean.",
+  "reason": "Explain in Korean",
   "task": {
-    "title": "Korean Title (e.g. [지출 경고] 심야 법인카드 소명 요청)",
-    "content": "Korean Description (e.g. 공휴일 가동 중단 시점에 청구된 주유비 12만원의 지출 증빙 검토 및 소명을 요청합니다.)",
-    "operator_id": "1", // Target Operator ID ('1'=CEO/Admin, '2'=Sales Team, '3'=Quality/Factory)
-    "priority": "high", // 'low', 'medium', 'high', 'critical'
-    "due_date": "YYYY-MM-DD" // (KST) Usually 2-3 days from event timestamp
+    "title": "...",
+    "content": "...",
+    "operator_id": "...",
+    "priority": "...",
+    "due_date": "YYYY-MM-DD"
   }
-}
-
-If NO action is required (e.g. normal expense, expected order, routine delivery without defects):
-{
-  "requiresAction": false,
-  "reason": "Normal transaction/event without risks.",
-  "task": null
 }
 `;
 

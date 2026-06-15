@@ -2557,6 +2557,83 @@ export async function setupDatabase() {
     { name: 'restored_by', type: 'TEXT' }
   ], { tableName: 'crm_credential_audit_logs', uniqueKeyColumns: ['id'] });
 
+  // 44. 이지봇 자율 감시 규칙 테이블 생성
+  await safeCreateTable('이지봇 자율 감시 규칙 대장', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'title', type: 'TEXT', notNull: true },
+    { name: 'target_table', type: 'TEXT', notNull: true },
+    { name: 'conditions_sql', type: 'TEXT', notNull: true },
+    { name: 'assignee_id', type: 'TEXT', notNull: true },
+    { name: 'task_priority', type: 'TEXT', notNull: true, defaultValue: 'medium' },
+    { name: 'task_title_template', type: 'TEXT', notNull: true },
+    { name: 'task_content_template', type: 'TEXT', notNull: true },
+    { name: 'is_active', type: 'INTEGER', notNull: true, defaultValue: 1 },
+    { name: 'created_at', type: 'TEXT', notNull: true },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
+  ], { tableName: 'easybot_rules', uniqueKeyColumns: ['id'] });
+
+  // 45. 이지봇 규칙 조작 변경 이력 테이블 생성
+  await safeCreateTable('이지봇 규칙 변경 이력 대장', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'rule_id', type: 'TEXT', notNull: true },
+    { name: 'action_type', type: 'TEXT', notNull: true },
+    { name: 'previous_value_json', type: 'TEXT' },
+    { name: 'new_value_json', type: 'TEXT' },
+    { name: 'change_reason', type: 'TEXT' },
+    { name: 'operator_id', type: 'TEXT', notNull: true },
+    { name: 'created_at', type: 'TEXT', notNull: true },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
+  ], { tableName: 'easybot_rules_history', uniqueKeyColumns: ['id'] });
+
+  // 46. 이지봇 규칙 기초 씨드 시딩
+  try {
+    const ruleCheck = await queryTable('easybot_rules', {});
+    if (!ruleCheck.rows || ruleCheck.rows.length === 0) {
+      const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+      await insertRows('easybot_rules', [
+        {
+          id: 'rule-exp-001',
+          title: '심야 고액 법인카드 지출 감시',
+          target_table: 'crm_expenses',
+          conditions_sql: "amount >= 300000 AND (memo LIKE '%심야%' OR memo LIKE '%밤%')",
+          assignee_id: '4',
+          task_priority: 'critical',
+          task_title_template: '[지출 경고] 심야 고액 결제 건 소명서 제출 요청',
+          task_content_template: '금액: {amount}원\n가게명: {title}\n일자: {expense_date}\n\n해당 지출은 23시 이후 심야 고액 결제 건으로, 업무상 연관성을 소명해야 합니다. 품의 결재를 보류하고 소명서를 3일 내에 제출하도록 기안하십시오.',
+          is_active: 1,
+          created_at: nowStr
+        },
+        {
+          id: 'rule-ord-001',
+          title: '신규 대형 수주 SCM 부품 대사 지시',
+          target_table: 'crm_orders',
+          conditions_sql: 'amount >= 10000000',
+          assignee_id: '3',
+          task_priority: 'high',
+          task_title_template: '[수주 알림] 대규모 발주에 따른 부품 수급 긴급 실사',
+          task_content_template: '바이어: {name}\n주문 금액: {amount}원\n요청사항: {memo}\n\n1천만원 이상의 신규 수주가 포착되었습니다. 원단 및 주요 부품 자재가 충분한지 안전재고를 점검하고, 리드타임을 산출해 기안하십시오.',
+          is_active: 1,
+          created_at: nowStr
+        }
+      ]);
+      console.log('EasyBot rules seeded successfully.');
+    }
+  } catch (e: any) {
+    console.error('Error seeding EasyBot rules:', e.message);
+  }
+
   // crm_operators 빈 사원번호 보정 마이그레이션 (대표자, 최고관리자 포함)
   try {
     const allOpsRes = await queryTable('crm_operators');
