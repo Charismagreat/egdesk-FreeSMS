@@ -55,9 +55,28 @@ export function useGrantManagement() {
     }
   };
 
-  // 1-1. 기초 데이터 조회 (초기 진입 시 빈 상태 세팅)
+  // 1-1. 기초 데이터 조회 (초기 진입 시 DB에 이미 적재된 기존 목록 자동 로드)
   useEffect(() => {
-    setIsLoading(false);
+    const loadInitialData = async () => {
+      setIsLoading(true);
+      try {
+        const res = await fetch("/api/production/grant");
+        const data = await res.json();
+        if (data.success) {
+          setAnnouncements(data.announcements || []);
+          setCompanyProfile(data.companyProfile || null);
+          // DB에 공고가 이미 적재되어 있다면 스캔 대기 화면을 스킵하고 바로 리스트 노출
+          if (data.announcements && data.announcements.length > 0) {
+            setHasSearched(true);
+          }
+        }
+      } catch (err) {
+        console.error("초기 지원금 데이터 로드 실패:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadInitialData();
   }, []);
 
   // 2. 관심 공고 즐겨찾기 토글 (POST)
