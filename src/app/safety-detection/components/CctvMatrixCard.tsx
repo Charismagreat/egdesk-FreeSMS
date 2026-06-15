@@ -3,13 +3,13 @@ import { CctvInfo } from "../types";
 import { Camera, Radio, ShieldAlert } from "lucide-react";
 
 interface CctvMatrixCardProps {
-  cctvs: CctvInfo[];
+  cctvs?: CctvInfo[];
 }
 
 /**
  * 실시간 CCTV 비전 스트리밍 매트릭스 및 AI 바운딩 박스 오버레이 카드
  */
-export default function CctvMatrixCard({ cctvs }: CctvMatrixCardProps) {
+export default function CctvMatrixCard({ cctvs = [] }: CctvMatrixCardProps) {
   
   // 가상 CCTV 화면 좌표계 규격 (800x450 비율)
   const viewWidth = 800;
@@ -38,7 +38,7 @@ export default function CctvMatrixCard({ cctvs }: CctvMatrixCardProps) {
 
       {/* CCTV 비디오 매핑 그리드 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {cctvs.map((cam) => {
+        {cctvs?.map((cam) => {
           const isWarning = cam.status === "WARNING";
           const isStop = cam.status === "EMERGENCY_STOP";
 

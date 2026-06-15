@@ -52,10 +52,9 @@ export function useSafetyDetection() {
       });
       const data = await res.json();
       if (data.success) {
-        setCctvs(data.cctvs);
-        setDangerLogs(data.dangerLogs);
-        setHotspots(data.hotspots);
         showToast(data.message, "success");
+        // 상태 갱신을 위해 데이터 재로드
+        await fetchSafetyData();
       } else {
         throw new Error(data.error);
       }
@@ -77,10 +76,9 @@ export function useSafetyDetection() {
       });
       const data = await res.json();
       if (data.success) {
-        setCctvs(data.cctvs);
-        setDangerLogs(data.dangerLogs);
-        setHotspots(data.hotspots);
         showToast(data.message, "success");
+        // 상태 갱신을 위해 데이터 재로드
+        await fetchSafetyData();
       } else {
         throw new Error(data.error);
       }
