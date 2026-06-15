@@ -1447,9 +1447,30 @@ export async function setupDatabase() {
     { name: 'net_income', type: 'INTEGER', defaultValue: 0 },
     { name: 'pdf_file_path', type: 'TEXT' },
     { name: 'parsed_raw_json', type: 'TEXT' },
+  ], { tableName: 'crm_financial_statements', uniqueKeyColumns: ['id'] });
+
+  // 47-1. Financial Statement Items Table (재무제표 상세 계정과목)
+  await safeCreateTable('재무제표 상세 계정과목', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'statement_id', type: 'TEXT', notNull: true },
+    { name: 'category', type: 'TEXT', notNull: true },
+    { name: 'account_name', type: 'TEXT', notNull: true },
+    { name: 'amount', type: 'REAL', defaultValue: 0 },
     { name: 'created_at', type: 'TEXT', notNull: true },
     { name: 'updated_at', type: 'TEXT', notNull: true }
-  ], { tableName: 'crm_financial_statements', uniqueKeyColumns: ['id'] });
+  ], { tableName: 'crm_financial_statement_items', uniqueKeyColumns: ['id'] });
+
+  // 47-2. Financial Analysis Logs Table (AI 재무 분석 로그)
+  await safeCreateTable('AI 재무 분석 로그', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'statement_id', type: 'TEXT', notNull: true },
+    { name: 'z_score', type: 'REAL', defaultValue: 0 },
+    { name: 'risk_grade', type: 'TEXT', notNull: true },
+    { name: 'forecast_text', type: 'TEXT' },
+    { name: 'consulting_text', type: 'TEXT' },
+    { name: 'created_at', type: 'TEXT', notNull: true },
+    { name: 'updated_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'crm_financial_analysis_logs', uniqueKeyColumns: ['id'] });
 
   // 48. Recruitment Applicants Table (채용 지원자 관리)
   await safeCreateTable('채용 지원자 관리', [

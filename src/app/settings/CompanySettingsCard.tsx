@@ -50,7 +50,7 @@ export default function CompanySettingsCard() {
       const res = await fetch('/api/financials?company_id=MY-COMPANY');
       const data = await res.json();
       if (data.success) {
-        setFinancials(data.list);
+        setFinancials(data.data || []);
       }
     } catch (err) {
       console.error('재무제표 로드 실패:', err);

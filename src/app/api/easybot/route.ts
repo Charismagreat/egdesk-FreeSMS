@@ -464,7 +464,25 @@ export async function POST(req: Request) {
   - net_income (INTEGER): 당기순이익 (원 단위 정수)
   - pdf_file_path (TEXT): 원본 PDF 경로
 
-- 중요 분석 지표 연산 안내:
+[Financial Statement Detailed Items Table (crm_financial_statement_items)]
+- Description: 재무제표에 포함된 상세 계정과목(급여, 복리후생비, 임차료, 현금및현금성자산 등)의 연도별 금액 정보가 저장된 테이블입니다. 특정 연도의 특정 계정과목 금액을 묻는 질문은 이 테이블을 조회해야 합니다.
+- Columns:
+  - id (TEXT PRIMARY KEY): 고유 식별자
+  - statement_id (TEXT): 마스터 재무제표 ID (crm_financial_statements.id와 조인 연동)
+  - category (TEXT): 대분류 ('ASSETS', 'LIABILITIES', 'EQUITY', 'REVENUE', 'EXPENSES')
+  - account_name (TEXT): 계정과목명 (예: '급여', '복리후생비', '임차료', '현금및현금성자산', '외상매출금' 등)
+  - amount (REAL): 금액 (원 단위 정수)
+
+- 중요 분석 및 쿼리 제한 사항 안내:
+  - [🚨 초긴급 필독] 백엔드 SQL 방화벽 정책에 의해, 쿼리 텍스트 내에 단어 'DELETE'가 부분 문자열로라도 포함되면(예: 'deleted_at') 실행이 원천 차단됩니다. 따라서 생성하는 SELECT 쿼리 안에 절대 'deleted_at' 또는 'deleted_at IS NULL' 컬럼 조건을 포함하지 마십시오. 소프트 삭제 필터링은 시스템이 별도로 처리하므로 단순 컬럼만 매핑 조회하십시오.
+  - 특정 연도의 특정 계정과목 금액을 검색할 때는 crm_financial_statements와 crm_financial_statement_items를 statement_id 기준으로 JOIN하여 검색해야 합니다.
+  - 예시: 2025년 급여 금액 조회 시 (deleted_at 조건을 절대 쓰지 마십시오)
+    SELECT i.account_name, i.amount, s.fiscal_year 
+    FROM crm_financial_statement_items i
+    JOIN crm_financial_statements s ON i.statement_id = s.id
+    WHERE s.fiscal_year = 2025 
+      AND s.company_id = 'MY-COMPANY' 
+      AND i.account_name LIKE '%급여%'
   - 영업이익률 (%) = (operating_income / revenue) * 100
   - 부채비율 (%) = (total_liabilities / total_equity) * 100
   - 자기자본비율 (%) = (total_equity / total_assets) * 100
@@ -594,7 +612,7 @@ export async function POST(req: Request) {
     // 💡 [RAG] 모든 기업의 연도별 재무제표 세부 계정과목 트리(JSON) 로드 및 프롬프트 RAG 인입
     let financialStatementsRAG = '';
     try {
-      const finRes = await queryTable('crm_financial_statements', {});
+      const finRes = await queryTable('crm_financial_statements', { filters: { deleted_at: null as any } });
       const finRows = finRes.rows || [];
       if (finRows.length > 0) {
         const partnersRes = await queryTable('crm_partners', {});
@@ -604,14 +622,32 @@ export async function POST(req: Request) {
             partnerMap[p.id] = p.company_name || p.name || p.id;
           }
         }
-
+ 
         financialStatementsRAG = "\n============================\n[회사별/연도별 재무제표 세부 계정과목 및 JSON 내역 (RAG)]\n";
         for (const row of finRows) {
           const companyName = row.company_id === 'MY-COMPANY' ? '본사' : (partnerMap[row.company_id] || row.company_id);
           financialStatementsRAG += '- 회사명: ' + companyName + ' (ID: ' + row.company_id + ', 구분: ' + (row.company_type === 'MY_COMPANY' ? '본사' : '거래처/관계사') + '), 연도: ' + row.fiscal_year + '년, 분기: ' + row.fiscal_quarter + '\n';
           financialStatementsRAG += '  * 6대 핵심 지표: 자산총계: ' + row.total_assets + '원, 부채총계: ' + row.total_liabilities + '원, 자본총계: ' + row.total_equity + '원, 매출액: ' + row.revenue + '원, 영업이익: ' + row.operating_income + '원, 당기순이익: ' + row.net_income + '원\n';
-          if (row.parsed_raw_json) {
-            financialStatementsRAG += '  * 세부 계정과목 트리 데이터: ' + row.parsed_raw_json + '\n';
+          
+          let rawJson = row.parsed_raw_json;
+          if (!rawJson) {
+            try {
+              const fallbackItems = await queryTable('crm_financial_statement_items', {
+                filters: {
+                  statement_id: row.id,
+                  deleted_at: null as any
+                }
+              });
+              if (fallbackItems && fallbackItems.rows && fallbackItems.rows.length > 0) {
+                rawJson = JSON.stringify(fallbackItems.rows);
+              }
+            } catch (err) {
+              console.warn('폴백 상세 계정과목 로드 실패:', err);
+            }
+          }
+          
+          if (rawJson) {
+            financialStatementsRAG += '  * 세부 계정과목 트리 데이터: ' + rawJson + '\n';
           }
           financialStatementsRAG += '\n';
         }

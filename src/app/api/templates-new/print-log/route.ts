@@ -88,7 +88,8 @@ export async function GET(req: Request) {
         l.updated_at,
         l.updated_by,
         t.template_name,
-        t.document_type
+        t.document_type,
+        t.html_content
       FROM crm_web_form_logs l
       LEFT JOIN crm_web_templates t ON l.template_id = t.id
       WHERE l.deleted_at IS NULL

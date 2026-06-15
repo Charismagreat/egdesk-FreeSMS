@@ -83,9 +83,17 @@ export async function POST(req: Request) {
 
     const promptText = `
 이 PDF 문서는 국세청 표준 재무제표(재무상태표, 손익계산서 등)입니다.
-문서 전체의 텍스트와 숫자 테이블을 정밀하게 해독 및 분석하여, 다음 핵심 6대 지표 수치와 대상 기업명, 회계연도를 추출하여 JSON 형식으로만 반환해 주세요.
+문서 전체의 텍스트와 숫자 테이블을 정밀하게 해독 및 분석하여, 다음 핵심 6대 지표 수치, 대상 기업명, 회계연도와 함께 **문서에 포함된 모든 상세 계정과목(자산, 부채, 자본, 매출/수익, 비용/지출 항목) 목록**을 추출하여 JSON 형식으로만 반환해 주세요.
+
 모든 금액 수치는 반드시 원화(KRW) 단위 정수로 기입해야 하며, 만약 원본 문서 내에서 단위가 백만원(백만) 또는 천원(천) 등으로 표기되어 있다면 정확하게 원 단위로 환산(예: 150백만 -> 150000000)해야 합니다.
 특정 수치가 도저히 존재하지 않거나 식별 불가능한 경우에는 0으로 지정해 주세요.
+
+상세 계정과목(detailedItems) 분류(category) 규칙:
+- 자산 항목: 'ASSETS'
+- 부채 항목: 'LIABILITIES'
+- 자본 항목: 'EQUITY'
+- 매출 및 수익 항목: 'REVENUE'
+- 비용 및 지출 항목(급여, 복리후생비, 임차료, 감가상각비 등): 'EXPENSES'
 
 JSON 출력 형식 예시 (이 구조와 정확히 동일해야 함):
 {
@@ -97,7 +105,13 @@ JSON 출력 형식 예시 (이 구조와 정확히 동일해야 함):
   "totalEquity": 40000000,
   "revenue": 150000000,
   "operatingIncome": 12000000,
-  "netIncome": 9000000
+  "netIncome": 9000000,
+  "detailedItems": [
+    { "category": "ASSETS", "accountName": "현금및현금성자산", "amount": 20000000 },
+    { "category": "LIABILITIES", "accountName": "단기차입금", "amount": 30000000 },
+    { "category": "EXPENSES", "accountName": "급여", "amount": 15000000 },
+    { "category": "EXPENSES", "accountName": "복리후생비", "amount": 3000000 }
+  ]
 }
 `;
 
@@ -145,7 +159,8 @@ JSON 출력 형식 예시 (이 구조와 정확히 동일해야 함):
       totalEquity: 0,
       revenue: 0,
       operatingIncome: 0,
-      netIncome: 0
+      netIncome: 0,
+      detailedItems: [] as Array<{ category: string, accountName: string, amount: number }>
     };
 
     try {

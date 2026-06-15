@@ -48,6 +48,7 @@ interface PrintLog {
   updated_by: string;
   template_name: string;
   document_type: string;
+  html_content?: string;
 }
 
 export default function FormManagementNewPage() {
@@ -57,6 +58,7 @@ export default function FormManagementNewPage() {
   const [logs, setLogs] = useState<PrintLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [previewLog, setPreviewLog] = useState<PrintLog | null>(null);
   
   // 발급/출력 이력 조회 관련 상태 (검색, 페이징)
   const [logSearchQuery, setLogSearchQuery] = useState('');
@@ -700,6 +702,7 @@ export default function FormManagementNewPage() {
                               <th className="p-4">대상 명칭</th>
                               <th className="p-4">출력 담당자</th>
                               <th className="p-4 text-center">출력 일자</th>
+                              <th className="p-4 text-center">출력 화면</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -712,6 +715,14 @@ export default function FormManagementNewPage() {
                                 <td className="p-4 font-bold text-slate-800">{log.record_name}</td>
                                 <td className="p-4 text-slate-600">{log.updated_by}</td>
                                 <td className="p-4 text-center text-slate-500">{log.issue_date}</td>
+                                <td className="p-4 text-center">
+                                  <button
+                                    onClick={() => setPreviewLog(log)}
+                                    className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[10px] rounded-lg border-none cursor-pointer transition animate-fade-in"
+                                  >
+                                    화면 보기
+                                  </button>
+                                </td>
                               </tr>
                             ))}
                           </tbody>
@@ -1130,6 +1141,110 @@ export default function FormManagementNewPage() {
                 </div>
               </div>
             )}
+
+          </div>
+        </div>
+      )}
+
+      {/* 발급/출력 화면 미리보기 모달 */}
+      {previewLog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in text-left">
+          <div className="w-full max-w-4xl bg-white border border-slate-100 rounded-3xl shadow-2xl flex flex-col overflow-hidden max-h-[90vh] text-slate-850">
+            
+            {/* 모달 헤더 */}
+            <div className="p-5 border-b border-slate-100 bg-white flex items-center justify-between shrink-0">
+              <div>
+                <h3 className="text-lg font-black flex items-center gap-2 text-slate-900">
+                  <Printer className="w-5 h-5 text-indigo-600 animate-pulse" />
+                  발급/출력 당시 화면 미리보기
+                </h3>
+                <p className="text-xs text-slate-500 mt-1 font-semibold">
+                  [{previewLog.template_name || '삭제된 양식'}] 당시 인쇄되었던 증명서 화면을 복원하여 보여줍니다.
+                </p>
+              </div>
+              <button 
+                onClick={() => setPreviewLog(null)}
+                className="text-slate-400 hover:text-slate-800 px-3 py-2 rounded-xl hover:bg-slate-100 transition text-xs font-black cursor-pointer"
+              >
+                닫기
+              </button>
+            </div>
+
+            {/* 모달 내용 */}
+            <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4 bg-slate-50/30">
+              
+              {/* 로그 메타 정보 카드 */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-xs font-semibold">
+                <div>
+                  <span className="block text-[10px] text-slate-400 font-bold mb-0.5">발급/출력 대상 (ID)</span>
+                  <span className="text-indigo-650 font-bold">{previewLog.record_id}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] text-slate-400 font-bold mb-0.5">대상자 성명</span>
+                  <span className="text-slate-800 font-bold">{previewLog.record_name}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] text-slate-400 font-bold mb-0.5">출력 담당자</span>
+                  <span className="text-slate-800">{previewLog.updated_by}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] text-slate-400 font-bold mb-0.5">출력 일자</span>
+                  <span className="text-slate-500">{previewLog.issue_date}</span>
+                </div>
+              </div>
+
+              {/* 프리뷰 영역 */}
+              <div className="flex-1 min-h-[50vh] flex flex-col bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm">
+                {!previewLog.html_content ? (
+                  <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-400 gap-2">
+                    <AlertCircle className="w-8 h-8 text-slate-300" />
+                    <span className="text-xs font-bold text-slate-650">출력 화면을 복원할 수 없습니다.</span>
+                    <span className="text-[11px] text-slate-400">해당 양식의 원본 HTML 템플릿 정보가 존재하지 않거나 삭제되었습니다.</span>
+                  </div>
+                ) : (() => {
+                  try {
+                    const parsedData = previewLog.print_data ? JSON.parse(previewLog.print_data) : {};
+                    // Mustache 치환 엔진
+                    const compileMustache = (html: string, data: Record<string, any>) => {
+                      if (!html) return '';
+                      return html.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
+                        const cleanKey = key.trim();
+                        return data[cleanKey] !== undefined ? String(data[cleanKey]) : '';
+                      });
+                    };
+                    const compiledHtml = compileMustache(previewLog.html_content, parsedData);
+                    
+                    return (
+                      <iframe
+                        srcDoc={compiledHtml}
+                        className="w-full h-full flex-1 border-none bg-white min-h-[50vh]"
+                        title="출력화면 복원 미리보기"
+                      />
+                    );
+                  } catch (err) {
+                    console.error('Print data parsing error:', err);
+                    return (
+                      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-rose-500 gap-2">
+                        <AlertCircle className="w-8 h-8 text-rose-400" />
+                        <span className="text-xs font-bold">인쇄 데이터 해석 실패</span>
+                        <span className="text-[11px] text-slate-400">출력 이력 데이터 포맷(JSON)에 분석 오류가 있습니다.</span>
+                      </div>
+                    );
+                  }
+                })()}
+              </div>
+
+            </div>
+
+            {/* 하단 닫기 */}
+            <div className="p-4 border-t border-slate-150 bg-white flex justify-end shrink-0">
+              <button
+                onClick={() => setPreviewLog(null)}
+                className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs transition rounded-xl cursor-pointer"
+              >
+                미리보기 닫기
+              </button>
+            </div>
 
           </div>
         </div>

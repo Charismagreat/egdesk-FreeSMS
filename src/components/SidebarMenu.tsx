@@ -71,6 +71,7 @@ const MENU_STATIC_MAP: Record<string, { label: string; icon: any; color: string 
   "/orders": { label: "주문 관리 AI", icon: ClipboardList, color: "text-blue-400" },
   "/payments": { label: "결제 관리 AI", icon: CreditCard, color: "text-emerald-400" },
   "/finance": { label: "금융 정보 AI", icon: Landmark, color: "text-sky-400" },
+  "/financials": { label: "재무 정보 AI", icon: Landmark, color: "text-teal-400" },
   "/coupons": { label: "쿠폰 관리 AI", icon: Ticket, color: "text-rose-400" },
   "/reservations": { label: "예약 관리 AI", icon: CalendarDays, color: "text-indigo-400" },
   "/deliveries": { label: "배송 관리 AI", icon: Truck, color: "text-amber-400" },

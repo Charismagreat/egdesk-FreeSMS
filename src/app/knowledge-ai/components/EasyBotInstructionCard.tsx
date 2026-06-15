@@ -52,6 +52,13 @@ export function EasyBotInstructionCard({ currentRole }: EasyBotInstructionCardPr
   const [simulationError, setSimulationError] = useState<string | null>(null);
   const [isSimulating, setIsSimulating] = useState(false);
 
+  // 🤖 자연어 지침 자동 작성 상태
+  const [naturalLanguagePrompt, setNaturalLanguagePrompt] = useState("");
+  const [isGeneratingRule, setIsGeneratingRule] = useState(false);
+
+  // 📝 템플릿 추천 상태
+  const [isSuggestingTemplate, setIsSuggestingTemplate] = useState(false);
+
   // 🛎️ 알림 토스트 상태
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
@@ -251,6 +258,72 @@ export function EasyBotInstructionCard({ currentRole }: EasyBotInstructionCardPr
     }
   };
 
+  const handleGenerateRuleFromPrompt = async () => {
+    if (!naturalLanguagePrompt.trim() || !editingRule) return;
+    setIsGeneratingRule(true);
+    try {
+      const res = await fetch("/api/knowledge-ai/easybot-rules/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: naturalLanguagePrompt })
+      });
+      const data = await res.json();
+      if (data.success && data.rule) {
+        setEditingRule({
+          ...editingRule,
+          title: data.rule.title || "",
+          target_table: data.rule.target_table || "crm_expenses",
+          conditions_sql: data.rule.conditions_sql || "",
+          assignee_id: String(data.rule.assignee_id || "1"),
+          task_priority: data.rule.task_priority || "medium",
+          task_title_template: data.rule.task_title_template || "",
+          task_content_template: data.rule.task_content_template || ""
+        });
+        showToast("자연어 지침을 해석하여 폼에 자동 반영했습니다! ✨");
+      } else {
+        showToast(data.error || "자연어 해석에 실패했습니다.", "error");
+      }
+    } catch (err: any) {
+      showToast("서버 통신 실패: " + err.message, "error");
+    } finally {
+      setIsGeneratingRule(false);
+    }
+  };
+
+  const handleSuggestTaskTemplate = async () => {
+    if (!editingRule) return;
+    if (!editingRule.title.trim()) {
+      alert("AI 추천을 받기 위해 먼저 '규칙 명칭'을 입력해 주세요.");
+      return;
+    }
+    setIsSuggestingTemplate(true);
+    try {
+      const res = await fetch("/api/knowledge-ai/easybot-rules/suggest-template", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: editingRule.title,
+          target_table: editingRule.target_table,
+          conditions_sql: editingRule.conditions_sql
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.suggested_template) {
+        setEditingRule({
+          ...editingRule,
+          task_content_template: data.suggested_template
+        });
+        showToast("업무 지시 상세 내용 템플릿 추천안을 반영했습니다! ✨");
+      } else {
+        showToast(data.error || "추천 생성에 실패했습니다.", "error");
+      }
+    } catch (err: any) {
+      showToast("서버 통신 실패: " + err.message, "error");
+    } finally {
+      setIsSuggestingTemplate(false);
+    }
+  };
+
   const openAddModal = () => {
     setEditingRule({
       title: "",
@@ -263,6 +336,7 @@ export function EasyBotInstructionCard({ currentRole }: EasyBotInstructionCardPr
       is_active: 1
     });
     setFormReason("신규 관제 규칙 등록");
+    setNaturalLanguagePrompt("");
     setSimulationResult(null);
     setSimulationError(null);
     setIsModalOpen(true);
@@ -271,6 +345,7 @@ export function EasyBotInstructionCard({ currentRole }: EasyBotInstructionCardPr
   const openEditModal = (rule: EasyBotRule) => {
     setEditingRule({ ...rule });
     setFormReason("");
+    setNaturalLanguagePrompt("");
     setSimulationResult(null);
     setSimulationError(null);
     setIsModalOpen(true);
@@ -480,6 +555,44 @@ export function EasyBotInstructionCard({ currentRole }: EasyBotInstructionCardPr
 
             {/* 모달 본문 */}
             <form onSubmit={handleSaveRule} className="p-5 overflow-y-auto space-y-4 text-left flex-1">
+              {/* 🤖 AI 자연어 지침 자동 작성 카드 */}
+              <div className="p-4 bg-slate-950/80 border border-indigo-500/30 rounded-xl space-y-3">
+                <span className="text-[10px] font-black text-indigo-300 flex items-center gap-1.5 uppercase tracking-wider">
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
+                  AI 자연어 규칙 빌더 (추천)
+                </span>
+                <p className="text-[9.5px] text-slate-400 leading-relaxed">
+                  만들고 싶은 규칙을 자연어로 편하게 입력해 보세요. AI가 테이블, SQL 서브쿼리 조건식, 담당자, 태스크 내용까지 자동으로 구성해 줍니다.
+                </p>
+                <div className="flex gap-2">
+                  <textarea
+                    rows={2}
+                    placeholder="예: 계약직 사원이 10만원 이상의 고액 지출을 기록하면 재무감사 대리에게 우선순위 높음으로 지출 경고를 내려줘."
+                    value={naturalLanguagePrompt}
+                    onChange={(e) => setNaturalLanguagePrompt(e.target.value)}
+                    className="flex-1 p-2.5 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-lg text-xs text-slate-200 outline-none resize-y min-h-[60px] placeholder-slate-600 leading-normal font-bold"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleGenerateRuleFromPrompt}
+                    disabled={isGeneratingRule || !naturalLanguagePrompt.trim()}
+                    className="px-4 py-2 bg-gradient-to-br from-indigo-600 to-violet-650 hover:from-indigo-700 hover:to-violet-750 disabled:opacity-40 disabled:from-slate-800 disabled:to-slate-800 text-white font-extrabold text-[11px] rounded-xl flex flex-col items-center justify-center gap-1 cursor-pointer border-none transition-all shadow-md shrink-0 w-28"
+                  >
+                    {isGeneratingRule ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>해석 중...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 text-indigo-200" />
+                        <span>규칙 자동 구성</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* 규칙명 */}
                 <div className="space-y-1">
@@ -627,14 +740,25 @@ export function EasyBotInstructionCard({ currentRole }: EasyBotInstructionCardPr
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center">
                   <label className="text-[9.5px] font-bold text-slate-450 uppercase block">업무 지시 상세 내용 템플릿</label>
-                  <span className="text-[8.5px] text-slate-500 font-bold">치환 템플릿 가이드: {`{amount}`}, {`{title}`}, {`{name}`} 사용 가능</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[8.5px] text-slate-500 font-bold">치환 템플릿 가이드: {`{amount}`}, {`{title}`}, {`{name}`} 사용 가능</span>
+                    <button
+                      type="button"
+                      onClick={handleSuggestTaskTemplate}
+                      disabled={isSuggestingTemplate || !editingRule.title}
+                      className="px-2 py-0.5 bg-indigo-650 hover:bg-indigo-700 disabled:opacity-40 text-white border-none text-[8.5px] font-bold rounded flex items-center gap-0.5 cursor-pointer transition-all shadow animate-pulse"
+                    >
+                      <Sparkles className="w-2.5 h-2.5" />
+                      {isSuggestingTemplate ? "추천 중..." : "AI 작성 추천 ✨"}
+                    </button>
+                  </div>
                 </div>
                 <textarea
                   rows={4}
                   value={editingRule.task_content_template}
                   onChange={(e) => setEditingRule({ ...editingRule, task_content_template: e.target.value })}
                   placeholder="예: 금액: {amount}원&#13;가게명: {title}&#13;사용일자: {expense_date}&#13;&#13;해당 심야 가요주점 결제 지출 품의 승인을 보류하고 소명 양식을 요청하십시오."
-                  className="w-full p-2.5 bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-lg text-xs font-bold text-slate-200 outline-none placeholder-slate-700 leading-relaxed"
+                  className="w-full p-2.5 bg-slate-900 border border-slate-800 focus:border-indigo-500 rounded-lg text-xs font-bold text-slate-200 outline-none resize-y min-h-[80px] placeholder-slate-700 leading-relaxed"
                   required
                 />
               </div>
