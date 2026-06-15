@@ -184,7 +184,7 @@ export default function GrantMatchCard({
                 <div
                   key={ann.id}
                   className={`border rounded-2xl transition-all ${
-                    isExpanded ? "border-indigo-650 bg-indigo-50/5" : "border-slate-200 hover:border-slate-300"
+                    isExpanded ? "border-indigo-600 bg-indigo-50/5" : "border-slate-200 hover:border-slate-300"
                   }`}
                 >
                   {/* 상단 기본 헤더 */}
@@ -252,7 +252,7 @@ export default function GrantMatchCard({
                           className={`px-3 py-2 text-white font-extrabold text-[9.5px] rounded-xl shadow-2xs transition-all flex items-center gap-1.5 ${
                             isSelected && isGenerating
                               ? "bg-slate-400 cursor-not-allowed"
-                              : "bg-indigo-650 hover:bg-indigo-700 animate-pulse"
+                              : "bg-indigo-600 hover:bg-indigo-700 animate-pulse"
                           }`}
                         >
                           <Sparkles className="w-3.5 h-3.5" />

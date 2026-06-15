@@ -41,7 +41,7 @@ export default function GrantManagementPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div className="text-left">
           <h1 className="text-3xl font-black text-slate-900 flex items-center tracking-tight">
-            <Award className="w-8 h-8 text-indigo-650 mr-3" />
+            <Award className="w-8 h-8 text-indigo-600 mr-3" />
             지원금 신청 AI
           </h1>
           <p className="text-xs font-semibold text-slate-500 mt-1">
@@ -92,7 +92,7 @@ export default function GrantManagementPage() {
       {/* 로딩 표시 */}
       {isLoading ? (
         <div className="py-24 flex flex-col items-center justify-center space-y-4">
-          <div className="w-10 h-10 border-4 border-indigo-650 border-t-transparent rounded-full animate-spin" />
+          <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
           <p className="text-xs text-slate-500 font-bold">정부 혜택 및 지원 사업 공고를 동기화 중입니다...</p>
         </div>
       ) : (
@@ -113,7 +113,7 @@ export default function GrantManagementPage() {
                 <button
                   type="button"
                   onClick={handleSearchGrants}
-                  className="px-6 py-3.5 bg-gradient-to-r from-indigo-650 to-indigo-800 text-white rounded-xl text-xs font-black shadow-lg shadow-indigo-600/20 hover:from-indigo-600 hover:to-indigo-750 active:scale-95 transition-all cursor-pointer flex items-center gap-2"
+                  className="px-6 py-3.5 bg-gradient-to-r from-indigo-600 to-indigo-800 text-white rounded-xl text-xs font-black shadow-lg shadow-indigo-600/20 hover:from-indigo-600 hover:to-indigo-750 active:scale-95 transition-all cursor-pointer flex items-center gap-2"
                 >
                   <Sparkles className="w-4 h-4 animate-bounce" />
                   <span>사내 DB 스캔 및 지원금 찾기</span>
@@ -156,7 +156,7 @@ export default function GrantManagementPage() {
                   </div>
                   <div>
                     <span className="block text-[8px] text-slate-400 font-black">보유 특허</span>
-                    <span className="text-indigo-650 text-[10.5px] font-mono font-black">
+                    <span className="text-indigo-600 text-[10.5px] font-mono font-black">
                       {companyProfile.patentsCount}건
                     </span>
                   </div>
