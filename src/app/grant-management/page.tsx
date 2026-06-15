@@ -4,7 +4,7 @@ import React from "react";
 import { useGrantManagement } from "./hooks/useGrantManagement";
 import GrantMatchCard from "./components/GrantMatchCard";
 import RndPlanBuilderCard from "./components/RndPlanBuilderCard";
-import { AlertCircle, CheckCircle2, ShieldAlert, Sparkles, Award } from "lucide-react";
+import { AlertCircle, CheckCircle2, ShieldAlert, Sparkles, Award, Building2 } from "lucide-react";
 
 /**
  * 지원금 신청 AI (AI Grant Hunter) 메인 대시보드
@@ -122,7 +122,6 @@ export default function GrantManagementPage() {
             ) : (
               <GrantMatchCard
                 announcements={announcements}
-                companyProfile={companyProfile}
                 onToggleBookmark={handleToggleBookmark}
                 onGenerateRndPlan={handleGenerateRndPlan}
                 selectedAnnId={selectedAnnId}
@@ -135,8 +134,42 @@ export default function GrantManagementPage() {
             )}
           </div>
 
-          {/* 우측: R&D 사업계획서 빌더 */}
-          <div className="lg:col-span-6">
+          {/* 우측: R&D 사업계획서 빌더 및 회사 프로필 */}
+          <div className="lg:col-span-6 space-y-6">
+            {/* 당사 AI 매칭 프로필 정보 (우측 그리드 이동) */}
+            {companyProfile && (
+              <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-2xs text-left space-y-3">
+                <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+                  <Building2 className="w-4.5 h-4.5 text-slate-500" />
+                  <span className="text-xs font-black text-slate-700">당사 AI 매칭 프로필 정보</span>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-[9.5px] font-bold text-slate-550">
+                  <div>
+                    <span className="block text-[8px] text-slate-400 font-black">업태 및 분야</span>
+                    <span className="text-slate-800 text-[10.5px] font-black">{companyProfile.sector}</span>
+                  </div>
+                  <div>
+                    <span className="block text-[8px] text-slate-400 font-black">설립 연도 (업력)</span>
+                    <span className="text-slate-800 text-[10.5px] font-mono font-black">
+                      {companyProfile.establishmentYear}년 (창업 4년차)
+                    </span>
+                  </div>
+                  <div>
+                    <span className="block text-[8px] text-slate-400 font-black">보유 특허</span>
+                    <span className="text-indigo-650 text-[10.5px] font-mono font-black">
+                      {companyProfile.patentsCount}건
+                    </span>
+                  </div>
+                  <div>
+                    <span className="block text-[8px] text-slate-400 font-black">근로자 비율 (청년/여성)</span>
+                    <span className="text-slate-800 text-[10.5px] font-mono font-black">
+                      청년 {companyProfile.youthEmployeeRatio}% / 여성 {companyProfile.femaleEmployeeRatio}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <RndPlanBuilderCard
               announcements={announcements}
               rndPlan={rndPlan}
