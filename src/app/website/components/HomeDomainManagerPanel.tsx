@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Globe, RefreshCw, CheckCircle, AlertTriangle, ShieldCheck, Activity, Save, History, Search, Link } from "lucide-react";
+import { Globe, RefreshCw, CheckCircle, AlertTriangle, ShieldCheck, Activity, Save, History, Search, Link, Sparkles } from "lucide-react";
 
 interface DomainHealth {
   url: string;
@@ -28,9 +28,10 @@ interface PublishedSite {
 interface HomeDomainManagerPanelProps {
   showToast: (message: string, type?: "success" | "error" | "info") => void;
   onUrlUpdated?: () => void;
+  currentConfig?: any;
 }
 
-export function HomeDomainManagerPanel({ showToast, onUrlUpdated }: HomeDomainManagerPanelProps) {
+export function HomeDomainManagerPanel({ showToast, onUrlUpdated, currentConfig }: HomeDomainManagerPanelProps) {
   const [homepageUrl, setHomepageUrl] = useState("");
   const [primaryHealth, setPrimaryHealth] = useState<DomainHealth | null>(null);
   const [publishedSites, setPublishedSites] = useState<PublishedSite[]>([]);
@@ -41,6 +42,7 @@ export function HomeDomainManagerPanel({ showToast, onUrlUpdated }: HomeDomainMa
   const [seoTitle, setSeoTitle] = useState("");
   const [seoDescription, setSeoDescription] = useState("");
   const [savingSeo, setSavingSeo] = useState(false);
+  const [suggestingSeo, setSuggestingSeo] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -146,6 +148,35 @@ export function HomeDomainManagerPanel({ showToast, onUrlUpdated }: HomeDomainMa
     }
   };
 
+  // AI 기반 SEO 설정 추천 기능
+  const handleSuggestSeo = async () => {
+    if (!currentConfig) {
+      showToast("현재 제작 중인 홈페이지 정보가 없습니다. 대화창에서 먼저 홈페이지를 빌드해주세요.", "error");
+      return;
+    }
+
+    setSuggestingSeo(true);
+    try {
+      const res = await fetch("/api/website/suggest-seo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ config: currentConfig })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSeoTitle(data.title || "");
+        setSeoDescription(data.description || "");
+        showToast("AI가 추천하는 SEO 메타데이터 정보가 자동 입력되었습니다! 🎯", "success");
+      } else {
+        showToast(data.error || "SEO 추천 실패", "error");
+      }
+    } catch (e: any) {
+      showToast("추천 통신 오류: " + e.message, "error");
+    } finally {
+      setSuggestingSeo(false);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6 overflow-y-auto max-h-[810px] text-slate-800 bg-white">
       
@@ -233,11 +264,22 @@ export function HomeDomainManagerPanel({ showToast, onUrlUpdated }: HomeDomainMa
 
           {/* 검색엔진 최적화 (SEO) 설정 섹션 */}
           <div className="bg-white border border-slate-150 p-5 rounded-2xl shadow-sm text-left">
-            <h4 className="text-sm font-black text-slate-900 flex items-center gap-2 mb-2">
+          <div className="flex justify-between items-center mb-2">
+            <h4 className="text-sm font-black text-slate-900 flex items-center gap-2">
               <Link className="w-4 h-4 text-pink-600" />
               검색 포털 최적화 (SEO) 설정
             </h4>
-            <p className="text-[11px] text-slate-500 mb-4 font-semibold leading-relaxed">
+            <button
+              type="button"
+              onClick={handleSuggestSeo}
+              disabled={suggestingSeo || !currentConfig}
+              className="px-3 py-1.5 bg-pink-50 hover:bg-pink-100 disabled:bg-slate-100 text-pink-700 disabled:text-slate-400 font-extrabold text-[10px] transition rounded-lg cursor-pointer border border-pink-200/50 disabled:border-none flex items-center gap-1 shadow-sm"
+            >
+              {suggestingSeo ? <RefreshCw className="w-3 h-3 animate-spin text-pink-600" /> : <Sparkles className="w-3 h-3 text-pink-600" />}
+              AI 추천 ✨
+            </button>
+          </div>
+          <p className="text-[11px] text-slate-500 mb-4 font-semibold leading-relaxed">
               네이버, 구글 등 주요 검색엔진 검색 시 노출될 대표 제목과 메타 설명을 수정합니다. (실제 배포된 내역이 있을 시 작동 가능)
             </p>
 

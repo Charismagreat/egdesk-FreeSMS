@@ -609,6 +609,7 @@ export default function WebsiteBuilderPage() {
               <HomeDomainManagerPanel
                 showToast={showToast}
                 onUrlUpdated={loadHomepageUrl}
+                currentConfig={config}
               />
             )}
 
