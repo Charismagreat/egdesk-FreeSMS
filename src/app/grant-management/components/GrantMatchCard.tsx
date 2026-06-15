@@ -85,14 +85,12 @@ export default function GrantMatchCard({
             </svg>
             <span>정기 수집 스케줄러 설정</span>
           </div>
-          <p className="text-[9px] text-slate-400 font-bold">
+          <p className="text-[9px] text-slate-450 font-bold">
             지정된 주기에 따라 백그라운드 크롤러가 최신 공고 데이터를 자동 수집 및 적재합니다.
           </p>
-          {lastSyncTime && (
-            <span className="block text-[8.5px] font-bold text-slate-550 font-mono">
-              마지막 수집 완료 일시: <b className="text-indigo-600 font-black">{lastSyncTime}</b>
-            </span>
-          )}
+          <span className="block text-[8.5px] font-bold text-slate-550 font-mono">
+            최근 정보 수집 실행 일시: <b className="text-indigo-600 font-black">{lastSyncTime ? lastSyncTime : "수집 이력 없음"}</b>
+          </span>
         </div>
         
         <div className="flex items-center gap-2 shrink-0">
@@ -118,7 +116,12 @@ export default function GrantMatchCard({
             </div>
             <div>
               <h4 className="text-xs font-black text-slate-800">실시간 정부 지원금 공고 매칭 보드</h4>
-              <p className="text-[9px] text-slate-400 font-bold">인공지능이 자사 프로필을 분석하여 실시간 적합 자격을 대조합니다.</p>
+              <p className="text-[9px] text-slate-450 font-bold flex flex-wrap items-center gap-x-2">
+                <span>인공지능이 자사 프로필을 분석하여 실시간 적합 자격을 대조합니다.</span>
+                <span className="text-indigo-600 font-black">
+                  [최근 수집: {lastSyncTime ? lastSyncTime : "이력 없음 (우측 즉시 실행을 누르세요)"}]
+                </span>
+              </p>
             </div>
           </div>
           
