@@ -99,6 +99,9 @@ export default function HrAttendancePage() {
   const [eventTypes, setEventTypes] = useState<EventType[]>([]);
   const [typeError, setTypeError] = useState<string | null>(null);
 
+  // 10. 관리자 전용 ERP 관제 보드 탭 제어 상태
+  const [activeAdminTab, setActiveAdminTab] = useState<'payroll' | 'basic_profile' | 'comprehensive_profile'>('payroll');
+
   // 컴포넌트 마운트 시 초기 조회
   useEffect(() => {
     fetchHrData();
@@ -675,6 +678,7 @@ export default function HrAttendancePage() {
   const pendingLeavesCount = leaveRequests.filter(l => l.status === 'PENDING').length;
 
   const currentEmpRecord = employees.find(e => String(e.id) === String(currentUser?.id));
+  const isAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'PRESIDENT';
 
   return (
     <div className="space-y-8 animate-fade-in relative pb-16 text-slate-800">
@@ -785,67 +789,125 @@ export default function HrAttendancePage() {
         </div>
       </div>
 
-      {/* 5. 근로계약 & 실시간 급여 정산 관제 (관리자 전용) */}
-      <PayrollContractCenter
-        currentUser={currentUser}
-        payrollYearMonth={payrollYearMonth}
-        setPayrollYearMonth={setPayrollYearMonth}
-        employees={employees}
-        contracts={contracts}
-        payroll={payroll}
-        selectedContractOperatorId={selectedContractOperatorId}
-        handleSelectEmployeeContract={handleSelectEmployeeContract}
-        hourlyWage={hourlyWage}
-        setHourlyWage={setHourlyWage}
-        weeklyHours={weeklyHours}
-        setWeeklyHours={setWeeklyHours}
-        allowHolidayPay={allowHolidayPay}
-        setAllowHolidayPay={setAllowHolidayPay}
-        workDays={workDays}
-        setWorkDays={setWorkDays}
-        contractMemo={contractMemo}
-        setContractMemo={setContractMemo}
-        handleSubmitContract={handleSubmitContract}
-        getIsContractModified={getIsContractModified}
-        submitLoading={submitLoading}
-        payrollLoading={payrollLoading}
-      />
+      {/* 5. 관리자 전용 ERP 관제 센터 (탭 통합 연동) */}
+      {isAdmin && (
+        <div className="mt-8 space-y-6">
+          <div className="bg-white border border-slate-100 p-6 rounded-3xl shadow-sm space-y-5">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <span className="w-1.5 h-4.5 bg-indigo-650 rounded-full"></span>
+                <h3 className="text-sm font-black text-slate-800 flex items-center gap-1.5">
+                  🛠️ 관리자 전용 ERP 관제 센터
+                  <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">ADMIN PORTAL</span>
+                </h3>
+              </div>
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">실시간 전산 관리망 연동</span>
+            </div>
 
-      {/* 6. 임직원 상세 인적사항 명부 대장 (관리자 전용) */}
-      <BasicProfileEditor
-        currentUser={currentUser}
-        employees={employees}
-        profiles={profiles}
-        selectedProfileOperatorId={selectedProfileOperatorId}
-        handleSelectEmployeeProfile={handleSelectEmployeeProfile}
-        profileDept={profileDept}
-        setProfileDept={setProfileDept}
-        profileHireDate={profileHireDate}
-        setProfileHireDate={setProfileHireDate}
-        profileCommute={profileCommute}
-        setProfileCommute={setProfileCommute}
-        profileSkills={profileSkills}
-        setProfileSkills={setProfileSkills}
-        profileBackup={profileBackup}
-        setProfileBackup={setProfileBackup}
-        handleSubmitProfile={handleSubmitProfile}
-        getIsProfileModified={getIsProfileModified}
-        submitLoading={submitLoading}
-        profileLoading={profileLoading}
-      />
+            {/* 탭 헤더 컨트롤 바 */}
+            <div className="bg-slate-50 border border-slate-100 p-1.5 rounded-2xl flex flex-wrap md:flex-nowrap gap-2 items-center">
+              <button
+                onClick={() => setActiveAdminTab('payroll')}
+                className={`flex-1 py-3 px-4 rounded-xl text-xs font-black transition-all border-0 cursor-pointer flex items-center justify-center gap-2 ${
+                  activeAdminTab === 'payroll'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'bg-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100/70'
+                }`}
+              >
+                💸 근로계약 & 실시간 급여 정산
+              </button>
+              <button
+                onClick={() => setActiveAdminTab('basic_profile')}
+                className={`flex-1 py-3 px-4 rounded-xl text-xs font-black transition-all border-0 cursor-pointer flex items-center justify-center gap-2 ${
+                  activeAdminTab === 'basic_profile'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'bg-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100/70'
+                }`}
+              >
+                📋 임직원 상세 인적사항 명부
+              </button>
+              <button
+                onClick={() => setActiveAdminTab('comprehensive_profile')}
+                className={`flex-1 py-3 px-4 rounded-xl text-xs font-black transition-all border-0 cursor-pointer flex items-center justify-center gap-2 ${
+                  activeAdminTab === 'comprehensive_profile'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'bg-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100/70'
+                }`}
+              >
+                🪐 임직원 360도 종합 프로필 관제
+              </button>
+            </div>
+          </div>
 
-      {/* 7. 임직원 360도 Dynamic 프로필 관제 보드 (관리자 전용) */}
-      <ComprehensiveProfile360
-        currentUser={currentUser}
-        employees={employees}
-        comprehensiveProfiles={comprehensiveProfiles}
-        selected360OperatorId={selected360OperatorId}
-        handleSelect360Employee={setSelected360OperatorId}
-        handleDelete360Record={handleDelete360Record}
-        handleSubmit360Upsert={handleSubmit360Upsert}
-        submitLoading={submitLoading}
-        comprehensiveLoading={comprehensiveLoading}
-      />
+          {/* 탭 내용 분기 마운트 */}
+          <div className="space-y-6">
+            {activeAdminTab === 'payroll' && (
+              <PayrollContractCenter
+                currentUser={currentUser}
+                payrollYearMonth={payrollYearMonth}
+                setPayrollYearMonth={setPayrollYearMonth}
+                employees={employees}
+                contracts={contracts}
+                payroll={payroll}
+                selectedContractOperatorId={selectedContractOperatorId}
+                handleSelectEmployeeContract={handleSelectEmployeeContract}
+                hourlyWage={hourlyWage}
+                setHourlyWage={setHourlyWage}
+                weeklyHours={weeklyHours}
+                setWeeklyHours={setWeeklyHours}
+                allowHolidayPay={allowHolidayPay}
+                setAllowHolidayPay={setAllowHolidayPay}
+                workDays={workDays}
+                setWorkDays={setWorkDays}
+                contractMemo={contractMemo}
+                setContractMemo={setContractMemo}
+                handleSubmitContract={handleSubmitContract}
+                getIsContractModified={getIsContractModified}
+                submitLoading={submitLoading}
+                payrollLoading={payrollLoading}
+              />
+            )}
+
+            {activeAdminTab === 'basic_profile' && (
+              <BasicProfileEditor
+                currentUser={currentUser}
+                employees={employees}
+                profiles={profiles}
+                selectedProfileOperatorId={selectedProfileOperatorId}
+                handleSelectEmployeeProfile={handleSelectEmployeeProfile}
+                profileDept={profileDept}
+                setProfileDept={setProfileDept}
+                profileHireDate={profileHireDate}
+                setProfileHireDate={setProfileHireDate}
+                profileCommute={profileCommute}
+                setProfileCommute={setProfileCommute}
+                profileSkills={profileSkills}
+                setProfileSkills={setProfileSkills}
+                profileBackup={profileBackup}
+                setProfileBackup={setProfileBackup}
+                handleSubmitProfile={handleSubmitProfile}
+                getIsProfileModified={getIsProfileModified}
+                submitLoading={submitLoading}
+                profileLoading={profileLoading}
+              />
+            )}
+
+            {activeAdminTab === 'comprehensive_profile' && (
+              <ComprehensiveProfile360
+                currentUser={currentUser}
+                employees={employees}
+                comprehensiveProfiles={comprehensiveProfiles}
+                selected360OperatorId={selected360OperatorId}
+                handleSelect360Employee={setSelected360OperatorId}
+                handleDelete360Record={handleDelete360Record}
+                handleSubmit360Upsert={handleSubmit360Upsert}
+                submitLoading={submitLoading}
+                comprehensiveLoading={comprehensiveLoading}
+              />
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ==========================================
           🏛️ 팝업 모달 목록 마운트
