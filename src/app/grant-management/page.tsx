@@ -27,6 +27,7 @@ export default function GrantManagementPage() {
     handleGenerateRndPlan,
     handleUpdateSection,
     handleExportCsv,
+    isSyncing,
   } = useGrantManagement();
 
   const bookmarkedCount = announcements.filter((a) => a.isBookmarked).length;
@@ -130,6 +131,7 @@ export default function GrantManagementPage() {
                 lastSyncTime={lastSyncTime}
                 onSaveSchedule={handleSaveSchedule}
                 onSearchGrants={handleSearchGrants}
+                isSyncing={isSyncing}
               />
             )}
           </div>

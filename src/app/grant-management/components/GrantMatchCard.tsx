@@ -13,6 +13,7 @@ interface GrantMatchCardProps {
   lastSyncTime: string;
   onSaveSchedule: (interval: number) => Promise<void>;
   onSearchGrants: () => Promise<void>;
+  isSyncing: boolean;
 }
 
 /**
@@ -28,6 +29,7 @@ export default function GrantMatchCard({
   lastSyncTime,
   onSaveSchedule,
   onSearchGrants,
+  isSyncing,
 }: GrantMatchCardProps) {
   const [expandedAnnId, setExpandedAnnId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -121,6 +123,12 @@ export default function GrantMatchCard({
                 <span className="text-indigo-600 font-black">
                   [최근 수집: {lastSyncTime ? lastSyncTime : "이력 없음 (우측 즉시 실행을 누르세요)"}]
                 </span>
+                {isSyncing && (
+                  <span className="text-indigo-650 font-black flex items-center gap-1 bg-indigo-50 px-1.5 py-0.5 rounded animate-pulse">
+                    <span className="w-1.5 h-1.5 bg-indigo-600 rounded-full animate-ping" />
+                    백그라운드 동기화 중...
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -131,11 +139,16 @@ export default function GrantMatchCard({
             </span>
             <button
               type="button"
+              disabled={isSyncing}
               onClick={onSearchGrants}
-              className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer shadow-2xs hover:scale-102 active:scale-98"
+              className={`px-2.5 py-1.5 text-white rounded-lg text-[10px] font-black flex items-center gap-1 transition-all shadow-2xs ${
+                isSyncing
+                  ? "bg-slate-400 cursor-not-allowed"
+                  : "bg-indigo-600 hover:bg-indigo-700 hover:scale-102 active:scale-98 cursor-pointer"
+              }`}
             >
-              <Sparkles className="w-3 h-3 animate-spin" style={{ animationDuration: '3s' }} />
-              <span>즉시 실행 (동기화)</span>
+              <Sparkles className={`w-3 h-3 ${isSyncing ? "animate-spin" : "animate-bounce"}`} style={isSyncing ? { animationDuration: '3s' } : undefined} />
+              <span>{isSyncing ? "동기화 진행 중..." : "즉시 실행 (동기화)"}</span>
             </button>
           </div>
         </div>

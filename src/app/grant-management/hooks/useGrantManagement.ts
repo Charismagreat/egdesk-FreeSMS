@@ -21,9 +21,15 @@ export function useGrantManagement() {
     setTimeout(() => setToast(null), 3000);
   }, []);
 
+  const [isSyncing, setIsSyncing] = useState(false);
+  
   // 1. 수동 지원금 매칭 검색 수행 (즉시 동기화 실행 포함)
   const handleSearchGrants = async () => {
-    setIsLoading(true);
+    if (announcements.length === 0) {
+      setIsLoading(true);
+    } else {
+      setIsSyncing(true);
+    }
     try {
       // 1) 비즈인포 크롤링 실시간 동기화 우선 수행 (건수 제한 없음 대응)
       try {
@@ -61,6 +67,7 @@ export function useGrantManagement() {
       showToast(`지원금 매칭 검색에 실패했습니다: ${e.message}`, "error");
     } finally {
       setIsLoading(false);
+      setIsSyncing(false);
     }
   };
 
@@ -240,5 +247,6 @@ export function useGrantManagement() {
     handleExportCsv,
     setSelectedAnnId,
     setRndPlan,
+    isSyncing,
   };
 }
