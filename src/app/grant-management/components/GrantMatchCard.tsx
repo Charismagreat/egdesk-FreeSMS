@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { GrantAnnouncement, CompanyProfile } from "../types";
-import { Award, Bookmark, BookmarkCheck, FileText, Sparkles, Building2, HelpCircle, AlertCircle } from "lucide-react";
+import { Award, Bookmark, BookmarkCheck, FileText, Sparkles, Building2, AlertCircle } from "lucide-react";
 
 interface GrantMatchCardProps {
   announcements: GrantAnnouncement[];
@@ -23,9 +23,47 @@ export default function GrantMatchCard({
   isGenerating,
 }: GrantMatchCardProps) {
   const [expandedAnnId, setExpandedAnnId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8; // 페이지당 공고 노출 개수
 
   const toggleExpand = (id: string) => {
     setExpandedAnnId(expandedAnnId === id ? null : id);
+  };
+
+  // 검색어가 바뀌면 페이지를 1페이지로 자동 리셋
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  // 검색 필터링 (제목, 지원기관, 공고번호 기준)
+  const filtered = announcements.filter((ann) => {
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return true;
+    return (
+      ann.title.toLowerCase().includes(query) ||
+      ann.agency.toLowerCase().includes(query) ||
+      ann.id.toLowerCase().includes(query)
+    );
+  });
+
+  const totalCount = filtered.length;
+  const totalPages = Math.ceil(totalCount / itemsPerPage) || 1;
+
+  // 전체 필터링 리스트 기준 내림차순 일련번호(globalNo) 동적 주입
+  const filteredWithNo = filtered.map((ann, idx) => ({
+    ...ann,
+    globalNo: totalCount - idx,
+  }));
+
+  // 현재 페이지에 보여줄 데이터 슬라이싱
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedAnnouncements = filteredWithNo.slice(startIndex, startIndex + itemsPerPage);
+
+  const handlePageChange = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
   };
 
   return (
@@ -38,7 +76,7 @@ export default function GrantMatchCard({
             <Building2 className="w-4.5 h-4.5 text-slate-500" />
             <span className="text-xs font-black text-slate-700">당사 AI 매칭 프로필 정보</span>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-[9.5px] font-bold text-slate-500">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-[9.5px] font-bold text-slate-550">
             <div>
               <span className="block text-[8px] text-slate-400 font-black">업태 및 분야</span>
               <span className="text-slate-800 text-[10.5px] font-black">{companyProfile.sector}</span>
@@ -51,7 +89,7 @@ export default function GrantMatchCard({
             </div>
             <div>
               <span className="block text-[8px] text-slate-400 font-black">보유 특허</span>
-              <span className="text-indigo-600 text-[10.5px] font-mono font-black">
+              <span className="text-indigo-650 text-[10.5px] font-mono font-black">
                 {companyProfile.patentsCount}건
               </span>
             </div>
@@ -66,8 +104,8 @@ export default function GrantMatchCard({
       )}
 
       {/* 2. 공고 목록 대장 */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-2.5">
           <div className="flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600">
               <Award className="w-4.5 h-4.5" />
@@ -77,128 +115,219 @@ export default function GrantMatchCard({
               <p className="text-[9px] text-slate-400 font-bold">인공지능이 자사 프로필을 분석하여 실시간 적합 자격을 대조합니다.</p>
             </div>
           </div>
+          <span className="text-[10px] font-black text-slate-400 font-mono self-end sm:self-center shrink-0">
+            검색 결과: <b className="text-slate-700">{totalCount}</b> / 전체 <b className="text-slate-500">{announcements.length}</b>건
+          </span>
         </div>
 
+        {/* 2-1. 검색창 UI */}
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="공고 제목, 지원 기관 또는 공고 번호로 검색..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-8 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-bold text-slate-700 bg-slate-50/50"
+          />
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-450 hover:text-slate-650 text-[10px] font-black transition-colors"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        {/* 2-2. 리스트 본문 */}
         <div className="space-y-3">
-          {announcements.map((ann) => {
-            const isExpanded = expandedAnnId === ann.id;
-            const isSelected = selectedAnnId === ann.id;
-            
-            // 점수 색상 배정
-            const scoreColor =
-              ann.matchScore >= 90
-                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                : ann.matchScore >= 80
-                ? "bg-indigo-50 text-indigo-700 border-indigo-200"
-                : "bg-slate-50 text-slate-500 border-slate-200";
+          {paginatedAnnouncements.length === 0 ? (
+            <div className="py-16 text-center text-slate-400 font-black text-xs border border-dashed border-slate-200 rounded-2xl">
+              검색 조건에 일치하는 정부 지원금 공고가 존재하지 않습니다.
+            </div>
+          ) : (
+            paginatedAnnouncements.map((ann) => {
+              const isExpanded = expandedAnnId === ann.id;
+              const isSelected = selectedAnnId === ann.id;
+              
+              // 점수 색상 배정
+              const scoreColor =
+                ann.matchScore >= 90
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                  : ann.matchScore >= 80
+                  ? "bg-indigo-50 text-indigo-700 border-indigo-200"
+                  : "bg-slate-50 text-slate-500 border-slate-200";
 
-            return (
-              <div
-                key={ann.id}
-                className={`border rounded-2xl transition-all ${
-                  isExpanded ? "border-indigo-600 bg-indigo-50/5" : "border-slate-200 hover:border-slate-300"
-                }`}
-              >
-                {/* 상단 기본 헤더 */}
-                <div className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div className="space-y-1 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[8.5px] font-black text-slate-400 font-mono">{ann.id}</span>
-                      <span className="text-[8.5px] font-black text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
-                        {ann.agency}
-                      </span>
-                      <span className="text-[8.5px] font-bold text-slate-550 border border-slate-200 px-1.5 py-0.5 rounded">
-                        {ann.category === "RND" ? "기술 R&D" : ann.category === "GRANT" ? "무상 보조금" : "정책 융자"}
-                      </span>
+              return (
+                <div
+                  key={ann.id}
+                  className={`border rounded-2xl transition-all ${
+                    isExpanded ? "border-indigo-650 bg-indigo-50/5" : "border-slate-200 hover:border-slate-300"
+                  }`}
+                >
+                  {/* 상단 기본 헤더 */}
+                  <div className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="space-y-1 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* 내림차순 일련번호 표시 */}
+                        <span className="text-[8.5px] font-black text-indigo-600 bg-indigo-50/50 px-1.5 py-0.5 rounded font-mono">
+                          No. {ann.globalNo}
+                        </span>
+                        <span className="text-[8.5px] font-black text-slate-300 font-mono">|</span>
+                        <span className="text-[8.5px] font-black text-slate-400 font-mono">{ann.id}</span>
+                        <span className="text-[8.5px] font-black text-slate-400 font-mono">|</span>
+                        <span className="text-[8.5px] font-black text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
+                          {ann.agency}
+                        </span>
+                        <span className="text-[8.5px] font-bold text-slate-550 border border-slate-200 px-1.5 py-0.5 rounded">
+                          {ann.category === "RND" ? "기술 R&D" : ann.category === "GRANT" ? "무상 보조금" : "정책 융자"}
+                        </span>
+                      </div>
+                      
+                      <h5 
+                        onClick={() => toggleExpand(ann.id)}
+                        className="text-xs font-black text-slate-800 cursor-pointer hover:text-indigo-650 transition-colors"
+                      >
+                        {ann.title}
+                      </h5>
+
+                      <div className="flex items-center gap-4 text-[9px] font-bold text-slate-400">
+                        <span>규모: <b className="text-slate-700">{ann.budget}</b></span>
+                        <span>마감: <b className="text-slate-700">{ann.deadline}</b></span>
+                      </div>
                     </div>
-                    
-                    <h5 
-                      onClick={() => toggleExpand(ann.id)}
-                      className="text-xs font-black text-slate-800 cursor-pointer hover:text-indigo-600 transition-colors"
-                    >
-                      {ann.title}
-                    </h5>
 
-                    <div className="flex items-center gap-4 text-[9px] font-bold text-slate-400">
-                      <span>규모: <b className="text-slate-700">{ann.budget}</b></span>
-                      <span>마감: <b className="text-slate-700">{ann.deadline}</b></span>
-                    </div>
-                  </div>
+                    {/* 스코어 및 액션 버튼들 */}
+                    <div className="flex items-center gap-3 shrink-0">
+                      <div className={`border rounded-xl px-3 py-1.5 text-center ${scoreColor}`}>
+                        <span className="block text-[7.5px] font-black uppercase tracking-wider">AI 적합도</span>
+                        <span className="text-xs font-black font-mono">{ann.matchScore}%</span>
+                      </div>
 
-                  {/* 스코어 및 액션 버튼들 */}
-                  <div className="flex items-center gap-3 shrink-0">
-                    <div className={`border rounded-xl px-3 py-1.5 text-center ${scoreColor}`}>
-                      <span className="block text-[7.5px] font-black uppercase tracking-wider">AI 적합도</span>
-                      <span className="text-xs font-black font-mono">{ann.matchScore}%</span>
-                    </div>
-
-                    {/* 북마크 */}
-                    <button
-                      type="button"
-                      onClick={() => onToggleBookmark(ann.id)}
-                      className={`p-2 rounded-xl border transition-colors ${
-                        ann.isBookmarked
-                          ? "bg-amber-50 border-amber-200 text-amber-500"
-                          : "bg-white border-slate-250 text-slate-400 hover:text-slate-650"
-                      }`}
-                    >
-                      {ann.isBookmarked ? (
-                        <BookmarkCheck className="w-4 h-4 fill-amber-500" />
-                      ) : (
-                        <Bookmark className="w-4 h-4" />
-                      )}
-                    </button>
-
-                    {/* R&D 생성 가동 */}
-                    {ann.category === "RND" ? (
+                      {/* 관심 등록 (북마크) */}
                       <button
                         type="button"
-                        disabled={isGenerating && !isSelected}
-                        onClick={() => onGenerateRndPlan(ann.id)}
-                        className={`px-3 py-2 text-white font-extrabold text-[9.5px] rounded-xl shadow-2xs transition-all flex items-center gap-1.5 ${
-                          isSelected && isGenerating
-                            ? "bg-slate-400 cursor-not-allowed"
-                            : "bg-indigo-600 hover:bg-indigo-700"
+                        onClick={() => onToggleBookmark(ann.id)}
+                        className={`p-2 rounded-xl border transition-colors ${
+                          ann.isBookmarked
+                            ? "bg-amber-50 border-amber-200 text-amber-500"
+                            : "bg-white border-slate-250 text-slate-400 hover:text-slate-650"
                         }`}
                       >
-                        <Sparkles className="w-3.5 h-3.5" />
-                        {isSelected && isGenerating ? "AI 빌딩 중..." : "AI 계획서 빌드"}
+                        {ann.isBookmarked ? (
+                          <BookmarkCheck className="w-4 h-4 fill-amber-500" />
+                        ) : (
+                          <Bookmark className="w-4 h-4" />
+                        )}
                       </button>
-                    ) : (
-                      <a
-                        href="https://www.bizinfo.go.kr"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="px-3 py-2 border border-slate-250 hover:bg-slate-50 text-slate-650 font-bold text-[9.5px] rounded-xl flex items-center gap-1"
-                      >
-                        <FileText className="w-3.5 h-3.5 text-slate-400" />
-                        상세 공고
-                      </a>
-                    )}
-                  </div>
-                </div>
 
-                {/* 아코디언 확장 영역 (AI 추천 가이드 및 세부 조언) */}
-                {isExpanded && (
-                  <div className="px-4 pb-4 pt-1 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl text-left space-y-2.5">
-                    <div className="flex items-center gap-1 text-[8.5px] text-slate-450 font-black">
-                      <AlertCircle className="w-3.5 h-3.5 text-indigo-500" />
-                      <span>AI 매칭 진단 & 보완 제언 리포트</span>
+                      {/* AI 작성 or 링크 전환 */}
+                      {ann.category === "RND" ? (
+                        <button
+                          type="button"
+                          disabled={isGenerating && !isSelected}
+                          onClick={() => onGenerateRndPlan(ann.id)}
+                          className={`px-3 py-2 text-white font-extrabold text-[9.5px] rounded-xl shadow-2xs transition-all flex items-center gap-1.5 ${
+                            isSelected && isGenerating
+                              ? "bg-slate-400 cursor-not-allowed"
+                              : "bg-indigo-650 hover:bg-indigo-700 animate-pulse"
+                          }`}
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                          {isSelected && isGenerating ? "AI 빌딩 중..." : "AI 계획서 빌드"}
+                        </button>
+                      ) : (
+                        <a
+                          href="https://www.bizinfo.go.kr"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-3 py-2 border border-slate-250 hover:bg-slate-50 text-slate-650 font-bold text-[9.5px] rounded-xl flex items-center gap-1"
+                        >
+                          <FileText className="w-3.5 h-3.5 text-slate-400" />
+                          상세 공고
+                        </a>
+                      )}
                     </div>
-                    <ul className="space-y-1.5 text-[9px] font-bold text-slate-600 pl-1">
-                      {ann.matchGuide.map((guide, idx) => (
-                        <li key={idx} className="leading-relaxed">
-                          {guide}
-                        </li>
-                      ))}
-                    </ul>
                   </div>
-                )}
 
-              </div>
-            );
-          })}
+                  {/* 아코디언 확장 영역 (AI 조언 리포트) */}
+                  {isExpanded && (
+                    <div className="px-4 pb-4 pt-1 border-t border-slate-100 bg-slate-50/50 rounded-b-2xl text-left space-y-2.5">
+                      <div className="flex items-center gap-1 text-[8.5px] text-slate-450 font-black">
+                        <AlertCircle className="w-3.5 h-3.5 text-indigo-500" />
+                        <span>AI 매칭 진단 & 보완 제언 리포트</span>
+                      </div>
+                      <ul className="space-y-1.5 text-[9px] font-bold text-slate-600 pl-1">
+                        {ann.matchGuide.map((guide, idx) => (
+                          <li key={idx} className="leading-relaxed">
+                            {guide}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
+
+        {/* 2-3. 페이지네이션 컨트롤 UI */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-1.5 pt-4 border-t border-slate-150">
+            <button
+              type="button"
+              disabled={currentPage === 1}
+              onClick={() => handlePageChange(currentPage - 1)}
+              className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-650 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            >
+              이전
+            </button>
+            
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+              // 현재 페이지 근처 번호 및 양 끝만 노출 (슬라이딩 윈도우)
+              const isNear = Math.abs(page - currentPage) <= 1;
+              const isEnds = page === 1 || page === totalPages;
+              
+              if (!isNear && !isEnds) {
+                if (page === 2 || page === totalPages - 1) {
+                  return <span key={`dots-${page}`} className="text-slate-400 text-xs px-1 select-none">...</span>;
+                }
+                return null;
+              }
+              
+              const isActive = currentPage === page;
+              return (
+                <button
+                  key={page}
+                  type="button"
+                  onClick={() => handlePageChange(page)}
+                  className={`w-7.5 h-7.5 rounded-lg text-xs font-black transition-all ${
+                    isActive
+                      ? "bg-indigo-650 text-white shadow-2xs"
+                      : "border border-slate-200 text-slate-650 bg-white hover:bg-slate-50"
+                  }`}
+                >
+                  {page}
+                </button>
+              );
+            })}
+            
+            <button
+              type="button"
+              disabled={currentPage === totalPages}
+              onClick={() => handlePageChange(currentPage + 1)}
+              className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-650 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            >
+              다음
+            </button>
+          </div>
+        )}
       </div>
 
     </div>
