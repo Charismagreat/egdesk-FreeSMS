@@ -99,7 +99,7 @@ export default function GrantMatchCard({
             </div>
             <div>
               <span className="block text-[8px] text-slate-400 font-black">보유 특허</span>
-              <span className="text-indigo-650 text-[10.5px] font-mono font-black">
+              <span className="text-indigo-600 text-[10.5px] font-mono font-black">
                 {companyProfile.patentsCount}건
               </span>
             </div>
@@ -221,7 +221,7 @@ export default function GrantMatchCard({
                 <div
                   key={ann.id}
                   className={`border rounded-2xl transition-all ${
-                    isExpanded ? "border-indigo-650 bg-indigo-50/5" : "border-slate-200 hover:border-slate-300"
+                    isExpanded ? "border-indigo-600 bg-indigo-50/5" : "border-slate-200 hover:border-slate-300"
                   }`}
                 >
                   {/* 상단 기본 헤더 */}
@@ -245,7 +245,7 @@ export default function GrantMatchCard({
                       
                       <h5 
                         onClick={() => toggleExpand(ann.id)}
-                        className="text-xs font-black text-slate-800 cursor-pointer hover:text-indigo-650 transition-colors"
+                        className="text-xs font-black text-slate-800 cursor-pointer hover:text-indigo-600 transition-colors"
                       >
                         {ann.title}
                       </h5>
@@ -289,7 +289,7 @@ export default function GrantMatchCard({
                           className={`px-3 py-2 text-white font-extrabold text-[9.5px] rounded-xl shadow-2xs transition-all flex items-center gap-1.5 ${
                             isSelected && isGenerating
                               ? "bg-slate-400 cursor-not-allowed"
-                              : "bg-indigo-650 hover:bg-indigo-700 animate-pulse"
+                              : "bg-indigo-600 hover:bg-indigo-700 animate-pulse"
                           }`}
                         >
                           <Sparkles className="w-3.5 h-3.5" />
@@ -363,8 +363,8 @@ export default function GrantMatchCard({
                   onClick={() => handlePageChange(page)}
                   className={`w-7.5 h-7.5 rounded-lg text-xs font-black transition-all ${
                     isActive
-                      ? "bg-indigo-650 text-white shadow-2xs"
-                      : "border border-slate-200 text-slate-650 bg-white hover:bg-slate-50"
+                      ? "bg-indigo-600 text-white shadow-2xs"
+                      : "border border-slate-200 text-slate-600 bg-white hover:bg-slate-50"
                   }`}
                 >
                   {page}
