@@ -3,7 +3,66 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
-import { queryTable } from '../../../../../egdesk-helpers';
+import { 
+  queryTable,
+  listBusinessIdentitySnapshots,
+  listKnowledgeDocuments,
+  getKnowledgeDocument
+} from '../../../../../egdesk-helpers';
+
+/**
+ * 지식 문서 본문에서 메타데이터 정보를 추출하는 헬퍼 함수
+ */
+function parseDocContent(content: string) {
+  const result = {
+    creator_id: 'sales_staff',
+    dept_code: 'SALES',
+    security_level: 'C',
+    status: 'APPROVED_AUTO',
+    autopilot_score: 90.0,
+    metadata: {} as Record<string, any>,
+    parsedBody: content || '',
+    doc_type: 'REPORT'
+  };
+
+  if (!content) return result;
+
+  // 메타데이터 영역 파싱
+  const creatorMatch = content.match(/\*\s+\*\*작성자\*\*:\s*([^\n]+)/);
+  if (creatorMatch) result.creator_id = creatorMatch[1].trim();
+
+  const deptMatch = content.match(/\*\s+\*\*부서\*\*:\s*([^\n]+)/);
+  if (deptMatch) result.dept_code = deptMatch[1].trim();
+
+  const securityMatch = content.match(/\*\s+\*\*보안등급\*\*:\s*([^\n]+)/);
+  if (securityMatch) result.security_level = securityMatch[1].trim();
+
+  const statusMatch = content.match(/\*\s+\*\*결재상태\*\*:\s*([^\n]+)/);
+  if (statusMatch) result.status = statusMatch[1].trim();
+
+  const scoreMatch = content.match(/\*\s+\*\*파서스코어\*\*:\s*([^\n]+)/);
+  if (scoreMatch) result.autopilot_score = parseFloat(scoreMatch[1].trim()) || 90.0;
+
+  const metadataMatch = content.match(/\*\s+\*\*메타데이터\*\*:\s*([^\n]+)/);
+  if (metadataMatch) {
+    try {
+      result.metadata = JSON.parse(metadataMatch[1].trim());
+      if (result.metadata && result.metadata.doc_type) {
+        result.doc_type = result.metadata.doc_type;
+      }
+    } catch (e) {
+      console.warn('Metadata parse error:', e);
+    }
+  }
+
+  // 본문 내용만 추출 (메타데이터 구분선 전까지)
+  const dividerIndex = content.lastIndexOf('\n\n--- \n*   **작성자**:');
+  if (dividerIndex !== -1) {
+    result.parsedBody = content.substring(0, dividerIndex).trim();
+  }
+
+  return result;
+}
 
 /**
  * POST: 승인된 지식 문서를 RAG 분석하여 맞춤형 이지봇 지침 초안 생성
@@ -39,11 +98,49 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    // 3. 승인된 지식 문서 조회 (status = 'APPROVED')
+    // 3. 대표 스냅샷 ID 획득
+    let snapshotId = 'default_snapshot';
+    try {
+      const snapshotListRes = await listBusinessIdentitySnapshots();
+      const snapshots = snapshotListRes?.snapshots || snapshotListRes || [];
+      if (snapshots && snapshots.length > 0) {
+        snapshotId = snapshots[0].id || snapshots[0].uuid || snapshotId;
+      }
+    } catch (err) {
+      console.warn('스냅샷 리스트 획득 실패:', err);
+    }
+
+    // 4. MCP 지식 저장소 문서 조회
     let approvedDocs: any[] = [];
     try {
-      const docsRes = await queryTable('knowledge_documents', { filters: { status: 'APPROVED' } });
-      approvedDocs = docsRes.rows || [];
+      const docsRes = await listKnowledgeDocuments(snapshotId);
+      const rawDocs = docsRes?.documents || docsRes || [];
+
+      const detailDocs = await Promise.all(
+        rawDocs.map(async (d: any) => {
+          const docId = d.id || d.document_id || d.uuid;
+          if (!d.content && docId) {
+            try {
+              const detail = await getKnowledgeDocument(docId);
+              return { ...d, ...detail };
+            } catch (err) {
+              return d;
+            }
+          }
+          return d;
+        })
+      );
+
+      // 승인 완료된 문서만 필터링 (APPROVED_AUTO, APPROVED_MANUAL, APPROVED 등)
+      approvedDocs = detailDocs
+        .map((doc: any) => {
+          const parsed = parseDocContent(doc.content);
+          return {
+            ...doc,
+            ...parsed
+          };
+        })
+        .filter((doc: any) => doc.status && doc.status.startsWith('APPROVED'));
     } catch (dbErr) {
       console.warn('knowledge_documents 조회 실패:', dbErr);
     }
@@ -55,17 +152,17 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    // 4. 지식 문서 텍스트 요약 컨텍스트 빌드
+    // 5. 지식 문서 텍스트 요약 컨텍스트 빌드
     const docsContext = approvedDocs.map((doc, idx) => {
       return `[문서 ${idx + 1}]
 제목: ${doc.title}
 종류: ${doc.doc_type}
 본문 내용:
-${doc.content}
+${doc.parsedBody}
 ------------------------------------`;
     }).join('\n\n');
 
-    // 5. Gemini 프롬프트 설계
+    // 6. Gemini 프롬프트 설계
     const generatorPrompt = `
 당신은 사내 지식 문서를 심층 RAG 분석하여 이지봇(EasyBot) 자율 관제 시스템 설정을 자동으로 빌드해주는 비즈니스 인텔리전스 AI 모델입니다.
 
@@ -87,7 +184,7 @@ ${docsContext}
 }
 `;
 
-    // 6. Gemini API 호출
+    // 7. Gemini API 호출
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
