@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { 
-  updateRows,
-  insertRows
+  getKnowledgeDocument,
+  updateKnowledgeDocument
 } from '../../../../../egdesk-helpers';
 
 /**
@@ -16,57 +16,41 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Missing required parameters' }, { status: 400 });
     }
 
-    const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    // 1. 기존 지식 문서 조회
+    let originalDoc: any = null;
+    try {
+      originalDoc = await getKnowledgeDocument(document_id);
+    } catch (err) {
+      console.warn('결재할 지식 문서 조회 실패:', err);
+      return NextResponse.json({ success: false, error: '지식 문서를 찾을 수 없습니다.' }, { status: 404 });
+    }
 
-    // 1. approvals 테이블 결재 승인/반려 갱신
-    await updateRows(
-      'document_approvals',
-      {
-        status: status === 'APPROVED' ? 'APPROVED' : 'REJECTED',
-        comments: comments || (status === 'APPROVED' ? '수동 승인 완료.' : '결재가 반려되었습니다.'),
-        processed_at: now
-      },
-      {
-        filters: {
-          document_id,
-          approver_id
-        }
-      }
-    );
+    let updatedContent = originalDoc?.content || '';
+    const newStatus = status === 'APPROVED' ? 'APPROVED_MANUAL' : 'REJECTED';
 
-    // 2. documents 테이블 문서 상태 갱신 (수동 승인은 APPROVED_MANUAL, 반려는 REJECTED)
-    // [보안 고지 🔒] 수동 승인이 완료되어도 최초의 A등급(최고기밀) 보안 설정은 그대로 안전 유지!
-    await updateRows(
-      'knowledge_documents',
-      {
-        status: status === 'APPROVED' ? 'APPROVED_MANUAL' : 'REJECTED',
-        updated_at: now
-      },
-      {
-        filters: {
-          document_id
-        }
-      }
-    );
+    if (updatedContent) {
+      // 2. 문서 본문 내 결재상태 치환
+      updatedContent = updatedContent.replace(/\*\s+\*\*결재상태\*\*:\s*([^\n]+)/g, `*   **결재상태**: ${newStatus}`);
+      
+      // 코멘트 및 감사 로그도 마크다운 하단에 추가하여 히스토리 추적 지원
+      const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
+      const logComment = `\n*   **결재 이력 [${now}]**: [${approver_id}]에 의해 결재가 [${status === 'APPROVED' ? '승인' : '반려'}]되었습니다. (의견: ${comments || '없음'})`;
+      updatedContent += logComment;
+    }
 
-    // 추가 감사 로그 인서트
-    await insertRows('document_approvals', [{
-      document_id,
-      approver_id: 'SYSTEM_AUDITOR',
-      step_number: 50,
-      step_type: 'REFERRER',
-      status: 'APPROVED',
-      comments: `인적 결재자 [${approver_id}]에 의해 기안서 최종 심사가 처리되었습니다. 상태: ${status === 'APPROVED' ? '승인' : '반려'}. 제로 트러스트 기조에 따라 A등급 최고기밀 자물쇠 락 상태가 안전 유지됩니다.`,
-      processed_at: now
-    }]);
+    // 3. MCP 지식 저장소 업데이트
+    await updateKnowledgeDocument(document_id, {
+      content: updatedContent
+    });
 
     return NextResponse.json({ 
       success: true, 
       message: `성공적으로 결재가 ${status === 'APPROVED' ? '승인' : '반려'}되었습니다. 보안 락은 A등급(최고기밀)으로 엄격히 유지됩니다.`,
       document_id,
-      status: status === 'APPROVED' ? 'APPROVED_MANUAL' : 'REJECTED'
+      status: newStatus
     });
   } catch (error: any) {
+    console.error('POST /api/knowledge-ai/approve error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
