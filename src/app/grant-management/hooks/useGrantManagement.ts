@@ -11,28 +11,32 @@ export function useGrantManagement() {
   const [selectedAnnId, setSelectedAnnId] = useState<string | null>(null);
   const [rndPlan, setRndPlan] = useState<RndPlan | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  
+  // 스케줄 상태값 추가
+  const [syncInterval, setSyncInterval] = useState<number>(12);
+  const [lastSyncTime, setLastSyncTime] = useState<string>("");
 
   const showToast = useCallback((message: string, type: "success" | "error" | "warn" = "success") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   }, []);
 
-  // 1. 수동 지원금 매칭 검색 수행 (POST)
+  // 1. 수동 지원금 매칭 검색 수행 (즉시 동기화 실행 포함)
   const handleSearchGrants = async () => {
     setIsLoading(true);
     try {
-      // 1) 비즈인포 크롤링 동기화 우선 수행 (최신 3페이지, 약 45건)
+      // 1) 비즈인포 크롤링 실시간 동기화 우선 수행 (건수 제한 없음 대응)
       try {
         await fetch("/api/production/grant/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ searchPages: 3 })
+          body: JSON.stringify({ searchPages: 0 }) // 0을 보내어 제한 없이 가져오도록 트리거
         });
       } catch (syncErr) {
         console.warn("실시간 공고 크롤링 실패:", syncErr);
       }
 
-      // 2) 사내 스펙 매칭 분석 수행
+      // 2) 사내 스펙 매칭 RAG 분석 수행
       const res = await fetch("/api/production/grant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -43,6 +47,11 @@ export function useGrantManagement() {
         setAnnouncements(data.announcements);
         setCompanyProfile(data.companyProfile);
         setHasSearched(true);
+        
+        // 마지막 동기화 시간 즉시 갱신
+        const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+        setLastSyncTime(nowStr);
+        
         showToast(data.message, "success");
       } else {
         throw new Error(data.error);
@@ -65,6 +74,8 @@ export function useGrantManagement() {
         if (data.success) {
           setAnnouncements(data.announcements || []);
           setCompanyProfile(data.companyProfile || null);
+          setSyncInterval(data.syncInterval || 12);
+          setLastSyncTime(data.lastSyncTime || "");
           // DB에 공고가 이미 적재되어 있다면 스캔 대기 화면을 스킵하고 바로 리스트 노출
           if (data.announcements && data.announcements.length > 0) {
             setHasSearched(true);
@@ -78,6 +89,26 @@ export function useGrantManagement() {
     };
     loadInitialData();
   }, []);
+
+  // 1-2. 스케줄 동기화 주기 설정 저장 (POST)
+  const handleSaveSchedule = async (interval: number) => {
+    try {
+      const res = await fetch("/api/production/grant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "save_schedule", interval })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSyncInterval(interval);
+        showToast(data.message, "success");
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (e: any) {
+      showToast(`스케줄 설정 저장 실패: ${e.message}`, "error");
+    }
+  };
 
   // 2. 관심 공고 즐겨찾기 토글 (POST)
   const handleToggleBookmark = async (id: string) => {
@@ -199,7 +230,10 @@ export function useGrantManagement() {
     selectedAnnId,
     rndPlan,
     hasSearched,
+    syncInterval,
+    lastSyncTime,
     handleSearchGrants,
+    handleSaveSchedule,
     handleToggleBookmark,
     handleGenerateRndPlan,
     handleUpdateSection,

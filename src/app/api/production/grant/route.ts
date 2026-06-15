@@ -179,10 +179,19 @@ Do not wrap the output in markdown code blocks like \`\`\`json.
       });
     }
 
+    // 설정 정보 조회 (동기화 주기 및 마지막 갱신 시간)
+    const intervalRes = await queryTable('system_settings', { filters: { key: 'grant_sync_interval' } });
+    const syncInterval = intervalRes.rows && intervalRes.rows.length > 0 ? Number(intervalRes.rows[0].value) : 12;
+
+    const lastSyncRes = await queryTable('system_settings', { filters: { key: 'grant_last_sync_time' } });
+    const lastSyncTime = lastSyncRes.rows && lastSyncRes.rows.length > 0 ? lastSyncRes.rows[0].value : "";
+
     return NextResponse.json({
       success: true,
       announcements,
-      companyProfile
+      companyProfile,
+      syncInterval,
+      lastSyncTime
     });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -349,6 +358,28 @@ ${latestFin ? `- Fiscal Year: ${latestFin.fiscal_year}
         message: "사내 종합 정보(회사 정보, 재무제표, HR)를 조회하여 매칭 분석이 완료되었습니다. 🟢",
         announcements,
         companyProfile: updatedProfile
+      });
+    }
+
+    // 0-1. 스케줄 주기 설정 저장 (save_schedule)
+    if (action === "save_schedule") {
+      const { interval } = body;
+      
+      const checkRes = await queryTable("system_settings", { filters: { key: "grant_sync_interval" } });
+      const exists = checkRes.rows && checkRes.rows.length > 0;
+
+      if (exists) {
+        await updateRows("system_settings", { value: String(interval) }, { filters: { key: "grant_sync_interval" } });
+      } else {
+        await insertRows("system_settings", [{
+          key: "grant_sync_interval",
+          value: String(interval)
+        }]);
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `정기 동기화 주기가 ${interval}시간으로 저장되었습니다.`
       });
     }
 

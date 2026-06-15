@@ -177,7 +177,75 @@ async function performSync() {
   }
 }
 
-// 5. 최초 실행 및 12시간 주기(Interval) 반복 가동
-performSync();
-const intervalTime = 12 * 60 * 60 * 1000; // 12시간
-setInterval(performSync, intervalTime);
+// 5. 스케줄 동적 체크 및 반복 실행 엔진
+async function checkAndSync() {
+  const dbPath = getDbPath();
+  if (!dbPath) return;
+
+  let db;
+  try {
+    db = new Database(dbPath);
+    
+    // system_settings 테이블 존재 확인 가드
+    const settingsTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='system_settings'").get();
+    if (!settingsTable) {
+      db.close();
+      return;
+    }
+
+    // 1. 설정된 동기화 주기(시간 단위) 조회 (기본값: 12시간)
+    let intervalHours = 12;
+    const intervalRow = db.prepare("SELECT value FROM system_settings WHERE key = 'grant_sync_interval'").get();
+    if (intervalRow) {
+      intervalHours = parseInt(intervalRow.value, 10) || 12;
+    }
+
+    // 2. 마지막 동기화 일시 조회
+    let lastSyncStr = '';
+    const lastSyncRow = db.prepare("SELECT value FROM system_settings WHERE key = 'grant_last_sync_time'").get();
+    if (lastSyncRow) {
+      lastSyncStr = lastSyncRow.value;
+    }
+
+    const now = new Date();
+    const nowEpoch = now.getTime();
+    
+    let shouldSync = false;
+    if (!lastSyncStr) {
+      // 마지막 동기화 기록이 없으면 최초 실행
+      shouldSync = true;
+    } else {
+      const lastSyncEpoch = new Date(lastSyncStr).getTime();
+      const elapsedHours = (nowEpoch - lastSyncEpoch) / (1000 * 60 * 60);
+      if (elapsedHours >= intervalHours) {
+        shouldSync = true;
+      }
+    }
+
+    db.close();
+
+    if (shouldSync) {
+      console.log(`⏰ [Grant Sync Daemon] 스케줄 기준 충족 (주기: ${intervalHours}시간, 경과: ${lastSyncStr ? (nowEpoch - new Date(lastSyncStr).getTime()) / (1000 * 60 * 60) : '최초'}시간). 동기화를 시작합니다.`);
+      await performSync();
+      
+      // 동기화 완료 후 DB에 마지막 동기화 시간 기록
+      db = new Database(dbPath);
+      const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+      db.prepare("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('grant_last_sync_time', ?)").run(nowStr);
+      db.close();
+    } else {
+      console.log(`💤 [Grant Sync Daemon] 스케줄 대기 중.. (주기: ${intervalHours}시간, 마지막 갱신: ${lastSyncStr || '기록 없음'})`);
+    }
+
+  } catch (err) {
+    console.error("❌ [Grant Sync Daemon] 스케줄 체크 중 오류:", err.message);
+    if (db) {
+      try { db.close(); } catch(e) {}
+    }
+  }
+}
+
+// 최초 3초 후 체크 가동, 이후 매 30분(1800000ms)마다 주기적으로 체크
+setTimeout(checkAndSync, 3000);
+const checkInterval = 30 * 60 * 1000; // 30분 간격
+setInterval(checkAndSync, checkInterval);

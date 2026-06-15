@@ -144,6 +144,15 @@ export async function POST(request: Request) {
       }
     }
 
+    // 마지막 성공 시간 기록 (한국 시간 기준 포맷팅)
+    const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+    const lastSyncCheck = await queryTable('system_settings', { filters: { key: 'grant_last_sync_time' } });
+    if (lastSyncCheck.rows && lastSyncCheck.rows.length > 0) {
+      await updateRows('system_settings', { value: nowStr }, { filters: { key: 'grant_last_sync_time' } });
+    } else {
+      await insertRows('system_settings', [{ key: 'grant_last_sync_time', value: nowStr }]);
+    }
+
     return NextResponse.json({
       success: true,
       message: `실시간 지원사업 동기화가 완료되었습니다. 신규 공고 ${insertedCount}건이 DB에 적재되었습니다.`,

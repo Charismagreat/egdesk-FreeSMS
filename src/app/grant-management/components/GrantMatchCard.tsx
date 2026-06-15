@@ -9,6 +9,11 @@ interface GrantMatchCardProps {
   onGenerateRndPlan: (id: string) => Promise<void>;
   selectedAnnId: string | null;
   isGenerating: boolean;
+  // 스케줄 및 즉시 실행 Props 추가
+  syncInterval: number;
+  lastSyncTime: string;
+  onSaveSchedule: (interval: number) => Promise<void>;
+  onSearchGrants: () => Promise<void>;
 }
 
 /**
@@ -21,6 +26,11 @@ export default function GrantMatchCard({
   onGenerateRndPlan,
   selectedAnnId,
   isGenerating,
+  // 추가 Props 분할 할당
+  syncInterval,
+  lastSyncTime,
+  onSaveSchedule,
+  onSearchGrants,
 }: GrantMatchCardProps) {
   const [expandedAnnId, setExpandedAnnId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -103,6 +113,39 @@ export default function GrantMatchCard({
         </div>
       )}
 
+      {/* 1-2. 정기 수집 스케줄 설정 UI */}
+      <div className="bg-slate-50 border border-slate-150 rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 text-left">
+        <div className="space-y-1">
+          <div className="flex items-center gap-1.5 text-xs font-black text-slate-750">
+            <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>정기 수집 스케줄러 설정</span>
+          </div>
+          <p className="text-[9px] text-slate-400 font-bold">
+            지정된 주기에 따라 백그라운드 크롤러가 최신 공고 데이터를 자동 수집 및 적재합니다.
+          </p>
+          {lastSyncTime && (
+            <span className="block text-[8.5px] font-bold text-slate-500 font-mono">
+              마지막 수집 완료 일시: <b className="text-indigo-600 font-black">{lastSyncTime}</b>
+            </span>
+          )}
+        </div>
+        
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[9px] font-black text-slate-500">수집 주기:</span>
+          <select
+            value={syncInterval}
+            onChange={(e) => onSaveSchedule(Number(e.target.value))}
+            className="text-[10px] font-black text-slate-700 bg-white border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:border-indigo-500 transition-colors"
+          >
+            <option value={12}>12시간마다 (권장)</option>
+            <option value={24}>24시간마다 (하루 1회)</option>
+            <option value={48}>48시간마다 (이틀 1회)</option>
+          </select>
+        </div>
+      </div>
+
       {/* 2. 공고 목록 대장 */}
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-2.5">
@@ -115,9 +158,20 @@ export default function GrantMatchCard({
               <p className="text-[9px] text-slate-400 font-bold">인공지능이 자사 프로필을 분석하여 실시간 적합 자격을 대조합니다.</p>
             </div>
           </div>
-          <span className="text-[10px] font-black text-slate-400 font-mono self-end sm:self-center shrink-0">
-            검색 결과: <b className="text-slate-700">{totalCount}</b> / 전체 <b className="text-slate-500">{announcements.length}</b>건
-          </span>
+          
+          <div className="flex items-center gap-3 self-end sm:self-center shrink-0">
+            <span className="text-[10px] font-black text-slate-400 font-mono">
+              검색 결과: <b className="text-slate-700">{totalCount}</b> / 전체 <b className="text-slate-500">{announcements.length}</b>건
+            </span>
+            <button
+              type="button"
+              onClick={onSearchGrants}
+              className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer shadow-2xs hover:scale-102 active:scale-98"
+            >
+              <Sparkles className="w-3 h-3 animate-spin" style={{ animationDuration: '3s' }} />
+              <span>즉시 실행 (동기화)</span>
+            </button>
+          </div>
         </div>
 
         {/* 2-1. 검색창 UI */}
@@ -284,7 +338,7 @@ export default function GrantMatchCard({
               type="button"
               disabled={currentPage === 1}
               onClick={() => handlePageChange(currentPage - 1)}
-              className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-650 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             >
               이전
             </button>

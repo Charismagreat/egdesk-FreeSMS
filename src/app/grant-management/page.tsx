@@ -19,7 +19,10 @@ export default function GrantManagementPage() {
     selectedAnnId,
     rndPlan,
     hasSearched,
+    syncInterval,
+    lastSyncTime,
     handleSearchGrants,
+    handleSaveSchedule,
     handleToggleBookmark,
     handleGenerateRndPlan,
     handleUpdateSection,
@@ -124,6 +127,10 @@ export default function GrantManagementPage() {
                 onGenerateRndPlan={handleGenerateRndPlan}
                 selectedAnnId={selectedAnnId}
                 isGenerating={isGenerating}
+                syncInterval={syncInterval}
+                lastSyncTime={lastSyncTime}
+                onSaveSchedule={handleSaveSchedule}
+                onSearchGrants={handleSearchGrants}
               />
             )}
           </div>
