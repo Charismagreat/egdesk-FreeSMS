@@ -276,12 +276,16 @@ export default function GrantMatchCard({
                         </button>
                       ) : (
                         <a
-                          href="https://www.bizinfo.go.kr"
+                          href={
+                            ann.id.startsWith("GR-PBLN_")
+                              ? `https://www.bizinfo.go.kr/web/lay1/bbs/S1T122C128/AS/74/view.do?pblancId=${ann.id.replace("GR-", "")}`
+                              : "https://www.bizinfo.go.kr"
+                          }
                           target="_blank"
                           rel="noreferrer"
                           className="px-3 py-2 border border-slate-250 hover:bg-slate-50 text-slate-650 font-bold text-[9.5px] rounded-xl flex items-center gap-1"
                         >
-                          <FileText className="w-3.5 h-3.5 text-slate-400" />
+                          <FileText className="w-3.5 h-3.5 text-slate-450" />
                           상세 공고
                         </a>
                       )}
