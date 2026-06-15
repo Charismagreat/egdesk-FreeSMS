@@ -21,6 +21,18 @@ export function useGrantManagement() {
   const handleSearchGrants = async () => {
     setIsLoading(true);
     try {
+      // 1) 비즈인포 크롤링 동기화 우선 수행 (최신 3페이지, 약 45건)
+      try {
+        await fetch("/api/production/grant/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ searchPages: 3 })
+        });
+      } catch (syncErr) {
+        console.warn("실시간 공고 크롤링 실패:", syncErr);
+      }
+
+      // 2) 사내 스펙 매칭 분석 수행
       const res = await fetch("/api/production/grant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

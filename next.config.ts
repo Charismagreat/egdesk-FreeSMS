@@ -25,6 +25,23 @@ const getLocalIPs = () => {
   }
 };
 
+// 정부 지원금 크롤러 스케줄러 데몬 중복 실행 방지 가드 가동
+if (!(global as any)._grantSyncDaemonStarted) {
+  (global as any)._grantSyncDaemonStarted = true;
+  try {
+    const { fork } = require('child_process');
+    const path = require('path');
+    const daemonPath = path.join(process.cwd(), 'scripts/grant_sync_daemon.js');
+    console.log('🚀 [next.config] Starting Grant Sync Daemon at:', daemonPath);
+    fork(daemonPath, [], {
+      detached: true,
+      stdio: 'ignore'
+    }).unref();
+  } catch (err) {
+    console.error('❌ [next.config] Failed to start Grant Sync Daemon:', err);
+  }
+}
+
 console.log('🔍 DEBUG next.config: EGDESK_BASE_PATH env var =', process.env.EGDESK_BASE_PATH);
 
 const nextConfig = {
