@@ -29,6 +29,7 @@ export const ComprehensiveProfile360: React.FC<ComprehensiveProfile360Props> = (
   // 내부 캡슐화 상태 변수들
   const [active360Tab, setActive360Tab] = useState<string>("basic");
   const [editTableName, setEditTableName] = useState<string>("crm_operator_education");
+  const [editFormData, setEditFormData] = useState<Record<string, any>>({});
 
   // 특정 이력을 수정하기 위해 편집 폼에 로드하는 함수
   const handleLoadRecordForEdit = (tableName: string, record: any) => {
