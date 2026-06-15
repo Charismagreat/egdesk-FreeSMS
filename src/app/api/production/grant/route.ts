@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { queryTable, insertRows, updateRows, deleteRows } from "../../../../../egdesk-helpers";
 
+export const dynamic = "force-dynamic";
+
 // Gemini API 호출을 위한 헬퍼 함수
 async function callGemini(apiKey: string, model: string, systemPrompt: string, userPrompt: string): Promise<string> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
