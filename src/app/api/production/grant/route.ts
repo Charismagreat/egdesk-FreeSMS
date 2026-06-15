@@ -204,8 +204,8 @@ export async function POST(req: Request) {
       const activeEmployees = (opsRes.rows || []).filter((o: any) => !o.deleted_at);
       const employeeCount = activeEmployees.length || 1;
 
-      // 2) financials 테이블에서 본사('MY-COMPANY') 최신 재무 데이터 추출
-      const finRes = await queryTable("financials", { filters: { company_id: "MY-COMPANY" } });
+      // 2) crm_financial_statements 테이블에서 본사('MY-COMPANY') 최신 재무 데이터 추출
+      const finRes = await queryTable("crm_financial_statements", { filters: { company_id: "MY-COMPANY" } });
       const finList = finRes.rows || [];
       finList.sort((a: any, b: any) => Number(b.fiscal_year) - Number(a.fiscal_year));
       const latestFin = finList[0];
