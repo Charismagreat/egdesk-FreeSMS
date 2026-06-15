@@ -51,7 +51,7 @@ export default function GrantMatchCard({
             </div>
             <div>
               <span className="block text-[8px] text-slate-400 font-black">보유 특허</span>
-              <span className="text-indigo-650 text-[10.5px] font-mono font-black">
+              <span className="text-indigo-600 text-[10.5px] font-mono font-black">
                 {companyProfile.patentsCount}건
               </span>
             </div>
@@ -104,7 +104,7 @@ export default function GrantMatchCard({
                   <div className="space-y-1 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-[8.5px] font-black text-slate-400 font-mono">{ann.id}</span>
-                      <span className="text-[8.5px] font-black text-indigo-650 bg-indigo-50 px-1.5 py-0.5 rounded">
+                      <span className="text-[8.5px] font-black text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
                         {ann.agency}
                       </span>
                       <span className="text-[8.5px] font-bold text-slate-550 border border-slate-200 px-1.5 py-0.5 rounded">
@@ -158,7 +158,7 @@ export default function GrantMatchCard({
                         className={`px-3 py-2 text-white font-extrabold text-[9.5px] rounded-xl shadow-2xs transition-all flex items-center gap-1.5 ${
                           isSelected && isGenerating
                             ? "bg-slate-400 cursor-not-allowed"
-                            : "bg-indigo-650 hover:bg-indigo-700"
+                            : "bg-indigo-600 hover:bg-indigo-700"
                         }`}
                       >
                         <Sparkles className="w-3.5 h-3.5" />
