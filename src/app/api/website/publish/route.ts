@@ -51,14 +51,14 @@ export async function POST(req: Request) {
     // 1. 버전 관리를 위해 동일 domain_url을 가지는 기존 활성(is_active = 1) 배포 건들을 모두 비활성(is_active = 0) 처리
     try {
       const existingRes = await queryTable('crm_web_published_sites', {
-        filters: { domain_url: domain_url.trim(), is_active: 1 }
+        filters: { domain_url: domain_url.trim(), is_active: '1' }
       });
 
       if (existingRes.rows && existingRes.rows.length > 0) {
         // 동일 도메인의 기존 활성 건들을 일괄 비활성화
         await updateRows('crm_web_published_sites', 
           { is_active: 0, updated_at: timestamp, updated_by: username || 'admin' },
-          { domain_url: domain_url.trim() }
+          { filters: { domain_url: domain_url.trim() } }
         );
       }
     } catch (dbErr) {

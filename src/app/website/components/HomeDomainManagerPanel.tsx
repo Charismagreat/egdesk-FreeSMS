@@ -19,6 +19,7 @@ interface PublishedSite {
   domain_url: string;
   title: string;
   description: string;
+  config_json?: string;
   is_active: number;
   updated_at: string;
   updated_by: string;

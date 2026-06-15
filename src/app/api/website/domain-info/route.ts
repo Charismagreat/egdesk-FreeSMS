@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
-import { queryTable, updateRows, insertRows } from '@/../egdesk-helpers';
+import { queryTable, updateRows, insertRows, listBusinessIdentitySnapshots, getBusinessIdentitySnapshot } from '@/../egdesk-helpers';
 import crypto from 'crypto';
 
 // 한국 시간 기준 YYYY-MM-DD HH:MM:SS 타임스탬프 헬퍼
@@ -60,7 +60,36 @@ export async function GET(req: Request) {
       orderBy: 'id DESC'
     });
 
-    // 3. 도메인 헬스 체크 정보 모의(Mocked) 생성
+    // 3. 비즈니스 아이덴티티 스냅샷 조회 시도 (SSL/SEO 정보 연동)
+    let snapshotSslGrade = 'A+';
+    let snapshotSeoScore = 88;
+    let hasSnapshotData = false;
+
+    try {
+      const snapshotListRes = await listBusinessIdentitySnapshots();
+      const snapshots = snapshotListRes?.snapshots || snapshotListRes || [];
+      if (snapshots && snapshots.length > 0) {
+        const snapshotId = snapshots[0].id || snapshots[0].uuid;
+        if (snapshotId) {
+          const snapshotDetail = await getBusinessIdentitySnapshot(snapshotId);
+          if (snapshotDetail) {
+            hasSnapshotData = true;
+            const sslObj = snapshotDetail.sslAnalysis || snapshotDetail.ssl_analysis || snapshotDetail.ssl;
+            if (sslObj) {
+              snapshotSslGrade = sslObj.grade || sslObj.sslGrade || sslObj.ssl_grade || snapshotSslGrade;
+            }
+            const seoObj = snapshotDetail.seoAnalysis || snapshotDetail.seo_analysis || snapshotDetail.seo;
+            if (seoObj) {
+              snapshotSeoScore = seoObj.score || seoObj.seoScore || seoObj.seo_score || snapshotSeoScore;
+            }
+          }
+        }
+      }
+    } catch (mcpErr) {
+      console.warn('businessidentity snapshot 조회 중 에러 발생:', mcpErr);
+    }
+
+    // 4. 도메인 헬스 체크 정보 모의(Mocked) 생성
     // 💡 실시간 접속 반응 및 SSL인증서 검사를 시뮬레이션하여 정보 제공
     const buildHealthCheck = (url: string) => {
       const cleanUrl = url.replace(/https?:\/\//, '');
@@ -69,6 +98,12 @@ export async function GET(req: Request) {
       // 도메인 주소의 길이에 따라 결정하여 일관된 Mock 제공
       const latency = isEgdeskCloud ? 12 : 28 + (cleanUrl.length % 45);
       const sslRemainDays = 365 - (cleanUrl.length * 3) % 180;
+
+      // 결정적 Mock 생성 (스냅샷 데이터가 없을 시 사용)
+      const charCodeSum = cleanUrl.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      const fallbackGrades = ['A+', 'A', 'B+'];
+      const fallbackSslGrade = fallbackGrades[charCodeSum % fallbackGrades.length];
+      const fallbackSeoScore = 80 + (charCodeSum % 16);
       
       return {
         url,
@@ -76,6 +111,8 @@ export async function GET(req: Request) {
         latency: `${latency}ms`,
         sslExpireDate: new Date(Date.now() + sslRemainDays * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
         sslRemainDays,
+        sslGrade: hasSnapshotData ? snapshotSslGrade : fallbackSslGrade,
+        seoScore: hasSnapshotData ? snapshotSeoScore : fallbackSeoScore,
         serverType: 'EGDESK AI Edge CDN',
         trafficToday: 150 + (cleanUrl.length * 7) % 800
       };
@@ -141,7 +178,7 @@ export async function POST(req: Request) {
       // 7종 컬럼 반영하여 updateRows 실행
       await updateRows('system_settings', 
         { value: JSON.stringify(currentProfile), updated_at: timestamp, updated_by: username || 'admin' },
-        { key: 'my_company_profile' }
+        { filters: { key: 'my_company_profile' } }
       );
     } else {
       // 7종 컬럼 반영하여 insertRows 실행

@@ -17,7 +17,8 @@ export type FAQCategory =
   | "grant"
   | "labor"
   | "credit"
-  | "security";
+  | "security"
+  | "website";
 
 // FAQ 데이터 아이템 구조 인터페이스 정의
 export interface FAQItem {
