@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { chromium } from 'playwright';
-import { queryTable, insertRows } from '../../../../../../egdesk-helpers';
+import { queryTable, insertRows, updateRows } from '../../../../../../egdesk-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     const { searchPages = 0 } = await request.json().catch(() => ({ searchPages: 0 }));
     
     // 1. 기존 DB에 등록된 공고 ID들 조회 (중복 인서트 방지)
-    const existingRes = await queryTable('crm_grant_announcements', {});
+    const existingRes = await queryTable('crm_grant_announcements', { limit: 100000 });
     const existingIds = new Set((existingRes.rows || []).map((r: any) => r.id));
 
     // 2. Playwright 브라우저 가동

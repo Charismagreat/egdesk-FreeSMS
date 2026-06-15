@@ -69,7 +69,7 @@ const DEFAULT_RND_TEXTS: Record<string, Record<string, string>> = {
 export async function GET() {
   try {
     // 1. DB에서 공고 전체 조회
-    const annRes = await queryTable("crm_grant_announcements", {});
+    const annRes = await queryTable("crm_grant_announcements", { limit: 100000 });
     const dbAnnouncements = annRes.rows || [];
 
     // 2. DB에서 관심 북마크 목록 조회
@@ -256,7 +256,7 @@ export async function POST(req: Request) {
       await insertRows("crm_grant_company_profile", [updatedProfile]);
 
       // 6) 각 공고에 대한 실시간 AI 매칭 분석 수행 (Gemini API 호출 및 스코어 업데이트)
-      const annRes = await queryTable("crm_grant_announcements", {});
+      const annRes = await queryTable("crm_grant_announcements", { limit: 100000 });
       const dbAnnouncements = annRes.rows || [];
 
       const bookmarkRes = await queryTable("crm_grant_bookmarks", {});
@@ -400,7 +400,7 @@ ${latestFin ? `- Fiscal Year: ${latestFin.fiscal_year}
       }
 
       // 갱신된 전체 리스트 획득
-      const annRes = await queryTable("crm_grant_announcements", {});
+      const annRes = await queryTable("crm_grant_announcements", { limit: 100000 });
       const dbAnnouncements = annRes.rows || [];
       const bookmarkRes = await queryTable("crm_grant_bookmarks", {});
       const dbBookmarks = bookmarkRes.rows || [];
