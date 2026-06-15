@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Trash2, Send } from "lucide-react";
+import { Trash2, Send, Edit2 } from "lucide-react";
 import { Employee } from "../types";
 
 // 360도 종합 프로필 관제 Props 정의
@@ -29,7 +29,15 @@ export const ComprehensiveProfile360: React.FC<ComprehensiveProfile360Props> = (
   // 내부 캡슐화 상태 변수들
   const [active360Tab, setActive360Tab] = useState<string>("basic");
   const [editTableName, setEditTableName] = useState<string>("crm_operator_education");
-  const [editFormData, setEditFormData] = useState<Record<string, any>>({});
+
+  // 특정 이력을 수정하기 위해 편집 폼에 로드하는 함수
+  const handleLoadRecordForEdit = (tableName: string, record: any) => {
+    setEditTableName(tableName);
+    // 기존 데이터 복사 (id 값 및 필드 값 전체 바인딩)
+    setEditFormData({ ...record });
+    // 편집 탭('edit')으로 즉시 전환
+    setActive360Tab("edit");
+  };
 
   // 폼 리셋 헬퍼 함수
   const reset360EditForm = (tableName: string) => {
@@ -338,12 +346,22 @@ export const ComprehensiveProfile360: React.FC<ComprehensiveProfile360Props> = (
                                 기간: {edu.entrance_date} ~ {edu.graduation_date} ({edu.status})
                               </p>
                             </div>
-                            <button
-                              onClick={() => handleDelete360Record('crm_operator_education', edu.id)}
-                              className="p-1 text-slate-350 hover:text-rose-500 rounded hover:bg-slate-50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer border-0 bg-transparent"
-                            >
-                              <Trash2 size={12} />
-                            </button>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0 ml-2">
+                              <button
+                                onClick={() => handleLoadRecordForEdit('crm_operator_education', edu)}
+                                className="p-1 text-slate-350 hover:text-indigo-600 rounded hover:bg-slate-50 cursor-pointer border-0 bg-transparent"
+                                title="수정하기"
+                              >
+                                <Edit2 size={12} />
+                              </button>
+                              <button
+                                onClick={() => handleDelete360Record('crm_operator_education', edu.id)}
+                                className="p-1 text-slate-350 hover:text-rose-500 rounded hover:bg-slate-50 cursor-pointer border-0 bg-transparent"
+                                title="삭제하기"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -378,12 +396,22 @@ export const ComprehensiveProfile360: React.FC<ComprehensiveProfile360Props> = (
                                 취득일: {lic.acquisition_date} (만료일: {lic.expiry_date || '없음'})
                               </p>
                             </div>
-                            <button
-                              onClick={() => handleDelete360Record('crm_operator_licenses', lic.id)}
-                              className="p-1 text-slate-350 hover:text-rose-500 rounded hover:bg-slate-50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer border-0 bg-transparent"
-                            >
-                              <Trash2 size={12} />
-                            </button>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0 ml-2">
+                              <button
+                                onClick={() => handleLoadRecordForEdit('crm_operator_licenses', lic)}
+                                className="p-1 text-slate-350 hover:text-indigo-600 rounded hover:bg-slate-50 cursor-pointer border-0 bg-transparent"
+                                title="수정하기"
+                              >
+                                <Edit2 size={12} />
+                              </button>
+                              <button
+                                onClick={() => handleDelete360Record('crm_operator_licenses', lic.id)}
+                                className="p-1 text-slate-350 hover:text-rose-500 rounded hover:bg-slate-50 cursor-pointer border-0 bg-transparent"
+                                title="삭제하기"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -431,12 +459,22 @@ export const ComprehensiveProfile360: React.FC<ComprehensiveProfile360Props> = (
                                 <p className="text-[9.5px] text-rose-600">퇴사 사유: {car.leaving_reason}</p>
                               </div>
                             </div>
-                            <button
-                              onClick={() => handleDelete360Record('crm_operator_careers', car.id)}
-                              className="p-1 text-slate-355 hover:text-rose-500 rounded hover:bg-slate-50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer shrink-0 ml-2 border-0 bg-transparent"
-                            >
-                              <Trash2 size={12} />
-                            </button>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0 ml-2">
+                              <button
+                                onClick={() => handleLoadRecordForEdit('crm_operator_careers', car)}
+                                className="p-1 text-slate-350 hover:text-indigo-600 rounded hover:bg-slate-50 cursor-pointer border-0 bg-transparent"
+                                title="수정하기"
+                              >
+                                <Edit2 size={12} />
+                              </button>
+                              <button
+                                onClick={() => handleDelete360Record('crm_operator_careers', car.id)}
+                                className="p-1 text-slate-355 hover:text-rose-500 rounded hover:bg-slate-50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer shrink-0 border-0 bg-transparent"
+                                title="삭제하기"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -516,12 +554,22 @@ export const ComprehensiveProfile360: React.FC<ComprehensiveProfile360Props> = (
                                 </div>
                               </div>
                             </div>
-                            <button
-                              onClick={() => handleDelete360Record('crm_operator_job_history', job.id)}
-                              className="p-1 text-slate-355 hover:text-rose-500 rounded hover:bg-slate-50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer shrink-0 ml-2 border-0 bg-transparent"
-                            >
-                              <Trash2 size={12} />
-                            </button>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0 ml-2">
+                              <button
+                                onClick={() => handleLoadRecordForEdit('crm_operator_job_history', job)}
+                                className="p-1 text-slate-350 hover:text-indigo-600 rounded hover:bg-slate-50 cursor-pointer border-0 bg-transparent"
+                                title="수정하기"
+                              >
+                                <Edit2 size={12} />
+                              </button>
+                              <button
+                                onClick={() => handleDelete360Record('crm_operator_job_history', job.id)}
+                                className="p-1 text-slate-355 hover:text-rose-500 rounded hover:bg-slate-50 cursor-pointer border-0 bg-transparent"
+                                title="삭제하기"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -608,12 +656,22 @@ export const ComprehensiveProfile360: React.FC<ComprehensiveProfile360Props> = (
                                   {sal.payment_date} ({sal.status})
                                 </td>
                                 <td className="py-2.5 px-2 text-center">
-                                  <button
-                                    onClick={() => handleDelete360Record('crm_operator_salaries', sal.id)}
-                                    className="p-1 text-slate-355 hover:text-rose-500 rounded transition-all cursor-pointer border-0 bg-transparent"
-                                  >
-                                    <Trash2 size={11} />
-                                  </button>
+                                  <div className="flex items-center justify-center gap-1">
+                                    <button
+                                      onClick={() => handleLoadRecordForEdit('crm_operator_salaries', sal)}
+                                      className="p-1 text-slate-350 hover:text-indigo-600 rounded transition-all cursor-pointer border-0 bg-transparent"
+                                      title="수정하기"
+                                    >
+                                      <Edit2 size={11} />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDelete360Record('crm_operator_salaries', sal.id)}
+                                      className="p-1 text-slate-355 hover:text-rose-500 rounded transition-all cursor-pointer border-0 bg-transparent"
+                                      title="삭제하기"
+                                    >
+                                      <Trash2 size={11} />
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             ))}
@@ -670,12 +728,22 @@ export const ComprehensiveProfile360: React.FC<ComprehensiveProfile360Props> = (
                             key={prj.id}
                             className="bg-white border border-slate-100 rounded-xl p-4 shadow-3xs space-y-3 relative group"
                           >
-                            <button
-                              onClick={() => handleDelete360Record('crm_operator_projects', prj.id)}
-                              className="absolute top-4 right-4 p-1 text-slate-355 hover:text-rose-500 rounded transition-all cursor-pointer opacity-0 group-hover:opacity-100 border-0 bg-transparent"
-                            >
-                              <Trash2 size={12} />
-                            </button>
+                            <div className="absolute top-4 right-4 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                              <button
+                                onClick={() => handleLoadRecordForEdit('crm_operator_projects', prj)}
+                                className="p-1 text-slate-355 hover:text-indigo-600 rounded transition-all cursor-pointer border-0 bg-transparent"
+                                title="수정하기"
+                              >
+                                <Edit2 size={12} />
+                              </button>
+                              <button
+                                onClick={() => handleDelete360Record('crm_operator_projects', prj.id)}
+                                className="p-1 text-slate-355 hover:text-rose-500 rounded transition-all cursor-pointer border-0 bg-transparent"
+                                title="삭제하기"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
 
                             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
                               <div className="space-y-1">
@@ -781,12 +849,22 @@ export const ComprehensiveProfile360: React.FC<ComprehensiveProfile360Props> = (
                                   </p>
                                 )}
                               </div>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0 ml-2">
+                              <button
+                                onClick={() => handleLoadRecordForEdit('crm_operator_families', fam)}
+                                className="p-1 text-slate-350 hover:text-indigo-600 rounded hover:bg-slate-50 cursor-pointer border-0 bg-transparent"
+                                title="수정하기"
+                              >
+                                <Edit2 size={12} />
+                              </button>
                               <button
                                 onClick={() => handleDelete360Record('crm_operator_families', fam.id)}
-                                className="p-1 text-slate-350 hover:text-rose-500 rounded transition-all cursor-pointer opacity-0 group-hover:opacity-100 border-0 bg-transparent"
+                                className="p-1 text-slate-350 hover:text-rose-500 rounded hover:bg-slate-50 cursor-pointer border-0 bg-transparent"
+                                title="삭제하기"
                               >
                                 <Trash2 size={12} />
                               </button>
+                            </div>
                             </div>
                           );
                         })}
@@ -863,12 +941,22 @@ export const ComprehensiveProfile360: React.FC<ComprehensiveProfile360Props> = (
                               </div>
 
                               {!isMasked && (
-                                <button
-                                  onClick={() => handleDelete360Record('crm_operator_incidents', inc.id)}
-                                  className="p-1 text-slate-350 hover:text-rose-500 rounded transition-all cursor-pointer opacity-0 group-hover:opacity-100 shrink-0 ml-2 border-0 bg-transparent"
-                                >
-                                  <Trash2 size={12} />
-                                </button>
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0 ml-2">
+                                  <button
+                                    onClick={() => handleLoadRecordForEdit('crm_operator_incidents', inc)}
+                                    className="p-1 text-slate-350 hover:text-indigo-600 rounded transition-all cursor-pointer border-0 bg-transparent"
+                                    title="수정하기"
+                                  >
+                                    <Edit2 size={12} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete360Record('crm_operator_incidents', inc.id)}
+                                    className="p-1 text-slate-350 hover:text-rose-500 rounded transition-all cursor-pointer border-0 bg-transparent"
+                                    title="삭제하기"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </div>
                               )}
                             </div>
                           );
@@ -894,12 +982,22 @@ export const ComprehensiveProfile360: React.FC<ComprehensiveProfile360Props> = (
                       <div className="space-y-3">
                         {current360.reputations.map((rep: any) => (
                           <div key={rep.id} className="bg-white border border-slate-100 rounded-xl p-4 shadow-3xs space-y-2.5 relative group">
-                            <button
-                              onClick={() => handleDelete360Record('crm_operator_reputations', rep.id)}
-                              className="absolute top-4 right-4 p-1 text-slate-355 hover:text-rose-500 rounded transition-all cursor-pointer opacity-0 group-hover:opacity-100 border-0 bg-transparent"
-                            >
-                              <Trash2 size={11} />
-                            </button>
+                            <div className="absolute top-4 right-4 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                              <button
+                                onClick={() => handleLoadRecordForEdit('crm_operator_reputations', rep)}
+                                className="p-1 text-slate-355 hover:text-indigo-600 rounded transition-all cursor-pointer border-0 bg-transparent"
+                                title="수정하기"
+                              >
+                                <Edit2 size={11} />
+                              </button>
+                              <button
+                                onClick={() => handleDelete360Record('crm_operator_reputations', rep.id)}
+                                className="p-1 text-slate-355 hover:text-rose-500 rounded transition-all cursor-pointer border-0 bg-transparent"
+                                title="삭제하기"
+                              >
+                                <Trash2 size={11} />
+                              </button>
+                            </div>
 
                             <div className="flex justify-between items-center text-[9.5px]">
                               <div className="flex items-center gap-2">
@@ -944,11 +1042,27 @@ export const ComprehensiveProfile360: React.FC<ComprehensiveProfile360Props> = (
               {/* TAB 6: 실시간 에디터 */}
               {active360Tab === 'edit' && (
                 <div className="space-y-4">
-                  <h5 className="text-xs font-black text-slate-800 flex items-center gap-1.5 border-b border-slate-200 pb-2">
-                    <span>✍️ 360도 임직원 통합 라이프사이클 정보 Upsert 기기</span>
-                    <span className="text-[9.5px] text-indigo-650 bg-indigo-50 px-2 py-0.5 rounded font-black font-sans">
-                      트랜잭션 폼
-                    </span>
+                  <h5 className="text-xs font-black text-slate-800 flex items-center justify-between border-b border-slate-200 pb-2">
+                    <div className="flex items-center gap-1.5">
+                      <span>✍️ 360도 임직원 통합 라이프사이클 정보 Upsert 기기</span>
+                      <span className="text-[9.5px] text-indigo-650 bg-indigo-50 px-2 py-0.5 rounded font-black font-sans">
+                        트랜잭션 폼
+                      </span>
+                      {editFormData.id && (
+                        <span className="text-[9.5px] text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded font-black">
+                          현재 기록 수정 중 ✏️
+                        </span>
+                      )}
+                    </div>
+                    {editFormData.id && (
+                      <button
+                        type="button"
+                        onClick={() => reset360EditForm(editTableName)}
+                        className="text-[9px] font-black text-slate-500 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg transition-colors border-0 cursor-pointer"
+                      >
+                        수정 취소 (신규 등록 전환)
+                      </button>
+                    )}
                   </h5>
 
                   <form onSubmit={onFormSubmit} className="space-y-4 text-xs font-bold text-slate-650">

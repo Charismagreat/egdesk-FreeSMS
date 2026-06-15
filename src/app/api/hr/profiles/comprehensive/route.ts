@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
-import { createTable, queryTable, insertRows, deleteRows } from '@/../egdesk-helpers';
+import { createTable, queryTable, insertRows, deleteRows, updateRows } from '@/../egdesk-helpers';
 
 /**
  * 🏛️ 13대 서브 테이블 종합 인사 프로필 데이터베이스 자율 생성 및 데모 백필 (Self-Healing Auto-Migration)
@@ -506,7 +506,33 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, error: '입력된 인사 정보 데이터가 유효하지 않습니다.' }, { status: 400 });
       }
 
-      // 필수적으로 operator_id 보정
+      // 수정모드 분기 처리 (기존 id가 존재하고 실제로 DB에 해당 레코드가 있는 경우)
+      if (data.id) {
+        try {
+          const existingRes = await queryTable(tableName, { filters: { id: String(data.id), operator_id: String(operator_id) } });
+          if (existingRes && existingRes.rows && existingRes.rows.length > 0) {
+            const updateData = { ...data };
+            delete updateData.id;
+            delete updateData.operator_id;
+
+            if (['crm_operator_incidents', 'crm_operator_reputations'].includes(tableName)) {
+              updateData.updated_at = new Date().toISOString();
+            }
+
+            await updateRows(tableName, updateData, { filters: { id: String(data.id), operator_id: String(operator_id) } });
+
+            return NextResponse.json({
+              success: true,
+              message: '임직원 360도 종합 인사 이력이 성공적으로 수정되었습니다 📝',
+              row: { ...data, operator_id: String(operator_id) }
+            });
+          }
+        } catch (err) {
+          console.error('[UPSERT-UPDATE] 기존 레코드 조회/수정 실패:', err);
+        }
+      }
+
+      // 신규 등록 모드
       const upsertRow = {
         ...data,
         id: data.id || `${tableName.replace('crm_operator_', '')}_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
