@@ -234,8 +234,8 @@ export const TABLES = {
   crm_grant_announcements: {
     name: 'crm_grant_announcements',
     displayName: '정부 지원금 추천 공고',
-    columns: ['title', 'agency', 'match_score', 'budget', 'end_date'],
-    columnCount: 5,
+    columns: ['title', 'agency', 'match_score', 'match_guide', 'budget', 'end_date'],
+    columnCount: 6,
     rowCount: 0,
   },
   crm_recruitment_applicants: {

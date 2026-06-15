@@ -1516,6 +1516,7 @@ export async function setupDatabase() {
     { name: 'title', type: 'TEXT', notNull: true },
     { name: 'agency', type: 'TEXT', notNull: true },
     { name: 'match_score', type: 'INTEGER' },
+    { name: 'match_guide', type: 'TEXT' },
     { name: 'budget', type: 'INTEGER' },
     { name: 'end_date', type: 'TEXT', notNull: true }
   ], { tableName: 'crm_grant_announcements', uniqueKeyColumns: ['id'] });

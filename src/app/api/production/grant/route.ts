@@ -122,47 +122,14 @@ export async function GET() {
         ];
       }
 
-      // API Key가 등록되어 있을 경우 실시간 AI RAG 매칭 수행
-      if (apiKey) {
+      // DB에 캐싱된 가이드 정보가 있으면 파싱하여 사용 (실시간 Gemini API 호출 제거)
+      if (ann.match_guide) {
         try {
-          const systemPrompt = `
-You are an expert government grant advisor for Korean SMEs.
-Analyze the company profile and the grant announcement to calculate a precise matching score (0-100) and provide exactly 3-4 specific matching advice bullets (each starting with ✅, 💡, or ⚠️) in Korean.
-Return the response in raw JSON format matching this schema:
-{
-  "matchScore": number,
-  "matchGuide": string[]
-}
-Do not wrap the output in markdown code blocks like \`\`\`json.
-`;
-          const userPrompt = `
-[Company Profile]
-- Establishment Year: ${companyProfile.establishmentYear}
-- Employee Count: ${companyProfile.employeeCount}
-- Patents Count: ${companyProfile.patentsCount}
-- Youth Employee Ratio: ${companyProfile.youthEmployeeRatio}%
-- Female Employee Ratio: ${companyProfile.femaleEmployeeRatio}%
-- Sector: ${companyProfile.sector}
-
-[Grant Announcement]
-- Title: ${ann.title}
-- Agency: ${ann.agency}
-- Budget: ${ann.budget} (KRW)
-- Deadline: ${ann.end_date}
-`;
-
-          const aiText = await callGemini(apiKey, model, systemPrompt, userPrompt);
-          const parsed = JSON.parse(cleanJsonString(aiText));
-          if (parsed && typeof parsed.matchScore === "number" && Array.isArray(parsed.matchGuide)) {
-            matchScore = parsed.matchScore;
-            matchGuide = parsed.matchGuide;
-            
-            // 데이터베이스 스코어 캐싱 업데이트
-            await updateRows("crm_grant_announcements", { match_score: matchScore }, { filters: { id: ann.id } });
+          const parsedGuide = JSON.parse(ann.match_guide);
+          if (Array.isArray(parsedGuide)) {
+            matchGuide = parsedGuide;
           }
-        } catch (e: any) {
-          console.error(`AI RAG matching failed for ${ann.id}, using default fallback:`, e.message);
-        }
+        } catch (e) {}
       }
 
       announcements.push({
@@ -331,8 +298,11 @@ ${latestFin ? `- Fiscal Year: ${latestFin.fiscal_year}
               matchScore = parsed.matchScore;
               matchGuide = parsed.matchGuide;
               
-              // 데이터베이스 스코어 캐싱 업데이트
-              await updateRows("crm_grant_announcements", { match_score: matchScore }, { filters: { id: ann.id } });
+              // 데이터베이스 스코어 및 가이드 캐싱 업데이트
+              await updateRows("crm_grant_announcements", { 
+                match_score: matchScore, 
+                match_guide: JSON.stringify(matchGuide) 
+              }, { filters: { id: ann.id } });
             }
           } catch (e: any) {
             console.error(`AI RAG matching failed for ${ann.id} during search:`, e.message);
