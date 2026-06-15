@@ -11,6 +11,7 @@ import { DocumentDetail } from "./components/DocumentDetail";
 import { ChatBot } from "./components/ChatBot";
 import { AutopilotModal } from "./components/AutopilotModal";
 import { Compass } from "lucide-react";
+import { EasyBotInstructionCard } from "./components/EasyBotInstructionCard";
 
 export default function KnowledgeAiDashboard() {
   const {
@@ -86,6 +87,9 @@ export default function KnowledgeAiDashboard() {
         currentRole={currentRole}
         handleDowngradeSecurity={handleDowngradeSecurity}
       />
+
+      {/* 이지봇 자율 대행 작동 지침 설정 영역 */}
+      <EasyBotInstructionCard currentRole={currentRole} />
 
       {/* 3. 대시보드 3단 격자 레이아웃 */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

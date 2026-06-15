@@ -161,14 +161,47 @@ export async function POST(req: Request) {
       decision = useFallbackRuleAnalysis(table, action, data);
     } else {
       try {
-        // AI에게 제공할 테이블별 상황 분석 프롬프트 설계
-        const analysisPrompt = `
-You are the Event-Driven Intelligent Agent of "EasyBot" (이지봇) for "(주)원컨덕터" (One Conductor Co., Ltd.).
+        // 🏢 DB에서 동적 회사 컨텍스트 및 AI 자율 지침 조회
+        let companyContext = "";
+        let agentInstructions = "";
+        
+        try {
+          const companyContextRes = await queryTable('system_settings', { filters: { key: 'easybot_company_context' } });
+          if (companyContextRes.rows && companyContextRes.rows.length > 0) {
+            companyContext = companyContextRes.rows[0].value || "";
+          }
+          
+          const agentInstructionsRes = await queryTable('system_settings', { filters: { key: 'easybot_agent_instructions' } });
+          if (agentInstructionsRes.rows && agentInstructionsRes.rows.length > 0) {
+            agentInstructions = agentInstructionsRes.rows[0].value || "";
+          }
+        } catch (dbErr) {
+          console.warn('[EasyBot Event Handler] 지침 조회 중 DB 오류가 발생했습니다:', dbErr);
+        }
+
+        // 지침 설정값이 비어있거나 누락된 경우 경보 발동 (설정 방법 안내)
+        if (!companyContext.trim() || !agentInstructions.trim()) {
+          console.warn('[EasyBot Event Handler] 이지봇 지침 설정이 누락되어 경보 스냅태스크를 발행합니다.');
+          const todayStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+          decision = {
+            requiresAction: true,
+            reason: "[이지봇 관제 경보] 이지봇 에이전트 자율 대행 작동 지침 및 회사 정보가 등록되지 않았습니다.",
+            task: {
+              title: "⚠️ 이지봇 자율 대행 작동 지침 누락 경보",
+              content: "이지봇이 실시간 DB 이벤트를 모니터링하여 위험 감지 및 자동 업무 지시를 내리기 위해 필요한 '회사 소개(Context)' 및 '작동 지침(Instructions)'이 등록되지 않았습니다.\n\n지식 관리 AI 페이지로 이동하셔서 사내 지식 기반 자율 지침 생성 기능을 통해 작동 지침을 설정 및 저장해 주십시오.",
+              operator_id: "1", // 최고관리자
+              priority: "critical",
+              due_date: todayStr
+            }
+          };
+        } else {
+          // AI에게 제공할 테이블별 상황 분석 프롬프트 설계
+          const analysisPrompt = `
+You are the Event-Driven Intelligent Agent of "EasyBot" (이지봇).
 Your role is to analyze a database change event (INSERT/UPDATE/DELETE) and decide if it poses a business risk or requires a follow-up action (task).
 
 [Company Context]:
-(주)원컨덕터 produces power transmission conductors and connectors in a high-mix low-volume system, supplying to conglomerates like Iljin Electric and Hyosung Electric.
-Critical Pain Points: Repeats of product defects, late delivery risks, high raw material LME price fluctuations (Copper/Aluminum), and manual administrative duplication.
+${companyContext}
 
 [Database Change Event]:
 - Table Name: ${table}
@@ -180,10 +213,7 @@ ${previousData ? `- Previous Data (JSON):\n${JSON.stringify(previousData, null, 
 
 [Your Task]:
 Analyze this event based on the business rules of the company:
-1. If "crm_expenses": Check for unauthorized use (holiday, late night, suspicious business category) or over budget.
-2. If "crm_orders": Check if new order creates a risk of material shortage or delivery delay based on high-mix low-volume spec.
-3. If "crm_deliveries" or "products": Check for sudden defects, scrap increase, or quality control alerts.
-4. If "crm_snaptasks": Check if high-priority tasks are delayed.
+${agentInstructions}
 
 If you determine that a follow-up action/task (SnapTask) is required to fix, inspect, or alert a human worker:
 - Output a JSON instruction to insert a new row in "crm_snaptasks" table.
@@ -211,48 +241,49 @@ If NO action is required (e.g. normal expense, expected order, routine delivery 
 }
 `;
 
-        // Gemini API 호출
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: "당신은 원컨덕터의 위험을 감지하고 자율적으로 스냅태스크를 생성하는 지능형 관제 비서입니다." }] },
-            contents: [{ role: 'user', parts: [{ text: analysisPrompt }] }],
-            generationConfig: {
-              responseMimeType: "application/json",
-              temperature: 0.1
-            }
-          })
-        });
+          // Gemini API 호출
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              systemInstruction: { parts: [{ text: "당신은 위험을 감지하고 자율적으로 스냅태스크를 생성하는 지능형 관제 비서입니다." }] },
+              contents: [{ role: 'user', parts: [{ text: analysisPrompt }] }],
+              generationConfig: {
+                responseMimeType: "application/json",
+                temperature: 0.1
+              }
+            })
+          });
 
-        if (!response.ok) {
-          const err = await response.json();
-          throw new Error(err.error?.message || 'Gemini API 호출 중 오류 발생');
-        }
-
-        const resData = await response.json();
-        const resultText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-
-        // 토큰 로그 기록
-        if (resData.usageMetadata) {
-          try {
-            const u = resData.usageMetadata;
-            const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
-            await insertRows('ai_token_usage_logs', [{
-              id: `TKE-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-              model: model,
-              purpose: 'easybot-event-analysis',
-              prompt_tokens: u.promptTokenCount || 0,
-              completion_tokens: u.candidatesTokenCount || 0,
-              total_tokens: u.totalTokenCount || 0,
-              created_at: nowStr
-            }]);
-          } catch (logErr) {
-            console.error('Event Handler 토큰 로깅 실패:', logErr);
+          if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error?.message || 'Gemini API 호출 중 오류 발생');
           }
-        }
 
-        decision = JSON.parse(resultText);
+          const resData = await response.json();
+          const resultText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+
+          // 토큰 로그 기록
+          if (resData.usageMetadata) {
+            try {
+              const u = resData.usageMetadata;
+              const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+              await insertRows('ai_token_usage_logs', [{
+                id: `TKE-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                model: model,
+                purpose: 'easybot-event-analysis',
+                prompt_tokens: u.promptTokenCount || 0,
+                completion_tokens: u.candidatesTokenCount || 0,
+                total_tokens: u.totalTokenCount || 0,
+                created_at: nowStr
+              }]);
+            } catch (logErr) {
+              console.error('Event Handler 토큰 로깅 실패:', logErr);
+            }
+          }
+
+          decision = JSON.parse(resultText);
+        }
       } catch (apiErr: any) {
         console.error('[EasyBot Event Handler] AI API 호출 실패로 Fallback 룰을 적용합니다:', apiErr.message);
         decision = useFallbackRuleAnalysis(table, action, data);

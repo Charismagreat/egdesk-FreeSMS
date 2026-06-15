@@ -2467,9 +2467,31 @@ export async function setupDatabase() {
         {
           key: 'company_business_number',
           value: '731-81-02023'
+        },
+        {
+          key: 'easybot_company_context',
+          value: ''
+        },
+        {
+          key: 'easybot_agent_instructions',
+          value: ''
         }
       ]);
       console.log('Company settings seeded with default values: (주)쿠스');
+    }
+
+    // 이미 마이그레이션이 완료된 기존 기기를 위해 키 누락 시 백필 처리
+    const easybotContextCheck = await queryTable('system_settings', { filters: { key: 'easybot_company_context' } });
+    if (!easybotContextCheck.rows || easybotContextCheck.rows.length === 0) {
+      await insertRows('system_settings', [
+        { id: 'easybot_company_context', key: 'easybot_company_context', value: '' }
+      ]);
+    }
+    const easybotInstCheck = await queryTable('system_settings', { filters: { key: 'easybot_agent_instructions' } });
+    if (!easybotInstCheck.rows || easybotInstCheck.rows.length === 0) {
+      await insertRows('system_settings', [
+        { id: 'easybot_agent_instructions', key: 'easybot_agent_instructions', value: '' }
+      ]);
     }
   } catch (e: any) {
     console.error('Error seeding company settings:', e.message);
