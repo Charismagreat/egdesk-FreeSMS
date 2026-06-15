@@ -23,7 +23,8 @@ export const CATEGORIES: CategoryConfig[] = [
   { id: "grant", label: "정책 자금 & 정부 지원금 AI 🪙", icon: Award, color: "text-amber-400" },
   { id: "labor", label: "근로기준법 & 노무 관리 AI ⚖️", icon: Scale, color: "text-red-400" },
   { id: "credit", label: "거래처 신용 & 채권 관리 AI 🪙", icon: CreditCard, color: "text-rose-400" },
-  { id: "security", label: "비밀번호 & 사내 보안 AI 🔑", icon: Key, color: "text-purple-400" }
+  { id: "security", label: "비밀번호 & 사내 보안 AI 🔑", icon: Key, color: "text-purple-400" },
+  { id: "website", label: "홈페이지 빌더 & 즉시 배포 AI 🌐", icon: Globe, color: "text-blue-500" }
 ];
 
 // FAQ 데이터베이스 (기존 Q&A 데이터 완전 보존 실장)
@@ -922,5 +923,29 @@ export const FAQ_DATABASE: FAQItem[] = [
     category: "rpa",
     question: "이지봇 자율 감시 규칙을 생성할 때, AI의 도움을 받아 자연어로 손쉽게 작성할 수 있나요?",
     answer: "네, 완벽하게 지원됩니다! [자율 규칙 추가] 모달 상단에 있는 [AI 자연어 규칙 빌더 (추천)] 영역에 평소 사용하시는 한글 자연어로 '계약직 임직원이 10만원 이상의 지출을 등록하면 재무감사 대리에게 지출 경고를 배정해줘'와 같이 요구사항을 입력하고 [규칙 자동 구성 ✨] 버튼을 누르면, AI가 DB 구조를 스스로 분석하여 규칙명, 대상 테이블, 정밀한 SQLite3 서브쿼리 조건식, 배정 담당자, 우선순위, 태스크 본문 양식까지 일시에 폼에 자동으로 채워 줍니다. 또한, 하단의 '업무 지시 상세 내용 템플릿' 레이블 우측에 위치한 [AI 작성 추천 ✨] 버튼을 이용하면, 현재 작성된 규칙 정보에 맞춰 실제 데이터가 바인딩되는 변수 괄호({amount}, {name} 등)를 활용한 최적의 지시서 템플릿 초안을 자동으로 작성해 줍니다."
+  },
+  {
+    id: "website-1",
+    category: "website",
+    question: "홈페이지 빌더 AI 및 즉시 배포(Instant Publish) 기능이란 무엇인가요?",
+    answer: "가상 모바일 뷰어와 AI 코파일럿을 이용해 나만의 웹사이트를 세밀하게 빌드 및 튜닝하고, 완성된 웹사이트 결과물(HTML/CSS/Config)을 원클릭으로 즉시 외부 인터넷 공간에 퍼블리싱하는 기능입니다. 기존 등록된 공식 홈페이지로 바로 연결하거나, 새로운 도메인 및 기존 도메인의 서브 도메인을 지정하는 등 다양한 연결 방식을 간편히 설정할 수 있습니다."
+  },
+  {
+    id: "website-2",
+    category: "website",
+    question: "도메인 연결 상태(헬스체크) 대시보드는 어떤 정보를 제공하나요?",
+    answer: "공식 연결 관리 화면에서 대표 홈페이지 및 배포된 각 연결 도메인들의 실시간 Ping 반응 속도(ms), SSL 보안인증서 만료 예정일 및 잔여 일수, 일일 유입 트래픽 통계 등을 모의 분석하여 실시간 대시보드 카드로 가시화해 줍니다. 이를 통해 도메인 만료 시점이나 CDN 서버 반응성을 편리하게 모니터링할 수 있습니다."
+  },
+  {
+    id: "website-3",
+    category: "website",
+    question: "배포된 웹사이트의 버전 관리 및 이전 버전 복원은 어떻게 이루어지나요?",
+    answer: "배포를 진행할 때마다 해당 웹사이트의 가상 코드와 매핑 도메인이 `crm_web_published_sites` 대장 테이블에 안전 이력 버전으로 적재됩니다. 멱등성을 보장하기 위해 동일한 도메인 주소로 새로운 버전이 배포되는 즉시, 기존에 활성화되어 있던 버전은 자동으로 비활성(`is_active = 0`) 처리되고 가장 최신의 배포 코드가 활성(`is_active = 1`) 상태로 갱신 적용됩니다."
+  },
+  {
+    id: "website-4",
+    category: "website",
+    question: "대표 홈페이지 URL 주소를 수정하려면 어떻게 하나요?",
+    answer: "[공식 홈페이지 연결 관리] 탭 또는 상단의 도메인 배너 영역에서 직접 대표 홈페이지 주소를 수정 및 입력할 수 있습니다. 주소를 수정한 뒤 [대표 홈페이지 주소 변경] 버튼을 클릭하면, 시스템 설정(`system_settings` 테이블) 내 본사 프로필 정보인 `my_company_profile`에 등록된 `homepage` 키 값에 즉각적으로 실시간 업데이트되어 반영됩니다."
   }
 ];

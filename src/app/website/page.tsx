@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Globe } from "lucide-react";
+import { Globe, CheckCircle, AlertCircle, Play, Save, RefreshCw } from "lucide-react";
 
 // 공통 타입 및 유틸리티 임포트
 import { ChatMessage, ChatSession, WebsiteConfig } from "./types";
@@ -15,6 +15,7 @@ import { AiChatPanel } from "./components/AiChatPanel";
 import { ManualTunerPanel } from "./components/ManualTunerPanel";
 import { LiveSimulator } from "./components/LiveSimulator";
 import { MarketingKitCenter } from "./components/MarketingKitCenter";
+import { HomeDomainManagerPanel } from "./components/HomeDomainManagerPanel";
 
 // 템플릿 데이터 프리셋 정의 (NLP와의 정합성을 위해 유지)
 export const TEMPLATES: Record<string, WebsiteConfig> = {
@@ -95,7 +96,54 @@ export default function WebsiteBuilderPage() {
     }
   ]);
   const [isTyping, setIsTyping] = useState(false);
-  const [activeTab, setActiveTab] = useState<"chat" | "manual">("chat");
+  const [activeTab, setActiveTab] = useState<"chat" | "manual" | "domain">("chat");
+
+  // 대표 도메인 주소 및 배포 모달 관련 상태
+  const [homepageUrl, setHomepageUrl] = useState("https://egdesk.cloud");
+  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
+  const [publishDomainType, setPublishDomainType] = useState<"PRIMARY" | "CUSTOM" | "SUBDOMAIN">("PRIMARY");
+  const [publishDomainUrl, setPublishDomainUrl] = useState("");
+  const [publishSeoTitle, setPublishSeoTitle] = useState("");
+  const [publishSeoDesc, setPublishSeoDesc] = useState("");
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
+
+  const showToast = (message: string, type: "success" | "error" | "info" = "success") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const loadHomepageUrl = async () => {
+    try {
+      const res = await fetch("/api/website/domain-info");
+      const data = await res.json();
+      if (data.success) {
+        setHomepageUrl(data.homepageUrl || "https://egdesk.cloud");
+      }
+    } catch (e) {
+      console.error("대표 홈페이지 URL 조회 실패:", e);
+    }
+  };
+
+  useEffect(() => {
+    loadHomepageUrl();
+  }, []);
+
+  // 도메인 타입 변경 시 도메인 주소 필드 오토필 기능
+  useEffect(() => {
+    if (publishDomainType === "PRIMARY") {
+      setPublishDomainUrl(homepageUrl);
+    } else if (publishDomainType === "SUBDOMAIN") {
+      try {
+        const domain = homepageUrl.replace(/https?:\/\//, '').split('/')[0];
+        setPublishDomainUrl(`sub.${domain}`);
+      } catch {
+        setPublishDomainUrl("sub.company.com");
+      }
+    } else {
+      setPublishDomainUrl("");
+    }
+  }, [publishDomainType, homepageUrl, isPublishModalOpen]);
 
   // 대화 기록 및 새 대화 관련 상태
   const [sessions, setSessions] = useState<ChatSession[]>([]);
@@ -249,6 +297,76 @@ export default function WebsiteBuilderPage() {
     setTimeout(() => setAlertMessage(null), 3500);
   };
 
+  // 실시간 웹사이트 배포 핸들러
+  const handlePublishSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!publishDomainUrl.trim()) {
+      alert("배포할 도메인 주소를 올바르게 입력해 주세요.");
+      return;
+    }
+
+    setIsPublishing(true);
+    try {
+      // NLP가 완성한 템플릿 정보를 기반으로 가상의 HTML 코드를 조합하여 전달
+      const mockupHtml = `
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>\${publishSeoTitle || config.title}</title>
+  <meta name="description" content="\${publishSeoDesc || config.subtitle}">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: sans-serif; background-color: #fafafa; margin: 0; padding: 20px; text-align: center; }
+    .card { background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); padding: 40px; max-width: 600px; margin: 40px auto; }
+    h1 { color: #1e293b; }
+    p { color: #64748b; line-height: 1.6; }
+    .btn { display: inline-block; background: #db2777; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>\${config.title}</h1>
+    <h3>\${config.subtitle}</h3>
+    <p>\${config.aboutText || "소개글이 없습니다."}</p>
+    <a href="tel:\${config.contactPhone || ""}" class="btn">전화 상담 문의</a>
+  </div>
+</body>
+</html>
+      `;
+
+      const res = await fetch("/api/website/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          domain_type: publishDomainType,
+          domain_url: publishDomainUrl,
+          html_content: mockupHtml,
+          config_json: config,
+          title: publishSeoTitle || config.title,
+          description: publishSeoDesc || config.subtitle
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        showToast(`웹사이트 배포가 완료되었습니다! 🚀 (\${publishDomainUrl})`);
+        setIsPublishModalOpen(false);
+        setPublishSeoTitle("");
+        setPublishSeoDesc("");
+        if (publishDomainType === "PRIMARY") {
+          loadHomepageUrl();
+        }
+      } else {
+        showToast(data.error || "배포 실패", "error");
+      }
+    } catch (err: any) {
+      showToast("통신 오류: " + err.message, "error");
+    } finally {
+      setIsPublishing(false);
+    }
+  };
+
   // 가상 쿠폰 다운로드
   const handleDownloadCoupon = () => {
     if (couponDownloaded) {
@@ -391,11 +509,25 @@ export default function WebsiteBuilderPage() {
 
       {/* 상단 타이틀 헤더 */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-6 pb-5 border-b border-slate-200 relative z-10 shrink-0">
-        <div className="space-y-1">
+        <div className="space-y-1 flex items-center gap-4">
           <h1 className="text-3xl font-bold text-slate-800 tracking-tight flex items-center">
             <Globe className="w-8 h-8 text-pink-600 mr-3" />
             홈페이지 빌더 AI
           </h1>
+          {homepageUrl && (
+            <div className="bg-pink-50 border border-pink-100 rounded-xl px-3.5 py-1.5 text-xs font-bold text-pink-700 flex items-center gap-1.5 shadow-sm animate-fade-in">
+              <span className="w-1.5 h-1.5 rounded-full bg-pink-500 animate-ping" />
+              <span>공식 홈페이지 연결:</span>
+              <a
+                href={homepageUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="underline hover:text-pink-900 font-extrabold"
+              >
+                {homepageUrl.replace(/https?:\/\//, "")}
+              </a>
+            </div>
+          )}
         </div>
 
         {/* 템플릿 프리셋 퀵 셀렉터 */}
@@ -432,6 +564,16 @@ export default function WebsiteBuilderPage() {
             >
               마우스 정밀 수동 튜닝
             </button>
+            <button
+              onClick={() => setActiveTab("domain")}
+              className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-extrabold rounded-2xl transition-all cursor-pointer border-0 ${
+                activeTab === "domain"
+                  ? "bg-white text-slate-800 shadow-sm border border-slate-200/50 font-black"
+                  : "text-slate-500 hover:text-slate-800 bg-transparent"
+              }`}
+            >
+              공식 홈페이지 연결 관리
+            </button>
           </div>
 
           {/* 탭 컨텐츠 렌더링 분기 */}
@@ -454,7 +596,7 @@ export default function WebsiteBuilderPage() {
                 fileInputRef={fileInputRef}
                 handleKeyDown={handleKeyDown}
               />
-            ) : (
+            ) : activeTab === "manual" ? (
               <ManualTunerPanel
                 config={config}
                 setConfig={setConfig}
@@ -462,6 +604,11 @@ export default function WebsiteBuilderPage() {
                   localStorage.setItem("egdesk_website_config", JSON.stringify(config));
                   showMobileAlert("success", "💾 변경된 홈페이지 설정이 브라우저 로컬 저장소에 완벽히 동기화 및 저장되었습니다!");
                 }}
+              />
+            ) : (
+              <HomeDomainManagerPanel
+                showToast={showToast}
+                onUrlUpdated={loadHomepageUrl}
               />
             )}
 
@@ -476,17 +623,31 @@ export default function WebsiteBuilderPage() {
           </div>
         </div>
 
-        {/* 우측 패널 (스마트폰 가상 프리뷰 시뮬레이터) */}
-        <LiveSimulator
-          config={config}
-          alertMessage={alertMessage}
-          couponDownloaded={couponDownloaded}
-          handleDownloadCoupon={handleDownloadCoupon}
-          bookingForm={bookingForm}
-          setBookingForm={setBookingForm}
-          handleBookingSubmit={handleBookingSubmit}
-          showMobileAlert={showMobileAlert}
-        />
+        {/* 우측 패널 (스마트폰 가상 프리뷰 시뮬레이터 및 배포 기능) */}
+        <div className="lg:col-span-5 flex flex-col gap-4">
+          <LiveSimulator
+            config={config}
+            alertMessage={alertMessage}
+            couponDownloaded={couponDownloaded}
+            handleDownloadCoupon={handleDownloadCoupon}
+            bookingForm={bookingForm}
+            setBookingForm={setBookingForm}
+            handleBookingSubmit={handleBookingSubmit}
+            showMobileAlert={showMobileAlert}
+          />
+          
+          <button
+            onClick={() => {
+              setPublishSeoTitle(`${config.title} - ${config.subtitle}`);
+              setPublishSeoDesc(config.aboutText || "");
+              setIsPublishModalOpen(true);
+            }}
+            className="w-full py-4 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700 text-white font-extrabold text-xs rounded-2xl cursor-pointer border-none shadow-lg shadow-pink-600/15 flex items-center justify-center gap-2 transition animate-fade-in"
+          >
+            <Globe className="w-4.5 h-4.5 animate-pulse" />
+            공식 홈페이지에 즉시 배포 (Publish) 🚀
+          </button>
+        </div>
       </div>
 
       {/* 하단 마케팅 배포 키트 연동 카드 */}
@@ -497,6 +658,154 @@ export default function WebsiteBuilderPage() {
         copiedSms={copiedSms}
         copyToClipboard={copyToClipboard}
       />
+
+      {/* 🚀 실시간 도메인 배포 설정 팝업 모달 */}
+      {isPublishModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in text-left">
+          <div className="w-full max-w-lg bg-white border border-slate-100 rounded-3xl shadow-2xl flex flex-col overflow-hidden max-h-[90vh] text-slate-850">
+            {/* 모달 헤더 */}
+            <div className="p-5 border-b border-slate-100 bg-white flex items-center justify-between shrink-0">
+              <div>
+                <h3 className="text-base font-black flex items-center gap-2 text-slate-900">
+                  <Globe className="w-5 h-5 text-pink-600 animate-pulse" />
+                  실시간 웹사이트 배포 (Publish)
+                </h3>
+                <p className="text-[11px] text-slate-500 mt-1 font-semibold">
+                  AI 빌더로 구성한 가상의 웹사이트 코드를 공식 주소나 지정 도메인에 연결합니다.
+                </p>
+              </div>
+              <button 
+                onClick={() => setIsPublishModalOpen(false)}
+                className="text-slate-400 hover:text-slate-800 px-3 py-2 rounded-xl hover:bg-slate-100 transition text-xs font-black cursor-pointer border-none bg-transparent"
+              >
+                닫기
+              </button>
+            </div>
+
+            {/* 모달 본문 */}
+            <form onSubmit={handlePublishSubmit} className="p-6 overflow-y-auto space-y-4 text-xs font-semibold">
+              
+              {/* 도메인 연결 방식 선택 */}
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase">연결 도메인 유형 선택</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPublishDomainType("PRIMARY")}
+                    className={`py-2.5 rounded-xl border text-center font-extrabold cursor-pointer transition ${
+                      publishDomainType === "PRIMARY"
+                        ? "bg-pink-50 border-pink-500 text-pink-700 font-black shadow-sm"
+                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    공식 대표 도메인
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPublishDomainType("CUSTOM")}
+                    className={`py-2.5 rounded-xl border text-center font-extrabold cursor-pointer transition ${
+                      publishDomainType === "CUSTOM"
+                        ? "bg-pink-50 border-pink-500 text-pink-700 font-black shadow-sm"
+                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    신규 커스텀 도메인
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPublishDomainType("SUBDOMAIN")}
+                    className={`py-2.5 rounded-xl border text-center font-extrabold cursor-pointer transition ${
+                      publishDomainType === "SUBDOMAIN"
+                        ? "bg-pink-50 border-pink-500 text-pink-700 font-black shadow-sm"
+                        : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    서브도메인 추가
+                  </button>
+                </div>
+              </div>
+
+              {/* 도메인 주소 입력 */}
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase">연결할 도메인 주소 (URL)</label>
+                <input
+                  type="text"
+                  value={publishDomainUrl}
+                  onChange={(e) => setPublishDomainUrl(e.target.value)}
+                  placeholder="예: lafrench.egdesk.co 또는 lafrench.com"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 focus:bg-white focus:border-pink-600 focus:outline-none rounded-xl text-xs font-bold text-slate-800 transition"
+                  required
+                />
+                <span className="block text-[9.5px] text-slate-450 font-bold leading-relaxed mt-1">
+                  {publishDomainType === "PRIMARY" && "※ 시스템 설정에 기입된 대표 주소로 배포되어 도메인 정보와 동기화됩니다."}
+                  {publishDomainType === "CUSTOM" && "※ 회사에서 신규 구매하신 외부 도메인 주소를 입력해 주십시오."}
+                  {publishDomainType === "SUBDOMAIN" && "※ 대표 도메인의 서브 호스트(예: shop.yourdomain.com)를 지정하여 배포합니다."}
+                </span>
+              </div>
+
+              {/* SEO 메타태그 사전 설정 */}
+              <div className="space-y-3.5 border-t border-slate-100 pt-3">
+                <span className="block text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                  검색 포털 최적화 (SEO) 설정
+                </span>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1">배포 페이지 제목 (Title)</label>
+                  <input
+                    type="text"
+                    value={publishSeoTitle}
+                    onChange={(e) => setPublishSeoTitle(e.target.value)}
+                    placeholder="사이트 대표 제목 입력"
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 focus:bg-white focus:border-pink-600 focus:outline-none rounded-xl text-xs font-bold text-slate-850"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1">배포 페이지 요약글 (Description)</label>
+                  <textarea
+                    rows={2}
+                    value={publishSeoDesc}
+                    onChange={(e) => setPublishSeoDesc(e.target.value)}
+                    placeholder="검색 노출 요약 문구 입력"
+                    className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 focus:bg-white focus:border-pink-600 focus:outline-none rounded-xl text-xs font-bold text-slate-850 resize-none leading-normal"
+                  />
+                </div>
+              </div>
+
+              {/* 하단 버튼 제어 */}
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsPublishModalOpen(false)}
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs transition rounded-xl cursor-pointer border-none"
+                >
+                  취소
+                </button>
+                <button
+                  type="submit"
+                  disabled={isPublishing}
+                  className="px-5 py-2.5 bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700 text-white font-extrabold text-xs transition rounded-xl cursor-pointer border-none flex items-center gap-1.5 shadow"
+                >
+                  {isPublishing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5" />}
+                  배포 실행 (Publish)
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 글로벌 토스트 알림 */}
+      {toast && (
+        <div className={`fixed bottom-4 right-4 z-50 flex items-center gap-2 px-4 py-2.5 rounded-xl shadow-lg border transition-all text-xs font-bold ${
+          toast.type === "success" 
+            ? "bg-slate-900 border-pink-500/30 text-pink-400" 
+            : toast.type === "error"
+            ? "bg-rose-950 border-rose-500/40 text-rose-400"
+            : "bg-slate-800 border-slate-750 text-slate-350"
+        }`}>
+          {toast.type === "success" ? <CheckCircle className="w-4 h-4 text-pink-500 animate-pulse" /> : <AlertCircle className="w-4 h-4" />}
+          <span>{toast.message}</span>
+        </div>
+      )}
     </div>
   );
 }

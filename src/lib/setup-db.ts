@@ -1265,6 +1265,25 @@ export async function setupDatabase() {
     { name: 'restored_by', type: 'TEXT' }
   ], { tableName: 'crm_web_form_logs', uniqueKeyColumns: ['id'] });
 
+  // 41-7-2. 홈페이지 배포 및 도메인 다변화 배포 관리 (crm_web_published_sites)
+  await safeCreateTable('홈페이지 다변화 배포 관리', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'domain_type', type: 'TEXT', notNull: true },
+    { name: 'domain_url', type: 'TEXT', notNull: true },
+    { name: 'html_content', type: 'TEXT', notNull: true },
+    { name: 'config_json', type: 'TEXT', notNull: true },
+    { name: 'title', type: 'TEXT' },
+    { name: 'description', type: 'TEXT' },
+    { name: 'is_active', type: 'INTEGER', defaultValue: 1 },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
+  ], { tableName: 'crm_web_published_sites', uniqueKeyColumns: ['id'] });
+
   // 41-8. 이지봇 자율 액션 감사 로그 대장 (easybot_action_audit_logs)
   await safeCreateTable('이지봇 AI 감사 로그', [
     { name: 'id', type: 'TEXT', notNull: true },
