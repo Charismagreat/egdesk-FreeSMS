@@ -14,14 +14,19 @@ export async function GET() {
 
     let username = '';
     let name = '';
+    let role = 'SUB_OPERATOR';
 
     if (token) {
       try {
         const payload = decodeJwt(token);
         username = payload.username as string || '';
+        role = (payload.role as string || 'SUB_OPERATOR').toUpperCase();
         const opRes = await queryTable('crm_operators', { filters: { username } });
         if (opRes.rows && opRes.rows.length > 0) {
           name = opRes.rows[0].name;
+          if (opRes.rows[0].role) {
+            role = opRes.rows[0].role.toUpperCase();
+          }
         }
       } catch (tokenErr) {
         console.warn('JWT Decode fail in mobile dashboard:', tokenErr);
@@ -34,9 +39,11 @@ export async function GET() {
       if (allOps.rows && allOps.rows.length > 0) {
         username = allOps.rows[0].username;
         name = allOps.rows[0].name;
+        role = (allOps.rows[0].role || 'SUPER_ADMIN').toUpperCase();
       } else {
         username = 'admin@egdesk.com';
         name = '최고관리자';
+        role = 'SUPER_ADMIN';
       }
     }
 
@@ -55,16 +62,18 @@ export async function GET() {
       console.warn('Failed to query crm_snaptasks:', e);
     }
 
-    // 2. 본인이 작성한 결재 대기 중인 지출 품의 건수 (approval_status = 'PENDING', deleted_at IS NULL, 본인 소유 격리)
+    // 2. 결재 대기 중인 지출 품의 건수 (최고관리자는 전체 지출 건수, 일반 직원은 본인 작성 건수만 노출)
     let pendingExpensesCount = 0;
     try {
       const expenseRes = await queryTable('crm_expenses', {
         filters: { approval_status: 'PENDING' }
       });
-      // 본인이 업로드/최종 수정한 내역만 필터링하여 노출 (보안 조치)
-      const expenses = (expenseRes.rows || []).filter((exp: any) => 
-        !exp.deleted_at && exp.updated_by === username
-      );
+      const expenses = (expenseRes.rows || []).filter((exp: any) => {
+        if (exp.deleted_at) return false;
+        // 최고관리자(SUPER_ADMIN)면 전체 조회 가능, 일반 직원은 본인 것만 노출
+        if (role === 'SUPER_ADMIN') return true;
+        return exp.updated_by === username;
+      });
       pendingExpensesCount = expenses.length;
     } catch (e) {
       console.warn('Failed to query crm_expenses:', e);
@@ -94,12 +103,14 @@ export async function GET() {
       console.warn('Failed to query crm_quality_ncr_similar_cases:', e);
     }
 
-    // 5. 본인이 요청한 최근 이지봇 파일 처리 감사 건수 (deleted_at IS NULL)
+    // 5. 최근 이지봇 파일 처리 감사 건수 (최고관리자는 전체 감사 로그, 일반 직원은 본인 감사 로그만)
     let myEasybotActionCount = 0;
     try {
-      const auditRes = await queryTable('easybot_action_audit_logs', {
-        filters: { operator_username: username }
-      });
+      let queryOptions: any = {};
+      if (role !== 'SUPER_ADMIN') {
+        queryOptions.filters = { operator_username: username };
+      }
+      const auditRes = await queryTable('easybot_action_audit_logs', queryOptions);
       const audits = (auditRes.rows || []).filter((a: any) => !a.deleted_at);
       myEasybotActionCount = audits.length;
     } catch (e) {
@@ -110,7 +121,8 @@ export async function GET() {
       success: true,
       currentUser: {
         username,
-        name
+        name,
+        role
       },
       stats: {
         pendingTasksCount,

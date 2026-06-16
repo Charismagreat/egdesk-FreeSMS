@@ -11,6 +11,7 @@ import Link from "next/link";
 interface Operator {
   username: string;
   name: string;
+  role?: string;
 }
 
 interface Stats {
@@ -511,7 +512,9 @@ export default function IntegratedMobilePortal() {
                 <h4 className="text-[20px] font-black text-slate-100 mt-2">
                   {stats.pendingExpensesCount}
                 </h4>
-                <p className="text-[8.5px] text-slate-500 font-bold">본인 결재 대기 지출</p>
+                <p className="text-[8.5px] text-slate-500 font-bold">
+                  {currentUser?.role === "SUPER_ADMIN" ? "전사 결재 대기 지출" : "본인 결재 대기 지출"}
+                </p>
               </div>
 
               <div className="bg-slate-950/50 border border-slate-800 rounded-xl p-3 text-left hover:border-slate-700 transition-colors">
