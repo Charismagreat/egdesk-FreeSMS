@@ -1,8 +1,9 @@
 "use client";
+import * as React from "react";
 import { useState, useEffect, useRef } from "react";
 import { 
   Camera, User, Building, Phone, Mail, FileText, Check, 
-  ArrowLeft, RefreshCw, Smartphone, ChevronDown, ChevronUp, Image as ImageIcon, Send
+  ArrowLeft, RefreshCw, Smartphone, ChevronDown, ChevronUp, Image as ImageIcon, Send, AlertTriangle
 } from "lucide-react";
 import Link from "next/link";
 
