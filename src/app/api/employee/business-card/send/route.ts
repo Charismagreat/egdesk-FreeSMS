@@ -92,60 +92,64 @@ ${myCardLink ? `- 모바일 명함 링크: ${myCardLink}` : ''}
         </div>
       `;
 
-      // SMTP 설정정보 로드
-      const smtpUser = process.env.EMAIL_SMTP_USER || '';
-      const smtpPass = process.env.EMAIL_SMTP_PASS || '';
-      const smtpHost = process.env.EMAIL_SMTP_HOST || 'smtp.gmail.com';
-      const smtpPort = parseInt(process.env.EMAIL_SMTP_PORT || '465');
+      // 1순위 DB에서만 SMTP 설정정보 로드 (환경변수 fallback 및 시뮬레이션 제거)
+      const hostSetting = await queryTable('system_settings', { filters: { key: 'email_smtp_host' } });
+      const portSetting = await queryTable('system_settings', { filters: { key: 'email_smtp_port' } });
+      const userSetting = await queryTable('system_settings', { filters: { key: 'email_smtp_user' } });
+      const passSetting = await queryTable('system_settings', { filters: { key: 'email_smtp_pass' } });
 
-      if (smtpUser && smtpPass) {
-        try {
-          const nodemailer = require('nodemailer');
-          const transporter = nodemailer.createTransport({
-            host: smtpHost,
-            port: smtpPort,
-            secure: smtpPort === 465,
-            auth: {
-              user: smtpUser,
-              pass: smtpPass
-            }
-          });
+      const smtpHost = hostSetting.rows?.[0]?.value || '';
+      const smtpPort = parseInt(portSetting.rows?.[0]?.value || '465');
+      const smtpUser = userSetting.rows?.[0]?.value || '';
+      const smtpPass = passSetting.rows?.[0]?.value || '';
 
-          // 내 명함 이미지 첨부 설정
-          const attachments = [];
-          if (myCardImageUrl) {
-            const absoluteImagePath = path.join(process.cwd(), 'public', myCardImageUrl.replace(/^\//, ''));
-            if (fs.existsSync(absoluteImagePath)) {
-              attachments.push({
-                filename: `${operatorName}_명함.png`,
-                path: absoluteImagePath
-              });
-            }
+      if (!smtpHost || !smtpUser || !smtpPass) {
+        return NextResponse.json({
+          success: false,
+          error: '발송용 이메일(SMTP) 설정이 되어 있지 않습니다. [시스템 설정 > 발송 메일 SMTP 계정 설정] 메뉴에서 메일 계정(호스트, 포트, 이메일, 16자리 구글 앱 비밀번호 등)을 먼저 안전하게 등록하고 전송해 주세요.'
+        }, { status: 400 });
+      }
+
+      try {
+        const nodemailer = require('nodemailer');
+        const transporter = nodemailer.createTransport({
+          host: smtpHost,
+          port: smtpPort,
+          secure: smtpPort === 465,
+          auth: {
+            user: smtpUser,
+            pass: smtpPass
           }
+        });
 
-          await transporter.sendMail({
-            from: `"${operatorName} via EGDesk" <${smtpUser}>`,
-            to: targetEmail,
-            subject: emailSubject,
-            html: emailBodyHtml,
-            attachments
-          });
-
-          simulatedEmail = false;
-          emailSendResult = `성공 (정식 발송 완료: ${targetEmail})`;
-        } catch (nodemailerErr: any) {
-          console.warn('SMTP 실발송 오류, 시뮬레이션으로 전환:', nodemailerErr.message);
-          emailSendResult = `시뮬레이션 우회 발송 (오류: ${nodemailerErr.message})`;
+        // 내 명함 이미지 첨부 설정
+        const attachments = [];
+        if (myCardImageUrl) {
+          const absoluteImagePath = path.join(process.cwd(), 'public', myCardImageUrl.replace(/^\//, ''));
+          if (fs.existsSync(absoluteImagePath)) {
+            attachments.push({
+              filename: `${operatorName}_명함.png`,
+              path: absoluteImagePath
+            });
+          }
         }
-      } else {
-        // SMTP 계정이 없는 경우 시뮬레이션 로그 적재
-        console.log(`[이메일 명함 발송 시뮬레이터 작동]
-수신 주소: ${targetEmail}
-이메일 제목: ${emailSubject}
-발신자: ${operatorName} (${operatorEmail})
-명함 이미지 경로: ${myCardImageUrl}
---------------------------------------------------`);
-        emailSendResult = `시뮬레이션 완료 (수신: ${targetEmail})`;
+
+        await transporter.sendMail({
+          from: `"${operatorName} via EGDesk" <${smtpUser}>`,
+          to: targetEmail,
+          subject: emailSubject,
+          html: emailBodyHtml,
+          attachments
+        });
+
+        simulatedEmail = false;
+        emailSendResult = `성공 (정식 SMTP 발송 완료: ${targetEmail})`;
+      } catch (nodemailerErr: any) {
+        console.error('SMTP 실발송 오류:', nodemailerErr.message);
+        return NextResponse.json({
+          success: false,
+          error: `이메일 발송 중 서버 에러가 발생했습니다: ${nodemailerErr.message}. [시스템 설정] 페이지에서 SMTP 등록 정보를 다시 한 번 정밀 확인해 주세요.`
+        }, { status: 500 });
       }
     }
 

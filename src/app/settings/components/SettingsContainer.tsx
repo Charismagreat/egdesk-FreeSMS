@@ -3,6 +3,7 @@
 import React from "react";
 import DatabaseInitCard from "../DatabaseInitCard";
 import CompanySettingsCard from "../CompanySettingsCard";
+import SmtpSettingsCard from "../SmtpSettingsCard";
 import AiSettingsCard from "../../AiSettingsCard";
 import PointSettingsCard from "../../PointSettingsCard";
 import AiUsageMonitor from "../../AiUsageMonitor";
@@ -18,6 +19,9 @@ export function SettingsContainer() {
       
       {/* 회사 설정 카드 */}
       <CompanySettingsCard />
+      
+      {/* 발송 메일 SMTP 설정 카드 */}
+      <SmtpSettingsCard />
       
       {/* AI 설정 카드 */}
       <AiSettingsCard />

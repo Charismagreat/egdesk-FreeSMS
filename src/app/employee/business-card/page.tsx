@@ -46,6 +46,9 @@ export default function MobileBusinessCardPage() {
   const [toastMessage, setToastMessage] = useState("");
   const [toastType, setToastType] = useState<"success" | "error" | "info">("success");
 
+  // SMTP 에러 팝업 모달 상태
+  const [smtpError, setSmtpError] = useState<string | null>(null);
+
   const myCardFileInputRef = useRef<HTMLInputElement>(null);
   const ocrFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -205,7 +208,11 @@ export default function MobileBusinessCardPage() {
       if (data.success) {
         showToast("상대방에게 문자/이메일 전송에 성공했습니다!", "success");
       } else {
-        showToast("전송 실패: " + data.error, "error");
+        if (data.error && (data.error.includes("SMTP") || data.error.includes("이메일") || data.error.includes("발송용"))) {
+          setSmtpError(data.error);
+        } else {
+          showToast("전송 실패: " + data.error, "error");
+        }
       }
     } catch (err: any) {
       showToast("발송 오류: " + err.message, "error");
@@ -470,6 +477,41 @@ export default function MobileBusinessCardPage() {
         )}
 
       </main>
+
+      {/* 6. SMTP 설정 에러 알림 모달 */}
+      {smtpError && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm animate-fade-in" onClick={() => setSmtpError(null)}></div>
+          <div className="bg-white rounded-2xl w-full max-w-xs shadow-2xl relative z-10 overflow-hidden text-center p-5 border border-slate-100 flex flex-col items-center gap-4 animate-scale-up">
+            <div className="w-12 h-12 rounded-full bg-rose-50 border border-rose-100 text-rose-500 flex items-center justify-center shadow-inner shrink-0">
+              <AlertTriangle className="w-6 h-6 animate-bounce" />
+            </div>
+            
+            <div className="space-y-1.5 text-left">
+              <h3 className="text-sm font-black text-slate-900 text-center">발송 계정 설정 필요</h3>
+              <p className="text-[10px] text-slate-500 leading-relaxed font-semibold">
+                {smtpError}
+              </p>
+            </div>
+
+            <div className="flex gap-2 w-full mt-1">
+              <button
+                type="button"
+                onClick={() => setSmtpError(null)}
+                className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[10px] font-extrabold transition-all"
+              >
+                닫기
+              </button>
+              <Link
+                href="/settings"
+                className="flex-1 py-2 bg-indigo-650 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-extrabold transition-all flex items-center justify-center"
+              >
+                설정 페이지로 이동
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
