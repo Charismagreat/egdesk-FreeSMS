@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { WebTemplate, OperatorInfo } from "../types";
-import { FileText, ArrowLeft, Sparkles, Printer, User } from "lucide-react";
+import { FileText, ArrowLeft, Sparkles, Printer, User, Send, Mail } from "lucide-react";
 
 interface MobileFormIssuerProps {
   template: WebTemplate;
@@ -9,6 +9,7 @@ interface MobileFormIssuerProps {
   onBack: () => void;
   onFieldChange: (key: string, value: string) => void;
   onSubmit: () => void;
+  onSendEmail: (email: string) => void;
   isLoading: boolean;
 }
 
@@ -19,8 +20,25 @@ export default function MobileFormIssuer({
   onBack,
   onFieldChange,
   onSubmit,
+  onSendEmail,
   isLoading
 }: MobileFormIssuerProps) {
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailInput, setEmailInput] = useState("");
+
+  const handleOpenEmailModal = () => {
+    setEmailInput(operator?.email || "");
+    setShowEmailModal(true);
+  };
+
+  const handleSendEmailSubmit = () => {
+    if (!emailInput.trim()) {
+      alert("이메일 주소를 입력해 주세요.");
+      return;
+    }
+    onSendEmail(emailInput);
+    setShowEmailModal(false);
+  };
 
   // 수기용 필드 렌더러 헬퍼 (라벨 옆에 주황색 [수기 입력] 뱃지 및 점선 테두리 디자인 적용) 🎨
   const renderManualInput = (key: string, label: string, placeholder: string, type: string = "text") => {
@@ -90,7 +108,7 @@ export default function MobileFormIssuer({
           </div>
         </div>
       </div>
-
+ 
       {/* 2. 발급 정보 설정 카드 */}
       <div className="bg-white border border-slate-150 rounded-2xl p-5 shadow-2xs space-y-4">
         
@@ -130,20 +148,30 @@ export default function MobileFormIssuer({
           </div>
         </div>
 
-        {/* 3. 모바일 인쇄 실행 버튼 */}
-        <div className="pt-4">
+        {/* 3. 모바일 인쇄 및 발송 버튼 영역 */}
+        <div className="pt-4 grid grid-cols-2 gap-3">
           <button
             onClick={onSubmit}
             type="button"
             disabled={isLoading}
-            className="w-full bg-indigo-650 hover:bg-indigo-700 text-white font-extrabold text-xs py-3 rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-indigo-600/10 disabled:opacity-50 transition-all select-none"
+            className="w-full bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-extrabold text-xs py-3 rounded-xl flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 transition-all select-none"
           >
             {isLoading ? (
-              <div className="w-4.5 h-4.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <div className="w-4.5 h-4.5 border-2 border-slate-450 border-t-transparent rounded-full animate-spin" />
             ) : (
               <Printer className="w-4.5 h-4.5" />
             )}
-            <span>증명서 발급 및 인쇄하기</span>
+            <span>인쇄 / PDF</span>
+          </button>
+          
+          <button
+            onClick={handleOpenEmailModal}
+            type="button"
+            disabled={isLoading}
+            className="w-full bg-indigo-650 hover:bg-indigo-700 text-white font-extrabold text-xs py-3 rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-indigo-600/10 disabled:opacity-50 transition-all select-none"
+          >
+            <Send className="w-4.5 h-4.5" />
+            <span>이메일 발송</span>
           </button>
         </div>
 
@@ -153,15 +181,60 @@ export default function MobileFormIssuer({
       <div className="bg-slate-100 border border-slate-200 rounded-2xl p-3 text-[8px] font-bold text-slate-500 text-left space-y-1.5 select-none leading-relaxed">
         <span className="block text-slate-700 font-black">💡 모바일 증명서 발급 안내</span>
         <p>
-          • [증명서 발급 및 인쇄하기] 클릭 시, 표준 규격의 A4 크기 출력 미리보기 창이 새 탭(팝업)으로 호출됩니다.
+          • [인쇄 / PDF] 클릭 시, 표준 규격의 A4 크기 출력 미리보기 창이 새 탭(팝업)으로 호출됩니다.
         </p>
         <p>
-          • 브라우저의 팝업 차단 기능이 켜져 있을 경우 새 탭이 열리지 않을 수 있으므로, 팝업 허용을 활성화해주십시오.
+          • [이메일 발송] 클릭 시, 사원 본인 또는 기관 제출처 메일 주소로 정인 날인 완료된 증명서 메일이 즉시 발송됩니다.
         </p>
         <p>
-          • 발급 이력(발급대장) 및 원시 쿼리 조회는 임직원 개인정보 보호 정책에 따라 모바일에서 노출되지 않습니다.
+          • 모든 서류의 발급 이력은 사내 규정에 의거하여 <b>재직증명서 발급대장</b>에 감사 보존 기록됩니다.
         </p>
       </div>
+
+      {/* 이메일 발송 입력 모달 */}
+      {showEmailModal && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 max-w-sm w-full p-5 shadow-2xl space-y-4 animate-scale-up text-left">
+            <div className="flex items-center gap-2 text-indigo-600">
+              <Mail className="w-5 h-5" />
+              <h4 className="text-xs font-black">증명서 이메일 발송 설정</h4>
+            </div>
+            <p className="text-[10px] text-slate-450 leading-relaxed font-bold">
+              입력하신 이메일 주소로 정식 직인이 날인된 증명서 본문이 전송되며, 발급 이력이 시스템 발급 대장에 기록됩니다.
+            </p>
+            <div className="space-y-1">
+              <label className="text-[9px] font-bold text-slate-500">수신 이메일 주소</label>
+              <input
+                type="email"
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                placeholder="예: employee@company.com"
+                className="w-full text-xs font-bold text-slate-700 border border-slate-200 rounded-xl px-3 py-2 outline-hidden focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => setShowEmailModal(false)}
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-650 font-extrabold text-xs py-2 rounded-xl"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleSendEmailSubmit}
+                disabled={isLoading}
+                className="flex-1 bg-indigo-650 hover:bg-indigo-700 text-white font-extrabold text-xs py-2 rounded-xl flex items-center justify-center gap-1.5"
+              >
+                {isLoading ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Send className="w-3.5 h-3.5" />
+                )}
+                전송하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

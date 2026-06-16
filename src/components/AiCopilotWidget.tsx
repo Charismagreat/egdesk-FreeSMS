@@ -45,6 +45,10 @@ interface ContentPack {
     }>;
     audioTrack: string;
   };
+  newsletter?: {
+    subject: string;
+    html: string;
+  };
 }
 
 export default function AiCopilotWidget() {
@@ -58,7 +62,7 @@ export default function AiCopilotWidget() {
   
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"strategy" | "sms" | "omni">("strategy");
-  const [omniChannel, setOmniChannel] = useState<"blog" | "instagram" | "shorts">("blog");
+  const [omniChannel, setOmniChannel] = useState<"blog" | "instagram" | "shorts" | "newsletter">("blog");
   const [isExecuting, setIsExecuting] = useState(false);
   const [executedResult, setExecutedResult] = useState<any>(null);
   
@@ -420,8 +424,8 @@ export default function AiCopilotWidget() {
                       </button>
                     </div>
 
-                    {/* 3채널 이너 탭 */}
-                    <div className="flex bg-slate-100 border border-slate-200 p-1 rounded-xl max-w-xs">
+                    {/* 4채널 이너 탭 */}
+                    <div className="flex bg-slate-100 border border-slate-200 p-1 rounded-xl max-w-sm">
                       <button 
                         onClick={() => setOmniChannel("blog")}
                         className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold flex items-center justify-center transition-all ${omniChannel === "blog" ? "bg-emerald-600 text-white shadow" : "text-slate-500 hover:text-slate-800"}`}
@@ -442,6 +446,13 @@ export default function AiCopilotWidget() {
                       >
                         <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5 mr-1"><polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon></svg>
                         쇼츠
+                      </button>
+                      <button 
+                        onClick={() => setOmniChannel("newsletter")}
+                        className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold flex items-center justify-center transition-all ${omniChannel === "newsletter" ? "bg-indigo-650 text-white shadow" : "text-slate-500 hover:text-slate-800"}`}
+                      >
+                        <Send className="w-3 h-3 mr-1" />
+                        이메일
                       </button>
                     </div>
 
@@ -517,10 +528,33 @@ export default function AiCopilotWidget() {
                       </div>
                     )}
 
+                    {/* 채널 4: 이메일 뉴스레터 */}
+                    {omniChannel === "newsletter" && contentPack.newsletter && (
+                      <div className="bg-slate-100 border border-slate-200/60 p-4 rounded-xl space-y-3 shadow-sm text-left animate-fade-in">
+                        <div>
+                          <span className="text-[8px] font-black text-indigo-650 uppercase tracking-widest block mb-1">AI Email Newsletter</span>
+                          <h4 className="text-xs font-extrabold text-slate-800 bg-white px-2.5 py-1.5 rounded-lg border border-slate-200">
+                            제목: {contentPack.newsletter.subject}
+                          </h4>
+                        </div>
+                        <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-inner">
+                          <span className="text-[9px] bg-slate-50 px-2.5 py-1 text-slate-450 font-bold border-b border-slate-150 block">실시간 이메일 렌더링 미리보기</span>
+                          <div className="p-2 bg-slate-100 flex justify-center">
+                            <iframe 
+                              srcDoc={contentPack.newsletter.html} 
+                              title="Newsletter Preview" 
+                              className="w-full max-w-[500px] h-[360px] border border-slate-200 rounded-lg bg-white shadow-sm"
+                              sandbox="allow-same-origin"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* 마케팅 실행 버튼 구역 */}
                     <div className="border-t border-slate-200 pt-5 flex flex-col md:flex-row items-center justify-between gap-3">
-                      <div className="text-[10px] text-slate-450 font-bold">
-                        * 아래 승인 버튼을 누르시면 {strategy?.targetIds?.length || 0}명의 고객에게 초개인화 문자가 발송되며, SNS 스케줄링이 기동됩니다.
+                      <div className="text-[10px] text-slate-450 font-bold text-left">
+                        * 아래 승인 버튼을 누르시면 {strategy?.targetIds?.length || 0}명의 고객에게 초개인화 문자 및 이메일 뉴스레터가 발송되며, SNS 스케줄링이 기동됩니다.
                       </div>
                       
                       {!executedResult ? (
@@ -544,9 +578,9 @@ export default function AiCopilotWidget() {
                       ) : (
                         <div className="bg-emerald-50 border border-emerald-150 p-2.5 px-4 rounded-xl flex items-center gap-2.5">
                           <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                          <div className="text-[10.5px] text-emerald-700">
+                          <div className="text-[10.5px] text-emerald-700 text-left">
                             <span className="font-extrabold text-slate-800 block">🚀 캠페인 기동 완료!</span>
-                            초개인화 문자 {executedResult.smsSent}건 발송 완료 및 옴니채널 SNS 자동 예약 포스팅 완료.
+                            초개인화 문자 {executedResult.smsSent}건 및 이메일 뉴스레터 {executedResult.emailSent || 0}건 발송 완료 및 옴니채널 SNS 자동 예약 포스팅 완료.
                           </div>
                         </div>
                       )}

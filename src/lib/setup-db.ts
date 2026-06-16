@@ -40,6 +40,7 @@ export async function setupDatabase() {
     { name: 'id', type: 'INTEGER', notNull: true },
     { name: 'name', type: 'TEXT', notNull: true },
     { name: 'phone', type: 'TEXT', notNull: true },
+    { name: 'email', type: 'TEXT' }, // 이메일 뉴스레터 발송용 이메일 컬럼 추가
     { name: 'tags', type: 'TEXT' }, // Comma-separated tags or JSON
     { name: 'memo', type: 'TEXT' },
     { name: 'address', type: 'TEXT' },

@@ -183,6 +183,50 @@ export function useMobileForm() {
     }
   };
 
+  // 6. 이메일로 서류 발급 실행
+  const handleSendEmail = async (emailAddress: string) => {
+    if (!selectedTemplate) return;
+    if (!manualData.staff_name.trim()) {
+      setToast({ message: "대상자 성명은 필수 입력 항목입니다.", type: "error" });
+      return;
+    }
+    if (!emailAddress.trim()) {
+      setToast({ message: "이메일 주소는 필수 입력 항목입니다.", type: "error" });
+      return;
+    }
+
+    setIssuerLoading(true);
+    try {
+      const printDataPayload = {
+        ...companyProfile,
+        ...manualData
+      };
+
+      const res = await fetch("/api/templates-new/send-email", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          templateId: selectedTemplate.id,
+          emailAddress: emailAddress,
+          printDataPayload
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setToast({ message: data.message || "이메일 전송에 성공했습니다.", type: "success" });
+      } else {
+        setToast({ message: data.error || "이메일 전송 중 에러가 발생했습니다.", type: "error" });
+      }
+    } catch (err: any) {
+      setToast({ message: err.message || "발급 실행 도중 에러가 발생했습니다.", type: "error" });
+    } finally {
+      setIssuerLoading(false);
+    }
+  };
+
   return {
     templates,
     operator,
@@ -194,6 +238,7 @@ export function useMobileForm() {
     manualData,
     handleFieldChange,
     handleExecutePrint,
+    handleSendEmail,
     toast,
     setToast
   };

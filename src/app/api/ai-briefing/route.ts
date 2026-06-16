@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { getCustomerInsights, generateMarketingStrategy } from '@/lib/ai-marketer';
 import { generateOmniChannelContent } from '@/lib/ai-content-generator';
 import { queryTable, insertRows } from '../../../../egdesk-helpers';
+import { sendMail } from '../../../lib/email';
 
 /**
  * GET: 오늘의 AI 브리핑 데이터 생성
@@ -90,6 +91,7 @@ export async function POST(req: Request) {
     // 1. 타겟 고객 조회 및 문자 발송 로그 등록
     const targetIds: number[] = strategy.targetIds || [];
     let sentSmsCount = 0;
+    let sentEmailCount = 0;
 
     if (targetIds.length > 0) {
       // 데이터베이스에서 고객 전화번호 목록 추출
@@ -97,6 +99,7 @@ export async function POST(req: Request) {
       const allCustomers = customersRes.rows || [];
       const targetCustomers = allCustomers.filter((c: any) => targetIds.includes(Number(c.id)));
 
+      // 1-1. 문자 발송 로그 등록
       const smsLogs = targetCustomers.map((c: any, index: number) => {
         // 이름에 대한 초개인화 메시지 치환
         const personalizedMsg = strategy.smsContent.replace(/\{이름\}/g, c.name);
@@ -113,6 +116,26 @@ export async function POST(req: Request) {
       if (smsLogs.length > 0) {
         await insertRows('message_logs', smsLogs);
         sentSmsCount = smsLogs.length;
+      }
+
+      // 1-2. 이메일 뉴스레터 발송 연동 (email 필드가 존재하는 타겟팅 고객)
+      if (contentPack.newsletter && contentPack.newsletter.html) {
+        const emailTargets = targetCustomers.filter((c: any) => c.email && c.email.trim() !== '');
+        for (const c of emailTargets) {
+          try {
+            // 이메일 본문 내 {이름} 치환
+            const personalizedHtml = contentPack.newsletter.html.replace(/\{이름\}/g, c.name);
+            await sendMail({
+              to: c.email,
+              subject: contentPack.newsletter.subject,
+              html: personalizedHtml,
+              fromName: '이지데스크 AI 비서'
+            });
+            sentEmailCount++;
+          } catch (mailErr: any) {
+            console.warn(`뉴스레터 이메일 발송 실패 (${c.email}):`, mailErr.message);
+          }
+        }
       }
     }
 
@@ -154,6 +177,7 @@ export async function POST(req: Request) {
       message: 'AI 자율 마케팅 캠페인이 성공적으로 가동되었습니다.',
       details: {
         smsSent: sentSmsCount,
+        emailSent: sentEmailCount,
         blogScheduled: true,
         instagramScheduled: true
       }

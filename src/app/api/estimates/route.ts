@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { queryTable, insertRows, updateRows, deleteRows, executeSQL } from '../../../../egdesk-helpers';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
+import { sendMail } from '../../../lib/email';
 
 // 최고 관리자(SUPER_ADMIN) 권한 검증 헬퍼
 async function verifySuperAdmin() {
@@ -14,6 +15,178 @@ async function verifySuperAdmin() {
     return payload.role === 'SUPER_ADMIN';
   } catch {
     return false;
+  }
+}
+
+/**
+ * B2B 견적서 접수(INBOUND) 또는 발송(OUTBOUND)용 메일 템플릿 빌드 및 발송
+ */
+async function sendEstimateEmail(
+  estimateId: string,
+  type: string,
+  direction_status: string,
+  partner_name: string,
+  emailAddress: string,
+  total_amount: number,
+  itemRows: any[]
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+
+    // 1. 공급자 정보(우리 회사 프로필) 로드
+    let providerHtml = '';
+    try {
+      const companySetting = await queryTable('system_settings', { filters: { key: 'my_company_profile' } });
+      if (companySetting.rows?.[0]?.value) {
+        const p = JSON.parse(companySetting.rows[0].value);
+        providerHtml = `
+          <div style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; font-size: 11px; line-height: 1.6; color: #475569; background-color: #fafafa; margin-bottom: 20px;">
+            <p style="margin: 0; font-weight: bold; color: #1e293b; margin-bottom: 6px; font-size: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">공급자 (Supplier)</p>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr><td style="width: 90px; font-weight: bold; color: #64748b;">상호 (회사명)</td><td>: <b>${p.companyName || ''}</b></td></tr>
+              <tr><td style="font-weight: bold; color: #64748b;">사업자등록번호</td><td>: ${p.businessNumber || ''}</td></tr>
+              <tr><td style="font-weight: bold; color: #64748b;">대표자 성명</td><td>: ${p.representative || ''}</td></tr>
+              <tr><td style="font-weight: bold; color: #64748b;">소재지 주소</td><td>: ${p.address || ''}</td></tr>
+              <tr><td style="font-weight: bold; color: #64748b;">대표전화</td><td>: ${p.phone || ''}</td></tr>
+            </table>
+          </div>
+        `;
+      }
+    } catch (e) {
+      console.warn('공급자 정보 로드 실패:', e);
+    }
+
+    const itemsHtml = itemRows.map((item: any) => `
+      <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; text-align: left; font-size: 13px;">${item.product_name}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; text-align: center; font-size: 13px;">${item.quantity.toLocaleString()}개</td>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; text-align: right; font-size: 13px;">${item.unit_price.toLocaleString()}원</td>
+        <td style="padding: 10px; border-bottom: 1px solid #f1f5f9; text-align: right; font-size: 13px; font-weight: bold; color: #4f46e5;">${item.amount.toLocaleString()}원</td>
+      </tr>
+    `).join('');
+
+    // A. 바이어 접수 확인 메일 (INBOUND)
+    if (type === 'INBOUND') {
+      const emailBodyHtml = `
+        <div style="font-family: 'Malgun Gothic', sans-serif; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; color: #334155;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <span style="background-color: #e0e7ff; color: #4f46e5; font-size: 10px; font-weight: bold; padding: 4px 10px; border-radius: 9999px; border: 1px solid #c7d2fe;">B2B 실시간 견적 접수</span>
+            <h2 style="color: #1e293b; margin-top: 10px; margin-bottom: 5px;">견적 요청이 정상 접수되었습니다.</h2>
+            <p style="font-size: 12px; color: #64748b; margin-top: 0;">요청 주신 견적 상세 내역을 안내해 드립니다.</p>
+          </div>
+          <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 20px 0;" />
+          
+          <table style="width: 100%; font-size: 13px; color: #475569; margin-bottom: 20px;">
+            <tr><td style="width: 100px; font-weight: bold; color: #64748b;">견적 번호</td><td style="font-weight: bold; color: #1e293b;">: ${estimateId}</td></tr>
+            <tr><td style="font-weight: bold; color: #64748b;">요청 업체명</td><td style="color: #1e293b;">: ${partner_name}</td></tr>
+            <tr><td style="font-weight: bold; color: #64748b;">접수 일시</td><td style="color: #1e293b;">: ${nowStr}</td></tr>
+          </table>
+
+          <div style="border: 1px solid #f1f5f9; border-radius: 12px; overflow: hidden; margin-bottom: 20px;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <thead>
+                <tr style="background-color: #f8fafc;">
+                  <th style="padding: 10px; border-bottom: 1px solid #edf2f7; text-align: left; font-size: 11px; color: #64748b; font-weight: bold;">품목명</th>
+                  <th style="padding: 10px; border-bottom: 1px solid #edf2f7; text-align: center; font-size: 11px; color: #64748b; font-weight: bold;">수량</th>
+                  <th style="padding: 10px; border-bottom: 1px solid #edf2f7; text-align: right; font-size: 11px; color: #64748b; font-weight: bold;">단가</th>
+                  <th style="padding: 10px; border-bottom: 1px solid #edf2f7; text-align: right; font-size: 11px; color: #64748b; font-weight: bold;">합계</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsHtml}
+              </tbody>
+            </table>
+            <div style="background-color: #f8fafc; padding: 15px; border-top: 1px solid #edf2f7; text-align: right;">
+              <span style="font-size: 12px; color: #64748b; font-weight: bold; margin-right: 10px;">총 견적 합계액 :</span>
+              <span style="font-size: 16px; font-weight: 900; color: #4f46e5;">${total_amount.toLocaleString()}원</span>
+            </div>
+          </div>
+
+          <div style="background-color: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; padding: 15px; font-size: 12px; color: #64748b; line-height: 1.6;">
+            <p style="margin: 0; font-weight: bold; color: #475569; margin-bottom: 5px;">💡 향후 진행 가이드</p>
+            <p style="margin: 0;">본 견적 요청은 담당자가 상세 단가를 실시간 검수 및 조정 중입니다. 검수가 완료되는 즉시 카카오 알림톡/문자 및 본 이메일을 통해 최종 확정 견적서를 추가 발송해 드릴 예정입니다.</p>
+          </div>
+          
+          <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 20px 0;" />
+          <p style="font-size: 11px; color: #94a3b8; margin-bottom: 0; text-align: center;">※ 본 이메일은 이지데스크 B2B 스마트 온보딩 채널을 통해 발송된 시스템 자동 메일입니다.</p>
+        </div>
+      `;
+
+      await sendMail({
+        to: emailAddress,
+        subject: `[이지데스크] B2B 견적 요청이 정상 접수되었습니다. (번호: ${estimateId})`,
+        html: emailBodyHtml,
+        fromName: '이지데스크 견적시스템'
+      });
+    }
+    // B. 관리자가 확정하여 거래처로 메일을 보낼 때 (OUTBOUND & SENT)
+    else if (type === 'OUTBOUND' && direction_status === 'SENT') {
+      const emailBodyHtml = `
+        <div style="font-family: 'Malgun Gothic', sans-serif; line-height: 1.6; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; color: #334155;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <span style="background-color: #fef3c7; color: #d97706; font-size: 10px; font-weight: bold; padding: 4px 10px; border-radius: 9999px; border: 1px solid #fde68a;">B2B 정식 견적서 송부</span>
+            <h2 style="color: #1e293b; margin-top: 10px; margin-bottom: 5px;">견적서가 도착했습니다.</h2>
+            <p style="font-size: 12px; color: #64748b; margin-top: 0;">요청하신 품목의 공식 견적 내역서입니다. 확인 후 발주 결정을 부탁드립니다.</p>
+          </div>
+          <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 20px 0;" />
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+            <div style="font-size: 13px; color: #475569;">
+              <p style="margin: 0; font-weight: bold; color: #1e293b; margin-bottom: 6px; font-size: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">수신자 (Customer)</p>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr><td style="width: 70px; font-weight: bold; color: #64748b;">견적 번호</td><td style="font-weight: bold; color: #1e293b;">: ${estimateId}</td></tr>
+                <tr><td style="font-weight: bold; color: #64748b;">수신처</td><td style="color: #1e293b;">: <b>${partner_name}</b> 귀하</td></tr>
+                <tr><td style="font-weight: bold; color: #64748b;">발행 일시</td><td style="color: #1e293b;">: ${nowStr}</td></tr>
+              </table>
+            </div>
+            ${providerHtml}
+          </div>
+
+          <div style="border: 1px solid #f1f5f9; border-radius: 12px; overflow: hidden; margin-bottom: 20px; clear: both;">
+            <table style="width: 100%; border-collapse: collapse;">
+              <thead>
+                <tr style="background-color: #f8fafc;">
+                  <th style="padding: 10px; border-bottom: 1px solid #edf2f7; text-align: left; font-size: 11px; color: #64748b; font-weight: bold;">품목명</th>
+                  <th style="padding: 10px; border-bottom: 1px solid #edf2f7; text-align: center; font-size: 11px; color: #64748b; font-weight: bold;">수량</th>
+                  <th style="padding: 10px; border-bottom: 1px solid #edf2f7; text-align: right; font-size: 11px; color: #64748b; font-weight: bold;">단가</th>
+                  <th style="padding: 10px; border-bottom: 1px solid #edf2f7; text-align: right; font-size: 11px; color: #64748b; font-weight: bold;">합계</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsHtml}
+              </tbody>
+            </table>
+            <div style="background-color: #f8fafc; padding: 15px; border-top: 1px solid #edf2f7; text-align: right;">
+              <span style="font-size: 12px; color: #64748b; font-weight: bold; margin-right: 10px;">총 견적 합계액 :</span>
+              <span style="font-size: 16px; font-weight: 900; color: #4f46e5;">${total_amount.toLocaleString()}원</span>
+            </div>
+          </div>
+
+          <div style="background-color: #f8fafc; border: 1px solid #f1f5f9; border-radius: 12px; padding: 15px; font-size: 12px; color: #64748b; line-height: 1.6;">
+            <p style="margin: 0; font-weight: bold; color: #475569; margin-bottom: 5px;">📜 안내 사항</p>
+            <ul style="margin: 0; padding-left: 15px;">
+              <li>견적 유효기간은 발행일로부터 15일간입니다.</li>
+              <li>본 내역을 바탕으로 발주 결정을 내리시려면 이지데스크 시스템의 [발주하기] 또는 본사 대표전화로 연락 주시기 바랍니다.</li>
+            </ul>
+          </div>
+          
+          <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 20px 0;" />
+          <p style="font-size: 11px; color: #94a3b8; margin-bottom: 0; text-align: center;">※ 본 이메일은 이지데스크 전사 관리 플랫폼을 통해 자동 발송된 공식 견적서입니다.</p>
+        </div>
+      `;
+
+      await sendMail({
+        to: emailAddress,
+        subject: `[견적서] ${partner_name} 귀하 - 견적서가 도착했습니다. (번호: ${estimateId})`,
+        html: emailBodyHtml,
+        fromName: '이지데스크 견적시스템'
+      });
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('견적 메일 발송 중 오류:', err.message);
+    return { success: false, error: err.message };
   }
 }
 
@@ -225,6 +398,32 @@ export async function POST(req: Request) {
 
     await insertRows('crm_estimate_items', detailRows);
 
+    // B2B 견적 자동 이메일 연동
+    let targetEmail = email;
+    if (!targetEmail && partner_name) {
+      const partnerRes = await queryTable('crm_partners', { filters: { company_name: partner_name }, limit: 1 });
+      if (partnerRes.rows && partnerRes.rows.length > 0) {
+        targetEmail = partnerRes.rows[0].email || '';
+      }
+    }
+
+    if (targetEmail) {
+      if (type === 'INBOUND') {
+        // 모바일 접수 확인 메일: 사용자 대기 최소화를 위해 백그라운드 비동기 발송
+        sendEstimateEmail(estimateId, type, direction_status, partner_name, targetEmail, total_amount, itemRows)
+          .catch((e) => console.warn('B2B 견적 접수 메일 백그라운드 발송 실패:', e.message));
+      } else if (type === 'OUTBOUND' && direction_status === 'SENT') {
+        // 관리자 정식 발송: 메일 발송 실패 시 에러를 반환
+        const mailRes = await sendEstimateEmail(estimateId, type, direction_status, partner_name, targetEmail, total_amount, itemRows);
+        if (!mailRes.success) {
+          return NextResponse.json({
+            success: false,
+            error: `견적서는 작성되었으나 이메일 전송에 실패했습니다: ${mailRes.error}. [시스템 설정]에서 발송용 SMTP 계정이 올바르게 기입되었는지 확인해주세요.`
+          }, { status: 400 });
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: type === 'INBOUND' ? '고객님의 견적 요청이 실시간으로 정상 접수되었습니다.' : '견적서가 정상적으로 작성되었습니다.',
@@ -253,6 +452,7 @@ export async function PUT(req: Request) {
       estimateId, 
       partner_name, 
       partner_phone, 
+      direction_status,
       tags,
       items
     } = body;
@@ -267,7 +467,10 @@ export async function PUT(req: Request) {
     };
     if (partner_name !== undefined) masterUpdates.partner_name = partner_name;
     if (partner_phone !== undefined) masterUpdates.partner_phone = partner_phone;
+    if (direction_status !== undefined) masterUpdates.direction_status = direction_status;
     if (tags !== undefined) masterUpdates.tags = tags;
+
+    let totalAmountVal = 0;
 
     if (items !== undefined && Array.isArray(items)) {
       if (!partner_name) {
@@ -290,6 +493,7 @@ export async function PUT(req: Request) {
         };
       });
       masterUpdates.total_amount = total_amount;
+      totalAmountVal = total_amount;
 
       await updateRows('crm_estimates', masterUpdates, { filters: { id: estimateId } });
       await deleteRows('crm_estimate_items', { filters: { estimate_id: estimateId } });
@@ -307,19 +511,46 @@ export async function PUT(req: Request) {
       if (detailRows.length > 0) {
         await insertRows('crm_estimate_items', detailRows);
       }
-
-      return NextResponse.json({
-        success: true,
-        message: '견적서가 성공적으로 수정되었습니다.',
-        totalAmount: total_amount
-      });
     } else {
       await updateRows('crm_estimates', masterUpdates, { filters: { id: estimateId } });
-      return NextResponse.json({
-        success: true,
-        message: '견적서 정보가 성공적으로 수정되었습니다.'
-      });
     }
+
+    // 💡 정식 견적서 이메일 발송 연동 (최종 상태가 SENT 인 경우)
+    const estInfo = await queryTable('crm_estimates', { filters: { id: estimateId }, limit: 1 });
+    const currentEst = estInfo.rows?.[0];
+    const finalStatus = currentEst?.direction_status || '';
+    const finalPartnerName = currentEst?.partner_name || '';
+    const finalTotalAmount = currentEst?.total_amount || totalAmountVal || 0;
+
+    // 상세 품목 목록 다시 로드
+    const finalItemsRes = await queryTable('crm_estimate_items', { filters: { estimate_id: estimateId } });
+    const finalItems = finalItemsRes.rows || [];
+
+    if (finalStatus === 'SENT') {
+      let targetEmail = body.email;
+      if (!targetEmail && finalPartnerName) {
+        const partnerRes = await queryTable('crm_partners', { filters: { company_name: finalPartnerName }, limit: 1 });
+        if (partnerRes.rows && partnerRes.rows.length > 0) {
+          targetEmail = partnerRes.rows[0].email || '';
+        }
+      }
+
+      if (targetEmail) {
+        const mailRes = await sendEstimateEmail(estimateId, 'OUTBOUND', finalStatus, finalPartnerName, targetEmail, finalTotalAmount, finalItems);
+        if (!mailRes.success) {
+          return NextResponse.json({
+            success: false,
+            error: `견적서는 수정(저장)되었으나 이메일 전송에 실패했습니다: ${mailRes.error}. [시스템 설정]에서 발송용 SMTP 계정이 올바르게 기입되었는지 확인해주세요.`
+          }, { status: 400 });
+        }
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: '견적서가 성공적으로 수정(저장) 및 처리되었습니다.',
+      totalAmount: finalTotalAmount
+    });
 
   } catch (error: any) {
     console.error('API estimates PUT error:', error);

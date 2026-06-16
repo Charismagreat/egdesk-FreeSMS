@@ -23,11 +23,18 @@ export interface YoutubeShortsContent {
   audioTrack: string; // 배경 음악 무드 추천
 }
 
+export interface NewsletterContent {
+  subject: string;
+  html: string;
+}
+
 export interface OmniChannelPack {
   blog: BlogContent;
   instagram: InstagramContent;
   shorts: YoutubeShortsContent;
+  newsletter: NewsletterContent;
 }
+
 
 /**
  * AI 기반으로 네이버 블로그, 인스타그램, 유튜브 쇼츠용 프리미엄 마케팅 콘텐츠를 자동 생성합니다.
@@ -56,8 +63,8 @@ export async function generateOmniChannelContent(
   if (apiKey && isEnabled) {
     try {
       const systemPrompt = `
-You are an expert copywriter, digital marketer, and content creator specializing in Naver Blog SEO, Instagram influencer feed creation, and high-retention TikTok/YouTube Shorts scripts.
-Your task is to generate a comprehensive content package for three channels based on the provided strategy title, description, and primary menu item.
+You are an expert copywriter, digital marketer, and content creator specializing in Naver Blog SEO, Instagram influencer feed creation, high-retention TikTok/YouTube Shorts scripts, and engaging HTML email newsletters.
+Your task is to generate a comprehensive content package for four channels based on the provided strategy title, description, and primary menu item.
 
 Strategy: ${strategyTitle}
 Concept: ${description}
@@ -86,6 +93,10 @@ Output must be in valid Korean, in strict JSON format using this EXACT structure
       }
     ],
     "audioTrack": "String (BGM style suggestion)"
+  },
+  "newsletter": {
+    "subject": "String (Sensory and personalized email subject)",
+    "html": "String (Beautiful responsive HTML template using inline CSS. Use a light background, elegant fonts, rounded cards, a green or blue call-to-action button, clear margins, and personalized tone targeting a VIP or churn-risk customer depending on the concept. DO NOT include any markdown code blocks inside the HTML string)"
   }
 }
 `;
@@ -124,7 +135,7 @@ Output must be in valid Korean, in strict JSON format using this EXACT structure
 
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
         const resJson = JSON.parse(text);
-        if (resJson.blog && resJson.instagram && resJson.shorts) {
+        if (resJson.blog && resJson.instagram && resJson.shorts && resJson.newsletter) {
           return resJson as OmniChannelPack;
         }
       }
@@ -163,7 +174,7 @@ Output must be in valid Korean, in strict JSON format using this EXACT structure
       sceneList: [
         {
           sceneNum: 1,
-          visualDescription: '클로즈업: 투명한 유리창에 토닥토닥 내리는 빗방울과 그 뒤로 따스하게 빛나는 은은한 노란색 매장 조명 비추기.',
+          visualDescription: '클로즈업: 유리창에 내리는 빗방울과 그 뒤로 따스하게 빛나는 은은한 노란색 매장 조명 비추기.',
           voiceScript: '비 내리는 화요일, 유난히 따뜻하고 아늑한 공간이 그리워지지 않나요?',
           duration: '3초'
         },
@@ -187,6 +198,39 @@ Output must be in valid Korean, in strict JSON format using this EXACT structure
         }
       ],
       audioTrack: '차분하면서도 리드미컬한 어쿠스틱 로파이(Acoustic Lo-Fi) 재즈 비트 BGM'
+    },
+    newsletter: {
+      subject: `☔️ 비 오는 날엔 바삭한 ${menu}와 따뜻한 차 한 잔 어떠세요?`,
+      html: `
+        <div style="font-family: 'Malgun Gothic', sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; color: #334155; background-color: #ffffff;">
+          <div style="background: linear-gradient(135deg, #4f46e5, #7c3aed); padding: 40px 20px; text-align: center; color: white;">
+            <h1 style="margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">비 오는 날의 특별한 선물 🎁</h1>
+            <p style="margin: 8px 0 0 0; font-size: 14px; opacity: 0.9;">차분한 빗소리와 함께 깊어지는 맛의 조화</p>
+          </div>
+          
+          <div style="padding: 30px 24px; line-height: 1.7; font-size: 14px;">
+            <p style="margin-top: 0; font-size: 16px; font-weight: 700; color: #1e293b;">안녕하세요, 이지데스크 단골 고객님!</p>
+            <p>오늘처럼 촉촉하게 비가 내리는 날엔 유독 소중한 사람과 함께 아늑한 공간에서 따스한 대화를 나누고 싶어지죠. 그런 특별한 낭만을 위해 저희 매장에서 <b>오늘의 시그니처 추천 메뉴인 ${menu}</b>를 정성스레 준비했습니다.</p>
+            
+            <div style="margin: 24px 0; padding: 20px; background-color: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 12px; text-align: center;">
+              <span style="font-size: 12px; font-weight: bold; color: #4f46e5; display: block; margin-bottom: 5px;">⚡️ 단골 고객 한정 비 오는 날 깜짝 혜택</span>
+              <span style="font-size: 18px; font-weight: 900; color: #0f172a;">${menu} 주문 시, 따뜻한 웰컴 티 1잔 무료!</span>
+              <p style="margin: 5px 0 0 0; font-size: 11px; color: #64748b;">* 본 메일을 매장 직원에게 보여주시면 즉시 혜택이 적용됩니다.</p>
+            </div>
+
+            <p>겉은 빗소리처럼 경쾌하게 바삭하고, 속은 놀랍도록 부드러운 육즙으로 꽉 채운 ${menu}와 함께 오늘 하루 궂은 날씨마저 아주 아늑하고 특별한 기억으로 바꿔보세요. 빗길 조심하시고, 편안한 걸음으로 찾아와주시길 기다리겠습니다.</p>
+            
+            <div style="text-align: center; margin-top: 35px; margin-bottom: 15px;">
+              <a href="https://naver.me/ezdesk" style="background-color: #4f46e5; color: white; padding: 12px 30px; text-align: center; text-decoration: none; font-size: 14px; font-weight: bold; border-radius: 10px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);">오늘의 힐링 예약하기 ➔</a>
+            </div>
+          </div>
+          
+          <div style="background-color: #f1f5f9; padding: 20px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0;">
+            <p style="margin: 0 0 5px 0;">본 이메일은 이지데스크 단골 고객 케어 시스템에 의해 자동 발송되었습니다.</p>
+            <p style="margin: 0;">수신 거부를 원하시면 매장 고객센터 또는 프로필 관리에서 설정을 변경해 주시기 바랍니다.</p>
+          </div>
+        </div>
+      `
     }
   };
 }

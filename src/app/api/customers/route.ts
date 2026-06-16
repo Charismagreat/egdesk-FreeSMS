@@ -25,7 +25,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, phone, tags, memo, address, shipping_address, recipient_name, recipient_phone } = body;
+    const { name, phone, email, tags, memo, address, shipping_address, recipient_name, recipient_phone } = body;
     
     if (!name || !phone) {
       return NextResponse.json({ success: false, error: 'Name and phone are required' }, { status: 400 });
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     
     await insertRows('crm_customers', [
       { 
-        id, name, phone, tags: tags || '', memo: memo || '', address: address || '',
+        id, name, phone, email: email || '', tags: tags || '', memo: memo || '', address: address || '',
         shipping_address: shipping_address || '',
         recipient_name: recipient_name || '',
         recipient_phone: recipient_phone || '',

@@ -19,6 +19,7 @@ export default function MobileFormManagementPage() {
     manualData,
     handleFieldChange,
     handleExecutePrint,
+    handleSendEmail,
     toast
   } = useMobileForm();
 
@@ -93,6 +94,7 @@ export default function MobileFormManagementPage() {
                 onBack={() => setSelectedTemplate(null)}
                 onFieldChange={handleFieldChange}
                 onSubmit={handleExecutePrint}
+                onSendEmail={handleSendEmail}
                 isLoading={issuerLoading}
               />
             ) : (
