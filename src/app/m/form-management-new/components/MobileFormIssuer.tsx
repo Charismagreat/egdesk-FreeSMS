@@ -168,10 +168,11 @@ export default function MobileFormIssuer({
             onClick={handleOpenEmailModal}
             type="button"
             disabled={isLoading}
-            className="w-full bg-indigo-650 hover:bg-indigo-700 text-white font-extrabold text-xs py-3 rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-indigo-600/10 disabled:opacity-50 transition-all select-none"
+            className="w-full text-white font-extrabold text-xs py-3 rounded-xl flex items-center justify-center gap-2 cursor-pointer shadow-md disabled:opacity-50 transition-all select-none hover:opacity-90"
+            style={{ backgroundColor: '#4f46e5', color: '#ffffff' }}
           >
-            <Send className="w-4.5 h-4.5" />
-            <span>이메일 발송</span>
+            <Send className="w-4.5 h-4.5" style={{ color: '#ffffff' }} />
+            <span style={{ color: '#ffffff' }}>이메일 발송</span>
           </button>
         </div>
 
@@ -222,14 +223,15 @@ export default function MobileFormIssuer({
               <button
                 onClick={handleSendEmailSubmit}
                 disabled={isLoading}
-                className="flex-1 bg-indigo-650 hover:bg-indigo-700 text-white font-extrabold text-xs py-2 rounded-xl flex items-center justify-center gap-1.5"
+                className="flex-1 text-white font-extrabold text-xs py-2 rounded-xl flex items-center justify-center gap-1.5 cursor-pointer hover:opacity-90 disabled:opacity-50"
+                style={{ backgroundColor: '#4f46e5', color: '#ffffff' }}
               >
                 {isLoading ? (
                   <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
-                  <Send className="w-3.5 h-3.5" />
+                  <Send className="w-3.5 h-3.5" style={{ color: '#ffffff' }} />
                 )}
-                전송하기
+                <span style={{ color: '#ffffff' }}>전송하기</span>
               </button>
             </div>
           </div>
