@@ -212,6 +212,7 @@ export async function setupDatabase() {
     { name: 'name', type: 'TEXT', notNull: true },
     { name: 'role', type: 'TEXT', notNull: true }, // 'SUPER_ADMIN' or 'SUB_OPERATOR'
     { name: 'employee_number', type: 'TEXT' },
+    { name: 'my_card_image_url', type: 'TEXT' }, // 직원 본인의 명함 이미지 URL
     { name: 'created_at', type: 'TEXT' },
     { name: 'uuid', type: 'TEXT' },
     { name: 'updated_at', type: 'TEXT' },

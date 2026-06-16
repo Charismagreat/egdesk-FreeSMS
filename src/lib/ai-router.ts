@@ -6,6 +6,7 @@ export interface CallAIOptions {
   purpose: string;
   responseMimeType?: 'application/json' | 'text/plain';
   temperature?: number;
+  imageInput?: string; // Base64 이미지 데이터 (선택 사항)
 }
 
 export interface AIResponse {
@@ -77,7 +78,7 @@ function estimateTokens(text: string): number {
 }
 
 /**
- * 구글 Gemini API를 직접 호출합니다.
+ * 구글 Gemini API를 직접 호출합니다 (멀티모달 대응).
  */
 async function callGemini(
   prompt: string,
@@ -85,15 +86,31 @@ async function callGemini(
   apiKey: string,
   modelName: string,
   responseMimeType: 'application/json' | 'text/plain' | undefined,
-  temperature: number | undefined
+  temperature: number | undefined,
+  imageInput: string | undefined
 ): Promise<{ text: string; promptTokens: number; completionTokens: number; totalTokens: number }> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+  
+  // 멀티모달 이미지 파츠(Parts) 구성
+  const parts: any[] = [{ text: prompt }];
+  if (imageInput) {
+    const match = imageInput.match(/^data:(image\/\w+);base64,(.+)$/);
+    const mimeType = match ? match[1] : 'image/png';
+    const data = match ? match[2] : imageInput;
+    parts.push({
+      inlineData: {
+        mimeType,
+        data
+      }
+    });
+  }
+
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       systemInstruction: systemPrompt ? { parts: [{ text: systemPrompt }] } : undefined,
-      contents: [{ parts: [{ text: prompt }] }],
+      contents: [{ parts }],
       generationConfig: {
         responseMimeType: responseMimeType || 'text/plain',
         temperature: temperature ?? 0.7
@@ -108,7 +125,7 @@ async function callGemini(
 
   const data = await response.json();
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  const promptTokens = data.usageMetadata?.promptTokenCount || estimateTokens(prompt + (systemPrompt || ''));
+  const promptTokens = data.usageMetadata?.promptTokenCount || (estimateTokens(prompt + (systemPrompt || '')) + (imageInput ? 258 : 0));
   const completionTokens = data.usageMetadata?.candidatesTokenCount || estimateTokens(text);
   const totalTokens = data.usageMetadata?.totalTokenCount || (promptTokens + completionTokens);
 
@@ -116,7 +133,7 @@ async function callGemini(
 }
 
 /**
- * 로컬 LLM (Ollama) API를 호출합니다.
+ * 로컬 LLM (Ollama) API를 호출합니다 (멀티모달 대응).
  */
 async function callLocalLLM(
   prompt: string,
@@ -124,15 +141,24 @@ async function callLocalLLM(
   baseUrl: string,
   modelName: string,
   responseMimeType: 'application/json' | 'text/plain' | undefined,
-  temperature: number | undefined
+  temperature: number | undefined,
+  imageInput: string | undefined
 ): Promise<{ text: string; promptTokens: number; completionTokens: number; totalTokens: number }> {
   const url = `${baseUrl.replace(/\/$/, '')}/api/chat`;
   
+  // Ollama chat message 파츠 구성 (images 배열 지원)
+  const userMessage: any = { role: 'user', content: prompt };
+  if (imageInput) {
+    const match = imageInput.match(/^data:(image\/\w+);base64,(.+)$/);
+    const data = match ? match[2] : imageInput;
+    userMessage.images = [data]; // Base64 raw 데이터 배열 주입
+  }
+
   const messages = [];
   if (systemPrompt) {
     messages.push({ role: 'system', content: systemPrompt });
   }
-  messages.push({ role: 'user', content: prompt });
+  messages.push(userMessage);
 
   const response = await fetch(url, {
     method: 'POST',
@@ -156,7 +182,7 @@ async function callLocalLLM(
   const text = data.message?.content || '';
   
   // Ollama 응답 정보 파싱 (prompt_eval_count = prompt_tokens, eval_count = completion_tokens)
-  const promptTokens = data.prompt_eval_count || estimateTokens(prompt + (systemPrompt || ''));
+  const promptTokens = data.prompt_eval_count || (estimateTokens(prompt + (systemPrompt || '')) + (imageInput ? 200 : 0));
   const completionTokens = data.eval_count || estimateTokens(text);
   const totalTokens = promptTokens + completionTokens;
 
@@ -168,7 +194,7 @@ async function callLocalLLM(
  * 작업 정보와 DB 설정을 토대로 로컬 LLM 또는 Gemini API로 스마트 라우팅합니다.
  */
 export async function callAI(options: CallAIOptions): Promise<AIResponse> {
-  const { prompt, systemPrompt, purpose, responseMimeType, temperature } = options;
+  const { prompt, systemPrompt, purpose, responseMimeType, temperature, imageInput } = options;
 
   // 1. DB 설정 불러오기
   let aiProvider = 'gemini';
@@ -200,21 +226,27 @@ export async function callAI(options: CallAIOptions): Promise<AIResponse> {
   let decisionReason = '설정 강제';
 
   if (aiProvider === 'smart_hybrid') {
-    // 2-1. 개인정보(PII) 포함 여부 검사 -> 발견 시 보안을 위해 강제로 로컬 LLM 사용
-    const hasPII = detectPII(prompt) || (systemPrompt ? detectPII(systemPrompt) : false);
-    if (hasPII) {
-      activeProvider = 'local_llm';
-      decisionReason = '보안 조치 (개인정보 패턴 감지)';
-    } 
-    // 2-2. 난이도 분석 -> 고도 추론 필요 여부 검사 -> 필요 시 Gemini 사용
-    else if (isHighComplexityPurpose(purpose)) {
+    if (imageInput) {
+      // 멀티모달 이미지 분석(OCR)은 고사양 멀티모달 능력을 요구하므로 Gemini 클라우드로 분기
       activeProvider = 'gemini';
-      decisionReason = '고성능 추론 요구 작업';
-    } 
-    // 2-3. 단순 업무 -> 로컬 LLM 사용
-    else {
-      activeProvider = 'local_llm';
-      decisionReason = '단순 가공/비용 절감 대상';
+      decisionReason = '멀티모달 이미지 분석 (OCR)';
+    } else {
+      // 2-1. 개인정보(PII) 포함 여부 검사 -> 발견 시 보안을 위해 강제로 로컬 LLM 사용
+      const hasPII = detectPII(prompt) || (systemPrompt ? detectPII(systemPrompt) : false);
+      if (hasPII) {
+        activeProvider = 'local_llm';
+        decisionReason = '보안 조치 (개인정보 패턴 감지)';
+      } 
+      // 2-2. 난이도 분석 -> 고도 추론 필요 여부 검사 -> 필요 시 Gemini 사용
+      else if (isHighComplexityPurpose(purpose)) {
+        activeProvider = 'gemini';
+        decisionReason = '고성능 추론 요구 작업';
+      } 
+      // 2-3. 단순 업무 -> 로컬 LLM 사용
+      else {
+        activeProvider = 'local_llm';
+        decisionReason = '단순 가공/비용 절감 대상';
+      }
     }
     console.log(`🤖 [스마트 라우터] 결정: ${activeProvider} (${decisionReason})`);
   }
@@ -229,7 +261,7 @@ export async function callAI(options: CallAIOptions): Promise<AIResponse> {
   if (activeProvider === 'local_llm') {
     modelUsed = `local:${localLlmModel}`;
     try {
-      const res = await callLocalLLM(prompt, systemPrompt, localLlmUrl, localLlmModel, responseMimeType, temperature);
+      const res = await callLocalLLM(prompt, systemPrompt, localLlmUrl, localLlmModel, responseMimeType, temperature, imageInput);
       text = res.text;
       promptTokens = res.promptTokens;
       completionTokens = res.completionTokens;
@@ -239,7 +271,7 @@ export async function callAI(options: CallAIOptions): Promise<AIResponse> {
       // Failover: 로컬 실패 시 Gemini로 우회 구동 (단 API Key가 있어야 함)
       if (googleApiKey) {
         modelUsed = `${googleModel} (로컬 LLM 우회)`;
-        const res = await callGemini(prompt, systemPrompt, googleApiKey, googleModel, responseMimeType, temperature);
+        const res = await callGemini(prompt, systemPrompt, googleApiKey, googleModel, responseMimeType, temperature, imageInput);
         text = res.text;
         promptTokens = res.promptTokens;
         completionTokens = res.completionTokens;
@@ -254,7 +286,7 @@ export async function callAI(options: CallAIOptions): Promise<AIResponse> {
       throw new Error('Google Gemini API Key가 시스템 설정에 등록되어 있지 않습니다. 설정 화면에서 등록해 주세요.');
     }
     modelUsed = googleModel;
-    const res = await callGemini(prompt, systemPrompt, googleApiKey, googleModel, responseMimeType, temperature);
+    const res = await callGemini(prompt, systemPrompt, googleApiKey, googleModel, responseMimeType, temperature, imageInput);
     text = res.text;
     promptTokens = res.promptTokens;
     completionTokens = res.completionTokens;
