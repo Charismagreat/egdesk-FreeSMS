@@ -8,19 +8,26 @@ import fs from 'fs';
 import path from 'path';
 
 /**
- * 최고관리자(SUPER_ADMIN) 권한 검증 공통 헬퍼
+ * 사용자 세션 검증 및 사용자명 반환 헬퍼 (최고관리자 및 직원 모두 허용)
  */
-async function verifySuperAdmin() {
+async function verifyUserSession(): Promise<string> {
   const cookieStore = await cookies();
   const token = cookieStore.get('auth_token')?.value;
 
   if (!token) {
-    throw new Error('인증 세션이 만료되었습니다. 다시 로그인해주세요.');
+    // 데모 환경 지원을 위해 첫 번째 직원의 계정명을 반환하여 시연 편의성 제공
+    const allOps = await queryTable('crm_operators', { limit: 1 });
+    if (allOps.rows && allOps.rows.length > 0) {
+      return allOps.rows[0].username;
+    }
+    return 'admin@egdesk.com';
   }
 
-  const payload = decodeJwt(token);
-  if (payload.role !== 'SUPER_ADMIN') {
-    throw new Error('문서 분석 권한이 없습니다. 최고관리자 계정으로 로그인해주세요.');
+  try {
+    const payload = decodeJwt(token);
+    return payload.username as string || 'admin@egdesk.com';
+  } catch (err) {
+    return 'admin@egdesk.com';
   }
 }
 
@@ -80,10 +87,10 @@ function validateBusinessNumberChecksum(num: string): boolean {
 
 export async function POST(req: Request) {
   try {
-    // 1. 최고관리자 세션 검증
-    await verifySuperAdmin();
+    // 1. 사용자 세션 검증
+    const username = await verifyUserSession();
 
-    const { image } = await req.json();
+    const { image, action, selectedTypes } = await req.json();
 
     if (!image) {
       return NextResponse.json({
@@ -136,6 +143,73 @@ export async function POST(req: Request) {
       ? modelRes.rows[0].value
       : 'gemini-3.5-flash';
 
+    // 2-1. 1차 작업 종류 추천 모드 지원
+    if (action === 'detect_actions') {
+      const detectPrompt = `제공된 문서 이미지나 PDF를 분석하여 다음 13가지 작업 타입 중 "가장 매칭 적합도가 높은" 처리 가능한 작업 목록을 추천해 주세요.
+적합한 것이 여러 개 있을 수 있으므로, 적합한 타입들을 정렬하여 JSON 배열로 반환해 주세요.
+
+가능한 13가지 작업 타입:
+1. "BUSINESS_CARD" (명함 등록)
+2. "BUSINESS_LICENSE" (사업자등록증 등록)
+3. "RECEIPT" (영수증 지출 품의)
+4. "FINANCIAL_STATEMENT" (재무제표 등록)
+5. "INVENTORY_INBOUND" (거래명세서 입고)
+6. "RESUME" (이력서 분석)
+7. "MEDICAL_CERTIFICATE" (병원 진단서/처방전)
+8. "PURCHASE_INVOICE" (매입 명세서)
+9. "COMPETITOR_PRICE_CAPTURE" (경쟁사 가격 캡처)
+10. "FACILITY_PLATE" (설비 제조 명판)
+11. "FACILITY_CHECKLIST" (설비 수기 점검표)
+12. "LEGAL_DOCUMENT" (소송/법률 문서)
+13. "INBOUND_ESTIMATE" (받은 견적서/발주서)
+
+응답 스키마는 반드시 아래 JSON 규격을 준수하여 다른 텍스트 없이 순수 JSON 문자열로만 응답해 주세요.
+{
+  "suggestedTypes": ["RECEIPT", "BUSINESS_CARD"]
+}
+`;
+
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
+      const response = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                { text: detectPrompt },
+                {
+                  inlineData: {
+                    mimeType: mimeType,
+                    data: base64Data
+                  }
+                }
+              ]
+            }
+          ],
+          generationConfig: {
+            responseMimeType: "application/json"
+          }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Gemini 작업 감지 API 통신 실패: HTTP ${response.status}`);
+      }
+
+      const aiData = await response.json();
+      const rawText = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!rawText) {
+        throw new Error('Gemini AI로부터 작업 감지 응답을 수신하지 못했습니다.');
+      }
+
+      const parsedResult = JSON.parse(rawText.trim());
+      return NextResponse.json({
+        success: true,
+        suggestedTypes: parsedResult.suggestedTypes || []
+      });
+    }
+
     // RAG 매칭 소스로 쓰일 등록 정보 조회
     const partnersResForRag = await queryTable('crm_partners', {});
     const partnersListForRag = (partnersResForRag.rows || []).map((p: any) => ({ id: p.id, name: p.company_name || p.name }));
@@ -144,7 +218,13 @@ export async function POST(req: Request) {
     const facilitiesResForRag = await queryTable('crm_facilities', {});
     const facilitiesListForRag = (facilitiesResForRag.rows || []).map((f: any) => ({ id: f.id, name: f.name, model: f.model_name, serial: f.serial_number }));
 
-    const geminiPrompt = `제공된 문서 이미지나 PDF 속에는 여러 장의 명함, 사업자등록증, 영수증(지출 증빙), 재무제표, 거래명세서, 이력서(PDF/이미지), 병원 진단서/처방전, 매입 명세서(원가 청구서), 경쟁사 가격 캡처 화면, 설비 제조 명판, 설비 수기 점검표, 또는 법원 소장/송달장/판결문 등의 소송 법률 문서가 혼재되어 있을 수 있습니다.
+    // 사용자가 선택한 특정 타입들만 추출하도록 프롬프트 지시 추가
+    let typeFilterInstruction = '';
+    if (selectedTypes && Array.isArray(selectedTypes) && selectedTypes.length > 0) {
+      typeFilterInstruction = `\n[중요 제약 조건] 반드시 사용자가 최종 선택한 다음 작업 타입들만 분석하여 detectedItems 배열 안에 채워주세요: ${JSON.stringify(selectedTypes)}\n그 외의 타입은 분석 대상에서 완전히 제외하고 출력하지 마십시오.\n`;
+    }
+
+    const geminiPrompt = `${typeFilterInstruction}제공된 문서 이미지나 PDF 속에는 여러 장의 명함, 사업자등록증, 영수증(지출 증빙), 재무제표, 거래명세서, 이력서(PDF/이미지), 병원 진단서/처방전, 매입 명세서(원가 청구서), 경쟁사 가격 캡처 화면, 설비 제조 명판, 설비 수기 점검표, 또는 법원 소장/송달장/판결문 등의 소송 법률 문서가 혼재되어 있을 수 있습니다.
 각 문서들을 지능적으로 개별 검출하여 detectedItems 배열 안에 순서대로 담아 응답해 주세요.
 
 각 아이템은 다음 13가지 타입 중 하나여야 합니다:
