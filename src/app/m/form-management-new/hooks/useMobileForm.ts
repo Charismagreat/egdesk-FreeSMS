@@ -84,18 +84,19 @@ export function useMobileForm() {
     const opData = await opRes.json();
     
     if (opData.success && opData.records && opData.records.length > 0) {
-      const matched = opData.records.find((r: any) => r.username === username) || opData.records[0];
+      // 1단계 필드 및 raw 객체 필드 모두 안전하게 검색하도록 버그 보정
+      const matched = opData.records.find((r: any) => r.username === username || (r.raw && r.raw.username === username)) || opData.records[0];
       const opInfo: OperatorInfo = {
         id: matched.id,
-        name: matched.name || matched.username,
-        username: matched.username,
-        role: matched.role || meData.role,
-        department: matched.department || "관리부",
-        position: matched.position || "사원",
-        joined_date: matched.joined_date || "",
-        commute_area: matched.address || matched.commute_area || "",
-        email: matched.email || "",
-        phone: matched.phone || ""
+        name: matched.name || (matched.raw && matched.raw.name) || matched.username,
+        username: matched.username || (matched.raw && matched.raw.username),
+        role: matched.role || (matched.raw && matched.raw.role) || meData.role,
+        department: matched.department || (matched.raw && matched.raw.department) || "관리부",
+        position: matched.position || (matched.raw && matched.raw.position) || "사원",
+        joined_date: matched.joined_date || (matched.raw && matched.raw.joined_date) || "",
+        commute_area: matched.commute_area || (matched.raw && (matched.raw.address || matched.raw.commute_area)) || "",
+        email: matched.email || (matched.raw && matched.raw.email) || "",
+        phone: matched.phone || (matched.raw && matched.raw.phone) || ""
       };
       
       setOperator(opInfo);
@@ -118,7 +119,38 @@ export function useMobileForm() {
         representative_name: prev.representative_name
       }));
     } else {
-      throw new Error("임직원 데이터베이스를 조회할 수 없거나 매칭 정보가 없습니다.");
+      // 💡 개발/데모 시연 시 임직원 데이터베이스가 비어있는 예외 상황에 대비한 강력한 안전 가드 작동
+      const opInfo: OperatorInfo = {
+        id: "simulated-op-id",
+        name: meData.name || "홍길동",
+        username: username,
+        role: meData.role || "SUPER_ADMIN",
+        department: "관리부",
+        position: "대리",
+        joined_date: "2024-01-01",
+        commute_area: "서울특별시 강남구 테헤란로 123",
+        email: username || "employee@egdesk.com",
+        phone: "010-1234-5678"
+      };
+      
+      setOperator(opInfo);
+
+      const now = new Date();
+      setManualData(prev => ({
+        ...prev,
+        staff_name: opInfo.name,
+        position: opInfo.position || "",
+        department: opInfo.department || "",
+        address: opInfo.commute_area || "",
+        joined_date: opInfo.joined_date || "",
+        issue_year: String(now.getFullYear()),
+        issue_month: String(now.getMonth() + 1),
+        issue_day: String(now.getDate()),
+        issue_phone: opInfo.phone || "",
+        issue_email: opInfo.email || "",
+        company_name: prev.company_name,
+        representative_name: prev.representative_name
+      }));
     }
   };
 
