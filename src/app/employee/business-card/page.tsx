@@ -262,8 +262,13 @@ export default function MobileBusinessCardPage() {
             <span className="flex items-center gap-2">
               <ImageIcon className="w-4 h-4 text-indigo-600" />
               내 모바일 명함 파일 관리
+              {!employee.myCardImageUrl && (
+                <span className="ml-1 text-[9px] font-black text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100 animate-pulse">
+                  등록 필요
+                </span>
+              )}
             </span>
-            {isAccordionOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            {isAccordionOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
           </button>
           
           {isAccordionOpen && (
