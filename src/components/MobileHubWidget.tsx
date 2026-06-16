@@ -57,6 +57,16 @@ export default function MobileHubWidget() {
 
   const channels: MobileChannel[] = [
     {
+      id: "employee-portal",
+      name: "임직원 통합 모바일 포털",
+      description: "이지봇 비서(파일 대화형 복수 처리) 및 실시간 근무 관리, 스냅태스크, 지출 품의, 현장 안전 관리를 한데 모은 모바일 허브",
+      path: "/m",
+      icon: Smartphone,
+      themeColor: "from-cyan-600 to-indigo-650 bg-cyan-50 text-cyan-600 border-cyan-100",
+      badge: "임직원 전용/보안 격리",
+      smsTemplate: "[이지데스크] 임직원 통합 모바일 포털 접속 링크입니다. 아래 링크에서 로그인 후 이지봇 및 업무 관리 도구를 활용해 주세요. "
+    },
+    {
       id: "store",
       name: "스마트 주문 스토어",
       description: "AI 음성 비서 탑재 및 한정 쿠폰 혜택으로 온라인 주문을 유도하는 사장님의 가상 온라인 스토어",
