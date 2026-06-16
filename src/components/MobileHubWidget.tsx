@@ -28,7 +28,8 @@ import {
   Globe,
   Award,
   Scale,
-  ClipboardList
+  ClipboardList,
+  IdCard
 } from "lucide-react";
 
 interface MobileChannel {
@@ -264,6 +265,16 @@ export default function MobileHubWidget() {
       themeColor: "from-indigo-600 to-emerald-650 bg-indigo-50 text-indigo-650 border-indigo-100",
       badge: "임직원 행정/자가 발급",
       smsTemplate: "[이지데스크] 임직원 자가 서류 발급(재직/경력증명서 등) 모바일 웹 링크입니다. 로그인 후 즉석 신청 및 출력을 진행해 주세요. "
+    },
+    {
+      id: "business-card",
+      name: "이지데스크 명함 비서",
+      description: "거래처 명함을 카메라로 찍어 AI OCR로 등록하고, 폰 주소록 저장 및 내 모바일 명함을 고객에게 즉시 전송하는 직원용 비서 채널",
+      path: "/employee/business-card",
+      icon: IdCard,
+      themeColor: "from-blue-600 to-cyan-600 bg-blue-50 text-blue-600 border-blue-100",
+      badge: "영업/스태프 전용",
+      smsTemplate: "[이지데스크] 직원의 모바일 명함 비서 링크입니다. 아래 링크에서 미팅한 상대방의 명함 촬영 및 내 명함 발송을 진행해주세요. "
     }
   ];
 
