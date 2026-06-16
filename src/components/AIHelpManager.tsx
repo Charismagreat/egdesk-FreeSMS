@@ -350,8 +350,10 @@ export default function AIHelpManager() {
     pathname.startsWith('/store') || 
     pathname.startsWith('/table-order') || 
     pathname.startsWith('/booking') || 
+    pathname === '/m' || 
     pathname.startsWith('/m/') || 
-    pathname.startsWith('/expenses/mobile-approve')
+    pathname.startsWith('/expenses/mobile-approve') ||
+    pathname.startsWith('/employee')
   ) {
     return null;
   }
