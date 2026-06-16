@@ -410,30 +410,23 @@ The report must include:
 Keep the tone urgent, professional, and clear.
 `;
 
-      const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+      const aiResponse = await fetch('/api/safety/accident-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemPrompt }] },
-          contents: [
-            ...chatMessages.map(msg => ({
-              role: msg.role === 'user' ? 'user' : 'model',
-              parts: [{ text: msg.content }]
-            })),
-            { role: 'user', parts: [{ text: userMsg }] }
-          ],
-          generationConfig: {
-            temperature: 0.3
-          }
+          selectedModel,
+          chatMessages,
+          userMsg
         })
       });
 
       if (!aiResponse.ok) {
-        throw new Error("Gemini AI 응답 생성에 실패했습니다.");
+        const errData = await aiResponse.json().catch(() => ({}));
+        throw new Error(errData.error || "Gemini AI 응답 생성에 실패했습니다.");
       }
 
       const aiData = await aiResponse.json();
-      const aiText = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "죄송합니다. 안내를 생성하는 도중 오류가 발생했습니다.";
+      const aiText = aiData.text || "죄송합니다. 안내를 생성하는 도중 오류가 발생했습니다.";
       
       setChatMessages(prev => [...prev, { role: "ai", content: aiText, isReport: aiText.includes("재해조사표") }]);
     } catch (err: any) {

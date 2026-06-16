@@ -63,3 +63,24 @@
 - 기존 헤더 배너 내에 결합되어 있던 통계 정보나 핵심 지표들은 헤더 영역 바깥으로 완전히 격리합니다.
 - 헤더 하단에 독립적인 3열 또는 4열 그리드 형태의 **모던 스코어카드 그리드**(`grid grid-cols-1 md:grid-cols-3 gap-4` 등)를 생성하여 지표 정보를 깔끔하게 렌더링합니다.
 
+---
+
+## 6. 🤖 AI API 호출 시 토큰 및 비용 통계 로깅 표준 (ai_token_usage_logs)
+
+새로운 AI 기능을 개발하거나 기존 AI 호출 로직(Gemini API 등)을 수정할 때는 시스템 관리자 및 사용자가 AI 리소스 사용량과 비용을 투명하게 모니터링할 수 있도록 반드시 다음 규칙을 준수해야 합니다.
+
+### 6.1. 토큰 로깅 의무화 (`ai_token_usage_logs` 적재)
+- **대상**: 백엔드 API 라우트 핸들러(`route.ts`) 또는 서버 라이브러리(`*.ts`) 등에서 외부 Generative AI API(Gemini API 등)를 호출하는 모든 로직.
+- **의무 사항**: AI API 호출 성공 시 반환되는 토큰 사용량 정보(`usageMetadata` 등)를 파싱하여, 반드시 **`ai_token_usage_logs`** 테이블에 이력을 즉시 인서트(`insertRows`)해야 합니다.
+- **클라이언트 측 직접 호출 금지**: 클라이언트 컴포넌트(`page.tsx` 등 브라우저 환경)에서 AI API를 직접 호출하지 않습니다. 보안(API 키 노출 방지) 및 신뢰성 있는 로깅을 위해 반드시 서버 사이드 API 라우트를 경유하여 AI를 호출하고 로그를 기록해야 합니다.
+
+### 6.2. 로그 적재 규격 (DB Schema)
+데이터베이스에 로그를 기록할 때는 다음 필드를 필히 충족해야 합니다:
+- `id` (TEXT): 고유 식별자 (예: `TKC-${Date.now()}-${Math.floor(Math.random() * 1000)}` 포맷 권장)
+- `model` (TEXT): 사용된 AI 모델명 (예: `gemini-3.5-flash`)
+- `purpose` (TEXT): 해당 AI 호출의 비즈니스 목적을 나타내는 스네이크 케이스 또는 의미 있는 문자열 (예: `GRANT_RAG_MATCHING`, `EASYBOT_OCR_SCAN` 등)
+- `prompt_tokens` (INTEGER): 프롬프트에 사용된 입력 토큰 수
+- `completion_tokens` (INTEGER): 응답으로 생성된 출력 토큰 수
+- `total_tokens` (INTEGER): 총 토큰 수 (`prompt_tokens + completion_tokens`)
+- `created_at` (TEXT): 한국 시간 기준(KST) 생성 일시 (`YYYY-MM-DD HH:MM:SS` 포맷)
+

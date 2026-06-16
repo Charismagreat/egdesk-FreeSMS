@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
-import { queryTable } from '../../../../../egdesk-helpers';
+import { queryTable, insertRows } from '../../../../../egdesk-helpers';
 
 /**
  * 최고관리자(SUPER_ADMIN) 권한 검증 공통 헬퍼
@@ -172,6 +172,26 @@ export async function POST(req: Request) {
 
     const aiData = await response.json();
     const rawText = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    // AI 토큰 사용량 로깅
+    try {
+      const prompt_tokens = aiData.usageMetadata?.promptTokenCount || 0;
+      const completion_tokens = aiData.usageMetadata?.candidatesTokenCount || 0;
+      const total_tokens = aiData.usageMetadata?.totalTokenCount || (prompt_tokens + completion_tokens);
+      const logId = `TKC-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const logTime = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+      await insertRows('ai_token_usage_logs', [{
+        id: logId,
+        model: selectedModel || 'gemini-3.5-flash',
+        purpose: 'PARTNER_OCR',
+        prompt_tokens,
+        completion_tokens,
+        total_tokens,
+        created_at: logTime
+      }]);
+    } catch (e: any) {
+      console.error('AI 토큰 로깅 실패:', e.message);
+    }
 
     if (!rawText) {
       throw new Error('Gemini AI로부터 분석 응답을 수신하지 못했습니다.');

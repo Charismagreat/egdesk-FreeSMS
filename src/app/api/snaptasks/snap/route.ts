@@ -175,6 +175,27 @@ If no fields are found for partner, contact or estimate, leave them as null in t
         if (response.ok) {
           const data = await response.json();
           const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+          
+          // AI 토큰 사용량 로깅
+          try {
+            const prompt_tokens = data.usageMetadata?.promptTokenCount || 0;
+            const completion_tokens = data.usageMetadata?.candidatesTokenCount || 0;
+            const total_tokens = data.usageMetadata?.totalTokenCount || (prompt_tokens + completion_tokens);
+            const logId = `TKC-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+            const logTime = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+            await insertRows('ai_token_usage_logs', [{
+              id: logId,
+              model: 'gemini-3.5-flash',
+              purpose: 'SNAPTASK_AI_EXEC',
+              prompt_tokens,
+              completion_tokens,
+              total_tokens,
+              created_at: logTime
+            }]);
+          } catch (e: any) {
+            console.error('AI 토큰 로깅 실패:', e.message);
+          }
+
           aiResultJson = JSON.parse(text.trim());
         }
       } catch (geminiErr) {

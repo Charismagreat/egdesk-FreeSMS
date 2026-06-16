@@ -1,4 +1,4 @@
-import { executeSQL, queryTable } from '../../egdesk-helpers';
+import { executeSQL, queryTable, insertRows } from '../../egdesk-helpers';
 
 export interface CustomerGroupInfo {
   id: number;
@@ -222,6 +222,26 @@ Your response must be a valid JSON ONLY, using this structure EXACTLY:
       if (response.ok) {
         const data = await response.ok ? await response.json() : null;
         if (data) {
+          // AI 토큰 사용량 로깅
+          try {
+            const prompt_tokens = data.usageMetadata?.promptTokenCount || 0;
+            const completion_tokens = data.usageMetadata?.candidatesTokenCount || 0;
+            const total_tokens = data.usageMetadata?.totalTokenCount || (prompt_tokens + completion_tokens);
+            const logId = `TKC-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+            const logTime = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+            await insertRows('ai_token_usage_logs', [{
+              id: logId,
+              model: 'gemini-3.5-flash',
+              purpose: 'AI_MARKETING_STRATEGY',
+              prompt_tokens,
+              completion_tokens,
+              total_tokens,
+              created_at: logTime
+            }]);
+          } catch (e: any) {
+            console.error('AI 토큰 로깅 실패:', e.message);
+          }
+
           const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
           const resJson = JSON.parse(text);
 

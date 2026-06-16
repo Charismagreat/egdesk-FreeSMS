@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { queryTable } from '../../../../../egdesk-helpers';
+import { queryTable, insertRows } from '../../../../../egdesk-helpers';
 import Database from 'better-sqlite3';
 import os from 'os';
 import path from 'path';
@@ -178,6 +178,26 @@ Guidelines for SQL Generation:
 
     const aiData = await response.json();
     let generatedSql = (aiData.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+
+    // AI 토큰 사용량 로깅
+    try {
+      const prompt_tokens = aiData.usageMetadata?.promptTokenCount || 0;
+      const completion_tokens = aiData.usageMetadata?.candidatesTokenCount || 0;
+      const total_tokens = aiData.usageMetadata?.totalTokenCount || (prompt_tokens + completion_tokens);
+      const logId = `TKC-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const logTime = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+      await insertRows('ai_token_usage_logs', [{
+        id: logId,
+        model: selectedModel || 'gemini-3.5-flash',
+        purpose: 'TEMPLATE_AI_QUERY',
+        prompt_tokens,
+        completion_tokens,
+        total_tokens,
+        created_at: logTime
+      }]);
+    } catch (e: any) {
+      console.error('AI 토큰 로깅 실패:', e.message);
+    }
 
     // 마크다운 가드 지우기 (백틱 가드가 포함되는 경우가 간혹 있음)
     generatedSql = generatedSql.replace(/^```sql/i, '').replace(/^```/i, '').replace(/```$/, '').trim();

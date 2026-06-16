@@ -4,7 +4,7 @@ import { queryTable, insertRows, updateRows, deleteRows } from "../../../../../e
 export const dynamic = "force-dynamic";
 
 // Gemini API 호출을 위한 헬퍼 함수
-async function callGemini(apiKey: string, model: string, systemPrompt: string, userPrompt: string): Promise<string> {
+async function callGemini(apiKey: string, model: string, systemPrompt: string, userPrompt: string, purpose: string): Promise<string> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   const response = await fetch(url, {
     method: "POST",
@@ -25,6 +25,28 @@ async function callGemini(apiKey: string, model: string, systemPrompt: string, u
   }
 
   const data = await response.json();
+
+  // AI 사용량 통계를 위해 ai_token_usage_logs 테이블에 토큰 사용 정보 적재
+  try {
+    const prompt_tokens = data.usageMetadata?.promptTokenCount || 0;
+    const completion_tokens = data.usageMetadata?.candidatesTokenCount || 0;
+    const total_tokens = data.usageMetadata?.totalTokenCount || (prompt_tokens + completion_tokens);
+    const logId = `TKC-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace("T", " ").slice(0, 19);
+
+    await insertRows("ai_token_usage_logs", [{
+      id: logId,
+      model,
+      purpose,
+      prompt_tokens,
+      completion_tokens,
+      total_tokens,
+      created_at: nowStr
+    }]);
+  } catch (e: any) {
+    console.error("AI 사용량 로그 기록 실패:", e.message);
+  }
+
   return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 }
 
@@ -292,7 +314,7 @@ ${latestFin ? `- Fiscal Year: ${latestFin.fiscal_year}
 - Deadline: ${ann.end_date}
 `;
 
-            const aiText = await callGemini(apiKey, model, systemPrompt, userPrompt);
+            const aiText = await callGemini(apiKey, model, systemPrompt, userPrompt, "GRANT_RAG_MATCHING");
             const parsed = JSON.parse(cleanJsonString(aiText));
             if (parsed && typeof parsed.matchScore === "number" && Array.isArray(parsed.matchGuide)) {
               matchScore = parsed.matchScore;
@@ -462,7 +484,7 @@ Do not wrap the output in markdown code blocks like \`\`\`json.
 - Budget: ${ann.budget} (KRW)
 `;
 
-            const aiText = await callGemini(apiKey, model, systemPrompt, userPrompt);
+            const aiText = await callGemini(apiKey, model, systemPrompt, userPrompt, "GRANT_RND_PLAN_GENERATION");
             const parsed = JSON.parse(cleanJsonString(aiText));
             if (parsed && parsed.necessity && parsed.differentiation && parsed.objectives && parsed.businessPlan) {
               generatedPlan = parsed;

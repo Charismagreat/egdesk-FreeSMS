@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { queryTable } from '../../../../../egdesk-helpers';
+import { queryTable, insertRows } from '../../../../../egdesk-helpers';
 
 export async function POST(req: Request) {
   try {
@@ -80,6 +80,26 @@ ${prompt || '이 상품을 인스타그램 피드로 돋보이게 소개해주�
         if (response.ok) {
           const geminiData = await response.json();
           generatedText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          
+          // AI 토큰 사용량 로깅
+          try {
+            const prompt_tokens = geminiData.usageMetadata?.promptTokenCount || 0;
+            const completion_tokens = geminiData.usageMetadata?.candidatesTokenCount || 0;
+            const total_tokens = geminiData.usageMetadata?.totalTokenCount || (prompt_tokens + completion_tokens);
+            const logId = `TKC-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+            const logTime = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+            await insertRows('ai_token_usage_logs', [{
+              id: logId,
+              model: 'gemini-3.5-flash',
+              purpose: 'INSTAGRAM_POST_GEN',
+              prompt_tokens,
+              completion_tokens,
+              total_tokens,
+              created_at: logTime
+            }]);
+          } catch (e: any) {
+            console.error('AI 토큰 로깅 실패:', e.message);
+          }
         }
       } catch (err) {
         console.error('Gemini API 호출 중 오류 발생, 폴백 문구 작동:', err);
