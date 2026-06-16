@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
-import { queryTable, insertRows } from '../../../../../egdesk-helpers';
+import { callAI } from '@/lib/ai-router';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +20,7 @@ async function verifySuperAdmin() {
   }
 }
 
-// 📂 [POST] 자연어 질문을 정교한 SQLite SQL 쿼리로 실시간 번역 (Gemini 3.5 Flash)
+// 📂 [POST] 자연어 질문을 정교한 SQLite SQL 쿼리로 실시간 번역 (공통 AI 라우터 탑재)
 export async function POST(request: Request) {
   try {
     const isAuthorized = await verifySuperAdmin();
@@ -34,27 +34,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: '번역할 자연어 요청(prompt)이 누락되었습니다.' }, { status: 400 });
     }
 
-    // 1. Google AI API 키 2중 탐지 연동 (DB 우선 -> env Fallback)
-    const settingsRes = await queryTable('system_settings', { filters: { key: 'google_ai_api_key' } });
-    let apiKey = settingsRes.rows && settingsRes.rows.length > 0 ? settingsRes.rows[0].value : null;
-    
-    if (!apiKey) {
-      apiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY || null;
-    }
-
-    if (!apiKey) {
-      return NextResponse.json({ 
-        success: false, 
-        error: '⚠️ 구글 AI API 키가 설정되지 않았습니다. [시스템 설정] 대시보드에서 등록하시거나, 서버 환경 변수(GOOGLE_GENERATIVE_AI_API_KEY)를 활성화해 주십시오.' 
-      }, { status: 400 });
-    }
-
-    // 2. 데이터베이스 스키마 요약 문자열 조립 (AI 전송 컨텍스트)
+    // 1. 데이터베이스 스키마 요약 문자열 조립 (AI 전송 컨텍스트)
     const schemaSummary = Array.isArray(tablesSchema) 
       ? tablesSchema.map((t: any) => `- 테이블명: "${t.name}" (실시간 레코드: ${t.count}개)`).join('\n')
       : '테이블 정보가 존재하지 않습니다.';
 
-    // 3. Gemini 전용 시스템 지침 (System Instruction) 구성
+    // 2. AI 전용 시스템 지침 (System Instruction) 구성
     const systemPrompt = `
 너는 최고의 SQLite3 데이터베이스 전문가이자, 이지데스크(EGDesk) 서버의 비즈니스 데이터 어시스턴트야.
 사용자가 한글 자연어로 요청한 비즈니스 데이터 요구사항을 분석하여, 데이터베이스에 바로 날릴 수 있는 **오류 없는 단 하나의 SQLite3 SQL 쿼리**로 번역하는 것이 너의 의무야.
@@ -74,53 +59,16 @@ ${schemaSummary}
 }
 `;
 
-    // 4. Google Gemini 3.5 Flash API 호출
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [{ text: systemPrompt }]
-        },
-        contents: [
-          { parts: [{ text: `사용자 자연어 요청: "${prompt}"` }] }
-        ],
-        generationConfig: {
-          responseMimeType: "application/json",
-          temperature: 0.2 // 정확도 극대화를 위해 온도를 매우 낮춤
-        }
-      })
+    // 3. 공통 AI 라우터를 경유하여 호출 (스마트 하이브리드 분기 및 로깅 연동)
+    const aiResult = await callAI({
+      prompt: `사용자 자연어 요청: "${prompt}"`,
+      systemPrompt,
+      purpose: 'easybot-sql-generation', // 통계 대시보드 purpose 매핑
+      responseMimeType: 'application/json',
+      temperature: 0.2 // 정확도 극대화를 위해 온도를 매우 낮춤
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message || 'Google Gemini API 통신 오류가 발생했습니다.');
-    }
-
-    const resData = await response.json();
-    
-    // 💡 실시간 AI 호출 토큰 감사록 로깅 연동
-    try {
-      const promptTokens = resData.usageMetadata?.promptTokenCount || 0;
-      const completionTokens = resData.usageMetadata?.candidatesTokenCount || 0;
-      const totalTokens = resData.usageMetadata?.totalTokenCount || 0;
-      
-      if (totalTokens > 0) {
-        await insertRows('ai_token_usage_logs', [{
-          model: 'gemini-3.5-flash',
-          purpose: 'easybot-sql-generation',
-          prompt_tokens: promptTokens,
-          completion_tokens: completionTokens,
-          total_tokens: totalTokens
-        }]);
-      }
-    } catch (e: any) {
-      console.error('⚠️ AI 토큰 소모량 감사 로깅 실패:', e.message);
-    }
-
-    const rawText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    const rawText = aiResult.text || '{}';
     
     // JSON 안전 분석
     let resultSql = "";

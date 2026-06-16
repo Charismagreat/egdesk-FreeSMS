@@ -1,23 +1,15 @@
 import { NextResponse } from 'next/server';
-import { queryTable, insertRows } from '../../../../egdesk-helpers';
+import { callAI } from '@/lib/ai-router';
 
 export async function POST(req: Request) {
   try {
     const { prompt, customers } = await req.json();
 
-    // DB에서 API 키 조회
-    const settingsRes = await queryTable('system_settings', { filters: { key: 'google_ai_api_key' } });
-    const apiKey = settingsRes.rows && settingsRes.rows.length > 0 ? settingsRes.rows[0].value : null;
-
-    if (!apiKey) {
-      return NextResponse.json({ success: false, error: '대시보드에서 구글 AI API 키를 먼저 등록해주세요.' }, { status: 400 });
-    }
-    
     if (!prompt) {
       return NextResponse.json({ success: false, error: 'Prompt is missing' }, { status: 400 });
     }
 
-    // 구글 Gemini에 전송할 시스템 프롬프트 구성
+    // 구글 Gemini/로컬 LLM에 전송할 시스템 프롬프트 구성
     const systemPrompt = `
 You are an expert CRM marketing assistant for a small business.
 Your goal is to parse the user's request and automatically do two things:
@@ -39,54 +31,15 @@ You MUST output your response in valid JSON format ONLY, exactly like this:
 }
 `;
 
-    // Fetch call to Google Gemini API
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        systemInstruction: {
-          parts: [{ text: systemPrompt }]
-        },
-        contents: [
-          { parts: [{ text: prompt }] }
-        ],
-        generationConfig: {
-          responseMimeType: "application/json",
-          temperature: 0.7
-        }
-      })
+    // 공통 AI 라우터 모듈을 경유하여 호출 실행 (스마트 라우팅 및 대시보드 로깅 자동 연동)
+    const aiResult = await callAI({
+      prompt,
+      systemPrompt,
+      purpose: 'AI_SMS',
+      responseMimeType: 'application/json'
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message || 'Google Gemini API Error');
-    }
-
-    const data = await response.json();
-    
-    // 💡 실시간 AI 호출 토큰 감사록 로깅 연동
-    try {
-      const promptTokens = data.usageMetadata?.promptTokenCount || 0;
-      const completionTokens = data.usageMetadata?.candidatesTokenCount || 0;
-      const totalTokens = data.usageMetadata?.totalTokenCount || 0;
-      
-      if (totalTokens > 0) {
-        await insertRows('ai_token_usage_logs', [{
-          model: 'gemini-3.5-flash',
-          purpose: 'marketing-content-pack',
-          prompt_tokens: promptTokens,
-          completion_tokens: completionTokens,
-          total_tokens: totalTokens
-        }]);
-      }
-    } catch (e: any) {
-      console.error('⚠️ AI 토큰 소모량 감사 로깅 실패:', e.message);
-    }
-
-    let responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
-    const resultJson = JSON.parse(responseText);
+    const resultJson = JSON.parse(aiResult.text || '{}');
 
     return NextResponse.json({ 
       success: true, 
@@ -95,8 +48,7 @@ You MUST output your response in valid JSON format ONLY, exactly like this:
     });
 
   } catch (error) {
-    console.error('AI Error:', error);
+    console.error('AI SMS Error:', error);
     return NextResponse.json({ success: false, error: (error as Error).message }, { status: 500 });
   }
-
 }
