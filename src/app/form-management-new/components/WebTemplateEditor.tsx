@@ -53,16 +53,6 @@ const setupSealInteractions = (doc: Document, type: 'print' | 'web') => {
       
       wrapper.style.left = `${relativeLeft}px`;
       wrapper.style.top = `${relativeTop}px`;
-      
-      // 바로 상위 컴포넌트 상태에 업데이트된 좌표를 동기화
-      if ((window as any).onSealLayoutChanged) {
-        (window as any).onSealLayoutChanged(
-          type,
-          wrapper.style.left,
-          wrapper.style.top,
-          wrapper.style.width
-        );
-      }
     }
   }
 
