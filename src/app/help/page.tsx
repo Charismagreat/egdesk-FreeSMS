@@ -39,6 +39,9 @@ export default function FAQHelpCenterPage() {
         if (q === "ㄱㅌ" && str.includes("근태")) return true;
         if (q === "ㄱㅇ" && str.includes("급여")) return true;
         if (q === "ㅇㅅ" && str.includes("인사")) return true;
+        if (q === "ㅂㅇ" && (str.includes("불용") || str.includes("deadstock"))) return true;
+        if (q === "ㅈㄱ" && (str.includes("재고") || str.includes("inventory"))) return true;
+        if (q === "ㅁㅇ" && (str.includes("메일") || str.includes("email") || str.includes("proposal"))) return true;
         return false;
       };
 
