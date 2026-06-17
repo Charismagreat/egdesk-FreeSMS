@@ -19,6 +19,7 @@ import { TransactionModal } from './components/TransactionModal';
 import { BarcodeScanModal } from './components/BarcodeScanModal';
 import { ExcelGuideModal } from './components/ExcelGuideModal';
 import { BarcodePrintModal } from './components/BarcodePrintModal';
+import { DeadstockControl } from './components/DeadstockControl';
 
 export default function InventoryPage() {
   // 상태 정의
@@ -31,7 +32,7 @@ export default function InventoryPage() {
     departments: string[];
     projects: string[];
   }>({ partners: [], staff: [], departments: [], projects: [] });
-  const [activeTab, setActiveTab] = useState<'material' | 'product' | 'inbound'>('material');
+  const [activeTab, setActiveTab] = useState<'material' | 'product' | 'inbound' | 'deadstock'>('material');
   const [inbounds, setInbounds] = useState<any[]>([]);
   const [selectedInboundId, setSelectedInboundId] = useState<string | null>(null);
   const [inboundDetails, setInboundDetails] = useState<any[]>([]);
@@ -42,9 +43,10 @@ export default function InventoryPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
-  // 검색어 또는 탭 변경 시 페이지 번호 초기화
+  // 검색어 또는 탭 변경 시 페이지 번호 및 데이터 새로고침
   useEffect(() => {
     setCurrentPage(1);
+    fetchData();
   }, [searchQuery, activeTab]);
 
   // 모달 상태
@@ -603,7 +605,7 @@ export default function InventoryPage() {
   // 폼 리셋
   const resetItemForm = () => {
     setItemForm({
-      type: activeTab === 'inbound' ? 'material' : activeTab,
+      type: (activeTab === 'inbound' || activeTab === 'deadstock') ? 'material' : activeTab,
       name: '',
       category: '',
       price: '',
@@ -635,7 +637,7 @@ export default function InventoryPage() {
   const openNewItemModal = () => {
     setSelectedItem(null);
     setItemForm({
-      type: activeTab === 'inbound' ? 'material' : activeTab,
+      type: (activeTab === 'inbound' || activeTab === 'deadstock') ? 'material' : activeTab,
       name: '',
       category: '',
       price: '',
@@ -1022,27 +1024,35 @@ export default function InventoryPage() {
           />
         </div>
 
-        {/* 3. 메인 콘텐츠 영역: 탭 및 재고 품목 목록 테이블 */}
-        <InventoryTable
-          items={items}
-          logs={logs}
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          loading={loading}
-          currentPage={currentPage}
-          setCurrentPage={setCurrentPage}
-          itemsPerPage={itemsPerPage}
-          setItemsPerPage={setItemsPerPage}
-          valuationMethod={valuationMethod}
-          onOpenTxModal={openTxModal}
-          onOpenEditItemModal={openEditItemModal}
-          onOpenLabelPrintModal={(item) => { setSelectedPrintItem(item); setIsLabelPrintModalOpen(true); }}
-          onDeleteItem={handleItemDelete}
-          inbounds={inbounds}
-          onOpenInboundDetail={openInboundDetail}
-        />
+        {/* 3. 메인 콘텐츠 영역: 탭 및 재고 품목 목록 테이블 또는 불용자재 AI 관제 화면 */}
+        {activeTab === 'deadstock' ? (
+          <DeadstockControl 
+            items={items}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+          />
+        ) : (
+          <InventoryTable
+            items={items}
+            logs={logs}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            loading={loading}
+            currentPage={currentPage}
+            setCurrentPage={setCurrentPage}
+            itemsPerPage={itemsPerPage}
+            setItemsPerPage={setItemsPerPage}
+            valuationMethod={valuationMethod}
+            onOpenTxModal={openTxModal}
+            onOpenEditItemModal={openEditItemModal}
+            onOpenLabelPrintModal={(item) => { setSelectedPrintItem(item); setIsLabelPrintModalOpen(true); }}
+            onDeleteItem={handleItemDelete}
+            inbounds={inbounds}
+            onOpenInboundDetail={openInboundDetail}
+          />
+        )}
 
         {/* 4. 하단 입출고 변동 로그 히스토리 테이블 */}
         <InventoryLogTable logs={logs} />

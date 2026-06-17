@@ -6,8 +6,8 @@ import { calculateValuation } from '../utils/valuation';
 interface InventoryTableProps {
   items: InventoryItem[];
   logs: InventoryLog[];
-  activeTab: 'material' | 'product' | 'inbound';
-  setActiveTab: (tab: 'material' | 'product' | 'inbound') => void;
+  activeTab: 'material' | 'product' | 'inbound' | 'deadstock';
+  setActiveTab: (tab: 'material' | 'product' | 'inbound' | 'deadstock') => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   loading: boolean;
@@ -111,13 +111,13 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
         <div className="flex flex-col sm:flex-row items-center justify-start sm:justify-end gap-3 w-full md:w-auto md:flex-none flex-nowrap">
           
           {/* 자재 vs 제품 탭 스위치 */}
-          <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 w-full sm:w-auto flex-shrink-0">
+          <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 w-full sm:w-auto flex-shrink-0 flex-wrap gap-1">
             <button
               onClick={() => {
                 setActiveTab('material');
                 setSearchQuery('');
               }}
-              className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 min-w-[110px] flex-shrink-0 ${
+              className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 min-w-[110px] flex-shrink-0 cursor-pointer ${
                 activeTab === 'material'
                   ? 'bg-white text-slate-900 shadow-sm'
                   : 'text-slate-500 hover:text-slate-800'
@@ -131,7 +131,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                 setActiveTab('product');
                 setSearchQuery('');
               }}
-              className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 min-w-[110px] flex-shrink-0 ${
+              className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 min-w-[110px] flex-shrink-0 cursor-pointer ${
                 activeTab === 'product'
                   ? 'bg-white text-slate-900 shadow-sm'
                   : 'text-slate-500 hover:text-slate-800'
@@ -145,7 +145,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
                 setActiveTab('inbound');
                 setSearchQuery('');
               }}
-              className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 min-w-[110px] flex-shrink-0 ${
+              className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 min-w-[110px] flex-shrink-0 cursor-pointer ${
                 activeTab === 'inbound'
                   ? 'bg-white text-slate-900 shadow-sm'
                   : 'text-slate-500 hover:text-slate-800'
@@ -153,6 +153,19 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
             >
               <FileText className="w-3.5 h-3.5 text-indigo-500" />
               <span>자율입고({inbounds ? inbounds.length : 0})</span>
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('deadstock');
+                setSearchQuery('');
+              }}
+              className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 min-w-[110px] flex-shrink-0 cursor-pointer ${
+                activeTab === 'deadstock'
+                  ? 'bg-gradient-to-r from-indigo-500 to-indigo-650 text-white shadow-sm'
+                  : 'text-indigo-600 hover:text-indigo-800 bg-indigo-50/50'
+              }`}
+            >
+              <span>🪐 AI 관제</span>
             </button>
           </div>
 

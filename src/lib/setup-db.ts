@@ -1162,6 +1162,26 @@ export async function setupDatabase() {
     { name: 'created_at', type: 'TEXT', notNull: true }
   ], { tableName: 'system_mail_logs', uniqueKeyColumns: ['id'] });
 
+  // 41-2b. Deadstock Proposals Table (불용자재 제안 메일 로그)
+  await safeCreateTable('불용자재 제안 메일 로그', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'item_id', type: 'INTEGER', notNull: true },
+    { name: 'target_company', type: 'TEXT', notNull: true },
+    { name: 'target_email', type: 'TEXT', notNull: true },
+    { name: 'subject', type: 'TEXT', notNull: true },
+    { name: 'content', type: 'TEXT', notNull: true },
+    { name: 'status', type: 'TEXT', notNull: true }, // 'SENT', 'REPLIED', 'FORWARDED'
+    { name: 'replied_content', type: 'TEXT' },
+    { name: 'replied_at', type: 'TEXT' },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
+  ], { tableName: 'crm_deadstock_proposals', uniqueKeyColumns: ['id'] });
+
   // 41-3. AI Contextual Help Table (도움말 캐싱용 컨텍스트)
   await safeCreateTable('AI 도움말 캐시', [
     { name: 'hint_key', type: 'TEXT', notNull: true },
