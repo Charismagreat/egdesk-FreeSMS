@@ -499,20 +499,13 @@ export default function MeetingMinutesPage() {
     <div className="space-y-6 pb-20 w-full min-w-0 text-slate-800 animate-fade-in"
       data-easybot-hint="회의 기록 AI: 마이크 STT 및 가상 시뮬레이션을 통해 실시간 대화록을 작성하고, 과거 회의 시맨틱 추천, 종료 후 AI 자동 회의록 기안 및 할일 이메일 발송 기능을 통합 제공합니다.">
       
-      {/* 헤더 */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between border-b border-slate-200 pb-5 gap-4">
-        <div>
-          <div className="flex items-center space-x-2 text-indigo-600 font-semibold mb-1">
-            <Sparkles className="w-5 h-5 animate-pulse" />
-            <span>AI 관제 오피스</span>
-          </div>
+      {/* 상단 타이틀 헤더 */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 pb-6 border-b border-slate-200 relative z-10 shrink-0">
+        <div className="space-y-1">
           <h1 className="text-3xl font-bold text-slate-800 tracking-tight flex items-center">
             <Mic className="w-8 h-8 text-indigo-600 mr-3" />
             회의 기록 AI
           </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            실시간 음성 기록, 시맨틱 과거 맥락 매칭 및 AI 업무/일정 자동 할당 이메일 발송 시스템
-          </p>
         </div>
         
         {viewMode !== "list" && (
@@ -523,9 +516,9 @@ export default function MeetingMinutesPage() {
               setViewMode("list");
               fetchMeetings();
             }}
-            className="flex items-center space-x-2 px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 rounded-xl font-semibold border border-slate-200 shadow-sm active:scale-95 transition-all"
+            className="flex items-center space-x-2 px-5 py-3 bg-white hover:bg-slate-50 text-slate-700 rounded-xl font-semibold border border-slate-200 shadow-sm active:scale-95 transition-all cursor-pointer"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-4.5 h-4.5" />
             <span>회의 목록으로</span>
           </button>
         )}
