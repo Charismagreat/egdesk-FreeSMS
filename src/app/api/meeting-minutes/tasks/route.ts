@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { queryTable, updateRows } from '../../../../../egdesk-helpers';
+import { queryTable, updateRows } from '@/../egdesk-helpers';
 
 // 한국 시간 도우미 함수
 function getKSTDateString() {

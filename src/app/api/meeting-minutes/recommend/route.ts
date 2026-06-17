@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { queryTable } from '../../../../../egdesk-helpers';
+import { queryTable } from '@/../egdesk-helpers';
 
 /**
  * POST: 현재 진행 중인 회의 대화 문맥에 맞는 과거 회의록 시맨틱 추천

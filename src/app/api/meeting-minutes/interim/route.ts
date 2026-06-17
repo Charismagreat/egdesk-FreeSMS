@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { queryTable } from '../../../../../egdesk-helpers';
+import { queryTable } from '@/../egdesk-helpers';
 
 /**
  * POST: 회의 도중 실시간 AI 중간 요약 및 제언 어시스트 API
