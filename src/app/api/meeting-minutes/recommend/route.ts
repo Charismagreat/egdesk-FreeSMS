@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { queryTable } from '@/../egdesk-helpers';
+import { queryTable, insertRows, executeSQL } from '@/../egdesk-helpers';
+import crypto from 'crypto';
 
 /**
  * POST: 현재 진행 중인 회의 대화 문맥에 맞는 과거 회의록 시맨틱 추천
@@ -81,6 +82,29 @@ export async function POST(req: Request) {
 
         if (response.ok) {
           const data = await response.json();
+          
+          // 토큰 사용 로그 기록
+          if (data.usageMetadata) {
+            try {
+              const u = data.usageMetadata;
+              const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+              const tokenId = `TKC-MEET-REC-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+              await insertRows('ai_token_usage_logs', [{
+                id: tokenId,
+                model: 'gemini-3.5-flash',
+                purpose: 'meeting-recommend',
+                prompt_tokens: u.promptTokenCount || 0,
+                completion_tokens: u.candidatesTokenCount || 0,
+                total_tokens: u.totalTokenCount || 0,
+                created_at: nowStr,
+                uuid: crypto.randomUUID(),
+                updated_at: nowStr
+              }]);
+            } catch (tokenErr) {
+              console.error('AI 토큰 로그 기록 실패(회의 추천):', tokenErr);
+            }
+          }
+
           const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
           const resJson = JSON.parse(text);
           if (Array.isArray(resJson.recommendations)) {

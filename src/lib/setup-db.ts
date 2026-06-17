@@ -1191,6 +1191,7 @@ export async function setupDatabase() {
     { name: 'transcript', type: 'TEXT' },
     { name: 'summary', type: 'TEXT' },
     { name: 'status', type: 'TEXT', notNull: true }, // 'ONGOING', 'COMPLETED'
+    { name: 'audio_url', type: 'TEXT' },
     { name: 'uuid', type: 'TEXT' },
     { name: 'updated_at', type: 'TEXT' },
     { name: 'updated_by', type: 'TEXT' },

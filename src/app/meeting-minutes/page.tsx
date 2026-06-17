@@ -58,9 +58,79 @@ export default function MeetingMinutesPage() {
 
   // 실시간 회의 중 상태
   const [isRecording, setIsRecording] = useState(false);
-  const [transcript, setTranscript] = useState<{ speaker: string; text: string; time: string }[]>([]);
+  const [transcript, setTranscript] = useState<{ id: string; speaker: string; text: string; time: string; isDiarizing?: boolean }[]>([]);
   const [currentSpeech, setCurrentSpeech] = useState("");
-  const [speechSpeaker, setSpeechSpeaker] = useState("나 (회의 참여자)");
+  const [speechSpeaker, setSpeechSpeaker] = useState("화자 1");
+  const speechSpeakerRef = useRef("화자 1");
+
+  useEffect(() => {
+    speechSpeakerRef.current = speechSpeaker;
+  }, [speechSpeaker]);
+
+  // 동적 가칭 화자 리스트 상태
+  const [activeSpeakers, setActiveSpeakers] = useState<string[]>(["화자 1", "화자 2", "화자 3", "화자 4"]);
+  
+  // 화자 매핑 및 모달 상태
+  const [showMappingModal, setShowMappingModal] = useState(false);
+  const [speakerMapping, setSpeakerMapping] = useState<Record<string, string>>({});
+
+  // 상세 보기 화면 탭 상태
+  const [detailTab, setDetailTab] = useState<"summary" | "transcript">("summary");
+
+  // 대화록(transcript)에 기재된 임시 화자가 생겨나면 activeSpeakers에 자동 누적 동기화
+  useEffect(() => {
+    if (transcript && transcript.length > 0) {
+      const uniqueSpeakers = Array.from(new Set(transcript.map(t => t.speaker)));
+      setActiveSpeakers(prev => {
+        const next = [...prev];
+        let changed = false;
+        uniqueSpeakers.forEach(sp => {
+          if (sp && sp.startsWith("화자 ") && !next.includes(sp)) {
+            next.push(sp);
+            changed = true;
+          }
+        });
+        if (changed) {
+          return next.sort((a, b) => {
+            const numA = parseInt(a.replace("화자 ", "")) || 0;
+            const numB = parseInt(b.replace("화자 ", "")) || 0;
+            return numA - numB;
+          });
+        }
+        return prev;
+      });
+    }
+  }, [transcript]);
+
+  // selectedMeeting 변경 시 화자를 기본 "화자 1"로 세팅
+  useEffect(() => {
+    setSpeechSpeaker("화자 1");
+  }, [selectedMeeting]);
+
+  // 진행 중인 회의 복원 시 전역에 보존된 오디오 청크 복구
+  useEffect(() => {
+    if (selectedMeeting && typeof window !== "undefined") {
+      const meetId = selectedMeeting.id;
+      const backup = (window as any).__ongoing_meeting_audio_chunks?.[meetId];
+      if (backup && backup.length > 0) {
+        audioChunksRef.current = [...backup];
+        console.log(`🎙️ Backup audio chunks restored for meeting ${meetId}. Size:`, backup.length);
+      }
+    }
+  }, [selectedMeeting]);
+
+  const getActiveAttendees = () => {
+    if (!selectedMeeting) return ["나 (회의 참여자)", "홍길동 대표", "김철수 과장", "이영희 대리"];
+    try {
+      const parsed = JSON.parse(selectedMeeting.attendees || "[]");
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map((a: any) => a.name);
+      }
+    } catch (e) {
+      console.error("참석자 목록 조회 오류:", e);
+    }
+    return ["나 (회의 참여자)", "홍길동 대표", "김철수 과장", "이영희 대리"];
+  };
   const [recommendedMeetings, setRecommendedMeetings] = useState<any[]>([]);
   const [interimAdvice, setInterimAdvice] = useState<string>("");
   const [showInterimModal, setShowInterimModal] = useState(false);
@@ -81,15 +151,71 @@ export default function MeetingMinutesPage() {
   const [mailResult, setMailResult] = useState<string | null>(null);
 
   // Refs
+  const shouldSTTActiveRef = useRef(false);
   const recognitionRef = useRef<any>(null);
   const simTimerRef = useRef<any>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const lastRecommendLengthRef = useRef<number>(0);
 
-  // 1. 초기 로딩: 회의록 목록 획득
+  // 🎙️ MediaRecorder 상태 및 Refs 추가
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
+
+  // 1. 초기 로딩: 회의록 목록 획득 및 진행 중인 회의 복구
   useEffect(() => {
-    fetchMeetings();
+    const initFetch = async () => {
+      try {
+        const res = await fetch("/api/meeting-minutes");
+        const data = await res.json();
+        if (data.success) {
+          setMeetings(data.meetings);
+          
+          // 진행 중인 회의(ONGOING)가 존재하면 즉시 복구 및 회의 화면 진입
+          const ongoingMeeting = data.meetings.find((m: any) => m.status === "ONGOING");
+          if (ongoingMeeting) {
+            setSelectedMeeting(ongoingMeeting);
+            try {
+              const parsedTrans = JSON.parse(ongoingMeeting.transcript || "[]");
+              setTranscript(parsedTrans);
+            } catch (e) {
+              console.error("진행 중인 회의 대화록 복구 실패:", e);
+              setTranscript([]);
+            }
+            setViewMode("active");
+          }
+        }
+      } catch (e) {
+        console.error("초기 목록 조회 실패:", e);
+      }
+    };
+
+    initFetch();
   }, []);
+
+  // 1-1. 대화록 실시간 백그라운드 동기화 (다른 페이지 이동 시 유실 방지)
+  useEffect(() => {
+    if (viewMode !== "active" || !selectedMeeting) return;
+
+    const syncTranscript = async () => {
+      try {
+        await fetch("/api/meeting-minutes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "sync",
+            meetingId: selectedMeeting.id,
+            transcript: transcript
+          })
+        });
+      } catch (e) {
+        console.error("회의록 실시간 동기화 에러:", e);
+      }
+    };
+
+    const timer = setTimeout(syncTranscript, 1000);
+    return () => clearTimeout(timer);
+  }, [transcript, viewMode, selectedMeeting]);
 
   // 대화록 추가 시 하단 스크롤 자동 이동
   useEffect(() => {
@@ -114,6 +240,30 @@ export default function MeetingMinutesPage() {
     }
   };
 
+  const handleDeleteMeeting = async (e: React.MouseEvent, meetingId: number) => {
+    e.stopPropagation(); // 카드 상세보기 클릭 이벤트 차단
+
+    if (!confirm("정말로 이 회의록을 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.")) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/meeting-minutes?meetingId=${meetingId}`, {
+        method: "DELETE"
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("회의록이 성공적으로 삭제되었습니다.");
+        fetchMeetings(); // 목록 갱신
+      } else {
+        alert(data.error || "회의록 삭제에 실패했습니다.");
+      }
+    } catch (err) {
+      console.error("회의록 삭제 오류:", err);
+      alert("서버 통신 중 오류가 발생했습니다.");
+    }
+  };
+
   const fetchTasks = async (meetingId: number) => {
     try {
       const res = await fetch(`/api/meeting-minutes/tasks?meetingId=${meetingId}`);
@@ -126,12 +276,20 @@ export default function MeetingMinutesPage() {
     }
   };
 
+  // 날짜/시간 기반 자동 회의명 생성
+  const getAutoMeetingTitle = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const hours = String(now.getHours()).padStart(2, "0");
+    const minutes = String(now.getMinutes()).padStart(2, "0");
+    return `${year}-${month}-${day} ${hours}:${minutes} 회의`;
+  };
+
   // 2. 새 회의 만들기
   const handleStartMeeting = async () => {
-    if (!newTitle.trim()) {
-      alert("회의 제목을 입력해 주세요.");
-      return;
-    }
+    const finalTitle = newTitle.trim() || getAutoMeetingTitle();
 
     try {
       const res = await fetch("/api/meeting-minutes", {
@@ -139,7 +297,7 @@ export default function MeetingMinutesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "start",
-          title: newTitle,
+          title: finalTitle,
           attendees: tempAttendees
         })
       });
@@ -147,6 +305,8 @@ export default function MeetingMinutesPage() {
       if (data.success) {
         setSelectedMeeting(data.meeting);
         setTranscript([]);
+        setActiveSpeakers(["화자 1", "화자 2", "화자 3", "화자 4"]);
+        setSpeechSpeaker("화자 1");
         setRecommendedMeetings([]);
         setInterimAdvice("");
         setViewMode("active");
@@ -181,7 +341,7 @@ export default function MeetingMinutesPage() {
   };
 
   // 3. 실시간 음성인식 (STT) 제어
-  const startSTT = () => {
+  const startSTT = async () => {
     if (isSimulating) {
       alert("현재 시뮬레이터가 작동 중입니다. 시뮬레이터를 먼저 중지해 주세요.");
       return;
@@ -191,6 +351,45 @@ export default function MeetingMinutesPage() {
     if (!SpeechRecognition) {
       alert("현재 브라우저는 음성 인식을 지원하지 않습니다. 크롬이나 에지 브라우저를 사용하시거나 [AI 시뮬레이션] 기능을 이용해 주세요.");
       return;
+    }
+
+    // 명시적으로 STT 가동 상태로 기록
+    shouldSTTActiveRef.current = true;
+
+    // 🎙️ 마이크 스트림 획득 및 MediaRecorder 백그라운드 녹음 시작
+    let stream: MediaStream | null = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setAudioStream(stream);
+      
+      // 기존에 누적된 오디오 청크 백업이 있다면 복원하여 이어받고, 없으면 초기화
+      const meetId = selectedMeeting?.id;
+      if (meetId && typeof window !== "undefined" && (window as any).__ongoing_meeting_audio_chunks?.[meetId]) {
+        audioChunksRef.current = [...(window as any).__ongoing_meeting_audio_chunks[meetId]];
+      } else {
+        audioChunksRef.current = [];
+      }
+
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+          
+          // 전역 백업에도 실시간 동시 누적
+          if (meetId && typeof window !== "undefined") {
+            (window as any).__ongoing_meeting_audio_chunks = (window as any).__ongoing_meeting_audio_chunks || {};
+            (window as any).__ongoing_meeting_audio_chunks[meetId] = (window as any).__ongoing_meeting_audio_chunks[meetId] || [];
+            (window as any).__ongoing_meeting_audio_chunks[meetId].push(e.data);
+          }
+        }
+      };
+      mediaRecorder.onstop = () => {
+        console.log("🎙️ MediaRecorder stopped. Chunks length:", audioChunksRef.current.length);
+      };
+      mediaRecorderRef.current = mediaRecorder;
+      mediaRecorder.start(1000); // 1초 단위 데이터 수집
+    } catch (micErr) {
+      console.warn("🎙️ 마이크 음성 녹음 시작 실패 (STT만 가동):", micErr);
     }
 
     const rec = new SpeechRecognition();
@@ -220,22 +419,68 @@ export default function MeetingMinutesPage() {
 
       if (final) {
         const timeStr = new Date().toLocaleTimeString("ko-KR", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        const newId = `stt-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         setTranscript(prev => [...prev, {
-          speaker: speechSpeaker,
+          id: newId,
+          speaker: speechSpeakerRef.current,
           text: final.trim(),
-          time: timeStr
+          time: timeStr,
+          isDiarizing: true
         }]);
         setCurrentSpeech("");
+        
+        // 백그라운드 자동 화자 판별 트리거
+        triggerAutoDiarization(newId, final.trim());
       }
     };
 
     rec.onerror = (e: any) => {
-      console.error("음성인식 에러:", e);
-      setIsRecording(false);
+      // no-speech의 경우 단순 대기 연장이므로 불필요한 console.error 뻘건 로그를 방지하기 위해 console.log로 기록
+      if (e.error === "no-speech") {
+        console.log("🎤 일정 시간 동안 발화가 감지되지 않아 마이크 대기 모드로 전환합니다. (no-speech)");
+        return;
+      }
+
+      console.error("음성인식 에러:", e.error || e);
+      
+      // 사용자 친화적 에러 메시지 알림 및 예외 처리
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        alert("🎤 마이크 사용 권한이 거부되었습니다.\n브라우저 주소창 왼쪽 자물쇠/설정 아이콘을 눌러 마이크 접근을 허용해 주십시오.");
+        shouldSTTActiveRef.current = false;
+        setIsRecording(false);
+      } else if (e.error === "audio-capture") {
+        alert("🎤 기기에 마이크가 연결되어 있지 않거나 감지되지 않습니다.\n마이크 연결 상태를 다시 한 번 확인해 주십시오.");
+        shouldSTTActiveRef.current = false;
+        setIsRecording(false);
+      } else if (e.error === "network") {
+        alert("🌐 구글 음성인식 서버와의 네트워크 연결이 원활하지 않습니다.\n잠시 후 다시 시도해 주십시오.");
+        shouldSTTActiveRef.current = false;
+        setIsRecording(false);
+      }
     };
 
     rec.onend = () => {
-      setIsRecording(false);
+      // 사용자가 명시적으로 끄지 않았는데 끊긴 경우(예: no-speech나 일정 타임아웃), 자동 재연결 시도
+      if (shouldSTTActiveRef.current && recognitionRef.current) {
+        console.log("🎤 음성인식 세션 만료 감지 -> 백그라운드 자동 재연결 개시...");
+        // 이전 세션이 브라우저에서 완전히 정리된 후 신규 세션을 열 수 있게 100ms 지연 기동 적용 (타이밍 교착 예방)
+        setTimeout(() => {
+          if (shouldSTTActiveRef.current && recognitionRef.current) {
+            try {
+              recognitionRef.current.start();
+            } catch (startErr) {
+              console.warn("🎤 음성인식 재가동 시도 실패 (재시도 예정):", startErr);
+              setTimeout(() => {
+                if (shouldSTTActiveRef.current && recognitionRef.current) {
+                  try { recognitionRef.current.start(); } catch (err) {}
+                }
+              }, 1000);
+            }
+          }
+        }, 100);
+      } else {
+        setIsRecording(false);
+      }
     };
 
     recognitionRef.current = rec;
@@ -243,12 +488,75 @@ export default function MeetingMinutesPage() {
   };
 
   const stopSTT = () => {
+    // 사용자가 명시적으로 STT를 비활성화함
+    shouldSTTActiveRef.current = false;
+
     if (recognitionRef.current) {
       recognitionRef.current.stop();
       recognitionRef.current = null;
     }
+
+    // 🎙️ MediaRecorder 및 마이크 스트림 정지
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+    if (audioStream) {
+      audioStream.getTracks().forEach(track => track.stop());
+      setAudioStream(null);
+    }
+
     setIsRecording(false);
     setCurrentSpeech("");
+  };
+
+  // 회의 중 동적으로 임시 화자 추가
+  const handleAddSpeaker = () => {
+    setActiveSpeakers(prev => {
+      const numbers = prev.map(s => parseInt(s.replace("화자 ", "")) || 0);
+      const maxNum = numbers.length > 0 ? Math.max(...numbers) : 0;
+      const nextSpeaker = `화자 ${maxNum + 1}`;
+      setSpeechSpeaker(nextSpeaker);
+      return [...prev, nextSpeaker];
+    });
+  };
+
+  // 3-1. 백그라운드 AI 자동 화자 분리 (Diarization)
+  const triggerAutoDiarization = async (transcriptId: string, text: string) => {
+    // 직전 5개의 대화 문맥 정보 수집
+    const context = transcript.slice(-5).map(t => ({ speaker: t.speaker, text: t.text }));
+
+    try {
+      const res = await fetch("/api/meeting-minutes/diarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text,
+          attendees: activeSpeakers, // 동적 가칭 화자 리스트 전송
+          context
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.speaker) {
+        setTranscript(prev => prev.map(item => 
+          item.id === transcriptId 
+            ? { ...item, speaker: data.speaker, isDiarizing: false }
+            : item
+        ));
+      } else {
+        setTranscript(prev => prev.map(item => 
+          item.id === transcriptId 
+            ? { ...item, isDiarizing: false }
+            : item
+        ));
+      }
+    } catch (err) {
+      console.error("자동 화자 분리 처리 실패:", err);
+      setTranscript(prev => prev.map(item => 
+        item.id === transcriptId 
+          ? { ...item, isDiarizing: false }
+          : item
+      ));
+    }
   };
 
   // 4. 가상 회의 시뮬레이터 구동
@@ -276,6 +584,7 @@ export default function MeetingMinutesPage() {
       const timeStr = new Date().toLocaleTimeString("ko-KR", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
       
       setTranscript(prev => [...prev, {
+        id: `sim-${Date.now()}-${idx}`,
         speaker: script.speaker,
         text: script.text,
         time: timeStr
@@ -348,14 +657,10 @@ export default function MeetingMinutesPage() {
     }
   };
 
-  // 7. 회의 종료 및 AI 종합 분석
+  // 7. 회의 종료 전 매핑 팝업 오픈
   const handleCompleteMeeting = async () => {
     if (transcript.length === 0) {
       alert("대화록이 비어있어 회의를 완료할 수 없습니다.");
-      return;
-    }
-
-    if (!confirm("회의를 종료하고 AI 종합 요약 및 할 일을 추출하시겠습니까?")) {
       return;
     }
 
@@ -363,7 +668,95 @@ export default function MeetingMinutesPage() {
     stopSimulation();
     stopSTT();
 
+    // 실제로 대화록에 사용된 고유 화자들 목록 수집
+    const uniqueSpeakers = Array.from(new Set(transcript.map(item => item.speaker)));
+    
+    // 초기 매핑값 설정 (기본적으로 화자명과 매칭될 실제 이름을 빈 값 또는 유사 인물로 사전 바인딩)
+    let attendeesList: string[] = [];
+    if (selectedMeeting) {
+      try {
+        const parsed = JSON.parse(selectedMeeting.attendees || "[]");
+        attendeesList = parsed.map((a: any) => a.name);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    const initialMapping: Record<string, string> = {};
+    uniqueSpeakers.forEach((sp) => {
+      if (sp.startsWith("화자 ")) {
+        const num = parseInt(sp.replace("화자 ", "")) || 0;
+        if (num > 0 && attendeesList[num - 1]) {
+          initialMapping[sp] = attendeesList[num - 1];
+        } else {
+          initialMapping[sp] = "";
+        }
+      } else {
+        initialMapping[sp] = sp;
+      }
+    });
+
+    setSpeakerMapping(initialMapping);
+    setShowMappingModal(true);
+  };
+
+  // 7-1. 화자 매핑 및 최종 AI 요약 완료 처리
+  const handleSaveWithSpeakerMapping = async () => {
+    const unmapped = Object.entries(speakerMapping).filter(([k, v]) => k.startsWith("화자 ") && !v.trim());
+    if (unmapped.length > 0) {
+      const confirmSave = confirm(`아직 매핑되지 않은 임시 화자가 존재합니다. (${unmapped.map(([k]) => k).join(", ")})\n매핑되지 않은 화자는 원래의 임시 이름 그대로 회의록에 기록됩니다. 그대로 진행하시겠습니까?`);
+      if (!confirmSave) return;
+    }
+
+    setShowMappingModal(false);
     setIsCompleting(true);
+
+    // 🎙️ MediaRecorder 데이터 플러시를 위한 미세 딜레이 보장
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // 🎙️ 녹음 오디오 파일 서버 업로드 처리
+    let audioUrl = "";
+    if (audioChunksRef.current && audioChunksRef.current.length > 0) {
+      try {
+        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        const formData = new FormData();
+        formData.append("file", audioBlob, `meeting-${selectedMeeting.id}.webm`);
+
+        console.log("🎙️ Uploading recorded audio blob to server...");
+        const uploadRes = await fetch("/api/meeting-minutes/upload", {
+          method: "POST",
+          body: formData
+        });
+        const uploadData = await uploadRes.json();
+        if (uploadData.success) {
+          audioUrl = uploadData.audioUrl;
+          console.log("🎙️ Audio upload success:", audioUrl);
+        } else {
+          console.warn("🎙️ Audio upload failed:", uploadData.error);
+        }
+      } catch (uploadErr) {
+        console.error("🎙️ Audio upload exception:", uploadErr);
+      }
+    }
+
+    // 대화록 일괄 치환 처리 (임시 화자명 -> 실제 매핑 이름)
+    const mappedTranscript = transcript.map(item => {
+      const mappedName = speakerMapping[item.speaker] || item.speaker;
+      return {
+        ...item,
+        speaker: mappedName.trim() ? mappedName.trim() : item.speaker
+      };
+    });
+
+    // 매핑된 실제 화자명 명단 추출 (유니크 처리)
+    const uniqueMappedNames = Array.from(new Set(Object.values(speakerMapping)))
+      .map(name => name.trim())
+      .filter(name => name && !name.startsWith("화자 "));
+    
+    const finalAttendees = uniqueMappedNames.map(name => ({
+      name,
+      email: `${name}@company.com`
+    }));
 
     try {
       const res = await fetch("/api/meeting-minutes", {
@@ -372,15 +765,20 @@ export default function MeetingMinutesPage() {
         body: JSON.stringify({
           action: "complete",
           meetingId: selectedMeeting.id,
-          transcript: transcript
+          transcript: mappedTranscript,
+          attendees: finalAttendees.length > 0 ? finalAttendees : undefined, // 참석자 정보 동시 업데이트
+          audioUrl: audioUrl
         })
       });
       const data = await res.json();
       if (data.success) {
         setSelectedMeeting(data.meeting);
         setTasks(data.tasks || []);
+
+        if (selectedMeeting && typeof window !== "undefined" && (window as any).__ongoing_meeting_audio_chunks) {
+          delete (window as any).__ongoing_meeting_audio_chunks[selectedMeeting.id];
+        }
         
-        // 이메일 수신자 초기값: 회의 생성 시 입력했던 참석자 목록 바인딩
         let attendeesArr = [];
         try {
           attendeesArr = JSON.parse(data.meeting.attendees || "[]");
@@ -390,8 +788,9 @@ export default function MeetingMinutesPage() {
         setSendRecipients(attendeesArr);
         setMailResult(null);
 
+        setDetailTab("summary");
         setViewMode("detail");
-        fetchMeetings(); // 목록 갱신
+        fetchMeetings();
       } else {
         alert(data.error || "회의 분석 처리에 실패했습니다.");
       }
@@ -401,6 +800,7 @@ export default function MeetingMinutesPage() {
       setIsCompleting(false);
     }
   };
+
 
   // 8. 할 일 체크 상태 변경
   const handleToggleTask = async (taskId: number, currentStatus: string) => {
@@ -492,7 +892,11 @@ export default function MeetingMinutesPage() {
       setTranscript([]);
     }
 
-    setViewMode("detail");
+    if (meeting.status === "ONGOING") {
+      setViewMode("active");
+    } else {
+      setViewMode("detail");
+    }
   };
 
   return (
@@ -567,10 +971,19 @@ export default function MeetingMinutesPage() {
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${meeting.status === 'ONGOING' ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-green-50 text-green-600 border border-green-200'}`}>
                         {meeting.status === 'ONGOING' ? '🔴 진행 중' : '✅ 완료됨'}
                       </span>
-                      <span className="text-[11px] text-slate-400 flex items-center space-x-1">
-                        <Clock className="w-3.5 h-3.5" />
-                        <span>{meeting.date.slice(0, 10)}</span>
-                      </span>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-[11px] text-slate-400 flex items-center space-x-1">
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>{meeting.date.slice(0, 10)}</span>
+                        </span>
+                        <button
+                          onClick={(e) => handleDeleteMeeting(e, meeting.id)}
+                          className="p-1 text-slate-400 hover:text-red-500 rounded-md hover:bg-slate-100 transition-all duration-200"
+                          title="회의록 삭제"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
 
                     <h3 className="text-base font-bold text-slate-800 group-hover:text-indigo-600 transition mb-2 truncate">
@@ -619,7 +1032,7 @@ export default function MeetingMinutesPage() {
                 <button 
                   onClick={handleCompleteMeeting}
                   disabled={isCompleting}
-                  className="flex items-center space-x-1 px-4 py-2 bg-red-650 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-md shadow-red-950/10 transition disabled:opacity-50 active:scale-95"
+                  className="flex items-center space-x-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-md shadow-red-950/10 transition disabled:opacity-50 active:scale-95"
                 >
                   {isCompleting ? (
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -646,9 +1059,14 @@ export default function MeetingMinutesPage() {
                   >
                     <div className="flex items-center space-x-2 mb-1">
                       <span className="text-[11px] font-bold text-slate-500">{item.speaker}</span>
+                      {item.isDiarizing && (
+                        <span className="inline-flex items-center text-[9px] bg-indigo-50 text-indigo-600 px-1 py-0.5 rounded font-bold animate-pulse">
+                          🤖 AI 화자 판별 중...
+                        </span>
+                      )}
                       <span className="text-[9px] text-slate-400">{item.time}</span>
                     </div>
-                    <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${item.speaker.includes("대표") || item.speaker.includes("나") ? "bg-indigo-600 text-white rounded-tr-none shadow-sm" : "bg-slate-100 text-slate-800 rounded-tl-none border border-slate-200/60"}`}>
+                    <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${item.speaker.includes("대표") || item.speaker.includes("나") ? "bg-indigo-600 text-white rounded-tr-none shadow-sm" : "bg-slate-100 text-slate-800 rounded-tl-none border border-slate-200/60"} ${item.isDiarizing ? "opacity-75" : ""}`}>
                       {item.text}
                     </div>
                   </div>
@@ -674,17 +1092,25 @@ export default function MeetingMinutesPage() {
               <div className="flex flex-col justify-center space-y-2">
                 <div className="flex items-center justify-between text-xs text-slate-500 font-semibold">
                   <span>실시간 마이크 음성 인식 (STT)</span>
-                  <select 
-                    value={speechSpeaker}
-                    onChange={(e) => setSpeechSpeaker(e.target.value)}
-                    disabled={isRecording}
-                    className="bg-white border border-slate-200 text-slate-700 text-[11px] rounded px-1.5 py-0.5 focus:outline-none shadow-sm cursor-pointer"
-                  >
-                    <option value="나 (회의 참여자)">나 (회의 참여자)</option>
-                    <option value="홍길동 대표">홍길동 대표</option>
-                    <option value="김철수 과장">김철수 과장</option>
-                    <option value="이영희 대리">이영희 대리</option>
-                  </select>
+                  <div className="flex items-center space-x-1.5">
+                    <select 
+                      value={speechSpeaker}
+                      onChange={(e) => setSpeechSpeaker(e.target.value)}
+                      className="bg-white border border-slate-200 text-slate-700 text-[11px] rounded px-1.5 py-0.5 focus:outline-none shadow-sm cursor-pointer"
+                    >
+                      {activeSpeakers.map((attendee, idx) => (
+                        <option key={idx} value={attendee}>{attendee}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleAddSpeaker}
+                      className="px-1.5 py-0.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded text-[10px] font-bold border border-slate-300/50 transition active:scale-95 cursor-pointer shadow-3xs flex items-center gap-0.5"
+                      title="가칭 화자 동적 추가"
+                    >
+                      <span>+ 화자 추가</span>
+                    </button>
+                  </div>
                 </div>
                 {isRecording ? (
                   <button 
@@ -798,14 +1224,98 @@ export default function MeetingMinutesPage() {
               </div>
               <h2 className="text-2xl font-bold text-slate-800 mb-4">{selectedMeeting.title}</h2>
               
-              <div className="border-t border-slate-100 pt-4">
-                <h3 className="text-base font-bold text-slate-800 flex items-center space-x-2 mb-3">
-                  <FileText className="w-4.5 h-4.5 text-purple-600" />
-                  <span>AI 자동 기안 회의 요약 리포트</span>
-                </h3>
-                <div className="prose prose-slate max-w-none text-slate-700 text-sm leading-relaxed whitespace-pre-line bg-slate-50 border border-slate-200 p-4 rounded-xl">
-                  {selectedMeeting.summary || '회의록 요약이 작성되지 않았습니다.'}
+              {/* 🎙️ 오디오 원본 파일 듣기 플레이어 위젯 */}
+              {selectedMeeting.audio_url && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4 flex items-center space-x-3 shadow-2xs">
+                  <div className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-600 flex items-center justify-center shrink-0">
+                    <Mic className="w-4.5 h-4.5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">회의 녹음 원본 듣기</p>
+                    <audio 
+                      src={selectedMeeting.audio_url} 
+                      controls 
+                      className="w-full h-8 bg-transparent focus:outline-none"
+                    />
+                  </div>
                 </div>
+              )}
+              
+              <div className="border-t border-slate-150 pt-4">
+                {/* 탭 헤더 */}
+                <div className="flex border-b border-slate-200 mb-4 select-none">
+                  <button
+                    onClick={() => setDetailTab("summary")}
+                    className={`pb-2.5 px-4 font-bold text-xs border-b-2 transition-all duration-200 cursor-pointer ${
+                      detailTab === "summary"
+                        ? "border-indigo-600 text-indigo-600"
+                        : "border-transparent text-slate-400 hover:text-slate-650"
+                    }`}
+                  >
+                    📝 AI 요약 보고서
+                  </button>
+                  <button
+                    onClick={() => setDetailTab("transcript")}
+                    className={`pb-2.5 px-4 font-bold text-xs border-b-2 transition-all duration-200 cursor-pointer ${
+                      detailTab === "transcript"
+                        ? "border-indigo-600 text-indigo-600"
+                        : "border-transparent text-slate-400 hover:text-slate-650"
+                    }`}
+                  >
+                    📋 회의 원문 녹취본
+                  </button>
+                </div>
+
+                {/* 탭 내용 */}
+                {detailTab === "summary" ? (
+                  <div>
+                    <h3 className="text-base font-bold text-slate-800 flex items-center space-x-2 mb-3">
+                      <FileText className="w-4.5 h-4.5 text-purple-600" />
+                      <span>AI 자동 기안 회의 요약 리포트</span>
+                    </h3>
+                    <div className="prose prose-slate max-w-none text-slate-700 text-sm leading-relaxed whitespace-pre-line bg-slate-50 border border-slate-200 p-4 rounded-xl">
+                      {selectedMeeting.summary || '회의록 요약이 작성되지 않았습니다.'}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <h3 className="text-base font-bold text-slate-800 flex items-center space-x-2 mb-3">
+                      <Mic className="w-4.5 h-4.5 text-indigo-600" />
+                      <span>요약 전 전체 대화 기록 (원문 녹취본)</span>
+                    </h3>
+                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-4 max-h-[450px] overflow-y-auto pr-2">
+                      {(() => {
+                        let parsedTranscript: any[] = [];
+                        try {
+                          parsedTranscript = typeof selectedMeeting.transcript === 'string'
+                            ? JSON.parse(selectedMeeting.transcript || "[]")
+                            : selectedMeeting.transcript || [];
+                        } catch (e) {
+                          console.error("대화록 복구 실패:", e);
+                        }
+
+                        if (!Array.isArray(parsedTranscript) || parsedTranscript.length === 0) {
+                          return <p className="text-xs text-slate-400 text-center py-6">기록된 원본 대화 내용이 없습니다.</p>;
+                        }
+
+                        return parsedTranscript.map((item, idx) => (
+                          <div 
+                            key={idx} 
+                            className={`flex flex-col ${item.speaker.includes("대표") || item.speaker.includes("나") ? "items-end" : "items-start"}`}
+                          >
+                            <div className="flex items-center space-x-2 mb-1">
+                              <span className="text-[11px] font-bold text-slate-500">{item.speaker}</span>
+                              <span className="text-[9px] text-slate-400">{item.time}</span>
+                            </div>
+                            <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${item.speaker.includes("대표") || item.speaker.includes("나") ? "bg-indigo-600 text-white rounded-tr-none shadow-sm" : "bg-slate-100 text-slate-800 rounded-tl-none border border-slate-200/60"}`}>
+                              {item.text}
+                            </div>
+                          </div>
+                        ));
+                      })()}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -820,9 +1330,9 @@ export default function MeetingMinutesPage() {
                 <p className="text-xs text-slate-555 text-center py-6">회의 대화록에서 추출된 할 일 항목이 없습니다.</p>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {tasks.map((task) => (
+                  {tasks.map((task, idx) => (
                     <div 
-                      key={task.id}
+                      key={task.id || idx}
                       onClick={() => handleToggleTask(task.id, task.status)}
                       className={`border p-4 rounded-xl cursor-pointer transition-all flex items-start space-x-3 ${task.status === 'COMPLETED' ? 'bg-slate-50 border-slate-200 text-slate-400 opacity-70' : 'bg-slate-50/50 border-slate-200 text-slate-700 hover:border-indigo-200'}`}
                     >
@@ -957,7 +1467,7 @@ export default function MeetingMinutesPage() {
                 <label className="text-xs text-slate-500 font-bold block">회의 제목</label>
                 <input 
                   type="text" 
-                  placeholder="예: 6월 3주차 주간 전사 피드백 회의"
+                  placeholder={`예: ${getAutoMeetingTitle()} (미입력 시 자동 지정)`}
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   className="bg-slate-50 focus:bg-white border border-slate-200 text-slate-800 text-sm rounded-xl px-4 py-3.5 focus:outline-none focus:border-indigo-500 w-full shadow-sm transition-all"
@@ -1091,6 +1601,94 @@ export default function MeetingMinutesPage() {
                   className="px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold shadow-md shadow-purple-950/10 transition active:scale-95"
                 >
                   이해했습니다
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 7. 모달: 실제 화자 매핑 및 저장 설정 모달 */}
+      {showMappingModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-lg shadow-xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500"></div>
+            
+            <div className="p-6 space-y-4">
+              <div className="flex justify-between items-center border-b border-slate-150 pb-3">
+                <h3 className="text-lg font-bold text-slate-800 flex items-center space-x-2">
+                  <Users className="w-5 h-5 text-emerald-600" />
+                  <span>실제 화자 매핑 설정</span>
+                </h3>
+                <button onClick={() => setShowMappingModal(false)} className="text-slate-400 hover:text-slate-600 transition">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-500 leading-relaxed">
+                회의 중 기록된 임시 가칭 화자들을 실제 이름으로 매치해 주세요.<br />
+                최종 저장 시 일괄 매핑된 실제 이름으로 치환되어 보고서가 완성됩니다.
+              </p>
+
+              <div className="space-y-3 max-h-[280px] overflow-y-auto pr-1">
+                {Object.keys(speakerMapping).map((speaker) => {
+                  let attendeesArr: string[] = [];
+                  if (selectedMeeting) {
+                    try {
+                      attendeesArr = JSON.parse(selectedMeeting.attendees || "[]").map((a: any) => a.name);
+                    } catch(e) {}
+                  }
+
+                  return (
+                    <div key={speaker} className="bg-slate-50 border border-slate-150 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center space-x-2 shrink-0">
+                        <span className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></span>
+                        <span className="text-xs font-bold text-slate-700">{speaker}</span>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 flex-1 max-w-xs justify-end">
+                        {attendeesArr.length > 0 && (
+                          <select
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                setSpeakerMapping(prev => ({ ...prev, [speaker]: e.target.value }));
+                              }
+                            }}
+                            value={attendeesArr.includes(speakerMapping[speaker]) ? speakerMapping[speaker] : ""}
+                            className="bg-white border border-slate-200 text-slate-700 text-[11px] rounded-lg px-2 py-1 focus:outline-none shadow-3xs cursor-pointer max-w-[110px]"
+                          >
+                            <option value="">참석자 선택</option>
+                            {attendeesArr.map((name, idx) => (
+                              <option key={idx} value={name}>{name}</option>
+                            ))}
+                          </select>
+                        )}
+                        <input
+                          type="text"
+                          placeholder="실제 이름 직접 입력"
+                          value={speakerMapping[speaker] || ""}
+                          onChange={(e) => setSpeakerMapping(prev => ({ ...prev, [speaker]: e.target.value }))}
+                          className="bg-white border border-slate-200 text-slate-800 text-[11px] rounded-lg px-2.5 py-1 focus:outline-none focus:border-emerald-500 w-[140px] shadow-3xs"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="pt-3 border-t border-slate-150 flex justify-end space-x-2">
+                <button 
+                  onClick={() => setShowMappingModal(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-bold border border-slate-200 transition"
+                >
+                  취소
+                </button>
+                <button 
+                  onClick={handleSaveWithSpeakerMapping}
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-950/10 transition active:scale-95 flex items-center gap-1.5"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>일괄 치환 및 최종 저장</span>
                 </button>
               </div>
             </div>

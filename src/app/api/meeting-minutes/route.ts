@@ -15,12 +15,12 @@ function getKSTDateString() {
 export async function GET() {
   try {
     const result = await queryTable('crm_meetings', {
-      filters: { deleted_at: null },
       orderBy: 'date',
       orderDirection: 'DESC'
     });
+    const meetings = (result.rows || []).filter((m: any) => !m.deleted_at);
     
-    return NextResponse.json({ success: true, meetings: result.rows || [] });
+    return NextResponse.json({ success: true, meetings });
   } catch (error: any) {
     console.error('회의록 조회 오류:', error);
     return NextResponse.json({ success: false, error: '회의록을 조회하는 도중 오류가 발생했습니다.' }, { status: 500 });
@@ -33,7 +33,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { action, title, attendees, meetingId, transcript } = body;
+    const { action, title, attendees, meetingId, transcript, audioUrl } = body;
 
     const nowStr = getKSTDateString();
 
@@ -65,6 +65,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, meeting: newMeeting });
     }
 
+    // 3. 회의 진행 대화록 중간 동기화 (sync)
+    if (action === 'sync') {
+      if (!meetingId || !transcript) {
+        return NextResponse.json({ success: false, error: '회의 식별 번호와 대화 기록은 필수 항목입니다.' }, { status: 400 });
+      }
+
+      await updateRows('crm_meetings', {
+        transcript: typeof transcript === 'string' ? transcript : JSON.stringify(transcript),
+        updated_at: nowStr,
+        updated_by: 'SYSTEM'
+      }, { filters: { id: String(meetingId) } });
+
+      return NextResponse.json({ success: true });
+    }
+
     // 2. 회의 종료 (요약 및 할 일 추출)
     if (action === 'complete') {
       if (!meetingId || !transcript) {
@@ -72,8 +87,8 @@ export async function POST(req: Request) {
       }
 
       // 기존 회의 확인
-      const checkMeeting = await queryTable('crm_meetings', { filters: { id: meetingId, deleted_at: null } });
-      if (!checkMeeting.rows || checkMeeting.rows.length === 0) {
+      const checkMeeting = await queryTable('crm_meetings', { filters: { id: String(meetingId) } });
+      if (!checkMeeting.rows || checkMeeting.rows.length === 0 || checkMeeting.rows[0].deleted_at) {
         return NextResponse.json({ success: false, error: '존재하지 않거나 삭제된 회의입니다.' }, { status: 404 });
       }
 
@@ -100,14 +115,15 @@ export async function POST(req: Request) {
 
       let summaryMarkdown = '';
       let tasks = [];
+      let taskInsertData = [];
 
       if (apiKey) {
         try {
           // (A) 회의록 마크다운 요약 생성
           const summarySystemPrompt = `당신은 전문 비서이자 회의 기록 관리자입니다.
-제시된 한국어 회의 대화록을 분석하여 정교하고 직관적인 마크다운 형식의 회의록을 작성해 주세요.
+제시된 한국어 회의 대화록과 '회의 일시' 정보를 바탕으로 정교하고 직관적인 마크다운 형식의 회의록을 작성해 주세요.
 반드시 다음 구조로 한글 회의록을 작성해 주십시오:
-1. **회의 개요**: 일시 및 참석자 정보 요약
+1. **회의 개요**: 일시(제공된 실제 회의 일시를 정확하게 표기) 및 참석자 정보 요약
 2. **주요 의제 및 결정 사항**: 회의에서 내린 결론 및 합의된 결과들
 3. **주요 논의 내용**: 의제별 주요 발언 내용 및 쟁점 요약
 마크다운 코드 블록(\`\`\`)으로 감싸지 말고 순수 마크다운 텍스트로만 반환하십시오.`;
@@ -117,7 +133,7 @@ export async function POST(req: Request) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               systemInstruction: { parts: [{ text: summarySystemPrompt }] },
-              contents: [{ parts: [{ text: `회의 대화록:\n${dialogText}` }] }],
+              contents: [{ parts: [{ text: `회의 일시: ${meeting.date || nowStr} (KST)\n\n회의 대화록:\n${dialogText}` }] }],
               generationConfig: { temperature: 0.2 }
             })
           });
@@ -125,6 +141,27 @@ export async function POST(req: Request) {
           if (summaryRes.ok) {
             const summaryData = await summaryRes.json();
             summaryMarkdown = summaryData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            
+            // 토큰 사용 로그 기록
+            if (summaryData.usageMetadata) {
+              try {
+                const u = summaryData.usageMetadata;
+                const tokenId = `TKC-MEET-SUM-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                await insertRows('ai_token_usage_logs', [{
+                  id: tokenId,
+                  model: 'gemini-3.5-flash',
+                  purpose: 'meeting-summary',
+                  prompt_tokens: u.promptTokenCount || 0,
+                  completion_tokens: u.candidatesTokenCount || 0,
+                  total_tokens: u.totalTokenCount || 0,
+                  created_at: nowStr,
+                  uuid: crypto.randomUUID(),
+                  updated_at: nowStr
+                }]);
+              } catch (tokenErr) {
+                console.error('AI 토큰 로그 기록 실패(회의 요약):', tokenErr);
+              }
+            }
           }
 
           // (B) 할 일 및 일정 추출 (JSON 포맷 강제)
@@ -159,6 +196,28 @@ export async function POST(req: Request) {
 
           if (taskRes.ok) {
             const taskData = await taskRes.json();
+            
+            // 토큰 사용 로그 기록
+            if (taskData.usageMetadata) {
+              try {
+                const u = taskData.usageMetadata;
+                const tokenId = `TKC-MEET-TSK-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+                await insertRows('ai_token_usage_logs', [{
+                  id: tokenId,
+                  model: 'gemini-3.5-flash',
+                  purpose: 'meeting-tasks',
+                  prompt_tokens: u.promptTokenCount || 0,
+                  completion_tokens: u.candidatesTokenCount || 0,
+                  total_tokens: u.totalTokenCount || 0,
+                  created_at: nowStr,
+                  uuid: crypto.randomUUID(),
+                  updated_at: nowStr
+                }]);
+              } catch (tokenErr) {
+                console.error('AI 토큰 로그 기록 실패(회의 할일):', tokenErr);
+              }
+            }
+
             const taskText = taskData.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
             const parsedTasks = JSON.parse(taskText);
             if (Array.isArray(parsedTasks.tasks)) {
@@ -198,14 +257,15 @@ export async function POST(req: Request) {
         ];
       }
 
-      // 회의 대장 업데이트
       await updateRows('crm_meetings', {
         summary: summaryMarkdown,
         transcript: typeof transcript === 'string' ? transcript : JSON.stringify(transcript),
+        attendees: Array.isArray(attendees) ? JSON.stringify(attendees) : meeting.attendees,
         status: 'COMPLETED',
+        audio_url: audioUrl || '',
         updated_at: nowStr,
         updated_by: 'SYSTEM'
-      }, { filters: { id: meetingId } });
+      }, { filters: { id: String(meetingId) } });
 
       // 할 일 벌크 적재
       if (tasks.length > 0) {
@@ -213,7 +273,7 @@ export async function POST(req: Request) {
         const maxTaskIdRes = await executeSQL('SELECT MAX(id) as maxId FROM crm_meeting_tasks');
         let nextTaskId = (maxTaskIdRes?.rows?.[0]?.maxId || 0) + 1;
 
-        const taskInsertData = tasks.map((task: any) => ({
+        taskInsertData = tasks.map((task: any) => ({
           id: nextTaskId++,
           meeting_id: meetingId,
           assignee_name: task.assignee_name || '미지정',
@@ -234,9 +294,12 @@ export async function POST(req: Request) {
         meeting: {
           ...meeting,
           summary: summaryMarkdown,
-          status: 'COMPLETED'
+          transcript: typeof transcript === 'string' ? transcript : JSON.stringify(transcript),
+          attendees: Array.isArray(attendees) ? JSON.stringify(attendees) : meeting.attendees,
+          status: 'COMPLETED',
+          audio_url: audioUrl || ''
         },
-        tasks
+        tasks: taskInsertData
       });
     }
 
@@ -246,3 +309,58 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: '회의 처리에 실패했습니다.' }, { status: 500 });
   }
 }
+
+/**
+ * DELETE: 회의록 소프트 삭제
+ */
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const meetingId = searchParams.get('meetingId');
+
+    if (!meetingId) {
+      return NextResponse.json({ success: false, error: '회의 식별 번호가 필요합니다.' }, { status: 400 });
+    }
+
+    const nowStr = getKSTDateString();
+
+    // 기존 회의 존재 확인 (이미 삭제되었는지 체크)
+    const checkMeeting = await queryTable('crm_meetings', { filters: { id: String(meetingId) } });
+    if (!checkMeeting.rows || checkMeeting.rows.length === 0 || checkMeeting.rows[0].deleted_at) {
+      return NextResponse.json({ success: false, error: '존재하지 않거나 이미 삭제된 회의입니다.' }, { status: 404 });
+    }
+
+    // 소프트 삭제 처리
+    await updateRows('crm_meetings', {
+      deleted_at: nowStr,
+      deleted_by: 'USER',
+      updated_at: nowStr,
+      updated_by: 'USER'
+    }, { filters: { id: String(meetingId) } });
+
+    // 연관된 할 일(tasks)들도 함께 소프트 삭제 처리 (참조 무결성 유지)
+    try {
+      const checkTasks = await queryTable('crm_meeting_tasks', { filters: { meeting_id: String(meetingId) } });
+      if (checkTasks.rows && checkTasks.rows.length > 0) {
+        for (const task of checkTasks.rows) {
+          if (!task.deleted_at) {
+            await updateRows('crm_meeting_tasks', {
+              deleted_at: nowStr,
+              deleted_by: 'USER',
+              updated_at: nowStr,
+              updated_by: 'USER'
+            }, { filters: { id: String(task.id) } });
+          }
+        }
+      }
+    } catch (taskErr) {
+      console.error('회의 할 일 소프트 삭제 중 오류 발생 (무시하고 계속):', taskErr);
+    }
+
+    return NextResponse.json({ success: true, message: '회의록이 성공적으로 삭제되었습니다.' });
+  } catch (error: any) {
+    console.error('회의록 삭제 오류:', error);
+    return NextResponse.json({ success: false, error: '회의록을 삭제하는 중 오류가 발생했습니다.' }, { status: 500 });
+  }
+}
+

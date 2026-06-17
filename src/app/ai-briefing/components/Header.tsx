@@ -8,7 +8,7 @@ interface HeaderProps {
 
 export function Header({ isLoading, onRefresh }: HeaderProps) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2 px-4 sm:px-6 select-none">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2 select-none">
       <div className="space-y-1">
         <h1 className="text-3xl font-bold text-slate-800 flex items-center tracking-tight">
           <Sparkles className="w-8 h-8 mr-3 text-indigo-650 animate-pulse shrink-0" />

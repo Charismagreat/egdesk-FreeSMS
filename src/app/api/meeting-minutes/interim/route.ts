@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { queryTable } from '@/../egdesk-helpers';
+import { queryTable, insertRows, executeSQL } from '@/../egdesk-helpers';
+import crypto from 'crypto';
 
 /**
  * POST: 회의 도중 실시간 AI 중간 요약 및 제언 어시스트 API
@@ -60,6 +61,29 @@ export async function POST(req: Request) {
 
         if (response.ok) {
           const data = await response.json();
+          
+          // 토큰 사용 로그 기록
+          if (data.usageMetadata) {
+            try {
+              const u = data.usageMetadata;
+              const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+              const tokenId = `TKC-MEET-INT-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+              await insertRows('ai_token_usage_logs', [{
+                id: tokenId,
+                model: 'gemini-3.5-flash',
+                purpose: 'meeting-interim',
+                prompt_tokens: u.promptTokenCount || 0,
+                completion_tokens: u.candidatesTokenCount || 0,
+                total_tokens: u.totalTokenCount || 0,
+                created_at: nowStr,
+                uuid: crypto.randomUUID(),
+                updated_at: nowStr
+              }]);
+            } catch (tokenErr) {
+              console.error('AI 토큰 로그 기록 실패(회의 중간요약):', tokenErr);
+            }
+          }
+
           analysisResult = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
         }
       } catch (geminiErr) {

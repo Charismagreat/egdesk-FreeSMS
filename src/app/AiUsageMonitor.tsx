@@ -105,6 +105,10 @@ export default function AiUsageMonitor() {
       case 'easybot-response': return '이지봇 지능형 응답 답변';
       case 'marketing-content-pack': return '옴니채널 광고 원고 패키지 생성';
       case 'EASYBOT_OCR_SCAN': return '이지봇 B2B 사업자등록증 스캔';
+      case 'meeting-summary': return '회의록 AI 요약 생성';
+      case 'meeting-tasks': return '회의록 AI 할 일/일정 추출';
+      case 'meeting-recommend': return '회의록 AI 과거 관련 회의 추천';
+      case 'meeting-interim': return '회의록 AI 실시간 중간 요약/제언';
       default: return p;
     }
   };

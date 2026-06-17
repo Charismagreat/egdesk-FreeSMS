@@ -15,6 +15,7 @@ export async function GET() {
     let username = '';
     let name = '';
     let role = 'SUB_OPERATOR';
+    let operatorId: number | null = null;
 
     if (token) {
       try {
@@ -24,6 +25,7 @@ export async function GET() {
         const opRes = await queryTable('crm_operators', { filters: { username } });
         if (opRes.rows && opRes.rows.length > 0) {
           name = opRes.rows[0].name;
+          operatorId = opRes.rows[0].id;
           if (opRes.rows[0].role) {
             role = opRes.rows[0].role.toUpperCase();
           }
@@ -39,97 +41,136 @@ export async function GET() {
       if (allOps.rows && allOps.rows.length > 0) {
         username = allOps.rows[0].username;
         name = allOps.rows[0].name;
+        operatorId = allOps.rows[0].id;
         role = (allOps.rows[0].role || 'SUPER_ADMIN').toUpperCase();
       } else {
         username = 'admin@egdesk.com';
         name = '최고관리자';
         role = 'SUPER_ADMIN';
+        operatorId = 1;
       }
     }
 
-    // 금일 날짜 구하기 (YYYY-MM-DD)
-    const today = new Date().toISOString().slice(0, 10);
+    // 한국 시간대 기준 날짜 구하기 (YYYY-MM-DD)
+    const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const thisMonth = today.slice(0, 7); // YYYY-MM
 
-    // 1. 미완료 스냅태스크 건수 (status = 'ACTIVE', deleted_at IS NULL)
-    let pendingTasksCount = 0;
+    // 1. 오늘 출근 시각 및 이달 근무일수 / 누적 근무시간 집계
+    let todayClockIn: string | null = null;
+    let todayClockOut: string | null = null;
+    let monthlyDays = 0;
+    let monthlyHours = 0;
     try {
-      const taskRes = await queryTable('crm_snaptasks', {
-        filters: { status: 'ACTIVE' }
+      const todayAttRes = await queryTable('crm_attendance', {
+        filters: { operator_id: String(operatorId), work_date: today }
       });
-      const tasks = (taskRes.rows || []).filter((t: any) => !t.deleted_at);
-      pendingTasksCount = tasks.length;
+      if (todayAttRes.rows && todayAttRes.rows.length > 0) {
+        todayClockIn = todayAttRes.rows[0].clock_in || null;
+        todayClockOut = todayAttRes.rows[0].clock_out || null;
+      }
+
+      const allAttRes = await queryTable('crm_attendance', {
+        filters: { operator_id: String(operatorId) }
+      });
+      const monthlyRows = (allAttRes.rows || []).filter((r: any) => 
+        r.work_date && r.work_date.startsWith(thisMonth)
+      );
+      monthlyDays = monthlyRows.filter((r: any) => r.clock_in).length;
+      monthlyHours = monthlyRows.reduce((sum: number, r: any) => sum + (Number(r.working_hours) || 0), 0);
     } catch (e) {
-      console.warn('Failed to query crm_snaptasks:', e);
+      console.warn('Failed to query attendance for mobile dashboard:', e);
     }
 
-    // 2. 결재 대기 중인 지출 품의 건수 (최고관리자는 전체 지출 건수, 일반 직원은 본인 작성 건수만 노출)
-    let pendingExpensesCount = 0;
+    // 2. 내 잔여 연차 조회
+    let remainingLeaves = 15.0;
     try {
-      const expenseRes = await queryTable('crm_expenses', {
-        filters: { approval_status: 'PENDING' }
+      const balRes = await queryTable('crm_operator_leave_balances', {
+        filters: { operator_id: String(operatorId) }
       });
-      const expenses = (expenseRes.rows || []).filter((exp: any) => {
-        if (exp.deleted_at) return false;
-        // 최고관리자(SUPER_ADMIN)면 전체 조회 가능, 일반 직원은 본인 것만 노출
+      if (balRes.rows && balRes.rows.length > 0) {
+        remainingLeaves = Number(balRes.rows[0].remaining) ?? 15.0;
+      }
+    } catch (e) {
+      console.warn('Failed to query leave balance for mobile dashboard:', e);
+    }
+
+    // 3. 할 일 목록 조회 (해야할 일 / 한 일) 및 권한 격리 적용
+    let todoTasks: any[] = [];
+    let doneTasks: any[] = [];
+    try {
+      const taskRes = await queryTable('crm_snaptasks', {});
+      const allTasks = (taskRes.rows || []).filter((t: any) => !t.deleted_at);
+
+      // 보안 격리 필터
+      const myTasks = allTasks.filter((t: any) => {
         if (role === 'SUPER_ADMIN') return true;
-        return exp.updated_by === username;
+        return t.created_by === username || t.updated_by === username;
       });
-      pendingExpensesCount = expenses.length;
+
+      // ACTIVE -> 해야할 일
+      todoTasks = myTasks.filter((t: any) => t.status === 'ACTIVE');
+      // COMPLETED -> 한 일
+      doneTasks = myTasks.filter((t: any) => t.status === 'COMPLETED');
     } catch (e) {
-      console.warn('Failed to query crm_expenses:', e);
+      console.warn('Failed to query snaptasks for mobile dashboard:', e);
     }
 
-    // 3. 금일 수립된 안전 TBM 건수 (deleted_at IS NULL 및 금일 날짜)
-    let todaySafetyTbmCount = 0;
+    // 4. 오늘 결재 승인 / 반려 건수 집계
+    let todayApprovedCount = 0;
+    let todayRejectedCount = 0;
     try {
-      const tbmRes = await queryTable('safety_tbm_logs', {});
-      const tbmLogs = (tbmRes.rows || []).filter((log: any) => 
-        !log.deleted_at && log.created_at && log.created_at.startsWith(today)
-      );
-      todaySafetyTbmCount = tbmLogs.length;
-    } catch (e) {
-      console.warn('Failed to query safety_tbm_logs:', e);
-    }
+      // 지출 승인/반려 내역
+      const expenseRes = await queryTable('crm_expenses', {});
+      const todayExpenses = (expenseRes.rows || []).filter((exp: any) => {
+        if (exp.deleted_at) return false;
+        const isToday = exp.updated_at && exp.updated_at.startsWith(today);
+        if (!isToday) return false;
+        if (role !== 'SUPER_ADMIN' && exp.updated_by !== username) return false;
+        return exp.approval_status === 'APPROVED' || exp.approval_status === 'REJECTED';
+      });
 
-    // 4. 금일 발생한 품질 문제 NCR 건수 (deleted_at IS NULL 및 금일 날짜)
-    let todayQualityNcrCount = 0;
-    try {
-      const ncrRes = await queryTable('crm_quality_ncr_similar_cases', {});
-      const ncrLogs = (ncrRes.rows || []).filter((log: any) => 
-        !log.deleted_at && log.created_at && log.created_at.startsWith(today)
-      );
-      todayQualityNcrCount = ncrLogs.length;
-    } catch (e) {
-      console.warn('Failed to query crm_quality_ncr_similar_cases:', e);
-    }
+      // 휴가 승인/반려 내역
+      const leaveRes = await queryTable('crm_annual_leaves', {});
+      const todayLeaves = (leaveRes.rows || []).filter((lv: any) => {
+        if (lv.deleted_at) return false;
+        const isToday = lv.updated_at && lv.updated_at.startsWith(today);
+        if (!isToday) return false;
+        if (role !== 'SUPER_ADMIN' && String(lv.operator_id) !== String(operatorId)) return false;
+        return lv.status === 'APPROVED' || lv.status === 'REJECTED';
+      });
 
-    // 5. 최근 이지봇 파일 처리 감사 건수 (최고관리자는 전체 감사 로그, 일반 직원은 본인 감사 로그만)
-    let myEasybotActionCount = 0;
-    try {
-      let queryOptions: any = {};
-      if (role !== 'SUPER_ADMIN') {
-        queryOptions.filters = { operator_username: username };
-      }
-      const auditRes = await queryTable('easybot_action_audit_logs', queryOptions);
-      const audits = (auditRes.rows || []).filter((a: any) => !a.deleted_at);
-      myEasybotActionCount = audits.length;
+      todayApprovedCount = todayExpenses.filter((e: any) => e.approval_status === 'APPROVED').length + 
+                           todayLeaves.filter((l: any) => l.status === 'APPROVED').length;
+      todayRejectedCount = todayExpenses.filter((e: any) => e.approval_status === 'REJECTED').length + 
+                           todayLeaves.filter((l: any) => l.status === 'REJECTED').length;
     } catch (e) {
-      console.warn('Failed to query easybot_action_audit_logs:', e);
+      console.warn('Failed to query approvals for mobile dashboard:', e);
     }
 
     return NextResponse.json({
       success: true,
       currentUser: {
+        id: operatorId,
         username,
         name,
         role
       },
-      stats: {
-        pendingTasksCount,
-        pendingExpensesCount,
-        todaySafetyTbmCount,
-        todayQualityNcrCount,
-        myEasybotActionCount
+      dashboard: {
+        attendance: {
+          clockIn: todayClockIn,
+          clockOut: todayClockOut,
+          monthlyDays,
+          monthlyHours
+        },
+        leave: {
+          remainingDays: remainingLeaves
+        },
+        todo: todoTasks,
+        done: doneTasks,
+        approval: {
+          approvedCount: todayApprovedCount,
+          rejectedCount: todayRejectedCount
+        }
       }
     });
 

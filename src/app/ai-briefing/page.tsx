@@ -53,7 +53,7 @@ export default function AIBriefingDashboardPage() {
   }
 
   return (
-    <div className="space-y-6 pb-20 bg-slate-50/30 p-2 rounded-3xl min-w-0">
+    <div className="space-y-6 pb-20 w-full min-w-0">
       
       {/* 🛎️ 알림 토스트 컴포넌트 */}
       {toast && (
@@ -100,7 +100,7 @@ export default function AIBriefingDashboardPage() {
         </div>
       ) : (
         // 웅장한 종합 BI 보고서 목록 렌더링
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full px-4 sm:px-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
           {reports.map((board, index) => (
             <ReportCard
               key={board.share_id}

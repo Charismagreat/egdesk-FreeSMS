@@ -1,35 +1,30 @@
-const Database = require('better-sqlite3');
-const os = require('os');
-const path = require('path');
 const fs = require('fs');
+const path = require('path');
+const dotenv = require('dotenv');
 
-const homeDir = os.homedir();
-const appData = process.env.APPDATA || path.join(homeDir, 'AppData/Roaming');
-const paths = [
-  path.join(appData, 'EGDesk/database/user_data.db'),
-  path.join(appData, 'egdesk/database/user_data.db')
-];
-
-let targetPath = '';
-for (const p of paths) {
-  if (fs.existsSync(p)) {
-    targetPath = p;
-    break;
+// Load environment variables from .env.local
+const envPath = path.join(__dirname, '../.env.local');
+if (fs.existsSync(envPath)) {
+  const envConfig = dotenv.parse(fs.readFileSync(envPath));
+  for (const k in envConfig) {
+    process.env[k] = envConfig[k];
   }
 }
 
-if (!targetPath) {
-  console.log("❌ DB 파일을 찾을 수 없습니다.");
-  process.exit(1);
+const helpers = require('../egdesk-helpers.js');
+
+async function main() {
+  try {
+    console.log("Querying system_settings...");
+    const settings = await helpers.queryTable('system_settings');
+    console.log("Settings rows:", JSON.stringify(settings, null, 2));
+
+    console.log("Querying crm_web_published_sites...");
+    const sites = await helpers.queryTable('crm_web_published_sites');
+    console.log("Published sites:", JSON.stringify(sites, null, 2));
+  } catch (err) {
+    console.error("Error querying tables:", err);
+  }
 }
 
-const db = new Database(targetPath);
-const tables = db.prepare(`
-  SELECT name FROM sqlite_master 
-  WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'import_%' AND name NOT LIKE 'sync_%' AND name NOT LIKE 'user_data_%' AND name NOT LIKE 'user_tables'
-  ORDER BY name ASC;
-`).all();
-
-console.log("📋 DB 테이블 목록:");
-tables.forEach(t => console.log(`- ${t.name}`));
-db.close();
+main();
