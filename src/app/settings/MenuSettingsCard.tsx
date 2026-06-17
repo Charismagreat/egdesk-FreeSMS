@@ -6,7 +6,7 @@ import {
   ClipboardList, CreditCard, CalendarDays, Truck, Send, 
   PackageSearch, Package, UserCog, Zap, Ticket, Landmark, Globe, Briefcase, HelpCircle,
   ArrowRightLeft, Handshake, Sparkles, Coins, Database, Compass,
-  ChevronUp, ChevronDown, Check, Save, ShieldAlert, GripVertical, Shield, CheckSquare, Wrench, Award, Scale, Key
+  ChevronUp, ChevronDown, Check, Save, ShieldAlert, GripVertical, Shield, CheckSquare, Wrench, Award, Scale, Key, Mic
 } from "lucide-react";
 
 // 커스텀 인스타그램 아이콘 SVG
@@ -102,7 +102,8 @@ const MENU_METADATA_MAP: Record<string, { label: string; icon: any; color: strin
   "/password-ai": { label: "비밀번호관리 AI", icon: Key, color: "text-purple-555" },
   "/lawyer-ai": { label: "법률 상담 AI", icon: Scale, color: "text-indigo-650" },
   "/rnd-management": { label: "연구소 관리 AI", icon: Award, color: "text-amber-550" },
-  "/form-management-new": { label: "뉴 양식관리 AI", icon: ClipboardList, color: "text-emerald-500" }
+  "/form-management-new": { label: "뉴 양식관리 AI", icon: ClipboardList, color: "text-emerald-500" },
+  "/meeting-minutes": { label: "회의 기록 AI", icon: Mic, color: "text-purple-550" }
 };
 
 interface MenuSettingItem {

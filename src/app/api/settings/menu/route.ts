@@ -50,6 +50,7 @@ const DEFAULT_MENU_ITEMS = [
   { href: "/ecount-erp-ai", label: "이카운트 ERP AI" },
   { href: "/rnd-management", label: "연구소 관리 AI" },
   { href: "/form-management-new", label: "뉴 양식관리 AI" },
+  { href: "/meeting-minutes", label: "회의 기록 AI" },
   { href: "/ai-briefing", label: "AI 브리핑" }
 ];
 

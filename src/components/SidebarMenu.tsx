@@ -8,7 +8,7 @@ import {
   ClipboardList, CreditCard, CalendarDays, Truck, Send, 
   PackageSearch, Package, UserCog, Zap, Ticket, Landmark, Globe, Briefcase, HelpCircle,
   ArrowRightLeft, Handshake, Sparkles, Coins, Database, Compass, Shield, CheckSquare, Wrench, ShieldAlert, Award, Scale, Key, Mail, Eye, EyeOff,
-  GripVertical, Activity, Smartphone
+  GripVertical, Activity, Smartphone, Mic
 } from "lucide-react";
 
 // 커스텀 인스타그램 아이콘 SVG
@@ -104,8 +104,10 @@ const MENU_STATIC_MAP: Record<string, { label: string; icon: any; color: string 
   "/credit-risk": { label: "채권 관리 AI", icon: CreditCard, color: "text-rose-400" },
   "/password-ai": { label: "비밀번호관리 AI", icon: Key, color: "text-purple-400" },
   "/rnd-management": { label: "연구소 관리 AI", icon: Award, color: "text-amber-400" },
+  "/rnd-manage": { label: "연구소 관리 AI", icon: Award, color: "text-amber-400" },
   "/mail-management-ai": { label: "메일 관리 AI", icon: Mail, color: "text-cyan-400" },
   "/form-management-new": { label: "뉴 양식관리 AI", icon: ClipboardList, color: "text-emerald-500" },
+  "/meeting-minutes": { label: "회의 기록 AI 🎤", icon: Mic, color: "text-purple-400" },
   "/m": { label: "임직원 모바일 포털", icon: Smartphone, color: "text-cyan-400" }
 };
 
@@ -172,15 +174,17 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
             // (1) 비활성화된 메뉴 숨김
             if (setting.is_enabled !== 1) return false;
             // (2) AI 브리핑은 데이터베이스에 켜져 있더라도 최고관리자만 노출
-            if (setting.menu_href === "/ai-briefing") {
+            const cleanHref = (setting.menu_href || "").trim();
+            if (cleanHref === "/ai-briefing") {
               return userRole === "SUPER_ADMIN";
             }
             return true;
           })
           .map(setting => {
-            const meta = MENU_STATIC_MAP[setting.menu_href] || { label: setting.menu_href, icon: HelpCircle, color: "text-slate-400" };
+            const cleanHref = (setting.menu_href || "").trim();
+            const meta = MENU_STATIC_MAP[cleanHref] || { label: cleanHref, icon: HelpCircle, color: "text-slate-400" };
             return {
-              href: setting.menu_href,
+              href: cleanHref,
               label: meta.label,
               icon: meta.icon,
               color: meta.color,

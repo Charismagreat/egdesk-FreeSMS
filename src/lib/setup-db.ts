@@ -1182,6 +1182,42 @@ export async function setupDatabase() {
     { name: 'restored_by', type: 'TEXT' }
   ], { tableName: 'crm_deadstock_proposals', uniqueKeyColumns: ['id'] });
 
+  // 41-2c. Meetings Table (회의 대장)
+  await safeCreateTable('회의 대장', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'title', type: 'TEXT', notNull: true },
+    { name: 'date', type: 'TEXT', notNull: true },
+    { name: 'attendees', type: 'TEXT' },
+    { name: 'transcript', type: 'TEXT' },
+    { name: 'summary', type: 'TEXT' },
+    { name: 'status', type: 'TEXT', notNull: true }, // 'ONGOING', 'COMPLETED'
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
+  ], { tableName: 'crm_meetings', uniqueKeyColumns: ['id'] });
+
+  // 41-2d. Meeting Tasks Table (회의 할 일 및 일정)
+  await safeCreateTable('회의 할 일 및 일정', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'meeting_id', type: 'INTEGER', notNull: true },
+    { name: 'assignee_name', type: 'TEXT', notNull: true },
+    { name: 'assignee_email', type: 'TEXT' },
+    { name: 'task_desc', type: 'TEXT', notNull: true },
+    { name: 'due_date', type: 'TEXT' },
+    { name: 'status', type: 'TEXT', notNull: true }, // 'PENDING', 'COMPLETED'
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
+  ], { tableName: 'crm_meeting_tasks', uniqueKeyColumns: ['id'] });
+
   // 41-3. AI Contextual Help Table (도움말 캐싱용 컨텍스트)
   await safeCreateTable('AI 도움말 캐시', [
     { name: 'hint_key', type: 'TEXT', notNull: true },
