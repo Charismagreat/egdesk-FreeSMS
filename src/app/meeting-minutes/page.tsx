@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { 
   Mic, MicOff, StopCircle, Mail, Play, CheckCircle2, Clock, 
   ArrowLeft, Calendar, Users, Lightbulb, Sparkles, Plus, X, 
-  ChevronRight, RefreshCw, FileText, CheckSquare, Square, Trash2, ArrowUpRight, Upload
+  ChevronRight, RefreshCw, FileText, CheckSquare, Square, Trash2, ArrowUpRight, Upload, Pencil
 } from "lucide-react";
 
 
@@ -15,6 +15,78 @@ export default function MeetingMinutesPage() {
   const [selectedMeeting, setSelectedMeeting] = useState<any | null>(null);
   const [tasks, setTasks] = useState<any[]>([]);
   const [viewMode, setViewMode] = useState<"list" | "active" | "detail">("list");
+
+  // 회의명 직접 수정 관련 상태
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editingTitleVal, setEditingTitleVal] = useState("");
+
+  // 회의명 수정 저장 핸들러
+  const handleSaveTitle = async (meetingId: number, newTitleVal: string) => {
+    const trimmed = newTitleVal.trim();
+    if (!trimmed) {
+      alert("회의명을 입력해주세요.");
+      return;
+    }
+    try {
+      const res = await fetch("/api/meeting-minutes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "sync",
+          meetingId,
+          title: trimmed
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (selectedMeeting && selectedMeeting.id === meetingId) {
+          setSelectedMeeting((prev: any) => ({ ...prev, title: trimmed }));
+        }
+        setIsEditingTitle(false);
+        fetchMeetings(); // 목록 갱신
+      } else {
+        alert(data.error || "회의명 변경에 실패했습니다.");
+      }
+    } catch (err) {
+      console.error("회의명 변경 에러:", err);
+      alert("회의명 변경 중 오류가 발생했습니다.");
+    }
+  };
+
+  // 마크다운 요약에서 1줄 요약 추출하는 헬퍼 함수
+  const getOneLineSummary = (summaryText: string) => {
+    if (!summaryText) return "요약 정보가 아직 작성되지 않았습니다.";
+    
+    // 마크다운 문법 제거 (#, *, ` 등)
+    const cleanText = summaryText
+      .replace(/[#*`_\-]/g, "") // 마크다운 기호 제거
+      .replace(/\[.*?\]/g, "")  // 대괄호와 링크 제거
+      .replace(/\s+/g, " ")     // 다중 공백 단일 공백으로 치환
+      .trim();
+
+    // 0. 한줄 요약 부분을 명시적으로 찾기
+    const oneLineMatch = cleanText.match(/한줄\s*요약\s*:\s*(.*?)(?=\s*[0-9]\.|\s*회의\s*개요|$)/i);
+    if (oneLineMatch && oneLineMatch[1]) {
+      const matchedText = oneLineMatch[1].trim();
+      return matchedText.length > 70 ? matchedText.slice(0, 70) + "..." : matchedText;
+    }
+
+    // [한줄 요약] 패턴 매칭
+    const bracketMatch = cleanText.match(/\[한줄\s*요약\]\s*(.*?)(?=\s*[0-9]\.|\s*회의\s*개요|$)/i);
+    if (bracketMatch && bracketMatch[1]) {
+      const matchedText = bracketMatch[1].trim();
+      return matchedText.length > 70 ? matchedText.slice(0, 70) + "..." : matchedText;
+    }
+
+    // 폴백: 첫 번째 마침표가 오기 전까지의 문장 또는 70자 제한으로 잘라내기
+    const sentences = cleanText.split(/[.?!]/);
+    const firstSentence = sentences[0]?.trim();
+    if (firstSentence && firstSentence.length > 5) {
+      return firstSentence.length > 70 ? firstSentence.slice(0, 70) + "..." : firstSentence + ".";
+    }
+    
+    return cleanText.length > 70 ? cleanText.slice(0, 70) + "..." : cleanText;
+  };
   
   // 새 회의 작성 폼
   const [newTitle, setNewTitle] = useState("");
@@ -530,10 +602,30 @@ export default function MeetingMinutesPage() {
       return;
     }
 
+    // 파일명(확장자 제거)으로 회의명 설정
+    const rawFileName = file.name;
+    const cleanTitle = rawFileName.substring(0, rawFileName.lastIndexOf('.')) || rawFileName;
+
     setIsAudioAnalyzing(true);
-    setAudioAnalysisStep("1단계: 파일 서버 업로드 중...");
+    setAudioAnalysisStep("1단계: 파일 서버 업로드 및 회의명 동기화 중...");
 
     try {
+      // 회의명 먼저 동기화
+      await fetch("/api/meeting-minutes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "sync",
+          meetingId: selectedMeeting.id,
+          title: cleanTitle
+        })
+      });
+
+      setSelectedMeeting((prev: any) => ({
+        ...prev,
+        title: cleanTitle
+      }));
+
       // 1. 파일 업로드 API 호출
       const formData = new FormData();
       formData.append("file", file);
@@ -979,6 +1071,9 @@ export default function MeetingMinutesPage() {
                     <h3 className="text-base font-bold text-slate-800 group-hover:text-indigo-600 transition mb-2 truncate">
                       {meeting.title}
                     </h3>
+                    <p className="text-xs text-slate-500 line-clamp-1 mb-3 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100/50">
+                      {meeting.summary ? getOneLineSummary(meeting.summary) : "회의가 진행 중이거나 아직 요약되지 않았습니다."}
+                    </p>
                     
                     <div className="flex items-center space-x-4 text-xs text-slate-500 mt-4 border-t border-slate-100 pt-3">
                       <span className="flex items-center space-x-1">
@@ -1009,7 +1104,47 @@ export default function MeetingMinutesPage() {
             <div className="flex items-center justify-between border-b border-slate-150 pb-3 mb-4">
               <div className="flex items-center space-x-2">
                 <span className="w-2.5 h-2.5 bg-red-500 rounded-full animate-ping"></span>
-                <h2 className="text-base font-bold text-slate-800">{selectedMeeting.title}</h2>
+                {isEditingTitle ? (
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      value={editingTitleVal}
+                      onChange={(e) => setEditingTitleVal(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSaveTitle(selectedMeeting.id, editingTitleVal);
+                        if (e.key === 'Escape') setIsEditingTitle(false);
+                      }}
+                      className="px-2 py-1 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-indigo-500 font-semibold"
+                      autoFocus
+                    />
+                    <button 
+                      onClick={() => handleSaveTitle(selectedMeeting.id, editingTitleVal)}
+                      className="text-xs bg-indigo-600 text-white px-2 py-1.5 rounded-lg hover:bg-indigo-700 active:scale-95 transition"
+                    >
+                      저장
+                    </button>
+                    <button 
+                      onClick={() => setIsEditingTitle(false)}
+                      className="text-xs bg-slate-100 text-slate-600 px-2 py-1.5 rounded-lg hover:bg-slate-200 active:scale-95 transition"
+                    >
+                      취소
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-2 group">
+                    <h2 className="text-base font-bold text-slate-800">{selectedMeeting.title}</h2>
+                    <button
+                      onClick={() => {
+                        setEditingTitleVal(selectedMeeting.title);
+                        setIsEditingTitle(true);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 transition p-1 hover:bg-slate-100 rounded-md text-slate-450 hover:text-slate-800"
+                      title="회의명 수정"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="flex items-center space-x-2">
                 <button 
@@ -1209,7 +1344,47 @@ export default function MeetingMinutesPage() {
                 <Clock className="w-4 h-4" />
                 <span>{selectedMeeting.date}</span>
               </div>
-              <h2 className="text-2xl font-bold text-slate-800 mb-4">{selectedMeeting.title}</h2>
+              {isEditingTitle ? (
+                <div className="flex items-center space-x-2 mb-4">
+                  <input
+                    type="text"
+                    value={editingTitleVal}
+                    onChange={(e) => setEditingTitleVal(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveTitle(selectedMeeting.id, editingTitleVal);
+                      if (e.key === 'Escape') setIsEditingTitle(false);
+                    }}
+                    className="px-3 py-1.5 border border-slate-300 rounded-xl text-xl font-bold focus:outline-none focus:border-indigo-500 w-full max-w-md"
+                    autoFocus
+                  />
+                  <button 
+                    onClick={() => handleSaveTitle(selectedMeeting.id, editingTitleVal)}
+                    className="text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-xl font-semibold transition active:scale-95 shrink-0"
+                  >
+                    저장
+                  </button>
+                  <button 
+                    onClick={() => setIsEditingTitle(false)}
+                    className="text-sm bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-2 rounded-xl font-semibold transition active:scale-95 shrink-0"
+                  >
+                    취소
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-3 mb-4 group">
+                  <h2 className="text-2xl font-bold text-slate-800">{selectedMeeting.title}</h2>
+                  <button
+                    onClick={() => {
+                      setEditingTitleVal(selectedMeeting.title);
+                      setIsEditingTitle(true);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 transition p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700"
+                    title="회의명 수정"
+                  >
+                    <Pencil className="w-4.5 h-4.5" />
+                  </button>
+                </div>
+              )}
               
               {/* 🎙️ 오디오 원본 파일 듣기 플레이어 위젯 */}
               {selectedMeeting.audio_url && (

@@ -67,15 +67,24 @@ export async function POST(req: Request) {
 
     // 3. 회의 진행 대화록 중간 동기화 (sync)
     if (action === 'sync') {
-      if (!meetingId || !transcript) {
-        return NextResponse.json({ success: false, error: '회의 식별 번호와 대화 기록은 필수 항목입니다.' }, { status: 400 });
+      if (!meetingId) {
+        return NextResponse.json({ success: false, error: '회의 식별 번호가 필요합니다.' }, { status: 400 });
       }
 
-      await updateRows('crm_meetings', {
-        transcript: typeof transcript === 'string' ? transcript : JSON.stringify(transcript),
+      const updateData: any = {
         updated_at: nowStr,
         updated_by: 'SYSTEM'
-      }, { filters: { id: String(meetingId) } });
+      };
+
+      if (transcript !== undefined) {
+        updateData.transcript = typeof transcript === 'string' ? transcript : JSON.stringify(transcript);
+      }
+
+      if (title !== undefined) {
+        updateData.title = title;
+      }
+
+      await updateRows('crm_meetings', updateData, { filters: { id: String(meetingId) } });
 
       return NextResponse.json({ success: true });
     }
@@ -123,6 +132,7 @@ export async function POST(req: Request) {
           const summarySystemPrompt = `당신은 전문 비서이자 회의 기록 관리자입니다.
 제시된 한국어 회의 대화록과 '회의 일시' 정보를 바탕으로 정교하고 직관적인 마크다운 형식의 회의록을 작성해 주세요.
 반드시 다음 구조로 한글 회의록을 작성해 주십시오:
+- **한줄 요약**: 회의 전체 내용을 요약하는 명확한 1문장 (예: "[한줄 요약] OO 업무 일정 조율 및 부서별 담당 역할 정의 완료.")
 1. **회의 개요**: 일시(제공된 실제 회의 일시를 정확하게 표기) 및 참석자 정보 요약
 2. **주요 의제 및 결정 사항**: 회의에서 내린 결론 및 합의된 결과들
 3. **주요 논의 내용**: 의제별 주요 발언 내용 및 쟁점 요약
