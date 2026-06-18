@@ -4,43 +4,10 @@ import { useState, useEffect, useRef } from "react";
 import { 
   Mic, MicOff, StopCircle, Mail, Play, CheckCircle2, Clock, 
   ArrowLeft, Calendar, Users, Lightbulb, Sparkles, Plus, X, 
-  ChevronRight, RefreshCw, FileText, CheckSquare, Square, Trash2, ArrowUpRight
+  ChevronRight, RefreshCw, FileText, CheckSquare, Square, Trash2, ArrowUpRight, Upload
 } from "lucide-react";
 
-// 가상 회의 시뮬레이션 시나리오 정의
-const SCENARIOS = [
-  {
-    id: "marketing",
-    name: "🚀 신규 MRO 자재 할인 마케팅 캠페인 수립 회의",
-    scripts: [
-      { speaker: "홍길동 대표", text: "여러분 안녕하세요. 오늘 회의는 다음 달 개시할 신규 MRO 자재 할인 마케팅 캠페인 계획을 수립하기 위한 자리입니다." },
-      { speaker: "김철수 과장", text: "네, 대표님. 현재 저희 재고 대장에 불용자재와 장기 적재 자재가 늘어나고 있습니다. 이를 털어내기 위한 타겟 마케팅이 필요합니다." },
-      { speaker: "이영희 대리", text: "맞습니다. 특히 안전재고 기준 2배를 초과한 기계부품과 90일간 출고가 없었던 소모성 자재들을 위주로 할인 제안서를 발송하는 것이 좋겠습니다." },
-      { speaker: "홍길동 대표", text: "좋은 생각이네요. 김철수 과장은 이번 주 금요일까지 불용자재 리스트 중 매칭율이 높은 바이어 업체를 10군데 정도 선별해 주시겠어요?" },
-      { speaker: "김철수 과장", text: "네, 알겠습니다. AI 관제 탭을 통해 매입 후보 업체를 발굴하여 6월 20일까지 리스트업하겠습니다." },
-      { speaker: "이영희 대리", text: "제안 메일을 보낼 때 사용할 표준 HTML 메일 템플릿 and 할인율 안내 서식은 제가 6월 19일까지 기안해 보겠습니다." },
-      { speaker: "홍길동 대표", text: "좋습니다. 이영희 대리가 템플릿을 완성하면, 사내 SMTP 메일 연동 모듈을 사용해서 일괄 발송하는 시스템 테스트도 함께 진행해 주세요." },
-      { speaker: "이영희 대리", text: "네, 메일 발송 서버 설정 상태를 확인하고 실제 발송 테스트까지 이번 주 내에 완료하겠습니다." },
-      { speaker: "홍길동 대표", text: "바이어 회신 시뮬레이션도 잊지 말고 실행해서, 회신이 왔을 때 제 메일로 알림이 정상적으로 포워딩되는지 체크해 주시기 바랍니다." },
-      { speaker: "김철수 과장", text: "알겠습니다. 시뮬레이션 콜백 API 연동 상태까지 모두 점검하고 다음 주 월요일에 최종 보고드리겠습니다." }
-    ]
-  },
-  {
-    id: "supply_chain",
-    name: "🌐 글로벌 원자재 조달 지연 비상 대책 회의",
-    scripts: [
-      { speaker: "홍길동 대표", text: "인도네시아발 원자재 세관 통관 행정 지연으로 인해 다음 주 생산 계획에 차질이 생겼습니다. 비상 대책을 논의합시다." },
-      { speaker: "김철수 과장", text: "네, AI 공급망 관제상 지연 확률이 85% 이상으로 치솟았습니다. 임시 대체 조달처를 발굴해야 합니다." },
-      { speaker: "이영희 대리", text: "대체 국내 공급사 중에서 한성정밀기공과 삼우화학 쪽이 즉시 납품이 가능한 재고를 보유하고 있는 것으로 확인되었습니다." },
-      { speaker: "홍길동 대표", text: "김철수 과장은 즉시 한성정밀기공 담당자에게 전화를 걸어 단가와 다음 주 월요일까지 납기 가능 여부를 조율해 주세요." },
-      { speaker: "김철수 과장", text: "알겠습니다. 바로 유선 통화 조율 후 견적서를 요청하여 6월 18일 오전까지 품의서를 기안하겠습니다." },
-      { speaker: "이영희 대리", text: "그럼 저는 삼우화학 쪽에 단가 비교용 예비 견적 및 긴급 독촉 SMS 템플릿을 발송하여 6월 18일 퇴근 전까지 회신을 받아 두겠습니다." },
-      { speaker: "홍길동 대표", text: "좋습니다. 원자재가 입고되는 즉시 이지봇(EasyBot) 자율 입고 처리를 가동할 수 있도록 바코드 매핑 테이블도 미리 준비해 두세요." },
-      { speaker: "이영희 대리", text: "네, 신규 품목 자동 등록 및 입출고 로그 적재 시나리오를 6월 19일까지 개발 테스트 완료하겠습니다." },
-      { speaker: "홍길동 대표", text: "수고하셨습니다. 이번 세관 지연 건을 교훈 삼아 상시 예비 대체처 풀을 DB화하는 것이 급선무입니다. 회의를 마치겠습니다." }
-    ]
-  }
-];
+
 
 export default function MeetingMinutesPage() {
   // 상태 관리
@@ -137,10 +104,9 @@ export default function MeetingMinutesPage() {
   const [isAnalyzingInterim, setIsAnalyzingInterim] = useState(false);
   const [isCompleting, setIsCompleting] = useState(false);
 
-  // 시뮬레이터 상태
-  const [selectedScenarioId, setSelectedScenarioId] = useState("marketing");
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [simIndex, setSimIndex] = useState(0);
+  // 오디오 파일 업로드 및 분석 상태
+  const [isAudioAnalyzing, setIsAudioAnalyzing] = useState(false);
+  const [audioAnalysisStep, setAudioAnalysisStep] = useState("");
 
   // 과거 회의 요약 뷰어 모달
   const [viewPastSummary, setViewPastSummary] = useState<any | null>(null);
@@ -153,7 +119,7 @@ export default function MeetingMinutesPage() {
   // Refs
   const shouldSTTActiveRef = useRef(false);
   const recognitionRef = useRef<any>(null);
-  const simTimerRef = useRef<any>(null);
+
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const lastRecommendLengthRef = useRef<number>(0);
 
@@ -342,14 +308,9 @@ export default function MeetingMinutesPage() {
 
   // 3. 실시간 음성인식 (STT) 제어
   const startSTT = async () => {
-    if (isSimulating) {
-      alert("현재 시뮬레이터가 작동 중입니다. 시뮬레이터를 먼저 중지해 주세요.");
-      return;
-    }
-
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert("현재 브라우저는 음성 인식을 지원하지 않습니다. 크롬이나 에지 브라우저를 사용하시거나 [AI 시뮬레이션] 기능을 이용해 주세요.");
+      alert("현재 브라우저는 음성 인식을 지원하지 않습니다. 크롬이나 에지 브라우저를 사용하시거나 [녹음 파일 업로드] 기능을 이용해 주세요.");
       return;
     }
 
@@ -559,51 +520,82 @@ export default function MeetingMinutesPage() {
     }
   };
 
-  // 4. 가상 회의 시뮬레이터 구동
-  const startSimulation = () => {
-    if (isRecording) {
-      alert("현재 음성 인식이 켜져 있습니다. 음성 인식을 먼저 꺼 주세요.");
+  // 4. 회의 녹음 파일 업로드 및 분석
+  const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!selectedMeeting) {
+      alert("진행 중인 회의가 없습니다. 먼저 회의를 개설해 주세요.");
       return;
     }
 
-    const scenario = SCENARIOS.find(s => s.id === selectedScenarioId);
-    if (!scenario) return;
+    setIsAudioAnalyzing(true);
+    setAudioAnalysisStep("1단계: 파일 서버 업로드 중...");
 
-    setIsSimulating(true);
-    setSimIndex(0);
-    
-    // 타이머 가동 (4~6초마다 대사 1건씩 누적)
-    let idx = 0;
-    const runSim = () => {
-      if (idx >= scenario.scripts.length) {
-        stopSimulation();
-        return;
+    try {
+      // 1. 파일 업로드 API 호출
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const uploadRes = await fetch("/api/meeting-minutes/upload", {
+        method: "POST",
+        body: formData
+      });
+      const uploadData = await uploadRes.json();
+
+      if (!uploadData.success) {
+        throw new Error(uploadData.error || "파일 업로드에 실패했습니다.");
       }
 
-      const script = scenario.scripts[idx];
-      const timeStr = new Date().toLocaleTimeString("ko-KR", { hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      setAudioAnalysisStep("2단계: Gemini AI 오디오 분석 및 화자 분류 중...");
+
+      // 2. 오디오 분석 API 호출
+      const analyzeRes = await fetch("/api/meeting-minutes/analyze-audio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ audioUrl: uploadData.audioUrl })
+      });
+      const analyzeData = await analyzeRes.json();
+
+      if (!analyzeData.success) {
+        throw new Error(analyzeData.error || "오디오 분석에 실패했습니다.");
+      }
+
+      // 3. 추출된 대화록 적용
+      const formattedTranscript = (analyzeData.transcript || []).map((item: any, idx: number) => ({
+        id: `upload-${Date.now()}-${idx}`,
+        speaker: item.speaker || "미상",
+        time: item.time || "00:00",
+        text: item.text || ""
+      }));
+
+      setTranscript(formattedTranscript);
       
-      setTranscript(prev => [...prev, {
-        id: `sim-${Date.now()}-${idx}`,
-        speaker: script.speaker,
-        text: script.text,
-        time: timeStr
-      }]);
+      setSelectedMeeting((prev: any) => ({
+        ...prev,
+        audio_url: uploadData.audioUrl
+      }));
 
-      idx++;
-      setSimIndex(idx);
-      simTimerRef.current = setTimeout(runSim, 5000);
-    };
+      // 진행 중인 상태 대화록 동기화
+      await fetch("/api/meeting-minutes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "sync",
+          meetingId: selectedMeeting.id,
+          transcript: formattedTranscript
+        })
+      });
 
-    runSim();
-  };
-
-  const stopSimulation = () => {
-    if (simTimerRef.current) {
-      clearTimeout(simTimerRef.current);
-      simTimerRef.current = null;
+      alert("🎉 회의 오디오 파일 분석 및 대화록 추출이 성공적으로 완료되었습니다!");
+    } catch (err: any) {
+      console.error("오디오 업로드 분석 실패:", err);
+      alert(err.message || "오디오 분석 중 오류가 발생했습니다.");
+    } finally {
+      setIsAudioAnalyzing(false);
+      setAudioAnalysisStep("");
     }
-    setIsSimulating(false);
   };
 
   // 5. 과거 회의 실시간 시맨틱 추천 연계
@@ -630,7 +622,7 @@ export default function MeetingMinutesPage() {
   // 6. 회의 중 AI 실시간 중간 요약/제언
   const handleGetInterimAdvice = async () => {
     if (transcript.length === 0) {
-      alert("회의록에 기록된 대화 내용이 없습니다. 먼저 음성 입력이나 시뮬레이터를 구동해 주세요.");
+      alert("회의록에 기록된 대화 내용이 없습니다. 먼저 음성 입력이나 녹음 파일 업로드를 해 주세요.");
       return;
     }
 
@@ -664,8 +656,7 @@ export default function MeetingMinutesPage() {
       return;
     }
 
-    // 시뮬레이터 및 녹음 자동 중단
-    stopSimulation();
+    // 녹음 자동 중단
     stopSTT();
 
     // 실제로 대화록에 사용된 고유 화자들 목록 수집
@@ -916,7 +907,6 @@ export default function MeetingMinutesPage() {
           <button 
             onClick={() => {
               stopSTT();
-              stopSimulation();
               setViewMode("list");
               fetchMeetings();
             }}
@@ -1049,7 +1039,7 @@ export default function MeetingMinutesPage() {
               {transcript.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-center text-slate-400 p-8">
                   <Mic className="w-10 h-10 mb-3 animate-bounce text-slate-300" />
-                  <p className="text-sm">마이크를 활성화하거나 AI 시뮬레이션을 시작하여 회의록 기록을 개시하십시오.</p>
+                  <p className="text-sm">마이크를 활성화하거나 회의 녹음 파일을 업로드하여 회의록 기록을 개시하십시오.</p>
                 </div>
               ) : (
                 transcript.map((item, idx) => (
@@ -1086,7 +1076,7 @@ export default function MeetingMinutesPage() {
               <div ref={transcriptEndRef} />
             </div>
 
-            {/* STT/시뮬레이터 하단 컨트롤러 */}
+            {/* STT/오디오 업로드 하단 컨트롤러 */}
             <div className="border-t border-slate-250 pt-4 mt-3 grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-3 rounded-xl">
               {/* 마이크 STT 제어 */}
               <div className="flex flex-col justify-center space-y-2">
@@ -1131,36 +1121,33 @@ export default function MeetingMinutesPage() {
                 )}
               </div>
 
-              {/* 시뮬레이터 제어 */}
+              {/* 녹음 파일 업로드 제어 */}
               <div className="flex flex-col justify-center space-y-2 border-t md:border-t-0 md:border-l border-slate-200 md:pl-4">
                 <div className="flex items-center justify-between text-xs text-slate-500 font-semibold">
-                  <span>🧪 AI 실시간 회의 시뮬레이터</span>
-                  <select 
-                    value={selectedScenarioId}
-                    onChange={(e) => setSelectedScenarioId(e.target.value)}
-                    disabled={isSimulating}
-                    className="bg-white border border-slate-200 text-slate-700 text-[11px] rounded px-1.5 py-0.5 max-w-[120px] truncate focus:outline-none shadow-sm cursor-pointer"
-                  >
-                    <option value="marketing">마케팅 캠페인 수립</option>
-                    <option value="supply_chain">공급망 비상 대책</option>
-                  </select>
+                  <span>🎙️ 회의 녹음 파일 업로드 및 분석</span>
+                  <span className="text-[10px] text-slate-400">MP3, WAV, M4A, WEBM</span>
                 </div>
-                {isSimulating ? (
-                  <button 
-                    onClick={stopSimulation}
-                    className="flex items-center justify-center space-x-2 w-full py-2 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-xl border border-amber-200 text-xs font-bold transition active:scale-95"
-                  >
-                    <StopCircle className="w-4 h-4 animate-spin" />
-                    <span>시뮬레이터 중지 ({simIndex}대사)</span>
-                  </button>
+                {isAudioAnalyzing ? (
+                  <div className="flex flex-col items-center justify-center space-y-1 py-1.5 bg-indigo-50 border border-indigo-150 rounded-xl">
+                    <div className="flex items-center space-x-2 text-indigo-600 font-bold text-xs">
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>{audioAnalysisStep || "분석 진행 중..."}</span>
+                    </div>
+                    <div className="w-[90%] bg-slate-200 h-1 rounded-full overflow-hidden">
+                      <div className="bg-indigo-600 h-full animate-pulse" style={{ width: '75%' }}></div>
+                    </div>
+                  </div>
                 ) : (
-                  <button 
-                    onClick={startSimulation}
-                    className="flex items-center justify-center space-x-2 w-full py-2 bg-white hover:bg-slate-100 text-slate-600 rounded-xl text-xs font-bold border border-slate-250 transition active:scale-95 shadow-sm"
-                  >
-                    <Play className="w-4 h-4 text-purple-600" />
-                    <span>시뮬레이터 구동</span>
-                  </button>
+                  <label className="flex items-center justify-center space-x-2 w-full py-2 bg-white hover:bg-indigo-50/40 text-indigo-600 rounded-xl text-xs font-bold border border-indigo-200/85 transition active:scale-95 shadow-sm cursor-pointer select-none">
+                    <Upload className="w-4 h-4" />
+                    <span>녹음 파일 업로드 및 STT 분석</span>
+                    <input 
+                      type="file" 
+                      accept="audio/*" 
+                      onChange={handleAudioUpload} 
+                      className="hidden" 
+                    />
+                  </label>
                 )}
               </div>
             </div>
