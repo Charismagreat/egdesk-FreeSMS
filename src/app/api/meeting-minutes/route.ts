@@ -84,6 +84,10 @@ export async function POST(req: Request) {
         updateData.title = title;
       }
 
+      if (audioUrl !== undefined) {
+        updateData.audio_url = audioUrl;
+      }
+
       await updateRows('crm_meetings', updateData, { filters: { id: String(meetingId) } });
 
       return NextResponse.json({ success: true });

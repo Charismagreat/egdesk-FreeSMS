@@ -20,6 +20,9 @@ export default function MeetingMinutesPage() {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editingTitleVal, setEditingTitleVal] = useState("");
 
+  // 실시간/업로드 회의 오디오 원본 재생 URL
+  const [tempAudioUrl, setTempAudioUrl] = useState<string>("");
+
   // 회의명 수정 저장 핸들러
   const handleSaveTitle = async (meetingId: number, newTitleVal: string) => {
     const trimmed = newTitleVal.trim();
@@ -68,24 +71,55 @@ export default function MeetingMinutesPage() {
     const oneLineMatch = cleanText.match(/한줄\s*요약\s*:\s*(.*?)(?=\s*[0-9]\.|\s*회의\s*개요|$)/i);
     if (oneLineMatch && oneLineMatch[1]) {
       const matchedText = oneLineMatch[1].trim();
-      return matchedText.length > 70 ? matchedText.slice(0, 70) + "..." : matchedText;
+      return matchedText.length > 200 ? matchedText.slice(0, 200) + "..." : matchedText;
     }
 
     // [한줄 요약] 패턴 매칭
     const bracketMatch = cleanText.match(/\[한줄\s*요약\]\s*(.*?)(?=\s*[0-9]\.|\s*회의\s*개요|$)/i);
     if (bracketMatch && bracketMatch[1]) {
       const matchedText = bracketMatch[1].trim();
-      return matchedText.length > 70 ? matchedText.slice(0, 70) + "..." : matchedText;
+      return matchedText.length > 200 ? matchedText.slice(0, 200) + "..." : matchedText;
     }
 
-    // 폴백: 첫 번째 마침표가 오기 전까지의 문장 또는 70자 제한으로 잘라내기
-    const sentences = cleanText.split(/[.?!]/);
-    const firstSentence = sentences[0]?.trim();
-    if (firstSentence && firstSentence.length > 5) {
-      return firstSentence.length > 70 ? firstSentence.slice(0, 70) + "..." : firstSentence + ".";
+    // 만약 요약서 맨 앞부분에 "회의 개요" 혹은 "일시" 메타데이터가 나온다면, 이를 건너뛰고
+    // "주요 의제 및 결정 사항"이나 그 이후의 실질적인 요약 텍스트를 추출
+    const agendaIndex = cleanText.indexOf("주요 의제 및 결정 사항");
+    if (agendaIndex !== -1) {
+      const remainingText = cleanText.slice(agendaIndex + "주요 의제 및 결정 사항".length).trim();
+      // 혹시 뒤에 숫자가 오거나 콜론이 오면 제거
+      const cleanedRemaining = remainingText.replace(/^[:\s\d.]+/g, "").trim();
+      if (cleanedRemaining.length > 10) {
+        return cleanedRemaining.length > 200 ? cleanedRemaining.slice(0, 200) + "..." : cleanedRemaining;
+      }
     }
-    
-    return cleanText.length > 70 ? cleanText.slice(0, 70) + "..." : cleanText;
+
+    const discussionIndex = cleanText.indexOf("주요 논의 내용");
+    if (discussionIndex !== -1) {
+      const remainingText = cleanText.slice(discussionIndex + "주요 논의 내용".length).trim();
+      const cleanedRemaining = remainingText.replace(/^[:\s\d.]+/g, "").trim();
+      if (cleanedRemaining.length > 10) {
+        return cleanedRemaining.length > 200 ? cleanedRemaining.slice(0, 200) + "..." : cleanedRemaining;
+      }
+    }
+
+    // 폴백: "회의 개요" 텍스트 부분을 삭제하여 첫 실질적 내용 추출 시도
+    let fallbackText = cleanText;
+    if (fallbackText.includes("회의 개요")) {
+      fallbackText = fallbackText.split("회의 개요")[1] || fallbackText;
+      // 일시, 참석자 데이터가 이어서 나오면 이것도 슬라이싱
+      const attendeeIndex = fallbackText.indexOf("참석자");
+      if (attendeeIndex !== -1) {
+        // 참석자 명단 이후의 텍스트
+        const temp = fallbackText.slice(attendeeIndex).trim();
+        const nextDotIndex = temp.indexOf(".");
+        if (nextDotIndex !== -1 && temp.slice(nextDotIndex + 1).trim().length > 10) {
+          fallbackText = temp.slice(nextDotIndex + 1).trim();
+        }
+      }
+    }
+
+    fallbackText = fallbackText.replace(/^[:\s\d.]+/g, "").trim();
+    return fallbackText.length > 200 ? fallbackText.slice(0, 200) + "..." : fallbackText;
   };
   
   // 새 회의 작성 폼
@@ -343,6 +377,7 @@ export default function MeetingMinutesPage() {
       if (data.success) {
         setSelectedMeeting(data.meeting);
         setTranscript([]);
+        setTempAudioUrl("");
         setActiveSpeakers(["화자 1", "화자 2", "화자 3", "화자 4"]);
         setSpeechSpeaker("화자 1");
         setRecommendedMeetings([]);
@@ -418,6 +453,11 @@ export default function MeetingMinutesPage() {
       };
       mediaRecorder.onstop = () => {
         console.log("🎙️ MediaRecorder stopped. Chunks length:", audioChunksRef.current.length);
+        if (audioChunksRef.current && audioChunksRef.current.length > 0) {
+          const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+          const blobUrl = URL.createObjectURL(audioBlob);
+          setTempAudioUrl(blobUrl);
+        }
       };
       mediaRecorderRef.current = mediaRecorder;
       mediaRecorder.start(1000); // 1초 단위 데이터 수집
@@ -668,15 +708,17 @@ export default function MeetingMinutesPage() {
         ...prev,
         audio_url: uploadData.audioUrl
       }));
+      setTempAudioUrl(uploadData.audioUrl);
 
-      // 진행 중인 상태 대화록 동기화
+      // 진행 중인 상태 대화록 동기화 (오디오 url도 함께 동기화)
       await fetch("/api/meeting-minutes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "sync",
           meetingId: selectedMeeting.id,
-          transcript: formattedTranscript
+          transcript: formattedTranscript,
+          audioUrl: uploadData.audioUrl
         })
       });
 
@@ -956,6 +998,7 @@ export default function MeetingMinutesPage() {
   // 리스트 모드에서 완료된 회의 카드 클릭 시 상세로 이동
   const handleSelectMeetingCard = (meeting: any) => {
     setSelectedMeeting(meeting);
+    setTempAudioUrl(meeting.audio_url || "");
     fetchTasks(meeting.id);
     
     let attendeesArr = [];
@@ -1071,7 +1114,7 @@ export default function MeetingMinutesPage() {
                     <h3 className="text-base font-bold text-slate-800 group-hover:text-indigo-600 transition mb-2 truncate">
                       {meeting.title}
                     </h3>
-                    <p className="text-xs text-slate-500 line-clamp-1 mb-3 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100/50">
+                    <p className="text-xs text-slate-500 line-clamp-3 mb-3 bg-slate-50 px-3 py-2.5 rounded-xl border border-slate-100/50 min-h-[72px] leading-relaxed">
                       {meeting.summary ? getOneLineSummary(meeting.summary) : "회의가 진행 중이거나 아직 요약되지 않았습니다."}
                     </p>
                     
@@ -1210,6 +1253,28 @@ export default function MeetingMinutesPage() {
               )}
               <div ref={transcriptEndRef} />
             </div>
+ 
+            {/* 🎙️ 회의 오디오 원본 듣기 플레이어 위젯 복원 */}
+            {tempAudioUrl && (
+              <div className="bg-indigo-50/50 border border-indigo-150 rounded-xl p-3.5 mt-3 flex items-center justify-between shadow-2xs">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-600 flex items-center justify-center shrink-0">
+                    <Mic className="w-4.5 h-4.5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-0.5">
+                      {tempAudioUrl.startsWith("blob:") ? "실시간 녹음 임시 원본 (미저장)" : "업로드된 회의 오디오"}
+                    </p>
+                    <p className="text-xs font-bold text-slate-750 truncate">회의 오디오 원본 듣기</p>
+                  </div>
+                </div>
+                <audio 
+                  src={tempAudioUrl} 
+                  controls 
+                  className="h-8 max-w-[65%] focus:outline-none"
+                />
+              </div>
+            )}
 
             {/* STT/오디오 업로드 하단 컨트롤러 */}
             <div className="border-t border-slate-250 pt-4 mt-3 grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-3 rounded-xl">
