@@ -65,8 +65,8 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    // Gemini 1.5 Flash API 호출 (멀티모달 오디오 처리)
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    // Gemini 3.5 Flash API 호출 (멀티모달 오디오 처리)
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
     
     const promptText = `당신은 전문 회의 기록가이자 오디오 분석가입니다.
 제시된 오디오 파일을 주의 깊게 청취하고, 대화하는 주체별(화자 1, 화자 2, 화자 3...)로 발화 내용을 분리하여 텍스트로 변환(STT)해 주세요.
