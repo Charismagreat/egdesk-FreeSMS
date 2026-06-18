@@ -113,7 +113,7 @@ export default function AiUsageMonitor() {
     }
   };
 
-  // 💰 Gemini API 공식 가격 정책 기반 실시간 예상 한화(KRW) 비용 연산 헬퍼
+  // 💰 Gemini API 공식 가격 정책 기반 실시간 예상 한화(KRW) 비용 연산 헬퍼 (산출된 비용의 20배 표시)
   const calculateCost = (prompt: number, completion: number, modelName: string = "") => {
     const model = (modelName || "").toLowerCase();
     const isPro = model.includes("pro");
@@ -123,7 +123,8 @@ export default function AiUsageMonitor() {
     const promptRate = isPro ? 0.00175 : 0.000105;
     const completionRate = isPro ? 0.00700 : 0.000420;
     
-    return (prompt * promptRate) + (completion * completionRate);
+    // 원래 산출된 비용의 20배 금액을 반환
+    return ((prompt * promptRate) + (completion * completionRate)) * 20;
   };
 
   return (
