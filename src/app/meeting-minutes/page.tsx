@@ -56,12 +56,27 @@ export default function MeetingMinutesPage() {
     }
   };
 
+  // 마이크 녹음/업로드 파일 오디오 URL 추출 헬퍼 함수 (에뮬레이터 스키마 캐시 유실 우회)
+  const getMeetingAudioUrl = (meet: any) => {
+    if (!meet) return "";
+    if (meet.audio_url) return meet.audio_url;
+    if (meet.summary) {
+      const match = meet.summary.match(/\[audio_url\]:\s*(.+)/);
+      if (match) return match[1].trim();
+    }
+    return "";
+  };
+
   // 마크다운 요약에서 1줄 요약 추출하는 헬퍼 함수
   const getOneLineSummary = (summaryText: string) => {
     if (!summaryText) return "요약 정보가 아직 작성되지 않았습니다.";
     
+    // [audio_url]: ... 메타데이터 링크 본문에서 도려내기
+    const cleanSummaryText = summaryText.replace(/\[audio_url\]:\s*.*/g, "").trim();
+    if (!cleanSummaryText) return "요약 정보가 아직 작성되지 않았습니다.";
+
     // 마크다운 문법 제거 (#, *, ` 등)
-    const cleanText = summaryText
+    const cleanText = cleanSummaryText
       .replace(/[#*`_\-]/g, "") // 마크다운 기호 제거
       .replace(/\[.*?\]/g, "")  // 대괄호와 링크 제거
       .replace(/\s+/g, " ")     // 다중 공백 단일 공백으로 치환
@@ -1097,9 +1112,9 @@ export default function MeetingMinutesPage() {
                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${meeting.status === 'ONGOING' ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-green-50 text-green-600 border border-green-200'}`}>
                           {meeting.status === 'ONGOING' ? '🔴 진행 중' : '✅ 완료됨'}
                         </span>
-                        {meeting.audio_url && (
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${meeting.audio_url.includes("meeting-") ? "bg-blue-50 text-blue-600 border border-blue-200" : "bg-purple-50 text-purple-600 border border-purple-200"}`}>
-                            {meeting.audio_url.includes("meeting-") ? "🎙️ 실시간 녹음" : "📁 파일 업로드"}
+                        {getMeetingAudioUrl(meeting) && (
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${getMeetingAudioUrl(meeting).includes("meeting-") ? "bg-blue-50 text-blue-600 border border-blue-200" : "bg-purple-50 text-purple-600 border border-purple-200"}`}>
+                            {getMeetingAudioUrl(meeting).includes("meeting-") ? "🎙️ 실시간 녹음" : "📁 파일 업로드"}
                           </span>
                         )}
                       </div>
@@ -1183,13 +1198,13 @@ export default function MeetingMinutesPage() {
                 ) : (
                   <div className="flex items-center space-x-2 group">
                     <h2 className="text-base font-bold text-slate-800">{selectedMeeting.title}</h2>
-                    {selectedMeeting.audio_url && (
+                    {getMeetingAudioUrl(selectedMeeting) && (
                       <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${
-                        selectedMeeting.audio_url.includes("meeting-") 
+                        getMeetingAudioUrl(selectedMeeting).includes("meeting-") 
                           ? "bg-blue-50 text-blue-600 border border-blue-150" 
                           : "bg-purple-50 text-purple-600 border border-purple-150"
                       }`}>
-                        {selectedMeeting.audio_url.includes("meeting-") ? "🎙️ 실시간" : "📁 업로드"}
+                        {getMeetingAudioUrl(selectedMeeting).includes("meeting-") ? "🎙️ 실시간" : "📁 업로드"}
                       </span>
                     )}
                     <button
@@ -1477,7 +1492,7 @@ export default function MeetingMinutesPage() {
               )}
               
               {/* 🎙️ 오디오 원본 파일 듣기 플레이어 위젯 */}
-              {selectedMeeting.audio_url && (
+              {getMeetingAudioUrl(selectedMeeting) && (
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4 flex items-center space-x-3 shadow-2xs">
                   <div className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-600 flex items-center justify-center shrink-0">
                     <Mic className="w-4.5 h-4.5" />
@@ -1485,7 +1500,7 @@ export default function MeetingMinutesPage() {
                   <div className="flex-1 min-w-0">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">회의 녹음 원본 듣기</p>
                     <audio 
-                      src={selectedMeeting.audio_url} 
+                      src={getMeetingAudioUrl(selectedMeeting)} 
                       controls 
                       className="w-full h-8 bg-transparent focus:outline-none"
                     />
@@ -1526,7 +1541,7 @@ export default function MeetingMinutesPage() {
                       <span>AI 자동 기안 회의 요약 리포트</span>
                     </h3>
                     <div className="prose prose-slate max-w-none text-slate-700 text-sm leading-relaxed whitespace-pre-line bg-slate-50 border border-slate-200 p-4 rounded-xl">
-                      {selectedMeeting.summary || '회의록 요약이 작성되지 않았습니다.'}
+                      {(selectedMeeting.summary || '').replace(/\[audio_url\]:\s*.*/g, '').trim() || '회의록 요약이 작성되지 않았습니다.'}
                     </div>
                   </div>
                 ) : (

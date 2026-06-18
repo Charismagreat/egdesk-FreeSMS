@@ -1000,6 +1000,20 @@ export const TABLES = {
     columns: ['rate_id', 'currency_code', 'currency_name', 'current_rate', 'change_rate', 'change_direction', 'last_updated_at'],
     columnCount: 7,
     rowCount: 0,
+  },
+  crm_meetings: {
+    name: 'crm_meetings',
+    displayName: '회의 대장',
+    columns: ['id', 'title', 'date', 'attendees', 'transcript', 'summary', 'status', 'audio_url', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by'],
+    columnCount: 15,
+    rowCount: 0,
+  },
+  crm_meeting_tasks: {
+    name: 'crm_meeting_tasks',
+    displayName: '회의 할 일 및 일정',
+    columns: ['id', 'meeting_id', 'assignee_name', 'assignee_email', 'task_desc', 'due_date', 'status', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by'],
+    columnCount: 14,
+    rowCount: 0,
   }
 } as const;
 

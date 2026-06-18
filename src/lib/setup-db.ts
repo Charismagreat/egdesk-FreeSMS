@@ -1866,6 +1866,13 @@ export async function setupDatabase() {
       console.log('✓ In-app migration: added custom_title to shared_dashboards');
     }
 
+    // crm_meetings 테이블 컬럼 보정 마이그레이션
+    const meetingCols = db.prepare("PRAGMA table_info(crm_meetings);").all().map((c: any) => c.name);
+    if (!meetingCols.includes('audio_url')) {
+      db.exec("ALTER TABLE crm_meetings ADD COLUMN audio_url TEXT;");
+      console.log('✓ In-app migration: added audio_url to crm_meetings');
+    }
+
     // crm_recruitment_applicants 테이블 컬럼 보정 마이그레이션
     const applicantCols = db.prepare("PRAGMA table_info(crm_recruitment_applicants);").all().map((c: any) => c.name);
     if (!applicantCols.includes('interview_logs')) {

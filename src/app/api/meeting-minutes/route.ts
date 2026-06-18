@@ -14,11 +14,22 @@ function getKSTDateString() {
  */
 export async function GET() {
   try {
-    const result = await queryTable('crm_meetings', {
-      orderBy: 'date',
-      orderDirection: 'DESC'
-    });
-    const meetings = (result.rows || []).filter((m: any) => !m.deleted_at);
+    // queryTable 대신 executeSQL을 사용하여 스키마 캐시 필터링 우회
+    const result = await executeSQL('SELECT * FROM crm_meetings ORDER BY date DESC');
+    const meetings = (result.rows || []).map((m: any) => {
+      // summary 마크다운에서 [audio_url] 메타데이터 링크가 있는 경우 추출하여 audio_url 복원
+      let extractedUrl = '';
+      if (m.summary) {
+        const match = m.summary.match(/\[audio_url\]:\s*(.+)/);
+        if (match) {
+          extractedUrl = match[1].trim();
+        }
+      }
+      return {
+        ...m,
+        audio_url: m.audio_url || extractedUrl || null
+      };
+    }).filter((m: any) => !m.deleted_at);
     
     return NextResponse.json({ success: true, meetings });
   } catch (error: any) {
@@ -55,6 +66,7 @@ export async function POST(req: Request) {
         transcript: JSON.stringify([]),
         summary: '',
         status: 'ONGOING',
+        audio_url: '',
         uuid: crypto.randomUUID(),
         updated_at: nowStr,
         updated_by: 'SYSTEM'
@@ -99,8 +111,8 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, error: '회의 식별 번호와 대화 기록은 필수 항목입니다.' }, { status: 400 });
       }
 
-      // 기존 회의 확인
-      const checkMeeting = await queryTable('crm_meetings', { filters: { id: String(meetingId) } });
+      // 기존 회의 확인 (queryTable 대신 executeSQL을 사용하여 스키마 캐시 필터링 우회)
+      const checkMeeting = await executeSQL(`SELECT * FROM crm_meetings WHERE id = ${Number(meetingId)}`);
       if (!checkMeeting.rows || checkMeeting.rows.length === 0 || checkMeeting.rows[0].deleted_at) {
         return NextResponse.json({ success: false, error: '존재하지 않거나 삭제된 회의입니다.' }, { status: 404 });
       }
@@ -271,12 +283,18 @@ export async function POST(req: Request) {
         ];
       }
 
+      // 오디오 원본 URL 스키마 캐시 유실 우회 백업 저장
+      const finalAudioUrl = audioUrl || meeting.audio_url || '';
+      if (finalAudioUrl) {
+        summaryMarkdown += `\n\n[audio_url]: ${finalAudioUrl}`;
+      }
+
       await updateRows('crm_meetings', {
         summary: summaryMarkdown,
         transcript: typeof transcript === 'string' ? transcript : JSON.stringify(transcript),
         attendees: Array.isArray(attendees) ? JSON.stringify(attendees) : meeting.attendees,
         status: 'COMPLETED',
-        audio_url: audioUrl || meeting.audio_url || '',
+        audio_url: finalAudioUrl,
         updated_at: nowStr,
         updated_by: 'SYSTEM'
       }, { filters: { id: String(meetingId) } });
@@ -311,7 +329,7 @@ export async function POST(req: Request) {
           transcript: typeof transcript === 'string' ? transcript : JSON.stringify(transcript),
           attendees: Array.isArray(attendees) ? JSON.stringify(attendees) : meeting.attendees,
           status: 'COMPLETED',
-          audio_url: audioUrl || ''
+          audio_url: finalAudioUrl
         },
         tasks: taskInsertData
       });
