@@ -1093,9 +1093,16 @@ export default function MeetingMinutesPage() {
                   >
                     <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-indigo-500 to-purple-500"></div>
                     <div className="flex justify-between items-start mb-3">
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${meeting.status === 'ONGOING' ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-green-50 text-green-600 border border-green-200'}`}>
-                        {meeting.status === 'ONGOING' ? '🔴 진행 중' : '✅ 완료됨'}
-                      </span>
+                      <div className="flex items-center space-x-1.5">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${meeting.status === 'ONGOING' ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-green-50 text-green-600 border border-green-200'}`}>
+                          {meeting.status === 'ONGOING' ? '🔴 진행 중' : '✅ 완료됨'}
+                        </span>
+                        {meeting.audio_url && (
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${meeting.audio_url.includes("meeting-") ? "bg-blue-50 text-blue-600 border border-blue-200" : "bg-purple-50 text-purple-600 border border-purple-200"}`}>
+                            {meeting.audio_url.includes("meeting-") ? "🎙️ 실시간 녹음" : "📁 파일 업로드"}
+                          </span>
+                        )}
+                      </div>
                       <div className="flex items-center space-x-2">
                         <span className="text-[11px] text-slate-400 flex items-center space-x-1">
                           <Clock className="w-3.5 h-3.5" />
@@ -1176,6 +1183,15 @@ export default function MeetingMinutesPage() {
                 ) : (
                   <div className="flex items-center space-x-2 group">
                     <h2 className="text-base font-bold text-slate-800">{selectedMeeting.title}</h2>
+                    {selectedMeeting.audio_url && (
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${
+                        selectedMeeting.audio_url.includes("meeting-") 
+                          ? "bg-blue-50 text-blue-600 border border-blue-150" 
+                          : "bg-purple-50 text-purple-600 border border-purple-150"
+                      }`}>
+                        {selectedMeeting.audio_url.includes("meeting-") ? "🎙️ 실시간" : "📁 업로드"}
+                      </span>
+                    )}
                     <button
                       onClick={() => {
                         setEditingTitleVal(selectedMeeting.title);
@@ -1438,6 +1454,15 @@ export default function MeetingMinutesPage() {
               ) : (
                 <div className="flex items-center space-x-3 mb-4 group">
                   <h2 className="text-2xl font-bold text-slate-800">{selectedMeeting.title}</h2>
+                  {selectedMeeting.audio_url && (
+                    <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${
+                      selectedMeeting.audio_url.includes("meeting-") 
+                        ? "bg-blue-50 text-blue-600 border border-blue-200" 
+                        : "bg-purple-50 text-purple-600 border border-purple-200"
+                    }`}>
+                      {selectedMeeting.audio_url.includes("meeting-") ? "🎙️ 실시간 녹음 회의" : "📁 업로드 파일 분석"}
+                    </span>
+                  )}
                   <button
                     onClick={() => {
                       setEditingTitleVal(selectedMeeting.title);
