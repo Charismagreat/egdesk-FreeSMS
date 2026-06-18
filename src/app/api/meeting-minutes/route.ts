@@ -3,10 +3,56 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { queryTable, insertRows, updateRows, executeSQL } from '@/../egdesk-helpers';
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 
 // 한국 시간 도우미 함수
 function getKSTDateString() {
   return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+}
+
+// 오디오 파일 스캔/매칭 폴백 함수 (에뮬레이터 스키마 캐시 유실 및 레거시 데이터 보정용)
+function getFallbackAudioUrl(meetingId: number, meetingDate: string) {
+  try {
+    const uploadDir = path.join(process.cwd(), 'public/uploads/meetings');
+    if (!fs.existsSync(uploadDir)) return '';
+
+    // 1. 실시간 녹음 파일 검증
+    const webmFile = `meeting-${meetingId}.webm`;
+    if (fs.existsSync(path.join(uploadDir, webmFile))) {
+      return `/uploads/meetings/${webmFile}`;
+    }
+
+    // 2. 업로드 파일 매칭 (수정 시간과 회의 날짜 30분 이내 근접 매칭)
+    const files = fs.readdirSync(uploadDir);
+    // KST 날짜 포맷 (YYYY-MM-DD HH:MM:SS) 파싱
+    const formattedDate = meetingDate.replace(' ', 'T') + '+09:00';
+    const meetingTime = new Date(formattedDate).getTime();
+
+    let bestFile = '';
+    let minDiff = Infinity;
+
+    for (const file of files) {
+      if (file.startsWith('meeting-')) continue;
+      const filePath = path.join(uploadDir, file);
+      const stat = fs.statSync(filePath);
+      const fileTime = stat.mtimeMs;
+      
+      const diff = Math.abs(meetingTime - fileTime);
+      // 30분(1800000ms) 이내에 생성된 파일 중 가장 일치하는 것 매칭
+      if (diff < 1800000 && diff < minDiff) {
+        minDiff = diff;
+        bestFile = file;
+      }
+    }
+
+    if (bestFile) {
+      return `/uploads/meetings/${bestFile}`;
+    }
+  } catch (e) {
+    console.warn('Fallback audio url scan failed:', e);
+  }
+  return '';
 }
 
 /**
@@ -25,9 +71,13 @@ export async function GET() {
           extractedUrl = match[1].trim();
         }
       }
+      
+      // 스키마 캐시 유실 및 레거시 매핑을 위한 지능형 물리 파일 매칭 폴백
+      const fallbackUrl = getFallbackAudioUrl(m.id, m.date);
+
       return {
         ...m,
-        audio_url: m.audio_url || extractedUrl || null
+        audio_url: m.audio_url || extractedUrl || fallbackUrl || null
       };
     }).filter((m: any) => !m.deleted_at);
     
