@@ -677,6 +677,7 @@ export default function MeetingMinutesPage() {
     const rawFileName = file.name;
     const cleanTitle = rawFileName.substring(0, rawFileName.lastIndexOf('.')) || rawFileName;
     const isTextFile = file.type === "text/plain" || rawFileName.endsWith(".txt") || rawFileName.endsWith(".eml");
+    const isImageFile = file.type.startsWith("image/") || /\.(png|jpe?g|webp|gif)$/i.test(rawFileName);
 
     setIsAudioAnalyzing(true);
     setAudioAnalysisStep("1단계: 파일 서버 업로드 및 회의명 동기화 중...");
@@ -757,6 +758,50 @@ export default function MeetingMinutesPage() {
         });
 
         alert("🎉 텍스트 대화록 분석 및 파싱이 성공적으로 완료되었습니다!");
+
+      } else if (isImageFile) {
+        setAudioAnalysisStep("2단계: Gemini AI 대화 이미지 OCR 및 분석 중...");
+
+        // 이미지 대화록 분석 API 호출
+        const analyzeRes = await fetch("/api/meeting-minutes/analyze-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageUrl: uploadData.audioUrl })
+        });
+        const analyzeData = await analyzeRes.json();
+
+        if (!analyzeData.success) {
+          throw new Error(analyzeData.error || "이미지 대화록 분석에 실패했습니다.");
+        }
+
+        formattedTranscript = (analyzeData.transcript || []).map((item: any, idx: number) => ({
+          id: `upload-${Date.now()}-${idx}`,
+          speaker: item.speaker || "미상",
+          time: item.time || "00:00",
+          text: item.text || ""
+        }));
+
+        setTranscript(formattedTranscript);
+
+        setSelectedMeeting((prev: any) => ({
+          ...prev,
+          meeting_type: 'text'
+        }));
+        setTempAudioUrl("");
+
+        // 진행 중인 상태 대화록 동기화 (회의 타입도 함께 동기화)
+        await fetch("/api/meeting-minutes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "sync",
+            meetingId: selectedMeeting.id,
+            transcript: formattedTranscript,
+            meetingType: 'text'
+          })
+        });
+
+        alert("🎉 대화 이미지 분석 및 동기화가 성공적으로 완료되었습니다!");
 
       } else {
         setAudioAnalysisStep("2단계: Gemini AI 오디오 분석 및 화자 분류 중...");
@@ -1432,7 +1477,7 @@ export default function MeetingMinutesPage() {
               <div className="flex flex-col justify-center space-y-2 border-t md:border-t-0 md:border-l border-slate-200 md:pl-4">
                 <div className="flex items-center justify-between text-xs text-slate-500 font-semibold">
                   <span>💬 대화 파일 업로드 및 분석</span>
-                  <span className="text-[10px] text-slate-400">오디오(MP3, M4A) / 대화록(TXT, EML)</span>
+                  <span className="text-[10px] text-slate-400">오디오(MP3, M4A) / 대화록(TXT, EML, 이미지)</span>
                 </div>
                 {isAudioAnalyzing ? (
                   <div className="flex flex-col items-center justify-center space-y-1 py-1.5 bg-indigo-50 border border-indigo-150 rounded-xl">
@@ -1450,7 +1495,7 @@ export default function MeetingMinutesPage() {
                     <span>대화 파일 업로드 및 분석</span>
                     <input 
                       type="file" 
-                      accept="audio/*,text/plain,.txt,.eml" 
+                      accept="audio/*,text/plain,.txt,.eml,image/*" 
                       onChange={handleAudioUpload} 
                       className="hidden" 
                     />
