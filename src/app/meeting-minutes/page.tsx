@@ -4,10 +4,20 @@ import { useState, useEffect, useRef } from "react";
 import { 
   Mic, MicOff, StopCircle, Mail, Play, CheckCircle2, Clock, 
   ArrowLeft, Calendar, Users, Lightbulb, Sparkles, Plus, X, 
-  ChevronRight, RefreshCw, FileText, CheckSquare, Square, Trash2, ArrowUpRight, Upload, Pencil
+  ChevronRight, RefreshCw, FileText, CheckSquare, Square, Trash2, ArrowUpRight, Upload, Pencil, Image, Eye, Download
 } from "lucide-react";
 
 
+
+const getFileType = (url: string): "audio" | "image" | "text" | "other" => {
+  if (!url) return "other";
+  const ext = url.split("?")[0].split("#")[0].split(".").pop()?.toLowerCase();
+  if (!ext) return "other";
+  if (["mp3", "wav", "m4a", "webm", "ogg"].includes(ext)) return "audio";
+  if (["png", "jpg", "jpeg", "webp", "gif"].includes(ext)) return "image";
+  if (["txt", "eml", "html", "md"].includes(ext)) return "text";
+  return "other";
+};
 
 export default function MeetingMinutesPage() {
   // 상태 관리
@@ -741,9 +751,10 @@ export default function MeetingMinutesPage() {
 
         setSelectedMeeting((prev: any) => ({
           ...prev,
-          meeting_type: 'text'
+          meeting_type: 'text',
+          audio_url: uploadData.audioUrl
         }));
-        setTempAudioUrl("");
+        setTempAudioUrl(uploadData.audioUrl);
 
         // 진행 중인 상태 대화록 동기화 (회의 타입도 함께 동기화)
         await fetch("/api/meeting-minutes", {
@@ -753,6 +764,7 @@ export default function MeetingMinutesPage() {
             action: "sync",
             meetingId: selectedMeeting.id,
             transcript: formattedTranscript,
+            audioUrl: uploadData.audioUrl,
             meetingType: 'text'
           })
         });
@@ -785,9 +797,10 @@ export default function MeetingMinutesPage() {
 
         setSelectedMeeting((prev: any) => ({
           ...prev,
-          meeting_type: 'text'
+          meeting_type: 'text',
+          audio_url: uploadData.audioUrl
         }));
-        setTempAudioUrl("");
+        setTempAudioUrl(uploadData.audioUrl);
 
         // 진행 중인 상태 대화록 동기화 (회의 타입도 함께 동기화)
         await fetch("/api/meeting-minutes", {
@@ -797,6 +810,7 @@ export default function MeetingMinutesPage() {
             action: "sync",
             meetingId: selectedMeeting.id,
             transcript: formattedTranscript,
+            audioUrl: uploadData.audioUrl,
             meetingType: 'text'
           })
         });
@@ -1406,25 +1420,64 @@ export default function MeetingMinutesPage() {
               <div ref={transcriptEndRef} />
             </div>
  
-            {/* 🎙️ 회의 오디오 원본 듣기 플레이어 위젯 복원 */}
+            {/* 🎙️ 회의 원본 파일 위젯 (오디오 플레이어 / 이미지 텍스트 뷰어 및 다운로더) */}
             {tempAudioUrl && (
-              <div className="bg-indigo-50/50 border border-indigo-150 rounded-xl p-3.5 mt-3 flex items-center justify-between shadow-2xs">
-                <div className="flex items-center space-x-3">
+              <div className="bg-indigo-50/50 border border-indigo-150 rounded-xl p-3.5 mt-3 flex flex-col md:flex-row md:items-center justify-between shadow-2xs gap-3">
+                <div className="flex items-center space-x-3 flex-1 min-w-0">
                   <div className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-600 flex items-center justify-center shrink-0">
-                    <Mic className="w-4.5 h-4.5" />
+                    {getFileType(tempAudioUrl) === "audio" ? (
+                      <Mic className="w-4.5 h-4.5" />
+                    ) : getFileType(tempAudioUrl) === "image" ? (
+                      <Image className="w-4.5 h-4.5" />
+                    ) : (
+                      <FileText className="w-4.5 h-4.5" />
+                    )}
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-0.5">
-                      {tempAudioUrl.startsWith("blob:") ? "실시간 녹음 임시 원본 (미저장)" : "업로드된 회의 오디오"}
+                      {tempAudioUrl.startsWith("blob:") 
+                        ? "실시간 녹음 임시 원본 (미저장)" 
+                        : getFileType(tempAudioUrl) === "audio" 
+                          ? "업로드된 회의 오디오" 
+                          : getFileType(tempAudioUrl) === "image" 
+                            ? "업로드된 대화 이미지" 
+                            : "업로드된 대화 텍스트/이메일"}
                     </p>
-                    <p className="text-xs font-bold text-slate-750 truncate">회의 오디오 원본 듣기</p>
+                    <p className="text-xs font-bold text-slate-750 truncate">
+                      {tempAudioUrl.startsWith("blob:") ? "실시간 녹음 원본" : tempAudioUrl.substring(tempAudioUrl.lastIndexOf('/') + 1)}
+                    </p>
                   </div>
                 </div>
-                <audio 
-                  src={tempAudioUrl} 
-                  controls 
-                  className="h-8 max-w-[65%] focus:outline-none"
-                />
+                
+                <div className="flex items-center justify-end shrink-0">
+                  {getFileType(tempAudioUrl) === "audio" ? (
+                    <audio 
+                      src={tempAudioUrl} 
+                      controls 
+                      className="h-8 max-w-full focus:outline-none"
+                    />
+                  ) : (
+                    <div className="flex items-center space-x-2">
+                      <a 
+                        href={tempAudioUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="px-2.5 py-1.5 bg-white hover:bg-slate-50 text-indigo-600 rounded-lg text-[11px] font-bold border border-slate-200 transition active:scale-95 flex items-center gap-1 shadow-3xs cursor-pointer"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>원본 보기</span>
+                      </a>
+                      <a 
+                        href={tempAudioUrl} 
+                        download={tempAudioUrl.substring(tempAudioUrl.lastIndexOf('/') + 1)}
+                        className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold transition active:scale-95 flex items-center gap-1 shadow-2xs cursor-pointer"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>다운로드</span>
+                      </a>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -1616,19 +1669,61 @@ export default function MeetingMinutesPage() {
                 </div>
               )}
               
-              {/* 🎙️ 오디오 원본 파일 듣기 플레이어 위젯 */}
+              {/* 🎙️ 원본 파일 위젯 (오디오 플레이어 / 이미지 텍스트 뷰어 및 다운로더) */}
               {getMeetingAudioUrl(selectedMeeting) && (
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4 flex items-center space-x-3 shadow-2xs">
-                  <div className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-600 flex items-center justify-center shrink-0">
-                    <Mic className="w-4.5 h-4.5" />
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4 flex flex-col sm:flex-row sm:items-center justify-between shadow-2xs gap-3">
+                  <div className="flex items-center space-x-3 flex-1 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-indigo-500/10 text-indigo-600 flex items-center justify-center shrink-0">
+                      {getFileType(getMeetingAudioUrl(selectedMeeting)) === "audio" ? (
+                        <Mic className="w-4.5 h-4.5" />
+                      ) : getFileType(getMeetingAudioUrl(selectedMeeting)) === "image" ? (
+                        <Image className="w-4.5 h-4.5" />
+                      ) : (
+                        <FileText className="w-4.5 h-4.5" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
+                        {getFileType(getMeetingAudioUrl(selectedMeeting)) === "audio" 
+                          ? "회의 녹음 원본" 
+                          : getFileType(getMeetingAudioUrl(selectedMeeting)) === "image" 
+                            ? "회의 대화 이미지 원본" 
+                            : "회의 대화 텍스트/이메일 원본"}
+                      </p>
+                      <p className="text-xs font-bold text-slate-750 truncate">
+                        {getMeetingAudioUrl(selectedMeeting).substring(getMeetingAudioUrl(selectedMeeting).lastIndexOf('/') + 1)}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">회의 녹음 원본 듣기</p>
-                    <audio 
-                      src={getMeetingAudioUrl(selectedMeeting)} 
-                      controls 
-                      className="w-full h-8 bg-transparent focus:outline-none"
-                    />
+
+                  <div className="flex items-center justify-end shrink-0">
+                    {getFileType(getMeetingAudioUrl(selectedMeeting)) === "audio" ? (
+                      <audio 
+                        src={getMeetingAudioUrl(selectedMeeting)} 
+                        controls 
+                        className="w-full h-8 bg-transparent focus:outline-none"
+                      />
+                    ) : (
+                      <div className="flex items-center space-x-2">
+                        <a 
+                          href={getMeetingAudioUrl(selectedMeeting)} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="px-2.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-bold border border-slate-250 transition active:scale-95 flex items-center gap-1 shadow-3xs cursor-pointer"
+                        >
+                          <Eye className="w-4 h-4" />
+                          <span>원본 보기</span>
+                        </a>
+                        <a 
+                          href={getMeetingAudioUrl(selectedMeeting)} 
+                          download={getMeetingAudioUrl(selectedMeeting).substring(getMeetingAudioUrl(selectedMeeting).lastIndexOf('/') + 1)}
+                          className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition active:scale-95 flex items-center gap-1 shadow-2xs cursor-pointer"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span>다운로드</span>
+                        </a>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
