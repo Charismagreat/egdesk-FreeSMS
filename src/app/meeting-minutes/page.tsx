@@ -51,12 +51,12 @@ export default function MeetingMinutesPage() {
         alert(data.error || "회의명 변경에 실패했습니다.");
       }
     } catch (err) {
-      console.error("회의명 변경 에러:", err);
+      console.error("회의명 변경 실패:", err);
       alert("회의명 변경 중 오류가 발생했습니다.");
     }
   };
 
-  // 마이크 녹음/업로드 파일 오디오 URL 추출 헬퍼 함수 (에뮬레이터 스키마 캐시 유실 우회)
+  // 마이크 오디오/업로드 파일 오디오 URL 추출 헬퍼 함수 (디바이스 스키마 캐시 유실 우회)
   const getMeetingAudioUrl = (meet: any) => {
     if (!meet) return "";
     if (meet.audio_url) return meet.audio_url;
@@ -67,12 +67,28 @@ export default function MeetingMinutesPage() {
     return "";
   };
 
+  // 회의 타입(실시간/오디오업로드/텍스트) 반환 함수
+  const getMeetingType = (meet: any): "audio" | "text" => {
+    if (!meet) return "audio";
+    if (meet.meeting_type) return meet.meeting_type;
+    if (meet.summary) {
+      const match = meet.summary.match(/\[meeting_type\]:\s*(.+)/);
+      if (match) return match[1].trim() as any;
+    }
+    // 오디오 URL이 있으면 audio, 없으면 text
+    if (getMeetingAudioUrl(meet)) return "audio";
+    return "text";
+  };
+
   // 마크다운 요약에서 1줄 요약 추출하는 헬퍼 함수
   const getOneLineSummary = (summaryText: string) => {
     if (!summaryText) return "요약 정보가 아직 작성되지 않았습니다.";
     
-    // [audio_url]: ... 메타데이터 링크 본문에서 도려내기
-    const cleanSummaryText = summaryText.replace(/\[audio_url\]:\s*.*/g, "").trim();
+    // [audio_url] 및 [meeting_type] 메타데이터 링크 본문에서 도려내기
+    const cleanSummaryText = summaryText
+      .replace(/\[audio_url\]:\s*.*/g, "")
+      .replace(/\[meeting_type\]:\s*.*/g, "")
+      .trim();
     if (!cleanSummaryText) return "요약 정보가 아직 작성되지 않았습니다.";
 
     // 마크다운 문법 제거 (#, *, ` 등)
@@ -647,7 +663,7 @@ export default function MeetingMinutesPage() {
     }
   };
 
-  // 4. 회의 녹음 파일 업로드 및 분석
+  // 4. 회의 녹음/텍스트 파일 업로드 및 분석
   const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -660,6 +676,7 @@ export default function MeetingMinutesPage() {
     // 파일명(확장자 제거)으로 회의명 설정
     const rawFileName = file.name;
     const cleanTitle = rawFileName.substring(0, rawFileName.lastIndexOf('.')) || rawFileName;
+    const isTextFile = file.type === "text/plain" || rawFileName.endsWith(".txt");
 
     setIsAudioAnalyzing(true);
     setAudioAnalysisStep("1단계: 파일 서버 업로드 및 회의명 동기화 중...");
@@ -695,49 +712,99 @@ export default function MeetingMinutesPage() {
         throw new Error(uploadData.error || "파일 업로드에 실패했습니다.");
       }
 
-      setAudioAnalysisStep("2단계: Gemini AI 오디오 분석 및 화자 분류 중...");
+      let formattedTranscript = [];
 
-      // 2. 오디오 분석 API 호출
-      const analyzeRes = await fetch("/api/meeting-minutes/analyze-audio", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ audioUrl: uploadData.audioUrl })
-      });
-      const analyzeData = await analyzeRes.json();
+      if (isTextFile) {
+        setAudioAnalysisStep("2단계: Gemini AI 대화 내용 및 화자 분석 중...");
 
-      if (!analyzeData.success) {
-        throw new Error(analyzeData.error || "오디오 분석에 실패했습니다.");
+        // 텍스트 대화록 분석 API 호출
+        const analyzeRes = await fetch("/api/meeting-minutes/analyze-text", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ textUrl: uploadData.audioUrl })
+        });
+        const analyzeData = await analyzeRes.json();
+
+        if (!analyzeData.success) {
+          throw new Error(analyzeData.error || "텍스트 대화록 분석에 실패했습니다.");
+        }
+
+        formattedTranscript = (analyzeData.transcript || []).map((item: any, idx: number) => ({
+          id: `upload-${Date.now()}-${idx}`,
+          speaker: item.speaker || "미상",
+          time: item.time || "00:00",
+          text: item.text || ""
+        }));
+
+        setTranscript(formattedTranscript);
+
+        setSelectedMeeting((prev: any) => ({
+          ...prev,
+          meeting_type: 'text'
+        }));
+        setTempAudioUrl("");
+
+        // 진행 중인 상태 대화록 동기화 (회의 타입도 함께 동기화)
+        await fetch("/api/meeting-minutes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "sync",
+            meetingId: selectedMeeting.id,
+            transcript: formattedTranscript,
+            meetingType: 'text'
+          })
+        });
+
+        alert("🎉 텍스트 대화록 분석 및 파싱이 성공적으로 완료되었습니다!");
+
+      } else {
+        setAudioAnalysisStep("2단계: Gemini AI 오디오 분석 및 화자 분류 중...");
+
+        // 오디오 분석 API 호출
+        const analyzeRes = await fetch("/api/meeting-minutes/analyze-audio", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ audioUrl: uploadData.audioUrl })
+        });
+        const analyzeData = await analyzeRes.json();
+
+        if (!analyzeData.success) {
+          throw new Error(analyzeData.error || "오디오 분석에 실패했습니다.");
+        }
+
+        // 3. 추출된 대화록 적용
+        formattedTranscript = (analyzeData.transcript || []).map((item: any, idx: number) => ({
+          id: `upload-${Date.now()}-${idx}`,
+          speaker: item.speaker || "미상",
+          time: item.time || "00:00",
+          text: item.text || ""
+        }));
+
+        setTranscript(formattedTranscript);
+        
+        setSelectedMeeting((prev: any) => ({
+          ...prev,
+          audio_url: uploadData.audioUrl,
+          meeting_type: 'audio'
+        }));
+        setTempAudioUrl(uploadData.audioUrl);
+
+        // 진행 중인 상태 대화록 동기화 (오디오 url도 함께 동기화)
+        await fetch("/api/meeting-minutes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "sync",
+            meetingId: selectedMeeting.id,
+            transcript: formattedTranscript,
+            audioUrl: uploadData.audioUrl,
+            meetingType: 'audio'
+          })
+        });
+
+        alert("🎉 회의 오디오 파일 분석 및 대화록 추출이 성공적으로 완료되었습니다!");
       }
-
-      // 3. 추출된 대화록 적용
-      const formattedTranscript = (analyzeData.transcript || []).map((item: any, idx: number) => ({
-        id: `upload-${Date.now()}-${idx}`,
-        speaker: item.speaker || "미상",
-        time: item.time || "00:00",
-        text: item.text || ""
-      }));
-
-      setTranscript(formattedTranscript);
-      
-      setSelectedMeeting((prev: any) => ({
-        ...prev,
-        audio_url: uploadData.audioUrl
-      }));
-      setTempAudioUrl(uploadData.audioUrl);
-
-      // 진행 중인 상태 대화록 동기화 (오디오 url도 함께 동기화)
-      await fetch("/api/meeting-minutes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "sync",
-          meetingId: selectedMeeting.id,
-          transcript: formattedTranscript,
-          audioUrl: uploadData.audioUrl
-        })
-      });
-
-      alert("🎉 회의 오디오 파일 분석 및 대화록 추출이 성공적으로 완료되었습니다!");
     } catch (err: any) {
       console.error("오디오 업로드 분석 실패:", err);
       alert(err.message || "오디오 분석 중 오류가 발생했습니다.");
@@ -907,7 +974,8 @@ export default function MeetingMinutesPage() {
           meetingId: selectedMeeting.id,
           transcript: mappedTranscript,
           attendees: finalAttendees.length > 0 ? finalAttendees : undefined, // 참석자 정보 동시 업데이트
-          audioUrl: audioUrl
+          audioUrl: audioUrl,
+          meetingType: getMeetingType(selectedMeeting)
         })
       });
       const data = await res.json();
@@ -1112,11 +1180,15 @@ export default function MeetingMinutesPage() {
                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${meeting.status === 'ONGOING' ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-green-50 text-green-600 border border-green-200'}`}>
                           {meeting.status === 'ONGOING' ? '🔴 진행 중' : '✅ 완료됨'}
                         </span>
-                        {getMeetingAudioUrl(meeting) && (
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${getMeetingAudioUrl(meeting).includes("meeting-") ? "bg-blue-50 text-blue-600 border border-blue-200" : "bg-purple-50 text-purple-600 border border-purple-200"}`}>
+                        {getMeetingType(meeting) === "text" ? (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-purple-50 text-purple-650 border border-purple-200">
+                            💬 텍스트 업로드
+                          </span>
+                        ) : getMeetingAudioUrl(meeting) ? (
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${getMeetingAudioUrl(meeting).includes("meeting-") ? "bg-blue-50 text-blue-600 border border-blue-200" : "bg-teal-50 text-teal-650 border border-teal-200"}`}>
                             {getMeetingAudioUrl(meeting).includes("meeting-") ? "🎙️ 실시간 녹음" : "📁 파일 업로드"}
                           </span>
-                        )}
+                        ) : null}
                       </div>
                       <div className="flex items-center space-x-2">
                         <span className="text-[11px] text-slate-400 flex items-center space-x-1">
@@ -1198,15 +1270,19 @@ export default function MeetingMinutesPage() {
                 ) : (
                   <div className="flex items-center space-x-2 group">
                     <h2 className="text-base font-bold text-slate-800">{selectedMeeting.title}</h2>
-                    {getMeetingAudioUrl(selectedMeeting) && (
+                    {getMeetingType(selectedMeeting) === "text" ? (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded font-bold bg-purple-50 text-purple-600 border border-purple-150">
+                        💬 텍스트 대화록
+                      </span>
+                    ) : getMeetingAudioUrl(selectedMeeting) ? (
                       <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${
                         getMeetingAudioUrl(selectedMeeting).includes("meeting-") 
                           ? "bg-blue-50 text-blue-600 border border-blue-150" 
-                          : "bg-purple-50 text-purple-600 border border-purple-150"
+                          : "bg-teal-50 text-teal-650 border border-teal-150"
                       }`}>
-                        {getMeetingAudioUrl(selectedMeeting).includes("meeting-") ? "🎙️ 실시간" : "📁 업로드"}
+                        {getMeetingAudioUrl(selectedMeeting).includes("meeting-") ? "🎙️ 실시간" : "📁 오디오"}
                       </span>
-                    )}
+                    ) : null}
                     <button
                       onClick={() => {
                         setEditingTitleVal(selectedMeeting.title);
@@ -1352,11 +1428,11 @@ export default function MeetingMinutesPage() {
                 )}
               </div>
 
-              {/* 녹음 파일 업로드 제어 */}
+              {/* 녹음/텍스트 파일 업로드 제어 */}
               <div className="flex flex-col justify-center space-y-2 border-t md:border-t-0 md:border-l border-slate-200 md:pl-4">
                 <div className="flex items-center justify-between text-xs text-slate-500 font-semibold">
-                  <span>🎙️ 회의 녹음 파일 업로드 및 분석</span>
-                  <span className="text-[10px] text-slate-400">MP3, WAV, M4A, WEBM</span>
+                  <span>💬 대화 파일 업로드 및 분석</span>
+                  <span className="text-[10px] text-slate-400">오디오(MP3, M4A) / 텍스트(TXT)</span>
                 </div>
                 {isAudioAnalyzing ? (
                   <div className="flex flex-col items-center justify-center space-y-1 py-1.5 bg-indigo-50 border border-indigo-150 rounded-xl">
@@ -1371,10 +1447,10 @@ export default function MeetingMinutesPage() {
                 ) : (
                   <label className="flex items-center justify-center space-x-2 w-full py-2 bg-white hover:bg-indigo-50/40 text-indigo-600 rounded-xl text-xs font-bold border border-indigo-200/85 transition active:scale-95 shadow-sm cursor-pointer select-none">
                     <Upload className="w-4 h-4" />
-                    <span>녹음 파일 업로드 및 STT 분석</span>
+                    <span>대화 파일 업로드 및 분석</span>
                     <input 
                       type="file" 
-                      accept="audio/*" 
+                      accept="audio/*,text/plain,.txt" 
                       onChange={handleAudioUpload} 
                       className="hidden" 
                     />
@@ -1469,15 +1545,19 @@ export default function MeetingMinutesPage() {
               ) : (
                 <div className="flex items-center space-x-3 mb-4 group">
                   <h2 className="text-2xl font-bold text-slate-800">{selectedMeeting.title}</h2>
-                  {selectedMeeting.audio_url && (
-                    <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${
-                      selectedMeeting.audio_url.includes("meeting-") 
-                        ? "bg-blue-50 text-blue-600 border border-blue-200" 
-                        : "bg-purple-50 text-purple-600 border border-purple-200"
-                    }`}>
-                      {selectedMeeting.audio_url.includes("meeting-") ? "🎙️ 실시간 녹음 회의" : "📁 업로드 파일 분석"}
+                  {getMeetingType(selectedMeeting) === "text" ? (
+                    <span className="text-xs px-2.5 py-1 rounded-full font-bold bg-purple-50 text-purple-650 border border-purple-250">
+                      💬 텍스트 대화록 업로드
                     </span>
-                  )}
+                  ) : getMeetingAudioUrl(selectedMeeting) ? (
+                    <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${
+                      getMeetingAudioUrl(selectedMeeting).includes("meeting-") 
+                        ? "bg-blue-50 text-blue-600 border border-blue-200" 
+                        : "bg-teal-50 text-teal-650 border border-teal-200"
+                    }`}>
+                      {getMeetingAudioUrl(selectedMeeting).includes("meeting-") ? "🎙️ 실시간 녹음 회의" : "📁 업로드 파일 분석"}
+                    </span>
+                  ) : null}
                   <button
                     onClick={() => {
                       setEditingTitleVal(selectedMeeting.title);
@@ -1541,7 +1621,7 @@ export default function MeetingMinutesPage() {
                       <span>AI 자동 기안 회의 요약 리포트</span>
                     </h3>
                     <div className="prose prose-slate max-w-none text-slate-700 text-sm leading-relaxed whitespace-pre-line bg-slate-50 border border-slate-200 p-4 rounded-xl">
-                      {(selectedMeeting.summary || '').replace(/\[audio_url\]:\s*.*/g, '').trim() || '회의록 요약이 작성되지 않았습니다.'}
+                      {(selectedMeeting.summary || '').replace(/\[audio_url\]:\s*.*/g, '').replace(/\[meeting_type\]:\s*.*/g, '').trim() || '회의록 요약이 작성되지 않았습니다.'}
                     </div>
                   </div>
                 ) : (

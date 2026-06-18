@@ -63,21 +63,32 @@ export async function GET() {
     // queryTable 대신 executeSQL을 사용하여 스키마 캐시 필터링 우회
     const result = await executeSQL('SELECT * FROM crm_meetings ORDER BY date DESC');
     const meetings = (result.rows || []).map((m: any) => {
-      // summary 마크다운에서 [audio_url] 메타데이터 링크가 있는 경우 추출하여 audio_url 복원
+      // summary 마크다운에서 [audio_url] 및 [meeting_type] 메타데이터를 추출하여 복원
       let extractedUrl = '';
+      let meetingType = 'audio'; // 기본값은 오디오
       if (m.summary) {
         const match = m.summary.match(/\[audio_url\]:\s*(.+)/);
         if (match) {
           extractedUrl = match[1].trim();
+        }
+        const typeMatch = m.summary.match(/\[meeting_type\]:\s*(.+)/);
+        if (typeMatch) {
+          meetingType = typeMatch[1].trim();
         }
       }
       
       // 스키마 캐시 유실 및 레거시 매핑을 위한 지능형 물리 파일 매칭 폴백
       const fallbackUrl = getFallbackAudioUrl(m.id, m.date);
 
+      // 만약 오디오 관련 정보가 전혀 없는 경우 텍스트 타입으로 간주
+      if (!m.audio_url && !extractedUrl && !fallbackUrl) {
+        meetingType = 'text';
+      }
+
       return {
         ...m,
-        audio_url: m.audio_url || extractedUrl || fallbackUrl || null
+        audio_url: m.audio_url || extractedUrl || fallbackUrl || null,
+        meeting_type: meetingType
       };
     }).filter((m: any) => !m.deleted_at);
     
@@ -94,7 +105,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { action, title, attendees, meetingId, transcript, audioUrl } = body;
+    const { action, title, attendees, meetingId, transcript, audioUrl, meetingType } = body;
 
     const nowStr = getKSTDateString();
 
@@ -333,11 +344,14 @@ export async function POST(req: Request) {
         ];
       }
 
-      // 오디오 원본 URL 스키마 캐시 유실 우회 백업 저장
+      // 오디오 원본 URL 및 회의 타입 스키마 캐시 유실 우회 백업 저장
       const finalAudioUrl = audioUrl || meeting.audio_url || '';
+      const finalMeetingType = meetingType || (finalAudioUrl ? 'audio' : 'text');
+
       if (finalAudioUrl) {
         summaryMarkdown += `\n\n[audio_url]: ${finalAudioUrl}`;
       }
+      summaryMarkdown += `\n\n[meeting_type]: ${finalMeetingType}`;
 
       await updateRows('crm_meetings', {
         summary: summaryMarkdown,
@@ -379,7 +393,8 @@ export async function POST(req: Request) {
           transcript: typeof transcript === 'string' ? transcript : JSON.stringify(transcript),
           attendees: Array.isArray(attendees) ? JSON.stringify(attendees) : meeting.attendees,
           status: 'COMPLETED',
-          audio_url: finalAudioUrl
+          audio_url: finalAudioUrl,
+          meeting_type: finalMeetingType
         },
         tasks: taskInsertData
       });

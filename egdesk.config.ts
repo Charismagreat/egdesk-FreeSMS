@@ -1,6 +1,6 @@
 /**
  * EGDesk User Data Configuration
- * Generated at: 2026-06-18T02:15:48.735Z
+ * Generated at: 2026-06-18T04:50:12.904Z
  *
  * This file contains type-safe definitions for your EGDesk tables.
  */
@@ -73,14 +73,14 @@ export const TABLES = {
   table8: {
     name: 'crm_meeting_tasks',
     displayName: '회의 할 일 및 일정',
-    rowCount: 13,
+    rowCount: 17,
     columnCount: 14,
     columns: ['id', 'meeting_id', 'assignee_name', 'assignee_email', 'task_desc', 'due_date', 'status', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table9: {
     name: 'crm_meetings',
     displayName: '회의 대장',
-    rowCount: 14,
+    rowCount: 16,
     columnCount: 14,
     columns: ['id', 'title', 'date', 'attendees', 'transcript', 'summary', 'status', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
@@ -500,7 +500,7 @@ export const TABLES = {
   table69: {
     name: 'ai_token_usage_logs',
     displayName: 'AI 토큰 사용량 로그',
-    rowCount: 65,
+    rowCount: 69,
     columnCount: 16,
     columns: ['id', 'model', 'purpose', 'prompt_tokens', 'completion_tokens', 'total_tokens', 'user_name', 'menu_path', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
