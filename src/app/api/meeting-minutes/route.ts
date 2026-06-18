@@ -276,7 +276,7 @@ export async function POST(req: Request) {
         transcript: typeof transcript === 'string' ? transcript : JSON.stringify(transcript),
         attendees: Array.isArray(attendees) ? JSON.stringify(attendees) : meeting.attendees,
         status: 'COMPLETED',
-        audio_url: audioUrl || '',
+        audio_url: audioUrl || meeting.audio_url || '',
         updated_at: nowStr,
         updated_by: 'SYSTEM'
       }, { filters: { id: String(meetingId) } });

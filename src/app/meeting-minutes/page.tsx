@@ -840,7 +840,7 @@ export default function MeetingMinutesPage() {
     await new Promise(resolve => setTimeout(resolve, 300));
 
     // 🎙️ 녹음 오디오 파일 서버 업로드 처리
-    let audioUrl = "";
+    let audioUrl = selectedMeeting.audio_url || "";
     if (audioChunksRef.current && audioChunksRef.current.length > 0) {
       try {
         const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
