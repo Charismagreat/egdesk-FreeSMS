@@ -676,7 +676,7 @@ export default function MeetingMinutesPage() {
     // 파일명(확장자 제거)으로 회의명 설정
     const rawFileName = file.name;
     const cleanTitle = rawFileName.substring(0, rawFileName.lastIndexOf('.')) || rawFileName;
-    const isTextFile = file.type === "text/plain" || rawFileName.endsWith(".txt");
+    const isTextFile = file.type === "text/plain" || rawFileName.endsWith(".txt") || rawFileName.endsWith(".eml");
 
     setIsAudioAnalyzing(true);
     setAudioAnalysisStep("1단계: 파일 서버 업로드 및 회의명 동기화 중...");
@@ -1432,7 +1432,7 @@ export default function MeetingMinutesPage() {
               <div className="flex flex-col justify-center space-y-2 border-t md:border-t-0 md:border-l border-slate-200 md:pl-4">
                 <div className="flex items-center justify-between text-xs text-slate-500 font-semibold">
                   <span>💬 대화 파일 업로드 및 분석</span>
-                  <span className="text-[10px] text-slate-400">오디오(MP3, M4A) / 텍스트(TXT)</span>
+                  <span className="text-[10px] text-slate-400">오디오(MP3, M4A) / 대화록(TXT, EML)</span>
                 </div>
                 {isAudioAnalyzing ? (
                   <div className="flex flex-col items-center justify-center space-y-1 py-1.5 bg-indigo-50 border border-indigo-150 rounded-xl">
@@ -1450,7 +1450,7 @@ export default function MeetingMinutesPage() {
                     <span>대화 파일 업로드 및 분석</span>
                     <input 
                       type="file" 
-                      accept="audio/*,text/plain,.txt" 
+                      accept="audio/*,text/plain,.txt,.eml" 
                       onChange={handleAudioUpload} 
                       className="hidden" 
                     />
