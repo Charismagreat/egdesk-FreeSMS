@@ -1,36 +1,9 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { queryTable, insertRows } from '../../../../../egdesk-helpers';
-import Database from 'better-sqlite3';
-import os from 'os';
-import path from 'path';
+import { queryTable, insertRows, executeSQL } from '../../../../../egdesk-helpers';
 import fs from 'fs';
-
-// 📂 실제 AppData 경로의 SQLite3 물리 DB 인스턴스 획득 헬퍼
-function getDirectDB() {
-  const homeDir = os.homedir();
-  const appData = process.env.APPDATA || path.join(homeDir, 'AppData/Roaming');
-  const paths = [
-    path.join(appData, 'EGDesk/database/user_data.db'),
-    path.join(appData, 'egdesk/database/user_data.db')
-  ];
-  
-  let targetPath = '';
-  for (const p of paths) {
-    if (fs.existsSync(p)) {
-      targetPath = p;
-      break;
-    }
-  }
-  
-  if (!targetPath) {
-    targetPath = paths[0];
-  }
-
-  const normalizedPath = targetPath.replace(/\\/g, '/');
-  return new Database(normalizedPath);
-}
+import { fetchGeminiWithFallback } from '@/lib/gemini-fallback';
 
 // HTML에서 Mustache 변수 목록 추출 헬퍼
 function extractMustacheFields(html: string): string[] {
@@ -64,9 +37,9 @@ export async function GET(req: Request) {
     }
 
     // 1. 템플릿 정보 로드 (HTML 내용 획득)
-    const res = await queryTable('crm_web_templates', { filters: { id: String(templateId) } });
+    const res = await executeSQL(`SELECT * FROM crm_web_templates WHERE id = ${templateId} AND deleted_at IS NULL`);
     const rows = res.rows || [];
-    const template = rows.find((r: any) => !r.deleted_at) || null;
+    const template = rows[0] || null;
 
     if (!template) {
       return NextResponse.json({ success: false, error: '해당 템플릿을 찾을 수 없거나 삭제되었습니다.' }, { status: 404 });
@@ -76,8 +49,7 @@ export async function GET(req: Request) {
     const targetFields = extractMustacheFields(htmlContent);
 
     // 2. DB 내 모든 테이블 및 컬럼 구조 스캔
-    const db = getDirectDB();
-    const tablesList = db.prepare(`
+    const tablesRes = await executeSQL(`
       SELECT name FROM sqlite_master 
       WHERE type='table' 
         AND name NOT LIKE 'sqlite_%' 
@@ -90,23 +62,27 @@ export async function GET(req: Request) {
         AND name NOT LIKE '%_histories'
         AND name NOT LIKE '%_history'
       ORDER BY name ASC;
-    `).all() as any[];
+    `);
+    const tablesList = tablesRes.rows || [];
 
     const dbSchemas: Record<string, string[]> = {};
-    for (const t of tablesList) {
+    for (const t of tablesList as any[]) {
       const name = t.name;
-      const schemaInfo = db.prepare(`PRAGMA table_info("${name}");`).all() as any[];
-      dbSchemas[name] = schemaInfo.map(col => col.name);
+      const schemaRes = await executeSQL(`PRAGMA table_info("${name}");`);
+      const schemaInfo = schemaRes.rows || [];
+      dbSchemas[name] = schemaInfo.map((col: any) => col.name);
     }
 
     // 3. Gemini API 로드 설정
     let apiKey: string | null = null;
     let selectedModel = 'gemini-1.5-flash';
     try {
-      const settingsKeyRow = db.prepare(`SELECT value FROM system_settings WHERE key = 'google_ai_api_key'`).get() as any;
+      const keyRes = await executeSQL(`SELECT value FROM system_settings WHERE key = 'google_ai_api_key'`);
+      const settingsKeyRow = keyRes.rows?.[0] as any;
       apiKey = settingsKeyRow ? settingsKeyRow.value : null;
 
-      const settingsModelRow = db.prepare(`SELECT value FROM system_settings WHERE key = 'google_ai_model'`).get() as any;
+      const modelRes = await executeSQL(`SELECT value FROM system_settings WHERE key = 'google_ai_model'`);
+      const settingsModelRow = modelRes.rows?.[0] as any;
       if (settingsModelRow && settingsModelRow.value) {
         selectedModel = settingsModelRow.value;
       }
@@ -119,7 +95,6 @@ export async function GET(req: Request) {
     }
 
     if (!apiKey) {
-      db.close();
       return NextResponse.json({ 
         success: false, 
         error: 'Google AI API Key가 설정되지 않았습니다. [시스템 설정]에서 구글 API 키를 먼저 입력하십시오.' 
@@ -147,13 +122,13 @@ Guidelines for SQL Generation:
 3. For example, if the keyword is a staff name like "홍길동" and we need to fill variables related to staff (like department, joined_date, staff_role, etc.), you should query "rnd_staffs" (or other personnel tables), LEFT JOIN "crm_operators" or "crm_operator_profiles" to match "name" or "user_id", and filter by the keyword.
 4. Try to alias columns so they match the mustache variable names if possible (e.g., SELECT s.staff_role AS position, p.department ...). If not possible, the code will handle mapping, but clean aliasing is highly preferred.
 5. In SQLite, CAST may be needed to join an INTEGER column with a TEXT column (e.g. \`ON CAST(o.id AS TEXT) = p.operator_id\`).
-6. Filter out soft-deleted records: ALWAYS include \`deleted_at IS NULL\` condition for tables that contain a "deleted_at" column in their schema.
+6. DO NOT include "deleted_at" or "deleted_by" columns or terms anywhere in the query (WHERE, SELECT, etc.). The system will handle soft-delete filtering in the backend. If you include 'delete' related terms, the API server will reject the query due to security filters.
 7. Safely escape the search keyword in the query as a string literal: e.g. \`WHERE o.name = '홍길동'\` (or using LIKE if appropriate, but exact match is preferred for names/IDs).
 8. Ensure the query returns exactly one row or uses \`LIMIT 1\`.
 `;
 
     console.log("Calling Gemini for dynamic SQL query generation...");
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+    const response = await fetchGeminiWithFallback(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -172,7 +147,6 @@ Guidelines for SQL Generation:
 
     if (!response.ok) {
       const errText = await response.text();
-      db.close();
       throw new Error(`Gemini API 호출에 실패했습니다: ${errText}`);
     }
 
@@ -214,7 +188,6 @@ Guidelines for SQL Generation:
     });
 
     if (hasForbidden) {
-      db.close();
       return NextResponse.json({ 
         success: false, 
         error: '보안 검증 실패: AI가 유효하지 않거나 위험한 쓰기형 DML SQL문을 작성했습니다.',
@@ -225,18 +198,18 @@ Guidelines for SQL Generation:
     // 6. DB 직접 쿼리 실행
     let recordData: any = null;
     try {
-      recordData = db.prepare(generatedSql).get();
+      const sqlRes = await executeSQL(generatedSql);
+      const rows = sqlRes.rows || [];
+      // 소프트 삭제된 레코드 필터링
+      recordData = rows.find((r: any) => !r.deleted_at) || null;
     } catch (sqlErr: any) {
       console.error("SQL Execution error:", sqlErr);
-      db.close();
       return NextResponse.json({
         success: false,
         error: `AI가 작성한 SQL 실행에 실패했습니다. (SQL 에러: ${sqlErr.message})`,
         sql: generatedSql
       }, { status: 500 });
     }
-
-    db.close();
 
     if (!recordData) {
       return NextResponse.json({

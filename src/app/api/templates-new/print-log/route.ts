@@ -6,40 +6,7 @@ import { insertRows, executeSQL, queryTable } from '../../../../../egdesk-helper
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
 import crypto from 'crypto';
-import Database from 'better-sqlite3';
-import os from 'os';
-import path from 'path';
 import fs from 'fs';
-
-// 📂 실제 AppData 경로의 SQLite3 물리 DB 직접 획득 헬퍼 (보안 필터 오판 우회용)
-function getDirectDB() {
-  const homeDir = os.homedir();
-  const appData = process.env.APPDATA || path.join(homeDir, 'AppData/Roaming');
-  const paths = [
-    path.join(appData, 'EGDesk/database/user_data.db'),
-    path.join(appData, 'egdesk/database/user_data.db')
-  ];
-  
-  let targetPath = '';
-  for (const p of paths) {
-    if (fs.existsSync(p)) {
-      targetPath = p;
-      break;
-    }
-  }
-  
-  if (!targetPath) {
-    targetPath = paths[0];
-  }
-
-  const normalizedPath = targetPath.replace(/\\/g, '/');
-  const dir = normalizedPath.substring(0, normalizedPath.lastIndexOf('/'));
-  if (dir && !fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-
-  return new Database(normalizedPath, { verbose: console.log });
-}
 
 // 한국 시간 기준 YYYY-MM-DD HH:MM:SS 타임스탬프 획득 헬퍼
 function getKoreanTimestamp() {
@@ -78,28 +45,19 @@ export async function GET(req: Request) {
     // raw SQL 실행하여 템플릿 정보와 LEFT JOIN
     const sql = `
       SELECT 
-        l.id,
-        l.template_id,
-        l.record_id,
-        l.record_name,
-        l.print_data,
-        l.issue_date,
-        l.uuid,
-        l.updated_at,
-        l.updated_by,
+        l.*,
         t.template_name,
         t.document_type,
         t.html_content
       FROM crm_web_form_logs l
       LEFT JOIN crm_web_templates t ON l.template_id = t.id
-      WHERE l.deleted_at IS NULL
       ORDER BY l.id DESC
     `;
-    console.log("Executing SQL on direct db...");
-    const db = getDirectDB();
-    console.log("Direct DB connection obtained. Preparing statement...");
-    const logs = db.prepare(sql).all();
-    console.log("SQL execution finished. Count:", logs ? logs.length : 0);
+    console.log("Executing SQL via executeSQL...");
+    const logsRes = await executeSQL(sql);
+    const rows = logsRes.rows || [];
+    const logs = rows.filter((r: any) => !r.deleted_at);
+    console.log("SQL execution finished. Count:", logs.length);
 
     return NextResponse.json({ success: true, logs });
   } catch (err: any) {

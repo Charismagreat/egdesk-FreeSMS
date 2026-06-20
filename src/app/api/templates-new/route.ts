@@ -1,5 +1,5 @@
 export const dynamic = 'force-dynamic';
-// HMR trigger timestamp: 2026-06-12 14:42:00
+// HMR trigger timestamp: 2026-06-20 09:50:00
 
 import { NextResponse } from 'next/server';
 import { queryTable, insertRows, updateRows, executeSQL } from '../../../../egdesk-helpers';
@@ -7,40 +7,8 @@ import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
 import crypto from 'crypto';
 import { setupDatabase } from '@/lib/setup-db';
-import Database from 'better-sqlite3';
-import os from 'os';
-import path from 'path';
 import fs from 'fs';
-
-// 📂 실제 AppData 경로의 이지데스크 가동용 SQLite3 물리 DB 인스턴스 획득 헬퍼
-function getDirectDB() {
-  const homeDir = os.homedir();
-  const appData = process.env.APPDATA || path.join(homeDir, 'AppData/Roaming');
-  const paths = [
-    path.join(appData, 'EGDesk/database/user_data.db'),
-    path.join(appData, 'egdesk/database/user_data.db')
-  ];
-  
-  let targetPath = '';
-  for (const p of paths) {
-    if (fs.existsSync(p)) {
-      targetPath = p;
-      break;
-    }
-  }
-  
-  if (!targetPath) {
-    targetPath = paths[0];
-  }
-
-  const normalizedPath = targetPath.replace(/\\/g, '/');
-  const dir = normalizedPath.substring(0, normalizedPath.lastIndexOf('/'));
-  if (dir && !fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-
-  return new Database(normalizedPath, { verbose: console.log });
-}
+import { fetchGeminiWithFallback } from '@/lib/gemini-fallback';
 
 // 한국 시간 기준 YYYY-MM-DD HH:MM:SS 타임스탬프 획득 헬퍼
 function getKoreanTimestamp() {
@@ -48,10 +16,31 @@ function getKoreanTimestamp() {
   return date.toISOString().replace('T', ' ').substring(0, 19);
 }
 
-// 최고 관리자(SUPER_ADMIN) 권한 검증 및 사용자 정보 반환 헬퍼
-async function verifySuperAdmin() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('auth_token')?.value;
+// 쿠키 헤더 문자열에서 특정 쿠키 값을 파싱하는 헬퍼 함수
+function getCookieValue(cookieHeader: string | null, name: string): string | null {
+  if (!cookieHeader) return null;
+  const match = cookieHeader.match(new RegExp('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)'));
+  return match ? decodeURIComponent(match[2]) : null;
+}
+
+// 최고 관리자(SUPER_ADMIN) 권한 검증 및 사용자 정보 반환 헬퍼 (Fallback 적용)
+async function verifySuperAdmin(req?: Request) {
+  let token: string | undefined;
+
+  // 1. Next.js 표준 cookies() 시도
+  try {
+    const cookieStore = await cookies();
+    token = cookieStore.get('auth_token')?.value;
+  } catch (e) {
+    console.error('[verifySuperAdmin] cookies() 읽기 실패:', e);
+  }
+
+  // 2. 실패 시 Request 헤더에서 직접 추출 시도 (Fallback)
+  if (!token && req) {
+    const cookieHeader = req.headers.get('cookie');
+    token = getCookieValue(cookieHeader, 'auth_token') || undefined;
+  }
+
   if (!token) return { isAuthorized: false, username: null };
   try {
     const payload = decodeJwt(token);
@@ -168,6 +157,8 @@ const TABLE_DISPLAY_NAMES: Record<string, string> = {
  * GET: 등록된 신규 웹 양식 템플릿 목록 조회 또는 특정 템플릿 상세 정보 조회
  */
 export async function GET(req: Request) {
+
+
   if (!isDbMigrated) {
     try {
       await setupDatabase();
@@ -186,8 +177,7 @@ export async function GET(req: Request) {
 
     // 0. 모든 테이블 목록 조회 (양식 감지 필드와 무관하게 직접 선택용 전체 테이블 반환)
     if (action === 'all_tables') {
-      const db = getDirectDB();
-      const tablesList = db.prepare(`
+      const tablesRes = await executeSQL(`
         SELECT name FROM sqlite_master 
         WHERE type='table' 
           AND name NOT LIKE 'sqlite_%' 
@@ -201,7 +191,8 @@ export async function GET(req: Request) {
           AND name NOT LIKE '%_histories'
           AND name NOT LIKE '%_history'
         ORDER BY name ASC;
-      `).all();
+      `);
+      const tablesList = tablesRes.rows || [];
 
       const tables = tablesList.map((t: any) => {
         const name = t.name;
@@ -231,8 +222,7 @@ export async function GET(req: Request) {
         .map(f => f.trim())
         .filter(Boolean);
 
-      const db = getDirectDB();
-      const tablesList = db.prepare(`
+      const tablesRes = await executeSQL(`
         SELECT name FROM sqlite_master 
         WHERE type='table' 
           AND name NOT LIKE 'sqlite_%' 
@@ -246,7 +236,8 @@ export async function GET(req: Request) {
           AND name NOT LIKE '%_histories'
           AND name NOT LIKE '%_history'
         ORDER BY name ASC;
-      `).all();
+      `);
+      const tablesList = tablesRes.rows || [];
 
       const candidateTables = tablesList.map((t: any) => {
         const name = t.name;
@@ -259,11 +250,12 @@ export async function GET(req: Request) {
       let apiKey: string | null = null;
       let selectedModel = 'gemini-1.5-flash';
       try {
-        // 비동기 락 커넥션 오류를 방지하기 위해 getDirectDB() 동기 조회 방식으로 변경
-        const settingsKeyRow = db.prepare(`SELECT value FROM system_settings WHERE key = 'google_ai_api_key'`).get() as any;
+        const keyRes = await executeSQL(`SELECT value FROM system_settings WHERE key = 'google_ai_api_key'`);
+        const settingsKeyRow = keyRes.rows?.[0] as any;
         apiKey = settingsKeyRow ? settingsKeyRow.value : null;
 
-        const settingsModelRow = db.prepare(`SELECT value FROM system_settings WHERE key = 'google_ai_model'`).get() as any;
+        const modelRes = await executeSQL(`SELECT value FROM system_settings WHERE key = 'google_ai_model'`);
+        const settingsModelRow = modelRes.rows?.[0] as any;
         if (settingsModelRow && settingsModelRow.value) {
           selectedModel = settingsModelRow.value;
         }
@@ -300,7 +292,7 @@ ${candidateTables.join('\n')}
 Based on the guidelines, choose the most appropriate tables for this document purpose.
 `;
 
-          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+          const response = await fetchGeminiWithFallback(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -372,7 +364,8 @@ Based on the guidelines, choose the most appropriate tables for this document pu
       for (const t of tablesList as any[]) {
         const name = t.name;
         const displayName = TABLE_DISPLAY_NAMES[name] || name;
-        const schemaInfo = db.prepare(`PRAGMA table_info("${name}");`).all();
+        const schemaRes = await executeSQL(`PRAGMA table_info("${name}");`);
+        const schemaInfo = schemaRes.rows || [];
 
         let isRecommended = false;
         // 1) AI 추천을 성공적으로 받았을 경우, AI 추천 목록에 포함된 테이블만 매핑 처리
@@ -518,9 +511,9 @@ Based on the guidelines, choose the most appropriate tables for this document pu
         return NextResponse.json({ success: false, error: '이력 및 대장성 테이블은 데이터 바인딩 소스로 조회할 수 없습니다.' }, { status: 403 });
       }
 
-      const db = getDirectDB();
       // SQLite 시스템 내에 실제로 실존하는 테이블인지 동적으로 존재 검증 수행
-      const exists = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name = ?`).get(tableName);
+      const existsRes = await executeSQL(`SELECT name FROM sqlite_master WHERE type='table' AND name = '${tableName}'`);
+      const exists = existsRes.rows?.[0];
       if (!exists) {
         return NextResponse.json({ success: false, error: '존재하지 않거나 조회할 수 없는 테이블입니다.' }, { status: 400 });
       }
@@ -528,7 +521,8 @@ Based on the guidelines, choose the most appropriate tables for this document pu
       let query = '';
       if (tableName === 'rnd_staffs') {
         // rnd_staffs 테이블에 deleted_at 컬럼 존재 여부 동적 검증
-        const schemaInfo = db.prepare(`PRAGMA table_info("rnd_staffs");`).all();
+        const schemaRes = await executeSQL(`PRAGMA table_info("rnd_staffs");`);
+        const schemaInfo = schemaRes.rows || [];
         const hasDeletedCol = schemaInfo.some((col: any) => col.name === 'deleted_at');
         
         if (hasDeletedCol) {
@@ -553,7 +547,8 @@ Based on the guidelines, choose the most appropriate tables for this document pu
         }
       } else {
         // 소프트 삭제를 지원하는 컬럼 유무 확인
-        const schemaInfo = db.prepare(`PRAGMA table_info("${tableName}");`).all();
+        const schemaRes = await executeSQL(`PRAGMA table_info("${tableName}");`);
+        const schemaInfo = schemaRes.rows || [];
         const hasDeletedCol = schemaInfo.some((col: any) => col.name === 'deleted_at');
 
         if (hasDeletedCol) {
@@ -563,8 +558,9 @@ Based on the guidelines, choose the most appropriate tables for this document pu
         }
       }
 
-      console.log("Executing query_records on direct db...");
-      const rows = db.prepare(query).all();
+      console.log("Executing query_records on direct db via executeSQL...");
+      const rowsRes = await executeSQL(query);
+      const rows = rowsRes.rows || [];
 
       // 일반적인 포맷으로 가공하여 반환
       const formattedRecords = rows.map((row: any) => {
@@ -589,19 +585,19 @@ Based on the guidelines, choose the most appropriate tables for this document pu
 
     if (action === 'detail' && id) {
       const templateId = parseInt(id);
-      const res = await queryTable('crm_web_templates', { filters: { id: String(templateId) } });
+      const res = await executeSQL(`SELECT * FROM crm_web_templates WHERE id = ${templateId}`);
       const rows = res.rows || [];
-      const template = rows.find((r: any) => !r.deleted_at) || null;
+      const template = rows[0] || null;
 
-      if (!template) {
+      if (!template || template.deleted_at) {
         return NextResponse.json({ success: false, error: '해당 템플릿을 찾을 수 없거나 삭제되었습니다.' }, { status: 404 });
       }
 
       // 시스템 설정에서 우리 회사 정보(회사명, 대표이사 등) 가져오기
-      const db = getDirectDB();
       let companyProfile: Record<string, any> = {};
       try {
-        const row = db.prepare(`SELECT value FROM system_settings WHERE key = 'my_company_profile'`).get() as any;
+        const settingsRes = await executeSQL(`SELECT value FROM system_settings WHERE key = 'my_company_profile'`);
+        const row = settingsRes.rows?.[0] as any;
         if (row && row.value) {
           const parsed = JSON.parse(row.value);
           companyProfile = {
@@ -646,11 +642,9 @@ Based on the guidelines, choose the most appropriate tables for this document pu
     }
 
     // 목록 조회
-    const res = await queryTable('crm_web_templates', {});
+    const res = await executeSQL('SELECT * FROM crm_web_templates ORDER BY id DESC');
     const rows = res.rows || [];
-    const templates = rows
-      .filter((r: any) => !r.deleted_at)
-      .sort((a: any, b: any) => b.id - a.id);
+    const templates = rows.filter((r: any) => !r.deleted_at);
 
     return NextResponse.json({ success: true, templates });
   } catch (err: any) {
@@ -663,7 +657,7 @@ Based on the guidelines, choose the most appropriate tables for this document pu
  * POST: 웹 양식 템플릿 신규 등록 또는 수정
  */
 export async function POST(req: Request) {
-  const { isAuthorized, username } = await verifySuperAdmin();
+  const { isAuthorized, username } = await verifySuperAdmin(req);
   if (!isAuthorized) {
     return NextResponse.json({ success: false, error: '최고관리자 권한이 필요합니다.' }, { status: 403 });
   }
@@ -672,11 +666,12 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { id, template_name, html_content, web_html_content, webHtmlContent, document_type, is_active, is_print_active, is_web_active } = body;
 
-    if (!template_name || !html_content) {
-      return NextResponse.json({ success: false, error: '템플릿명과 HTML 내용은 필수입니다.' }, { status: 400 });
+    const webHtml = web_html_content || webHtmlContent || '';
+
+    if (!template_name || (!html_content && !webHtml)) {
+      return NextResponse.json({ success: false, error: '템플릿명과 HTML 내용(인쇄용 또는 웹용 중 하나)은 필수입니다.' }, { status: 400 });
     }
 
-    const webHtml = web_html_content || webHtmlContent || '';
     const timestamp = getKoreanTimestamp();
 
     if (id) {
@@ -684,7 +679,8 @@ export async function POST(req: Request) {
       const templateId = parseInt(id);
       const updateData = {
         template_name,
-        html_content,
+        // html_content는 NOT NULL 제약조건이 있으므로 비어있는 경우 폴백 텍스트 주입
+        html_content: html_content && html_content.trim() ? html_content : '<!-- 인쇄 비활성화 양식 -->',
         web_html_content: webHtml,
         document_type: document_type || '',
         is_active: is_active !== undefined ? Number(is_active) : 1,
@@ -700,7 +696,8 @@ export async function POST(req: Request) {
       // 등록 (Insert)
       const insertData = {
         template_name,
-        html_content,
+        // html_content는 NOT NULL 제약조건이 있으므로 비어있는 경우 폴백 텍스트 주입
+        html_content: html_content && html_content.trim() ? html_content : '<!-- 인쇄 비활성화 양식 -->',
         web_html_content: webHtml,
         document_type: document_type || '',
         is_active: is_active !== undefined ? Number(is_active) : 1,
@@ -729,7 +726,7 @@ export async function POST(req: Request) {
  * DELETE: 웹 양식 템플릿 소프트 삭제
  */
 export async function DELETE(req: Request) {
-  const { isAuthorized, username } = await verifySuperAdmin();
+  const { isAuthorized, username } = await verifySuperAdmin(req);
   if (!isAuthorized) {
     return NextResponse.json({ success: false, error: '최고관리자 권한이 필요합니다.' }, { status: 403 });
   }

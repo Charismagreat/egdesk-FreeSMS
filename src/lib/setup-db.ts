@@ -2773,9 +2773,49 @@ export async function setupDatabase() {
       }
       console.log('✓ 기존 무사번 직원 대상 일괄 사번 주입 성공.');
     }
+
+    db.close();
+    console.log('✓ Database connection closed successfully in setupDatabase migration.');
   } catch (err: any) {
     console.error('⚠️ 직원 사번 마이그레이션 에러:', err.message);
   }
+
+  // 47. 실시간 통역 AI 세션 테이블 (감사 7종 및 소프트 삭제 컬럼 반영)
+  await safeCreateTable('실시간 통역 AI 세션', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'user_id', type: 'TEXT', notNull: true },
+    { name: 'source_lang', type: 'TEXT', notNull: true },
+    { name: 'target_lang', type: 'TEXT', notNull: true },
+    { name: 'tone_manner', type: 'TEXT', notNull: true },
+    { name: 'file_path', type: 'TEXT' },
+    { name: 'audio_file_path', type: 'TEXT' },
+    { name: 'created_at', type: 'TEXT', notNull: true },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
+  ], { tableName: 'crm_interpretation_sessions', uniqueKeyColumns: ['id'] });
+
+  // 48. 실시간 통역 AI 발화 로그 테이블 (감사 7종 및 소프트 삭제 컬럼 반영)
+  await safeCreateTable('실시간 통역 AI 발화 로그', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'session_uuid', type: 'TEXT', notNull: true },
+    { name: 'speaker_role', type: 'TEXT', notNull: true },
+    { name: 'original_text', type: 'TEXT', notNull: true },
+    { name: 'translated_text', type: 'TEXT', notNull: true },
+    { name: 'audio_url', type: 'TEXT' },
+    { name: 'created_at', type: 'TEXT', notNull: true },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
+  ], { tableName: 'crm_interpretation_logs', uniqueKeyColumns: ['id'] });
 
   console.log('Database setup complete.');
 }

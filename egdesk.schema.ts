@@ -647,8 +647,8 @@ export const TABLES = {
   crm_web_templates: {
     name: 'crm_web_templates',
     displayName: '웹 양식 템플릿 마스터',
-    columns: ['template_name', 'html_content', 'document_type', 'is_active', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by'],
-    columnCount: 11,
+    columns: ['template_name', 'html_content', 'web_html_content', 'document_type', 'is_active', 'is_print_active', 'is_web_active', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by'],
+    columnCount: 14,
     rowCount: 0,
   },
   system_settings: {

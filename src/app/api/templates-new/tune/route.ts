@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { queryTable, insertRows } from '../../../../../egdesk-helpers';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
+import { fetchGeminiWithFallback } from '@/lib/gemini-fallback';
 
 // 한국 시간 기준 YYYY-MM-DD HH:MM:SS 타임스탬프 획득 헬퍼
 function getKoreanTimestamp() {
@@ -11,10 +12,31 @@ function getKoreanTimestamp() {
   return date.toISOString().replace('T', ' ').substring(0, 19);
 }
 
-// 최고 관리자(SUPER_ADMIN) 권한 검증 및 사용자 정보 반환 헬퍼
-async function verifySuperAdmin() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('auth_token')?.value;
+// 쿠키 헤더 문자열에서 특정 쿠키 값을 파싱하는 헬퍼 함수
+function getCookieValue(cookieHeader: string | null, name: string): string | null {
+  if (!cookieHeader) return null;
+  const match = cookieHeader.match(new RegExp('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)'));
+  return match ? decodeURIComponent(match[2]) : null;
+}
+
+// 최고 관리자(SUPER_ADMIN) 권한 검증 및 사용자 정보 반환 헬퍼 (Fallback 적용)
+async function verifySuperAdmin(req?: Request) {
+  let token: string | undefined;
+
+  // 1. Next.js 표준 cookies() 시도
+  try {
+    const cookieStore = await cookies();
+    token = cookieStore.get('auth_token')?.value;
+  } catch (e) {
+    console.error('[verifySuperAdmin] cookies() 읽기 실패:', e);
+  }
+
+  // 2. 실패 시 Request 헤더에서 직접 추출 시도 (Fallback)
+  if (!token && req) {
+    const cookieHeader = req.headers.get('cookie');
+    token = getCookieValue(cookieHeader, 'auth_token') || undefined;
+  }
+
   if (!token) return { isAuthorized: false, username: null };
   try {
     const payload = decodeJwt(token);
@@ -55,7 +77,7 @@ function restoreBase64Images(htmlStr: string, placeholders: { [key: string]: str
  * POST: 최고관리자가 입력한 자연어 수정 요구사항(feedback)과 기존 HTML 코드를 받아서 Gemini를 통해 수정된 최종 HTML 코드를 반환합니다.
  */
 export async function POST(req: Request) {
-  const { isAuthorized, username } = await verifySuperAdmin();
+  const { isAuthorized, username } = await verifySuperAdmin(req);
   if (!isAuthorized) {
     return NextResponse.json({ success: false, error: '최고관리자 권한이 필요합니다.' }, { status: 403 });
   }
@@ -155,7 +177,7 @@ Strict Constraints:
       });
     }
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+    const response = await fetchGeminiWithFallback(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
