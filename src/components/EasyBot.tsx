@@ -4349,6 +4349,7 @@ export default function EasyBot() {
 
   if (
     pathname === '/login' || 
+    pathname.startsWith('/interpretation-ai') || 
     pathname.startsWith('/form-management-new/print') || 
     pathname.startsWith('/shared/view') || 
     pathname.startsWith('/store') || 
