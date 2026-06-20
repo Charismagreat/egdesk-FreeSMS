@@ -1,6 +1,7 @@
 import { createTable, queryTable, insertRows, updateRows, deleteRows, deleteTable, executeSQL } from '../../egdesk-helpers';
 
 export async function setupDatabase() {
+  const SHOULD_SEED_DEMO = process.env.SEED_DEMO_DATA === 'true';
   const safeCreateTable = async (displayName: string, columns: any[], options: any) => {
     const tableName = options.tableName;
     try {
@@ -705,7 +706,7 @@ export async function setupDatabase() {
   // 가격 추적 AI 기초 더미 데이터 및 시세 이력 시딩(Seeding)
   try {
     const itemsCheck = await queryTable('tracked_items', {});
-    if (!itemsCheck.rows || itemsCheck.rows.length === 0) {
+    if (SHOULD_SEED_DEMO && (!itemsCheck.rows || itemsCheck.rows.length === 0)) {
       const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
       
       // 1. 구리 품목 시딩
@@ -785,7 +786,7 @@ export async function setupDatabase() {
 
   try {
     const expensesCheck = await queryTable('crm_expenses', {});
-    if (!expensesCheck.rows || expensesCheck.rows.length === 0) {
+    if (SHOULD_SEED_DEMO && (!expensesCheck.rows || expensesCheck.rows.length === 0)) {
       const now = new Date(Date.now() + 9 * 60 * 60 * 1000);
       const nowStr = now.toISOString().replace('T', ' ').slice(0, 19);
       
@@ -1427,7 +1428,7 @@ export async function setupDatabase() {
   // 안전 관리 AI 기초 시딩 데이터 자동 주입
   try {
     const policyCheck = await queryTable('safety_policies', { filters: { year: '2026' } });
-    if (!policyCheck.rows || policyCheck.rows.length === 0) {
+    if (SHOULD_SEED_DEMO && (!policyCheck.rows || policyCheck.rows.length === 0)) {
       const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
       
       // 1. 2026년 안전보건방침 시딩
@@ -1988,8 +1989,9 @@ export async function setupDatabase() {
 
   // 53. 정부 지원금 공고 및 프로필 초기 데이터 백필 (Seeding)
   try {
-    const grantAnnouncementsCheck = await queryTable('crm_grant_announcements', {});
-    if (!grantAnnouncementsCheck.rows || grantAnnouncementsCheck.rows.length === 0) {
+    if (SHOULD_SEED_DEMO) {
+      const grantAnnouncementsCheck = await queryTable('crm_grant_announcements', {});
+      if (!grantAnnouncementsCheck.rows || grantAnnouncementsCheck.rows.length === 0) {
       const seedAnnouncements = [
         {
           id: 'GR-501',
@@ -2033,6 +2035,7 @@ export async function setupDatabase() {
       };
       await insertRows('crm_grant_company_profile', [seedProfile]);
       console.log('✓ 지원금 매칭용 기업 프로필 초기 데이터 시딩 완료');
+      }
     }
   } catch (seedErr: any) {
     console.error('⚠️ Grant seeding error:', seedErr.message);
@@ -2040,8 +2043,9 @@ export async function setupDatabase() {
 
   // 54. 품질 관리 AI 초기 데이터 백필 (Seeding)
   try {
-    const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
-    const spcConfigCheck = await queryTable('crm_quality_spc_config', {});
+    if (SHOULD_SEED_DEMO) {
+      const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+      const spcConfigCheck = await queryTable('crm_quality_spc_config', {});
     if (!spcConfigCheck.rows || spcConfigCheck.rows.length === 0) {
       await insertRows('crm_quality_spc_config', [{
         id: 'SPC-CFG',
@@ -2230,6 +2234,7 @@ export async function setupDatabase() {
     }
 
     console.log('✓ 스마트 공장 설비 관리 초기 데이터 시딩 완료');
+    }
   } catch (seedErr: any) {
     console.error('⚠️ Quality & Facility seeding error:', seedErr.message);
   }
@@ -2335,57 +2340,60 @@ export async function setupDatabase() {
       }]);
       console.log('Super admin account (admin) seeded.');
     }
-    // gildong 주입 (홍길동)
-    if (!ops.some((o: any) => o.username === 'gildong')) {
-      await insertRows('crm_operators', [{
-        id: 2,
-        username: 'gildong',
-        password_hash: '$2b$10$wJx1.955Ypx9znqV8x6KVuFTrZaxAaf6TaEFc77Rz29ctUUD7jgz.',
-        name: '홍길동',
-        role: 'SUPER_ADMIN',
-        created_at: nowStr,
-        uuid: 'op-uuid-2'
-      }]);
-      console.log('gildong account seeded.');
-    }
-    // chulsoo 주입 (이철수)
-    if (!ops.some((o: any) => o.username === 'chulsoo')) {
-      await insertRows('crm_operators', [{
-        id: 3,
-        username: 'chulsoo',
-        password_hash: '$2b$10$wJx1.955Ypx9znqV8x6KVuFTrZaxAaf6TaEFc77Rz29ctUUD7jgz.',
-        name: '이철수',
-        role: 'SUB_OPERATOR',
-        created_at: nowStr,
-        uuid: 'op-uuid-3'
-      }]);
-      console.log('chulsoo account seeded.');
-    }
-    // younghee 주입 (박영희)
-    if (!ops.some((o: any) => o.username === 'younghee')) {
-      await insertRows('crm_operators', [{
-        id: 4,
-        username: 'younghee',
-        password_hash: '$2b$10$wJx1.955Ypx9znqV8x6KVuFTrZaxAaf6TaEFc77Rz29ctUUD7jgz.',
-        name: '박영희',
-        role: 'SUB_OPERATOR',
-        created_at: nowStr,
-        uuid: 'op-uuid-4'
-      }]);
-      console.log('younghee account seeded.');
-    }
-    // minsu 주입 (최민수)
-    if (!ops.some((o: any) => o.username === 'minsu')) {
-      await insertRows('crm_operators', [{
-        id: 6,
-        username: 'minsu',
-        password_hash: '$2b$10$wJx1.955Ypx9znqV8x6KVuFTrZaxAaf6TaEFc77Rz29ctUUD7jgz.',
-        name: '최민수',
-        role: 'SUB_OPERATOR',
-        created_at: nowStr,
-        uuid: 'op-uuid-6'
-      }]);
-      console.log('minsu account seeded.');
+    
+    if (SHOULD_SEED_DEMO) {
+      // gildong 주입 (홍길동)
+      if (!ops.some((o: any) => o.username === 'gildong')) {
+        await insertRows('crm_operators', [{
+          id: 2,
+          username: 'gildong',
+          password_hash: '$2b$10$wJx1.955Ypx9znqV8x6KVuFTrZaxAaf6TaEFc77Rz29ctUUD7jgz.',
+          name: '홍길동',
+          role: 'SUPER_ADMIN',
+          created_at: nowStr,
+          uuid: 'op-uuid-2'
+        }]);
+        console.log('gildong account seeded.');
+      }
+      // chulsoo 주입 (이철수)
+      if (!ops.some((o: any) => o.username === 'chulsoo')) {
+        await insertRows('crm_operators', [{
+          id: 3,
+          username: 'chulsoo',
+          password_hash: '$2b$10$wJx1.955Ypx9znqV8x6KVuFTrZaxAaf6TaEFc77Rz29ctUUD7jgz.',
+          name: '이철수',
+          role: 'SUB_OPERATOR',
+          created_at: nowStr,
+          uuid: 'op-uuid-3'
+        }]);
+        console.log('chulsoo account seeded.');
+      }
+      // younghee 주입 (박영희)
+      if (!ops.some((o: any) => o.username === 'younghee')) {
+        await insertRows('crm_operators', [{
+          id: 4,
+          username: 'younghee',
+          password_hash: '$2b$10$wJx1.955Ypx9znqV8x6KVuFTrZaxAaf6TaEFc77Rz29ctUUD7jgz.',
+          name: '박영희',
+          role: 'SUB_OPERATOR',
+          created_at: nowStr,
+          uuid: 'op-uuid-4'
+        }]);
+        console.log('younghee account seeded.');
+      }
+      // minsu 주입 (최민수)
+      if (!ops.some((o: any) => o.username === 'minsu')) {
+        await insertRows('crm_operators', [{
+          id: 6,
+          username: 'minsu',
+          password_hash: '$2b$10$wJx1.955Ypx9znqV8x6KVuFTrZaxAaf6TaEFc77Rz29ctUUD7jgz.',
+          name: '최민수',
+          role: 'SUB_OPERATOR',
+          created_at: nowStr,
+          uuid: 'op-uuid-6'
+        }]);
+        console.log('minsu account seeded.');
+      }
     }
   } catch (e: any) {
     console.error('Error seeding operator accounts:', e.message);
@@ -2393,9 +2401,10 @@ export async function setupDatabase() {
 
   // 79. 기업부설연구소 초기 시드 데이터 자동 주입
   try {
-    const rndCentersCheck = await queryTable('rnd_centers', {});
-    if (!rndCentersCheck.rows || rndCentersCheck.rows.length === 0) {
-      const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+    if (SHOULD_SEED_DEMO) {
+      const rndCentersCheck = await queryTable('rnd_centers', {});
+      if (!rndCentersCheck.rows || rndCentersCheck.rows.length === 0) {
+        const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
       
       // 1) 연구소 기본 정보 시딩 (ID: 1)
       await insertRows('rnd_centers', [{
@@ -2542,6 +2551,7 @@ export async function setupDatabase() {
       ]);
 
       console.log('✓ 기업부설연구소 AI 관리 초기 시드 데이터 시딩 완료');
+      }
     }
   } catch (seedErr: any) {
     console.error('⚠️ R&D seeding error:', seedErr.message);
