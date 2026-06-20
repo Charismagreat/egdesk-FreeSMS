@@ -121,8 +121,14 @@ export async function GET() {
       rows = finalResult.rows || [];
     }
 
+    // 5. 프론트엔드로 내려보내기 전 모든 레코드의 is_enabled 값을 확실하게 숫자형(1 또는 0)으로 변환
+    const sanitizedRows = rows.map((r: any) => ({
+      ...r,
+      is_enabled: Number(r.is_enabled) === 1 ? 1 : 0
+    }));
+
     return NextResponse.json(
-      { success: true, menuSettings: rows },
+      { success: true, menuSettings: sanitizedRows },
       {
         headers: {
           'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
@@ -171,7 +177,7 @@ export async function POST(req: Request) {
     
     const insertData = settings.map((item: any) => ({
       menu_href: item.menu_href,
-      is_enabled: item.is_enabled ? 1 : 0,
+      is_enabled: (Number(item.is_enabled) === 1 || item.is_enabled === true) ? 1 : 0,
       sort_order: item.sort_order
     }));
 

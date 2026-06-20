@@ -150,7 +150,7 @@ export default function MenuSettingsCard() {
   // 2. 개별 메뉴 On/Off 토글 핸들러
   const handleToggle = (index: number) => {
     const updated = [...menuItems];
-    updated[index].is_enabled = updated[index].is_enabled === 1 ? 0 : 1;
+    updated[index].is_enabled = Number(updated[index].is_enabled) === 1 ? 0 : 1;
     setMenuItems(updated);
   };
 
@@ -259,7 +259,7 @@ export default function MenuSettingsCard() {
                     전체 {menuItems.length}개
                   </span>
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-850 ml-1">
-                    활성 {menuItems.filter(item => item.is_enabled === 1).length}개
+                    활성 {menuItems.filter(item => Number(item.is_enabled) === 1).length}개
                   </span>
                 </>
               )}
@@ -289,9 +289,9 @@ export default function MenuSettingsCard() {
           /* 메뉴 아이템 편집 리스트 영역 (밝은 백그라운드와 연한 보더 적용) */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 max-h-[480px] overflow-y-auto pr-2.5 scrollbar-thin">
             {menuItems.map((item, idx) => {
-              const meta = MENU_METADATA_MAP[item.menu_href] || { label: item.menu_href, icon: HelpCircle, color: "text-slate-500" };
+              const meta = MENU_METADATA_MAP[item.menu_href] || { label: item.menu_href, icon: HelpCircle, color: "text-slate-550" };
               const Icon = meta.icon;
-              const isEnabled = item.is_enabled === 1;
+              const isEnabled = Number(item.is_enabled) === 1;
 
               return (
                 <div

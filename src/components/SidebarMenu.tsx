@@ -172,7 +172,7 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
         const resolved = settings
           .filter(setting => {
             // (1) 비활성화된 메뉴 숨김
-            if (setting.is_enabled !== 1) return false;
+            if (Number(setting.is_enabled) !== 1) return false;
             // (2) AI 브리핑은 데이터베이스에 켜져 있더라도 최고관리자만 노출
             const cleanHref = (setting.menu_href || "").trim();
             if (cleanHref === "/ai-briefing") {
