@@ -36,6 +36,7 @@ export default function ExpenseEditModal({
     memo: "",
     payee: "",
     requisition_date: "",
+    card_approval_no: "",
   });
 
   const [approvalMemo, setApprovalMemo] = useState<string>("");
@@ -66,6 +67,7 @@ export default function ExpenseEditModal({
         deduction_amount: editExpense.deduction_amount || 0,
         transfer_fee: editExpense.transfer_fee || 0,
         actual_expense_date: editExpense.actual_expense_date || "",
+        card_approval_no: editExpense.card_approval_no || "",
       });
 
       setApprovalMemo(editExpense.approval_memo || "");
@@ -114,6 +116,7 @@ export default function ExpenseEditModal({
         transfer_fee: Number(formFields.transfer_fee) || 0,
         memo: formFields.memo || "",
         expense_date: formFields.requisition_date,
+        card_approval_no: formFields.card_approval_no || null,
         ai_analysis: JSON.stringify({
           ...parsedAi,
           payee: formFields.payee,
@@ -211,6 +214,32 @@ export default function ExpenseEditModal({
                 className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none font-bold text-xs bg-slate-50 text-slate-500 cursor-not-allowed"
               />
             </div>
+
+            {/* 카드 승인번호 */}
+            {formFields.payment_method?.includes("카드") ? (
+              <div>
+                <label className="block text-[10px] font-extrabold text-rose-500 mb-1">카드 승인번호 (8자리) *</label>
+                <input 
+                  type="text"
+                  placeholder="승인번호 입력"
+                  maxLength={8}
+                  value={formFields.card_approval_no || ""}
+                  onChange={e => handleFieldChange('card_approval_no', e.target.value.replace(/[^0-9]/g, ''))}
+                  className="w-full border border-rose-250 rounded-xl px-3.5 py-2.5 outline-none font-bold text-xs bg-white text-slate-805"
+                />
+              </div>
+            ) : (
+              <div>
+                <label className="block text-[10px] font-extrabold text-slate-350 mb-1">카드 승인번호</label>
+                <input 
+                  type="text"
+                  disabled={true}
+                  placeholder="카드 결제 시 제공"
+                  value=""
+                  className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none font-semibold text-xs bg-slate-100/70 text-slate-400 cursor-not-allowed"
+                />
+              </div>
+            )}
 
             {/* 영수인/거래처 */}
             <div>

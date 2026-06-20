@@ -16,6 +16,7 @@ export interface Expense {
   deduction_amount?: number;
   transfer_fee?: number;
   created_at: string;
+  card_approval_no?: string | null;
 }
 
 export interface ExpenseSettings {
@@ -127,6 +128,7 @@ export function useExpenses() {
     actual_expense_date: "",
     deduction_amount: 0,
     transfer_fee: 0,
+    card_approval_no: "",
   });
 
   const [dbCategories, setDbCategories] = useState<DbExpenseCategory[]>([]);
@@ -755,6 +757,7 @@ export function useExpenses() {
             actual_expense_date: "",
             deduction_amount: 0,
             transfer_fee: 0,
+            card_approval_no: json.card_approval_no || "",
           });
           
           alert("✨ AI 영수증 자율 스캔 및 분석이 완료되었습니다! 검수 후 [지출 등록하기]를 눌러 장부에 적재하세요.");
@@ -785,6 +788,7 @@ export function useExpenses() {
       actual_expense_date: "",
       deduction_amount: 0,
       transfer_fee: 0,
+      card_approval_no: "",
     });
   };
 

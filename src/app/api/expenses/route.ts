@@ -315,7 +315,7 @@ export async function PUT(request: Request) {
     const body = await request.json();
     const { 
       id, title, category, amount, expense_date, payment_method, attachment_url, ai_analysis, memo,
-      actual_expense_date, deduction_amount, transfer_fee
+      actual_expense_date, deduction_amount, transfer_fee, card_approval_no
     } = body;
 
     if (!id || !title || !category || !amount || !expense_date || !payment_method) {
@@ -359,6 +359,7 @@ export async function PUT(request: Request) {
       actual_expense_date: finalActualExpenseDate,
       deduction_amount: finalDeductionAmount,
       transfer_fee: finalTransferFee,
+      card_approval_no: card_approval_no || null,
       created_at: nowStr // 수정일자 업데이트
     }, { filters: { id } });
 
