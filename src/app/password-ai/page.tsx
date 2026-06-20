@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { 
   Key, ShieldAlert, FileText, CheckCircle2, AlertTriangle, 
   Plus, Eye, EyeOff, Check, X, Shield, Lock, RotateCcw,
-  Users, Trash2, Edit, HelpCircle, LockKeyhole, Send, ArrowRight
+  Users, Trash2, Edit, HelpCircle, LockKeyhole, Send, ArrowRight,
+  Download, Upload, RefreshCw
 } from "lucide-react";
+import * as XLSX from "xlsx";
 
 interface CredentialItem {
   id: number;
@@ -66,6 +68,8 @@ export default function PasswordAiPage() {
   const [revealReason, setRevealReason] = useState("");
   const [showReasonModal, setShowReasonModal] = useState(false);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // 등록/수정 모달 관련 상태
   const [showFormModal, setShowFormModal] = useState(false);
   const [editingItem, setEditingItem] = useState<Partial<CredentialItem> | null>(null);
@@ -85,6 +89,156 @@ export default function PasswordAiPage() {
   const [showInheritModal, setShowInheritModal] = useState(false);
   const [selectedInheritAsset, setSelectedInheritAsset] = useState<CredentialItem | null>(null);
   const [newOwnerId, setNewOwnerId] = useState<number>(0);
+
+  // 📝 엑셀 업로드 템플릿 다운로드 헬퍼
+  const downloadTemplateExcel = () => {
+    try {
+      const templateData = [
+        {
+          "구분": "PHYSICAL_SPACE",
+          "기밀 자산명": "본사 3층 메인 금고",
+          "로그인 ID": "",
+          "비밀번호": "1234#5678",
+          "설명 및 비고": "금고 비밀번호 힌트: 내부 캐비닛 우측 서랍",
+          "소유 담당자": currentUser?.name || ""
+        },
+        {
+          "구분": "DEVICE_INFRA",
+          "기밀 자산명": "개발팀 NAS 서버",
+          "로그인 ID": "admin",
+          "비밀번호": "pass1234!",
+          "설명 및 비고": "사내 망에서만 접속 가능",
+          "소유 담당자": ""
+        },
+        {
+          "구분": "WEB_SOFTWARE",
+          "기밀 자산명": "회사 공용 도메인 관리 (가비아)",
+          "로그인 ID": "egdesk_domain",
+          "비밀번호": "gabia9988!!",
+          "설명 및 비고": "매년 5월 갱신 필요",
+          "소유 담당자": ""
+        }
+      ];
+
+      const ws = XLSX.utils.json_to_sheet(templateData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "비밀번호_일괄등록_양식");
+
+      ws["!cols"] = [
+        { wch: 18 }, // 구분
+        { wch: 30 }, // 기밀 자산명
+        { wch: 15 }, // 로그인 ID
+        { wch: 20 }, // 비밀번호
+        { wch: 35 }, // 설명 및 비고
+        { wch: 15 }  // 소유 담당자
+      ];
+
+      XLSX.writeFile(wb, "비밀번호_일괄등록_템플릿.xlsx");
+    } catch (e) {
+      console.error("템플릿 생성 실패:", e);
+      alert("엑셀 템플릿 다운로드 중 에러가 발생했습니다.");
+    }
+  };
+
+  // 📝 엑셀 파일 로드 및 벌크 API 연동
+  const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const rawRows = XLSX.utils.sheet_to_json(worksheet) as any[];
+
+        if (rawRows.length === 0) {
+          alert("엑셀 파일에 등록할 데이터 행이 존재하지 않습니다.");
+          return;
+        }
+
+        // 데이터 정제 및 파이프라인 매핑
+        const formattedPayload = rawRows.map(row => {
+          // A. 구분 (Category) 매핑
+          const rawCat = String(row["구분"] || "").trim().toUpperCase();
+          let category: "PHYSICAL_SPACE" | "DEVICE_INFRA" | "WEB_SOFTWARE" | "OTHER" = "OTHER";
+          
+          if (rawCat.includes("PHYSICAL") || rawCat.includes("물리") || rawCat.includes("공간") || rawCat.includes("금고")) {
+            category = "PHYSICAL_SPACE";
+          } else if (rawCat.includes("DEVICE") || rawCat.includes("INFRA") || rawCat.includes("기기") || rawCat.includes("인프라") || rawCat.includes("NAS")) {
+            category = "DEVICE_INFRA";
+          } else if (rawCat.includes("WEB") || rawCat.includes("SOFTWARE") || rawCat.includes("웹") || rawCat.includes("계정") || rawCat.includes("관리자") || rawCat.includes("ERP")) {
+            category = "WEB_SOFTWARE";
+          }
+
+          // B. 기밀 자산명 (Asset Name) 필수값 추출
+          const asset_name = String(row["기밀 자산명"] || row["자산명"] || "").trim();
+          
+          // C. 로그인 ID (Login ID)
+          const login_id = row["로그인 ID"] ? String(row["로그인 ID"]).trim() : null;
+
+          // D. 비밀번호 (Password) 필수값 추출
+          const password = row["비밀번호"] ? String(row["비밀번호"]).trim() : "";
+
+          // E. 설명 및 비고 (Remarks)
+          const remarks = row["설명 및 비고"] || row["비고"] || row["설명"] ? String(row["설명 및 비고"] || row["비고"] || row["설명"]).trim() : null;
+
+          // F. 소유 담당자 (Owner Operator Id) 검색 매핑
+          const rawOwner = String(row["소유 담당자"] || row["소유자"] || row["담당자"] || "").trim();
+          let owner_operator_id = currentUser?.id || null;
+
+          if (rawOwner) {
+            const matchedOp = operators.find(op => op.name === rawOwner || (op.role && op.role.includes(rawOwner)));
+            if (matchedOp) {
+              owner_operator_id = matchedOp.id;
+            }
+          }
+
+          return {
+            category,
+            asset_name,
+            login_id,
+            password,
+            remarks,
+            owner_operator_id
+          };
+        }).filter(item => item.asset_name && item.password); // 필수 데이터 검출 통과건만 전송
+
+        if (formattedPayload.length === 0) {
+          alert("유효한 기밀 데이터 행(기밀 자산명 및 비밀번호 입력 필수)을 찾지 못했습니다.");
+          return;
+        }
+
+        if (!confirm(`엑셀 파일 내의 총 ${formattedPayload.length}건의 기밀 비밀번호를 보안 금고에 일괄 등록하시겠습니까?`)) {
+          return;
+        }
+
+        setIsLoading(true);
+        const res = await fetch("/api/password-ai", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formattedPayload)
+        });
+        const resData = await res.json();
+        
+        if (resData.success) {
+          alert(resData.message || "엑셀 일괄 등록 완료");
+          loadInitialData();
+        } else {
+          alert("일괄 등록 실패: " + resData.error);
+        }
+      } catch (err) {
+        console.error(err);
+        alert("엑셀 데이터 변환 중 오류가 발생했습니다. 양식을 다시 확인해 주세요.");
+      } finally {
+        setIsLoading(false);
+        if (fileInputRef.current) fileInputRef.current.value = ""; // 파일 입력 초기화
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
 
   useEffect(() => {
     loadInitialData();
@@ -403,13 +557,40 @@ export default function PasswordAiPage() {
             사내 중요 기기, 문서 금고, 웹 서비스 관리자 계정을 중앙에서 암호화 보관합니다. 담당 직원의 갑작스러운 휴가나 퇴사 시 최고관리자 이중 통제(Dual-Auth) 결재 프로세스를 통해 업무 마비를 방지합니다.
           </p>
         </div>
-        <button 
-          onClick={openCreateModal}
-          className="flex items-center gap-1.5 px-4.5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-bold shadow-2xs transition-colors shrink-0 cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          신규 기밀 자산 등록
-        </button>
+        <div className="flex items-center gap-2 flex-wrap shrink-0">
+          <input 
+            type="file"
+            ref={fileInputRef}
+            onChange={handleExcelUpload}
+            accept=".xlsx, .xls"
+            className="hidden"
+          />
+          <button 
+            type="button"
+            onClick={downloadTemplateExcel}
+            className="flex items-center gap-1.5 px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-2xl text-xs font-extrabold shadow-3xs transition-colors cursor-pointer"
+            title="엑셀 일괄 등록용 서식 템플릿을 내려받습니다."
+          >
+            <Download className="w-4 h-4 text-slate-500" />
+            양식 다운로드
+          </button>
+          <button 
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-extrabold shadow-3xs transition-colors cursor-pointer border-none"
+            title="작성된 엑셀 파일을 업로드하여 비밀번호 자산을 일괄 등록합니다."
+          >
+            <Upload className="w-4 h-4 text-white" />
+            엑셀 일괄 등록
+          </button>
+          <button 
+            onClick={openCreateModal}
+            className="flex items-center gap-1.5 px-4.5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-xs font-extrabold shadow-2xs transition-colors cursor-pointer border-none"
+          >
+            <Plus className="w-4 h-4" />
+            신규 기밀 자산 등록
+          </button>
+        </div>
       </div>
 
       {/* 📊 메인 지표 & AI 리스크 보드 */}

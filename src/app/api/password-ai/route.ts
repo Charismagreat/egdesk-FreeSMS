@@ -223,12 +223,69 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: '권한이 없습니다. 로그인이 필요합니다.' }, { status: 403 });
     }
 
-    const { category, asset_name, login_id, password, remarks, owner_operator_id } = await request.json();
+    const body = await request.json();
+    db = getDirectDB();
+
+    // 엑셀 일괄(벌크) 등록 분기
+    if (Array.isArray(body)) {
+      if (body.length === 0) {
+        return NextResponse.json({ success: false, error: '등록할 데이터가 없습니다.' }, { status: 400 });
+      }
+
+      const insertVault = db.prepare(`
+        INSERT INTO crm_credential_vault 
+        (category, asset_name, login_id, encrypted_password, iv, auth_tag, remarks, owner_operator_id, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?)
+      `);
+
+      const insertAudit = db.prepare(`
+        INSERT INTO crm_credential_audit_logs (credential_id, operator_id, operator_name, action_type, access_reason, created_at)
+        VALUES (?, ?, ?, 'CREATE', '엑셀 일괄 등록', ?)
+      `);
+
+      const nowKst = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+
+      // better-sqlite3 트랜잭션 가동
+      const runBulkInsert = db.transaction((items: any[]) => {
+        let count = 0;
+        for (const item of items) {
+          const { category, asset_name, login_id, password, remarks, owner_operator_id } = item;
+          if (!category || !asset_name || !password) continue; // 필수항목 없으면 스킵
+
+          const cryptoResult = encrypt(password);
+          const result = insertVault.run(
+            category,
+            asset_name,
+            login_id || null,
+            cryptoResult.encryptedPassword,
+            cryptoResult.iv,
+            cryptoResult.authTag,
+            remarks || null,
+            owner_operator_id || operatorId,
+            nowKst,
+            nowKst
+          );
+
+          insertAudit.run(result.lastInsertRowid, operatorId, name, nowKst);
+          count++;
+        }
+        return count;
+      });
+
+      const insertedCount = runBulkInsert(body);
+
+      return NextResponse.json({ 
+        success: true, 
+        message: `총 ${insertedCount}건의 기밀 자산이 안전하게 암호화되어 일괄 등록되었습니다.`,
+        count: insertedCount
+      });
+    }
+
+    // 단일 등록 분기
+    const { category, asset_name, login_id, password, remarks, owner_operator_id } = body;
     if (!category || !asset_name || !password) {
       return NextResponse.json({ success: false, error: '필수 입력 항목이 누락되었습니다.' }, { status: 400 });
     }
-
-    db = getDirectDB();
 
     // 비밀번호 AES-256-GCM 암호화
     const cryptoResult = encrypt(password);
