@@ -1,3 +1,4 @@
+import { fetchGeminiWithFallback } from '../../../../../../lib/gemini-fallback';
 import { NextResponse } from 'next/server';
 import { queryTable, updateRows, executeSQL, getTableSchema, insertRows } from '../../../../../../../egdesk-helpers';
 
@@ -257,7 +258,7 @@ ${JSON.stringify(stats, null, 2)}
 
         // F. Gemini REST API fetch 타격 (gemini-3.5-flash 모델 적용)
         const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
-        const response = await fetch(geminiUrl, {
+        const response = await fetchGeminiWithFallback(geminiUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

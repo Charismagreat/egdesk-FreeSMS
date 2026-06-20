@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic';
+import { fetchGeminiWithFallback } from '../../../../lib/gemini-fallback';
 import { NextResponse } from 'next/server';
 import { queryTable, insertRows, updateRows } from '@/../egdesk-helpers';
 
@@ -67,7 +68,7 @@ Keep it under 300 words. Address the workers as "동료 여러분" (dear colleag
 
       const promptText = `작업명: ${work_name}\n날씨 정보: ${weather_info || '특이사항 없음'}`;
 
-      const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+      const aiResponse = await fetchGeminiWithFallback(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

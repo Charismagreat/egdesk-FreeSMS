@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic';
 
+import { fetchGeminiWithFallback } from '../../../../lib/gemini-fallback';
 import { NextResponse } from 'next/server';
 import { queryTable, insertRows, executeSQL } from '@/../egdesk-helpers';
 import crypto from 'crypto';
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
 
 마크다운 코드 블록(\`\`\`) 없이 순수 마크다운으로만 리턴하십시오.`;
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, {
+        const response = await fetchGeminiWithFallback(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

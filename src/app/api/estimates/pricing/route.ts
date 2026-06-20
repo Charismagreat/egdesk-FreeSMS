@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic';
+import { fetchGeminiWithFallback } from '../../../../lib/gemini-fallback';
 import { NextResponse } from 'next/server';
 import { queryTable, insertRows } from '../../../../../egdesk-helpers';
 
@@ -106,7 +107,7 @@ Proposed Items: ${calculatedItems.map((c: any) => `${c.product_name} (${c.quanti
 Total Proposed Amount: ${totalProposedAmount.toLocaleString()}원
 `;
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, {
+        const response = await fetchGeminiWithFallback(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic';
 
+import { fetchGeminiWithFallback } from '../../../lib/gemini-fallback';
 import { NextResponse } from 'next/server';
 import { queryTable, insertRows, updateRows, executeSQL } from '@/../egdesk-helpers';
 import crypto from 'crypto';
@@ -215,7 +216,7 @@ export async function POST(req: Request) {
 3. **주요 논의 내용**: 의제별 주요 발언 내용 및 쟁점 요약
 마크다운 코드 블록(\`\`\`)으로 감싸지 말고 순수 마크다운 텍스트로만 반환하십시오.`;
 
-          const summaryRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, {
+          const summaryRes = await fetchGeminiWithFallback(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -271,7 +272,7 @@ export async function POST(req: Request) {
   ]
 }`;
 
-          const taskRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, {
+          const taskRes = await fetchGeminiWithFallback(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

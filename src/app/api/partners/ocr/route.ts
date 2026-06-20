@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic';
 
+import { fetchGeminiWithFallback } from '../../../../lib/gemini-fallback';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
@@ -143,7 +144,7 @@ export async function POST(req: Request) {
 }`;
 
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
-    const response = await fetch(geminiUrl, {
+    const response = await fetchGeminiWithFallback(geminiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

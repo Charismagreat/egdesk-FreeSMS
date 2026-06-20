@@ -1,3 +1,4 @@
+import { fetchGeminiWithFallback } from '../../../../lib/gemini-fallback';
 import { NextResponse } from 'next/server';
 import { queryTable, insertRows } from '@/../egdesk-helpers';
 import { chromium } from 'playwright';
@@ -496,7 +497,7 @@ export async function POST(req: Request) {
         const userPrompt = `품목명: ${query}\n세부 규격: ${cleanSpec}\n발굴 시세:\n${candidates.map((c, i) => `- ${c.site_name}: ${c.currency === 'USD' ? '$' : '₩'}${c.price.toLocaleString()} (원화 ₩${c.price_krw.toLocaleString()})`).join('\n')}`;
 
         const model = 'gemini-3.5-flash';
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+        const response = await fetchGeminiWithFallback(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

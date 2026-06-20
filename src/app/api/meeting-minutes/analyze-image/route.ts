@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic';
 
+import { fetchGeminiWithFallback } from '../../../../lib/gemini-fallback';
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
@@ -82,7 +83,7 @@ export async function POST(req: Request) {
 ]`;
 
     console.log(`🖼️ Sending image (${mimeType}) to Gemini AI for transcript extraction...`);
-    const response = await fetch(geminiUrl, {
+    const response = await fetchGeminiWithFallback(geminiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

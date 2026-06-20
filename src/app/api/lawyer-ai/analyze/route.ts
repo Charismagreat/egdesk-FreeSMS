@@ -1,3 +1,4 @@
+import { fetchGeminiWithFallback } from '../../../../lib/gemini-fallback';
 import { NextResponse } from 'next/server';
 import { queryTable, insertRows } from '../../../../../egdesk-helpers';
 
@@ -106,7 +107,7 @@ export async function POST(req: Request) {
 
     // 3. Gemini REST API 호출
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
-    const response = await fetch(geminiUrl, {
+    const response = await fetchGeminiWithFallback(geminiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

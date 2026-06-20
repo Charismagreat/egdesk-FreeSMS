@@ -1,3 +1,4 @@
+import { fetchGeminiWithFallback } from '../../../../lib/gemini-fallback';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
@@ -287,7 +288,7 @@ ${JSON.stringify(stats, null, 2)}
       }
     }
 
-    const response = await fetch(geminiUrl, {
+    const response = await fetchGeminiWithFallback(geminiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'

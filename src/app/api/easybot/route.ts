@@ -1,3 +1,4 @@
+import { fetchGeminiWithFallback } from '../../../lib/gemini-fallback';
 import { NextResponse } from 'next/server';
 import { queryTable, executeSQL, listTables, insertRows, createTable } from '../../../../egdesk-helpers';
 import fs from 'fs';
@@ -56,7 +57,7 @@ async function callLocalApi(path: string, body: any, cookieHeader: string | null
     headers['Cookie'] = cookieHeader;
   }
   const url = `http://localhost:4000${path}`;
-  const response = await fetch(url, {
+  const response = await fetchGeminiWithFallback(url, {
     method: 'POST',
     headers,
     body: JSON.stringify(body),
@@ -259,7 +260,7 @@ export async function POST(req: Request) {
     ];
 
     // 첫 번째 모델 호출: 도구 사용 여부 감색
-    const initialResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+    const initialResponse = await fetchGeminiWithFallback(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -354,7 +355,7 @@ export async function POST(req: Request) {
         ? { success: false, error: actionError }
         : { success: true, result: actionResult };
 
-      const secondResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+      const secondResponse = await fetchGeminiWithFallback(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -699,7 +700,7 @@ If the user is asking about how to use the system, menus, manuals, guides, or tr
 }
 `;
 
-    const step1Response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+    const step1Response = await fetchGeminiWithFallback(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -870,7 +871,7 @@ ${JSON.stringify(localStorageContext, null, 2)}
 - 쿼리 에러 내용: ${sqlError || '에러 없음'}
 `;
 
-    const step2Response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
+    const step2Response = await fetchGeminiWithFallback(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic';
+import { fetchGeminiWithFallback } from '../../../../../lib/gemini-fallback';
 import { NextResponse } from 'next/server';
 import { queryTable, executeSQL } from '../../../../../../egdesk-helpers';
 import crypto from 'crypto';
@@ -54,7 +55,7 @@ export async function POST(req: Request) {
 
         const userPrompt = `품목명: ${itemName}\n규격: ${spec}\n카테고리: ${category}`;
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, {
+        const response = await fetchGeminiWithFallback(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

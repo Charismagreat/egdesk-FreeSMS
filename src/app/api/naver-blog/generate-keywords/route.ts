@@ -1,3 +1,4 @@
+import { fetchGeminiWithFallback } from '../../../../lib/gemini-fallback';
 import { NextResponse } from 'next/server';
 import { queryTable, insertRows } from '../../../../../egdesk-helpers';
 
@@ -63,7 +64,7 @@ export async function POST(req: Request) {
 반드시 마크다운 코드 블록(\`\`\`json ... \`\`\`) 없이 순수 JSON 문자열만 출력되도록 하거나, 규격에 맞는 유효한 JSON 포맷을 반환하십시오.
 `;
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, {
+        const response = await fetchGeminiWithFallback(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
