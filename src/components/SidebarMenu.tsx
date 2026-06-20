@@ -133,10 +133,18 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
       color: meta.color
     }));
     // 일반 계정일 경우 AI 브리핑은 제외
-    return baseItems.filter(item => {
+    const filtered = baseItems.filter(item => {
       if (item.href === "/ai-briefing") {
         return userRole === "SUPER_ADMIN";
       }
+      return true;
+    });
+
+    // 중복 href 방어 가드 적용
+    const seen = new Set<string>();
+    return filtered.filter(item => {
+      if (seen.has(item.href)) return false;
+      seen.add(item.href);
       return true;
     });
   };
@@ -192,7 +200,15 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
             };
           });
 
-        setDisplayMenuItems(resolved);
+        // 중복 href 방어 가드 적용
+        const seen = new Set<string>();
+        const uniqueResolved = resolved.filter(item => {
+          if (seen.has(item.href)) return false;
+          seen.add(item.href);
+          return true;
+        });
+
+        setDisplayMenuItems(uniqueResolved);
       }
     } catch (e) {
       console.error("사이드바 메뉴 동적 로딩 실패, 로컬 폴백 유지:", e);

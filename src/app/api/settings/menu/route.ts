@@ -121,8 +121,16 @@ export async function GET() {
       rows = finalResult.rows || [];
     }
 
-    // 5. 프론트엔드로 내려보내기 전 모든 레코드의 is_enabled 값을 확실하게 숫자형(1 또는 0)으로 변환
-    const sanitizedRows = rows.map((r: any) => ({
+    // 5. 프론트엔드로 내려보내기 전 중복 메뉴 제거 및 모든 레코드의 is_enabled 값을 확실하게 숫자형(1 또는 0)으로 변환
+    const seen = new Set<string>();
+    const uniqueRows = rows.filter((r: any) => {
+      const href = (r.menu_href || "").trim();
+      if (seen.has(href)) return false;
+      seen.add(href);
+      return true;
+    });
+
+    const sanitizedRows = uniqueRows.map((r: any) => ({
       ...r,
       is_enabled: Number(r.is_enabled) === 1 ? 1 : 0
     }));
