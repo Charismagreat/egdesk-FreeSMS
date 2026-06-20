@@ -35,3 +35,14 @@ See `.agents/rules/egdesk-dev-context.md` for full details.
 4. **조회 및 통계 쿼리 시 소프트 삭제 필터링 (`deleted_at IS NULL`) 필수 적용**:
    - `executeSQL` 등을 통해 원시 쿼리를 수행하거나 동적 AI 쿼리(EasyBot)를 생성할 때, 소프트 삭제를 지원하는 테이블에 대한 조회는 WHERE 절에 반드시 `deleted_at IS NULL` 조건을 기본 주입하여 삭제된 데이터가 화면 및 계산 지표에 노출되지 않도록 하십시오.
 <!-- END:database-audit-rules -->
+
+<!-- BEGIN:mobile-ui-rules -->
+## 모바일 UI/UX 렌더링 및 레이아웃 제어 규칙
+
+1. **PC용 사이드바 노출 제한**:
+   - 모든 모바일 페이지(예: `/m`, `/m/*`, `/expenses/mobile-approve`, `/employee`, `/interpretation-ai` 등) 및 외부 노출형 특수 페이지에서는 PC용 사이드바(`SidebarWrapper`)를 노출해서는 안 됩니다.
+   - 새로운 모바일 관련 라우트가 추가되는 경우, 반드시 `src/components/SidebarWrapper.tsx`에 해당 경로를 예외 등록하여 사이드바가 렌더링되는 것을 방지해야 합니다.
+2. **도움말 AI 및 이지봇 버튼 노출 제한**:
+   - 모바일 페이지 중 오직 **임직원 통합 모바일 포털 홈 페이지 (`/m`)**에서만 도움말 AI 및 이지봇 버튼이 노출되어야 합니다.
+   - 그 외의 서브 모바일 페이지(예: `/m/*`, `/expenses/mobile-approve`, `/employee`, `/interpretation-ai` 등) 및 외부 노출 페이지에서는 해당 플로팅 단추들이 화면을 가려 오작동을 유발하지 않도록 `src/components/EasyBot.tsx` 및 `src/components/AIHelpManager.tsx`에서 렌더링을 제한해야 합니다.
+<!-- END:mobile-ui-rules -->
