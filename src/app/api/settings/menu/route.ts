@@ -180,15 +180,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: '올바른 메뉴 설정 데이터 포맷이 아닙니다.' }, { status: 400 });
     }
 
-    // 3. 멱등성 있는 벌크 업데이트: uniqueKeyColumns인 menu_href에 근거하여 Upsert 형태로 일괄 갱신
-    console.log('최고관리자 요청에 의해 시스템 메뉴 설정을 일괄 갱신합니다.');
-    
+    // 3. 새 순서 데이터셋 맵핑 및 가공
     const insertData = settings.map((item: any) => ({
       menu_href: item.menu_href,
       is_enabled: (Number(item.is_enabled) === 1 || item.is_enabled === true) ? 1 : 0,
       sort_order: item.sort_order
     }));
 
+    // 4. 기존 메뉴 설정을 전체 삭제하고 새로운 순서대로 일괄 삽입하여 정렬 순서(sort_order) 영구 갱신 보장
+    await deleteRows('system_menu_settings', {});
     await insertRows('system_menu_settings', insertData);
 
     return NextResponse.json({ success: true, message: '사이드바 메뉴 설정이 성공적으로 저장되었습니다.' });

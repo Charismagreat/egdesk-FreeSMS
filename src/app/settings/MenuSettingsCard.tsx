@@ -283,7 +283,7 @@ export default function MenuSettingsCard() {
   // 💡 정렬(소팅) 기준 활성 상태 변수
   const [activeSort, setActiveSort] = useState<"abc" | "category" | "recent" | null>(null);
 
-  // 💡 메뉴 정렬(소팅) 핸들러 구현
+  // 💡 메뉴 정렬(소팅) 핸들러 구현 (null/undefined 방어 가드 강화)
   const handleSort = (type: "abc" | "category" | "recent") => {
     setActiveSort(type);
     let sorted = [...menuItems];
@@ -291,20 +291,22 @@ export default function MenuSettingsCard() {
     if (type === "abc") {
       // 1. 가나다순 정렬
       sorted.sort((a, b) => {
-        const labelA = MENU_METADATA_MAP[a.menu_href]?.label || a.menu_href;
-        const labelB = MENU_METADATA_MAP[b.menu_href]?.label || b.menu_href;
+        const labelA = String(MENU_METADATA_MAP[a.menu_href]?.label || a.menu_href || "");
+        const labelB = String(MENU_METADATA_MAP[b.menu_href]?.label || b.menu_href || "");
         return labelA.localeCompare(labelB, "ko");
       });
     } else if (type === "category") {
       // 2. 업무 종류별 정렬
       sorted.sort((a, b) => {
-        const catA = CATEGORY_MAP[a.menu_href] || 99;
-        const catB = CATEGORY_MAP[b.menu_href] || 99;
+        const hrefA = a.menu_href || "";
+        const hrefB = b.menu_href || "";
+        const catA = CATEGORY_MAP[hrefA] || 99;
+        const catB = CATEGORY_MAP[hrefB] || 99;
         if (catA !== catB) {
           return catA - catB;
         }
-        const labelA = MENU_METADATA_MAP[a.menu_href]?.label || a.menu_href;
-        const labelB = MENU_METADATA_MAP[b.menu_href]?.label || b.menu_href;
+        const labelA = String(MENU_METADATA_MAP[hrefA]?.label || hrefA);
+        const labelB = String(MENU_METADATA_MAP[hrefB]?.label || hrefB);
         return labelA.localeCompare(labelB, "ko");
       });
     } else if (type === "recent") {
@@ -318,13 +320,15 @@ export default function MenuSettingsCard() {
         }
       }
       sorted.sort((a, b) => {
-        const timeA = lastUsedMap[a.menu_href] || 0;
-        const timeB = lastUsedMap[b.menu_href] || 0;
+        const hrefA = a.menu_href || "";
+        const hrefB = b.menu_href || "";
+        const timeA = lastUsedMap[hrefA] || 0;
+        const timeB = lastUsedMap[hrefB] || 0;
         if (timeA !== timeB) {
           return timeB - timeA; // 최신 우선
         }
-        const labelA = MENU_METADATA_MAP[a.menu_href]?.label || a.menu_href;
-        const labelB = MENU_METADATA_MAP[b.menu_href]?.label || b.menu_href;
+        const labelA = String(MENU_METADATA_MAP[hrefA]?.label || hrefA);
+        const labelB = String(MENU_METADATA_MAP[hrefB]?.label || hrefB);
         return labelA.localeCompare(labelB, "ko");
       });
     }
