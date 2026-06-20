@@ -223,6 +223,26 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
     };
   }, [userRole]);
 
+  // 💡 메뉴 접근 시 최근 사용(Last Used) 타임스탬프 기록
+  useEffect(() => {
+    if (typeof window !== "undefined" && pathname) {
+      // 정확한 매칭 또는 서브경로 매칭 탐색
+      const matchingHref = Object.keys(MENU_STATIC_MAP).find(href => {
+        if (href === "/") return pathname === "/";
+        return pathname.startsWith(href);
+      });
+      if (matchingHref) {
+        try {
+          const lastUsedMap = JSON.parse(localStorage.getItem("egdesk_menu_last_used") || "{}");
+          lastUsedMap[matchingHref] = Date.now();
+          localStorage.setItem("egdesk_menu_last_used", JSON.stringify(lastUsedMap));
+        } catch (e) {
+          console.error("최근 사용 메뉴 기록 실패:", e);
+        }
+      }
+    }
+  }, [pathname]);
+
   // ESC 키로 편집 모드 탈출
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

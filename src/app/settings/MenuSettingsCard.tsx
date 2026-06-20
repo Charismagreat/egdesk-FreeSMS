@@ -106,6 +106,57 @@ const MENU_METADATA_MAP: Record<string, { label: string; icon: any; color: strin
   "/meeting-minutes": { label: "회의 기록 AI", icon: Mic, color: "text-purple-550" }
 };
 
+// 💡 업무 종류별(카테고리) 정렬 기준 정의
+const CATEGORY_MAP: Record<string, number> = {
+  // 1. 마케팅/채널/소통 (대고객 접점 및 채널)
+  "/": 1,
+  "/sms": 1,
+  "/message-logs": 1,
+  "/automation": 1,
+  "/instagram": 1,
+  "/naver-blog": 1,
+  "/youtube-shorts": 1,
+  "/website": 1,
+  
+  // 2. 고객/매출/결제 (비즈니스 거래 흐름)
+  "/customers": 2,
+  "/partners": 2,
+  "/transactions": 2,
+  "/orders": 2,
+  "/payments": 2,
+  "/estimates": 2,
+  "/coupons": 2,
+  "/credit-risk": 2,
+  "/form-management-new": 2,
+
+  // 3. 생산/재고/안전 (공장/물류/제조 현장)
+  "/inventory": 3,
+  "/facility-management": 3,
+  "/production-plan": 3,
+  "/energy-management": 3,
+  "/safety-management": 3,
+  "/safety-detection": 3,
+  "/quality-control": 3,
+  "/scm-management": 3,
+  "/grant-management": 3,
+  "/knowledge-ai": 3,
+  "/ecount-erp-ai": 3,
+
+  // 4. 인사/노무/경영지원 (전사 백오피스)
+  "/hr/attendance": 4,
+  "/recruitment": 4,
+  "/expenses": 4,
+  "/finance": 4,
+  "/financials": 4,
+  "/finance-cashflow": 4,
+  "/labor-management": 4,
+  "/password-ai": 4,
+  "/lawyer-ai": 4,
+  "/rnd-management": 4,
+  "/meeting-minutes": 4,
+  "/ai-briefing": 4
+};
+
 interface MenuSettingItem {
   id?: number;
   menu_href: string;
@@ -159,6 +210,8 @@ export default function MenuSettingsCard() {
     const targetIndex = direction === "up" ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= menuItems.length) return;
 
+    setActiveSort(null); // 수동 재배치 시 소팅 필터 비활성화
+
     const updated = [...menuItems];
     // 스왑
     const temp = updated[index];
@@ -177,6 +230,8 @@ export default function MenuSettingsCard() {
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
     if (draggedIdx === null || draggedIdx === index) return;
+
+    setActiveSort(null); // 수동 재배치 시 소팅 필터 비활성화
 
     const updated = [...menuItems];
     const temp = updated[draggedIdx];
@@ -223,6 +278,64 @@ export default function MenuSettingsCard() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // 💡 정렬(소팅) 기준 활성 상태 변수
+  const [activeSort, setActiveSort] = useState<"abc" | "category" | "recent" | null>(null);
+
+  // 💡 메뉴 정렬(소팅) 핸들러 구현
+  const handleSort = (type: "abc" | "category" | "recent") => {
+    setActiveSort(type);
+    let sorted = [...menuItems];
+
+    if (type === "abc") {
+      // 1. 가나다순 정렬
+      sorted.sort((a, b) => {
+        const labelA = MENU_METADATA_MAP[a.menu_href]?.label || a.menu_href;
+        const labelB = MENU_METADATA_MAP[b.menu_href]?.label || b.menu_href;
+        return labelA.localeCompare(labelB, "ko");
+      });
+    } else if (type === "category") {
+      // 2. 업무 종류별 정렬
+      sorted.sort((a, b) => {
+        const catA = CATEGORY_MAP[a.menu_href] || 99;
+        const catB = CATEGORY_MAP[b.menu_href] || 99;
+        if (catA !== catB) {
+          return catA - catB;
+        }
+        const labelA = MENU_METADATA_MAP[a.menu_href]?.label || a.menu_href;
+        const labelB = MENU_METADATA_MAP[b.menu_href]?.label || b.menu_href;
+        return labelA.localeCompare(labelB, "ko");
+      });
+    } else if (type === "recent") {
+      // 3. 최근 사용 정렬
+      let lastUsedMap: Record<string, number> = {};
+      if (typeof window !== "undefined") {
+        try {
+          lastUsedMap = JSON.parse(localStorage.getItem("egdesk_menu_last_used") || "{}");
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      sorted.sort((a, b) => {
+        const timeA = lastUsedMap[a.menu_href] || 0;
+        const timeB = lastUsedMap[b.menu_href] || 0;
+        if (timeA !== timeB) {
+          return timeB - timeA; // 최신 우선
+        }
+        const labelA = MENU_METADATA_MAP[a.menu_href]?.label || a.menu_href;
+        const labelB = MENU_METADATA_MAP[b.menu_href]?.label || b.menu_href;
+        return labelA.localeCompare(labelB, "ko");
+      });
+    }
+
+    // 소팅 결과에 따라 sort_order 인덱스를 재정렬 가중치로 재배열
+    const updated = sorted.map((item, idx) => ({
+      ...item,
+      sort_order: (idx + 1) * 10
+    }));
+
+    setMenuItems(updated);
   };
 
   // 권한 가드 화면 (주변 영역 스타일과 조화롭게 연한 파스텔 배경 사용)
@@ -278,6 +391,52 @@ export default function MenuSettingsCard() {
             {isSaving ? "저장 중..." : isSaved ? "저장 완료!" : "메뉴 설정 저장"}
           </button>
         </div>
+
+        {/* 💡 정렬(소팅) 옵션 도구막대 추가 */}
+        {!isLoading && menuItems.length > 0 && (
+          <div className="flex items-center gap-2 bg-indigo-100/30 p-2 rounded-xl border border-indigo-100/60 self-start text-xs">
+            <span className="text-[10px] text-indigo-750 font-bold mr-1 select-none">목록 자동 정렬:</span>
+            
+            <button
+              onClick={() => handleSort("abc")}
+              className={`px-3 py-1.5 rounded-lg border-none font-extrabold text-[10px] cursor-pointer transition-all duration-150 ${
+                activeSort === "abc"
+                  ? "bg-indigo-600 text-white shadow-sm"
+                  : "bg-white/80 text-indigo-700 hover:bg-white"
+              }`}
+            >
+              ㄱㄴㄷ 가나다순
+            </button>
+
+            <button
+              onClick={() => handleSort("category")}
+              className={`px-3 py-1.5 rounded-lg border-none font-extrabold text-[10px] cursor-pointer transition-all duration-150 ${
+                activeSort === "category"
+                  ? "bg-indigo-600 text-white shadow-sm"
+                  : "bg-white/80 text-indigo-700 hover:bg-white"
+              }`}
+            >
+              💼 업무 종류별
+            </button>
+
+            <button
+              onClick={() => handleSort("recent")}
+              className={`px-3 py-1.5 rounded-lg border-none font-extrabold text-[10px] cursor-pointer transition-all duration-150 ${
+                activeSort === "recent"
+                  ? "bg-indigo-600 text-white shadow-sm"
+                  : "bg-white/80 text-indigo-700 hover:bg-white"
+              }`}
+            >
+              ⏰ 최근 사용순
+            </button>
+            
+            {activeSort && (
+              <span className="text-[9px] text-indigo-650/80 font-bold ml-1.5 select-none animate-pulse">
+                * 순서가 정렬됨 (설정 저장 버튼을 눌러야 영구 반영됩니다.)
+              </span>
+            )}
+          </div>
+        )}
 
         {/* 로딩 인디케이터 */}
         {isLoading ? (
