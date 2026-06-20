@@ -29,7 +29,8 @@ import {
   Award,
   Scale,
   ClipboardList,
-  IdCard
+  IdCard,
+  Languages
 } from "lucide-react";
 
 interface MobileChannel {
@@ -285,6 +286,16 @@ export default function MobileHubWidget() {
       themeColor: "from-blue-600 to-cyan-600 bg-blue-50 text-blue-600 border-blue-100",
       badge: "영업/스태프 전용",
       smsTemplate: "[이지데스크] 직원의 모바일 명함 비서 링크입니다. 아래 링크에서 미팅한 상대방의 명함 촬영 및 내 명함 발송을 진행해주세요. "
+    },
+    {
+      id: "interpretation-ai",
+      name: "실시간 통역 모바일 웹",
+      description: "실시간 음성인식(STT) 및 다국어 인공지능 기반 번역으로 고객과의 외국어 소통을 원활하게 돕는 실시간 통역 비서 채널",
+      path: "/interpretation-ai",
+      icon: Languages,
+      themeColor: "from-purple-600 to-indigo-650 bg-purple-50 text-purple-600 border-purple-100",
+      badge: "다국어 소통/통역",
+      smsTemplate: "[이지데스크] 실시간 다국어 AI 통역 서비스 링크입니다. 아래 링크에서 실시간 통역을 이용해보세요! "
     }
   ];
 
