@@ -240,6 +240,7 @@ export default function ExpenseLedgerTable({
           "적요": exp.title,
           "거래처/영수인": payee || "-",
           "결제수단": exp.payment_method,
+          "승인번호": exp.card_approval_no || "-",
           "원금액": exp.amount,
           "공제액": exp.deduction_amount || 0,
           "송금수수료": exp.transfer_fee || 0,
@@ -264,6 +265,7 @@ export default function ExpenseLedgerTable({
         { wch: 30 }, // 적요
         { wch: 20 }, // 거래처
         { wch: 12 }, // 결제수단
+        { wch: 15 }, // 승인번호
         { wch: 12 }, // 원금
         { wch: 10 }, // 공제
         { wch: 10 }, // 수수료
@@ -487,6 +489,7 @@ export default function ExpenseLedgerTable({
                 <th className="p-3.5 text-left min-w-[150px]">태그</th>
                 <th className="p-3.5 text-left w-32">거래처/영수인</th>
                 <th className="p-3.5 text-left w-24">결제수단</th>
+                <th className="p-3.5 text-left w-28">승인번호</th>
                 <th className="p-3.5 text-right w-24">지출액</th>
                 <th className="p-3.5 text-center w-20 sticky right-0 bg-slate-50 border-l z-10">제어</th>
               </tr>
@@ -679,6 +682,7 @@ export default function ExpenseLedgerTable({
                       {payeeText}
                     </td>
                     <td className="p-3.5 font-sans font-bold text-slate-500">{exp.payment_method}</td>
+                    <td className="p-3.5 font-sans text-slate-450 font-semibold">{exp.card_approval_no || "-"}</td>
                     <td className="p-3.5 text-right font-bold text-slate-900">
                       {exp.amount.toLocaleString()}원
                     </td>
