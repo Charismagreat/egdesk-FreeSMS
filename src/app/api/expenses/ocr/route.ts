@@ -35,6 +35,7 @@ Your job is to look at the provided document (receipt image or PDF) and extract 
 4. "expense_date": String (영수증상의 결제 일자, YYYY-MM-DD 포맷)
 5. "payment_method": String (결제 수단, 예: "법인카드", "현금영수증", "계좌이체", "개인카드", "기타")
 6. "memo": String (구매처 및 세부 사항 간략 요약 메모)
+7. "card_approval_no": String (신용카드 결제일 경우 영수증 상에 기재된 승인번호 8자리 내외의 숫자 문자열, 현금이나 계좌이체 등 승인번호가 없을 때는 null로 설정)
 
 Format example of output:
 {
@@ -43,7 +44,8 @@ Format example of output:
   "amount": 145000,
   "expense_date": "2026-05-28",
   "payment_method": "법인카드",
-  "memo": "네이버클라우드플랫폼"
+  "memo": "네이버클라우드플랫폼",
+  "card_approval_no": "30012548"
 }
 Do NOT output anything other than this JSON string. No markdown block wrapper.
 `;
@@ -107,6 +109,7 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
               expense_date: ocrJson.expense_date || new Date().toISOString().slice(0, 10),
               payment_method: ocrJson.payment_method || '법인카드',
               memo: ocrJson.memo || '',
+              card_approval_no: ocrJson.card_approval_no || null,
               method: 'REAL_GEMINI_OCR'
             });
           }
@@ -161,6 +164,11 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
     // 잠시 스캔하는 듯한 딜레이 연출 (1.5초)
     await new Promise(resolve => setTimeout(resolve, 1500));
 
+    let mockCardAppNo = null;
+    if (mockPaymentMethod.includes("카드")) {
+      mockCardAppNo = String(10000000 + Math.floor(Math.random() * 90000000));
+    }
+
     return NextResponse.json({
       success: true,
       title: mockTitle,
@@ -169,6 +177,7 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
       expense_date: todayStr,
       payment_method: mockPaymentMethod,
       memo: mockMemo,
+      card_approval_no: mockCardAppNo,
       method: 'MOCKUP_INTELLIGENT_OCR'
     });
 

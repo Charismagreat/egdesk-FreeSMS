@@ -104,11 +104,23 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { 
       title, category, amount, expense_date, payment_method, attachment_url, ai_analysis, memo,
-      actual_expense_date, deduction_amount, transfer_fee
+      actual_expense_date, deduction_amount, transfer_fee, card_approval_no
     } = body;
 
     if (!title || !category || !amount || !expense_date || !payment_method) {
       return NextResponse.json({ success: false, error: '필수 항목이 누락되었습니다.' }, { status: 400 });
+    }
+
+    // 신용카드 결제인 경우 승인번호 중복 체크 수행 (소프트 삭제된 것 제외)
+    if (card_approval_no) {
+      const dupCheck = await queryTable('crm_expenses', { filters: { card_approval_no } });
+      const validDup = (dupCheck.rows || []).filter((exp: any) => !exp.deleted_at);
+      if (validDup.length > 0) {
+        return NextResponse.json({
+          success: false,
+          error: `중복 등록 오류: 동일한 카드 승인번호(${card_approval_no})를 가진 영수증이 이미 등록되어 있습니다.`
+        }, { status: 400 });
+      }
     }
 
     const id = `exp-${Date.now()}`;
@@ -127,6 +139,7 @@ export async function POST(request: Request) {
       actual_expense_date: null, // 신규 등록 시에는 미결재(PENDING) 상태이므로 실제 지출일은 강제 무력화(Null)
       deduction_amount: 0,       // 신규 등록 시에는 미결재 상태이므로 공제액 0 강제
       transfer_fee: 0,           // 신규 등록 시에는 미결재 상태이므로 송금수수료 0 강제
+      card_approval_no: card_approval_no || null,
       created_at: nowStr
     }]);
 

@@ -1078,6 +1078,7 @@ function ReceiptPreviewMessage({ tagContent }: { tagContent: string }) {
   const [paymentMethod, setPaymentMethod] = useState('법인카드');
   const [memo, setMemo] = useState('');
   const [payee, setPayee] = useState('');
+  const [cardApprovalNo, setCardApprovalNo] = useState('');
   
   const [dbCategories, setDbCategories] = useState<any[]>([]);
   const [selectedMainCat, setSelectedMainCat] = useState('판매비와관리비');
@@ -1135,6 +1136,7 @@ function ReceiptPreviewMessage({ tagContent }: { tagContent: string }) {
       setPaymentMethod(parsed.payment_method || '법인카드');
       setMemo(parsed.memo || '');
       setPayee(parsed.payee || parsed.merchant || '');
+      setCardApprovalNo(parsed.card_approval_no || '');
 
       // OCR 카테고리(중분류 수준)의 지능형 소분류 맵핑
       if (parsed.category && dbCategories.length > 0) {
@@ -1225,6 +1227,7 @@ function ReceiptPreviewMessage({ tagContent }: { tagContent: string }) {
           memo,
           payee,
           requisition_date: expenseDate,
+          card_approval_no: cardApprovalNo || null,
           ai_analysis: JSON.stringify({ ocrParsed: true, source: 'EASYBOT_OCR' })
         })
       });
@@ -1368,6 +1371,21 @@ function ReceiptPreviewMessage({ tagContent }: { tagContent: string }) {
             className="w-full px-2 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-rose-500 bg-slate-50/20 font-bold text-xs"
           />
         </div>
+
+        {/* 카드 승인번호 (결제수단이 카드계열일 때 노출) */}
+        {paymentMethod.includes("카드") && (
+          <div className="space-y-1">
+            <label className="text-[10px] text-slate-450 font-extrabold flex items-center gap-1">💳 카드 승인번호 (중복체크용)</label>
+            <input 
+              type="text" 
+              value={cardApprovalNo} 
+              onChange={e => setCardApprovalNo(e.target.value)}
+              disabled={saving || saved}
+              placeholder="영수증상 승인번호 8자리"
+              className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-rose-500 bg-slate-50/20 font-bold text-xs"
+            />
+          </div>
+        )}
 
         {/* 등록 버튼 */}
         <div className="pt-1.5">

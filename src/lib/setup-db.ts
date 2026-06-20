@@ -603,6 +603,7 @@ export async function setupDatabase() {
     { name: 'actual_expense_date', type: 'TEXT' },
     { name: 'deduction_amount', type: 'INTEGER', defaultValue: 0 },
     { name: 'transfer_fee', type: 'INTEGER', defaultValue: 0 },
+    { name: 'card_approval_no', type: 'TEXT' },
     { name: 'created_at', type: 'TEXT', notNull: true },
     { name: 'uuid', type: 'TEXT' },
     { name: 'updated_at', type: 'TEXT' },
