@@ -52,100 +52,81 @@ export default function DatabaseInitCard() {
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md mt-6">
-      
-      {/* 카드 헤더 */}
-      <div className="p-6 flex items-center justify-between bg-gradient-to-r from-slate-50 to-emerald-50/10 border-b border-slate-100">
-        <div className="flex items-center gap-3">
+    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm transition-all duration-300 hover:shadow-md mt-6 p-5 relative overflow-hidden">
+      {/* 컴팩트 가로 1행 구성 */}
+      <div className="flex flex-col xl:flex-row items-center justify-between gap-5">
+        
+        {/* 1. 타이틀 및 요약 설명 (왼쪽) */}
+        <div className="flex items-center gap-3 w-full xl:w-auto min-w-0">
           <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 border border-emerald-100 shadow-sm shrink-0">
             <Database className="w-5 h-5" />
           </div>
-          <div>
-            <h3 className="text-[16px] font-bold text-slate-800 flex items-center gap-2">
-              데이터베이스 및 시스템 동기화 설정
-              <span className="text-[10px] font-extrabold bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full border border-emerald-100">
+          <div className="min-w-0">
+            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+              데이터베이스 및 시스템 동기화
+              <span className="text-[9px] font-extrabold bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded border border-emerald-100">
                 원클릭 초기화
               </span>
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              이지데스크 데이터베이스 필수 테이블 스키마를 생성하고 최고관리자 계정을 원클릭으로 일괄 셋업합니다.
-            </p>
-          </div>
-        </div>
-        <span className="text-xs bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1 rounded-full border border-emerald-100/50 shrink-0">
-          시스템 빌더
-        </span>
-      </div>
-
-      {/* 카드 바디 */}
-      <div className="p-6 space-y-5">
-        
-        {/* 안내 경고 박스 */}
-        <div className="bg-amber-50/60 border border-amber-100 p-4.5 rounded-2xl flex items-start gap-3">
-          <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-          <div className="text-xs text-amber-800 space-y-1">
-            <span className="font-extrabold block">최초 설치 및 신규 컴퓨터 구동 시 필수 확인</span>
-            <p className="font-medium leading-relaxed">
-              신규 컴퓨터에서 서비스를 처음 시작할 때는 데이터베이스 파일이나 최고관리자 계정이 생성되어 있지 않습니다.
-              아래의 <strong>[원클릭 시스템 빌드 및 동기화]</strong> 버튼을 실행하여 기본 구조 구축을 완료해 주십시오. (기존 데이터는 보존되며 누락된 테이블만 안전하게 빌드됩니다.)
+            <p className="text-[11px] text-slate-400 mt-0.5 truncate leading-relaxed">
+              필수 테이블 스키마 구축 및 최고관리자 마스터 계정(<code>admin</code>) 셋업을 동시에 처리합니다.
             </p>
           </div>
         </div>
 
-        {/* 통합 원클릭 제어 영역 */}
-        <div className="bg-slate-50/40 border border-slate-100 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="space-y-1 text-center md:text-left">
-            <span className="text-xs font-bold text-slate-700 block">이지데스크 통합 빌드 프로세스</span>
-            <span className="text-[11px] text-slate-400 font-medium block leading-relaxed max-w-xl">
-              클릭 한 번으로 40여 개의 필수 데이터베이스 테이블을 구축하고, 즉시 로그인 및 관리 기능 활용이 가능하도록 최고관리자 마스터 계정(<code>admin</code>) 셋업을 동시에 자동 처리합니다.
-            </span>
-          </div>
-
-          <div className="flex gap-2 shrink-0 w-full md:w-auto">
-            <button
-              type="button"
-              onClick={handleSystemInitialize}
-              disabled={loading}
-              className={`flex-1 md:flex-initial flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-xs font-bold transition-all border-0 shadow-sm ${
-                loading
-                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                  : 'bg-emerald-600 text-white hover:bg-emerald-500 active:scale-95 cursor-pointer'
-              }`}
-            >
-              {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Database className="w-4 h-4" />}
-              <span>원클릭 시스템 빌드 및 동기화</span>
-            </button>
-            <a
-              href="/api/setup"
-              target="_blank"
-              rel="noreferrer"
-              className="w-12 h-12 rounded-xl border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-55/60 hover:text-slate-700 transition-colors bg-white"
-              title="새 창으로 API 직접 실행"
-            >
-              <ExternalLink className="w-4 h-4" />
-            </a>
-          </div>
+        {/* 2. 안전/경고 미니 배너 (가운데) */}
+        <div className="flex-1 max-w-xl w-full xl:w-auto bg-amber-50/60 border border-amber-100/60 px-3.5 py-2.5 rounded-xl flex items-center gap-2 text-[11px] text-amber-800">
+          <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
+          <span className="font-medium leading-normal">
+            <strong>최초 설치/PC 교체 시 필수 실행</strong> (기존 비즈니스 데이터는 안전하게 보존되며 누락된 테이블만 빌드됨)
+          </span>
         </div>
 
-        {/* 처리 결과 피드백 알림 영역 */}
-        {message && (
-          <div
-            className={`flex items-start gap-2.5 p-4 rounded-xl border text-xs font-semibold animate-fadeIn ${
-              message.type === 'success'
-                ? 'bg-emerald-50 border-emerald-100 text-emerald-800'
-                : 'bg-rose-50 border-rose-100 text-rose-800'
+        {/* 3. 제어 액션 영역 (오른쪽) */}
+        <div className="flex items-center gap-2 w-full xl:w-auto justify-end shrink-0">
+          <button
+            type="button"
+            onClick={handleSystemInitialize}
+            disabled={loading}
+            className={`flex-1 xl:flex-initial flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-xs font-bold transition-all border-0 shadow-sm ${
+              loading
+                ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                : 'bg-emerald-600 text-white hover:bg-emerald-500 active:scale-95 cursor-pointer'
             }`}
           >
-            {message.type === 'success' ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-            ) : (
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-            )}
-            <span className="leading-relaxed">{message.text}</span>
-          </div>
-        )}
+            {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Database className="w-3.5 h-3.5" />}
+            <span>원클릭 시스템 빌드 및 동기화</span>
+          </button>
+          <a
+            href="/api/setup"
+            target="_blank"
+            rel="noreferrer"
+            className="w-11 h-11 rounded-xl border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-55/60 hover:text-slate-700 transition-colors bg-white shrink-0"
+            title="새 창으로 API 직접 실행"
+          >
+            <ExternalLink className="w-4 h-4" />
+          </a>
+        </div>
 
       </div>
+
+      {/* 결과 메시지 피드백 팝업 알림 (조건부 표출) */}
+      {message && (
+        <div
+          className={`mt-4 flex items-start gap-2.5 p-3 rounded-xl border text-[11px] font-semibold animate-fadeIn ${
+            message.type === 'success'
+              ? 'bg-emerald-50 border-emerald-100 text-emerald-800'
+              : 'bg-rose-50 border-rose-100 text-rose-800'
+          }`}
+        >
+          {message.type === 'success' ? (
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+          ) : (
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+          )}
+          <span className="leading-relaxed">{message.text}</span>
+        </div>
+      )}
     </div>
   );
 }
