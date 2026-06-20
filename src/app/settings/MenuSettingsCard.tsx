@@ -191,7 +191,15 @@ export default function MenuSettingsCard() {
       .then(res => res.json())
       .then(data => {
         if (data.success && data.menuSettings) {
-          setMenuItems(data.menuSettings);
+          let items = data.menuSettings;
+          if (typeof window !== "undefined") {
+            const savedSort = localStorage.getItem("egdesk_menu_active_sort");
+            if (savedSort === "abc" || savedSort === "category" || savedSort === "recent") {
+              setActiveSort(savedSort as "abc" | "category" | "recent");
+              items = applySortHelper(items, savedSort as "abc" | "category" | "recent");
+            }
+          }
+          setMenuItems(items);
         }
       })
       .catch(e => console.error("메뉴 조회 실패:", e))
@@ -211,6 +219,9 @@ export default function MenuSettingsCard() {
     if (targetIndex < 0 || targetIndex >= menuItems.length) return;
 
     setActiveSort(null); // 수동 재배치 시 소팅 필터 비활성화
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("egdesk_menu_active_sort");
+    }
 
     const updated = [...menuItems];
     // 스왑
@@ -232,6 +243,9 @@ export default function MenuSettingsCard() {
     if (draggedIdx === null || draggedIdx === index) return;
 
     setActiveSort(null); // 수동 재배치 시 소팅 필터 비활성화
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("egdesk_menu_active_sort");
+    }
 
     const updated = [...menuItems];
     const temp = updated[draggedIdx];
@@ -283,10 +297,9 @@ export default function MenuSettingsCard() {
   // 💡 정렬(소팅) 기준 활성 상태 변수
   const [activeSort, setActiveSort] = useState<"abc" | "category" | "recent" | null>(null);
 
-  // 💡 메뉴 정렬(소팅) 핸들러 구현 (null/undefined 방어 가드 강화)
-  const handleSort = (type: "abc" | "category" | "recent") => {
-    setActiveSort(type);
-    let sorted = [...menuItems];
+  // 💡 정렬 처리 공통 헬퍼 함수
+  const applySortHelper = (items: MenuSettingItem[], type: "abc" | "category" | "recent") => {
+    let sorted = [...items];
 
     if (type === "abc") {
       // 1. 가나다순 정렬
@@ -333,13 +346,19 @@ export default function MenuSettingsCard() {
       });
     }
 
-    // 소팅 결과에 따라 sort_order 인덱스를 재정렬 가중치로 재배열
-    const updated = sorted.map((item, idx) => ({
+    return sorted.map((item, idx) => ({
       ...item,
       sort_order: (idx + 1) * 10
     }));
+  };
 
-    setMenuItems(updated);
+  // 💡 메뉴 정렬(소팅) 핸들러 구현
+  const handleSort = (type: "abc" | "category" | "recent") => {
+    setActiveSort(type);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("egdesk_menu_active_sort", type);
+    }
+    setMenuItems(applySortHelper(menuItems, type));
   };
 
   // 권한 가드 화면 (주변 영역 스타일과 조화롭게 연한 파스텔 배경 사용)

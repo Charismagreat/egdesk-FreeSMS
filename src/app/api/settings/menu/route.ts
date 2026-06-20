@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
+import { unstable_noStore as noStore } from 'next/cache';
 import { queryTable, insertRows, deleteRows } from '../../../../../egdesk-helpers';
 
 // 기본 25개 메뉴 정의 (24개 기본 메뉴 + 1개 AI 브리핑)
@@ -59,6 +60,7 @@ const DEFAULT_MENU_ITEMS = [
  */
 export async function GET() {
   try {
+    noStore(); // Next.js fetch 캐싱 방지
     // 1. DB에서 저장된 메뉴 설정 조회
     const result = await queryTable('system_menu_settings', { orderBy: 'sort_order', orderDirection: 'ASC' });
     let rows = result.rows || [];
@@ -135,6 +137,9 @@ export async function GET() {
       is_enabled: Number(r.is_enabled) === 1 ? 1 : 0
     }));
 
+    // 문자열 사전식 정렬 왜곡 방지를 위해 숫자 기준 정렬 강제 적용
+    sanitizedRows.sort((a: any, b: any) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
+
     return NextResponse.json(
       { success: true, menuSettings: sanitizedRows },
       {
@@ -180,16 +185,54 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: '올바른 메뉴 설정 데이터 포맷이 아닙니다.' }, { status: 400 });
     }
 
-    // 3. 새 순서 데이터셋 맵핑 및 가공
-    const insertData = settings.map((item: any) => ({
-      menu_href: item.menu_href,
-      is_enabled: (Number(item.is_enabled) === 1 || item.is_enabled === true) ? 1 : 0,
-      sort_order: item.sort_order
-    }));
+    // 3. 전송받은 갱신 설정 맵 구축
+    const settingsMap = new Map<string, { is_enabled: number; sort_order: number }>();
+    settings.forEach((item: any) => {
+      settingsMap.set(item.menu_href, {
+        is_enabled: (Number(item.is_enabled) === 1 || item.is_enabled === true) ? 1 : 0,
+        sort_order: Number(item.sort_order)
+      });
+    });
 
-    // 4. 기존 메뉴 설정을 전체 삭제하고 새로운 순서대로 일괄 삽입하여 정렬 순서(sort_order) 영구 갱신 보장
-    await deleteRows('system_menu_settings', {});
-    await insertRows('system_menu_settings', insertData);
+    // 4. DB 내 현재 데이터 조회하여 갱신 비대상(비활성 메뉴) 상태값 보존용으로 활용
+    const currentRes = await queryTable('system_menu_settings').catch(() => ({ rows: [] }));
+    const currentRows = currentRes.rows || [];
+    const currentMap = new Map<string, any>();
+    currentRows.forEach((r: any) => {
+      currentMap.set(r.menu_href, r);
+    });
+
+    // 5. DEFAULT_MENU_ITEMS 명세를 기준으로 병합하여 45개 전체 데이터 무손실 빌드
+    let maxSortOrder = Math.max(...settings.map((item: any) => Number(item.sort_order) || 0), 0);
+    if (maxSortOrder === 0) maxSortOrder = 450;
+
+    const mergedInsertData = DEFAULT_MENU_ITEMS.map((defaultItem) => {
+      const href = defaultItem.href;
+
+      if (settingsMap.has(href)) {
+        const val = settingsMap.get(href)!;
+        return {
+          menu_href: href,
+          is_enabled: val.is_enabled,
+          sort_order: val.sort_order
+        };
+      }
+
+      const existing = currentMap.get(href);
+      maxSortOrder += 10;
+      return {
+        menu_href: href,
+        is_enabled: existing ? Number(existing.is_enabled) : 0,
+        sort_order: existing ? Number(existing.sort_order) : maxSortOrder
+      };
+    });
+
+    // 6. 기존 레코드 전체 삭제 후 병합된 45개 데이터 전체 재적재
+    const idsToDelete = currentRows.map((r: any) => r.id).filter((id: any) => id !== undefined);
+    if (idsToDelete.length > 0) {
+      await deleteRows('system_menu_settings', { ids: idsToDelete });
+    }
+    await insertRows('system_menu_settings', mergedInsertData);
 
     return NextResponse.json({ success: true, message: '사이드바 메뉴 설정이 성공적으로 저장되었습니다.' });
   } catch (error: any) {

@@ -208,6 +208,9 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
           return true;
         });
 
+        // sort_order 정렬 왜곡 방지를 위해 숫자 오름차순 정렬 강제 적용
+        uniqueResolved.sort((a: any, b: any) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
+
         setDisplayMenuItems(uniqueResolved);
       }
     } catch (e) {
