@@ -46,3 +46,15 @@ See `.agents/rules/egdesk-dev-context.md` for full details.
    - 모바일 페이지 중 오직 **임직원 통합 모바일 포털 홈 페이지 (`/m`)**에서만 도움말 AI 및 이지봇 버튼이 노출되어야 합니다.
    - 그 외의 서브 모바일 페이지(예: `/m/*`, `/expenses/mobile-approve`, `/employee`, `/interpretation-ai` 등) 및 외부 노출 페이지에서는 해당 플로팅 단추들이 화면을 가려 오작동을 유발하지 않도록 `src/components/EasyBot.tsx` 및 `src/components/AIHelpManager.tsx`에서 렌더링을 제한해야 합니다.
 <!-- END:mobile-ui-rules -->
+
+<!-- BEGIN:easybot-orchestration-rules -->
+## 이지봇(EasyBot) 오케스트레이션 및 멀티 에이전트 설계 원칙
+
+1. **이지봇(Orchestrator)과 사이드바 각 업무 페이지(Domain Agent)의 역할 분담**:
+   - **이지봇 (Orchestrator)**: 사용자의 자연어 질문과 의도(Intent)를 분류하고, 각 도메인 에이전트(업무 페이지)로 이벤트를 라우팅하거나 적절한 도메인 컴포넌트를 호출하는 중앙 제어기 역할에 집중합니다. 비즈니스 세부 로직을 내장해서는 안 됩니다.
+   - **사이드바 각 업무 페이지 (Domain Agent)**: 이지봇으로부터 파싱된 매개변수와 원시 데이터를 넘겨받아 비즈니스 연산, DB 생성/수정/적재 및 예외 처리를 자율적으로 수행합니다.
+2. **도메인 프리뷰 카드 컴포넌트의 격리**:
+   - AI 파싱 프리뷰 화면(예: 이력서 분석, 재무제표 원터치 적재 카드 등)은 이지봇 소스 코드(`src/components/EasyBot.tsx`) 내에 선언하지 않고, 별도의 독립 파일(`src/components/easybot/previews/*`)로 완벽히 격리해 관리해야 합니다.
+   - 새로운 업무 도메인과 프리뷰 UI가 생성되는 경우, 독자적인 파일로 개발한 후 이지봇에서 동적으로 수입(import)하여 렌더링하는 느슨한 결합(Loose Coupling) 방식을 엄격하게 고수합니다.
+<!-- END:easybot-orchestration-rules -->
+
