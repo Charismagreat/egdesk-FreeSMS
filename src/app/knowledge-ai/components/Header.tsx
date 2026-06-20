@@ -11,6 +11,7 @@ interface HeaderProps {
 }
 
 export function Header({
+  currentUser,
   currentRole,
   setCurrentUser,
   setCurrentRole,
@@ -29,50 +30,25 @@ export function Header({
         </p>
       </div>
 
-      {/* 데모용 세션 계정 모의 조작 패널 */}
-      <div className="flex flex-wrap items-center gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200 text-xs shadow-sm self-start">
-        <span className="text-slate-500 font-semibold flex items-center gap-1">
-          <UserCheck className="w-3.5 h-3.5" /> 권한:
+      {/* 실제 로그인 세션 정보 표시 패널 */}
+      <div className="flex flex-wrap items-center gap-3 bg-slate-50 px-4 py-2.5 rounded-xl border border-slate-200 text-xs shadow-sm self-start">
+        <span className="text-slate-500 font-semibold flex items-center gap-1.5">
+          <UserCheck className="w-4 h-4 text-slate-600" /> 현재 권한:
         </span>
-        <button
-          onClick={() => {
-            setCurrentUser("ceo_park");
-            setCurrentRole("SUPER_ADMIN");
-            setCurrentDept("STRATEGY");
-          }}
-          className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
-            currentRole === "SUPER_ADMIN" ? "bg-rose-500 text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-          }`}
-          id="btn-session-admin"
-        >
-          최고관리자 (대표)
-        </button>
-        <button
-          onClick={() => {
-            setCurrentUser("sales_manager");
-            setCurrentRole("SUB_OPERATOR");
-            setCurrentDept("SALES");
-          }}
-          className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
-            currentRole === "SUB_OPERATOR" && currentDept === "SALES" ? "bg-blue-600 text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-          }`}
-          id="btn-session-sales"
-        >
-          영업부서장
-        </button>
-        <button
-          onClick={() => {
-            setCurrentUser("rnd_engineer");
-            setCurrentRole("SUB_OPERATOR");
-            setCurrentDept("RND");
-          }}
-          className={`px-3 py-1.5 rounded-lg font-bold transition-all ${
-            currentRole === "SUB_OPERATOR" && currentDept === "RND" ? "bg-cyan-600 text-white shadow-sm" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-          }`}
-          id="btn-session-rnd"
-        >
-          일반사원
-        </button>
+        <span className={`px-2.5 py-1 rounded-lg font-bold ${
+          currentRole === "SUPER_ADMIN" 
+            ? "bg-rose-100 text-rose-700 border border-rose-200" 
+            : currentDept === "SALES" 
+              ? "bg-blue-100 text-blue-700 border border-blue-200" 
+              : "bg-cyan-100 text-cyan-700 border border-cyan-200"
+        }`}>
+          {currentRole === "SUPER_ADMIN" ? "최고관리자 (대표)" : 
+           currentDept === "SALES" ? "영업부서장" : "일반사원"}
+        </span>
+        <span className="text-slate-300 font-light">|</span>
+        <span className="text-slate-600 font-medium flex items-center gap-1">
+          계정명: <code className="bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-800 font-semibold">{currentUser}</code>
+        </span>
       </div>
     </div>
   );

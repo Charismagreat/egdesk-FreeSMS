@@ -389,8 +389,36 @@ export function useKnowledgeAi() {
     isDragging.current = false;
   };
 
+  // 실제 세션 사용자 정보 로드
+  useEffect(() => {
+    const fetchSessionUser = async () => {
+      try {
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
+        if (data.success) {
+          setCurrentUser(data.username || "guest");
+          
+          if (data.role === "SUPER_ADMIN") {
+            setCurrentRole("SUPER_ADMIN");
+            setCurrentDept("STRATEGY");
+          } else if (data.role === "EMPLOYEE") {
+            setCurrentRole("SUB_OPERATOR");
+            setCurrentDept("RND");
+          } else {
+            setCurrentRole("SUB_OPERATOR");
+            setCurrentDept("SALES");
+          }
+        }
+      } catch (err) {
+        console.error("실제 세션 조회 실패:", err);
+      }
+    };
+    fetchSessionUser();
+  }, []);
+
   // 훅 이펙트 바인딩
   useEffect(() => {
+    // 세션 로드가 완료되어 currentUser가 guest가 아니거나 guest라도 첫 로드 수행
     fetchAssetTypes();
     fetchDocuments();
   }, [currentUser, currentRole, currentDept]);
