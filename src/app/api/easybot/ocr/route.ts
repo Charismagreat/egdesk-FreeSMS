@@ -234,7 +234,7 @@ export async function POST(req: Request) {
 2. 사업자등록증 ("BUSINESS_LICENSE"):
    - data 객체에 businessNumber ("000-00-00000" 형태), companyName (상호명), representative (대표자명), address (주소), phone (전화번호), managerName (담당자명), openingDate (개업일 "YYYY-MM-DD"), businessType (업태), businessItem (종목) 추출.
 3. 영수증 ("RECEIPT"):
-   - data 객체에 title (상호명과 구매품 요약, 예: "CU - 음료 구매"), category (아래 7대 비목 중 가장 잘 어울리는 중분류 하나만 선택: "복리후생비", "여비교통비", "소모품비", "접대비", "임차료", "세금공과금", "기타"), amount (최종 결제 금액, 숫자로만), expense_date (결제일 "YYYY-MM-DD"), payment_method (결제 수단, 예: "법인카드", "개인카드", "현금", "계좌이체" 등), memo (세부 사항 메모), payee (가맹점명 또는 상호명) 추출.
+   - data 객체에 title (상호명과 구매품 요약, 예: "CU - 음료 구매"), category (아래 7대 비목 중 가장 잘 어울리는 중분류 하나만 선택: "복리후생비", "여비교통비", "소모품비", "접대비", "임차료", "세금공과금", "기타"), amount (최종 결제 금액, 숫자로만), expense_date (결제일 "YYYY-MM-DD"), payment_method (결제 수단, 예: "법인카드", "개인카드", "현금", "계좌이체" 등), memo (세부 사항 메모), payee (가맹점명 또는 상호명), card_approval_no (신용카드 결제일 경우 영수증 상에 기재된 승인번호 8자리 내외의 숫자 문자열, 현금이나 계좌이체 등 승인번호가 없을 때는 null로 설정) 추출.
 4. 재무제표 ("FINANCIAL_STATEMENT"):
    - data 객체에 companyName (회사명), fiscalYear (회계 연도, 숫자로만), fiscalQuarter (분기, 기본값 "YR"), totalAssets (자산총계, 숫자로만), totalLiabilities (부채총계, 숫자로만), totalEquity (자본총계, 숫자로만), revenue (매출액, 숫자로만), operatingIncome (영업이익, 숫자로만), netIncome (당기순이익, 숫자로만) 추출.
    - 또한, data 객체 내부의 parsedRawJson 속성에 대차대조표 and 손익계산서의 세부 계정과목 및 금액 정보를 담은 계층형 트리 JSON 객체를 정밀 추출해 주세요. 이 JSON 객체는 PDF에 기재된 모든 세부 계정과목(예: 현금및현금성자산, 매출채권, 여비교통비, 급여, 임차료 등)의 계층 구조와 원화 단위를 정확히 반영해야 합니다.
@@ -666,7 +666,8 @@ ${JSON.stringify(facilitiesListForRag)}
             expense_date: receiptData.expense_date || new Date().toISOString().slice(0, 10),
             payment_method: receiptData.payment_method || '법인카드',
             memo: receiptData.memo || '',
-            payee: receiptData.payee || receiptData.merchant || ''
+            payee: receiptData.payee || receiptData.merchant || '',
+            card_approval_no: receiptData.card_approval_no || null
           }
         });
 
