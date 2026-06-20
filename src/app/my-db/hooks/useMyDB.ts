@@ -830,6 +830,13 @@ export function useMyDB() {
     }
   }, [aiPrompt, isRestored]);
 
+  // 💡 AI 자연어 요구사항(aiPrompt)이 비워지면 AI 해독 쿼리 카드도 리셋
+  React.useEffect(() => {
+    if (isRestored && !aiPrompt.trim()) {
+      setAiGeneratedSql("");
+    }
+  }, [aiPrompt, isRestored]);
+
   React.useEffect(() => {
     if (!isRestored) return;
     if (typeof window !== "undefined") {

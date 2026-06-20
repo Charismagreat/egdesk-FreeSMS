@@ -174,7 +174,10 @@ export function SqlConsolePlayground({
             />
             {aiPrompt && (
               <button
-                onClick={() => setAiPrompt("")}
+                onClick={() => {
+                  setAiPrompt("");
+                  setAiGeneratedSql("");
+                }}
                 className="absolute top-3 right-3 p-1.5 text-slate-400 hover:text-slate-655 hover:bg-slate-200/50 rounded-full border-none bg-transparent cursor-pointer transition-colors"
                 title="AI 요구사항 입력 비우기"
               >
