@@ -2,28 +2,36 @@
 
 import { useState, useEffect } from "react";
 import { PaymentItem, PaymentForm } from "../types";
+import { usePersistedState } from "@/hooks/usePersistedState";
 
 export function usePayments() {
-  const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+  const [activeOrderId, setActiveOrderId, isActiveOrderIdRestored] = usePersistedState<string | null>('egdesk_payments_activeOrderId', null);
   const [data, setData] = useState<PaymentItem[]>([]);
-  const [form, setForm] = useState<PaymentForm>({
+  const [form, setForm, isFormRestored] = usePersistedState<PaymentForm>('egdesk_payments_form', {
     customerName: '',
     amount: '',
     paymentMethod: '카드결제',
     orderId: ''
   });
-  const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [searchQuery, setSearchQuery, isSearchQueryRestored] = usePersistedState("egdesk_payments_searchQuery", "");
+  const [currentPage, setCurrentPage, isCurrentPageRestored] = usePersistedState("egdesk_payments_currentPage", 1);
+  const [itemsPerPage, setItemsPerPage, isItemsPerPageRestored] = usePersistedState("egdesk_payments_itemsPerPage", 10);
 
-  // 검색어 입력 시 페이지 번호 초기화
+  // 모든 세션 상태 복원이 완료되었는지 감시하는 플래그
+  const isRestored = isActiveOrderIdRestored && isFormRestored && isSearchQueryRestored && isCurrentPageRestored && isItemsPerPageRestored;
+
+  // 검색어 입력 시 페이지 번호 초기화 (단, 세션 복원이 모두 마쳐진 상태에서만 작동하도록 가드)
   useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery]);
+    if (isRestored) {
+      setCurrentPage(1);
+    }
+  }, [searchQuery, isRestored]);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (isRestored) {
+      fetchData();
+    }
+  }, [isRestored]);
 
   const fetchData = async () => {
     try {

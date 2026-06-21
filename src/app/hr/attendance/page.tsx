@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Calendar } from "lucide-react";
+import { usePersistedState } from "@/hooks/usePersistedState";
 
 // 공통 타입 임포트
 import { Employee, CompanyEvent, LeaveRequest, Contract, Payroll, EmployeeProfile, BriefingHistory, EventType } from "./types";
@@ -34,9 +35,12 @@ export default function HrAttendancePage() {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 2. 캘린더 탐색용 상태
-  const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
-  const [calendarView, setCalendarView] = useState<'month' | 'week'>('month');
+  // 2. 캘린더 탐색용 상태 (Date 객체를 직렬화하여 우회 보존)
+  const [currentCalendarDateStr, setCurrentCalendarDateStr, isCurrentCalendarDateRestored] = usePersistedState("egdesk_hr_currentCalendarDateStr", new Date().toISOString());
+  const currentCalendarDate = new Date(currentCalendarDateStr);
+  const setCurrentCalendarDate = (date: Date) => setCurrentCalendarDateStr(date.toISOString());
+
+  const [calendarView, setCalendarView, isCalendarViewRestored] = usePersistedState<'month' | 'week'>('egdesk_hr_calendarView', 'month');
 
   // 3. 모달 열기/닫기 제어 상태
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
@@ -47,9 +51,9 @@ export default function HrAttendancePage() {
 
   // 4. 선택 식별자(ID) 상태
   const [selectedLeaveId, setSelectedLeaveId] = useState<string | null>(null);
-  const [selected360OperatorId, setSelected360OperatorId] = useState<string>("");
-  const [selectedProfileOperatorId, setSelectedProfileOperatorId] = useState("");
-  const [selectedContractOperatorId, setSelectedContractOperatorId] = useState("");
+  const [selected360OperatorId, setSelected360OperatorId, isSelected360OperatorIdRestored] = usePersistedState<string>("egdesk_hr_selected360OperatorId", "");
+  const [selectedProfileOperatorId, setSelectedProfileOperatorId, isSelectedProfileOperatorIdRestored] = usePersistedState("egdesk_hr_selectedProfileOperatorId", "");
+  const [selectedContractOperatorId, setSelectedContractOperatorId, isSelectedContractOperatorIdRestored] = usePersistedState("egdesk_hr_selectedContractOperatorId", "");
 
   // 5. AI 업무 공백 모니터링 상태
   const [aiBriefing, setAiBriefing] = useState<any>({
@@ -67,10 +71,10 @@ export default function HrAttendancePage() {
   // 6. 근로계약 및 급여정산 폼 상태
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [payroll, setPayroll] = useState<Payroll[]>([]);
-  const [payrollYearMonth, setPayrollYearMonth] = useState(() => {
+  const [payrollYearMonth, setPayrollYearMonth, isPayrollYearMonthRestored] = usePersistedState<string>('egdesk_hr_payrollYearMonth', (() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  });
+  })());
   const [payrollLoading, setPayrollLoading] = useState(false);
 
   const [hourlyWage, setHourlyWage] = useState(10000);
@@ -100,19 +104,24 @@ export default function HrAttendancePage() {
   const [typeError, setTypeError] = useState<string | null>(null);
 
   // 10. 관리자 전용 ERP 관제 보드 탭 제어 상태
-  const [activeAdminTab, setActiveAdminTab] = useState<'payroll' | 'basic_profile' | 'comprehensive_profile'>('payroll');
+  const [activeAdminTab, setActiveAdminTab, isActiveAdminTabRestored] = usePersistedState<'payroll' | 'basic_profile' | 'comprehensive_profile'>('egdesk_hr_activeAdminTab', 'payroll');
 
-  // 컴포넌트 마운트 시 초기 조회
-  useEffect(() => {
-    fetchHrData();
-  }, []);
+  // 모든 세션 상태 복원이 완료되었는지 감시하는 플래그
+  const isRestored = isCurrentCalendarDateRestored && isCalendarViewRestored && isSelected360OperatorIdRestored && isSelectedProfileOperatorIdRestored && isSelectedContractOperatorIdRestored && isPayrollYearMonthRestored && isActiveAdminTabRestored;
 
-  // 연월 또는 권한 세션 변경 시 인사/급여 데이터 조회
+  // 컴포넌트 마운트 시 초기 조회 (세션 복원 가드 추가)
   useEffect(() => {
-    if (currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'PRESIDENT') {
+    if (isRestored) {
+      fetchHrData();
+    }
+  }, [isRestored]);
+
+  // 연월 또는 권한 세션 변경 시 인사/급여 데이터 조회 (세션 복원 가드 추가)
+  useEffect(() => {
+    if (isRestored && (currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'PRESIDENT')) {
       fetchContractsAndPayroll();
     }
-  }, [currentUser, payrollYearMonth]);
+  }, [currentUser, payrollYearMonth, isRestored]);
 
   // ==========================================
   // 🏛️ API 데이터 로드 및 조율 함수군

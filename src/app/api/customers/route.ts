@@ -15,7 +15,9 @@ export async function GET(request: Request) {
       orderDirection: 'DESC'
     });
     
-    return NextResponse.json({ success: true, data: response });
+    // 데이터베이스 감사 룰 준수: 소프트 삭제된 항목 배제 (deleted_at이 있는 고객은 반환 안 함)
+    const activeCustomers = (response.rows || []).filter((customer: any) => !customer.deleted_at);
+    return NextResponse.json({ success: true, data: { ...response, rows: activeCustomers } });
   } catch (error: any) {
     console.error('Error fetching customers:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

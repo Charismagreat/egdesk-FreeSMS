@@ -1,19 +1,20 @@
 import { useState, useEffect } from "react";
 import { Partner, PartnerForm, OcrResult, DetailHistory } from "../types";
+import { usePersistedState } from "@/hooks/usePersistedState";
 
 export function usePartners() {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'VENDOR' | 'BUYER' | 'AFFILIATE'>('VENDOR');
-  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab, isActiveTabRestored] = usePersistedState<'VENDOR' | 'BUYER' | 'AFFILIATE'>('egdesk_partners_activeTab', 'VENDOR');
+  const [searchQuery, setSearchQuery, isSearchQueryRestored] = usePersistedState("egdesk_partners_searchQuery", "");
 
   // 등록/수정 모달 상태
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen, isModalOpenRestored] = usePersistedState("egdesk_partners_isModalOpen", false);
+  const [modalMode, setModalMode, isModalModeRestored] = usePersistedState<'create' | 'edit'>('egdesk_partners_modalMode', 'create');
+  const [editingId, setEditingId, isEditingIdRestored] = usePersistedState<string | null>('egdesk_partners_editingId', null);
   
   // 입력 폼 바인딩
-  const [form, setForm] = useState<PartnerForm>({
+  const [form, setForm, isFormRestored] = usePersistedState<PartnerForm>('egdesk_partners_form', {
     type: 'VENDOR',
     company_name: "",
     business_number: "",
@@ -34,13 +35,16 @@ export function usePartners() {
   const [fileDragOver, setFileDragOver] = useState(false);
 
   // 상세 거래 타임라인 팝업 상태
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null);
+  const [isDetailOpen, setIsDetailOpen, isDetailOpenRestored] = usePersistedState("egdesk_partners_isDetailOpen", false);
+  const [selectedPartner, setSelectedPartner, isSelectedPartnerRestored] = usePersistedState<Partner | null>("egdesk_partners_selectedPartner", null);
   const [detailHistory, setDetailHistory] = useState<DetailHistory>({ 
     purchaseOrders: [], 
     salesOrders: [] 
   });
   const [detailLoading, setDetailLoading] = useState(false);
+
+  // 모든 세션 상태 복원이 완료되었는지 감시하는 플래그
+  const isRestored = isActiveTabRestored && isSearchQueryRestored && isModalOpenRestored && isModalModeRestored && isEditingIdRestored && isFormRestored && isDetailOpenRestored && isSelectedPartnerRestored;
 
   // 📂 B2B 사업자등록증 이미지/PDF 파일 업로드 및 AI 스캔 연동
   const handleFileUpload = async (fileObj: File) => {
@@ -128,8 +132,34 @@ export function usePartners() {
   };
 
   useEffect(() => {
-    fetchPartners();
-  }, []);
+    if (isRestored) {
+      fetchPartners();
+    }
+  }, [isRestored]);
+
+  // 상세 팝업이 열려 있는 채로 세션 복원 시 상세 이력을 재로드하기 위한 이펙트
+  useEffect(() => {
+    if (isRestored && isDetailOpen && selectedPartner) {
+      const fetchDetailHistory = async () => {
+        setDetailLoading(true);
+        try {
+          const res = await fetch(`/api/partners?action=detail&id=${selectedPartner.id}`);
+          const data = await res.json();
+          if (data.success) {
+            setDetailHistory({
+              purchaseOrders: data.purchaseOrders || [],
+              salesOrders: data.salesOrders || []
+            });
+          }
+        } catch (e) {
+          console.error("이력 마이닝 에러:", e);
+        } finally {
+          setDetailLoading(false);
+        }
+      };
+      fetchDetailHistory();
+    }
+  }, [isRestored, isDetailOpen, selectedPartner]);
 
   const fetchPartners = async () => {
     setLoading(true);

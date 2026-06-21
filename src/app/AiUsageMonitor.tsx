@@ -97,6 +97,7 @@ export default function AiUsageMonitor() {
   };
 
   const getPurposeLabel = (p: string) => {
+    if (!p) return '기타 용도';
     if (p.startsWith('help-')) {
       return `AI 글로벌 도움말 (${p.substring(5)})`;
     }

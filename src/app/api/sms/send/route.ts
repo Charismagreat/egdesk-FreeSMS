@@ -51,11 +51,11 @@ export async function POST(request: Request) {
       const devId = dev.phoneNumber;
       const devLimit = Math.min(450, Math.max(1, dev.dailyLimit || 150));
 
-      // 3-1. 이 기기의 오늘 성공한 발송 횟수 계산 (비가시 메타데이터 LIKE 검색)
+      // 3-1. 이 기기의 오늘 성공한 발송 횟수 계산 (소프트 삭제 배제, 비가시 메타데이터 LIKE 검색)
       let devSentCount = 0;
       try {
         const countRes = await executeSQL(
-          `SELECT COUNT(*) as count FROM message_logs WHERE status = 'SUCCESS' AND created_at >= '${startStr}' AND message LIKE '%[sender_device: ${devId}]%'`
+          `SELECT COUNT(*) as count FROM message_logs WHERE status = 'SUCCESS' AND deleted_at IS NULL AND created_at >= '${startStr}' AND message LIKE '%[sender_device: ${devId}]%'`
         );
         if (countRes.rows && countRes.rows.length > 0) {
           devSentCount = parseInt(countRes.rows[0].count, 10) || 0;

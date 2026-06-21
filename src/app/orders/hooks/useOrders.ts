@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { Order, OrderForm } from "../types";
+import { usePersistedState } from "@/hooks/usePersistedState";
 
 export function useOrders() {
-  const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+  const [activeOrderId, setActiveOrderId, isActiveOrderIdRestored] = usePersistedState<string | null>('egdesk_orders_activeOrderId', null);
   const [data, setData] = useState<Order[]>([]);
-  const [form, setForm] = useState<OrderForm>({ 
+  const [form, setForm, isFormRestored] = usePersistedState<OrderForm>('egdesk_orders_form', { 
     customerName: '', 
     customerPhone: '', 
     productName: '', 
@@ -16,25 +17,32 @@ export function useOrders() {
     shippingAddress: '',
   });
 
-  const [activeTab, setActiveTab] = useState('전체');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab, isActiveTabRestored] = usePersistedState('egdesk_orders_activeTab', '전체');
+  const [searchQuery, setSearchQuery, isSearchQueryRestored] = usePersistedState('egdesk_orders_searchQuery', '');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isUpdating, setIsUpdating] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [currentPage, setCurrentPage, isCurrentPageRestored] = usePersistedState('egdesk_orders_currentPage', 1);
+  const [itemsPerPage, setItemsPerPage, isItemsPerPageRestored] = usePersistedState('egdesk_orders_itemsPerPage', 10);
   const [trackingEdits, setTrackingEdits] = useState<Record<string, string>>({});
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
 
   const TABS = ['전체', '접수완료', '견적요청', '결제대기', '결제완료', '상품준비중', '배송시작', '배송중', '배송완료', '수령완료', '주문취소'];
 
-  // 검색어 또는 탭 변경 시 페이지 번호 초기화
+  // 모든 세션 상태 복원이 완료되었는지 감시하는 플래그
+  const isRestored = isActiveOrderIdRestored && isFormRestored && isActiveTabRestored && isSearchQueryRestored && isCurrentPageRestored && isItemsPerPageRestored;
+
+  // 검색어 또는 탭 변경 시 페이지 번호 초기화 (단, 세션 복원이 모두 마쳐진 상태에서만 작동하도록 가드)
   useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, activeTab]);
+    if (isRestored) {
+      setCurrentPage(1);
+    }
+  }, [searchQuery, activeTab, isRestored]);
 
   useEffect(() => { 
-    fetchData(); 
-  }, []);
+    if (isRestored) {
+      fetchData(); 
+    }
+  }, [isRestored]);
 
   const fetchData = async () => {
     try {

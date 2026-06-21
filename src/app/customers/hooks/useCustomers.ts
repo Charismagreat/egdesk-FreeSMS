@@ -1,24 +1,30 @@
 import { useState, useEffect } from "react";
 import { Customer, CustomerHistory, PointHistoryItem, NewCustomerInput } from "../types";
+import { usePersistedState } from "@/hooks/usePersistedState";
 
 export function useCustomers() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-
-  // 검색어 입력 시 페이지 번호 초기화
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery]);
+  const [searchQuery, setSearchQuery, isSearchQueryRestored] = usePersistedState('egdesk_customers_searchQuery', '');
+  const [currentPage, setCurrentPage, isCurrentPageRestored] = usePersistedState('egdesk_customers_currentPage', 1);
+  const [itemsPerPage, setItemsPerPage, isItemsPerPageRestored] = usePersistedState('egdesk_customers_itemsPerPage', 10);
 
   // History Modal states
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedCustomer, setSelectedCustomer, isSelectedCustomerRestored] = usePersistedState<Customer | null>('egdesk_customers_selectedCustomer', null);
   const [customerHistory, setCustomerHistory] = useState<CustomerHistory | null>(null);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-  const [activeHistoryTab, setActiveHistoryTab] = useState<'orders' | 'cancelled' | 'transactions' | 'deliveries' | 'points'>('orders');
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [activeHistoryTab, setActiveHistoryTab, isActiveHistoryTabRestored] = usePersistedState<'orders' | 'cancelled' | 'transactions' | 'deliveries' | 'points'>('egdesk_customers_activeHistoryTab', 'orders');
+  const [showHistoryModal, setShowHistoryModal, isShowHistoryModalRestored] = usePersistedState('egdesk_customers_showHistoryModal', false);
+
+  // 모든 세션 상태 복원이 완료되었는지 감시하는 플래그
+  const isRestored = isSearchQueryRestored && isCurrentPageRestored && isItemsPerPageRestored && isSelectedCustomerRestored && isActiveHistoryTabRestored && isShowHistoryModalRestored;
+
+  // 검색어 입력 시 페이지 번호 초기화 (단, 세션 복원이 마쳐진 상태에서만 작동하도록 가드)
+  useEffect(() => {
+    if (isRestored) {
+      setCurrentPage(1);
+    }
+  }, [searchQuery, isRestored]);
 
   // 포인트 시스템 전용 추가 상태
   const [pointBalance, setPointBalance] = useState<number>(0);
@@ -58,8 +64,10 @@ export function useCustomers() {
   };
 
   useEffect(() => {
-    fetchCustomers();
-  }, []);
+    if (isRestored) {
+      fetchCustomers();
+    }
+  }, [isRestored]);
 
   const fetchCustomerHistory = async (customer: Customer) => {
     setIsLoadingHistory(true);

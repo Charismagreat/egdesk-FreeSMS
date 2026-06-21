@@ -2,30 +2,38 @@
 
 import { useState, useEffect } from "react";
 import { Delivery, DeliveryForm } from "../types";
+import { usePersistedState } from "@/hooks/usePersistedState";
 
 export function useDeliveries() {
   const [data, setData] = useState<Delivery[]>([]);
-  const [form, setForm] = useState<DeliveryForm>({ 
+  const [form, setForm, isFormRestored] = usePersistedState<DeliveryForm>('egdesk_deliveries_form', { 
     customerName: '', 
     customerPhone: '', 
     address: '', 
     courier: '대한통운', 
     trackingNumber: '' 
   });
-  const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [activeOrderId, setActiveOrderId, isActiveOrderIdRestored] = usePersistedState<string | null>('egdesk_deliveries_activeOrderId', null);
+  const [searchQuery, setSearchQuery, isSearchQueryRestored] = usePersistedState('egdesk_deliveries_searchQuery', '');
+  const [currentPage, setCurrentPage, isCurrentPageRestored] = usePersistedState('egdesk_deliveries_currentPage', 1);
+  const [itemsPerPage, setItemsPerPage, isItemsPerPageRestored] = usePersistedState('egdesk_deliveries_itemsPerPage', 10);
   const [isUploadingExcel, setIsUploadingExcel] = useState(false);
 
-  // 검색어 입력 시 페이지 번호 초기화
+  // 모든 세션 상태 복원이 완료되었는지 감시하는 플래그
+  const isRestored = isFormRestored && isActiveOrderIdRestored && isSearchQueryRestored && isCurrentPageRestored && isItemsPerPageRestored;
+
+  // 검색어 입력 시 페이지 번호 초기화 (세션 복원 완료 가드 탑재)
   useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery]);
+    if (isRestored) {
+      setCurrentPage(1);
+    }
+  }, [searchQuery, isRestored]);
 
   useEffect(() => { 
-    fetchData(); 
-  }, []);
+    if (isRestored) {
+      fetchData(); 
+    }
+  }, [isRestored]);
 
   const fetchData = async () => {
     try {

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { usePersistedState } from "@/hooks/usePersistedState";
 
 // 글로벌 통화 감지 및 기호 헬퍼
 export function detectCurrency(siteName: string, targetUrl: string): string {
@@ -52,7 +53,7 @@ export function getCurrencySymbol(currency: string): string {
 export function usePriceTracker() {
   // 상태 정의
   const [items, setItems] = useState<any[]>([]);
-  const [activeItem, setActiveItem] = useState<any | null>(null);
+  const [activeItem, setActiveItem, isActiveItemRestored] = usePersistedState<any | null>('egdesk_pricetracker_activeItem', null);
   const [urls, setUrls] = useState<any[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [alertLogs, setAlertLogs] = useState<any[]>([]);
@@ -67,20 +68,20 @@ export function usePriceTracker() {
   });
 
   // 환율 분석 차트 활성 탭
-  const [activeRateTab, setActiveRateTab] = useState("USD");
+  const [activeRateTab, setActiveRateTab, isActiveRateTabRestored] = usePersistedState("egdesk_pricetracker_activeRateTab", "USD");
 
   // 검색 및 필터 상태
-  const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("ALL");
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [searchQuery, setSearchQuery, isSearchQueryRestored] = usePersistedState("egdesk_pricetracker_searchQuery", "");
+  const [categoryFilter, setCategoryFilter, isCategoryFilterRestored] = usePersistedState("egdesk_pricetracker_categoryFilter", "ALL");
+  const [statusFilter, setStatusFilter, isStatusFilterRestored] = usePersistedState("egdesk_pricetracker_statusFilter", "ALL");
 
   // 모달 제어 상태
-  const [isItemModalOpen, setIsItemModalOpen] = useState(false);
-  const [isCollectorModalOpen, setIsCollectorModalOpen] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [editingItemId, setEditingItemId] = useState<number | null>(null);
+  const [isItemModalOpen, setIsItemModalOpen, isItemModalOpenRestored] = usePersistedState("egdesk_pricetracker_isItemModalOpen", false);
+  const [isCollectorModalOpen, setIsCollectorModalOpen, isCollectorModalOpenRestored] = usePersistedState("egdesk_pricetracker_isCollectorModalOpen", false);
+  const [isEditMode, setIsEditMode, isEditModeRestored] = usePersistedState("egdesk_pricetracker_isEditMode", false);
+  const [editingItemId, setEditingItemId, isEditingItemIdRestored] = usePersistedState<number | null>("egdesk_pricetracker_editingItemId", null);
   const [miningItemIds, setMiningItemIds] = useState<number[]>([]);
-  const [isAlertModalOpen, setIsAlertModalOpen] = useState(false);
+  const [isAlertModalOpen, setIsAlertModalOpen, isAlertModalOpenRestored] = usePersistedState("egdesk_pricetracker_isAlertModalOpen", false);
   const [isCronHelpOpen, setIsCronHelpOpen] = useState(false);
   const [isDaemonHelpOpen, setIsDaemonHelpOpen] = useState(false);
   const [copiedUrlId, setCopiedUrlId] = useState<number | null>(null);
@@ -97,7 +98,7 @@ export function usePriceTracker() {
   const [newChannelName, setNewChannelName] = useState("");
 
   // 폼 입력 상태
-  const [itemForm, setItemForm] = useState({ 
+  const [itemForm, setItemForm, isItemFormRestored] = usePersistedState('egdesk_pricetracker_itemForm', { 
     item_code: "", 
     item_name: "", 
     category: "RAW_MATERIAL", 
@@ -106,17 +107,17 @@ export function usePriceTracker() {
     target_margin_rate: "12.5",
     currency_code: "USD" 
   });
-  const [urlForm, setUrlForm] = useState({ 
+  const [urlForm, setUrlForm, isUrlFormRestored] = usePersistedState('egdesk_pricetracker_urlForm', { 
     site_name: "", 
     target_url: "", 
     css_selector: "", 
     cron_interval: "0 9 * * *" 
   });
-  const [aiForm, setAiForm] = useState({ 
+  const [aiForm, setAiForm, isAiFormRestored] = usePersistedState('egdesk_pricetracker_aiForm', { 
     industry: "정밀 기계 및 금속가공업", 
     keyword: "구리 전기동 원자재 LME" 
   });
-  const [alertForm, setAlertForm] = useState({ 
+  const [alertForm, setAlertForm, isAlertFormRestored] = usePersistedState('egdesk_pricetracker_alertForm', { 
     rule_name: "", 
     condition_type: "MARGIN_BREAKDOWN", 
     threshold_value: "5.0", 
@@ -140,9 +141,12 @@ export function usePriceTracker() {
   const getTodayDateStr = () => {
     return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
   };
-  const [backfillStartDate, setBackfillStartDate] = useState("2026-01-01");
-  const [backfillEndDate, setBackfillEndDate] = useState(getTodayDateStr());
+  const [backfillStartDate, setBackfillStartDate, isBackfillStartDateRestored] = usePersistedState("egdesk_pricetracker_backfillStartDate", "2026-01-01");
+  const [backfillEndDate, setBackfillEndDate, isBackfillEndDateRestored] = usePersistedState("egdesk_pricetracker_backfillEndDate", getTodayDateStr());
   const [isBackfilling, setIsBackfilling] = useState(false);
+
+  // 모든 세션 상태 복원이 완료되었는지 감시하는 플래그
+  const isRestored = isActiveItemRestored && isActiveRateTabRestored && isSearchQueryRestored && isCategoryFilterRestored && isStatusFilterRestored && isItemModalOpenRestored && isCollectorModalOpenRestored && isEditModeRestored && isEditingItemIdRestored && isAlertModalOpenRestored && isItemFormRestored && isUrlFormRestored && isAiFormRestored && isAlertFormRestored && isBackfillStartDateRestored && isBackfillEndDateRestored;
 
   // 차트 마우스 오버 툴팁 상태
   const [rateHoverInfo, setRateHoverInfo] = useState<{ x: number; y: number; val: number; date: string; index: number } | null>(null);
@@ -343,7 +347,10 @@ export function usePriceTracker() {
           fetchItemDetails(defaultItem.item_id);
         } else if (activeItem) {
           const matched = itemsJson.items.find((x: any) => x.item_id === activeItem.item_id);
-          if (matched) setActiveItem(matched);
+          if (matched) {
+            setActiveItem(matched);
+            fetchItemDetails(matched.item_id);
+          }
         }
 
         itemsJson.items.forEach((item: any) => {
@@ -379,8 +386,10 @@ export function usePriceTracker() {
   };
 
   useEffect(() => {
-    fetchInitData();
-  }, []);
+    if (isRestored) {
+      fetchInitData();
+    }
+  }, [isRestored]);
 
   const handleRefresh = async () => {
     setRefreshing(true);

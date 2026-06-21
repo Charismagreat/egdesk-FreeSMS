@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { usePersistedState } from "@/hooks/usePersistedState";
 
 // 분리한 타입 및 모달 컴포넌트 가져오기
 import { Estimate, PurchaseOrder, SalesOrder, Partner } from "./types";
@@ -15,7 +16,7 @@ import InboundHub from "./components/InboundHub";
 import OutboundHub from "./components/OutboundHub";
 
 export default function EstimatesDashboard() {
-  const [activeTab, setActiveTab] = useState<"inbound" | "outbound">("inbound");
+  const [activeTab, setActiveTab, isActiveTabRestored] = usePersistedState<"inbound" | "outbound">("egdesk_estimates_activeTab", "inbound");
   const [loading, setLoading] = useState(true);
 
   // 데이터 리스트 상태
@@ -29,8 +30,11 @@ export default function EstimatesDashboard() {
   const [dbTags, setDbTags] = useState<any[]>([]);
 
   // 모달 제어 상태
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [selectedEstimateId, setSelectedEstimateId] = useState<string | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen, isDetailModalOpenRestored] = usePersistedState("egdesk_estimates_isDetailModalOpen", false);
+  const [selectedEstimateId, setSelectedEstimateId, isSelectedEstimateIdRestored] = usePersistedState<string | null>("egdesk_estimates_selectedEstimateId", null);
+
+  // 모든 세션 상태 복원이 완료되었는지 감시하는 플래그
+  const isRestored = isActiveTabRestored && isDetailModalOpenRestored && isSelectedEstimateIdRestored;
 
   const [isOcrModalOpen, setIsOcrModalOpen] = useState(false);
 
@@ -147,8 +151,13 @@ export default function EstimatesDashboard() {
   };
 
   useEffect(() => {
-    fetchData();
-    fetchUserRole();
+    if (isRestored) {
+      fetchData();
+      fetchUserRole();
+    }
+  }, [isRestored]);
+
+  useEffect(() => {
 
     // 이지봇 연동을 통한 상세 모달 자동 팝업 처리 (마운트 시점 감지)
     if (typeof window !== "undefined") {

@@ -10,8 +10,11 @@ export async function GET() {
       orderDirection: 'DESC'
     });
     
+    // 소프트 삭제 배제
+    const activeRows = (result.rows || []).filter((r: any) => !r.deleted_at);
+    
     // Camel Case 변환
-    const templates = result.rows.map((r: any) => ({
+    const templates = activeRows.map((r: any) => ({
       id: r.id,
       name: r.name,
       header: r.header,

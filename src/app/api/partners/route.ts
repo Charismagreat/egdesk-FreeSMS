@@ -55,8 +55,8 @@ export async function GET(req: Request) {
     // ────────────────────────────────────────────────────────
     if (action === 'detail' && id) {
       const partnerRes = await queryTable('crm_partners', { filters: { id } });
-      if (!partnerRes.rows || partnerRes.rows.length === 0) {
-        return NextResponse.json({ success: false, error: '존재하지 않는 거래처입니다.' }, { status: 404 });
+      if (!partnerRes.rows || partnerRes.rows.length === 0 || partnerRes.rows[0].deleted_at) {
+        return NextResponse.json({ success: false, error: '존재하지 않는 거래처이거나 삭제되었습니다.' }, { status: 404 });
       }
       const partner = partnerRes.rows[0];
 
@@ -96,7 +96,7 @@ export async function GET(req: Request) {
     // 2. 전체 거래처 리스트 조회 및 실시간 거래 지표 합계 산출
     // ────────────────────────────────────────────────────────
     const partnersRes = await queryTable('crm_partners', {});
-    const partners = partnersRes.rows || [];
+    const partners = (partnersRes.rows || []).filter((pt: any) => !pt.deleted_at);
 
     // 각 거래처별 수/발주 총 거래액을 집계하기 위해 전체 발주/수주 테이블 마이닝
     let allPos: any[] = [];

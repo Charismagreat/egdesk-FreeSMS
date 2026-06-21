@@ -6,7 +6,7 @@ import { queryTable, insertRows, updateRows, deleteRows } from '@/../egdesk-help
 export async function GET() {
   try {
     const itemsRes = await queryTable('tracked_items', { orderBy: 'item_id', orderDirection: 'DESC' });
-    const items = itemsRes.rows || [];
+    const items = (itemsRes.rows || []).filter((item: any) => !item.deleted_at);
 
     // 각 품목별 최신 가격을 이력에서 조회하여 마진율 실시간 동적 매핑
     const enrichedItems = await Promise.all(items.map(async (item: any) => {

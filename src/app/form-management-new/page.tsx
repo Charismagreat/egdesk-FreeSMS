@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { usePersistedState } from "@/hooks/usePersistedState";
 import { 
   FileText, 
   Plus, 
@@ -53,8 +54,8 @@ interface PrintLog {
 }
 
 export default function FormManagementNewPage() {
-  const [activeTab, setActiveTab] = useState<'templates' | 'logs'>('templates');
-  const [viewMode, setViewMode] = useState<'list' | 'editor'>('list');
+  const [activeTab, setActiveTab, isActiveTabRestored] = usePersistedState<'templates' | 'logs'>('egdesk_form_activeTab', 'templates');
+  const [viewMode, setViewMode, isViewModeRestored] = usePersistedState<'list' | 'editor'>('egdesk_form_viewMode', 'list');
   const [templates, setTemplates] = useState<WebTemplate[]>([]);
   const [logs, setLogs] = useState<PrintLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,12 +63,12 @@ export default function FormManagementNewPage() {
   const [previewLog, setPreviewLog] = useState<PrintLog | null>(null);
   
   // 발급/출력 이력 조회 관련 상태 (검색, 페이징)
-  const [logSearchQuery, setLogSearchQuery] = useState('');
-  const [logCurrentPage, setLogCurrentPage] = useState(1);
-  const [logPerPage, setLogPerPage] = useState(10);
+  const [logSearchQuery, setLogSearchQuery, isLogSearchQueryRestored] = usePersistedState('egdesk_form_logSearchQuery', '');
+  const [logCurrentPage, setLogCurrentPage, isLogCurrentPageRestored] = usePersistedState('egdesk_form_logCurrentPage', 1);
+  const [logPerPage, setLogPerPage, isLogPerPageRestored] = usePersistedState('egdesk_form_logPerPage', 10);
   
   // 편집용 상태
-  const [selectedTemplateId, setSelectedTemplateId] = useState<number | undefined>(undefined);
+  const [selectedTemplateId, setSelectedTemplateId, isSelectedTemplateIdRestored] = usePersistedState<number | undefined>('egdesk_form_selectedTemplateId', undefined);
   
   // 인쇄용 선택 모달 상태 (AI 자동 동적 쿼리 및 수기 완결 구조 전격 도입)
   const [printTemplateId, setPrintTemplateId] = useState<number | null>(null);
@@ -76,7 +77,7 @@ export default function FormManagementNewPage() {
   const [printStep, setPrintStep] = useState<'search' | 'configure'>('search');
   
   // 1단계 AI 검색 상태
-  const [searchKeyword, setSearchKeyword] = useState('');
+  const [searchKeyword, setSearchKeyword, isSearchKeywordRestored] = usePersistedState('egdesk_form_searchKeyword', '');
   const [aiSearching, setAiSearching] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   
@@ -86,7 +87,7 @@ export default function FormManagementNewPage() {
 
   // 2단계 수동 편집 데이터 상태
   const [companyProfile, setCompanyProfile] = useState<any>({});
-  const [manualData, setManualData] = useState({
+  const [manualData, setManualData, isManualDataRestored] = usePersistedState('egdesk_form_manualData', {
     record_id: 'MANUAL',
     staff_name: '',
     department: '',
@@ -103,6 +104,9 @@ export default function FormManagementNewPage() {
     issue_month: '',
     issue_day: ''
   });
+
+  // 모든 세션 상태 복원이 완료되었는지 감시하는 플래그
+  const isRestored = isActiveTabRestored && isViewModeRestored && isLogSearchQueryRestored && isLogCurrentPageRestored && isLogPerPageRestored && isSelectedTemplateIdRestored && isSearchKeywordRestored && isManualDataRestored;
 
   // 가져오기 중복 시 모달 상태
   const [importConflictData, setImportConflictData] = useState<any | null>(null);
@@ -233,14 +237,16 @@ export default function FormManagementNewPage() {
   };
 
   useEffect(() => {
-    loadTemplates();
-  }, []);
+    if (isRestored) {
+      loadTemplates();
+    }
+  }, [isRestored]);
 
   useEffect(() => {
-    if (activeTab === 'logs') {
+    if (isRestored && activeTab === 'logs') {
       loadLogs();
     }
-  }, [activeTab]);
+  }, [activeTab, isRestored]);
 
   // 발급/출력 이력 실시간 검색 필터링 로직
   const filteredLogs = logs.filter((log) => {

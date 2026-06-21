@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import * as XLSX from "xlsx";
+import { usePersistedState } from "@/hooks/usePersistedState";
 
 export interface Customer {
   id: number;
@@ -44,7 +45,7 @@ export interface Transaction {
 const SPAM_KEYWORDS = ["무료", "당일특가", "할인", "http://", "https://", "!!", "지금", "마감", "100%"];
 
 export function useSms() {
-  const [message, setMessage] = useState("");
+  const [message, setMessage, isMessageRestored] = usePersistedState("egdesk_sms_message", "");
   const [isConnected, setIsConnected] = useState(false);
   const [isPairing, setIsPairing] = useState(false);
 
@@ -52,7 +53,7 @@ export function useSms() {
   const [smsDevices, setSmsDevices] = useState<Array<{ phoneNumber: string; name: string; isConnected: boolean; dailyLimit: number; todaySent: number }>>([
     { phoneNumber: "default", name: "기본 스마트폰 기기", isConnected: false, dailyLimit: 150, todaySent: 0 }
   ]);
-  const [selectedDeviceId, setSelectedDeviceId] = useState<string>("default");
+  const [selectedDeviceId, setSelectedDeviceId, isSelectedDeviceIdRestored] = usePersistedState<string>("egdesk_sms_selectedDeviceId", "default");
   const [newDevicePhone, setNewDevicePhone] = useState("");
   const [newDeviceName, setNewDeviceName] = useState("");
   const [showAddDeviceModal, setShowAddDeviceModal] = useState(false);
@@ -62,23 +63,23 @@ export function useSms() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   
   // Excel Upload States
-  const [targetMode, setTargetMode] = useState<'db' | 'excel'>('db');
+  const [targetMode, setTargetMode, isTargetModeRestored] = usePersistedState<'db' | 'excel'>('egdesk_sms_targetMode', 'db');
   const [excelCustomers, setExcelCustomers] = useState<Customer[]>([]);
   const [selectedExcelIds, setSelectedExcelIds] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Anti-Spam States
-  const [isAd, setIsAd] = useState(false);
-  const [adHeader, setAdHeader] = useState("(광고) [EGDesk]");
-  const [adFooter, setAdFooter] = useState("무료수신거부:");
-  const [optOutPhone, setOptOutPhone] = useState("010-0000-0000");
+  const [isAd, setIsAd, isAdRestored] = usePersistedState("egdesk_sms_isAd", false);
+  const [adHeader, setAdHeader, isAdHeaderRestored] = usePersistedState("egdesk_sms_adHeader", "(광고) [EGDesk]");
+  const [adFooter, setAdFooter, isAdFooterRestored] = usePersistedState("egdesk_sms_adFooter", "무료수신거부:");
+  const [optOutPhone, setOptOutPhone, isOptOutPhoneRestored] = usePersistedState("egdesk_sms_optOutPhone", "010-0000-0000");
   const [spamRisk, setSpamRisk] = useState<{ score: number, words: string[] }>({ score: 0, words: [] });
   const [adTemplates, setAdTemplates] = useState<AdTemplate[]>([]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [selectedTemplateId, setSelectedTemplateId, isSelectedTemplateIdRestored] = usePersistedState("egdesk_sms_selectedTemplateId", "");
   
   // Product States
   const [products, setProducts] = useState<Product[]>([]);
-  const [selectedProductId, setSelectedProductId] = useState("");
+  const [selectedProductId, setSelectedProductId, isSelectedProductIdRestored] = usePersistedState("egdesk_sms_selectedProductId", "");
   
   // Transaction States
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -97,34 +98,43 @@ export function useSms() {
   const [testDeviceId, setTestDeviceId] = useState("default");
 
   // AI States
-  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiPrompt, setAiPrompt, isAiPromptRestored] = usePersistedState("egdesk_sms_aiPrompt", "");
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiError, setAiError] = useState("");
 
   // DB 연동 고객 검색 및 페이지네이션 상태
-  const [dbSearchQuery, setDbSearchQuery] = useState('');
-  const [dbCurrentPage, setDbCurrentPage] = useState(1);
-  const [dbItemsPerPage, setDbItemsPerPage] = useState(10);
+  const [dbSearchQuery, setDbSearchQuery, isDbSearchQueryRestored] = usePersistedState('egdesk_sms_dbSearchQuery', '');
+  const [dbCurrentPage, setDbCurrentPage, isDbCurrentPageRestored] = usePersistedState('egdesk_sms_dbCurrentPage', 1);
+  const [dbItemsPerPage, setDbItemsPerPage, isDbItemsPerPageRestored] = usePersistedState('egdesk_sms_dbItemsPerPage', 10);
 
   // 엑셀 업로드 고객 검색 및 페이지네이션 상태
-  const [excelSearchQuery, setExcelSearchQuery] = useState('');
-  const [excelCurrentPage, setExcelCurrentPage] = useState(1);
-  const [excelItemsPerPage, setExcelItemsPerPage] = useState(10);
+  const [excelSearchQuery, setExcelSearchQuery, isExcelSearchQueryRestored] = usePersistedState('egdesk_sms_excelSearchQuery', '');
+  const [excelCurrentPage, setExcelCurrentPage, isExcelCurrentPageRestored] = usePersistedState('egdesk_sms_excelCurrentPage', 1);
+  const [excelItemsPerPage, setExcelItemsPerPage, isExcelItemsPerPageRestored] = usePersistedState('egdesk_sms_excelItemsPerPage', 10);
 
-  // 검색어 입력 시 페이지 번호 초기화
+  // 모든 세션 상태 복원이 완료되었는지 감시하는 플래그
+  const isRestored = isMessageRestored && isSelectedDeviceIdRestored && isTargetModeRestored && isAdRestored && isAdHeaderRestored && isAdFooterRestored && isOptOutPhoneRestored && isSelectedTemplateIdRestored && isSelectedProductIdRestored && isAiPromptRestored && isDbSearchQueryRestored && isDbCurrentPageRestored && isDbItemsPerPageRestored && isExcelSearchQueryRestored && isExcelCurrentPageRestored && isExcelItemsPerPageRestored;
+
+  // 검색어 입력 시 페이지 번호 초기화 (세션 복원 가드 추가)
   useEffect(() => {
-    setDbCurrentPage(1);
-  }, [dbSearchQuery]);
+    if (isRestored) {
+      setDbCurrentPage(1);
+    }
+  }, [dbSearchQuery, isRestored]);
 
   useEffect(() => {
-    setExcelCurrentPage(1);
-  }, [excelSearchQuery]);
+    if (isRestored) {
+      setExcelCurrentPage(1);
+    }
+  }, [excelSearchQuery, isRestored]);
 
-  // 발송 대상 모드 변경 시 페이지 번호 초기화
+  // 발송 대상 모드 변경 시 페이지 번호 초기화 (세션 복원 가드 추가)
   useEffect(() => {
-    setDbCurrentPage(1);
-    setExcelCurrentPage(1);
-  }, [targetMode]);
+    if (isRestored) {
+      setDbCurrentPage(1);
+      setExcelCurrentPage(1);
+    }
+  }, [targetMode, isRestored]);
 
   // DB 연동 고객 필터링 및 슬라이싱 파생 변수 연산
   const filteredDbCustomers = customers.filter(c => {
@@ -337,13 +347,15 @@ export function useSms() {
   };
 
   useEffect(() => {
-    fetchCustomers();
-    loadDevicesAndStatus();
-    fetchAdTemplates();
-    fetchProducts();
-    fetchTransactions();
-    fetchMessageTemplates();
-  }, []);
+    if (isRestored) {
+      fetchCustomers();
+      loadDevicesAndStatus();
+      fetchAdTemplates();
+      fetchProducts();
+      fetchTransactions();
+      fetchMessageTemplates();
+    }
+  }, [isRestored]);
 
   useEffect(() => {
     const foundWords = SPAM_KEYWORDS.filter(word => message.includes(word));

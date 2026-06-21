@@ -38,7 +38,7 @@ export async function GET(request: Request) {
       orderBy: 'expense_date',
       orderDirection: 'DESC'
     });
-    const expenses = expensesRes.rows || [];
+    const expenses = (expensesRes.rows || []).filter((exp: any) => !exp.deleted_at);
 
     // 2. 예산 설정 조회
     const settingsRes = await queryTable('expense_settings', { filters: { id: '1' } });
@@ -154,7 +154,7 @@ export async function POST(request: Request) {
         // 이번 달 모든 지출 목록 다시 가져와 합산
         const expensesRes = await queryTable('crm_expenses', {});
         const currentMonthExpenses = (expensesRes.rows || []).filter((exp: any) => 
-          getYearMonth(exp.expense_date) === currentMonthStr
+          !exp.deleted_at && getYearMonth(exp.expense_date) === currentMonthStr
         );
         const totalMonthAmount = currentMonthExpenses.reduce((sum: number, exp: any) => 
           sum + ((Number(exp.amount) || 0) - (Number(exp.deduction_amount) || 0) + (Number(exp.transfer_fee) || 0)), 0

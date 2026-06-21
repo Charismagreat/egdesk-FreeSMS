@@ -53,7 +53,7 @@ export async function GET(req: Request) {
     }
 
     const urlsRes = await queryTable('target_urls', options);
-    const urls = urlsRes.rows || [];
+    const urls = (urlsRes.rows || []).filter((url: any) => !url.deleted_at);
 
     // 실시간 외화 환율 데이터베이스 최신 조회
     let usdRate = 1380;

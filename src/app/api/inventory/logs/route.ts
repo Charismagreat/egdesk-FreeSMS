@@ -11,7 +11,7 @@ export async function GET() {
   let db;
   try {
     db = getDB();
-    const rows = db.prepare('SELECT * FROM inventory_logs ORDER BY createdAt DESC LIMIT 100').all();
+    const rows = db.prepare('SELECT * FROM inventory_logs WHERE deleted_at IS NULL ORDER BY createdAt DESC LIMIT 100').all();
     return NextResponse.json({ success: true, data: rows });
   } catch (error: any) {
     console.error('재고 로그 조회 중 오류 발생:', error);
@@ -40,8 +40,8 @@ export async function POST(request: Request) {
     }
 
     const tx = db.transaction(() => {
-      // 1. 기존 품목 정보 조회
-      const item = db.prepare('SELECT * FROM inventory_items WHERE id = ?').get(Number(itemId)) as any;
+      // 1. 기존 품목 정보 조회 (deleted_at IS NULL 조건 추가)
+      const item = db.prepare('SELECT * FROM inventory_items WHERE id = ? AND deleted_at IS NULL').get(Number(itemId)) as any;
       if (!item) {
         throw new Error('존재하지 않는 품목입니다.');
       }

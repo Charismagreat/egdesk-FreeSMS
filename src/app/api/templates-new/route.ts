@@ -585,7 +585,7 @@ Based on the guidelines, choose the most appropriate tables for this document pu
 
     if (action === 'detail' && id) {
       const templateId = parseInt(id);
-      const res = await executeSQL(`SELECT * FROM crm_web_templates WHERE id = ${templateId}`);
+      const res = await executeSQL(`SELECT * FROM crm_web_templates WHERE id = ${templateId} AND deleted_at IS NULL`);
       const rows = res.rows || [];
       const template = rows[0] || null;
 
@@ -642,7 +642,7 @@ Based on the guidelines, choose the most appropriate tables for this document pu
     }
 
     // 목록 조회
-    const res = await executeSQL('SELECT * FROM crm_web_templates ORDER BY id DESC');
+    const res = await executeSQL('SELECT * FROM crm_web_templates WHERE deleted_at IS NULL ORDER BY id DESC');
     const rows = res.rows || [];
     const templates = rows.filter((r: any) => !r.deleted_at);
 

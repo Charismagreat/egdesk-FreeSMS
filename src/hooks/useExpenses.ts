@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { usePersistedState } from "@/hooks/usePersistedState";
 
 export interface Expense {
   id: string;
@@ -71,19 +72,19 @@ export function useExpenses() {
   const [isAnalyzingReceipt, setIsAnalyzingReceipt] = useState(false);
 
   // 필터 및 검색
-  const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>("ALL");
-  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [activeCategoryFilter, setActiveCategoryFilter, isActiveCategoryFilterRestored] = usePersistedState<string>("egdesk_expenses_activeCategoryFilter", "ALL");
+  const [searchQuery, setSearchQuery, isSearchQueryRestored] = usePersistedState<string>("egdesk_expenses_searchQuery", "");
 
   // 페이지네이션
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
+  const [currentPage, setCurrentPage, isCurrentPageRestored] = usePersistedState<number>("egdesk_expenses_currentPage", 1);
+  const [itemsPerPage, setItemsPerPage, isItemsPerPageRestored] = usePersistedState<number>("egdesk_expenses_itemsPerPage", 10);
 
   // ⚡ 다중 선택 상태 추가 (거래 관리 AI 연동 스펙)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // 📅 기간 조회 상태 탑재 (시작일자, 종료일자)
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
+  const [startDate, setStartDate, isStartDateRestored] = usePersistedState<string>("egdesk_expenses_startDate", "");
+  const [endDate, setEndDate, isEndDateRestored] = usePersistedState<string>("egdesk_expenses_endDate", "");
 
   // ⚡ 퀵 기간 피커 프리셋 계산 함수
   const setQuickRange = (rangeType: 'today' | 'week' | 'month' | '3month' | 'clear') => {
@@ -114,7 +115,7 @@ export function useExpenses() {
   };
 
   // 신규 등록 폼 (사장님의 지출결의서 실물 양식 필드 탑재 - 품의일자 일원화)
-  const [newExpense, setNewExpense] = useState({
+  const [newExpense, setNewExpense, isNewExpenseRestored] = usePersistedState('egdesk_expenses_newExpense', {
     title: "",
     category: "직원야근식대",
     amount: "",
@@ -424,21 +425,28 @@ export function useExpenses() {
     }
   };
 
-  useEffect(() => {
-    fetchExpenses();
-    fetchCategories();
-    fetchTags();
-    fetchAutocompleteData();
-    fetchDepartments();
-    fetchEmployees();
-    fetchProjects();
-  }, []);
+  // 모든 세션 상태 복원이 완료되었는지 감시하는 플래그
+  const isRestored = isActiveCategoryFilterRestored && isSearchQueryRestored && isCurrentPageRestored && isItemsPerPageRestored && isStartDateRestored && isEndDateRestored && isNewExpenseRestored;
 
-  // 검색/필터/기간 변경 시 페이지 및 선택 상태 초기화
   useEffect(() => {
-    setCurrentPage(1);
-    setSelectedIds(new Set());
-  }, [searchQuery, activeCategoryFilter, startDate, endDate]);
+    if (isRestored) {
+      fetchExpenses();
+      fetchCategories();
+      fetchTags();
+      fetchAutocompleteData();
+      fetchDepartments();
+      fetchEmployees();
+      fetchProjects();
+    }
+  }, [isRestored]);
+
+  // 검색/필터/기간 변경 시 페이지 및 선택 상태 초기화 (세션 복원 가드 추가)
+  useEffect(() => {
+    if (isRestored) {
+      setCurrentPage(1);
+      setSelectedIds(new Set());
+    }
+  }, [searchQuery, activeCategoryFilter, startDate, endDate, isRestored]);
 
   // 설정 저장
   const handleSaveSettings = async (updatedSettings: ExpenseSettings) => {

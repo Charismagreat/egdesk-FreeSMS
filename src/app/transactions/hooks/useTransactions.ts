@@ -2,30 +2,38 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { Transaction } from "../types";
+import { usePersistedState } from "@/hooks/usePersistedState";
 
 export function useTransactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-
-  // 검색어 입력 시 페이지 번호 초기화
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery]);
+  const [activeOrderId, setActiveOrderId, isActiveOrderIdRestored] = usePersistedState<string | null>("egdesk_transactions_activeOrderId", null);
+  const [searchQuery, setSearchQuery, isSearchQueryRestored] = usePersistedState("egdesk_transactions_searchQuery", "");
+  const [currentPage, setCurrentPage, isCurrentPageRestored] = usePersistedState("egdesk_transactions_currentPage", 1);
+  const [itemsPerPage, setItemsPerPage, isItemsPerPageRestored] = usePersistedState("egdesk_transactions_itemsPerPage", 10);
 
   // 신규 등록용 폼 상태
-  const [newName, setNewName] = useState("");
-  const [newPhone, setNewPhone] = useState("");
-  const [newProduct, setNewProduct] = useState("");
-  const [newAmount, setNewAmount] = useState("");
+  const [newName, setNewName, isNewNameRestored] = usePersistedState("egdesk_transactions_newName", "");
+  const [newPhone, setNewPhone, isNewPhoneRestored] = usePersistedState("egdesk_transactions_newPhone", "");
+  const [newProduct, setNewProduct, isNewProductRestored] = usePersistedState("egdesk_transactions_newProduct", "");
+  const [newAmount, setNewAmount, isNewAmountRestored] = usePersistedState("egdesk_transactions_newAmount", "");
   const [isSending, setIsSending] = useState(false);
 
+  // 모든 세션 상태 복원이 완료되었는지 감시하는 플래그
+  const isRestored = isActiveOrderIdRestored && isSearchQueryRestored && isCurrentPageRestored && isItemsPerPageRestored && isNewNameRestored && isNewPhoneRestored && isNewProductRestored && isNewAmountRestored;
+
+  // 검색어 입력 시 페이지 번호 초기화 (단, 세션 복원이 모두 마쳐진 상태에서만 작동하도록 가드)
   useEffect(() => {
-    fetchTransactions();
-  }, []);
+    if (isRestored) {
+      setCurrentPage(1);
+    }
+  }, [searchQuery, isRestored]);
+
+  useEffect(() => {
+    if (isRestored) {
+      fetchTransactions();
+    }
+  }, [isRestored]);
 
   const fetchTransactions = async () => {
     try {

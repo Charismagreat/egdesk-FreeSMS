@@ -57,11 +57,11 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type'); // 'material' 또는 'product'
     
-    let query = 'SELECT * FROM inventory_items';
+    let query = 'SELECT * FROM inventory_items WHERE deleted_at IS NULL';
     const params: any[] = [];
 
     if (type) {
-      query += ' WHERE type = ?';
+      query += ' AND type = ?';
       params.push(type);
     }
 

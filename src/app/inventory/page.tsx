@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Package, Plus, Sliders, ArrowRightLeft, FileText, Download, Loader2 } from 'lucide-react';
+import { usePersistedState } from "@/hooks/usePersistedState";
 
 // 타입 및 유틸리티 임포트
 import { InventoryItem, InventoryLog, ScanLog, ItemFormState } from './types';
@@ -32,22 +33,35 @@ export default function InventoryPage() {
     departments: string[];
     projects: string[];
   }>({ partners: [], staff: [], departments: [], projects: [] });
-  const [activeTab, setActiveTab] = useState<'material' | 'product' | 'inbound' | 'deadstock'>('material');
+  const [activeTab, setActiveTab, isActiveTabRestored] = usePersistedState<'material' | 'product' | 'inbound' | 'deadstock'>('egdesk_inventory_activeTab', 'material');
   const [inbounds, setInbounds] = useState<any[]>([]);
   const [selectedInboundId, setSelectedInboundId] = useState<string | null>(null);
   const [inboundDetails, setInboundDetails] = useState<any[]>([]);
   const [isInboundModalOpen, setIsInboundModalOpen] = useState(false);
   const [loadingInbounds, setLoadingInbounds] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery, isSearchQueryRestored] = usePersistedState('egdesk_inventory_searchQuery', '');
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [currentPage, setCurrentPage, isCurrentPageRestored] = usePersistedState('egdesk_inventory_currentPage', 1);
+  const [itemsPerPage, setItemsPerPage, isItemsPerPageRestored] = usePersistedState('egdesk_inventory_itemsPerPage', 10);
+  const [selectedTags, setSelectedTags, isSelectedTagsRestored] = usePersistedState<string[]>('egdesk_inventory_selectedTags', []);
+  const [valuationMethod, setValuationMethod, isValuationMethodRestored] = usePersistedState<'moving_average' | 'fifo' | 'lifo'>('egdesk_inventory_valuationMethod', 'moving_average');
 
-  // 검색어 또는 탭 변경 시 페이지 번호 및 데이터 새로고침
+  // 모든 세션 상태 복원이 완료되었는지 감시하는 플래그
+  const isRestored = isActiveTabRestored && isSearchQueryRestored && isCurrentPageRestored && isItemsPerPageRestored && isSelectedTagsRestored && isValuationMethodRestored;
+
+  // 검색어 또는 탭 변경 시 페이지 번호 및 데이터 새로고침 (단, 세션 복원이 마쳐진 상태에서만 작동하도록 가드)
   useEffect(() => {
-    setCurrentPage(1);
-    fetchData();
-  }, [searchQuery, activeTab]);
+    if (isRestored) {
+      setCurrentPage(1);
+    }
+  }, [searchQuery, activeTab, isRestored]);
+
+  // 데이터 로드는 복원 완료 시점에 맞춰서 기동
+  useEffect(() => {
+    if (isRestored) {
+      fetchData();
+    }
+  }, [searchQuery, activeTab, isRestored]);
 
   // 모달 상태
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
@@ -102,11 +116,7 @@ export default function InventoryPage() {
 
   // 글로벌 마스터 태그 풀 및 품목 바인딩 태그용 상태
   const [globalTags, setGlobalTags] = useState<string[]>([]);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [newTagInput, setNewTagInput] = useState('');
-
-  // 3대 재고 자산 평가법 상태 (이동평균 / 선입선출 / 후입선출)
-  const [valuationMethod, setValuationMethod] = useState<'moving_average' | 'fifo' | 'lifo'>('moving_average');
 
   // 바코드 스캔 및 라벨 인쇄 관련 상태
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
@@ -118,9 +128,8 @@ export default function InventoryPage() {
   // 타이핑 애니메이션 레프 및 상태
   const typingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 최초 로드 시 데이터 패치 및 글로벌 태그 풀 로딩
+  // 최초 로드 시 글로벌 태그 풀 로딩
   useEffect(() => {
-    fetchData();
     initGlobalTags();
   }, []);
 

@@ -5,7 +5,8 @@ import { queryTable, insertRows, deleteRows, updateRows } from '../../../../egde
 export async function GET() {
   try {
     const templates = await queryTable('message_templates', {});
-    return NextResponse.json({ success: true, templates: templates.rows || [] });
+    const activeTemplates = (templates.rows || []).filter((t: any) => !t.deleted_at);
+    return NextResponse.json({ success: true, templates: activeTemplates });
   } catch (error: any) {
     console.error('Error fetching message templates:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

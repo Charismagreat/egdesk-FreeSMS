@@ -2,26 +2,37 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { MessageLog, SenderDevice } from "../types";
+import { usePersistedState } from "@/hooks/usePersistedState";
 
 export function useMessageLogs() {
   const [data, setData] = useState<MessageLog[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [activePreset, setActivePreset] = useState<'all' | 'today' | '7d' | '30d' | 'custom'>("all");
+  const [searchQuery, setSearchQuery, isSearchQueryRestored] = usePersistedState("egdesk_msglogs_searchQuery", "");
+  const [currentPage, setCurrentPage, isCurrentPageRestored] = usePersistedState("egdesk_msglogs_currentPage", 1);
+  const [itemsPerPage, setItemsPerPage, isItemsPerPageRestored] = usePersistedState("egdesk_msglogs_itemsPerPage", 10);
+  const [startDate, setStartDate, isStartDateRestored] = usePersistedState("egdesk_msglogs_startDate", "");
+  const [endDate, setEndDate, isEndDateRestored] = usePersistedState("egdesk_msglogs_endDate", "");
+  const [activePreset, setActivePreset, isActivePresetRestored] = usePersistedState<'all' | 'today' | '7d' | '30d' | 'custom'>("egdesk_msglogs_activePreset", "all");
   const [isMounted, setIsMounted] = useState(false);
+
+  // 모든 세션 상태 복원이 완료되었는지 감시하는 플래그
+  const isRestored = isSearchQueryRestored && isCurrentPageRestored && isItemsPerPageRestored && isStartDateRestored && isEndDateRestored && isActivePresetRestored;
 
   useEffect(() => { 
     setIsMounted(true);
-    fetchData(); 
   }, []);
+
+  useEffect(() => { 
+    if (isRestored) {
+      fetchData(); 
+    }
+  }, [isRestored]);
   
-  // 검색어 또는 날짜 필터 입력 시 페이지 번호 초기화
+  // 검색어 또는 날짜 필터 입력 시 페이지 번호 초기화 (단, 세션 복원이 모두 마쳐진 상태에서만 작동하도록 가드)
   useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, startDate, endDate]);
+    if (isRestored) {
+      setCurrentPage(1);
+    }
+  }, [searchQuery, startDate, endDate, isRestored]);
 
   const fetchData = async () => {
     try {

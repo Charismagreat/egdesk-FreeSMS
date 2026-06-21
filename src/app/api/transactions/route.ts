@@ -16,15 +16,17 @@ export async function GET(req: Request) {
         orderDirection: 'DESC',
         limit: 1
       });
-      const transaction = result.rows[0] ? {
-        id: result.rows[0].id,
-        customerName: result.rows[0].customer_name,
-        customerPhone: result.rows[0].customer_phone,
-        productName: result.rows[0].product_name,
-        amount: result.rows[0].amount,
-        orderDate: result.rows[0].order_date,
-        status: result.rows[0].status,
-        orderId: result.rows[0].order_id
+      // 데이터베이스 감사 룰 준수: 소프트 삭제된 항목 배제
+      const activeRows = (result.rows || []).filter((r: any) => !r.deleted_at);
+      const transaction = activeRows[0] ? {
+        id: activeRows[0].id,
+        customerName: activeRows[0].customer_name,
+        customerPhone: activeRows[0].customer_phone,
+        productName: activeRows[0].product_name,
+        amount: activeRows[0].amount,
+        orderDate: activeRows[0].order_date,
+        status: activeRows[0].status,
+        orderId: activeRows[0].order_id
       } : null;
       return NextResponse.json({ success: true, transaction });
     }
@@ -35,7 +37,10 @@ export async function GET(req: Request) {
       orderDirection: 'DESC'
     });
     
-    const transactions = result.rows.map((r: any) => ({
+    // 데이터베이스 감사 룰 준수: 소프트 삭제된 항목 배제 (deleted_at이 있는 거래는 반환 안 함)
+    const activeTransactions = (result.rows || []).filter((r: any) => !r.deleted_at);
+    
+    const transactions = activeTransactions.map((r: any) => ({
       id: r.id,
       customerName: r.customer_name,
       customerPhone: r.customer_phone,

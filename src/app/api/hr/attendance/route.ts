@@ -185,29 +185,29 @@ export async function GET(req: Request) {
       currentUser = decodeJwt(token);
     }
 
-    // 직원 마스터 목록 스캔
+    // 직원 마스터 목록 스캔 (소프트 삭제 배제)
     const operatorsRes = await queryTable('crm_operators', { filters: { is_active: '1' } });
-    const employees = operatorsRes.rows || [];
+    const employees = (operatorsRes.rows || []).filter((emp: any) => !emp.deleted_at);
 
-    // 당일 전원 근태 정보 스캔
+    // 당일 전원 근태 정보 스캔 (소프트 삭제 배제)
     const attendanceRes = await queryTable('crm_attendance', { filters: { work_date: workDate } });
-    const attendanceList = attendanceRes.rows || [];
+    const attendanceList = (attendanceRes.rows || []).filter((a: any) => !a.deleted_at);
 
-    // 직원별 연차 현황 스캔
+    // 직원별 연차 현황 스캔 (소프트 삭제 배제)
     const balancesRes = await queryTable('crm_operator_leave_balances');
-    const balancesList = balancesRes.rows || [];
+    const balancesList = (balancesRes.rows || []).filter((b: any) => !b.deleted_at);
 
-    // 전사 공유 일정 스캔
+    // 전사 공유 일정 스캔 (소프트 삭제 배제)
     const eventsRes = await queryTable('crm_company_events');
-    const companyEvents = eventsRes.rows || [];
+    const companyEvents = (eventsRes.rows || []).filter((e: any) => !e.deleted_at);
 
-    // 캘린더 종합 조회를 위해 전체 연차 내역(APPROVED 상태인 것) 스캔
+    // 캘린더 종합 조회를 위해 전체 연차 내역(APPROVED 상태인 것) 스캔 (소프트 삭제 배제)
     const approvedLeavesRes = await queryTable('crm_annual_leaves', { filters: { status: 'APPROVED' } });
-    const approvedLeaves = approvedLeavesRes.rows || [];
+    const approvedLeaves = (approvedLeavesRes.rows || []).filter((l: any) => !l.deleted_at);
 
-    // 전체 근태 내역 스캔 (캘린더 매핑용)
+    // 전체 근태 내역 스캔 (캘린더 매핑용) (소프트 삭제 배제)
     const allAttendanceRes = await queryTable('crm_attendance');
-    const allAttendance = allAttendanceRes.rows || [];
+    const allAttendance = (allAttendanceRes.rows || []).filter((a: any) => !a.deleted_at);
 
     // 직원 정보와 근태 상태 바인딩
     const mappedEmployees = employees.map((emp: any) => {

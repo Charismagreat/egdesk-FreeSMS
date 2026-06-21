@@ -10,7 +10,9 @@ export async function GET() {
       orderBy: 'order_date',
       orderDirection: 'DESC'
     });
-    return NextResponse.json({ success: true, orders: result.rows });
+    // 데이터베이스 감사 룰 준수: 소프트 삭제된 항목 배제 (deleted_at이 있는 주문은 반환 안 함)
+    const activeOrders = (result.rows || []).filter((order: any) => !order.deleted_at);
+    return NextResponse.json({ success: true, orders: activeOrders });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

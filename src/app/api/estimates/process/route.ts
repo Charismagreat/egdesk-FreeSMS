@@ -12,7 +12,7 @@ export async function GET(req: Request) {
 
     if (action === 'po_list') {
       const res = await queryTable('crm_purchase_orders', {});
-      const rows = res.rows || [];
+      const rows = (res.rows || []).filter((a: any) => !a.deleted_at);
       const sorted = [...rows].sort((a: any, b: any) => {
         return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
       });
@@ -21,7 +21,7 @@ export async function GET(req: Request) {
 
     if (action === 'so_list') {
       const res = await queryTable('crm_sales_orders', {});
-      const rows = res.rows || [];
+      const rows = (res.rows || []).filter((a: any) => !a.deleted_at);
       const sorted = [...rows].sort((a: any, b: any) => {
         return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
       });

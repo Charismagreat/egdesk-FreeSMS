@@ -207,7 +207,7 @@ export async function GET(req: Request) {
         orderDirection: 'DESC',
         limit: 500
       });
-      const rawEstimates = estRes.rows || [];
+      const rawEstimates = (estRes.rows || []).filter((e: any) => !e.deleted_at);
 
       // 2. 견적서 상세 아이템 목록 조회
       const itemsRes = await queryTable('crm_estimate_items', {
@@ -246,7 +246,7 @@ export async function GET(req: Request) {
       }
 
       const estRes = await queryTable('crm_estimates', { filters: { id: estimateId } });
-      const estimate = estRes.rows && estRes.rows.length > 0 ? estRes.rows[0] : null;
+      const estimate = estRes.rows && estRes.rows.length > 0 && !estRes.rows[0].deleted_at ? estRes.rows[0] : null;
 
       if (!estimate) {
         return NextResponse.json({ success: false, error: '해당 견적 내역을 찾을 수 없습니다.' }, { status: 404 });
@@ -272,7 +272,7 @@ export async function GET(req: Request) {
       filters: { is_estimate_price: '1' },
       limit: 1000
     });
-    const estimateProducts = prodRes.rows || [];
+    const estimateProducts = (prodRes.rows || []).filter((p: any) => !p.deleted_at);
 
     return NextResponse.json({ success: true, products: estimateProducts });
   } catch (error: any) {
