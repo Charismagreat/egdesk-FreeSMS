@@ -1848,172 +1848,170 @@ export async function setupDatabase() {
     { name: 'percent', type: 'INTEGER' }
   ], { tableName: 'crm_facility_predictive_part_rul', uniqueKeyColumns: ['id'] });
 
-  // 40-1. 기존 shared_dashboards 테이블 물리 ALTER TABLE 보정 마이그레이션 (자율 핫픽스)
+  // 40-1. 기존 테이블 물리 ALTER TABLE 보정 마이그레이션 (자율 핫픽스 - executeSQL 비동기 전환)
   try {
-    const Database = require('better-sqlite3');
-    const os = require('os');
-    const path = require('path');
-    const fs = require('fs');
-
-    const homeDir = os.homedir();
-    const appData = process.env.APPDATA || path.join(homeDir, 'AppData/Roaming');
-    const paths = [
-      path.join(appData, 'EGDesk/database/user_data.db'),
-      path.join(appData, 'egdesk/database/user_data.db')
-    ];
-    
-    let targetPath = '';
-    for (const p of paths) {
-      if (fs.existsSync(p)) {
-        targetPath = p;
-        break;
-      }
-    }
-    
-    if (!targetPath) {
-      targetPath = paths[0];
-    }
-
-    // 윈도우 환경 및 빌드 번들러 경로 구분자 오작동 방지를 위한 수동 포워드 슬래시 정규화 및 상위 디렉토리 생성
-    const normalizedPath = targetPath.replace(/\\/g, '/');
-    const dir = normalizedPath.substring(0, normalizedPath.lastIndexOf('/'));
-    if (dir && !fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-
-    const db = new Database(normalizedPath);
-    
-    const colInfo = db.prepare("PRAGMA table_info(shared_dashboards);").all();
-    const colNames = colInfo.map((c: any) => c.name);
-    
-    if (!colNames.includes('sort_order')) {
-      db.exec("ALTER TABLE shared_dashboards ADD COLUMN sort_order INTEGER DEFAULT 0;");
-      console.log('✓ In-app migration: added sort_order to shared_dashboards');
-    }
-    if (!colNames.includes('is_pinned')) {
-      db.exec("ALTER TABLE shared_dashboards ADD COLUMN is_pinned INTEGER DEFAULT 1;");
-      console.log('✓ In-app migration: added is_pinned to shared_dashboards');
-    }
-    if (!colNames.includes('custom_title')) {
-      db.exec("ALTER TABLE shared_dashboards ADD COLUMN custom_title TEXT;");
-      console.log('✓ In-app migration: added custom_title to shared_dashboards');
-    }
-
-    // crm_meetings 테이블 컬럼 보정 마이그레이션
-    const meetingCols = db.prepare("PRAGMA table_info(crm_meetings);").all().map((c: any) => c.name);
-    if (!meetingCols.includes('audio_url')) {
-      db.exec("ALTER TABLE crm_meetings ADD COLUMN audio_url TEXT;");
-      console.log('✓ In-app migration: added audio_url to crm_meetings');
-    }
-
-    // crm_recruitment_applicants 테이블 컬럼 보정 마이그레이션
-    const applicantCols = db.prepare("PRAGMA table_info(crm_recruitment_applicants);").all().map((c: any) => c.name);
-    if (!applicantCols.includes('interview_logs')) {
-      db.exec("ALTER TABLE crm_recruitment_applicants ADD COLUMN interview_logs TEXT;");
-      console.log('✓ In-app migration: added interview_logs to crm_recruitment_applicants');
-    }
-    if (!applicantCols.includes('ai_evaluation')) {
-      db.exec("ALTER TABLE crm_recruitment_applicants ADD COLUMN ai_evaluation TEXT;");
-      console.log('✓ In-app migration: added ai_evaluation to crm_recruitment_applicants');
-    }
-
-    // ai_token_usage_logs 테이블 컬럼 보정 마이그레이션
-    const tokenLogCols = db.prepare("PRAGMA table_info(ai_token_usage_logs);").all().map((c: any) => c.name);
-    if (!tokenLogCols.includes('user_name')) {
-      db.exec("ALTER TABLE ai_token_usage_logs ADD COLUMN user_name TEXT;");
-      console.log('✓ In-app migration: added user_name to ai_token_usage_logs');
-    }
-    if (!tokenLogCols.includes('menu_path')) {
-      db.exec("ALTER TABLE ai_token_usage_logs ADD COLUMN menu_path TEXT;");
-      console.log('✓ In-app migration: added menu_path to ai_token_usage_logs');
-    }
-    if (!tokenLogCols.includes('uuid')) {
-      db.exec("ALTER TABLE ai_token_usage_logs ADD COLUMN uuid TEXT;");
-      console.log('✓ In-app migration: added uuid to ai_token_usage_logs');
-    }
-    if (!tokenLogCols.includes('updated_at')) {
-      db.exec("ALTER TABLE ai_token_usage_logs ADD COLUMN updated_at TEXT;");
-      console.log('✓ In-app migration: added updated_at to ai_token_usage_logs');
-    }
-    if (!tokenLogCols.includes('updated_by')) {
-      db.exec("ALTER TABLE ai_token_usage_logs ADD COLUMN updated_by TEXT;");
-      console.log('✓ In-app migration: added updated_by to ai_token_usage_logs');
-    }
-    if (!tokenLogCols.includes('deleted_at')) {
-      db.exec("ALTER TABLE ai_token_usage_logs ADD COLUMN deleted_at TEXT;");
-      console.log('✓ In-app migration: added deleted_at to ai_token_usage_logs');
-    }
-    if (!tokenLogCols.includes('deleted_by')) {
-      db.exec("ALTER TABLE ai_token_usage_logs ADD COLUMN deleted_by TEXT;");
-      console.log('✓ In-app migration: added deleted_by to ai_token_usage_logs');
-    }
-    if (!tokenLogCols.includes('restored_at')) {
-      db.exec("ALTER TABLE ai_token_usage_logs ADD COLUMN restored_at TEXT;");
-      console.log('✓ In-app migration: added restored_at to ai_token_usage_logs');
-    }
-    if (!tokenLogCols.includes('restored_by')) {
-      db.exec("ALTER TABLE ai_token_usage_logs ADD COLUMN restored_by TEXT;");
-      console.log('✓ In-app migration: added restored_by to ai_token_usage_logs');
-    }
-
-    // form_templates 테이블 컬럼 보정 마이그레이션
-    const templateCols = db.prepare("PRAGMA table_info(form_templates);").all().map((c: any) => c.name);
-    if (!templateCols.includes('query_sql')) {
-      db.exec("ALTER TABLE form_templates ADD COLUMN query_sql TEXT;");
-      console.log('✓ In-app migration: added query_sql to form_templates');
-    }
-    if (!templateCols.includes('query_params')) {
-      db.exec("ALTER TABLE form_templates ADD COLUMN query_params TEXT;");
-      console.log('✓ In-app migration: added query_params to form_templates');
-    }
-    const auditCols = ['uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by'];
-    for (const auditCol of auditCols) {
-      if (!templateCols.includes(auditCol)) {
-        db.exec(`ALTER TABLE form_templates ADD COLUMN ${auditCol} TEXT;`);
-        console.log(`✓ In-app migration: added ${auditCol} to form_templates`);
-      }
-    }
-
-    // form_mappings 테이블 컬럼 보정 마이그레이션
-    const mappingCols = db.prepare("PRAGMA table_info(form_mappings);").all().map((c: any) => c.name);
-    for (const auditCol of auditCols) {
-      if (!mappingCols.includes(auditCol)) {
-        db.exec(`ALTER TABLE form_mappings ADD COLUMN ${auditCol} TEXT;`);
-        console.log(`✓ In-app migration: added ${auditCol} to form_mappings`);
-      }
-    }
-
-    // crm_web_templates 테이블 컬럼 보정 마이그레이션
+    // 1) shared_dashboards 테이블 컬럼 보정
     try {
-      const webTemplateCols = db.prepare("PRAGMA table_info(crm_web_templates);").all().map((c: any) => c.name);
+      const colInfoRes = await executeSQL("PRAGMA table_info(shared_dashboards);");
+      const colNames = (colInfoRes?.rows || []).map((c: any) => c.name);
+      
+      if (!colNames.includes('sort_order')) {
+        await executeSQL("ALTER TABLE shared_dashboards ADD COLUMN sort_order INTEGER DEFAULT 0;");
+        console.log('✓ In-app migration: added sort_order to shared_dashboards');
+      }
+      if (!colNames.includes('is_pinned')) {
+        await executeSQL("ALTER TABLE shared_dashboards ADD COLUMN is_pinned INTEGER DEFAULT 1;");
+        console.log('✓ In-app migration: added is_pinned to shared_dashboards');
+      }
+      if (!colNames.includes('custom_title')) {
+        await executeSQL("ALTER TABLE shared_dashboards ADD COLUMN custom_title TEXT;");
+        console.log('✓ In-app migration: added custom_title to shared_dashboards');
+      }
+    } catch (e: any) {
+      console.warn('⚠️ shared_dashboards migration check warning:', e.message);
+    }
+
+    // 2) crm_meetings 테이블 컬럼 보정
+    try {
+      const colInfoRes = await executeSQL("PRAGMA table_info(crm_meetings);");
+      const meetingCols = (colInfoRes?.rows || []).map((c: any) => c.name);
+      if (!meetingCols.includes('audio_url')) {
+        await executeSQL("ALTER TABLE crm_meetings ADD COLUMN audio_url TEXT;");
+        console.log('✓ In-app migration: added audio_url to crm_meetings');
+      }
+    } catch (e: any) {
+      console.warn('⚠️ crm_meetings migration check warning:', e.message);
+    }
+
+    // 3) crm_recruitment_applicants 테이블 컬럼 보정
+    try {
+      const colInfoRes = await executeSQL("PRAGMA table_info(crm_recruitment_applicants);");
+      const applicantCols = (colInfoRes?.rows || []).map((c: any) => c.name);
+      if (!applicantCols.includes('interview_logs')) {
+        await executeSQL("ALTER TABLE crm_recruitment_applicants ADD COLUMN interview_logs TEXT;");
+        console.log('✓ In-app migration: added interview_logs to crm_recruitment_applicants');
+      }
+      if (!applicantCols.includes('ai_evaluation')) {
+        await executeSQL("ALTER TABLE crm_recruitment_applicants ADD COLUMN ai_evaluation TEXT;");
+        console.log('✓ In-app migration: added ai_evaluation to crm_recruitment_applicants');
+      }
+    } catch (e: any) {
+      console.warn('⚠️ crm_recruitment_applicants migration check warning:', e.message);
+    }
+
+    // 4) ai_token_usage_logs 테이블 컬럼 보정
+    try {
+      const colInfoRes = await executeSQL("PRAGMA table_info(ai_token_usage_logs);");
+      const tokenLogCols = (colInfoRes?.rows || []).map((c: any) => c.name);
+      if (!tokenLogCols.includes('user_name')) {
+        await executeSQL("ALTER TABLE ai_token_usage_logs ADD COLUMN user_name TEXT;");
+        console.log('✓ In-app migration: added user_name to ai_token_usage_logs');
+      }
+      if (!tokenLogCols.includes('menu_path')) {
+        await executeSQL("ALTER TABLE ai_token_usage_logs ADD COLUMN menu_path TEXT;");
+        console.log('✓ In-app migration: added menu_path to ai_token_usage_logs');
+      }
+      if (!tokenLogCols.includes('uuid')) {
+        await executeSQL("ALTER TABLE ai_token_usage_logs ADD COLUMN uuid TEXT;");
+        console.log('✓ In-app migration: added uuid to ai_token_usage_logs');
+      }
+      if (!tokenLogCols.includes('updated_at')) {
+        await executeSQL("ALTER TABLE ai_token_usage_logs ADD COLUMN updated_at TEXT;");
+        console.log('✓ In-app migration: added updated_at to ai_token_usage_logs');
+      }
+      if (!tokenLogCols.includes('updated_by')) {
+        await executeSQL("ALTER TABLE ai_token_usage_logs ADD COLUMN updated_by TEXT;");
+        console.log('✓ In-app migration: added updated_by to ai_token_usage_logs');
+      }
+      if (!tokenLogCols.includes('deleted_at')) {
+        await executeSQL("ALTER TABLE ai_token_usage_logs ADD COLUMN deleted_at TEXT;");
+        console.log('✓ In-app migration: added deleted_at to ai_token_usage_logs');
+      }
+      if (!tokenLogCols.includes('deleted_by')) {
+        await executeSQL("ALTER TABLE ai_token_usage_logs ADD COLUMN deleted_by TEXT;");
+        console.log('✓ In-app migration: added deleted_by to ai_token_usage_logs');
+      }
+      if (!tokenLogCols.includes('restored_at')) {
+        await executeSQL("ALTER TABLE ai_token_usage_logs ADD COLUMN restored_at TEXT;");
+        console.log('✓ In-app migration: added restored_at to ai_token_usage_logs');
+      }
+      if (!tokenLogCols.includes('restored_by')) {
+        await executeSQL("ALTER TABLE ai_token_usage_logs ADD COLUMN restored_by TEXT;");
+        console.log('✓ In-app migration: added restored_by to ai_token_usage_logs');
+      }
+    } catch (e: any) {
+      console.warn('⚠️ ai_token_usage_logs migration check warning:', e.message);
+    }
+
+    // 5) form_templates 테이블 컬럼 보정
+    try {
+      const colInfoRes = await executeSQL("PRAGMA table_info(form_templates);");
+      const templateCols = (colInfoRes?.rows || []).map((c: any) => c.name);
+      if (!templateCols.includes('query_sql')) {
+        await executeSQL("ALTER TABLE form_templates ADD COLUMN query_sql TEXT;");
+        console.log('✓ In-app migration: added query_sql to form_templates');
+      }
+      if (!templateCols.includes('query_params')) {
+        await executeSQL("ALTER TABLE form_templates ADD COLUMN query_params TEXT;");
+        console.log('✓ In-app migration: added query_params to form_templates');
+      }
+      const auditCols = ['uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by'];
+      for (const auditCol of auditCols) {
+        if (!templateCols.includes(auditCol)) {
+          await executeSQL(`ALTER TABLE form_templates ADD COLUMN ${auditCol} TEXT;`);
+          console.log(`✓ In-app migration: added ${auditCol} to form_templates`);
+        }
+      }
+    } catch (e: any) {
+      console.warn('⚠️ form_templates migration check warning:', e.message);
+    }
+
+    // 6) form_mappings 테이블 컬럼 보정
+    try {
+      const colInfoRes = await executeSQL("PRAGMA table_info(form_mappings);");
+      const mappingCols = (colInfoRes?.rows || []).map((c: any) => c.name);
+      const auditCols = ['uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by'];
+      for (const auditCol of auditCols) {
+        if (!mappingCols.includes(auditCol)) {
+          await executeSQL(`ALTER TABLE form_mappings ADD COLUMN ${auditCol} TEXT;`);
+          console.log(`✓ In-app migration: added ${auditCol} to form_mappings`);
+        }
+      }
+    } catch (e: any) {
+      console.warn('⚠️ form_mappings migration check warning:', e.message);
+    }
+
+    // 7) crm_web_templates 테이블 컬럼 보정
+    try {
+      const colInfoRes = await executeSQL("PRAGMA table_info(crm_web_templates);");
+      const webTemplateCols = (colInfoRes?.rows || []).map((c: any) => c.name);
       if (!webTemplateCols.includes('web_html_content')) {
-        db.exec("ALTER TABLE crm_web_templates ADD COLUMN web_html_content TEXT;");
+        await executeSQL("ALTER TABLE crm_web_templates ADD COLUMN web_html_content TEXT;");
         console.log('✓ In-app migration: added web_html_content to crm_web_templates');
       }
       if (!webTemplateCols.includes('is_print_active')) {
-        db.exec("ALTER TABLE crm_web_templates ADD COLUMN is_print_active INTEGER DEFAULT 1;");
+        await executeSQL("ALTER TABLE crm_web_templates ADD COLUMN is_print_active INTEGER DEFAULT 1;");
         console.log('✓ In-app migration: added is_print_active to crm_web_templates');
       }
       if (!webTemplateCols.includes('is_web_active')) {
-        db.exec("ALTER TABLE crm_web_templates ADD COLUMN is_web_active INTEGER DEFAULT 1;");
+        await executeSQL("ALTER TABLE crm_web_templates ADD COLUMN is_web_active INTEGER DEFAULT 1;");
         console.log('✓ In-app migration: added is_web_active to crm_web_templates');
       }
     } catch (e: any) {
       console.warn('⚠️ crm_web_templates migration check warning:', e.message);
     }
 
-    // crm_operators 테이블 사원번호 컬럼 보정 마이그레이션
+    // 8) crm_operators 테이블 사원번호 컬럼 보정
     try {
-      const opCols = db.prepare("PRAGMA table_info(crm_operators);").all().map((c: any) => c.name);
+      const colInfoRes = await executeSQL("PRAGMA table_info(crm_operators);");
+      const opCols = (colInfoRes?.rows || []).map((c: any) => c.name);
       if (!opCols.includes('employee_number')) {
-        db.exec("ALTER TABLE crm_operators ADD COLUMN employee_number TEXT;");
+        await executeSQL("ALTER TABLE crm_operators ADD COLUMN employee_number TEXT;");
         console.log('✓ In-app migration: added employee_number to crm_operators');
       }
     } catch (e: any) {
       console.warn('⚠️ crm_operators migration check warning:', e.message);
     }
-
-    db.close();
   } catch (err: any) {
     console.error('⚠️ In-app migration error:', err.message);
   }
