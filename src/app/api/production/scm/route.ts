@@ -25,9 +25,9 @@ export async function GET() {
     // 3. 화물 리스트 매핑 (좌표 및 리스크 계산 융합)
     const shipments = dbShipments.map((s: any) => {
       const prob = s.delay_probability || 0.0;
-      let risk = "SAFE" as const;
-      if (prob >= 70) risk = "CRITICAL" as const;
-      else if (prob >= 30) risk = "WARNING" as const;
+      let risk: "SAFE" | "WARNING" | "CRITICAL" = "SAFE";
+      if (prob >= 70) risk = "CRITICAL";
+      else if (prob >= 30) risk = "WARNING";
 
       // 운송 루트 좌표 매핑 (시드 정보 기반)
       let route = {

@@ -4,7 +4,7 @@ import { queryTable, updateRows } from '@/../egdesk-helpers';
 
 export async function GET() {
   try {
-    const response = await queryTable('expense_settings', { filters: { id: 1 } });
+    const response = await queryTable('expense_settings', { filters: { id: '1' } });
     const setting = response.rows?.[0] || null;
     return NextResponse.json({ success: true, data: setting });
   } catch (error: any) {
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
       alert_threshold_percent: Number(alert_threshold_percent),
       alert_sms_template,
       alert_phone
-    }, { filters: { id: 1 } });
+    }, { filters: { id: '1' } });
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

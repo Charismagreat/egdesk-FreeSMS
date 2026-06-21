@@ -2785,8 +2785,6 @@ export async function setupDatabase() {
       console.log('✓ 기존 무사번 직원 대상 일괄 사번 주입 성공.');
     }
 
-    db.close();
-    console.log('✓ Database connection closed successfully in setupDatabase migration.');
   } catch (err: any) {
     console.error('⚠️ 직원 사번 마이그레이션 에러:', err.message);
   }

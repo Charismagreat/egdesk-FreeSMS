@@ -482,8 +482,8 @@ export default function DBChartRenderer({ spec, rows, onSelectPart }: DBChartRen
                   hoveredIndex === i ? 'font-black' : ''
                 }`}
                 onClick={() => onSelectPart && onSelectPart(d.label)}
-                title={`${d.label} 항목을 클릭하여 지능형 수정 타겟으로 지정`}
               >
+                <title>{`${d.label} 항목을 클릭하여 지능형 수정 타겟으로 지정`}</title>
                 {d.label}
               </text>
             );

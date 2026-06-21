@@ -177,7 +177,7 @@ export async function POST(req: Request) {
         let matchedRules: any[] = [];
         try {
           const rulesRes = await queryTable('easybot_rules', { 
-            filters: { target_table: table, is_active: 1 } 
+            filters: { target_table: table, is_active: '1' } 
           });
           matchedRules = (rulesRes.rows || []).filter((r: any) => !r.deleted_at);
         } catch (dbRulesErr) {

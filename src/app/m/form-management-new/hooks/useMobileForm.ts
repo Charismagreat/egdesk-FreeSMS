@@ -121,7 +121,7 @@ export function useMobileForm() {
     } else {
       // 💡 개발/데모 시연 시 임직원 데이터베이스가 비어있는 예외 상황에 대비한 강력한 안전 가드 작동
       const opInfo: OperatorInfo = {
-        id: "simulated-op-id",
+        id: 9999,
         name: meData.name || "홍길동",
         username: username,
         role: meData.role || "SUPER_ADMIN",

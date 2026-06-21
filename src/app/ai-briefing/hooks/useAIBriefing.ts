@@ -200,8 +200,7 @@ export function useAIBriefing() {
 
       const svgString = new XMLSerializer().serializeToString(svgElement);
       const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
-      const DOMURL = window.URL || window.webkitURL || window;
-      const blobURL = DOMURL.createObjectURL(svgBlob);
+      const blobURL = window.URL.createObjectURL(svgBlob);
       
       const image = new window.Image();
       image.onload = () => {
@@ -221,7 +220,7 @@ export function useAIBriefing() {
           document.body.appendChild(downloadLink);
           downloadLink.click();
           document.body.removeChild(downloadLink);
-          DOMURL.revokeObjectURL(blobURL);
+          window.URL.revokeObjectURL(blobURL);
           showToast("✓ 시각화 차트가 고해상도 PNG 이미지로 저장되었습니다.", "success");
         }
       };

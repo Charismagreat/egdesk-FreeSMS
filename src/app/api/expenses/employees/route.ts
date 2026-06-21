@@ -65,7 +65,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, error: '삭제할 임직원 ID가 필요합니다.' }, { status: 400 });
     }
 
-    await deleteRows('expense_employees', { ids: [id] });
+    await deleteRows('expense_employees', { ids: [Number(id)] });
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Error deleting employee:', error);

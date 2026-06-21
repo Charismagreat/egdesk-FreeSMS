@@ -131,8 +131,7 @@ export default function DataBriefingTab({
         const serializer = new XMLSerializer();
         const svgString = serializer.serializeToString(svgElement);
         const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
-        const URL = window.URL || window.webkitURL || window;
-        const blobURL = URL.createObjectURL(svgBlob);
+        const blobURL = window.URL.createObjectURL(svgBlob);
 
         const image = new Image();
         image.onload = () => {
@@ -174,7 +173,7 @@ export default function DataBriefingTab({
             setSelectedChartPart(`지정된 시각적 영역 (${Math.round(selectionRect.width)}x${Math.round(selectionRect.height)})`);
             showToast("✓ 선택 영역이 성공적으로 캡처 첨부되었습니다! 챗봇에서 바로 지시해 보세요.", "success");
           }
-          URL.revokeObjectURL(blobURL);
+          window.URL.revokeObjectURL(blobURL);
         };
         image.src = blobURL;
       } else {

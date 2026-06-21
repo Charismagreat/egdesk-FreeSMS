@@ -70,7 +70,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, error: '삭제할 태그 ID가 필요합니다.' }, { status: 400 });
     }
 
-    await deleteRows('expense_tags', { ids: [id] });
+    await deleteRows('expense_tags', { ids: [Number(id)] });
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Error deleting tag:', error);

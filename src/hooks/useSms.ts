@@ -411,7 +411,9 @@ export function useSms() {
     const newDevice = {
       phoneNumber: cleanPhone,
       name: newDeviceName,
-      isConnected: false
+      isConnected: false,
+      dailyLimit: 200,
+      todaySent: 0
     };
 
     const updatedDevices = [...smsDevices, newDevice];

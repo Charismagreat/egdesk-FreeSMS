@@ -147,7 +147,8 @@ export default function OeeMetricsCard({ data }: OeeMetricsCardProps) {
             {data.factoryLayout.map((item) => {
               const color = item.status === "RUNNING" ? "#10b981" : item.status === "WARNING" ? "#f59e0b" : "#ef4444";
               return (
-                <g key={item.id} className="cursor-pointer" title={`${item.name} | OEE: ${item.oee}%`}>
+                <g key={item.id} className="cursor-pointer">
+                  <title>{`${item.name} | OEE: ${item.oee}%`}</title>
                   <rect 
                     x={item.x - 12} 
                     y={item.y - 12} 

@@ -296,7 +296,7 @@ async function initComprehensiveProfilesDatabase() {
       if (errMsg.includes('Table not found') || errMsg.includes('no such table')) {
         console.log(`[Auto-Migration] ${t.name} 테이블 생성 중...`);
         try {
-          await createTable(t.displayName, t.schema, {
+          await createTable(t.displayName, t.schema as any, {
             tableName: t.name,
             uniqueKeyColumns: t.uniqueKeyColumns
           });

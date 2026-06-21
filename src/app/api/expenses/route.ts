@@ -41,7 +41,7 @@ export async function GET(request: Request) {
     const expenses = expensesRes.rows || [];
 
     // 2. 예산 설정 조회
-    const settingsRes = await queryTable('expense_settings', { filters: { id: 1 } });
+    const settingsRes = await queryTable('expense_settings', { filters: { id: '1' } });
     const expenseSetting = settingsRes.rows?.[0] || {
       monthly_budget: 3000000,
       is_alert_enabled: 1,
@@ -145,7 +145,7 @@ export async function POST(request: Request) {
 
     // --- 🚨 예산 초과 방지 실시간 SMS 경보 체크 파이프라인 ---
     try {
-      const settingsRes = await queryTable('expense_settings', { filters: { id: 1 } });
+      const settingsRes = await queryTable('expense_settings', { filters: { id: '1' } });
       const setting = settingsRes.rows?.[0];
 
       if (setting && setting.is_alert_enabled === 1 && setting.monthly_budget > 0) {
@@ -296,7 +296,7 @@ export async function DELETE(request: Request) {
     }
 
     const idsToDelete = idsParam ? idsParam.split(',') : [id!];
-    await deleteRows('crm_expenses', { ids: idsToDelete });
+    await deleteRows('crm_expenses', { ids: idsToDelete.map(Number) });
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Error deleting expense:', error);

@@ -69,45 +69,8 @@ const SCRIPT_METADATA_PRESETS: Record<string, { title: string; menuPath: string;
   }
 };
 
-// 폴백 기본 스크립트 프리셋 (이지데스크 REST API 호출 실패 시 제공)
-const FALLBACK_SCRIPTS = [
-  {
-    fileName: 'ecount_sales_ledger.spec.js',
-    title: '이카운트 일자별 매출 원장 동기화',
-    menuPath: '회계 > 매출/매입 > 매출대장',
-    targetTable: 'ecount_sales_ledger',
-    description: '지정된 기간 동안의 이카운트 매출 원장 엑셀 데이터를 다운로드하여 로컬 DB에 자동 동기화합니다.',
-    category: '매출',
-    defaultDaysRange: 30,
-    columns: ['거래일자', '전표번호', '거래처명', '공급가액', '부가세', '합계금액', '적요'],
-    isRealFileAvailable: false,
-    isTableCreated: false
-  },
-  {
-    fileName: 'ecount_purchase_ledger.spec.js',
-    title: '이카운트 일자별 매입 원장 동기화',
-    menuPath: '회계 > 매출/매입 > 매입대장',
-    targetTable: 'ecount_purchase_ledger',
-    description: '지정된 기간 동안의 이카운트 매입 원장 엑셀 데이터를 수집하고 계정과목별로 자동 분류하여 적재합니다.',
-    category: '매입',
-    defaultDaysRange: 30,
-    columns: ['거래일자', '전표번호', '공급처명', '공급가액', '부가세', '합계금액', '계정과목'],
-    isRealFileAvailable: false,
-    isTableCreated: false
-  },
-  {
-    fileName: 'ecount_inventory_status.spec.js',
-    title: '이카운트 창고별 재고 현황 수집',
-    menuPath: '재고 > 출력물 > 재고현황',
-    targetTable: 'ecount_inventory_status',
-    description: '회사 내 모든 활성 창고의 품목별 현재고, 적정재고 및 안전재고 초과 여부를 실시간 감지하여 적재합니다.',
-    category: '재고',
-    defaultDaysRange: 0,
-    columns: ['품목코드', '품목명', '규격', '창고명', '현재고수량', '안전재고수량', '재고상태'],
-    isRealFileAvailable: false,
-    isTableCreated: false
-  }
-];
+// 더미 폴백 스크립트 프리셋 제거 완료
+
 
 /**
  * GET: 이지데스크서버 REST API 직접 연동을 통한 실제 스크립트 동적 매핑 및 SQLite 물리 테이블 존재 진단
@@ -162,14 +125,9 @@ export async function GET() {
     const tests = mcpData.tests || [];
 
     if (!Array.isArray(tests) || tests.length === 0) {
-      // 폴백 스크립트에도 실시간 테이블 생성 체크 동적 반영
-      const mappedFallback = FALLBACK_SCRIPTS.map(mock => ({
-        ...mock,
-        isTableCreated: dbTables.includes(mock.targetTable)
-      }));
       return NextResponse.json({
         success: true,
-        scripts: mappedFallback,
+        scripts: [],
         message: '이지데스크서버와 연결되었으나 저장된 RPA 스크립트 파일이 없습니다.'
       });
     }
@@ -250,11 +208,11 @@ export async function GET() {
       serverScriptList: tests.map((t: any) => t.name)
     });
   } catch (error: any) {
-    console.error('[GET /api/ecount-erp] REST API 바인딩 에러, FALLBACK 제공:', error.message);
+    console.error('[GET /api/ecount-erp] REST API 바인딩 에러:', error.message);
     return NextResponse.json({
-      success: true,
-      scripts: FALLBACK_SCRIPTS,
-      message: `이지데스크 서버 REST API 조회 중 경고: ${error.message}`
+      success: false,
+      scripts: [],
+      message: `이지데스크 서버 REST API 조회 중 에러: ${error.message}`
     });
   }
 }
@@ -476,15 +434,10 @@ export async function POST(request: Request) {
       throw err;
     }
   } catch (error: any) {
-    console.warn('[POST /api/ecount-erp] REST API 처리 중 에러, 시뮬레이터 또는 오류 응답 처리:', error.message);
-    
-    // 시뮬레이터 폴백 동작 (서버 연결 실패 시에도 4초 대기 피드백 모달 정상 지원)
+    console.error('[POST /api/ecount-erp] REST API 처리 중 에러:', error.message);
     return NextResponse.json({
-      success: true,
-      message: `[시뮬레이션 완료] 스크립트가 로컬 모드로 안전 기동되었습니다. 5분간의 쿨타임이 강제 적용됩니다.`,
-      isMock: true,
-      simulationTimeMs: 4000,
-      details: { message: `RPA 릴레이 폴백 구동: ${error.message}` }
-    });
+      success: false,
+      error: error.message || '이지데스크 서버 RPA 구동 중 오류가 발생했습니다.'
+    }, { status: 500 });
   }
 }
