@@ -21,7 +21,8 @@ import {
   History,
   Info,
   Copy,
-  Download
+  Download,
+  Upload
 } from 'lucide-react';
 
 import WebTemplateEditor from './components/WebTemplateEditor';
@@ -102,6 +103,98 @@ export default function FormManagementNewPage() {
     issue_month: '',
     issue_day: ''
   });
+
+  // 가져오기 중복 시 모달 상태
+  const [importConflictData, setImportConflictData] = useState<any | null>(null);
+  const [isImportConflictModalOpen, setIsImportConflictModalOpen] = useState(false);
+
+  // 양식 다운로드 (내보내기)
+  const handleDownloadTemplate = (tmpl: WebTemplate) => {
+    try {
+      const backupData = {
+        template_name: tmpl.template_name,
+        document_type: tmpl.document_type || '',
+        html_content: tmpl.html_content || '',
+        web_html_content: (tmpl as any).web_html_content || '',
+        is_active: tmpl.is_active !== undefined ? tmpl.is_active : 1,
+        is_print_active: (tmpl as any).is_print_active !== undefined ? (tmpl as any).is_print_active : 1,
+        is_web_active: (tmpl as any).is_web_active !== undefined ? (tmpl as any).is_web_active : 1,
+      };
+
+      const jsonString = JSON.stringify(backupData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      a.download = `[양식백업]_${tmpl.template_name.replace(/\s+/g, '_')}_${dateStr}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert(`양식 백업 파일 다운로드 중 오류가 발생했습니다: ${err.message}`);
+    }
+  };
+
+  // 양식 가져오기 파일 선택 핸들러
+  const handleImportFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target?.result as string;
+        const importedData = JSON.parse(text);
+
+        if (!importedData.template_name || (!importedData.html_content && !importedData.web_html_content)) {
+          alert('유효한 양식 백업 파일(JSON)이 아닙니다. 필수 데이터가 유실되었습니다.');
+          return;
+        }
+
+        const isDuplicate = templates.some(t => t.template_name === importedData.template_name);
+        if (isDuplicate) {
+          const existing = templates.find(t => t.template_name === importedData.template_name);
+          setImportConflictData({ ...importedData, existingId: existing?.id });
+          setIsImportConflictModalOpen(true);
+        } else {
+          await executeImportApi(importedData, 'duplicate');
+        }
+      } catch (err: any) {
+        alert(`파일을 읽는 중 에러가 발생했습니다: ${err.message}`);
+      } finally {
+        e.target.value = '';
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  // 양식 가져오기 API 실행
+  const executeImportApi = async (data: any, actionType: 'overwrite' | 'duplicate') => {
+    try {
+      const res = await fetch('/api/templates-new/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...data,
+          actionType
+        })
+      });
+      const resData = await res.json();
+      if (resData.success) {
+        alert(resData.message || '양식을 성공적으로 가져왔습니다.');
+        setIsImportConflictModalOpen(false);
+        setImportConflictData(null);
+        await loadTemplates();
+      } else {
+        alert(`양식 가져오기 실패: ${resData.error}`);
+      }
+    } catch (err: any) {
+      alert(`서버 요청 중 오류가 발생했습니다: ${err.message}`);
+    }
+  };
 
   // 템플릿 목록 로드
   const loadTemplates = async () => {
@@ -445,16 +538,33 @@ export default function FormManagementNewPage() {
         </div>
 
         {viewMode === 'list' && activeTab === 'templates' && (
-          <button
-            onClick={() => {
-              setSelectedTemplateId(undefined);
-              setViewMode('editor');
-            }}
-            className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-extrabold text-sm transition shadow-lg shadow-violet-600/10 cursor-pointer shrink-0"
-          >
-            <Plus className="w-4 h-4 stroke-[3px]" />
-            새 양식 빌드하기
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <input 
+              type="file" 
+              id="template-import-input" 
+              accept=".json" 
+              className="hidden" 
+              onChange={handleImportFileChange}
+            />
+            <button
+              onClick={() => document.getElementById('template-import-input')?.click()}
+              className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-extrabold text-sm transition cursor-pointer shadow-sm"
+              title="양식 백업 파일(.json)을 업로드하여 이식합니다."
+            >
+              <Upload className="w-4 h-4 text-slate-500" />
+              양식 가져오기
+            </button>
+            <button
+              onClick={() => {
+                setSelectedTemplateId(undefined);
+                setViewMode('editor');
+              }}
+              className="flex items-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-extrabold text-sm transition shadow-lg shadow-violet-600/10 cursor-pointer"
+            >
+              <Plus className="w-4 h-4 stroke-[3px]" />
+              새 양식 빌드하기
+            </button>
+          </div>
         )}
       </div>
 
@@ -585,6 +695,14 @@ export default function FormManagementNewPage() {
                                 양식 출력
                               </button>
                               
+                              <button
+                                onClick={() => handleDownloadTemplate(tmpl)}
+                                className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 transition cursor-pointer"
+                                title="양식 백업 다운로드"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                              </button>
+
                               <button
                                 onClick={() => {
                                   setSelectedTemplateId(tmpl.id);
@@ -1243,6 +1361,77 @@ export default function FormManagementNewPage() {
                 className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs transition rounded-xl cursor-pointer"
               >
                 미리보기 닫기
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* 📥 양식 가져오기 중복 해결 선택 모달 */}
+      {isImportConflictModalOpen && importConflictData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full border border-slate-150 shadow-2xl flex flex-col overflow-hidden max-h-[85vh] animate-scale-up">
+            
+            {/* 헤더 */}
+            <div className="p-6 border-b border-slate-150 bg-slate-50 flex items-start gap-3 shrink-0">
+              <div className="p-2 rounded-xl bg-violet-100 text-violet-600">
+                <FileCheck className="w-5 h-5" />
+              </div>
+              <div className="text-left">
+                <h3 className="text-base font-black text-slate-800">양식 중복 경고</h3>
+                <p className="text-[11px] text-slate-500 font-semibold mt-0.5">
+                  가져오려는 양식과 동일한 명칭의 양식이 이미 존재합니다.
+                </p>
+              </div>
+            </div>
+
+            {/* 본문 */}
+            <div className="p-6 flex-1 min-h-0 overflow-y-auto space-y-4 text-left">
+              <div className="p-4.5 rounded-2xl bg-amber-50 border border-amber-200 flex items-start gap-2.5">
+                <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                <div className="text-xs text-amber-800 font-semibold space-y-1">
+                  <p className="font-extrabold text-amber-950">중복 대상 양식명</p>
+                  <p className="font-mono text-amber-900 break-all">"{importConflictData.template_name}"</p>
+                  <p className="text-[10px] text-amber-700/80 mt-1">
+                    기존의 양식을 덮어쓸 경우 이전의 HTML 마스터 디자인 코드가 유실됩니다.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2.5">
+                <button
+                  onClick={() => executeImportApi(importConflictData, 'overwrite')}
+                  className="w-full p-4 border border-slate-200 hover:border-violet-500 rounded-2xl bg-white hover:bg-violet-50/10 flex flex-col text-left transition duration-200 group cursor-pointer"
+                >
+                  <span className="text-xs font-black text-slate-800 group-hover:text-violet-700">🔄 기존 양식에 덮어쓰기 (Overwrite)</span>
+                  <span className="text-[10px] text-slate-400 font-bold mt-1">
+                    기존 양식(ID: {importConflictData.existingId})의 내용을 본 백업 파일 내용으로 덮어씁니다. (복구 불가)
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => executeImportApi(importConflictData, 'duplicate')}
+                  className="w-full p-4 border border-slate-200 hover:border-violet-500 rounded-2xl bg-white hover:bg-violet-50/10 flex flex-col text-left transition duration-200 group cursor-pointer"
+                >
+                  <span className="text-xs font-black text-slate-800 group-hover:text-violet-700">🆕 복사본으로 추가 (Duplicate)</span>
+                  <span className="text-[10px] text-slate-400 font-bold mt-1">
+                    기존 양식을 보존하고, 이름 뒤에 "_복사본" 접미사를 붙여 새로운 고유 식별자(UUID)로 신규 등록합니다.
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* 하단 버튼 */}
+            <div className="p-4 border-t border-slate-150 bg-slate-50 flex justify-end gap-2 shrink-0">
+              <button
+                onClick={() => {
+                  setIsImportConflictModalOpen(false);
+                  setImportConflictData(null);
+                }}
+                className="px-4 py-2.5 bg-slate-200 hover:bg-slate-350 text-slate-700 font-extrabold text-xs transition rounded-xl cursor-pointer"
+              >
+                가져오기 취소
               </button>
             </div>
 
