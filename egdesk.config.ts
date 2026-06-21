@@ -1,6 +1,6 @@
 /**
  * EGDesk User Data Configuration
- * Generated at: 2026-06-20T14:39:35.716Z
+ * Generated at: 2026-06-21T13:50:33.111Z
  *
  * This file contains type-safe definitions for your EGDesk tables.
  */
@@ -22,6 +22,13 @@ export interface TableDefinition {
 
 export const TABLES = {
   table1: {
+    name: 'crm_expenses',
+    displayName: '지출 내역',
+    rowCount: 0,
+    columnCount: 24,
+    columns: ['id', 'title', 'category', 'amount', 'expense_date', 'payment_method', 'attachment_url', 'ai_analysis', 'memo', 'approval_status', 'approval_memo', 'approved_at', 'actual_expense_date', 'deduction_amount', 'transfer_fee', 'card_approval_no', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
+  } as TableDefinition,
+  table2: {
     name: 'system_shared_views',
     displayName: 'system_shared_views',
     description: 'Imported from user_database_export_2026-06-20.sql',
@@ -29,7 +36,7 @@ export const TABLES = {
     columnCount: 16,
     columns: ['view_id', 'share_hash', 'source_table', 'friendly_table_name', 'column_mappings', 'default_sort_column', 'default_sort_direction', 'allow_csv_download', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table2: {
+  table3: {
     name: 'user_data_embedding_metadata',
     displayName: 'user_data_embedding_metadata',
     description: 'Imported from user_database_export_2026-06-20.sql',
@@ -37,7 +44,7 @@ export const TABLES = {
     columnCount: 15,
     columns: ['id', 'table_id', 'column_name', 'total_embeddings', 'embedding_model', 'embedding_dimensions', 'last_updated', 'estimated_cost_usd', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table3: {
+  table4: {
     name: 'user_data_embeddings',
     displayName: 'user_data_embeddings',
     description: 'Imported from user_database_export_2026-06-20.sql',
@@ -45,7 +52,7 @@ export const TABLES = {
     columnCount: 15,
     columns: ['id', 'table_id', 'row_id', 'column_name', 'embedding_model', 'embedding_dimensions', 'embedding', 'created_at', 'updated_at', 'uuid', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table4: {
+  table5: {
     name: 'sync_activity_log',
     displayName: 'sync_activity_log',
     description: 'Imported from user_database_export_2026-06-20.sql',
@@ -53,7 +60,7 @@ export const TABLES = {
     columnCount: 19,
     columns: ['id', 'config_id', 'file_name', 'file_path', 'status', 'rows_imported', 'rows_skipped', 'duplicates_skipped', 'error_message', 'started_at', 'completed_at', 'duration_ms', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table5: {
+  table6: {
     name: 'sync_configurations',
     displayName: 'sync_configurations',
     description: 'Imported from user_database_export_2026-06-20.sql',
@@ -61,7 +68,7 @@ export const TABLES = {
     columnCount: 30,
     columns: ['id', 'script_folder_path', 'script_name', 'folder_name', 'target_table_id', 'header_row', 'skip_bottom_rows', 'sheet_index', 'column_mappings', 'applied_splits', 'file_action', 'enabled', 'auto_sync_enabled', 'unique_key_columns', 'duplicate_action', 'last_sync_at', 'last_sync_status', 'last_sync_rows_imported', 'last_sync_rows_skipped', 'last_sync_duplicates', 'last_sync_error', 'created_at', 'updated_at', 'source', 'uuid', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table6: {
+  table7: {
     name: 'user_data_files',
     displayName: 'user_data_files',
     description: 'Imported from user_database_export_2026-06-20.sql',
@@ -69,75 +76,68 @@ export const TABLES = {
     columnCount: 21,
     columns: ['id', 'table_id', 'row_id', 'column_name', 'filename', 'mime_type', 'size_bytes', 'storage_type', 'file_data', 'file_path', 'is_compressed', 'compression_type', 'original_size', 'created_at', 'updated_at', 'uuid', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table7: {
+  table8: {
     name: 'crm_interpretation_logs',
     displayName: '실시간 통역 AI 발화 로그',
     rowCount: 0,
     columnCount: 14,
     columns: ['id', 'uuid', 'session_uuid', 'speaker_role', 'original_text', 'translated_text', 'audio_url', 'created_at', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table8: {
+  table9: {
     name: 'crm_interpretation_sessions',
     displayName: '실시간 통역 AI 세션',
     rowCount: 0,
     columnCount: 15,
     columns: ['id', 'uuid', 'user_id', 'source_lang', 'target_lang', 'tone_manner', 'file_path', 'audio_file_path', 'created_at', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table9: {
+  table10: {
     name: 'easybot_rules_history',
     displayName: '이지봇 규칙 변경 이력 대장',
     rowCount: 0,
     columnCount: 15,
     columns: ['id', 'rule_id', 'action_type', 'previous_value_json', 'new_value_json', 'change_reason', 'operator_id', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table10: {
+  table11: {
     name: 'easybot_rules',
     displayName: '이지봇 자율 감시 규칙 대장',
     rowCount: 2,
     columnCount: 17,
     columns: ['id', 'title', 'target_table', 'conditions_sql', 'assignee_id', 'task_priority', 'task_title_template', 'task_content_template', 'is_active', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table11: {
+  table12: {
     name: 'crm_financial_analysis_logs',
     displayName: 'AI 재무 분석 로그',
     rowCount: 0,
     columnCount: 8,
     columns: ['id', 'statement_id', 'z_score', 'risk_grade', 'forecast_text', 'consulting_text', 'created_at', 'updated_at']
   } as TableDefinition,
-  table12: {
+  table13: {
     name: 'crm_financial_statement_items',
     displayName: '재무제표 상세 계정과목',
     rowCount: 0,
     columnCount: 7,
     columns: ['id', 'statement_id', 'category', 'account_name', 'amount', 'created_at', 'updated_at']
   } as TableDefinition,
-  table13: {
+  table14: {
     name: 'easybot_action_audit_logs',
     displayName: '이지봇 AI 감사 로그',
     rowCount: 0,
     columnCount: 16,
     columns: ['id', 'operator_username', 'original_prompt', 'action_name', 'arguments_json', 'status', 'execution_result', 'error_message', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table14: {
+  table15: {
     name: 'crm_web_published_sites',
     displayName: '홈페이지 다변화 배포 관리',
     rowCount: 0,
     columnCount: 15,
     columns: ['id', 'domain_type', 'domain_url', 'html_content', 'config_json', 'title', 'description', 'is_active', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table15: {
+  table16: {
     name: 'crm_deadstock_proposals',
     displayName: '불용자재 제안 메일 로그',
     rowCount: 0,
     columnCount: 16,
     columns: ['id', 'item_id', 'target_company', 'target_email', 'subject', 'content', 'status', 'replied_content', 'replied_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
-  } as TableDefinition,
-  table16: {
-    name: 'crm_expenses',
-    displayName: '지출 내역',
-    rowCount: 5,
-    columnCount: 24,
-    columns: ['id', 'title', 'category', 'amount', 'expense_date', 'payment_method', 'attachment_url', 'ai_analysis', 'memo', 'approval_status', 'approval_memo', 'approved_at', 'actual_expense_date', 'deduction_amount', 'transfer_fee', 'card_approval_no', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table17: {
     name: 'crm_meeting_tasks',
@@ -310,7 +310,7 @@ export const TABLES = {
   table41: {
     name: 'crm_operator_ai_briefing_histories',
     displayName: '임직원 AI 전사 업무 분석 이력 대장',
-    rowCount: 0,
+    rowCount: 1,
     columnCount: 10,
     columns: ['id', 'target_year_month', 'risk_score', 'alert_title', 'alert_message', 'briefing_text', 'created_at', 'created_by', 'token_usage_input', 'token_usage_output']
   } as TableDefinition,
@@ -492,7 +492,7 @@ export const TABLES = {
   table67: {
     name: 'system_settings',
     displayName: '시스템 설정',
-    rowCount: 11,
+    rowCount: 14,
     columnCount: 3,
     columns: ['id', 'key', 'value']
   } as TableDefinition,
@@ -716,7 +716,7 @@ export const TABLES = {
   table99: {
     name: 'ai_token_usage_logs',
     displayName: 'AI 토큰 사용량 로그',
-    rowCount: 0,
+    rowCount: 6,
     columnCount: 16,
     columns: ['id', 'model', 'purpose', 'prompt_tokens', 'completion_tokens', 'total_tokens', 'user_name', 'menu_path', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
@@ -828,14 +828,14 @@ export const TABLES = {
   table115: {
     name: 'system_menu_settings',
     displayName: '시스템 메뉴 설정',
-    rowCount: 1114,
+    rowCount: 45,
     columnCount: 4,
     columns: ['id', 'menu_href', 'is_enabled', 'sort_order']
   } as TableDefinition,
   table116: {
     name: 'ai_contextual_help',
     displayName: 'AI 도움말 캐시',
-    rowCount: 0,
+    rowCount: 2,
     columnCount: 5,
     columns: ['id', 'hint_key', 'hint_text', 'ai_explanation', 'created_at']
   } as TableDefinition,
@@ -1147,22 +1147,22 @@ export function getTableByName(tableName: string): TableDefinition | undefined {
 
 // Export table names for easy access
 export const TABLE_NAMES = {
-  table1: 'system_shared_views',
-  table2: 'user_data_embedding_metadata',
-  table3: 'user_data_embeddings',
-  table4: 'sync_activity_log',
-  table5: 'sync_configurations',
-  table6: 'user_data_files',
-  table7: 'crm_interpretation_logs',
-  table8: 'crm_interpretation_sessions',
-  table9: 'easybot_rules_history',
-  table10: 'easybot_rules',
-  table11: 'crm_financial_analysis_logs',
-  table12: 'crm_financial_statement_items',
-  table13: 'easybot_action_audit_logs',
-  table14: 'crm_web_published_sites',
-  table15: 'crm_deadstock_proposals',
-  table16: 'crm_expenses',
+  table1: 'crm_expenses',
+  table2: 'system_shared_views',
+  table3: 'user_data_embedding_metadata',
+  table4: 'user_data_embeddings',
+  table5: 'sync_activity_log',
+  table6: 'sync_configurations',
+  table7: 'user_data_files',
+  table8: 'crm_interpretation_logs',
+  table9: 'crm_interpretation_sessions',
+  table10: 'easybot_rules_history',
+  table11: 'easybot_rules',
+  table12: 'crm_financial_analysis_logs',
+  table13: 'crm_financial_statement_items',
+  table14: 'easybot_action_audit_logs',
+  table15: 'crm_web_published_sites',
+  table16: 'crm_deadstock_proposals',
   table17: 'crm_meeting_tasks',
   table18: 'crm_meetings',
   table19: 'exchange_rates',

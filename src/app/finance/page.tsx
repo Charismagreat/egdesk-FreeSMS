@@ -107,6 +107,8 @@ export default function FinancePage() {
     setEndDate,
     isDateManuallySet,
     setIsDateManuallySet,
+    selectedPeriod,
+    setSelectedPeriod,
     
     // 파생 연산 데이터
     hasAdminAccess,
@@ -163,6 +165,8 @@ export default function FinancePage() {
         setInvoiceType={setInvoiceType}
         onQuickPeriod={handleQuickPeriod}
         onResetPeriod={handleResetPeriod}
+        selectedPeriod={selectedPeriod}
+        setSelectedPeriod={setSelectedPeriod}
       />
 
       {/* 4. 메인 탭 네비게이션 스위치 */}

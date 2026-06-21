@@ -19,6 +19,8 @@ interface FinanceFilterBarProps {
   setInvoiceType: (type: "all" | "sales" | "purchase") => void;
   onQuickPeriod: (days: number | "year") => void;
   onResetPeriod: () => void;
+  selectedPeriod: string;
+  setSelectedPeriod: (period: string) => void;
 }
 
 export default function FinanceFilterBar({
@@ -36,6 +38,8 @@ export default function FinanceFilterBar({
   setInvoiceType,
   onQuickPeriod,
   onResetPeriod,
+  selectedPeriod,
+  setSelectedPeriod,
 }: FinanceFilterBarProps) {
   return (
     <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 space-y-4">
@@ -52,6 +56,7 @@ export default function FinanceFilterBar({
               value={startDate}
               onChange={(e) => {
                 setIsDateManuallySet(true);
+                setSelectedPeriod("custom");
                 setStartDate(e.target.value);
               }}
               className="outline-none bg-transparent font-medium text-xs text-slate-700 cursor-pointer"
@@ -62,6 +67,7 @@ export default function FinanceFilterBar({
               value={endDate}
               onChange={(e) => {
                 setIsDateManuallySet(true);
+                setSelectedPeriod("custom");
                 setEndDate(e.target.value);
               }}
               className="outline-none bg-transparent font-medium text-xs text-slate-700 cursor-pointer"
@@ -73,7 +79,7 @@ export default function FinanceFilterBar({
             <button
               onClick={() => onQuickPeriod(7)}
               className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                startDate === getStartDateForBank() && !isDateManuallySet
+                selectedPeriod === "7"
                   ? "bg-white text-slate-800 shadow-sm"
                   : "text-slate-500 hover:text-slate-700"
               }`}
@@ -82,20 +88,28 @@ export default function FinanceFilterBar({
             </button>
             <button
               onClick={() => onQuickPeriod(30)}
-              className="px-3 py-1 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-700"
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                selectedPeriod === "30"
+                  ? "bg-white text-slate-800 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
             >
               1개월
             </button>
             <button
               onClick={() => onQuickPeriod(90)}
-              className="px-3 py-1 rounded-lg text-xs font-semibold text-slate-500 hover:text-slate-700"
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                selectedPeriod === "90"
+                  ? "bg-white text-slate-800 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
             >
               3개월
             </button>
             <button
               onClick={() => onQuickPeriod("year")}
               className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                startDate === getStartDateForHometax() && !isDateManuallySet
+                selectedPeriod === "year"
                   ? "bg-white text-slate-800 shadow-sm"
                   : "text-slate-500 hover:text-slate-700"
               }`}

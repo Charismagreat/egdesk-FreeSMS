@@ -207,6 +207,14 @@ function callUserDataTool(toolName_1) {
                     if (apiKey) {
                         headers['X-Api-Key'] = apiKey;
                     }
+                    var projectId = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_EGDESK_PROJECT_ID : undefined;
+                    var egdeskEnv = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_EGDESK_ENV : undefined;
+                    if (projectId) {
+                        headers['X-EGDesk-Project-Id'] = projectId;
+                    }
+                    if (egdeskEnv) {
+                        headers['X-EGDesk-Env'] = egdeskEnv;
+                    }
                     return [4 /*yield*/, fetch("".concat(apiUrl, "/user-data/tools/call"), {
                             method: 'POST',
                             headers: headers,
@@ -631,6 +639,14 @@ function callFinanceHubTool(toolName_1) {
                     if (apiKey) {
                         headers['X-Api-Key'] = apiKey;
                     }
+                    var projectId = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_EGDESK_PROJECT_ID : undefined;
+                    var egdeskEnv = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_EGDESK_ENV : undefined;
+                    if (projectId) {
+                        headers['X-EGDesk-Project-Id'] = projectId;
+                    }
+                    if (egdeskEnv) {
+                        headers['X-EGDesk-Env'] = egdeskEnv;
+                    }
                     return [4 /*yield*/, fetch("".concat(apiUrl, "/financehub/tools/call"), {
                             method: 'POST',
                             headers: headers,
@@ -859,6 +875,14 @@ function callInternalKnowledgeTool(toolName_1) {
                     if (apiKey) {
                         headers['X-Api-Key'] = apiKey;
                     }
+                    var projectId = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_EGDESK_PROJECT_ID : undefined;
+                    var egdeskEnv = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_EGDESK_ENV : undefined;
+                    if (projectId) {
+                        headers['X-EGDesk-Project-Id'] = projectId;
+                    }
+                    if (egdeskEnv) {
+                        headers['X-EGDesk-Env'] = egdeskEnv;
+                    }
                     return [4 /*yield*/, fetch("".concat(apiUrl, "/internal-knowledge/tools/call"), {
                             method: 'POST',
                             headers: headers,
@@ -1030,6 +1054,14 @@ function callBrowserRecordingTool(toolName_1) {
                     if (apiKey) {
                         headers['X-Api-Key'] = apiKey;
                     }
+                    var projectId = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_EGDESK_PROJECT_ID : undefined;
+                    var egdeskEnv = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_EGDESK_ENV : undefined;
+                    if (projectId) {
+                        headers['X-EGDesk-Project-Id'] = projectId;
+                    }
+                    if (egdeskEnv) {
+                        headers['X-EGDesk-Env'] = egdeskEnv;
+                    }
                     return [4 /*yield*/, fetch("".concat(apiUrl, "/browser-recording/tools/call"), {
                             method: 'POST',
                             headers: headers,
@@ -1105,6 +1137,14 @@ function callAICenterTool(toolName_1) {
                         egdesk_config_1.EGDESK_CONFIG.apiKey;
                     if (apiKey) {
                         headers['X-Api-Key'] = apiKey;
+                    }
+                    var projectId = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_EGDESK_PROJECT_ID : undefined;
+                    var egdeskEnv = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_EGDESK_ENV : undefined;
+                    if (projectId) {
+                        headers['X-EGDesk-Project-Id'] = projectId;
+                    }
+                    if (egdeskEnv) {
+                        headers['X-EGDesk-Env'] = egdeskEnv;
                     }
                     return [4 /*yield*/, fetch("".concat(apiUrl, "/ai-center/tools/call"), {
                             method: 'POST',

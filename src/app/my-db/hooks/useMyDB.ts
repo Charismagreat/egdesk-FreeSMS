@@ -7,6 +7,7 @@ import { getTableDisplayName, getColumnFriendlyName, isSensitiveColumn } from ".
 export function useMyDB() {
   // 🖥️ 새 탭 독립 작업 모드(Standalone) 감지 상태 변수
   const [isStandalone, setIsStandalone] = React.useState<boolean>(false);
+  const isFirstLoad = React.useRef<boolean>(true);
 
   React.useEffect(() => {
     if (typeof window !== "undefined") {
@@ -751,6 +752,9 @@ export function useMyDB() {
       if (savedSearchKey) setSearchKey(savedSearchKey);
       if (savedSearchVal) setSearchValue(savedSearchVal);
 
+      const savedPage = localStorage.getItem("egdesk_mydb_currentPage");
+      if (savedPage) setCurrentPage(Number(savedPage));
+
       if (savedConsoleResult) {
         try {
           setConsoleResult(JSON.parse(savedConsoleResult));
@@ -801,6 +805,13 @@ export function useMyDB() {
       localStorage.setItem("egdesk_mydb_selectedTable", selectedTable);
     }
   }, [selectedTable, isRestored]);
+
+  React.useEffect(() => {
+    if (!isRestored) return;
+    if (typeof window !== "undefined") {
+      localStorage.setItem("egdesk_mydb_currentPage", String(currentPage));
+    }
+  }, [currentPage, isRestored]);
 
   React.useEffect(() => {
     if (!isRestored) return;
@@ -898,18 +909,30 @@ export function useMyDB() {
 
   React.useEffect(() => {
     if (selectedTable) {
-      setCurrentPage(1);
-      if (isRestored) {
+      let pageToFetch = 1;
+      let keyToFetch = "";
+      let valToFetch = "";
+
+      if (isRestored && isFirstLoad.current) {
+        // 최초 마운트 상태 복원 시점: 로컬스토리지에서 복구한 정보를 기반으로 레코드 패칭
+        isFirstLoad.current = false;
+        pageToFetch = Number(localStorage.getItem("egdesk_mydb_currentPage") || "1");
+        keyToFetch = localStorage.getItem("egdesk_mydb_searchKey") || "";
+        valToFetch = localStorage.getItem("egdesk_mydb_searchValue") || "";
+        
+        setCurrentPage(pageToFetch);
+        setSearchKey(keyToFetch);
+        setSearchValue(valToFetch);
+      } else if (isRestored) {
+        // 복원 완료 이후 일반적인 테이블 변경 시점: 페이지와 검색 조건을 1페이지/초기값으로 리셋
+        setCurrentPage(1);
         setSearchKey("");
         setSearchValue("");
       }
-      setShowDeleted(false);
-      
-      const savedSearchKey = isRestored ? "" : (localStorage.getItem("egdesk_mydb_searchKey") || "");
-      const savedSearchVal = isRestored ? "" : (localStorage.getItem("egdesk_mydb_searchValue") || "");
-      
+
       fetchTableSchema(selectedTable);
-      fetchTableRows(selectedTable, 1, savedSearchKey, savedSearchVal, false);
+      fetchTableRows(selectedTable, pageToFetch, keyToFetch, valToFetch, false);
+      setShowDeleted(false);
     }
   }, [selectedTable, isRestored]);
 

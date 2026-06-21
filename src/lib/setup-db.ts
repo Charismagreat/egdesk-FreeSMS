@@ -4,8 +4,26 @@ export async function setupDatabase() {
   const SHOULD_SEED_DEMO = process.env.SEED_DEMO_DATA === 'true';
   const safeCreateTable = async (displayName: string, columns: any[], options: any) => {
     const tableName = options.tableName;
+    const auditCols = [
+      { name: 'uuid', type: 'TEXT' },
+      { name: 'updated_at', type: 'TEXT' },
+      { name: 'updated_by', type: 'TEXT' },
+      { name: 'deleted_at', type: 'TEXT' },
+      { name: 'deleted_by', type: 'TEXT' },
+      { name: 'restored_at', type: 'TEXT' },
+      { name: 'restored_by', type: 'TEXT' }
+    ];
+
     try {
-      // 1. 물리 SQLite DB에 테이블이 이미 존재하는지 검증하여 무분별한 드롭 방지
+      // 1. 스키마 정의에 7종 감사 컬럼 주입 (신규 생성 대비)
+      for (const aCol of auditCols) {
+        const hasCol = columns.some(c => c.name.toLowerCase() === aCol.name.toLowerCase());
+        if (!hasCol) {
+          columns.push({ ...aCol });
+        }
+      }
+
+      // 2. 물리 SQLite DB에 테이블이 이미 존재하는지 검증하여 무분별한 드롭 방지
       let exists = false;
       try {
         const checkRes = await executeSQL(`SELECT name FROM sqlite_master WHERE type='table' AND name='${tableName}'`);
@@ -15,11 +33,24 @@ export async function setupDatabase() {
       }
 
       if (exists) {
-        console.log(`Table "${tableName}" already exists physically. Skipping creation.`);
+        // [자동 마이그레이션] 이미 존재하는 테이블의 누락 감사 컬럼 보정
+        try {
+          const colInfoRes = await executeSQL(`PRAGMA table_info("${tableName}")`);
+          const existingColNames = (colInfoRes?.rows || []).map((c: any) => c.name.toLowerCase());
+          
+          for (const aCol of auditCols) {
+            if (!existingColNames.includes(aCol.name.toLowerCase())) {
+              console.log(`[Auto-Migration] Adding missing audit column "${aCol.name}" to table "${tableName}"...`);
+              await executeSQL(`ALTER TABLE "${tableName}" ADD COLUMN "${aCol.name}" TEXT`);
+            }
+          }
+        } catch (alterErr: any) {
+          console.warn(`[Auto-Migration Warning] Failed to audit alter table "${tableName}":`, alterErr.message);
+        }
         return;
       }
 
-      // 2. 물리적으로는 없는데 메타데이터만 꼬여있는 경우, 선제 정리 후 깨끗하게 생성
+      // 3. 물리적으로는 없는데 메타데이터만 꼬여있는 경우, 선제 정리 후 깨끗하게 생성
       console.log(`Table "${tableName}" does not exist physically. Re-creating...`);
       try {
         await deleteTable(tableName);

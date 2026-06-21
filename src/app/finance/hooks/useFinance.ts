@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { usePersistedState } from "@/hooks/usePersistedState";
+
 import {
   getFormattedDate,
   getStartDateForBank,
@@ -28,7 +30,7 @@ export interface RecommendedOption {
 
 export function useFinance() {
   // 메인 탭 상태: accounts (은행 계좌 & 거래), cards (신용카드), hometax (국세청 자료), sync (동기화 역사), matching (수금/지급 대조 AI)
-  const [activeTab, setActiveTab] = useState<"accounts" | "cards" | "hometax" | "sync" | "matching">("accounts");
+  const [activeTab, setActiveTab, isTabRestored] = usePersistedState<"accounts" | "cards" | "hometax" | "sync" | "matching">("finance_activeTab", "accounts");
   
   // 엑셀 수동 업로드 모달 관련 상태
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -62,7 +64,7 @@ export function useFinance() {
   const [isPreviewOpen, setIsPreviewOpen] = useState<boolean>(false);
 
   // 국세청 서브 탭: invoice (세금계산서), exempt (계산서/면세), cash (현금영수증)
-  const [hometaxSubTab, setHometaxSubTab] = useState<"invoice" | "exempt" | "cash">("invoice");
+  const [hometaxSubTab, setHometaxSubTab] = usePersistedState<"invoice" | "exempt" | "cash">("finance_hometaxSubTab", "invoice");
 
   // 데이터 로딩 상태들
   const [loading, setLoading] = useState(true);
@@ -94,33 +96,38 @@ export function useFinance() {
   
   // 수금/지급 대조 AI 관련 상태 추가
   const [matchingList, setMatchingList] = useState<any[]>([]);
-  const [matchingStatus, setMatchingStatus] = useState<"all" | "matched" | "unmatched">("all");
+  const [matchingStatus, setMatchingStatus] = usePersistedState<"all" | "matched" | "unmatched">("finance_matchingStatus", "all");
 
   // 페이징 & 필터 상태
   const [totalCount, setTotalCount] = useState(0);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [searchText, setSearchText] = useState("");
-  const [invoiceType, setInvoiceType] = useState<"all" | "sales" | "purchase">("all");
-  const [selectedCardCompanyId, setSelectedCardCompanyId] = useState<string>("all");
-  const [selectedCardNumber, setSelectedCardNumber] = useState<string>("all");
-  const [selectedCashPurpose, setSelectedCashPurpose] = useState<string>("all");
-  const [selectedBankId, setSelectedBankId] = useState<string>("all");
-  const [selectedAccountId, setSelectedAccountId] = useState<string>("all");
+  const [currentPage, setCurrentPage] = usePersistedState("finance_currentPage", 1);
+  const [pageSize, setPageSize] = usePersistedState("finance_pageSize", 10);
+  const [searchText, setSearchText] = usePersistedState("finance_searchText", "");
+  const [invoiceType, setInvoiceType] = usePersistedState<"all" | "sales" | "purchase">("finance_invoiceType", "all");
+  const [selectedCardCompanyId, setSelectedCardCompanyId] = usePersistedState<string>("finance_selectedCardCompanyId", "all");
+  const [selectedCardNumber, setSelectedCardNumber] = usePersistedState<string>("finance_selectedCardNumber", "all");
+  const [selectedCashPurpose, setSelectedCashPurpose] = usePersistedState<string>("finance_selectedCashPurpose", "all");
+  const [selectedBankId, setSelectedBankId] = usePersistedState<string>("finance_selectedBankId", "all");
+  const [selectedAccountId, setSelectedAccountId] = usePersistedState<string>("finance_selectedAccountId", "all");
 
   // 카드 영수증 연동 및 뷰어 관련 상태
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [receiptSelectedTxId, setReceiptSelectedTxId] = useState<string>("");
   const [viewingReceiptUrl, setViewingReceiptUrl] = useState<string | null>(null);
 
-  const [startDate, setStartDate] = useState(getStartDateForBank());
-  const [endDate, setEndDate] = useState(getFormattedDate(new Date()));
+  const [startDate, setStartDate] = usePersistedState("finance_startDate", getStartDateForBank());
+  const [endDate, setEndDate] = usePersistedState("finance_endDate", getFormattedDate(new Date()));
 
   // 사용자가 수동으로 선택한 날짜 기록이 있는지 추적
-  const [isDateManuallySet, setIsDateManuallySet] = useState(false);
+  const [isDateManuallySet, setIsDateManuallySet] = usePersistedState("finance_isDateManuallySet", false);
+
+  // 선택된 기간 단축 배지 종류 저장용 상태 (7 | 30 | 90 | year | default | custom)
+  const [selectedPeriod, setSelectedPeriod] = usePersistedState<string>("finance_selectedPeriod", "default");
 
   // 탭 전환 시 기획된 기본 조회 기간 스위칭 정책 적용
   useEffect(() => {
+    if (!isTabRestored) return;
+
     if (!isDateManuallySet) {
       if (activeTab === "hometax") {
         setStartDate(getStartDateForHometax());
@@ -129,7 +136,7 @@ export function useFinance() {
       }
       setEndDate(getFormattedDate(new Date()));
     }
-  }, [activeTab, isDateManuallySet]);
+  }, [activeTab, isDateManuallySet, isTabRestored]);
 
   // 페이지 및 검색 텍스트 초기화 방지용 디바운싱 효과
   useEffect(() => {
@@ -646,6 +653,7 @@ export function useFinance() {
   // 빠른 기간 설정 헬퍼
   const handleQuickPeriod = (days: number | "year") => {
     setIsDateManuallySet(true);
+    setSelectedPeriod(String(days));
     const end = new Date();
     const start = new Date();
     if (days === "year") {
@@ -660,6 +668,7 @@ export function useFinance() {
 
   const handleResetPeriod = () => {
     setIsDateManuallySet(false);
+    setSelectedPeriod("default");
     if (activeTab === "hometax") {
       setStartDate(getStartDateForHometax());
     } else {
@@ -840,6 +849,8 @@ export function useFinance() {
     setEndDate,
     isDateManuallySet,
     setIsDateManuallySet,
+    selectedPeriod,
+    setSelectedPeriod,
     
     // 파생 연산 데이터
     hasAdminAccess,

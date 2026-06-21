@@ -1,27 +1,38 @@
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
-const Database = require('better-sqlite3');
 const { chromium } = require('playwright');
+
+// 1. 환경 변수 주입 (dotenv 로드)
+const dotenv = require('dotenv');
+const envFiles = ['.env.development.local', '.env.local', '.env'];
+for (const ef of envFiles) {
+  const efPath = path.join(__dirname, '..', ef);
+  if (fs.existsSync(efPath)) {
+    dotenv.config({ path: efPath });
+  }
+}
 
 console.log("🪙 [Grant Sync Daemon] 정부 지원금 실시간 크롤링 & RAG 적재 데몬 기동 시작...");
 
-// 1. SQLite user_data.db 경로 획득
-function getDbPath() {
-  const homeDir = os.homedir();
-  const appData = process.env.APPDATA || path.join(homeDir, 'AppData/Roaming');
-  const paths = [
-    path.join(appData, 'EGDesk/database/user_data.db'),
-    path.join(appData, 'egdesk/database/user_data.db')
-  ];
-  
-  for (const p of paths) {
-    if (fs.existsSync(p)) return p;
+// 2. egdesk-helpers 공식 함수 수입
+const { queryTable, insertRows, updateRows } = require('../egdesk-helpers');
+
+// 3. system_settings 테이블 안전 Upsert 헬퍼
+async function upsertSystemSetting(key, value) {
+  try {
+    const res = await queryTable('system_settings', { filters: { key } });
+
+    if (res && res.rows && res.rows.length > 0) {
+      await updateRows('system_settings', { value }, { filters: { key } });
+    } else {
+      await insertRows('system_settings', [{ key, value }]);
+    }
+  } catch (err) {
+    console.error(`❌ [Grant Sync Daemon] system_settings [${key}] upsert 실패:`, err.message);
   }
-  return '';
 }
 
-// 2. 날짜 파싱 헬퍼
+// 4. 날짜 파싱 헬퍼
 function parseEndDate(periodStr) {
   if (!periodStr) return '2099-12-31';
   if (periodStr.includes('~')) {
@@ -31,7 +42,7 @@ function parseEndDate(periodStr) {
   return '2099-12-31';
 }
 
-// 3. 예산 파싱 헬퍼
+// 5. 예산 파싱 헬퍼
 function parseBudget(title) {
   const billionMatch = title.match(/(\d+(?:\.\d+)?)\s*억/);
   if (billionMatch) {
@@ -44,31 +55,16 @@ function parseBudget(title) {
   return 100000000; // 디폴트 1억
 }
 
-// 4. 동기화 핵심 작업 함수
+// 6. 동기화 핵심 작업 함수
 async function performSync() {
-  const dbPath = getDbPath();
-  if (!dbPath) {
-    console.error("❌ [Grant Sync Daemon] user_data.db 경로를 찾지 못했습니다. DB가 아직 생성되지 않았을 수 있습니다.");
-    return;
-  }
-
-  let db;
   let browser;
   try {
-    db = new Database(dbPath);
-    console.log(`[Grant Sync Daemon] SQLite DB 연결 완료: ${dbPath}`);
-
-    // crm_grant_announcements 테이블 생성 여부 확인 가드
-    const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='crm_grant_announcements'").get();
-    if (!tableCheck) {
-      console.warn("⚠️ [Grant Sync Daemon] crm_grant_announcements 테이블이 아직 생성되지 않았습니다. 동기화를 다음 주기로 유예합니다.");
-      db.close();
-      return;
-    }
-
-    // 기존 등록된 공고 ID 조회
-    const existingRows = db.prepare("SELECT id FROM crm_grant_announcements").all();
-    const existingIds = new Set(existingRows.map(r => r.id));
+    // 1. 기존 등록된 공고 ID 조회 (중복 적재 방지)
+    console.log('[Grant Sync Daemon] Fetching existing announcements from EGDesk MCP...');
+    const existingRes = await queryTable('crm_grant_announcements', { limit: 100000 });
+    
+    const existingIds = new Set((existingRes?.rows || []).map(r => r.id));
+    console.log(`[Grant Sync Daemon] Found ${existingIds.size} existing announcements.`);
 
     // Playwright 브라우저 기동
     browser = await chromium.launch({ headless: true });
@@ -76,7 +72,7 @@ async function performSync() {
 
     const scrapedAnnouncements = [];
     let cpage = 1;
-    const maxPages = 300; // 건수 제한 없음 요구사항 대응 (최대 300페이지, 약 4500건 탐색 가능)
+    const maxPages = 300; // 건수 제한 없음 요구사항 대응
 
     while (cpage <= maxPages) {
       const targetUrl = `https://www.bizinfo.go.kr/web/lay1/bbs/S1T122C128/AS/74/list.do?cpage=${cpage}`;
@@ -147,19 +143,13 @@ async function performSync() {
 
     let insertedCount = 0;
     if (scrapedAnnouncements.length > 0) {
-      // safeCreateTable 의 자동 감사 7종 컬럼 반영을 감안하여 raw SQL 인서트
-      const stmt = db.prepare(`
-        INSERT INTO crm_grant_announcements (id, title, agency, match_score, budget, end_date) 
-        VALUES (@id, @title, @agency, @match_score, @budget, @end_date)
-      `);
-      
-      const insertMany = db.transaction((annList) => {
-        for (const ann of annList) {
-          stmt.run(ann);
-        }
-      });
-
-      insertMany(scrapedAnnouncements);
+      console.log(`[Grant Sync Daemon] Syncing ${scrapedAnnouncements.length} new announcements to EGDesk MCP...`);
+      // API 페이로드 크기 제한을 예방하기 위해 50건씩 청크 단위로 나누어 인서트 진행
+      const chunkSize = 50;
+      for (let i = 0; i < scrapedAnnouncements.length; i += chunkSize) {
+        const chunk = scrapedAnnouncements.slice(i, i + chunkSize);
+        await insertRows('crm_grant_announcements', chunk);
+      }
       insertedCount = scrapedAnnouncements.length;
     }
 
@@ -168,41 +158,27 @@ async function performSync() {
   } catch (error) {
     console.error("❌ [Grant Sync Daemon] 동기화 예외 오류 발생:", error.message);
   } finally {
-    if (db) {
-      try { db.close(); } catch(e) {}
-    }
     if (browser) {
       try { await browser.close(); } catch(e) {}
     }
   }
 }
 
-// 5. 스케줄 동적 체크 및 반복 실행 엔진
+// 7. 스케줄 동적 체크 및 반복 실행 엔진
 async function checkAndSync() {
-  const dbPath = getDbPath();
-  if (!dbPath) return;
-
-  let db;
   try {
-    db = new Database(dbPath);
+    // 1. 설정된 동기화 주기(시간 단위) 및 마지막 동기화 일시 조회
+    const settingsRes = await queryTable('system_settings', { limit: 1000 });
+    const rows = settingsRes?.rows || [];
     
-    // system_settings 테이블 존재 확인 가드
-    const settingsTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='system_settings'").get();
-    if (!settingsTable) {
-      db.close();
-      return;
-    }
-
-    // 1. 설정된 동기화 주기(시간 단위) 조회 (기본값: 12시간)
     let intervalHours = 12;
-    const intervalRow = db.prepare("SELECT value FROM system_settings WHERE key = 'grant_sync_interval'").get();
+    const intervalRow = rows.find(r => r.key === 'grant_sync_interval');
     if (intervalRow) {
       intervalHours = parseInt(intervalRow.value, 10) || 12;
     }
 
-    // 2. 마지막 동기화 일시 조회
     let lastSyncStr = '';
-    const lastSyncRow = db.prepare("SELECT value FROM system_settings WHERE key = 'grant_last_sync_time'").get();
+    const lastSyncRow = rows.find(r => r.key === 'grant_last_sync_time');
     if (lastSyncRow) {
       lastSyncStr = lastSyncRow.value;
     }
@@ -222,26 +198,19 @@ async function checkAndSync() {
       }
     }
 
-    db.close();
-
     if (shouldSync) {
       console.log(`⏰ [Grant Sync Daemon] 스케줄 기준 충족 (주기: ${intervalHours}시간, 경과: ${lastSyncStr ? (nowEpoch - new Date(lastSyncStr).getTime()) / (1000 * 60 * 60) : '최초'}시간). 동기화를 시작합니다.`);
       await performSync();
       
       // 동기화 완료 후 DB에 마지막 동기화 시간 기록
-      db = new Database(dbPath);
       const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
-      db.prepare("INSERT OR REPLACE INTO system_settings (key, value) VALUES ('grant_last_sync_time', ?)").run(nowStr);
-      db.close();
+      await upsertSystemSetting('grant_last_sync_time', nowStr);
     } else {
       console.log(`💤 [Grant Sync Daemon] 스케줄 대기 중.. (주기: ${intervalHours}시간, 마지막 갱신: ${lastSyncStr || '기록 없음'})`);
     }
 
   } catch (err) {
     console.error("❌ [Grant Sync Daemon] 스케줄 체크 중 오류:", err.message);
-    if (db) {
-      try { db.close(); } catch(e) {}
-    }
   }
 }
 

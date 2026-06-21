@@ -5,6 +5,7 @@ import Database from 'better-sqlite3';
 import os from 'os';
 import path from 'path';
 import fs from 'fs';
+import { TABLES } from '../../../../egdesk.config';
 
 export const dynamic = 'force-dynamic';
 
@@ -111,141 +112,9 @@ export async function GET(request: Request) {
           
           const countRes = db.prepare(countQuery).get();
           
-          // 한글 표시명 임시 매핑 바인딩
-          let displayName = name;
-          if (name === 'crm_expenses') displayName = '지출 장부 관리';
-          else if (name === 'crm_operators') displayName = '운영자 권한 관리';
-          else if (name === 'crm_customers') displayName = '고객 명단 관리';
-          else if (name === 'crm_partners') displayName = '거래처 정보 관리';
-          else if (name === 'crm_estimates') displayName = '견적서 관리';
-          else if (name === 'crm_orders') displayName = '주문 내역 관리';
-          else if (name === 'products') displayName = '광고 상품 관리';
-          else if (name === 'expense_projects') displayName = '지출 프로젝트 관리';
-          else if (name === 'crm_instagram_posts') displayName = '인스타그램 포스트 관리';
-          else if (name === 'crm_naver_blog_posts') displayName = '네이버 블로그 포스트 관리';
-          else if (name === 'crm_partner_contacts') displayName = '거래처 담당자 명함첩';
-          else if (name === 'crm_payments') displayName = '결제 내역 관리';
-          else if (name === 'crm_point_history') displayName = '포인트 이용 내역';
-          else if (name === 'crm_purchase_orders') displayName = '구매 발주서 관리';
-          else if (name === 'crm_reservations') displayName = '예약 현황 관리';
-          
-          // AI 및 관제 모듈 추가 물리 테이블 한글 매핑
-          else if (name === 'crm_energy_savings') displayName = '에너지 피크 절감 스케줄';
-          else if (name === 'crm_energy_equipments') displayName = '에너지 소모 설비 대장';
-          else if (name === 'crm_safety_alerts') displayName = '비전 AI 안전 위험 경보 로그';
-          else if (name === 'crm_safety_zones') displayName = '안전 제어 구역 설정';
-          else if (name === 'crm_scm_shipments') displayName = '수입 조달 화물 실시간 대장';
-          else if (name === 'crm_scm_suppliers') displayName = 'SCM 협력사 평가 스코어카드';
-          else if (name === 'crm_grant_announcements') displayName = '정부 지원금 추천 공고';
-          else if (name === 'crm_grant_bookmarks') displayName = '지원금 관심 공고 보관함';
-          else if (name === 'crm_grant_rnd_plans') displayName = 'AI R&D 사업계획서 초안 보관함';
-          else if (name === 'crm_labor_stats') displayName = '주 52시간 근태 초과 리스크 대장';
-          else if (name === 'crm_labor_contracts') displayName = '근로계약서 독소조항 스캔 현황';
-          else if (name === 'crm_partner_credit_risks') displayName = '거래처 신용 위험 및 연체 지표';
-          else if (name === 'crm_production_gantt_tasks') displayName = '생산 간트 차트 작업 스케줄';
-          else if (name === 'crm_production_unscheduled_orders') displayName = 'AI 대기중 미배정 수주 대장';
-          else if (name === 'crm_production_bottlenecks') displayName = '설비 병목지수 및 부하율 통계';
-          else if (name === 'crm_production_due_risk') displayName = '수주 납기 준수 예측 위험 지표';
-          else if (name === 'crm_facility_events') displayName = '설비 예방 보전 정비 캘린더';
-          else if (name === 'crm_facility_parts') displayName = '소모성 중요 기계 부품 재고';
-          else if (name === 'crm_facility_checklists') displayName = '모바일 설비 점검 보고서 이력';
-          else if (name === 'crm_facility_oee_stats') displayName = 'OEE 설비 종합 효율 통계';
-          else if (name === 'crm_facility_oee_downtime') displayName = '설비 비가동 원인 시간 통계';
-          else if (name === 'crm_facility_layout') displayName = '공장 설비 평면 배치 및 가동 상태';
-          else if (name === 'crm_facility_predictive_summary') displayName = '예지보전 프레스 건전도 요약';
-          else if (name === 'crm_facility_predictive_vibration') displayName = '실시간 센서 진동 시계열 추이';
-          else if (name === 'crm_facility_predictive_fft') displayName = 'FFT 주파수 스펙트럼 분석 이력';
-          else if (name === 'crm_facility_predictive_part_rul') displayName = '부품 RUL 잔여수명 예측 데이터';
-          else if (name === 'crm_facility_repair_logs') displayName = '설비 고장 수리 대장 및 정비 이력';
-          else if (name === 'crm_facility_repair_solutions') displayName = 'AI RAG 고장 해결 가이드 DB';
-          else if (name === 'crm_quality_checklist_submissions') displayName = '모바일 품질 검사 보고서 이력';
-          else if (name === 'crm_quality_ncr_items') displayName = '부적합 보고서(NCR) 조치 대장';
-          else if (name === 'crm_quality_ncr_similar_cases') displayName = 'AI RAG 유사 불량 조치 이력 추천';
-          else if (name === 'crm_quality_sensors_status') displayName = '실시간 전류/진동 센서 요약';
-          else if (name === 'crm_quality_sensors_contribution') displayName = '비정상 센서 기여도 요인 비율';
-          else if (name === 'crm_quality_sensors_timeline') displayName = '전류/온도 센서 시계열 이상 지표';
-          else if (name === 'crm_quality_spc_config') displayName = 'SPC 관리 한계 및 공정 규격 설정';
-          else if (name === 'crm_quality_spc_samples') displayName = '가열 실린더 온도 계측 이력 샘플';
-          else if (name === 'crm_quality_spc_predictions') displayName = '미래 Cpk 하락 위험 예측 데이터';
-          else if (name === 'crm_quality_spc_features') displayName = 'SPC 공정 변동 원인 중요도';
-          else if (name === 'crm_quality_vision_model') displayName = '비전 AI 모델 사양 및 임계값 설정';
-          else if (name === 'crm_quality_vision_logs') displayName = '비전 AI 불량 검출 이미지 이력 로그';
-          else if (name === 'crm_finance_products') displayName = '제품 표준 원가 분석 기초 데이터';
-          else if (name === 'crm_finance_forecasts') displayName = '90일 자금 수금/지출 예정 대장';
-          else if (name === 'crm_grant_company_profile') displayName = '지원금 적합도 매칭용 회사 스펙';
-
-          // 3차 이관: 전사 잔여 테이블(55개) 한글 매핑 추가
-          else if (name === 'crm_employment_certificate_logs') displayName = '재직증명서 발급대장';
-          else if (name === 'crm_operator_profiles') displayName = '임직원 인사 마스터 정보';
-          else if (name === 'crm_operator_salaries') displayName = '월별 급여 대장 및 명세서';
-          else if (name === 'crm_operator_leave_balances') displayName = '임직원별 연차/휴가 잔여 현황';
-          else if (name === 'crm_operator_family_events') displayName = '경조사 신청 및 경조금 지급 대장';
-          else if (name === 'crm_operator_licenses') displayName = '보유 국가기술자격 및 면허 대장';
-          else if (name === 'crm_operator_careers') displayName = '입사 전 외부 경력 사항 이력';
-          else if (name === 'crm_operator_education') displayName = '최종 학력 및 교육 이력 정보';
-          else if (name === 'crm_operator_families') displayName = '인사 등록 부양가족 명단';
-          else if (name === 'crm_operator_job_history') displayName = '부서 발령 및 직위 변동 이력';
-          else if (name === 'crm_operator_promotions') displayName = '승진 및 연봉 협상 이력 대장';
-          else if (name === 'crm_operator_projects') displayName = '수행 프로젝트 및 R&D 참여 이력';
-          else if (name === 'crm_operator_reputations') displayName = '동료 다면 평가 및 평판 조회';
-          else if (name === 'crm_operator_incidents') displayName = '징계 및 사내 사고 조치 이력';
-          else if (name === 'crm_operator_medical') displayName = '건강검진 및 특이 의료 사항 정보';
-          else if (name === 'crm_operator_awards') displayName = '포상 및 수상 이력 대장';
-          else if (name === 'crm_operator_contract_settings') displayName = '근로 형태별 급여 계산 설정 규칙';
-          else if (name === 'crm_operator_ai_briefing_histories') displayName = '임직원용 AI 모닝 브리핑 이력';
-          else if (name === 'crm_annual_leaves') displayName = '휴가 신청 및 결재 대장';
-          else if (name === 'crm_attendance') displayName = '일일 출퇴근 기록 및 근태 현황';
-          else if (name === 'crm_company_events') displayName = '전사 사내 행사 및 주요 일정 대장';
-          else if (name === 'crm_company_event_types') displayName = '사내 일정 및 행사 분류 코드';
-          else if (name === 'coupons') displayName = '발행 할인 쿠폰 마스터';
-          else if (name === 'crm_coupons_restrictions') displayName = '쿠폰 적용 품목 및 제한 조건';
-          else if (name === 'crm_sales_orders') displayName = '고객 수주 및 판매 주문 내역 대장';
-          else if (name === 'inventory_logs') displayName = '자재 및 제품 입출고 수불부';
-          else if (name === 'message_logs') displayName = '플랫폼 문자/알림톡 발송 이력';
-          else if (name === 'message_templates') displayName = '자주 쓰는 메시지 템플릿 대장';
-          else if (name === 'ad_templates') displayName = 'AI 광고 홍보문구 템플릿 대장';
-          else if (name === 'ai_token_usage_logs') displayName = '전사 AI 토큰 누적 사용량 로그';
-          else if (name === 'crm_snaptasks') displayName = 'AI 스냅태스크 시나리오 마스터';
-          else if (name === 'crm_snaptask_actions') displayName = 'AI 스냅태스크 실행 세부 기록';
-          else if (name === 'crm_snaptask_items') displayName = 'AI 스냅태스크 분석 대상 항목';
-          else if (name === 'instagram_marketing_settings') displayName = '인스타그램 AI 포스팅 자동화 계정';
-          else if (name === 'naver_blog_marketing_settings') displayName = '네이버 블로그 AI 포스팅 설정';
-          else if (name === 'shared_dashboards') displayName = '외부 공유용 AI 지능형 시각화 링크';
-          else if (name === 'alert_logs') displayName = 'AI 자동화 및 시스템 경보 내역';
-          else if (name === 'alert_rules') displayName = 'AI 경보 발동 조건 및 수신처 설정';
-          else if (name === 'ecount_rpa_lock') displayName = '이카운트 ERP RPA 가동 중복방지 락';
-          else if (name === 'exchange_rates') displayName = '실시간 주요 외환 고시 환율';
-          else if (name === 'exchange_rate_histories') displayName = '일자별 외환 환율 변동 추이 이력';
-          else if (name === 'price_histories') displayName = '원자재 및 경쟁사 가격 추적 히스토리';
-          else if (name === 'tracked_items') displayName = '가격 모니터링 등록 자재 품목';
-          else if (name === 'target_urls') displayName = '경쟁사 쇼핑몰 상품 분석 수집 URL';
-          else if (name === 'system_settings') displayName = '플랫폼 전체 AI 모델 및 API 설정 키';
-          else if (name === 'system_menu_settings') displayName = '최고관리자 시스템 메뉴 활성 설정';
-          else if (name === 'user_feedbacks') displayName = '플랫폼 이용 관련 개선 피드백 대장';
-          else if (name === 'crm_deliveries') displayName = '배송 정보 및 트래킹 대장';
-          else if (name === 'pms_projects') displayName = '사내 프로젝트 및 태스크 관리 대장';
-          else if (name === 'tenant_menu_settings') displayName = '고객사(테넌트)별 활성화된 메뉴 정보';
-          else if (name === 'system_shared_views') displayName = '대시보드 뷰 템플릿 구성 정보';
-          else if (name === 'rnd_centers') displayName = '연구 센터 정보';
-          else if (name === 'rnd_staffs') displayName = '연구원 대장 / 재직자 정보';
-          else if (name === 'rnd_spaces') displayName = '연구원 활용 공간 정보';
-          else if (name === 'rnd_logs') displayName = '연구소 근태 로그';
-          else if (name === 'rnd_compliance_alarms') displayName = '연구소 규제 준수 경고 현황';
-          
-          // 4차 보완: 잔여 시스템 테이블(7개) 한글 매핑 추가
-          else if (name === 'crm_estimate_items') displayName = '견적 및 발주서 상세 품목 대장';
-          else if (name === 'crm_transactions') displayName = '수금 및 지급 결제 거래 내역';
-          else if (name === 'expense_categories') displayName = '지출 과목 및 비용 분류 카테고리';
-          else if (name === 'expense_departments') displayName = '지출 귀속 부서 및 조직 정보';
-          else if (name === 'expense_employees') displayName = '지출 청구 대상 임직원 명단';
-          else if (name === 'expense_settings') displayName = '지출 관리 결재 한도 및 연동 설정';
-          else if (name === 'expense_tags') displayName = '통합 공통 태그 관리';
-          
-          // 5차 보완: 누락된 핵심 및 보안 인증 테이블 한글 매핑 추가
-          else if (name === 'ai_contextual_help') displayName = 'AI 도움말 캐시';
-          else if (name === 'crm_credential_vault') displayName = '보안 인증 정보 금고';
-          else if (name === 'crm_credential_audit_logs') displayName = '보안 인증 감사록';
-          else if (name === 'crm_credential_emergency_requests') displayName = '보안 인증 비상 요청 대장';
+          // TABLES 설정을 기반으로 동적으로 displayName 매핑 (설정 파일 누락 시 물리명 폴백 적용)
+          const foundTable = Object.values(TABLES).find((t: any) => t.name === name);
+          const displayName = foundTable ? foundTable.displayName : name;
 
           tablesWithCount.push({
             name,
