@@ -11,7 +11,9 @@ import {
   getSyncHistory,
   getHometaxSyncHistory,
   listHometaxConnections,
-  upsertFinanceHubAccount
+  upsertFinanceHubAccount,
+  executeSQL,
+  queryTable
 } from "../../../../egdesk-helpers";
 
 // 이중 안전 장치: 배열이 아닐 경우 빈 배열로 방어 처리
@@ -177,88 +179,64 @@ export async function GET(request: NextRequest) {
       
       // [로컬 DB 실시간 실잔액 머지] 로컬 SQLite DB에 수동으로 직접 적재된 계좌가 있다면 그 최신 잔액으로 덮어씌워 줍니다.
       try {
-        const Database = require("better-sqlite3");
-        const os = require("os");
-        const path = require("path");
-        const fs = require("fs");
-
-        const homeDir = os.homedir();
-        const appData = process.env.APPDATA || path.join(homeDir, "AppData/Roaming");
-        const paths = [
-          path.join(appData, "EGDesk/database/financehub.db"),
-          path.join(appData, "egdesk/database/financehub.db")
-        ];
+        const localAccountsRes = await executeSQL("SELECT id, balance FROM accounts").catch(() => ({ rows: [] }));
+        const localAccounts = localAccountsRes.rows || [];
         
-        let targetPath = "";
-        for (const p of paths) {
-          if (fs.existsSync(p)) {
-            targetPath = p;
-            break;
-          }
-        }
+        const localBalanceMap: Record<string, number> = {};
+        localAccounts.forEach((la: any) => {
+          localBalanceMap[la.id] = la.balance;
+        });
         
-        if (targetPath) {
-          const db = new Database(targetPath);
-          const localAccounts = db.prepare("SELECT id, balance FROM accounts").all();
-          
-          const localBalanceMap: Record<string, number> = {};
-          localAccounts.forEach((la: any) => {
-            localBalanceMap[la.id] = la.balance;
-          });
-          
-          accounts = accounts.map((acc: any) => {
-            let lastTxDate = "";
-            let lastTxTime = "";
-            try {
-              const isCard = acc.id.includes("CARD") || (acc.bankId && acc.bankId.includes("card")) || acc.accountName.includes("카드");
-              if (isCard) {
-                // 신용카드의 가장 최신 정상 거래 일시 조회
-                const latestCardTx = db.prepare(`
-                  SELECT approval_date, time 
-                  FROM card_transactions 
-                  WHERE account_id = ? AND approval_date LIKE '2%'
-                  ORDER BY approval_date DESC, time DESC, id DESC 
-                  LIMIT 1
-                `).get(acc.id);
-                
-                if (latestCardTx) {
-                  lastTxDate = latestCardTx.approval_date || "";
-                  lastTxTime = latestCardTx.time || "";
-                }
-              } else {
-                // 은행 계좌의 가장 최신 정상 거래 일시 조회
-                const latestTx = db.prepare(`
-                  SELECT transaction_date, transaction_time 
-                  FROM bank_transactions 
-                  WHERE account_id = ? AND transaction_date LIKE '2%'
-                  ORDER BY transaction_date DESC, transaction_time DESC, id DESC 
-                  LIMIT 1
-                `).get(acc.id);
-                
-                if (latestTx) {
-                  lastTxDate = latestTx.transaction_date || "";
-                  lastTxTime = latestTx.transaction_time || "";
-                }
+        accounts = await Promise.all(accounts.map(async (acc: any) => {
+          let lastTxDate = "";
+          let lastTxTime = "";
+          try {
+            const isCard = acc.id.includes("CARD") || (acc.bankId && acc.bankId.includes("card")) || acc.accountName.includes("카드");
+            if (isCard) {
+              // 신용카드의 가장 최신 정상 거래 일시 조회
+              const latestCardTxRes = await executeSQL(`
+                SELECT approval_date, time 
+                FROM card_transactions 
+                WHERE account_id = '${acc.id}' AND approval_date LIKE '2%'
+                ORDER BY approval_date DESC, time DESC, id DESC 
+                LIMIT 1
+              `);
+              const latestCardTx = latestCardTxRes.rows?.[0];
+              if (latestCardTx) {
+                lastTxDate = latestCardTx.approval_date || "";
+                lastTxTime = latestCardTx.time || "";
               }
-            } catch (txErr: any) {
-              console.warn(`[Local DB last tx date query failed] for account ${acc.id}:`, txErr.message);
+            } else {
+              // 은행 계좌의 가장 최신 정상 거래 일시 조회
+              const latestTxRes = await executeSQL(`
+                SELECT transaction_date, transaction_time 
+                FROM bank_transactions 
+                WHERE account_id = '${acc.id}' AND transaction_date LIKE '2%'
+                ORDER BY transaction_date DESC, transaction_time DESC, id DESC 
+                LIMIT 1
+              `);
+              const latestTx = latestTxRes.rows?.[0];
+              if (latestTx) {
+                lastTxDate = latestTx.transaction_date || "";
+                lastTxTime = latestTx.transaction_time || "";
+              }
             }
+          } catch (txErr: any) {
+            console.warn(`[Local DB last tx date query failed] for account ${acc.id}:`, txErr.message);
+          }
 
-            const balanceVal = localBalanceMap[acc.id] !== undefined ? localBalanceMap[acc.id] : acc.balance;
-            if (localBalanceMap[acc.id] !== undefined) {
-              console.log(`[Local DB accounts merge] 계좌 잔액 동기화 반영: ${acc.id} -> ₩${localBalanceMap[acc.id]}`);
-            }
+          const balanceVal = localBalanceMap[acc.id] !== undefined ? localBalanceMap[acc.id] : acc.balance;
+          if (localBalanceMap[acc.id] !== undefined) {
+            console.log(`[Local DB accounts merge] 계좌 잔액 동기화 반영: ${acc.id} -> ₩${localBalanceMap[acc.id]}`);
+          }
 
-            return {
-              ...acc,
-              balance: balanceVal,
-              lastTxDate,
-              lastTxTime
-            };
-          });
-          
-          db.close();
-        }
+          return {
+            ...acc,
+            balance: balanceVal,
+            lastTxDate,
+            lastTxTime
+          };
+        }));
       } catch (dbErr: any) {
         console.warn("⚠️ Local DB accounts merge warning:", dbErr.message);
       }
@@ -289,75 +267,50 @@ export async function GET(request: NextRequest) {
 
       // [로컬 DB 실시간 실데이터 최우선 조회] 수동 업로드 등으로 로컬 DB에 실데이터가 적재된 환경이므로 로컬 DB를 최우선 조회합니다.
       try {
-        const Database = require("better-sqlite3");
-        const os = require("os");
-        const path = require("path");
-        const fs = require("fs");
-
-        const homeDir = os.homedir();
-        const appData = process.env.APPDATA || path.join(homeDir, "AppData/Roaming");
-        const paths = [
-          path.join(appData, "EGDesk/database/financehub.db"),
-          path.join(appData, "egdesk/database/financehub.db")
-        ];
+        let query = `SELECT * FROM bank_transactions WHERE 1=1`;
+        const whereClauses: string[] = [];
         
-        let targetPath = "";
-        for (const p of paths) {
-          if (fs.existsSync(p)) {
-            targetPath = p;
-            break;
-          }
+        if (startDate) {
+          const normalizedStart = startDate.replace(/-/g, ".");
+          whereClauses.push(`(transaction_date >= '${startDate}' OR transaction_date >= '${normalizedStart}')`);
+        }
+        if (endDate) {
+          const normalizedEnd = endDate.replace(/-/g, ".");
+          whereClauses.push(`(transaction_date <= '${endDate}' OR transaction_date <= '${normalizedEnd}')`);
+        }
+        if (searchText) {
+          const cleanText = searchText.replace(/'/g, "''");
+          whereClauses.push(`description LIKE '%${cleanText}%'`);
+        }
+        if (bankId && bankId !== "all") {
+          whereClauses.push(`bank_id = '${bankId}'`);
+        }
+        if (accountId && accountId !== "all") {
+          whereClauses.push(`account_id = '${accountId}'`);
         }
         
-        if (targetPath) {
-          const db = new Database(targetPath);
-          
-          // 쿼리 파라미터 바인딩 준비
-          let query = `SELECT * FROM bank_transactions WHERE 1=1`;
-          const params: any[] = [];
-          
-          if (startDate) {
-            const normalizedStart = startDate.replace(/-/g, ".");
-            query += ` AND (transaction_date >= ? OR transaction_date >= ?)`;
-            params.push(startDate, normalizedStart);
-          }
-          if (endDate) {
-            const normalizedEnd = endDate.replace(/-/g, ".");
-            query += ` AND (transaction_date <= ? OR transaction_date <= ?)`;
-            params.push(endDate, normalizedEnd);
-          }
-          if (searchText) {
-            query += ` AND description LIKE ?`;
-            params.push(`%${searchText}%`);
-          }
-          if (bankId && bankId !== "all") {
-            query += ` AND bank_id = ?`;
-            params.push(bankId);
-          }
-          if (accountId && accountId !== "all") {
-            query += ` AND account_id = ?`;
-            params.push(accountId);
-          }
-          
-          // 전체 카운트 구하기
-          const countQuery = query.replace("SELECT *", "SELECT COUNT(*) as cnt");
-          const totalCount = db.prepare(countQuery).get(...params).cnt;
-          
-          if (totalCount > 0) {
-            total = totalCount;
+        if (whereClauses.length > 0) {
+          query += " AND " + whereClauses.join(" AND ");
+        }
+        
+        // 전체 카운트 구하기
+        const countQuery = query.replace("SELECT *", "SELECT COUNT(*) as cnt");
+        const countRes = await executeSQL(countQuery).catch(() => ({ rows: [] }));
+        const totalCount = countRes.rows?.[0]?.cnt || 0;
+        
+        if (totalCount > 0) {
+          total = totalCount;
 
-            // 페이징 및 최신순 정렬 적용
-            query += ` ORDER BY transaction_date DESC, transaction_time DESC, id DESC LIMIT ? OFFSET ?`;
-            params.push(limit, offset);
-            
-            const localTxs = db.prepare(query).all(...params);
-            
-            // 프론트엔드가 요구하는 포맷으로 표준 매핑 가공
-            list = localTxs.map(mapTransactionToFrontend).filter(Boolean);
-            localQuerySuccess = true;
-            console.log(`[Local DB bank transactions] 로컬 실데이터 최우선 조회 성공: ${list.length}건 반환`);
-          }
-          db.close();
+          // 페이징 및 최신순 정렬 적용
+          query += ` ORDER BY transaction_date DESC, transaction_time DESC, id DESC LIMIT ${limit} OFFSET ${offset}`;
+          
+          const localTxsRes = await executeSQL(query);
+          const localTxs = localTxsRes.rows || [];
+          
+          // 프론트엔드가 요구하는 포맷으로 표준 매핑 가공
+          list = localTxs.map(mapTransactionToFrontend).filter(Boolean);
+          localQuerySuccess = true;
+          console.log(`[Local DB bank transactions] 로컬 실데이터 최우선 조회 성공: ${list.length}건 반환`);
         }
       } catch (dbErr: any) {
         console.warn("⚠️ Local DB bank transactions primary query failed:", dbErr.message);
@@ -402,75 +355,50 @@ export async function GET(request: NextRequest) {
 
       // [로컬 DB 실시간 실데이터 최우선 조회] 수동 업로드 등으로 로컬 DB에 실데이터가 적재된 환경이므로 로컬 DB를 최우선 조회합니다.
       try {
-        const Database = require("better-sqlite3");
-        const os = require("os");
-        const path = require("path");
-        const fs = require("fs");
-
-        const homeDir = os.homedir();
-        const appData = process.env.APPDATA || path.join(homeDir, "AppData/Roaming");
-        const paths = [
-          path.join(appData, "EGDesk/database/financehub.db"),
-          path.join(appData, "egdesk/database/financehub.db")
-        ];
+        let query = `SELECT * FROM card_transactions WHERE 1=1`;
+        const whereClauses: string[] = [];
         
-        let targetPath = "";
-        for (const p of paths) {
-          if (fs.existsSync(p)) {
-            targetPath = p;
-            break;
-          }
+        if (startDate) {
+          const normalizedStart = startDate.replace(/-/g, ".");
+          whereClauses.push(`(approval_date >= '${startDate}' OR approval_date >= '${normalizedStart}')`);
+        }
+        if (endDate) {
+          const normalizedEnd = endDate.replace(/-/g, ".");
+          whereClauses.push(`(approval_date <= '${endDate}' OR approval_date <= '${normalizedEnd}')`);
+        }
+        if (searchText) {
+          const cleanText = searchText.replace(/'/g, "''");
+          whereClauses.push(`merchant_name LIKE '%${cleanText}%'`);
+        }
+        if (cardCompanyId && cardCompanyId !== "all") {
+          whereClauses.push(`card_company_id = '${cardCompanyId}'`);
+        }
+        if (cardNumber && cardNumber !== "all") {
+          whereClauses.push(`card_number = '${cardNumber}'`);
         }
         
-        if (targetPath) {
-          const db = new Database(targetPath);
-          
-          // 쿼리 파라미터 바인딩 준비
-          let query = `SELECT * FROM card_transactions WHERE 1=1`;
-          const params: any[] = [];
-          
-          if (startDate) {
-            const normalizedStart = startDate.replace(/-/g, ".");
-            query += ` AND (approval_date >= ? OR approval_date >= ?)`;
-            params.push(startDate, normalizedStart);
-          }
-          if (endDate) {
-            const normalizedEnd = endDate.replace(/-/g, ".");
-            query += ` AND (approval_date <= ? OR approval_date <= ?)`;
-            params.push(endDate, normalizedEnd);
-          }
-          if (searchText) {
-            query += ` AND merchant_name LIKE ?`;
-            params.push(`%${searchText}%`);
-          }
-          if (cardCompanyId && cardCompanyId !== "all") {
-            query += ` AND card_company_id = ?`;
-            params.push(cardCompanyId);
-          }
-          if (cardNumber && cardNumber !== "all") {
-            query += ` AND card_number = ?`;
-            params.push(cardNumber);
-          }
-          
-          // 전체 카운트 구하기
-          const countQuery = query.replace("SELECT *", "SELECT COUNT(*) as cnt");
-          const totalCount = db.prepare(countQuery).get(...params).cnt;
-          
-          if (totalCount > 0) {
-            total = totalCount;
+        if (whereClauses.length > 0) {
+          query += " AND " + whereClauses.join(" AND ");
+        }
 
-            // 페이징 및 최신순 정렬 적용
-            query += ` ORDER BY approval_date DESC, approval_datetime DESC, id DESC LIMIT ? OFFSET ?`;
-            params.push(limit, offset);
-            
-            const localCardTxs = db.prepare(query).all(...params);
-            
-            // 프론트엔드가 요구하는 포맷으로 표준 매핑 가공
-            cardTxList = localCardTxs.map(mapCardTransactionToFrontend).filter(Boolean);
-            localQuerySuccess = true;
-            console.log(`[Local DB card transactions] 로컬 실데이터 최우선 조회 성공: ${cardTxList.length}건 반환 (총 ${total}건)`);
-          }
-          db.close();
+        // 전체 카운트 구하기
+        const countQuery = query.replace("SELECT *", "SELECT COUNT(*) as cnt");
+        const countRes = await executeSQL(countQuery).catch(() => ({ rows: [] }));
+        const totalCount = countRes.rows?.[0]?.cnt || 0;
+        
+        if (totalCount > 0) {
+          total = totalCount;
+
+          // 페이징 및 최신순 정렬 적용
+          query += ` ORDER BY approval_date DESC, approval_datetime DESC, id DESC LIMIT ${limit} OFFSET ${offset}`;
+          
+          const localCardTxsRes = await executeSQL(query);
+          const localCardTxs = localCardTxsRes.rows || [];
+          
+          // 프론트엔드가 요구하는 포맷으로 표준 매핑 가공
+          cardTxList = localCardTxs.map(mapCardTransactionToFrontend).filter(Boolean);
+          localQuerySuccess = true;
+          console.log(`[Local DB card transactions] 로컬 실데이터 최우선 조회 성공: ${cardTxList.length}건 반환 (총 ${total}건)`);
         }
       } catch (dbErr: any) {
         console.warn("⚠️ Local DB card transactions primary query failed:", dbErr.message);
@@ -543,68 +471,44 @@ export async function GET(request: NextRequest) {
       // [로컬 DB 실시간 실데이터 폴백] 원격 API 조회 결과가 없거나 부족한 경우 로컬 SQLite DB의 실데이터를 조회하여 대체 및 병합합니다.
       if (filteredList.length === 0) {
         try {
-          const Database = require("better-sqlite3");
-          const os = require("os");
-          const path = require("path");
-          const fs = require("fs");
-
-          const homeDir = os.homedir();
-          const appData = process.env.APPDATA || path.join(homeDir, "AppData/Roaming");
-          const paths = [
-            path.join(appData, "EGDesk/database/financehub.db"),
-            path.join(appData, "egdesk/database/financehub.db")
-          ];
+          let query = `SELECT * FROM tax_invoices WHERE 1=1`;
+          const whereClauses: string[] = [];
           
-          let targetPath = "";
-          for (const p of paths) {
-            if (fs.existsSync(p)) {
-              targetPath = p;
-              break;
-            }
+          if (startDate) {
+            whereClauses.push(`작성일자 >= '${startDate}'`);
+          }
+          if (endDate) {
+            whereClauses.push(`작성일자 <= '${endDate}'`);
+          }
+          if (invoiceType && invoiceType !== "all") {
+            whereClauses.push(`invoice_type = '${invoiceType}'`);
           }
           
-          if (targetPath) {
-            const db = new Database(targetPath);
-            
-            // 쿼리 파라미터 바인딩 준비
-            let query = `SELECT * FROM tax_invoices WHERE 1=1`;
-            const params: any[] = [];
-            
-            if (startDate) {
-              query += ` AND 작성일자 >= ?`;
-              params.push(startDate);
-            }
-            if (endDate) {
-              query += ` AND 작성일자 <= ?`;
-              params.push(endDate);
-            }
-            if (invoiceType && invoiceType !== "all") {
-              query += ` AND invoice_type = ?`;
-              params.push(invoiceType);
-            }
-            
-            // 전체 카운트 구하기
-            const countQuery = query.replace("SELECT *", "SELECT COUNT(*) as cnt");
-            const totalCount = db.prepare(countQuery).get(...params).cnt;
-            
-            // 정렬 및 페이징 적용
-            query += ` ORDER BY 작성일자 DESC, id DESC LIMIT ? OFFSET ?`;
-            params.push(limit, offset);
-            
-            const localInvoices = db.prepare(query).all(...params);
-            const mappedList = localInvoices.map(mapTaxInvoiceToFrontend).filter(Boolean);
-            
-            filteredList = searchText
-              ? mappedList.filter((inv: any) =>
-                  (inv.supplierName || "").includes(searchText) ||
-                  (inv.buyerName || "").includes(searchText) ||
-                  (inv.itemName || "").includes(searchText)
-                )
-              : mappedList;
-              
-            total = searchText ? filteredList.length : totalCount;
-            db.close();
+          if (whereClauses.length > 0) {
+            query += " AND " + whereClauses.join(" AND ");
           }
+          
+          // 전체 카운트 구하기
+          const countQuery = query.replace("SELECT *", "SELECT COUNT(*) as cnt");
+          const countRes = await executeSQL(countQuery).catch(() => ({ rows: [] }));
+          const totalCount = countRes.rows?.[0]?.cnt || 0;
+          
+          // 정렬 및 페이징 적용
+          query += ` ORDER BY 작성일자 DESC, id DESC LIMIT ${limit} OFFSET ${offset}`;
+          
+          const localInvoicesRes = await executeSQL(query);
+          const localInvoices = localInvoicesRes.rows || [];
+          const mappedList = localInvoices.map(mapTaxInvoiceToFrontend).filter(Boolean);
+          
+          filteredList = searchText
+            ? mappedList.filter((inv: any) =>
+                (inv.supplierName || "").includes(searchText) ||
+                (inv.buyerName || "").includes(searchText) ||
+                (inv.itemName || "").includes(searchText)
+              )
+            : mappedList;
+            
+          total = searchText ? filteredList.length : totalCount;
         } catch (dbErr: any) {
           console.warn("⚠️ Local DB hometax-invoice fallback failed:", dbErr.message);
         }
@@ -650,68 +554,44 @@ export async function GET(request: NextRequest) {
       // [로컬 DB 실시간 실데이터 폴백] 원격 API 조회 결과가 없거나 부족한 경우 로컬 SQLite DB의 실데이터를 조회하여 대체 및 병합합니다.
       if (filteredList.length === 0) {
         try {
-          const Database = require("better-sqlite3");
-          const os = require("os");
-          const path = require("path");
-          const fs = require("fs");
-
-          const homeDir = os.homedir();
-          const appData = process.env.APPDATA || path.join(homeDir, "AppData/Roaming");
-          const paths = [
-            path.join(appData, "EGDesk/database/financehub.db"),
-            path.join(appData, "egdesk/database/financehub.db")
-          ];
+          let query = `SELECT * FROM tax_exempt_invoices WHERE 1=1`;
+          const whereClauses: string[] = [];
           
-          let targetPath = "";
-          for (const p of paths) {
-            if (fs.existsSync(p)) {
-              targetPath = p;
-              break;
-            }
+          if (startDate) {
+            whereClauses.push(`작성일자 >= '${startDate}'`);
+          }
+          if (endDate) {
+            whereClauses.push(`작성일자 <= '${endDate}'`);
+          }
+          if (invoiceType && invoiceType !== "all") {
+            whereClauses.push(`invoice_type = '${invoiceType}'`);
           }
           
-          if (targetPath) {
-            const db = new Database(targetPath);
-            
-            // 쿼리 파라미터 바인딩 준비
-            let query = `SELECT * FROM tax_exempt_invoices WHERE 1=1`;
-            const params: any[] = [];
-            
-            if (startDate) {
-              query += ` AND 작성일자 >= ?`;
-              params.push(startDate);
-            }
-            if (endDate) {
-              query += ` AND 작성일자 <= ?`;
-              params.push(endDate);
-            }
-            if (invoiceType && invoiceType !== "all") {
-              query += ` AND invoice_type = ?`;
-              params.push(invoiceType);
-            }
-            
-            // 전체 카운트 구하기
-            const countQuery = query.replace("SELECT *", "SELECT COUNT(*) as cnt");
-            const totalCount = db.prepare(countQuery).get(...params).cnt;
-            
-            // 정렬 및 페이징 적용
-            query += ` ORDER BY 작성일자 DESC, id DESC LIMIT ? OFFSET ?`;
-            params.push(limit, offset);
-            
-            const localExempts = db.prepare(query).all(...params);
-            const mappedList = localExempts.map(mapTaxInvoiceToFrontend).filter(Boolean);
-            
-            filteredList = searchText
-              ? mappedList.filter((inv: any) =>
-                  (inv.supplierName || "").includes(searchText) ||
-                  (inv.buyerName || "").includes(searchText) ||
-                  (inv.itemName || "").includes(searchText)
-                )
-              : mappedList;
-              
-            total = searchText ? filteredList.length : totalCount;
-            db.close();
+          if (whereClauses.length > 0) {
+            query += " AND " + whereClauses.join(" AND ");
           }
+          
+          // 전체 카운트 구하기
+          const countQuery = query.replace("SELECT *", "SELECT COUNT(*) as cnt");
+          const countRes = await executeSQL(countQuery).catch(() => ({ rows: [] }));
+          const totalCount = countRes.rows?.[0]?.cnt || 0;
+          
+          // 정렬 및 페이징 적용
+          query += ` ORDER BY 작성일자 DESC, id DESC LIMIT ${limit} OFFSET ${offset}`;
+          
+          const localExemptsRes = await executeSQL(query);
+          const localExempts = localExemptsRes.rows || [];
+          const mappedList = localExempts.map(mapTaxInvoiceToFrontend).filter(Boolean);
+          
+          filteredList = searchText
+            ? mappedList.filter((inv: any) =>
+                (inv.supplierName || "").includes(searchText) ||
+                (inv.buyerName || "").includes(searchText) ||
+                (inv.itemName || "").includes(searchText)
+              )
+            : mappedList;
+            
+          total = searchText ? filteredList.length : totalCount;
         } catch (dbErr: any) {
           console.warn("⚠️ Local DB hometax-exempt fallback failed:", dbErr.message);
         }
@@ -761,67 +641,43 @@ export async function GET(request: NextRequest) {
       // [로컬 DB 실시간 실데이터 폴백] 원격 API 조회 결과가 없거나 부족한 경우 로컬 SQLite DB의 실데이터를 조회하여 대체 및 병합합니다.
       if (filteredList.length === 0) {
         try {
-          const Database = require("better-sqlite3");
-          const os = require("os");
-          const path = require("path");
-          const fs = require("fs");
-
-          const homeDir = os.homedir();
-          const appData = process.env.APPDATA || path.join(homeDir, "AppData/Roaming");
-          const paths = [
-            path.join(appData, "EGDesk/database/financehub.db"),
-            path.join(appData, "egdesk/database/financehub.db")
-          ];
+          let query = `SELECT * FROM cash_receipts WHERE 1=1`;
+          const whereClauses: string[] = [];
           
-          let targetPath = "";
-          for (const p of paths) {
-            if (fs.existsSync(p)) {
-              targetPath = p;
-              break;
-            }
+          if (startDate) {
+            whereClauses.push(`(매출일시 >= '${startDate}' OR transaction_date >= '${startDate}')`);
+          }
+          if (endDate) {
+            whereClauses.push(`(매출일시 <= '${endDate}' OR transaction_date <= '${endDate}')`);
+          }
+          if (cashPurpose && cashPurpose !== "all") {
+            whereClauses.push(`(용도구분 = '${cashPurpose}' OR purpose = '${cashPurpose}')`);
           }
           
-          if (targetPath) {
-            const db = new Database(targetPath);
-            
-            // 쿼리 파라미터 바인딩 준비
-            let query = `SELECT * FROM cash_receipts WHERE 1=1`;
-            const params: any[] = [];
-            
-            if (startDate) {
-              query += ` AND (매출일시 >= ? OR transaction_date >= ?)`;
-              params.push(startDate, startDate);
-            }
-            if (endDate) {
-              query += ` AND (매출일시 <= ? OR transaction_date <= ?)`;
-              params.push(endDate, endDate);
-            }
-            if (cashPurpose && cashPurpose !== "all") {
-              query += ` AND (용도구분 = ? OR purpose = ?)`;
-              params.push(cashPurpose, cashPurpose);
-            }
-            
-            // 전체 카운트 구하기
-            const countQuery = query.replace("SELECT *", "SELECT COUNT(*) as cnt");
-            const totalCount = db.prepare(countQuery).get(...params).cnt;
-            
-            // 정렬 및 페이징 적용
-            query += ` ORDER BY id DESC LIMIT ? OFFSET ?`;
-            params.push(limit, offset);
-            
-            const localCashReceipts = db.prepare(query).all(...params);
-            const mappedList = localCashReceipts.map(mapCashReceiptToFrontend).filter(Boolean);
-            
-            filteredList = searchText
-              ? mappedList.filter((rcpt: any) =>
-                  (rcpt.franchiseName || "").includes(searchText) ||
-                  (rcpt.approvalNumber || "").includes(searchText)
-                )
-              : mappedList;
-              
-            total = searchText ? filteredList.length : totalCount;
-            db.close();
+          if (whereClauses.length > 0) {
+            query += " AND " + whereClauses.join(" AND ");
           }
+          
+          // 전체 카운트 구하기
+          const countQuery = query.replace("SELECT *", "SELECT COUNT(*) as cnt");
+          const countRes = await executeSQL(countQuery).catch(() => ({ rows: [] }));
+          const totalCount = countRes.rows?.[0]?.cnt || 0;
+          
+          // 정렬 및 페이징 적용
+          query += ` ORDER BY id DESC LIMIT ${limit} OFFSET ${offset}`;
+          
+          const localCashReceiptsRes = await executeSQL(query);
+          const localCashReceipts = localCashReceiptsRes.rows || [];
+          const mappedList = localCashReceipts.map(mapCashReceiptToFrontend).filter(Boolean);
+          
+          filteredList = searchText
+            ? mappedList.filter((rcpt: any) =>
+                (rcpt.franchiseName || "").includes(searchText) ||
+                (rcpt.approvalNumber || "").includes(searchText)
+              )
+            : mappedList;
+            
+          total = searchText ? filteredList.length : totalCount;
         } catch (dbErr: any) {
           console.warn("⚠️ Local DB hometax-cash fallback failed:", dbErr.message);
         }
@@ -871,42 +727,19 @@ export async function GET(request: NextRequest) {
 
       // [스마트 집계 기준일 자동 감지] 로컬 DB 내 신용카드 최신 거래일자를 감지하여 통계 집계의 연도/월로 유동적 동기화합니다.
       try {
-        const Database = require("better-sqlite3");
-        const os = require("os");
-        const path = require("path");
-        const fs = require("fs");
-
-        const homeDir = os.homedir();
-        const appData = process.env.APPDATA || path.join(homeDir, "AppData/Roaming");
-        const paths = [
-          path.join(appData, "EGDesk/database/financehub.db"),
-          path.join(appData, "egdesk/database/financehub.db")
-        ];
-        
-        let targetPath = "";
-        for (const p of paths) {
-          if (fs.existsSync(p)) {
-            targetPath = p;
-            break;
+        const latestCardTxRes = await executeSQL("SELECT approval_date FROM card_transactions ORDER BY approval_date DESC LIMIT 1");
+        const latestCardTx = latestCardTxRes.rows?.[0];
+        if (latestCardTx && latestCardTx.approval_date) {
+          const dateParts = latestCardTx.approval_date.replace(/\./g, "-").split("-");
+          if (dateParts.length >= 2) {
+            const latestYear = parseInt(dateParts[0], 10);
+            const latestMonth = parseInt(dateParts[1], 10) - 1; // 0-indexed
+            console.log(`[Smart Summary Date Detect] 최신 카드 승인일(${latestCardTx.approval_date}) 기준으로 통계 기준일을 유동적 갱신합니다: ${latestYear}년 ${latestMonth + 1}월`);
+            currentYear = latestYear;
+            currentMonth = latestMonth;
           }
         }
-        
-        if (targetPath) {
-          const db = new Database(targetPath);
-          const latestCardTx = db.prepare("SELECT approval_date FROM card_transactions ORDER BY approval_date DESC LIMIT 1").get();
-          if (latestCardTx && latestCardTx.approval_date) {
-            const dateParts = latestCardTx.approval_date.replace(/\./g, "-").split("-");
-            if (dateParts.length >= 2) {
-              const latestYear = parseInt(dateParts[0], 10);
-              const latestMonth = parseInt(dateParts[1], 10) - 1; // 0-indexed
-              console.log(`[Smart Summary Date Detect] 최신 카드 승인일(${latestCardTx.approval_date}) 기준으로 통계 기준일을 유동적 갱신합니다: ${latestYear}년 ${latestMonth + 1}월`);
-              currentYear = latestYear;
-              currentMonth = latestMonth;
-            }
-          }
-          db.close();
-        }
-      } catch (e) {
+      } catch (e: any) {
         console.warn("⚠️ Smart summary date detection failed:", e.message);
       }
 
@@ -939,47 +772,24 @@ export async function GET(request: NextRequest) {
 
       // [로컬 DB 실시간 카드 통계 우선 결합] 로컬 SQLite DB에 카드 거래 내역이 존재하면 원격 데이터 대신 무조건 로컬 실거래 데이터를 기반으로 요약 통계를 집계합니다.
       try {
-        const Database = require("better-sqlite3");
-        const os = require("os");
-        const path = require("path");
-        const fs = require("fs");
-
-        const homeDir = os.homedir();
-        const appData = process.env.APPDATA || path.join(homeDir, "AppData/Roaming");
-        const paths = [
-          path.join(appData, "EGDesk/database/financehub.db"),
-          path.join(appData, "egdesk/database/financehub.db")
-        ];
+        const localCardTxsRes = await executeSQL("SELECT * FROM card_transactions");
+        const localCardTxs = localCardTxsRes.rows || [];
         
-        let targetPath = "";
-        for (const p of paths) {
-          if (fs.existsSync(p)) {
-            targetPath = p;
-            break;
-          }
-        }
-        
-        if (targetPath) {
-          const db = new Database(targetPath);
-          const localCardTxs = db.prepare("SELECT * FROM card_transactions").all();
-          
-          if (localCardTxs.length > 0) {
-            console.log(`[Summary API Fallback] 로컬 DB 카드 거래 ${localCardTxs.length}건을 기반으로 요약 집계를 수행합니다.`);
-            cardTxList = localCardTxs.map((tx: any) => ({
-              id: String(tx.id || ""),
-              cardCompanyName: tx.card_company_id === "shinhan-card" ? "신한카드" :
-                               tx.card_company_id === "kb-card" ? "KB국민카드" :
-                               tx.card_company_id === "nh-card" ? "NH농협카드" :
-                               tx.card_company_id === "bc-card" ? "BC카드" :
-                               tx.card_company_id === "hana-card" ? "하나카드" : "기타카드",
-              cardNumber: tx.card_number || "",
-              amount: Number(tx.amount || 0),
-              date: (tx.approval_date || "").replace(/\./g, "-"),
-              time: tx.time || "",
-              status: tx.is_cancelled ? "취소" : "승인"
-            }));
-          }
-          db.close();
+        if (localCardTxs.length > 0) {
+          console.log(`[Summary API Fallback] 로컬 DB 카드 거래 ${localCardTxs.length}건을 기반으로 요약 집계를 수행합니다.`);
+          cardTxList = localCardTxs.map((tx: any) => ({
+            id: String(tx.id || ""),
+            cardCompanyName: tx.card_company_id === "shinhan-card" ? "신한카드" :
+                             tx.card_company_id === "kb-card" ? "KB국민카드" :
+                             tx.card_company_id === "nh-card" ? "NH농협카드" :
+                             tx.card_company_id === "bc-card" ? "BC카드" :
+                             tx.card_company_id === "hana-card" ? "하나카드" : "기타카드",
+            cardNumber: tx.card_number || "",
+            amount: Number(tx.amount || 0),
+            date: (tx.approval_date || "").replace(/\./g, "-"),
+            time: tx.time || "",
+            status: tx.is_cancelled ? "취소" : "승인"
+          }));
         }
       } catch (dbErr: any) {
         console.warn("⚠️ Local DB summary fallback error:", dbErr.message);
@@ -1126,184 +936,155 @@ export async function GET(request: NextRequest) {
       let total = 0;
       
       try {
-        const Database = require("better-sqlite3");
-        const os = require("os");
-        const path = require("path");
-        const fs = require("fs");
-
-        const homeDir = os.homedir();
-        const appData = process.env.APPDATA || path.join(homeDir, "AppData/Roaming");
-        const paths = [
-          path.join(appData, "EGDesk/database/financehub.db"),
-          path.join(appData, "egdesk/database/financehub.db")
-        ];
-        
-        let targetPath = "";
-        for (const p of paths) {
-          if (fs.existsSync(p)) {
-            targetPath = p;
-            break;
-          }
-        }
-        
-        if (targetPath) {
-          const db = new Database(targetPath);
-          
-          // 기본 매칭 쿼리를 서브쿼리로 정의하고, 외부에서 필터링(WHERE)과 페이징 적용
-          let baseQuery = `
-            WITH combined_invoices AS (
-              SELECT 
-                'tax' AS source_table, 
-                id, 
-                invoice_type, 
-                작성일자, 
-                공급자사업자등록번호,
-                공급자상호, 
-                공급받는자사업자등록번호,
-                공급받는자상호, 
-                합계금액, 
-                공급가액, 
-                세액, 
-                품목명, 
-                비고,
-                memo
-              FROM tax_invoices
-              UNION ALL
-              SELECT 
-                'exempt' AS source_table, 
-                id, 
-                invoice_type, 
-                작성일자, 
-                공급자사업자등록번호,
-                공급자상호, 
-                공급받는자사업자등록번호,
-                공급받는자상호, 
-                합계금액, 
-                공급가액, 
-                세액, 
-                품목명, 
-                비고,
-                memo
-              FROM tax_exempt_invoices
-            ),
-            matched_pairs AS (
-              SELECT 
-                i.*,
-                bt.id AS bank_tx_id,
-                bt.transaction_date AS bank_tx_date,
-                bt.transaction_time AS bank_tx_time,
-                bt.bank_id AS bank_tx_bank_id,
-                bt.account_number AS bank_tx_account_number,
-                bt.deposit AS bank_tx_deposit,
-                bt.withdrawal AS bank_tx_withdrawal,
-                bt.counterparty_name AS bank_tx_counterparty,
-                bt.description AS bank_tx_description,
-                ROW_NUMBER() OVER (
-                  PARTITION BY i.source_table, i.id 
-                  ORDER BY ABS(julianday(REPLACE(bt.transaction_date, '.', '-')) - julianday(REPLACE(i.작성일자, '.', '-'))) ASC, bt.id ASC
-                ) as rn
-              FROM combined_invoices i
-              LEFT JOIN bank_transactions bt ON (
-                -- 금액 조건
-                (i.invoice_type = 'sales' AND bt.deposit = i.합계금액) OR
-                (i.invoice_type = 'purchase' AND bt.withdrawal = i.합계금액)
-              ) AND (
-                -- Fuzzy 상호명 조건
-                (i.invoice_type = 'sales' AND (
-                   bt.counterparty_name LIKE '%' || REPLACE(REPLACE(REPLACE(REPLACE(i.공급받는자상호, '(주)', ''), '주식회사', ''), '(합자)', ''), '(유한)', '') || '%' OR
-                   bt.description LIKE '%' || REPLACE(REPLACE(REPLACE(REPLACE(i.공급받는자상호, '(주)', ''), '주식회사', ''), '(합자)', ''), '(유한)', '') || '%'
-                )) OR
-                (i.invoice_type = 'purchase' AND (
-                   bt.counterparty_name LIKE '%' || REPLACE(REPLACE(REPLACE(REPLACE(i.공급자상호, '(주)', ''), '주식회사', ''), '(합자)', ''), '(유한)', '') || '%' OR
-                   bt.description LIKE '%' || REPLACE(REPLACE(REPLACE(REPLACE(i.공급자상호, '(주)', ''), '주식회사', ''), '(합자)', ''), '(유한)', '') || '%'
-                ))
-              )
-              -- 작성일자와 거래일자 차이가 90일 이내인 거래만 매칭
-              WHERE bt.id IS NULL OR ABS(julianday(REPLACE(bt.transaction_date, '.', '-')) - julianday(REPLACE(i.작성일자, '.', '-'))) <= 90
+        // 기본 매칭 쿼리를 서브쿼리로 정의하고, 외부에서 필터링(WHERE)과 페이징 적용
+        let baseQuery = `
+          WITH combined_invoices AS (
+            SELECT 
+              'tax' AS source_table, 
+              id, 
+              invoice_type, 
+              작성일자, 
+              공급자사업자등록번호,
+              공급자상호, 
+              공급받는자사업자등록번호,
+              공급받는자상호, 
+              합계금액, 
+              공급가액, 
+              세액, 
+              품목명, 
+              비고,
+              memo
+            FROM tax_invoices
+            UNION ALL
+            SELECT 
+              'exempt' AS source_table, 
+              id, 
+              invoice_type, 
+              작성일자, 
+              공급자사업자등록번호,
+              공급자상호, 
+              공급받는자사업자등록번호,
+              공급받는자상호, 
+              합계금액, 
+              공급가액, 
+              세액, 
+              품목명, 
+              비고,
+              memo
+            FROM tax_exempt_invoices
+          ),
+          matched_pairs AS (
+            SELECT 
+              i.*,
+              bt.id AS bank_tx_id,
+              bt.transaction_date AS bank_tx_date,
+              bt.transaction_time AS bank_tx_time,
+              bt.bank_id AS bank_tx_bank_id,
+              bt.account_number AS bank_tx_account_number,
+              bt.deposit AS bank_tx_deposit,
+              bt.withdrawal AS bank_tx_withdrawal,
+              bt.counterparty_name AS bank_tx_counterparty,
+              bt.description AS bank_tx_description,
+              ROW_NUMBER() OVER (
+                PARTITION BY i.source_table, i.id 
+                ORDER BY ABS(julianday(REPLACE(bt.transaction_date, '.', '-')) - julianday(REPLACE(i.작성일자, '.', '-'))) ASC, bt.id ASC
+              ) as rn
+            FROM combined_invoices i
+            LEFT JOIN bank_transactions bt ON (
+              -- 금액 조건
+              (i.invoice_type = 'sales' AND bt.deposit = i.합계금액) OR
+              (i.invoice_type = 'purchase' AND bt.withdrawal = i.합계금액)
+            ) AND (
+              -- Fuzzy 상호명 조건
+              (i.invoice_type = 'sales' AND (
+                 bt.counterparty_name LIKE '%' || REPLACE(REPLACE(REPLACE(REPLACE(i.공급받는자상호, '(주)', ''), '주식회사', ''), '(합자)', ''), '(유한)', '') || '%' OR
+                 bt.description LIKE '%' || REPLACE(REPLACE(REPLACE(REPLACE(i.공급받는자상호, '(주)', ''), '주식회사', ''), '(합자)', ''), '(유한)', '') || '%'
+              )) OR
+              (i.invoice_type = 'purchase' AND (
+                 bt.counterparty_name LIKE '%' || REPLACE(REPLACE(REPLACE(REPLACE(i.공급자상호, '(주)', ''), '주식회사', ''), '(합자)', ''), '(유한)', '') || '%' OR
+                 bt.description LIKE '%' || REPLACE(REPLACE(REPLACE(REPLACE(i.공급자상호, '(주)', ''), '주식회사', ''), '(합자)', ''), '(유한)', '') || '%'
+              ))
             )
-            SELECT * FROM matched_pairs WHERE rn = 1
-          `;
-          
-          // 동적 WHERE 조건 빌드
-          let whereClauses: string[] = [];
-          const params: any[] = [];
-          
-          if (startDate) {
-            whereClauses.push("작성일자 >= ?");
-            params.push(startDate);
-          }
-          if (endDate) {
-            whereClauses.push("작성일자 <= ?");
-            params.push(endDate);
-          }
-          if (invoiceType && invoiceType !== "all") {
-            whereClauses.push("invoice_type = ?");
-            params.push(invoiceType);
-          }
-          
-          // 매칭 상태 필터
-          if (matchStatus === "matched") {
-            whereClauses.push("bank_tx_id IS NOT NULL");
-          } else if (matchStatus === "unmatched") {
-            whereClauses.push("bank_tx_id IS NULL");
-          }
-          
-          // 검색어 필터
-          if (searchText) {
-            whereClauses.push("(공급자상호 LIKE ? OR 공급받는자상호 LIKE ? OR 품목명 LIKE ?)");
-            params.push(`%${searchText}%`, `%${searchText}%`, `%${searchText}%`);
-          }
-          
-          let filterQuery = `SELECT * FROM (${baseQuery}) AS m`;
-          if (whereClauses.length > 0) {
-            filterQuery += " WHERE " + whereClauses.join(" AND ");
-          }
-          
-          // 전체 카운트 조회
-          const countQuery = `SELECT COUNT(*) as cnt FROM (${filterQuery})`;
-          const totalCount = db.prepare(countQuery).get(...params).cnt;
-          total = totalCount;
-          
-          // 정렬 및 페이징
-          filterQuery += " ORDER BY 작성일자 DESC, id DESC LIMIT ? OFFSET ?";
-          params.push(limit, offset);
-          
-          const dbRows = db.prepare(filterQuery).all(...params);
-          
-          // 가공하여 프론트엔드로 전달
-          list = dbRows.map((row: any) => {
-            const isSales = row.invoice_type === "sales";
-            return {
-              id: `${row.source_table}_${row.id}`,
-              sourceTable: row.source_table,
-              dbId: row.id,
-              invoiceType: row.invoice_type,
-              issueDate: row.작성일자,
-              supplierName: row.공급자상호,
-              supplierBusinessNumber: row.공급자사업자등록번호,
-              buyerName: row.공급받는자상호,
-              buyerBusinessNumber: row.공급받는자사업자등록번호,
-              totalAmount: row.합계금액,
-              supplyAmount: row.공급가액,
-              taxAmount: row.세액,
-              itemName: row.품목명,
-              memo: row.memo,
-              bankTx: row.bank_tx_id ? {
-                id: row.bank_tx_id,
-                date: row.bank_tx_date,
-                time: row.bank_tx_time,
-                bankId: row.bank_tx_bank_id,
-                bankName: bankNames[row.bank_tx_bank_id] || "기타은행",
-                accountNumber: row.bank_tx_account_number,
-                amount: isSales ? row.bank_tx_deposit : row.bank_tx_withdrawal,
-                counterparty: row.bank_tx_counterparty,
-                description: row.bank_tx_description
-              } : null
-            };
-          });
-          
-          db.close();
+            -- 작성일자와 거래일자 차이가 90일 이내인 거래만 매칭
+            WHERE bt.id IS NULL OR ABS(julianday(REPLACE(bt.transaction_date, '.', '-')) - julianday(REPLACE(i.작성일자, '.', '-'))) <= 90
+          )
+          SELECT * FROM matched_pairs WHERE rn = 1
+        `;
+        
+        // 동적 WHERE 조건 빌드
+        let whereClauses: string[] = [];
+        
+        if (startDate) {
+          whereClauses.push(`작성일자 >= '${startDate}'`);
         }
+        if (endDate) {
+          whereClauses.push(`작성일자 <= '${endDate}'`);
+        }
+        if (invoiceType && invoiceType !== "all") {
+          whereClauses.push(`invoice_type = '${invoiceType}'`);
+        }
+        
+        // 매칭 상태 필터
+        if (matchStatus === "matched") {
+          whereClauses.push("bank_tx_id IS NOT NULL");
+        } else if (matchStatus === "unmatched") {
+          whereClauses.push("bank_tx_id IS NULL");
+        }
+        
+        // 검색어 필터
+        if (searchText) {
+          const cleanText = searchText.replace(/'/g, "''");
+          whereClauses.push(`(공급자상호 LIKE '%${cleanText}%' OR 공급받는자상호 LIKE '%${cleanText}%' OR 품목명 LIKE '%${cleanText}%')`);
+        }
+        
+        let filterQuery = `SELECT * FROM (${baseQuery}) AS m`;
+        if (whereClauses.length > 0) {
+          filterQuery += " WHERE " + whereClauses.join(" AND ");
+        }
+        
+        // 전체 카운트 조회
+        const countQuery = `SELECT COUNT(*) as cnt FROM (${filterQuery})`;
+        const countRes = await executeSQL(countQuery);
+        const totalCount = countRes.rows?.[0]?.cnt || 0;
+        total = totalCount;
+        
+        // 정렬 및 페이징
+        filterQuery += ` ORDER BY 작성일자 DESC, id DESC LIMIT ${limit} OFFSET ${offset}`;
+        
+        const dbRowsRes = await executeSQL(filterQuery);
+        const dbRows = dbRowsRes.rows || [];
+        
+        // 가공하여 프론트엔드로 전달
+        list = dbRows.map((row: any) => {
+          const isSales = row.invoice_type === "sales";
+          return {
+            id: `${row.source_table}_${row.id}`,
+            sourceTable: row.source_table,
+            dbId: row.id,
+            invoiceType: row.invoice_type,
+            issueDate: row.작성일자,
+            supplierName: row.공급자상호,
+            supplierBusinessNumber: row.공급자사업자등록번호,
+            buyerName: row.공급받는자상호,
+            buyerBusinessNumber: row.공급받는자사업자등록번호,
+            totalAmount: row.합계금액,
+            supplyAmount: row.공급가액,
+            taxAmount: row.세액,
+            itemName: row.품목명,
+            memo: row.memo,
+            bankTx: row.bank_tx_id ? {
+              id: row.bank_tx_id,
+              date: row.bank_tx_date,
+              time: row.bank_tx_time,
+              bankId: row.bank_tx_bank_id,
+              bankName: bankNames[row.bank_tx_bank_id] || "기타은행",
+              accountNumber: row.bank_tx_account_number,
+              amount: isSales ? row.bank_tx_deposit : row.bank_tx_withdrawal,
+              counterparty: row.bank_tx_counterparty,
+              description: row.bank_tx_description
+            } : null
+          };
+        });
       } catch (dbErr: any) {
         console.error("⚠️ SQLite Matching query failed:", dbErr);
         return NextResponse.json(

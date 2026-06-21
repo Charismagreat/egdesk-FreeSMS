@@ -1,47 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
-import { updateRows } from '../../../../../egdesk-helpers';
+import { queryTable, insertRows, updateRows, deleteRows, executeSQL } from '../../../../../egdesk-helpers';
 
 export const dynamic = 'force-dynamic';
 
-// 📂 SQLite DB 연결 헬퍼 함수
-function getDbInstance() {
-  const Database = require("better-sqlite3");
-  const os = require("os");
-  const path = require("path");
-  const fs = require("fs");
-
-  const homeDir = os.homedir();
-  const appData = process.env.APPDATA || path.join(homeDir, "AppData/Roaming");
-  const paths = [
-    path.join(appData, "EGDesk/database/financehub.db"),
-    path.join(appData, "egdesk/database/financehub.db")
-  ];
-  
-  let targetPath = "";
-  for (const p of paths) {
-    if (fs.existsSync(p)) {
-      targetPath = p;
-      break;
-    }
-  }
-
-  if (!targetPath) {
-    throw new Error("로컬 금융 DB(financehub.db)를 찾을 수 없습니다.");
-  }
-
-  const db = new Database(targetPath);
-  
-  // 트리거 우회
-  try {
-    db.function('notify_change_financehub_changed', { varargs: true }, () => null);
-  } catch (e) {
-    // 트리거 스킵
-  }
-  
-  return db;
-}
 
 // 🧠 지능형 자연어 한글 룰 파서 (Regex & Pattern Extractor)
 function parseNaturalRule(text: string) {
@@ -184,19 +147,25 @@ function isTimeInRange(timeStr: string, startStr: string, endStr: string): boole
 }
 
 // 🚀 [RPA 엔진] 활성 규칙들을 스캔하여 해당하는 카드 승인 데이터를 자동 분류 & 대장 동기화 일괄 집행
-async function applyRulesToTransactions(db: any) {
+async function applyRulesToTransactions() {
   // 1. 활성화 상태인 규칙 목록 로드
-  const rules = db.prepare("SELECT * FROM natural_rules WHERE is_active = 1").all();
+  const rulesRes = await executeSQL("SELECT * FROM natural_rules WHERE is_active = 1");
+  let rules = rulesRes.rows || [];
+  // JS 레벨에서 소프트 삭제 필터링
+  rules = rules.filter((r: any) => !r.deleted_at);
   if (rules.length === 0) return 0;
 
   // 2. 미확정 거래 건 로드 (또는 규칙에 의해 자동 지정된 거래 건 포함)
   // 수동으로 계정과목을 강제 확정한 건은 건드리지 않고, 비어 있거나 규칙에 의해 기 자동화 처리된 건들을 재판독 대상으로 지정
-  const txs = db.prepare(`
+  const txsRes = await executeSQL(`
     SELECT * FROM card_transactions 
     WHERE category IS NULL 
        OR category = '' 
        OR applied_rule_id IS NOT NULL
-  `).all();
+  `);
+  let txs = txsRes.rows || [];
+  // JS 레벨에서 소프트 삭제 필터링
+  txs = txs.filter((t: any) => !t.deleted_at);
 
   let matchCount = 0;
 
@@ -250,19 +219,22 @@ async function applyRulesToTransactions(db: any) {
     // 매칭 결과 반영
     if (matchedRule) {
       // DB에 계정과목 자동 갱신 및 룰 마크 마킹!
-      const updateStmt = db.prepare(`
-        UPDATE card_transactions 
-        SET category = ?, applied_rule_id = ?, applied_rule_text = ? 
-        WHERE id = ?
-      `);
-      updateStmt.run(matchedRule.target_category, matchedRule.id, matchedRule.natural_text, tx.id);
+      await updateRows("card_transactions", {
+        category: matchedRule.target_category,
+        applied_rule_id: matchedRule.id,
+        applied_rule_text: matchedRule.natural_text,
+        updated_at: new Date().toISOString()
+      }, {
+        filters: { id: tx.id }
+      });
       matchCount++;
 
       // 지출 대장(crm_expenses) 양방향 RPA 실시간 동기화
       try {
         await updateRows('crm_expenses', {
           category: matchedRule.target_category,
-          memo: tx.memo || ""
+          memo: tx.memo || "",
+          updated_at: new Date().toISOString()
         }, {
           filters: { id: `exp-card-${tx.id}` }
         });
@@ -272,17 +244,20 @@ async function applyRulesToTransactions(db: any) {
     } else {
       // 과거에 룰이 적용되어 자동분류 되었으나, 룰이 정지/삭제되었거나 조건에서 탈락한 건은 롤백
       if (tx.applied_rule_id) {
-        const rollbackStmt = db.prepare(`
-          UPDATE card_transactions 
-          SET category = '', applied_rule_id = NULL, applied_rule_text = NULL 
-          WHERE id = ?
-        `);
-        rollbackStmt.run(tx.id);
+        await updateRows("card_transactions", {
+          category: '',
+          applied_rule_id: null,
+          applied_rule_text: null,
+          updated_at: new Date().toISOString()
+        }, {
+          filters: { id: tx.id }
+        });
 
         try {
           await updateRows('crm_expenses', {
             category: "",
-            memo: tx.memo || ""
+            memo: tx.memo || "",
+            updated_at: new Date().toISOString()
           }, {
             filters: { id: `exp-card-${tx.id}` }
           });
@@ -298,11 +273,11 @@ async function applyRulesToTransactions(db: any) {
 // 🔑 1. GET: 등록된 전체 자연어 규칙 목록 조회
 // ==========================================
 export async function GET() {
-  let db;
   try {
-    db = getDbInstance();
-    const rules = db.prepare("SELECT * FROM natural_rules ORDER BY created_at DESC").all();
-    db.close();
+    const rulesRes = await executeSQL("SELECT * FROM natural_rules ORDER BY created_at DESC");
+    let rules = rulesRes.rows || [];
+    // JS 레벨에서 소프트 삭제 필터링
+    rules = rules.filter((r: any) => !r.deleted_at);
     
     return NextResponse.json({
       success: true,
@@ -313,7 +288,6 @@ export async function GET() {
       }))
     });
   } catch (error: any) {
-    if (db) db.close();
     console.error("Rules GET error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -394,7 +368,6 @@ function detectRuleConflict(newRule: any, existingRules: any[]) {
 // 🔑 2. POST: 자연어 규칙 등록 및 즉시 일괄 분류 기동
 // ==========================================
 export async function POST(request: NextRequest) {
-  let db;
   try {
     // 최고 관리자 세션 체크
     const cookieStore = await cookies();
@@ -415,16 +388,16 @@ export async function POST(request: NextRequest) {
     // 💡 자연어 파싱 기동
     const parsed = parseNaturalRule(naturalText);
 
-    db = getDbInstance();
-
     // ⚡ [드라이런 시뮬레이션] 영향을 받는 건 미리보기 요청인 경우
     if (previewOnly) {
-      const txs = db.prepare(`
+      const txsRes = await executeSQL(`
         SELECT * FROM card_transactions 
         WHERE category IS NULL 
            OR category = '' 
            OR applied_rule_id IS NOT NULL
-      `).all();
+      `);
+      let txs = txsRes.rows || [];
+      txs = txs.filter((t: any) => !t.deleted_at);
 
       const previewList = [];
       for (const tx of txs) {
@@ -479,7 +452,6 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      db.close();
       return NextResponse.json({
         success: true,
         conflict: false,
@@ -490,10 +462,12 @@ export async function POST(request: NextRequest) {
 
     // ⚡ [경합/충돌 예방] force 플래그가 참이 아닐 경우 기존 룰과의 충돌 분석 집행
     if (!force) {
-      const existingRules = db.prepare("SELECT * FROM natural_rules WHERE is_active = 1").all();
+      const existingRulesRes = await executeSQL("SELECT * FROM natural_rules WHERE is_active = 1");
+      let existingRules = existingRulesRes.rows || [];
+      existingRules = existingRules.filter((r: any) => !r.deleted_at);
+
       const conflictResult = detectRuleConflict(parsed, existingRules);
       if (conflictResult.conflict) {
-        db.close();
         return NextResponse.json({
           success: true,
           conflict: true,
@@ -505,24 +479,20 @@ export async function POST(request: NextRequest) {
     const ruleId = `rule-${Date.now()}`;
     const createdAt = new Date().toISOString();
 
-    const insertStmt = db.prepare(`
-      INSERT INTO natural_rules (id, natural_text, structured_json, target_category, is_active, created_at)
-      VALUES (?, ?, ?, ?, 1, ?)
-    `);
-    
-    insertStmt.run(
-      ruleId, 
-      naturalText.trim(), 
-      JSON.stringify(parsed), 
-      parsed.targetCategory, 
-      createdAt
-    );
+    await insertRows("natural_rules", [{
+      id: ruleId,
+      natural_text: naturalText.trim(),
+      structured_json: JSON.stringify(parsed),
+      target_category: parsed.targetCategory,
+      is_active: 1,
+      created_at: createdAt,
+      updated_at: createdAt
+    }]);
 
     console.log(`[Rules API] 새 자연어 규칙 등록 성공: ${ruleId}`);
 
     // ⚡ 즉시 RPA 자동 분류 매칭기 실행!
-    const appliedCount = await applyRulesToTransactions(db);
-    db.close();
+    const appliedCount = await applyRulesToTransactions();
 
     return NextResponse.json({
       success: true,
@@ -539,7 +509,6 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    if (db) db.close();
     console.error("Rules POST error:", error);
     return NextResponse.json({ success: false, error: error.message || "자연어 규칙 등록 중 예외가 발생했습니다." }, { status: 500 });
   }
@@ -549,7 +518,6 @@ export async function POST(request: NextRequest) {
 // 🔑 3. PUT: 규칙 활성화 여부(is_active) 토글 및 재배치
 // ==========================================
 export async function PUT(request: NextRequest) {
-  let db;
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('auth_token')?.value;
@@ -564,15 +532,17 @@ export async function PUT(request: NextRequest) {
     const { id, isActive } = await request.json();
     if (!id) return NextResponse.json({ success: false, error: "규칙 ID는 필수값입니다." }, { status: 400 });
 
-    db = getDbInstance();
-    const updateStmt = db.prepare("UPDATE natural_rules SET is_active = ? WHERE id = ?");
-    updateStmt.run(isActive ? 1 : 0, id);
+    await updateRows("natural_rules", {
+      is_active: isActive ? 1 : 0,
+      updated_at: new Date().toISOString()
+    }, {
+      filters: { id }
+    });
 
     console.log(`[Rules API] 규칙 활성화 여부 변경 완료: ID ${id} -> ${isActive}`);
 
     // 상태 재적용을 위해 매칭 엔진 기동
-    const appliedCount = await applyRulesToTransactions(db);
-    db.close();
+    const appliedCount = await applyRulesToTransactions();
 
     return NextResponse.json({
       success: true,
@@ -581,7 +551,6 @@ export async function PUT(request: NextRequest) {
     });
 
   } catch (error: any) {
-    if (db) db.close();
     console.error("Rules PUT error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
@@ -591,7 +560,6 @@ export async function PUT(request: NextRequest) {
 // 🔑 4. DELETE: 규칙 삭제 및 연동 상태 롤백
 // ==========================================
 export async function DELETE(request: NextRequest) {
-  let db;
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('auth_token')?.value;
@@ -607,15 +575,18 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get('id');
     if (!id) return NextResponse.json({ success: false, error: "삭제할 규칙 ID는 필수값입니다." }, { status: 400 });
 
-    db = getDbInstance();
-    const deleteStmt = db.prepare("DELETE FROM natural_rules WHERE id = ?");
-    deleteStmt.run(id);
+    // 소프트 삭제 처리
+    await updateRows("natural_rules", {
+      deleted_at: new Date().toISOString(),
+      deleted_by: (payload.username as string || 'system')
+    }, {
+      filters: { id }
+    });
 
     console.log(`[Rules API] 규칙 삭제 성공: ID ${id}`);
 
     // 지워진 룰의 영향력을 롤백하기 위해 매칭 엔진 재기동
-    const appliedCount = await applyRulesToTransactions(db);
-    db.close();
+    const appliedCount = await applyRulesToTransactions();
 
     return NextResponse.json({
       success: true,
@@ -623,7 +594,6 @@ export async function DELETE(request: NextRequest) {
     });
 
   } catch (error: any) {
-    if (db) db.close();
     console.error("Rules DELETE error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import fs from "fs";
+import { queryTable, insertRows, updateRows } from "../../../../../egdesk-helpers";
 
 export const dynamic = 'force-dynamic';
 
@@ -41,73 +42,58 @@ export async function POST(request: NextRequest) {
     const receiptUrl = savedUrls.join(",");
 
     // 로컬 SQLite DB 업데이트
-    const Database = require("better-sqlite3");
-    const os = require("os");
-    
-    const homeDir = os.homedir();
-    const appData = process.env.APPDATA || path.join(homeDir, "AppData/Roaming");
-    const paths = [
-      path.join(appData, "EGDesk/database/financehub.db"),
-      path.join(appData, "egdesk/database/financehub.db")
-    ];
-    
-    let targetPath = "";
-    for (const p of paths) {
-      if (fs.existsSync(p)) {
-        targetPath = p;
-        break;
-      }
-    }
+    await updateRows("card_transactions", {
+      receipt_url: receiptUrl,
+      updated_at: new Date().toISOString()
+    }, {
+      filters: { id: txId }
+    });
 
-    if (targetPath) {
-      const db = new Database(targetPath);
-      const stmt = db.prepare("UPDATE card_transactions SET receipt_url = ?, updated_at = datetime('now') WHERE id = ?");
-      stmt.run(receiptUrl, txId);
+    // 🚀 [RPA 지능형 파이프라인] 지출관리AI 페이지(crm_expenses 테이블)와 실시간 연동
+    const checkTxRes = await queryTable("card_transactions", { filters: { id: txId } });
+    const tx = checkTxRes.rows?.[0];
+    if (tx) {
+      const expId = `exp-card-${txId}`;
+      const rawDate = tx.approved_date || tx.created_at || new Date().toISOString();
+      const expenseDate = rawDate.slice(0, 10);
       
-      // 🚀 [RPA 지능형 파이프라인] 지출관리AI 페이지(crm_expenses 테이블)와 실시간 연동
-      const tx = db.prepare("SELECT * FROM card_transactions WHERE id = ?").get(txId);
-      if (tx) {
-        const expId = `exp-card-${txId}`;
-        const rawDate = tx.approved_date || tx.created_at || new Date().toISOString();
-        const expenseDate = rawDate.slice(0, 10);
-        
-        const aiAnalysisObj = {
-          payee: tx.merchant_name || "",
-          approval_number: tx.approval_number || "",
-          card_transaction_id: txId
-        };
-        const aiAnalysisStr = JSON.stringify(aiAnalysisObj);
-        const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
-        
-        db.prepare(`
-          INSERT OR REPLACE INTO crm_expenses (
-            id, title, category, amount, expense_date, payment_method, 
-            attachment_url, ai_analysis, memo, actual_expense_date, 
-            deduction_amount, transfer_fee, approval_status, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          expId,
-          tx.merchant_name || "법인카드 거래", 
-          tx.category || "직원식대", 
-          Number(tx.amount || 0), 
-          expenseDate, 
-          `법인카드(${tx.card_company_name || '신용카드'})`, 
-          receiptUrl, 
-          aiAnalysisStr, 
-          tx.memo || "", 
-          expenseDate, 
-          0, 
-          0, 
-          'APPROVED', 
-          nowStr
-        );
-        console.log(`[RPA Sync] 지출관리AI 장부(crm_expenses)에 거래 ${expId} 자동 인서트/갱신 완료!`);
+      const aiAnalysisObj = {
+        payee: tx.merchant_name || "",
+        approval_number: tx.approval_number || "",
+        card_transaction_id: txId
+      };
+      const aiAnalysisStr = JSON.stringify(aiAnalysisObj);
+      const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+      
+      const expData = {
+        id: expId,
+        title: tx.merchant_name || "법인카드 거래", 
+        category: tx.category || "직원식대", 
+        amount: Number(tx.amount || 0), 
+        expense_date: expenseDate, 
+        payment_method: `법인카드(${tx.card_company_name || '신용카드'})`, 
+        attachment_url: receiptUrl, 
+        ai_analysis: aiAnalysisStr, 
+        memo: tx.memo || "", 
+        actual_expense_date: expenseDate, 
+        deduction_amount: 0, 
+        transfer_fee: 0, 
+        approval_status: 'APPROVED',
+        created_at: nowStr,
+        updated_at: nowStr
+      };
+
+      const checkExpRes = await queryTable("crm_expenses", { filters: { id: expId } });
+      if (checkExpRes.rows && checkExpRes.rows.length > 0) {
+        await updateRows("crm_expenses", expData, { filters: { id: expId } });
+      } else {
+        await insertRows("crm_expenses", [expData]);
       }
       
-      db.close();
+      console.log(`[RPA Sync] 지출관리AI 장부(crm_expenses)에 거래 ${expId} 자동 인서트/갱신 완료!`);
       console.log(`[Receipt Upload] 거래 ${txId}에 영수증 등록 완료: ${receiptUrl}`);
     } else {
-      throw new Error("로컬 DB 파일을 찾을 수 없습니다.");
+      throw new Error(`거래 ID ${txId}에 해당하는 카드 승인 내역을 찾을 수 없습니다.`);
     }
 
     return NextResponse.json({

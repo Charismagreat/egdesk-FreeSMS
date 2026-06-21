@@ -3,8 +3,13 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   listAccounts,
   upsertFinanceHubAccount,
-  importFinanceHubTransactions
+  importFinanceHubTransactions,
+  queryTable,
+  insertRows,
+  updateRows,
+  executeSQL
 } from "../../../../../egdesk-helpers";
+import crypto from "crypto";
 import * as xlsx from "xlsx";
 
 // 헤더 텍스트 정규화 헬퍼 (공백 및 특수 점 문자 제거)
@@ -538,132 +543,97 @@ export async function POST(request: NextRequest) {
       console.warn("MCP import tool failed (trying local DB fallback):", mcpErr.message);
       fallbackUsed = true;
 
-      // better-sqlite3는 런타임에 동적으로 import하여 빌드 시 NFT tracing warning을 우회 및 예방합니다.
-      const Database = require("better-sqlite3");
-      const os = require("os");
-      const path = require("path");
-      const fs = require("fs");
-      const crypto = require("crypto");
-
-      const homeDir = os.homedir();
-      const appData = process.env.APPDATA || path.join(homeDir, "AppData/Roaming");
-      const paths = [
-        path.join(appData, "EGDesk/database/financehub.db"),
-        path.join(appData, "egdesk/database/financehub.db")
-      ];
-      
-      let targetPath = "";
-      for (const p of paths) {
-        if (fs.existsSync(p)) {
-          targetPath = p;
-          break;
-        }
-      }
-      if (!targetPath) {
-        targetPath = paths[0];
-        const parentDir = path.dirname(targetPath);
-        if (!fs.existsSync(parentDir)) {
-          fs.mkdirSync(parentDir, { recursive: true });
-        }
-      }
-
-      const db = new Database(targetPath);
-      
-      // SQLite 내부 트리거가 호출하는 UI 갱신 UDF(User Defined Function)를 에뮬레이팅하여 안전하게 바인딩합니다.
       try {
-        db.function("notify_change_financehub_changed", { varargs: true }, (...args: any[]) => {
-          console.log("notify_change_financehub_changed trigger intercepted:", args);
-        });
-      } catch (udfErr: any) {
-        console.warn("UDF 'notify_change_financehub_changed' registration failed:", udfErr.message);
-      }
-
-      try {
-        const stmt = db.prepare(`
-          INSERT OR REPLACE INTO bank_transactions (
-            id, account_id, bank_id, transaction_date, transaction_time, transaction_datetime,
-            account_number, account_name, deposit, withdrawal, balance,
-            branch, counterparty_account, counterparty_name, description, description2,
-            is_manual, created_at, updated_at
-          ) VALUES (
-            ?, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?,
-            ?, datetime('now'), datetime('now')
-          )
-        `);
-
         const targetAccountId = targetAccount?.id || `${bankId}-${accountData.accountNumber.replace(/\D/g, "")}`;
 
         // [SQLite 외래 키 방어 로직] accounts 테이블에 계좌가 실제로 존재하는지 조회하고, 없으면 수동 개설(폴백)합니다.
         try {
-          const checkAcc = db.prepare("SELECT id FROM accounts WHERE id = ?").get(targetAccountId);
-          if (!checkAcc) {
+          const checkAccRes = await queryTable("accounts", { filters: { id: targetAccountId } });
+          if (!checkAccRes.rows || checkAccRes.rows.length === 0) {
             console.log(`[Local DB Fallback] accounts에 연동 계좌가 없어 자동 폴백 삽입합니다: ${targetAccountId}`);
-            db.prepare(`
-              INSERT OR REPLACE INTO accounts (
-                id, bank_id, account_number, account_name, balance, currency, is_active, created_at, updated_at
-              ) VALUES (
-                ?, ?, ?, ?, ?, 'KRW', 1, datetime('now'), datetime('now')
-              )
-            `).run(
-              targetAccountId,
-              bankId,
-              accountData.accountNumber,
-              accountData.accountName || "자동등록 계좌",
-              accountData.balance || 0
-            );
+            await insertRows("accounts", [{
+              id: targetAccountId,
+              bank_id: bankId,
+              account_number: accountData.accountNumber,
+              account_name: accountData.accountName || "자동등록 계좌",
+              balance: accountData.balance || 0,
+              currency: 'KRW',
+              is_active: 1,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }]);
           }
         } catch (accErr: any) {
           console.warn("⚠️ Local DB auto account insertion warning:", accErr.message);
         }
 
-        const dbTx = db.transaction((rows) => {
-          for (const row of rows) {
-            const hashSeed = `${accountData.accountNumber}_${row.date}_${row.time}_${row.deposit}_${row.withdrawal}_${row.balance}_${row.description}`;
-            const uniqueId = crypto.createHash("md5").update(hashSeed).digest("hex");
+        const existingTxIds = new Set<string>();
+        try {
+          const existingRes = await executeSQL(`SELECT id FROM bank_transactions WHERE account_id = '${targetAccountId}'`);
+          if (existingRes && existingRes.rows) {
+            existingRes.rows.forEach((r: any) => {
+              if (r.id) existingTxIds.add(String(r.id));
+            });
+          }
+        } catch (err: any) {
+          console.warn("bank_transactions read warning:", err.message);
+        }
 
-            stmt.run(
-              uniqueId,
-              targetAccountId,
-              bankId,
-              row.date,
-              row.time,
-              `${row.date} ${row.time}`,
-              accountData.accountNumber,
-              accountData.accountName,
-              row.deposit,
-              row.withdrawal,
-              row.balance,
-              row.branch,
-              row.counterpartyAccount,
-              row.counterparty,
-              row.description,
-              row.description2,
-              1 // is_manual
-            );
+        const rowsToInsert: any[] = [];
+        const nowStr = new Date().toISOString();
+
+        for (const row of transactions) {
+          const hashSeed = `${accountData.accountNumber}_${row.date}_${row.time}_${row.deposit}_${row.withdrawal}_${row.balance}_${row.description}`;
+          const uniqueId = crypto.createHash("md5").update(hashSeed).digest("hex");
+
+          if (!existingTxIds.has(uniqueId)) {
+            rowsToInsert.push({
+              id: uniqueId,
+              account_id: targetAccountId,
+              bank_id: bankId,
+              transaction_date: row.date,
+              transaction_time: row.time,
+              transaction_datetime: `${row.date} ${row.time}`,
+              account_number: accountData.accountNumber,
+              account_name: accountData.accountName,
+              deposit: row.deposit,
+              withdrawal: row.withdrawal,
+              balance: row.balance,
+              branch: row.branch,
+              counterparty_account: row.counterpartyAccount,
+              counterparty_name: row.counterparty,
+              description: row.description,
+              description2: row.description2,
+              is_manual: 1,
+              created_at: nowStr,
+              updated_at: nowStr
+            });
             insertedCount++;
           }
-        });
+        }
 
-        dbTx(transactions);
+        if (rowsToInsert.length > 0) {
+          await insertRows("bank_transactions", rowsToInsert);
+        }
 
         // [최신 계좌 잔액 동기화 UPDATE] 방금 적재한 거래 내역 중 가장 최신의 거래 잔액을 쿼리하여 accounts 테이블에 갱신시킵니다.
         try {
-          const latestTx = db.prepare(`
+          const latestTxRes = await executeSQL(`
             SELECT balance FROM bank_transactions 
-            WHERE account_id = ? 
+            WHERE account_id = '${targetAccountId}' 
             ORDER BY transaction_datetime DESC, id DESC 
             LIMIT 1
-          `).get(targetAccountId);
+          `);
+          const latestTx = latestTxRes.rows?.[0];
           
           if (latestTx) {
             console.log(`[Local DB Fallback] accounts 계좌 실잔액 갱신: ${targetAccountId} -> ₩${latestTx.balance.toLocaleString()}`);
-            db.prepare(`
-              UPDATE accounts 
-              SET balance = ?, updated_at = datetime('now') 
-              WHERE id = ?
-            `).run(latestTx.balance, targetAccountId);
+            await updateRows("accounts", {
+              balance: latestTx.balance,
+              updated_at: new Date().toISOString()
+            }, {
+              filters: { id: targetAccountId }
+            });
           }
         } catch (syncErr: any) {
           console.warn("⚠️ Local DB account balance synchronization failed:", syncErr.message);
@@ -671,83 +641,48 @@ export async function POST(request: NextRequest) {
       } catch (dbErr: any) {
         console.error("Local DB Fallback Insertion Failed:", dbErr);
         throw new Error(`거래 내역 적재 실패: 공식 MCP 도구를 호출할 수 없고, 로컬 DB 백업 쓰기도 실패했습니다. (${dbErr.message})`);
-      } finally {
-        try {
-          db.close();
-        } catch (e) {}
       }
     }
 
     // [공통 계좌 실잔액 갱신 보증 장치]
     // 헬퍼의 API 호출 성공 및 폴백 여부와 전혀 상관없이, 최종 적재된 DB 내의 거래 기준 최종 잔액을 구해 accounts 테이블에 강제 반영시킵니다.
     try {
-      const Database = require("better-sqlite3");
-      const os = require("os");
-      const path = require("path");
-      const fs = require("fs");
-
-      const homeDir = os.homedir();
-      const appData = process.env.APPDATA || path.join(homeDir, "AppData/Roaming");
-      const paths = [
-        path.join(appData, "EGDesk/database/financehub.db"),
-        path.join(appData, "egdesk/database/financehub.db")
-      ];
+      const targetAccountId = targetAccount?.id || `${bankId}-${accountData.accountNumber.replace(/\D/g, "")}`;
       
-      let targetPath = "";
-      for (const p of paths) {
-        if (fs.existsSync(p)) {
-          targetPath = p;
-          break;
-        }
+      // 1. 혹시 계좌 마스터 레코드가 없을 수 있으니 선제적으로 확인 후 삽입
+      const checkAccRes = await queryTable("accounts", { filters: { id: targetAccountId } });
+      if (!checkAccRes.rows || checkAccRes.rows.length === 0) {
+        await insertRows("accounts", [{
+          id: targetAccountId,
+          bank_id: bankId,
+          account_number: accountData.accountNumber,
+          account_name: accountData.accountName || "자동등록 계좌",
+          balance: accountData.balance || 0,
+          currency: 'KRW',
+          is_active: 1,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }]);
       }
+
+      // 2. 가장 최신의 거래 명세(정상 날짜 포맷 형태)의 balance 값을 가져옵니다.
+      // 날짜 필터링을 주어 '합계' 등의 비정상 텍스트 행이 아닌 실제 날짜 데이터의 잔액을 조회하도록 견고하게 쿼리를 짭니다.
+      const latestTxRes = await executeSQL(`
+        SELECT balance FROM bank_transactions 
+        WHERE account_id = '${targetAccountId}' AND transaction_date LIKE '2%'
+        ORDER BY transaction_date DESC, transaction_time DESC, id DESC 
+        LIMIT 1
+      `);
+      const latestTx = latestTxRes.rows?.[0];
       
-      if (targetPath) {
-        const db = new Database(targetPath);
-        
-        // SQLite 내부 트리거 UDF 바인딩
-        try {
-          db.function("notify_change_financehub_changed", { varargs: true }, () => {});
-        } catch (e) {}
-
-        const targetAccountId = targetAccount?.id || `${bankId}-${accountData.accountNumber.replace(/\D/g, "")}`;
-        
-        // 1. 혹시 계좌 마스터 레코드가 없을 수 있으니 선제적으로 확인 후 삽입
-        const checkAcc = db.prepare("SELECT id FROM accounts WHERE id = ?").get(targetAccountId);
-        if (!checkAcc) {
-          db.prepare(`
-            INSERT OR REPLACE INTO accounts (
-              id, bank_id, account_number, account_name, balance, currency, is_active, created_at, updated_at
-            ) VALUES (
-              ?, ?, ?, ?, ?, 'KRW', 1, datetime('now'), datetime('now')
-            )
-          `).run(
-            targetAccountId,
-            bankId,
-            accountData.accountNumber,
-            accountData.accountName || "자동등록 계좌",
-            accountData.balance || 0
-          );
-        }
-
-        // 2. 가장 최신의 거래 명세(정상 날짜 포맷 형태)의 balance 값을 가져옵니다.
-        // 날짜 필터링을 주어 '합계' 등의 비정상 텍스트 행이 아닌 실제 날짜 데이터의 잔액을 조회하도록 견고하게 쿼리를 짭니다.
-        const latestTx = db.prepare(`
-          SELECT balance FROM bank_transactions 
-          WHERE account_id = ? AND transaction_date LIKE '2%'
-          ORDER BY transaction_date DESC, transaction_time DESC, id DESC 
-          LIMIT 1
-        `).get(targetAccountId);
-        
-        if (latestTx) {
-          console.log(`[Common balance sync] 계좌 실잔액 강제 동기화: ${targetAccountId} -> ₩${latestTx.balance.toLocaleString()}`);
-          db.prepare(`
-            UPDATE accounts 
-            SET balance = ?, updated_at = datetime('now') 
-            WHERE id = ?
-          `).run(latestTx.balance, targetAccountId);
-        }
-        
-        db.close();
+      if (latestTx) {
+        console.log(`[Common balance sync] 계좌 실잔액 강제 동기화: ${targetAccountId} -> ₩${latestTx.balance.toLocaleString()}`);
+        await updateRows("accounts", {
+          balance: latestTx.balance,
+          updated_at: new Date().toISOString()
+        }, {
+          filters: { id: targetAccountId }
+        });
       }
     } catch (syncErr: any) {
       console.warn("⚠️ Common balance sync failed:", syncErr.message);
