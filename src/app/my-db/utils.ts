@@ -1,5 +1,13 @@
+import { TABLES } from "../../../egdesk.config";
+
 export function getTableDisplayName(tableName: string): string {
   if (!tableName) return "";
+  
+  // 1. egdesk.config의 TABLES에서 물리명 매칭을 찾아 한글 displayName 반환
+  const matchedTable = Object.values(TABLES).find(t => t.name === tableName);
+  if (matchedTable && matchedTable.displayName) {
+    return matchedTable.displayName;
+  }
   
   const mapping: Record<string, string> = {
     crm_expenses: "지출 장부 관리",
