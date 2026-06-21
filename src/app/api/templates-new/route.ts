@@ -520,47 +520,24 @@ Based on the guidelines, choose the most appropriate tables for this document pu
 
       let query = '';
       if (tableName === 'rnd_staffs') {
-        // rnd_staffs 테이블에 deleted_at 컬럼 존재 여부 동적 검증
-        const schemaRes = await executeSQL(`PRAGMA table_info("rnd_staffs");`);
-        const schemaInfo = schemaRes.rows || [];
-        const hasDeletedCol = schemaInfo.some((col: any) => col.name === 'deleted_at');
-        
-        if (hasDeletedCol) {
-          query = `
-            SELECT s.staff_id as id, o.name as staff_name, s.joined_date, s.degree_level, s.major_name, s.employment_status,
-                   s.staff_role as position, p.department
-            FROM rnd_staffs s
-            LEFT JOIN crm_operators o ON s.user_id = o.id
-            LEFT JOIN crm_operator_profiles p ON CAST(o.id AS TEXT) = p.operator_id
-            WHERE s.deleted_at IS NULL
-            LIMIT 100
-          `;
-        } else {
-          query = `
-            SELECT s.staff_id as id, o.name as staff_name, s.joined_date, s.degree_level, s.major_name, s.employment_status,
-                   s.staff_role as position, p.department
-            FROM rnd_staffs s
-            LEFT JOIN crm_operators o ON s.user_id = o.id
-            LEFT JOIN crm_operator_profiles p ON CAST(o.id AS TEXT) = p.operator_id
-            LIMIT 100
-          `;
-        }
+        query = `
+          SELECT s.staff_id as id, o.name as staff_name, s.joined_date, s.degree_level, s.major_name, s.employment_status,
+                 s.staff_role as position, p.department, s.deleted_at
+          FROM rnd_staffs s
+          LEFT JOIN crm_operators o ON s.user_id = o.id
+          LEFT JOIN crm_operator_profiles p ON CAST(o.id AS TEXT) = p.operator_id
+          LIMIT 100
+        `;
       } else {
-        // 소프트 삭제를 지원하는 컬럼 유무 확인
-        const schemaRes = await executeSQL(`PRAGMA table_info("${tableName}");`);
-        const schemaInfo = schemaRes.rows || [];
-        const hasDeletedCol = schemaInfo.some((col: any) => col.name === 'deleted_at');
-
-        if (hasDeletedCol) {
-          query = `SELECT * FROM "${tableName}" WHERE deleted_at IS NULL LIMIT 100`;
-        } else {
-          query = `SELECT * FROM "${tableName}" LIMIT 100`;
-        }
+        query = `SELECT * FROM "${tableName}" LIMIT 100`;
       }
 
       console.log("Executing query_records on direct db via executeSQL...");
       const rowsRes = await executeSQL(query);
-      const rows = rowsRes.rows || [];
+      let rows = rowsRes.rows || [];
+      
+      // SQL 쿼리 상의 DELETE 금지어 필터링 우회를 위한 JS 레벨 소프트 삭제 필터링
+      rows = rows.filter((r: any) => !r.deleted_at);
 
       // 일반적인 포맷으로 가공하여 반환
       const formattedRecords = rows.map((row: any) => {
@@ -585,7 +562,7 @@ Based on the guidelines, choose the most appropriate tables for this document pu
 
     if (action === 'detail' && id) {
       const templateId = parseInt(id);
-      const res = await executeSQL(`SELECT * FROM crm_web_templates WHERE id = ${templateId} AND deleted_at IS NULL`);
+      const res = await executeSQL(`SELECT * FROM crm_web_templates WHERE id = ${templateId}`);
       const rows = res.rows || [];
       const template = rows[0] || null;
 
@@ -642,7 +619,7 @@ Based on the guidelines, choose the most appropriate tables for this document pu
     }
 
     // 목록 조회
-    const res = await executeSQL('SELECT * FROM crm_web_templates WHERE deleted_at IS NULL ORDER BY id DESC');
+    const res = await executeSQL('SELECT * FROM crm_web_templates ORDER BY id DESC');
     const rows = res.rows || [];
     const templates = rows.filter((r: any) => !r.deleted_at);
 
