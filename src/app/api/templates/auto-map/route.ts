@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { fetchGeminiWithFallback } from '../../../../lib/gemini-fallback';
 import { NextResponse } from 'next/server';
-import { queryTable } from '../../../../../egdesk-helpers';
+import { queryTable, executeSQL, getTableSchema, insertRows } from '../../../../../egdesk-helpers';
 
 // 테이블별 바인딩 필드 컬럼 정의 및 RAG 설명 정보
 const SCHEMA_DESCRIPTIONS: Record<string, string> = {
@@ -136,32 +136,11 @@ const TABLE_DISPLAY_NAMES: Record<string, string> = {
   rnd_compliance_alarms: '연구소 규제 준수 경고 현황'
 };
 
-// 누락된 테이블에 대해 better-sqlite3를 통해 PRAGMA table_info 수집
-function getDynamicSchemaDescription(tableName: string): string {
+// 누락된 테이블에 대해 getTableSchema를 통해 스키마 정보 수집
+async function getDynamicSchemaDescription(tableName: string): Promise<string> {
   try {
-    const Database = require('better-sqlite3');
-    const os = require('os');
-    const path = require('path');
-    const fs = require('fs');
-
-    const homeDir = os.homedir();
-    const appData = process.env.APPDATA || path.join(homeDir, 'AppData/Roaming');
-    const dbPaths = [
-      path.join(appData, 'EGDesk/database/user_data.db'),
-      path.join(appData, 'egdesk/database/user_data.db')
-    ];
-    let dbPath = '';
-    for (const p of dbPaths) {
-      if (fs.existsSync(p)) {
-        dbPath = p;
-        break;
-      }
-    }
-    if (!dbPath) dbPath = dbPaths[0];
-
-    const db = new Database(dbPath);
-    const colInfo = db.prepare(`PRAGMA table_info(${tableName});`).all();
-    db.close();
+    const schemaInfo = await getTableSchema(tableName);
+    const colInfo = schemaInfo.columns || [];
 
     if (colInfo.length === 0) {
       return '';
@@ -203,30 +182,9 @@ export async function POST(req: Request) {
 
     // 2. 분석할 타겟 테이블 정의 수집 (물리 DB의 실제 테이블 및 스키마 구조 실시간 동적 스캔)
     let schemaRAGContext = '';
-    let db: any = null;
     try {
-      const Database = require('better-sqlite3');
-      const os = require('os');
-      const path = require('path');
-      const fs = require('fs');
-
-      const homeDir = os.homedir();
-      const dbPaths = [
-        path.join(homeDir, 'AppData/Roaming', 'EGDesk/database/user_data.db'),
-        path.join(homeDir, 'AppData/Roaming', 'egdesk/database/user_data.db')
-      ];
-      let dbPath = '';
-      for (const p of dbPaths) {
-        if (fs.existsSync(p)) {
-          dbPath = p;
-          break;
-        }
-      }
-      if (!dbPath) dbPath = dbPaths[0];
-      db = new Database(dbPath);
-
       // 1) 실제 테이블 목록 조회 (sqlite_master)
-      const tablesList = db.prepare(`
+      const tablesListRes = await executeSQL(`
         SELECT name FROM sqlite_master 
         WHERE type='table' 
           AND name NOT LIKE 'sqlite_%' 
@@ -235,14 +193,16 @@ export async function POST(req: Request) {
           AND name NOT LIKE 'user_data_%' 
           AND name NOT LIKE 'user_tables'
         ORDER BY name ASC;
-      `).all();
+      `);
+      const tablesList = tablesListRes.rows || [];
 
       const tablesToScan = selectedTables.length > 0 ? selectedTables : tablesList.map((t: any) => t.name);
 
       // 2) 각 테이블별 실재하는 스키마 및 컬럼 수집 후 RAG 컨텍스트 문자열 조립
-      tablesToScan.forEach((name: string) => {
-        const columns = db.prepare(`PRAGMA table_info("${name}");`).all();
-        if (columns.length === 0) return;
+      for (const name of tablesToScan) {
+        const schemaInfo = await getTableSchema(name);
+        const columns = schemaInfo.columns || [];
+        if (columns.length === 0) continue;
 
         const displayName = TABLE_DISPLAY_NAMES[name] || name;
         schemaRAGContext += `\n---
@@ -255,15 +215,13 @@ export async function POST(req: Request) {
           if (skipCols.includes(col.name)) return;
           schemaRAGContext += ` - ${col.name}: (${col.type})\n`;
         });
-      });
+      }
     } catch (dbErr: any) {
       console.error('Failed to scan DB tables, falling back to static SCHEMA_DESCRIPTIONS:', dbErr.message);
       const targetTables = selectedTables.length > 0 ? selectedTables : Object.keys(SCHEMA_DESCRIPTIONS);
       targetTables.forEach((tableKey: string) => {
         schemaRAGContext += (SCHEMA_DESCRIPTIONS[tableKey] || '') + '\n';
       });
-    } finally {
-      if (db) db.close();
     }
 
     const cleanedBase64 = imageBase64.replace(/^data:(image\/(png|jpeg|jpg|webp|heic|heif)|application\/pdf);base64,/, "");
@@ -367,27 +325,15 @@ export async function POST(req: Request) {
             
             if (totalTokens > 0) {
               const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
-              const Database = require('better-sqlite3');
-              const os = require('os');
-              const path = require('path');
-              const homeDir = os.homedir();
-              const appData = process.env.APPDATA || path.join(homeDir, 'AppData/Roaming');
-              const dbPath = path.join(appData, 'EGDesk/database/user_data.db');
-              
-              const localDb = new Database(dbPath);
-              localDb.prepare(`
-                INSERT INTO ai_token_usage_logs (id, model, purpose, prompt_tokens, completion_tokens, total_tokens, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-              `).run(
-                `TKC-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-                'gemini-3.5-flash',
-                'form-template-auto-map',
-                promptTokens,
-                completionTokens,
-                totalTokens,
-                nowStr
-              );
-              localDb.close();
+              await insertRows('ai_token_usage_logs', [{
+                id: `TKC-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+                model: 'gemini-3.5-flash',
+                purpose: 'form-template-auto-map',
+                prompt_tokens: promptTokens,
+                completion_tokens: completionTokens,
+                total_tokens: totalTokens,
+                created_at: nowStr
+              }]);
             }
           } catch (logErr: any) {
             console.error('Real Gemini Auto Map token logging failed:', logErr.message);

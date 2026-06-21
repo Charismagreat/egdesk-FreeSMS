@@ -784,32 +784,8 @@ If the user is asking about how to use the system, menus, manuals, guides, or tr
                                     lowerSQL.includes('bank_transactions') ||
                                     lowerSQL.includes('card_transactions');
           
-          if (isFinanceHubQuery) {
-            // 로컬 financehub.db 파일에 직접 direct로 better-sqlite3 쿼리를 실행해 결과를 가져옵니다.
-            const Database = require('better-sqlite3');
-            const os = require('os');
-            const path = require('path');
-            const fs = require('fs');
-            
-            const homeDir = os.homedir();
-            const appData = process.env.APPDATA || path.join(homeDir, 'AppData/Roaming');
-            const dbPath = path.join(appData, 'EGDesk/database/financehub.db');
-            
-            if (fs.existsSync(dbPath)) {
-              const db = new Database(dbPath);
-              const rows = db.prepare(sqlToExecute).all();
-              sqlQueryResult = { success: true, rows, total: rows.length };
-              db.close();
-            } else {
-              // 파일이 없을 시 API 터널 executeSQL로 폴백 시도
-              const queryRes = await executeSQL(sqlToExecute);
-              sqlQueryResult = queryRes;
-            }
-          } else {
-            // CRM DB에 일반 쿼리 실행
-            const queryRes = await executeSQL(sqlToExecute);
-            sqlQueryResult = queryRes;
-          }
+          const queryRes = await executeSQL(sqlToExecute);
+          sqlQueryResult = queryRes;
         } catch (err: any) {
           console.error('SQL 실행 오류:', err);
           sqlError = err.message || String(err);

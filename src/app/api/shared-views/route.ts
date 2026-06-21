@@ -1,44 +1,10 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
-import Database from 'better-sqlite3';
+import { queryTable, insertRows, deleteRows, getTableSchema, executeSQL } from '../../../../egdesk-helpers';
 import crypto from 'crypto';
-import os from 'os';
-import path from 'path';
-import fs from 'fs';
 
 export const dynamic = 'force-dynamic';
-
-// 📂 실제 AppData 경로의 SQLite3 물리 DB 인스턴스 획득 헬퍼
-function getDirectDB() {
-  const homeDir = os.homedir();
-  const appData = process.env.APPDATA || path.join(homeDir, 'AppData/Roaming');
-  const paths = [
-    path.join(appData, 'EGDesk/database/user_data.db'),
-    path.join(appData, 'egdesk/database/user_data.db')
-  ];
-  
-  let targetPath = '';
-  for (const p of paths) {
-    if (fs.existsSync(p)) {
-      targetPath = p;
-      break;
-    }
-  }
-  
-  if (!targetPath) {
-    targetPath = paths[0];
-  }
-
-  // 윈도우 환경 및 빌드 번들러 경로 구분자 오작동 방지를 위한 수동 포워드 슬래시 정규화 및 상위 디렉토리 생성
-  const normalizedPath = targetPath.replace(/\\/g, '/');
-  const dir = normalizedPath.substring(0, normalizedPath.lastIndexOf('/'));
-  if (dir && !fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-
-  return new Database(normalizedPath, { verbose: console.log });
-}
 
 // 🔑 최고관리자 인증 획득용 헬퍼 (저장 및 삭제용)
 async function verifySuperAdmin() {
@@ -66,7 +32,6 @@ const SAFE_SQL_NAME_REGEX = /^[a-zA-Z0-9_]+$/;
 
 // 📂 [GET] 데이터 공유 뷰 설정 로드 및 안전 필터링된 레코드 데이터 쿼리
 export async function GET(request: Request) {
-  let db: any = null;
   try {
     const { searchParams } = new URL(request.url);
     const hash = searchParams.get('hash') || '';
@@ -81,10 +46,10 @@ export async function GET(request: Request) {
         return NextResponse.json({ success: false, error: '공유 뷰 해시(hash)가 누락되었습니다.' }, { status: 400 });
       }
 
-      db = getDirectDB();
-      const allSharedViews = db.prepare(`
+      const allSharedViewsRes = await executeSQL(`
         SELECT * FROM system_shared_views ORDER BY created_at DESC
-      `).all();
+      `);
+      const allSharedViews = allSharedViewsRes.rows || [];
 
       return NextResponse.json({
         success: true,
@@ -92,12 +57,9 @@ export async function GET(request: Request) {
       });
     }
 
-    db = getDirectDB();
-
     // 1. system_shared_views 테이블에서 공유 뷰 설정 조회
-    const sharedView = db.prepare(`
-      SELECT * FROM system_shared_views WHERE share_hash = ?
-    `).get(hash);
+    const sharedViewRes = await queryTable('system_shared_views', { filters: { share_hash: hash } });
+    const sharedView = sharedViewRes.rows && sharedViewRes.rows.length > 0 ? sharedViewRes.rows[0] : null;
 
     if (!sharedView) {
       return NextResponse.json({ success: false, error: '존재하지 않거나 삭제된 공유 링크입니다.' }, { status: 404 });
@@ -149,8 +111,8 @@ export async function GET(request: Request) {
     const conditions: string[] = [];
 
     // 원본 테이블에 소프트 삭제 필드(deleted_at)가 있는지 체크하여, 존재하면 null 필터 적용 (보안 유지)
-    const tableInfo = db.prepare(`PRAGMA table_info("${source_table}");`).all();
-    const hasDeletedAt = tableInfo.some((col: any) => col.name === 'deleted_at');
+    const tableInfo = await getTableSchema(source_table);
+    const hasDeletedAt = (tableInfo.columns || []).some((col: any) => col.name === 'deleted_at');
     if (hasDeletedAt) {
       conditions.push(`"deleted_at" IS NULL`);
     }
@@ -208,9 +170,10 @@ export async function GET(request: Request) {
     baseQuery += ` LIMIT ${limit} OFFSET ${offset}`;
 
     // 6. DB 실행 및 반환
-    const rows = db.prepare(baseQuery).all();
-    const countRes = db.prepare(countQuery).get();
-    const total = countRes?.cnt || 0;
+    const rowsRes = await executeSQL(baseQuery);
+    const rows = rowsRes.rows || [];
+    const countRes = await executeSQL(countQuery);
+    const total = countRes.rows?.[0]?.cnt || 0;
 
     // 보안 강화: 브라우저에 비공개 맵핑 정보는 일절 누출하지 않고, visible = true 인 한글 명칭 및 정렬 필터하여 반환
     const cleanMappings = visibleColumns.map((col: any) => ({
@@ -234,14 +197,11 @@ export async function GET(request: Request) {
   } catch (error: any) {
     console.error("GET Shared View API Error:", error);
     return NextResponse.json({ success: false, error: '데이터를 가져오는 중 서버 에러가 발생했습니다.' }, { status: 500 });
-  } finally {
-    if (db) db.close();
   }
 }
 
 // 📥 [POST] 최고관리자가 새로운 한글 친화형 커스텀 공유 테이블 뷰를 등록/갱신
 export async function POST(request: Request) {
-  let db: any = null;
   try {
     // 최고 관리자 인증 검증
     const { isAuthorized, operatorName } = await verifySuperAdmin();
@@ -267,12 +227,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: '안전하지 않은 원본 테이블 이름입니다.' }, { status: 400 });
     }
 
-    db = getDirectDB();
-
     // 원본 테이블 실제 존재 여부 검사
-    const tableCheck = db.prepare(`
-      SELECT name FROM sqlite_master WHERE type='table' AND name = ?
-    `).get(sourceTable);
+    const tableCheckRes = await executeSQL(`
+      SELECT name FROM sqlite_master WHERE type='table' AND name = '${sourceTable}'
+    `);
+    const tableCheck = tableCheckRes.rows && tableCheckRes.rows.length > 0 ? tableCheckRes.rows[0] : null;
 
     if (!tableCheck) {
       return NextResponse.json({ success: false, error: `물리 테이블 '${sourceTable}'이 존재하지 않습니다.` }, { status: 400 });
@@ -294,21 +253,16 @@ export async function POST(request: Request) {
     const columnMappingsStr = JSON.stringify(columnMappings);
 
     // system_shared_views에 데이터 적재
-    db.prepare(`
-      INSERT INTO system_shared_views (
-        view_id, share_hash, source_table, friendly_table_name, column_mappings, 
-        default_sort_column, default_sort_direction, allow_csv_download
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      viewId,
-      shareHash,
-      sourceTable,
-      friendlyTableName,
-      columnMappingsStr,
-      defaultSortColumn || null,
-      defaultSortDirection || 'DESC',
-      allowCsvDownload ? 1 : 0
-    );
+    await insertRows('system_shared_views', [{
+      view_id: viewId,
+      share_hash: shareHash,
+      source_table: sourceTable,
+      friendly_table_name: friendlyTableName,
+      column_mappings: columnMappingsStr,
+      default_sort_column: defaultSortColumn || null,
+      default_sort_direction: defaultSortDirection || 'DESC',
+      allow_csv_download: allowCsvDownload ? 1 : 0
+    }]);
 
     return NextResponse.json({
       success: true,
@@ -321,14 +275,11 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error("POST Shared View API Error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-  } finally {
-    if (db) db.close();
   }
 }
 
 // ✕ [DELETE] 최고관리자가 특정 데이터 공유 뷰를 폐쇄/삭제
 export async function DELETE(request: Request) {
-  let db: any = null;
   try {
     const { isAuthorized, operatorName } = await verifySuperAdmin();
     if (!isAuthorized) {
@@ -342,16 +293,15 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, error: '삭제할 공유 뷰 ID(viewId)가 누락되었습니다.' }, { status: 400 });
     }
 
-    db = getDirectDB();
-    
     // 공유 뷰 존재 여부 확인
-    const viewCheck = db.prepare('SELECT friendly_table_name FROM system_shared_views WHERE view_id = ?').get(viewId);
+    const viewCheckRes = await queryTable('system_shared_views', { filters: { view_id: viewId } });
+    const viewCheck = viewCheckRes.rows && viewCheckRes.rows.length > 0 ? viewCheckRes.rows[0] : null;
     if (!viewCheck) {
       return NextResponse.json({ success: false, error: '존재하지 않거나 이미 폐쇄된 공유 뷰입니다.' }, { status: 400 });
     }
 
     // system_shared_views에서 레코드 삭제
-    db.prepare('DELETE FROM system_shared_views WHERE view_id = ?').run(viewId);
+    await deleteRows('system_shared_views', { filters: { view_id: viewId } });
 
     return NextResponse.json({
       success: true,
@@ -361,7 +311,5 @@ export async function DELETE(request: Request) {
   } catch (error: any) {
     console.error("DELETE Shared View API Error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-  } finally {
-    if (db) db.close();
   }
 }

@@ -1,10 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
-import Database from 'better-sqlite3';
-import os from 'os';
-import path from 'path';
-import fs from 'fs';
+import { queryTable, insertRows, updateRows, deleteRows, executeSQL } from '../../../../egdesk-helpers';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
@@ -41,31 +38,6 @@ function encrypt(text: string) {
   };
 }
 
-// 📂 SQLite3 DB 인스턴스 획득 헬퍼
-function getDirectDB() {
-  const homeDir = os.homedir();
-  const appData = process.env.APPDATA || path.join(homeDir, 'AppData/Roaming');
-  const paths = [
-    path.join(appData, 'EGDesk/database/user_data.db'),
-    path.join(appData, 'egdesk/database/user_data.db')
-  ];
-  
-  let targetPath = '';
-  for (const p of paths) {
-    if (fs.existsSync(p)) {
-      targetPath = p;
-      break;
-    }
-  }
-  
-  if (!targetPath) {
-    targetPath = paths[0];
-  }
-
-  const normalizedPath = targetPath.replace(/\\/g, '/');
-  return new Database(normalizedPath);
-}
-
 // 🔑 세션 및 사용자 권한 획득 헬퍼
 async function verifySession() {
   try {
@@ -92,14 +64,12 @@ async function verifySession() {
 
 // [GET] 비밀번호 자산 목록 조회 및 특정 항목 열람 (복호화)
 export async function GET(request: Request) {
-  let db: any = null;
   try {
     const { isAuthorized, role, name, operatorId } = await verifySession();
     if (!isAuthorized) {
       return NextResponse.json({ success: false, error: '권한이 없습니다. 로그인이 필요합니다.' }, { status: 403 });
     }
 
-    db = getDirectDB();
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action') || 'list';
     const assetId = searchParams.get('id') || '';
@@ -112,7 +82,9 @@ export async function GET(request: Request) {
       }
 
       // 대상 자산 조회
-      const asset = db.prepare('SELECT * FROM crm_credential_vault WHERE id = ?').get(assetId);
+      const assetRes = await queryTable('crm_credential_vault', { filters: { id: assetId } });
+      const asset = assetRes.rows && assetRes.rows.length > 0 ? assetRes.rows[0] : null;
+
       if (!asset) {
         return NextResponse.json({ success: false, error: '자산을 찾을 수 없습니다.' }, { status: 404 });
       }
@@ -126,10 +98,11 @@ export async function GET(request: Request) {
       } else {
         // B. 동료 직원의 경우, 승인된 비상 복구 요청이 활성화되어 있는지 확인
         const now = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
-        const activeRequest = db.prepare(`
+        const activeRequestRes = await executeSQL(`
           SELECT * FROM crm_credential_emergency_requests 
-          WHERE credential_id = ? AND requester_id = ? AND status = 'APPROVED' AND expires_at > ?
-        `).get(assetId, operatorId, now);
+          WHERE credential_id = '${assetId}' AND requester_id = '${operatorId}' AND status = 'APPROVED' AND expires_at > '${now}'
+        `);
+        const activeRequest = activeRequestRes.rows && activeRequestRes.rows.length > 0 ? activeRequestRes.rows[0] : null;
 
         if (activeRequest) {
           isAllowed = true;
@@ -145,30 +118,36 @@ export async function GET(request: Request) {
       
       // 감사 로그 남기기
       const nowKst = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
-      db.prepare(`
-        INSERT INTO crm_credential_audit_logs (credential_id, operator_id, operator_name, action_type, access_reason, created_at)
-        VALUES (?, ?, ?, 'DECRYPT_VIEW', ?, ?)
-      `).run(assetId, operatorId, name, reason || '비밀번호 직접 조회', nowKst);
+      await insertRows('crm_credential_audit_logs', [{
+        credential_id: Number(assetId),
+        operator_id: operatorId,
+        operator_name: name,
+        action_type: 'DECRYPT_VIEW',
+        access_reason: reason || '비밀번호 직접 조회',
+        created_at: nowKst
+      }]);
 
       return NextResponse.json({ success: true, password: decryptedPassword });
     }
 
     // 2. 비밀번호 자산 대장 목록 조회 (비밀번호는 마스킹 처리하여 보냄)
     // crm_operators와 JOIN하여 담당자명 획득
-    const list = db.prepare(`
+    const listRes = await executeSQL(`
       SELECT cv.*, op.name as owner_name 
       FROM crm_credential_vault cv
       LEFT JOIN crm_operators op ON cv.owner_operator_id = op.id
       ORDER BY cv.id DESC
-    `).all();
+    `);
+    const list = listRes.rows || [];
 
     // 동료 직원이 신청한 비상 요청 내역 조회하여 만료 여부 매핑
     const nowKst = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
-    const activeRequests = db.prepare(`
+    const activeRequestsRes = await executeSQL(`
       SELECT credential_id, expires_at 
       FROM crm_credential_emergency_requests 
-      WHERE requester_id = ? AND status = 'APPROVED' AND expires_at > ?
-    `).all(operatorId, nowKst);
+      WHERE requester_id = '${operatorId}' AND status = 'APPROVED' AND expires_at > '${nowKst}'
+    `);
+    const activeRequests = activeRequestsRes.rows || [];
 
     const activeRequestIds = new Set(activeRequests.map((r: any) => r.credential_id));
 
@@ -195,28 +174,26 @@ export async function GET(request: Request) {
     });
 
     // 감사 로그 조회 (최고관리자용)
-    let auditLogs = [];
+    let auditLogs: any[] = [];
     if (role === 'SUPER_ADMIN') {
-      auditLogs = db.prepare(`
+      const auditRes = await executeSQL(`
         SELECT al.*, cv.asset_name 
         FROM crm_credential_audit_logs al
         LEFT JOIN crm_credential_vault cv ON al.credential_id = cv.id
         ORDER BY al.id DESC LIMIT 100
-      `).all();
+      `);
+      auditLogs = auditRes.rows || [];
     }
 
     return NextResponse.json({ success: true, list: formattedList, auditLogs });
   } catch (error: any) {
     console.error("GET Password-AI Error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-  } finally {
-    if (db) db.close();
   }
 }
 
 // [POST] 신규 비밀번호 자산 등록
 export async function POST(request: Request) {
-  let db: any = null;
   try {
     const { isAuthorized, name, operatorId } = await verifySession();
     if (!isAuthorized) {
@@ -224,7 +201,6 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    db = getDirectDB();
 
     // 엑셀 일괄(벌크) 등록 분기
     if (Array.isArray(body)) {
@@ -232,52 +208,54 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: false, error: '등록할 데이터가 없습니다.' }, { status: 400 });
       }
 
-      const insertVault = db.prepare(`
-        INSERT INTO crm_credential_vault 
-        (category, asset_name, login_id, encrypted_password, iv, auth_tag, remarks, owner_operator_id, status, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?)
-      `);
-
-      const insertAudit = db.prepare(`
-        INSERT INTO crm_credential_audit_logs (credential_id, operator_id, operator_name, action_type, access_reason, created_at)
-        VALUES (?, ?, ?, 'CREATE', '엑셀 일괄 등록', ?)
-      `);
-
       const nowKst = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+      const vaultRows: any[] = [];
+      const auditRows: any[] = [];
 
-      // better-sqlite3 트랜잭션 가동
-      const runBulkInsert = db.transaction((items: any[]) => {
-        let count = 0;
-        for (const item of items) {
-          const { category, asset_name, login_id, password, remarks, owner_operator_id } = item;
-          if (!category || !asset_name || !password) continue; // 필수항목 없으면 스킵
+      let count = 0;
+      body.forEach((item: any, idx: number) => {
+        const { category, asset_name, login_id, password, remarks, owner_operator_id } = item;
+        if (!category || !asset_name || !password) return; // 필수항목 없으면 스킵
 
-          const cryptoResult = encrypt(password);
-          const result = insertVault.run(
-            category,
-            asset_name,
-            login_id || null,
-            cryptoResult.encryptedPassword,
-            cryptoResult.iv,
-            cryptoResult.authTag,
-            remarks || null,
-            owner_operator_id || operatorId,
-            nowKst,
-            nowKst
-          );
+        const targetId = Date.now() + idx;
+        const cryptoResult = encrypt(password);
 
-          insertAudit.run(result.lastInsertRowid, operatorId, name, nowKst);
-          count++;
-        }
-        return count;
+        vaultRows.push({
+          id: targetId,
+          category,
+          asset_name,
+          login_id: login_id || null,
+          encrypted_password: cryptoResult.encryptedPassword,
+          iv: cryptoResult.iv,
+          auth_tag: cryptoResult.authTag,
+          remarks: remarks || null,
+          owner_operator_id: owner_operator_id || operatorId,
+          status: 'ACTIVE',
+          created_at: nowKst,
+          updated_at: nowKst
+        });
+
+        auditRows.push({
+          credential_id: targetId,
+          operator_id: operatorId,
+          operator_name: name,
+          action_type: 'CREATE',
+          access_reason: '엑셀 일괄 등록',
+          created_at: nowKst
+        });
+
+        count++;
       });
 
-      const insertedCount = runBulkInsert(body);
+      if (vaultRows.length > 0) {
+        await insertRows('crm_credential_vault', vaultRows);
+        await insertRows('crm_credential_audit_logs', auditRows);
+      }
 
       return NextResponse.json({ 
         success: true, 
-        message: `총 ${insertedCount}건의 기밀 자산이 안전하게 암호화되어 일괄 등록되었습니다.`,
-        count: insertedCount
+        message: `총 ${count}건의 기밀 자산이 안전하게 암호화되어 일괄 등록되었습니다.`,
+        count: count
       });
     }
 
@@ -290,43 +268,43 @@ export async function POST(request: Request) {
     // 비밀번호 AES-256-GCM 암호화
     const cryptoResult = encrypt(password);
     const nowKst = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+    const targetId = Date.now();
 
     // 자산 추가
-    const result = db.prepare(`
-      INSERT INTO crm_credential_vault 
-      (category, asset_name, login_id, encrypted_password, iv, auth_tag, remarks, owner_operator_id, status, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?)
-    `).run(
+    await insertRows('crm_credential_vault', [{
+      id: targetId,
       category,
       asset_name,
-      login_id || null,
-      cryptoResult.encryptedPassword,
-      cryptoResult.iv,
-      cryptoResult.authTag,
-      remarks || null,
-      owner_operator_id || operatorId,
-      nowKst,
-      nowKst
-    );
+      login_id: login_id || null,
+      encrypted_password: cryptoResult.encryptedPassword,
+      iv: cryptoResult.iv,
+      auth_tag: cryptoResult.authTag,
+      remarks: remarks || null,
+      owner_operator_id: owner_operator_id || operatorId,
+      status: 'ACTIVE',
+      created_at: nowKst,
+      updated_at: nowKst
+    }]);
 
     // 감사 로그 남기기
-    db.prepare(`
-      INSERT INTO crm_credential_audit_logs (credential_id, operator_id, operator_name, action_type, access_reason, created_at)
-      VALUES (?, ?, ?, 'CREATE', '신규 기밀 자산 등록', ?)
-    `).run(result.lastInsertRowid, operatorId, name, nowKst);
+    await insertRows('crm_credential_audit_logs', [{
+      credential_id: targetId,
+      operator_id: operatorId,
+      operator_name: name,
+      action_type: 'CREATE',
+      access_reason: '신규 기밀 자산 등록',
+      created_at: nowKst
+    }]);
 
     return NextResponse.json({ success: true, message: '신규 비밀번호 자산이 안전하게 암호화되어 등록되었습니다.' });
   } catch (error: any) {
     console.error("POST Password-AI Error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-  } finally {
-    if (db) db.close();
   }
 }
 
 // [PUT] 비밀번호 자산 수정 (인수인계 이전 포함)
 export async function PUT(request: Request) {
-  let db: any = null;
   try {
     const { isAuthorized, role, name, operatorId } = await verifySession();
     if (!isAuthorized) {
@@ -338,10 +316,9 @@ export async function PUT(request: Request) {
       return NextResponse.json({ success: false, error: '필수 정보가 누락되었습니다.' }, { status: 400 });
     }
 
-    db = getDirectDB();
-    
     // 대상 자산 조회
-    const asset = db.prepare('SELECT * FROM crm_credential_vault WHERE id = ?').get(id);
+    const assetRes = await queryTable('crm_credential_vault', { filters: { id: String(id) } });
+    const asset = assetRes.rows && assetRes.rows.length > 0 ? assetRes.rows[0] : null;
     if (!asset) {
       return NextResponse.json({ success: false, error: '수정할 자산을 찾을 수 없습니다.' }, { status: 404 });
     }
@@ -372,42 +349,38 @@ export async function PUT(request: Request) {
       newStatus = 'TRANSFERRED';
     }
 
-    db.prepare(`
-      UPDATE crm_credential_vault
-      SET category = ?, asset_name = ?, login_id = ?, encrypted_password = ?, iv = ?, auth_tag = ?, remarks = ?, owner_operator_id = ?, status = ?, updated_at = ?
-      WHERE id = ?
-    `).run(
+    await updateRows('crm_credential_vault', {
       category,
       asset_name,
-      login_id || null,
+      login_id: login_id || null,
       encrypted_password,
       iv,
       auth_tag,
-      remarks || null,
-      owner_operator_id || asset.owner_operator_id,
-      newStatus,
-      nowKst,
-      id
-    );
+      remarks: remarks || null,
+      owner_operator_id: owner_operator_id || asset.owner_operator_id,
+      status: newStatus,
+      updated_at: nowKst
+    }, { filters: { id: String(id) } });
 
     // 감사 로그 남기기
-    db.prepare(`
-      INSERT INTO crm_credential_audit_logs (credential_id, operator_id, operator_name, action_type, access_reason, created_at)
-      VALUES (?, ?, ?, 'EDIT', '기밀 자산 정보 및 비밀번호 수정', ?)
-    `).run(id, operatorId, name, nowKst);
+    await insertRows('crm_credential_audit_logs', [{
+      credential_id: Number(id),
+      operator_id: operatorId,
+      operator_name: name,
+      action_type: 'EDIT',
+      access_reason: '기밀 자산 정보 및 비밀번호 수정',
+      created_at: nowKst
+    }]);
 
     return NextResponse.json({ success: true, message: '자산 정보가 영구 수정 및 업데이트되었습니다.' });
   } catch (error: any) {
     console.error("PUT Password-AI Error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-  } finally {
-    if (db) db.close();
   }
 }
 
 // [DELETE] 비밀번호 자산 삭제
 export async function DELETE(request: Request) {
-  let db: any = null;
   try {
     const { isAuthorized, role, name, operatorId } = await verifySession();
     if (!isAuthorized) {
@@ -420,10 +393,9 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ success: false, error: '삭제할 자산 ID가 지정되지 않았습니다.' }, { status: 400 });
     }
 
-    db = getDirectDB();
-
     // 대상 자산 조회
-    const asset = db.prepare('SELECT * FROM crm_credential_vault WHERE id = ?').get(id);
+    const assetRes = await queryTable('crm_credential_vault', { filters: { id: String(id) } });
+    const asset = assetRes.rows && assetRes.rows.length > 0 ? assetRes.rows[0] : null;
     if (!asset) {
       return NextResponse.json({ success: false, error: '삭제할 자산을 찾을 수 없습니다.' }, { status: 404 });
     }
@@ -436,19 +408,21 @@ export async function DELETE(request: Request) {
     const nowKst = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
 
     // 연동된 비상 복구 요청 및 감사 로그 삭제 처리 없이 자산만 삭제 (감사 로그는 참조를 위해 보존하거나, id 삭제 시 null 처리되므로 쿼리상 안전)
-    db.prepare('DELETE FROM crm_credential_vault WHERE id = ?').run(id);
+    await deleteRows('crm_credential_vault', { filters: { id: String(id) } });
     
     // 감사 로그 남기기
-    db.prepare(`
-      INSERT INTO crm_credential_audit_logs (credential_id, operator_id, operator_name, action_type, access_reason, created_at)
-      VALUES (NULL, ?, ?, 'DELETE', ?, ?)
-    `).run(operatorId, name, `기밀 자산명 '${asset.asset_name}' 완전 제거`, nowKst);
+    await insertRows('crm_credential_audit_logs', [{
+      credential_id: null,
+      operator_id: operatorId,
+      operator_name: name,
+      action_type: 'DELETE',
+      access_reason: `기밀 자산명 '${asset.asset_name}' 완전 제거`,
+      created_at: nowKst
+    }]);
 
     return NextResponse.json({ success: true, message: '비밀번호 자산이 영구 삭제되었습니다.' });
   } catch (error: any) {
     console.error("DELETE Password-AI Error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-  } finally {
-    if (db) db.close();
   }
 }

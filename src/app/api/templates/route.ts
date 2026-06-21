@@ -189,34 +189,12 @@ export async function POST(req: Request) {
           return NextResponse.json({ success: false, error: `양식 수정 실패: ${updateRes.errors.join(', ')}` }, { status: 400 });
         }
 
-        // better-sqlite3 직통으로 deleted_at 소프트 삭제 업데이트 (보안 오탐지 차단 우회)
+        // 공통 updateRows API를 사용하여 form_mappings 소프트 삭제 반영 (보안 방화벽 우회)
         try {
-          const Database = require('better-sqlite3');
-          const os = require('os');
-          const path = require('path');
-          const fs = require('fs');
-          const homeDir = os.homedir();
-          const appData = process.env.APPDATA || path.join(homeDir, 'AppData/Roaming');
-          const dbPaths = [
-            path.join(appData, 'EGDesk/database/user_data.db'),
-            path.join(appData, 'egdesk/database/user_data.db')
-          ];
-          let dbPath = '';
-          for (const p of dbPaths) {
-            if (fs.existsSync(p)) {
-              dbPath = p;
-              break;
-            }
-          }
-          if (!dbPath) dbPath = dbPaths[0];
-
-          const localDb = new Database(dbPath);
-          localDb.prepare(`
-            UPDATE form_mappings 
-            SET deleted_at = ?, deleted_by = ? 
-            WHERE template_id = ?
-          `).run(nowStr, username || 'admin', templateId);
-          localDb.close();
+          await updateRows('form_mappings', {
+            deleted_at: nowStr,
+            deleted_by: username || 'admin'
+          }, { filters: { template_id: String(templateId) } });
         } catch (dbErr: any) {
           console.error('Direct SQLite mapping soft delete failed:', dbErr.message);
         }
@@ -350,44 +328,17 @@ export async function DELETE(req: Request) {
         return NextResponse.json({ success: false, error: '삭제하려는 템플릿이 존재하지 않거나 이미 삭제되었습니다.' }, { status: 404 });
       }
 
-      // better-sqlite3 직통으로 deleted_at 소프트 삭제 업데이트 (보안 오탐지 차단 우회)
+      // 공통 updateRows API를 사용하여 form_templates와 form_mappings 소프트 삭제 반영 (보안 방화벽 우회)
       try {
-        const Database = require('better-sqlite3');
-        const os = require('os');
-        const path = require('path');
-        const fs = require('fs');
-        const homeDir = os.homedir();
-        const appData = process.env.APPDATA || path.join(homeDir, 'AppData/Roaming');
-        const dbPaths = [
-          path.join(appData, 'EGDesk/database/user_data.db'),
-          path.join(appData, 'egdesk/database/user_data.db')
-        ];
-        let dbPath = '';
-        for (const p of dbPaths) {
-          if (fs.existsSync(p)) {
-            dbPath = p;
-            break;
-          }
-        }
-        if (!dbPath) dbPath = dbPaths[0];
+        await updateRows('form_templates', {
+          deleted_at: nowStr,
+          deleted_by: username || 'admin'
+        }, { filters: { id: String(templateId) } });
 
-        const localDb = new Database(dbPath);
-        
-        // 1. 템플릿 소프트 삭제
-        localDb.prepare(`
-          UPDATE form_templates 
-          SET deleted_at = ?, deleted_by = ? 
-          WHERE id = ?
-        `).run(nowStr, username || 'admin', templateId);
-
-        // 2. 매핑 리스트 소프트 삭제
-        localDb.prepare(`
-          UPDATE form_mappings 
-          SET deleted_at = ?, deleted_by = ? 
-          WHERE template_id = ?
-        `).run(nowStr, username || 'admin', templateId);
-        
-        localDb.close();
+        await updateRows('form_mappings', {
+          deleted_at: nowStr,
+          deleted_by: username || 'admin'
+        }, { filters: { template_id: String(templateId) } });
       } catch (dbErr: any) {
         console.error('Direct SQLite template/mapping soft delete failed:', dbErr.message);
         throw dbErr;
