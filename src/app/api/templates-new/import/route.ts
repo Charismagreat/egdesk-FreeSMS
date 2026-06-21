@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { queryTable, insertRows, updateRows, executeSQL } from '../../../../egdesk-helpers';
+import { queryTable, insertRows, updateRows, executeSQL } from '../../../../../egdesk-helpers';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
 import crypto from 'crypto';
