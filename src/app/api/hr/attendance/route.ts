@@ -3,7 +3,14 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
-import { createTable, queryTable, insertRows, updateRows } from '../../../../../egdesk-helpers';
+import {
+  createTable,
+  queryTable,
+  insertRows,
+  updateRows,
+  getTableSchema,
+  executeSQL
+} from '../../../../../egdesk-helpers';
 
 /**
   * 🛡️ HR 데이터베이스 자율 마이그레이션 (Self-Healing Auto-Migration)
@@ -122,42 +129,14 @@ async function initHrDatabase() {
 
     // crm_annual_leaves 테이블 medical_certificate_path 컬럼 추가 자율 마이그레이션 (자가치유)
     try {
-      const Database = require('better-sqlite3');
-      const os = require('os');
-      const path = require('path');
-      const fs = require('fs');
-
-      const homeDir = os.homedir();
-      const appData = process.env.APPDATA || path.join(homeDir, 'AppData/Roaming');
-      const paths = [
-        path.join(appData, 'EGDesk/database/user_data.db'),
-        path.join(appData, 'egdesk/database/user_data.db')
-      ];
-      
-      let targetPath = '';
-      for (const p of paths) {
-        if (fs.existsSync(p)) {
-          targetPath = p;
-          break;
-        }
-      }
-      if (!targetPath) targetPath = paths[0];
-
-      const normalizedPath = targetPath.replace(/\\/g, '/');
-      const dir = normalizedPath.substring(0, normalizedPath.lastIndexOf('/'));
-      if (dir && !fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
-
-      const db = new Database(normalizedPath);
-      const colInfo = db.prepare("PRAGMA table_info(crm_annual_leaves);").all();
-      const colNames = colInfo.map((c: any) => c.name);
+      const schemaInfo = await getTableSchema('crm_annual_leaves');
+      const columns = schemaInfo.columns || [];
+      const colNames = columns.map((c: any) => c.name);
       
       if (!colNames.includes('medical_certificate_path')) {
-        db.exec("ALTER TABLE crm_annual_leaves ADD COLUMN medical_certificate_path TEXT;");
-        console.log('✓ In-app migration: added medical_certificate_path to crm_annual_leaves');
+        await executeSQL("ALTER TABLE crm_annual_leaves ADD COLUMN medical_certificate_path TEXT;");
+        console.log('✓ In-app migration: added medical_certificate_path to crm_annual_leaves via executeSQL');
       }
-      db.close();
     } catch (err: any) {
       console.error('⚠️ HR In-app migration error:', err.message);
     }

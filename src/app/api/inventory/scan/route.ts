@@ -1,15 +1,14 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import Database from 'better-sqlite3';
-
-function getDB() {
-  return new Database('crm_data.db');
-}
+import {
+  queryTable,
+  insertRows,
+  updateRows,
+  executeSQL
+} from '../../../../../egdesk-helpers';
 
 export async function POST(request: Request) {
-  let db;
   try {
-    db = getDB();
     const body = await request.json();
     const { barcode, mode, operator, quantity } = body;
 
@@ -24,64 +23,14 @@ export async function POST(request: Request) {
     const opName = operator || '바코드 스캐너';
     const adjustQty = quantity !== undefined ? Number(quantity) : 1;
 
-    const result = db.transaction(() => {
-      // 1. 바코드로 품목 조회
-      const item = db.prepare('SELECT * FROM inventory_items WHERE barcode = ?').get(barcode.trim()) as any;
-      if (!item) {
-        return null;
-      }
-
-      let newStock = Number(item.stock);
-      let changeQty = 1;
-
-      // 2. 모드에 따라 수량 가감
-      if (scanMode === 'in') {
-        newStock += 1;
-        changeQty = 1;
-      } else if (scanMode === 'out') {
-        newStock = Math.max(0, newStock - 1);
-        changeQty = 1;
-      } else if (scanMode === 'adjust') {
-        newStock = adjustQty;
-        changeQty = adjustQty;
-      }
-
-      // 3. 품목 현재고 DB 업데이트
-      db.prepare('UPDATE inventory_items SET stock = ? WHERE id = ?').run(newStock, Number(item.id));
-
-      // 4. 재고 변동 이력 로그 추가
-      const noteText = scanMode === 'in' 
-        ? '바코드 고속 입고' 
-        : scanMode === 'out' 
-          ? '바코드 고속 출고' 
-          : `바코드 고속 실사 조정 (조정후: ${newStock}개)`;
-      
-      const createdAt = new Date().toISOString();
-      const info = db.prepare(`
-        INSERT INTO inventory_logs (
-          itemId, itemName, itemType, changeType, quantity, price, operator, note, createdAt
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        Number(item.id),
-        item.name,
-        item.type,
-        scanMode === 'adjust' ? 'adjust' : scanMode,
-        changeQty,
-        Number(item.price),
-        opName,
-        noteText,
-        createdAt
-      );
-
-      return {
-        item: { ...item, stock: newStock },
-        logId: info.lastInsertRowid
-      };
+    // 1. 바코드로 품목 조회 (소프트 삭제 필터링 추가)
+    const itemRes = await queryTable('inventory_items', {
+      filters: { barcode: barcode.trim() }
     });
+    const items = (itemRes.rows || []).filter((r: any) => !r.deleted_at);
+    const item = items[0];
 
-    const txResult = result();
-
-    if (!txResult) {
+    if (!item) {
       return NextResponse.json({
         success: false,
         error: 'NOT_FOUND',
@@ -90,10 +39,54 @@ export async function POST(request: Request) {
       }, { status: 404 });
     }
 
+    let newStock = Number(item.stock);
+    let changeQty = 1;
+
+    // 2. 모드에 따라 수량 가감
+    if (scanMode === 'in') {
+      newStock += 1;
+      changeQty = 1;
+    } else if (scanMode === 'out') {
+      newStock = Math.max(0, newStock - 1);
+      changeQty = 1;
+    } else if (scanMode === 'adjust') {
+      newStock = adjustQty;
+      changeQty = adjustQty;
+    }
+
+    // 3. 품목 현재고 DB 업데이트
+    await updateRows('inventory_items', { stock: newStock }, { filters: { id: String(item.id) } });
+
+    // 4. 재고 변동 이력 로그 추가
+    const noteText = scanMode === 'in' 
+      ? '바코드 고속 입고' 
+      : scanMode === 'out' 
+        ? '바코드 고속 출고' 
+        : `바코드 고속 실사 조정 (조정후: ${newStock}개)`;
+    
+    const createdAt = new Date().toISOString();
+    const logData = {
+      itemId: Number(item.id),
+      itemName: item.name,
+      itemType: item.type,
+      changeType: scanMode === 'adjust' ? 'adjust' : scanMode,
+      quantity: changeQty,
+      price: Number(item.price),
+      operator: opName,
+      note: noteText,
+      createdAt
+    };
+
+    await insertRows('inventory_logs', [logData]);
+
+    // 생성된 로그 ID 획득
+    const maxIdRes = await executeSQL('SELECT MAX(id) as maxId FROM inventory_logs');
+    const logId = maxIdRes.rows?.[0]?.maxId || 0;
+
     return NextResponse.json({
       success: true,
-      item: txResult.item,
-      log: { id: txResult.logId }
+      item: { ...item, stock: newStock },
+      log: { id: logId }
     });
 
   } catch (error: any) {
@@ -102,7 +95,5 @@ export async function POST(request: Request) {
       { success: false, error: error.message || '스캔 처리에 실패했습니다.' },
       { status: 500 }
     );
-  } finally {
-    if (db) db.close();
   }
 }
