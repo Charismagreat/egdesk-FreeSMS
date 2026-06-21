@@ -56,7 +56,7 @@ export async function GET(request: Request) {
 
       const tablesWithCount = [];
       for (const t of tablesList) {
-        const name = t.name;
+        const name = t.tableName || t.name;
         
         try {
           const schemaInfo = await getTableSchema(name);
