@@ -874,7 +874,7 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
           <div className="text-left">
             <h2 className="text-sm font-black text-white flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-violet-400" />
-              {templateId ? '뉴 양식관리 AI - 양식 수정' : '뉴 양식관리 AI - 2열 듀얼 양식 제작'}
+              {templateId ? '양식 관리 AI - 양식 수정' : '양식 관리 AI - 2열 듀얼 양식 제작'}
             </h2>
             <p className="text-[10px] text-slate-500 font-bold mt-0.5">
               각 미리보기 화면 창을 직접 클릭하여 디자인 수정 대상(타겟)을 시각적으로 지정할 수 있습니다.

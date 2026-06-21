@@ -431,7 +431,7 @@ export default function FormManagementNewPage() {
             <h1 className={`font-black text-slate-900 flex items-center tracking-tight ${
               viewMode === 'list' ? 'text-3xl' : 'text-lg'
             }`}>
-              뉴 양식관리 AI
+              양식 관리 AI
               <span className="text-[10px] bg-violet-50 text-violet-800 border border-violet-200 px-2 py-0.5 rounded-full font-bold ml-2.5 shrink-0">
                 HTML 반응형 양식
               </span>
