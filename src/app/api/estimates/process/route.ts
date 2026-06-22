@@ -67,8 +67,11 @@ export async function POST(req: Request) {
         completed_at: ''
       }]);
 
-      // 견적서 상태 업데이트
-      await updateRows('crm_estimates', { direction_status: 'SENT' }, { filters: { id: estimateId } });
+      // 견적서 상태 업데이트 및 발주번호(purchase_order_number) 매핑
+      await updateRows('crm_estimates', { 
+        direction_status: 'SENT',
+        purchase_order_number: poId
+      }, { filters: { id: estimateId } });
 
       return NextResponse.json({
         success: true,

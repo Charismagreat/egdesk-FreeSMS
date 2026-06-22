@@ -368,6 +368,7 @@ export async function setupDatabase() {
     { name: 'created_at', type: 'TEXT', notNull: true },
     { name: 'uuid', type: 'TEXT' },
     { name: 'sales_order_number', type: 'TEXT' },
+    { name: 'purchase_order_number', type: 'TEXT' },
     { name: 'updated_at', type: 'TEXT' },
     { name: 'updated_by', type: 'TEXT' },
     { name: 'deleted_at', type: 'TEXT' },
@@ -1915,6 +1916,10 @@ export async function setupDatabase() {
       if (!estimateCols.includes('sales_order_number')) {
         await executeSQL("ALTER TABLE crm_estimates ADD COLUMN sales_order_number TEXT;");
         console.log('✓ In-app migration: added sales_order_number to crm_estimates');
+      }
+      if (!estimateCols.includes('purchase_order_number')) {
+        await executeSQL("ALTER TABLE crm_estimates ADD COLUMN purchase_order_number TEXT;");
+        console.log('✓ In-app migration: added purchase_order_number to crm_estimates');
       }
     } catch (e: any) {
       console.warn('⚠️ crm_estimates migration check warning:', e.message);

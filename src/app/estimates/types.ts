@@ -12,6 +12,7 @@ export interface Estimate {
   item_count?: number;
   tags?: string;
   sales_order_number?: string;
+  purchase_order_number?: string;
 }
 
 export interface PurchaseOrder {
