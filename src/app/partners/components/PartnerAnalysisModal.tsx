@@ -26,7 +26,7 @@ export function PartnerAnalysisModal({
   const [reviewText, setReviewText] = useState("");
   const [showManualReputation, setShowManualReputation] = useState(false);
 
-  // 2. 재무 분석용 입력 폼 상태
+  // 2. 재무 분석용 입력 폼 및 파일 업로드 상태
   const [revenue, setRevenue] = useState("");
   const [revenueGrowth, setRevenueGrowth] = useState("");
   const [operatingIncome, setOperatingIncome] = useState("");
@@ -34,6 +34,10 @@ export function PartnerAnalysisModal({
   const [debtRatio, setDebtRatio] = useState("");
   const [netIncome, setNetIncome] = useState("");
   const [financialNews, setFinancialNews] = useState("");
+  const [showManualFinancial, setShowManualFinancial] = useState(false);
+  const [fileBase64, setFileBase64] = useState("");
+  const [fileMime, setFileMime] = useState("");
+  const [fileName, setFileName] = useState("");
 
   if (!isAnalysisOpen || !analysisPartner) return null;
 
@@ -50,7 +54,10 @@ export function PartnerAnalysisModal({
         operating_income_growth: operatingIncomeGrowth,
         debt_ratio: debtRatio,
         net_income: netIncome,
-        financial_news: financialNews
+        financial_news: financialNews,
+        file_base64: fileBase64,
+        file_mime: fileMime,
+        file_name: fileName
       };
     }
 
@@ -65,6 +72,47 @@ export function PartnerAnalysisModal({
     setDebtRatio("");
     setNetIncome("");
     setFinancialNews("");
+    setFileBase64("");
+    setFileMime("");
+    setFileName("");
+  };
+
+  // 파일 처리 헬퍼 함수
+  const processFile = (file: File) => {
+    const allowedTypes = ["application/pdf", "image/png", "image/jpeg", "image/jpg"];
+    if (!allowedTypes.includes(file.type)) {
+      alert("경영 분석 문서 및 재무제표는 PDF 또는 이미지 파일(PNG, JPG, JPEG)만 업로드 가능합니다.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const resultStr = reader.result as string;
+      const base64String = resultStr.split(',')[1];
+      setFileBase64(base64String);
+      setFileMime(file.type);
+      setFileName(file.name);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processFile(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processFile(file);
+    }
   };
 
   // 결과 상세 파싱
@@ -202,86 +250,152 @@ export function PartnerAnalysisModal({
 
             {activeSubTab === 'FINANCIAL' && (
               <div className="space-y-3">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">최근 분기 재무 지표 기입</span>
-                
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-bold block mb-1">매출액</label>
-                    <input
-                      type="text"
-                      value={revenue}
-                      onChange={e => setRevenue(e.target.value)}
-                      placeholder="예: 250억원"
-                      className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-bold block mb-1">매출 변동률 (전년비)</label>
-                    <input
-                      type="text"
-                      value={revenueGrowth}
-                      onChange={e => setRevenueGrowth(e.target.value)}
-                      placeholder="예: -15%"
-                      className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
-                    />
+                <div className="bg-slate-50/50 p-4 border border-slate-100 rounded-2xl space-y-3">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">실시간 재무 건전성 자율 마이닝 가이드</span>
+                  <p className="text-xs leading-relaxed text-slate-600 font-medium">
+                    최근 분기 실적, 연간 재무제표 요약 및 공시 정보를 **Google Search** 실시간 수집을 통해 자동으로 마이닝하고 분석을 기동합니다.
+                  </p>
+                  <div className="p-3 bg-white border border-slate-150 rounded-xl font-mono text-[10px] text-indigo-600 font-bold">
+                    검색 키워드: &ldquo;{analysisPartner.company_name}&rdquo; + (재무제표 OR 매출액 OR 영업이익 OR 부채비율 OR 공시)
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-bold block mb-1">영업이익</label>
-                    <input
-                      type="text"
-                      value={operatingIncome}
-                      onChange={e => setOperatingIncome(e.target.value)}
-                      placeholder="예: -8억원"
-                      className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-bold block mb-1">영업이익 변동률 (전년비)</label>
-                    <input
-                      type="text"
-                      value={operatingIncomeGrowth}
-                      onChange={e => setOperatingIncomeGrowth(e.target.value)}
-                      placeholder="예: 적자전환"
-                      className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
-                    />
-                  </div>
+                {/* 📂 경영 자료 및 재무제표 파일 드롭존 */}
+                <div className="space-y-2">
+                  <label className="text-[10px] text-slate-400 font-bold block">경영 분석 자료 / 재무제표 업로드 (선택)</label>
+                  
+                  {fileName ? (
+                    <div className="p-4 bg-emerald-50/30 border border-emerald-200 rounded-2xl flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-5 h-5 text-emerald-500" />
+                        <span className="text-xs font-black text-slate-700 truncate max-w-[200px] md:max-w-xs">{fileName}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFileBase64("");
+                          setFileMime("");
+                          setFileName("");
+                        }}
+                        className="text-[10px] text-rose-500 font-black hover:underline cursor-pointer border-none bg-transparent"
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      onDragOver={handleDragOver}
+                      onDrop={handleDrop}
+                      className="border-2 border-dashed border-slate-200 hover:border-emerald-500 rounded-2xl p-6 text-center cursor-pointer transition-colors bg-white relative group"
+                    >
+                      <input
+                        type="file"
+                        accept=".pdf, image/png, image/jpeg, image/jpg"
+                        onChange={handleFileChange}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      />
+                      <Sparkles className="w-6 h-6 text-slate-350 group-hover:text-emerald-500 mx-auto mb-2 transition-colors" />
+                      <span className="text-xs font-black text-slate-655 block">여기에 PDF 또는 재무제표 이미지 파일을 끌어다 놓으세요.</span>
+                      <span className="text-[9px] text-slate-400 block font-bold mt-1">또는 클릭하여 파일 브라우저 열기 (PDF, PNG, JPG, JPEG 지원)</span>
+                    </div>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-bold block mb-1">부채비율</label>
-                    <input
-                      type="text"
-                      value={debtRatio}
-                      onChange={e => setDebtRatio(e.target.value)}
-                      placeholder="예: 280%"
-                      className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-bold block mb-1">당기순이익</label>
-                    <input
-                      type="text"
-                      value={netIncome}
-                      onChange={e => setNetIncome(e.target.value)}
-                      placeholder="예: -12억원"
-                      className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
-                    />
-                  </div>
-                </div>
+                {/* 📊 접이식 수동 참고 지표 입력 아코디언 */}
+                <div className="border border-slate-150 rounded-2xl overflow-hidden bg-white">
+                  <button
+                    type="button"
+                    onClick={() => setShowManualFinancial(!showManualFinancial)}
+                    className="w-full px-4 py-3 bg-slate-50 hover:bg-slate-100 flex items-center justify-between text-xs font-black text-slate-700 border-none cursor-pointer transition-colors"
+                  >
+                    <span>➕ 보조 참고 재무 수치 직접 입력 (선택)</span>
+                    <span className="text-[10px] text-slate-400 font-bold">
+                      {showManualFinancial ? "접기" : "펼치기"}
+                    </span>
+                  </button>
+                  {showManualFinancial && (
+                    <div className="p-4 border-t border-slate-150 bg-white space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[10px] text-slate-400 font-bold block mb-1">매출액</label>
+                          <input
+                            type="text"
+                            value={revenue}
+                            onChange={e => setRevenue(e.target.value)}
+                            placeholder="예: 250억원"
+                            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:border-emerald-500 outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-slate-400 font-bold block mb-1">매출 변동률 (전년비)</label>
+                          <input
+                            type="text"
+                            value={revenueGrowth}
+                            onChange={e => setRevenueGrowth(e.target.value)}
+                            placeholder="예: -15%"
+                            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:border-emerald-500 outline-none"
+                          />
+                        </div>
+                      </div>
 
-                <div>
-                  <label className="text-[10px] text-slate-400 font-bold block mb-1">핵심 공시/재무 관련 뉴스</label>
-                  <input
-                    type="text"
-                    value={financialNews}
-                    onChange={e => setFinancialNews(e.target.value)}
-                    placeholder="예: 감사인의 의견거절 공시 및 관리종목 지정 우려설 발생"
-                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
-                  />
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[10px] text-slate-400 font-bold block mb-1">영업이익</label>
+                          <input
+                            type="text"
+                            value={operatingIncome}
+                            onChange={e => setOperatingIncome(e.target.value)}
+                            placeholder="예: -8억원"
+                            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:border-emerald-500 outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-slate-400 font-bold block mb-1">영업이익 변동률 (전년비)</label>
+                          <input
+                            type="text"
+                            value={operatingIncomeGrowth}
+                            onChange={e => setOperatingIncomeGrowth(e.target.value)}
+                            placeholder="예: 적자전환"
+                            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:border-emerald-500 outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[10px] text-slate-400 font-bold block mb-1">부채비율</label>
+                          <input
+                            type="text"
+                            value={debtRatio}
+                            onChange={e => setDebtRatio(e.target.value)}
+                            placeholder="예: 280%"
+                            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:border-emerald-500 outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-slate-400 font-bold block mb-1">당기순이익</label>
+                          <input
+                            type="text"
+                            value={netIncome}
+                            onChange={e => setNetIncome(e.target.value)}
+                            placeholder="예: -12억원"
+                            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:border-emerald-500 outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-[10px] text-slate-400 font-bold block mb-1">핵심 공시/재무 관련 뉴스</label>
+                        <input
+                          type="text"
+                          value={financialNews}
+                          onChange={e => setFinancialNews(e.target.value)}
+                          placeholder="예: 감사인의 의견거절 공시 및 관리종목 지정 우려설 발생"
+                          className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:border-emerald-500 outline-none"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

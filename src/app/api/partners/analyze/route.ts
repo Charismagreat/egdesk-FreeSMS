@@ -149,21 +149,26 @@ ${payload?.review_text ? `사용자 기입 보조 정보:\n${payload.review_text
   "analyst_opinion": "해당 평판 데이터를 기반으로 한 거래 지속 가치 및 리스크 판단 의견"
 }`;
     } else if (analysis_type === 'FINANCIAL') {
-      systemInstruction = `당신은 B2B 중소·중견기업 신용공여 및 채무 안정성을 평가하는 'CFA(공인재무분석사) 레벨의 재무 분석 전문가'입니다. 입력된 기업의 최신 분기/연간 재무 성과 및 주요 공시 정보를 분석하여 비즈니스 안정성을 정량적/정성적으로 종합 진단하십시오. 반드시 지정된 JSON 구조로만 답변하세요.`;
-      userPrompt = `다음 거래처의 최근 재무 실적 및 핵심 공시 정보를 기반으로 재무 건전성 분석을 실행해 주세요.
+      systemInstruction = `당신은 B2B 중소·중견기업 신용공여 및 채무 안정성을 평가하는 'CFA(공인재무분석사) 레벨의 재무 분석 전문가'입니다. 웹 검색 도구(Google Search) 및 첨부된 재무 관련 문서(PDF, 이미지)를 적극 활용하여 요청받은 기업의 최근 분기/연간 재무 성과, 부채비율, 현금흐름 및 주요 공시 정보를 분석하여 비즈니스 안정성을 정량적/정성적으로 종합 진단하십시오. 반드시 지정된 JSON 구조로만 답변하세요.`;
+      userPrompt = `다음 거래처에 대한 최근 재무 건전성 분석 및 신용 등급 평가를 실행해 주세요.
 
-[기업 데이터]
+[분석 대상 기업]
 - 기업명: ${company_name}
-- 주요 재무지표 (최근 분기):
-  * 매출액: ${payload?.revenue || '미지정'} (전년 동기 대비 변동률: ${payload?.revenue_growth || '0%'})
-  * 영업이익: ${payload?.operating_income || '미지정'} (전년 동기 대비 변동률: ${payload?.operating_income_growth || '0%'})
-  * 부채비율: ${payload?.debt_ratio || '미지정'}
-  * 당기순이익: ${payload?.net_income || '미지정'}
-- 주요 공시 내용/뉴스: ${payload?.financial_news || '특이 공시 사항 없음'}
+
+[검색 핵심 키워드 조합 예시]
+"${company_name}" + (재무제표 OR 매출액 OR 영업이익 OR 부채비율 OR 공시 OR 신용등급)
+
+[추가 참조 정보 (보조 수동 수치)]
+- 매출액: ${payload?.revenue || '미지정'} (변동률: ${payload?.revenue_growth || '0%'})
+- 영업이익: ${payload?.operating_income || '미정'} (변동률: ${payload?.operating_income_growth || '0%'})
+- 부채비율: ${payload?.debt_ratio || '미정'}
+- 당기순이익: ${payload?.net_income || '미정'}
+- 주요 특이뉴스/공시: ${payload?.financial_news || '특이 사항 없음'}
 
 [작성 및 출력 조건]
-1. 단순히 수치를 나열하지 말고, 현금흐름의 지속가능성과 단기 채무 지불 능력을 중점적으로 진단하세요.
-2. 아래 JSON 포맷으로 결과를 도출해 주세요. JSON 외의 다른 설명 텍스트는 절대 포함하지 마십시오.
+1. 반드시 Google Search 도구 및 첨부된 문서 파일을 사용하여 실시간 재무 지표와 공시 정보를 수집하십시오.
+2. 단순히 수치만 나열하지 말고 현금흐름의 지속가능성과 단기 채무 지불 능력을 중점적으로 진단하세요.
+3. 아래 JSON 포맷으로 결과를 도출해 주세요. JSON 외의 다른 설명 텍스트는 절대 포함하지 마십시오.
 
 {
   "company_name": "${company_name}",
@@ -184,13 +189,25 @@ ${payload?.review_text ? `사용자 기입 보조 정보:\n${payload.review_text
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
     
     // Google Search Grounding 도구 주입 및 System Instruction 구성
+    const contentsParts: any[] = [{ text: userPrompt }];
+
+    // 업로드된 파일이 페이로드에 들어있으면 inlineData로 함께 전송
+    if (payload?.file_base64 && payload?.file_mime) {
+      contentsParts.push({
+        inlineData: {
+          mimeType: payload.file_mime,
+          data: payload.file_base64
+        }
+      });
+    }
+
     const response = await fetchGeminiWithFallback(geminiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [
           {
-            parts: [{ text: userPrompt }]
+            parts: contentsParts
           }
         ],
         systemInstruction: {
@@ -199,8 +216,8 @@ ${payload?.review_text ? `사용자 기입 보조 정보:\n${payload.review_text
         generationConfig: {
           responseMimeType: "application/json"
         },
-        // 뉴스 분석 혹은 익명 평판 분석 템플릿일 때 Google Search Grounding 도구를 탑재
-        tools: (analysis_type === 'NEWS' || analysis_type === 'REPUTATION') ? [{ googleSearch: {} }] : []
+        // 모든 리스크 관제 분석에 실시간 구글 검색 Grounding 도구 적용
+        tools: [{ googleSearch: {} }]
       })
     });
 
