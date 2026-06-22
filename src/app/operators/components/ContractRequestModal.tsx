@@ -23,6 +23,7 @@ export function ContractRequestModal({ operator, onClose }: ContractRequestModal
   });
   const [workPlace, setWorkPlace] = useState("본사 사무실 (서울 강남구)");
   const [jobDescription, setJobDescription] = useState("사무직 및 서비스 운영 업무");
+  const [contractType, setContractType] = useState("STANDARD_LIMITED");
   
   // 근무 조건 상태
   const [hourlyWage, setHourlyWage] = useState(10030); // 2026년 최저시급 기준 기본값 세팅
@@ -59,8 +60,9 @@ export function ContractRequestModal({ operator, onClose }: ContractRequestModal
     setSuccessMessage(null);
 
     // 검증
-    if (!startDate || !endDate) {
-      setError("근로 계약 기간을 설정해 주세요.");
+    const isLimited = contractType === "STANDARD_LIMITED";
+    if (!startDate || (isLimited && !endDate)) {
+      setError(isLimited ? "근로 계약 기간을 설정해 주세요." : "근로 개시일을 입력해 주세요.");
       setIsSubmitting(false);
       return;
     }
@@ -82,9 +84,10 @@ export function ContractRequestModal({ operator, onClose }: ContractRequestModal
           work_days: workDays,
           contract_memo: contractMemo,
           start_date: startDate,
-          end_date: endDate,
+          end_date: isLimited ? endDate : "",
           work_place: workPlace,
-          job_description: jobDescription
+          job_description: jobDescription,
+          contract_type: contractType
         })
       });
 
@@ -140,6 +143,19 @@ export function ContractRequestModal({ operator, onClose }: ContractRequestModal
             </div>
           )}
 
+          {/* 계약서 유형 선택 셀렉트 */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">근로계약서 양식 유형</label>
+            <select
+              value={contractType}
+              onChange={(e) => setContractType(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-white focus:ring-2 focus:ring-indigo-500 outline-none text-slate-800"
+            >
+              <option value="STANDARD_LIMITED">표준근로계약서 (기간의 정함이 있는 경우)</option>
+              <option value="STANDARD_UNLIMITED">표준근로계약서 (기간의 정함이 없는 경우)</option>
+            </select>
+          </div>
+
           {/* 1. 계약 기본 조항 카드 */}
           <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
             <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -147,7 +163,9 @@ export function ContractRequestModal({ operator, onClose }: ContractRequestModal
             </h4>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-semibold text-slate-500 mb-1">근로 시작일</label>
+                <label className="block text-[11px] font-semibold text-slate-500 mb-1">
+                  {contractType === "STANDARD_LIMITED" ? "근로 시작일" : "근로 개시일"}
+                </label>
                 <input
                   type="date"
                   required
@@ -156,16 +174,25 @@ export function ContractRequestModal({ operator, onClose }: ContractRequestModal
                   className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-xs bg-white focus:ring-1 focus:ring-indigo-500 outline-none"
                 />
               </div>
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-500 mb-1">근로 종료일</label>
-                <input
-                  type="date"
-                  required
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-xs bg-white focus:ring-1 focus:ring-indigo-500 outline-none"
-                />
-              </div>
+              {contractType === "STANDARD_LIMITED" ? (
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-500 mb-1">근로 종료일</label>
+                  <input
+                    type="date"
+                    required
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-xs bg-white focus:ring-1 focus:ring-indigo-500 outline-none"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-500 mb-1">근로 종료일</label>
+                  <div className="px-2 py-2.5 bg-slate-100 border border-slate-200 rounded-lg text-[10px] text-slate-400 font-bold leading-none h-[30px] flex items-center">
+                    기간의 정함 없음 (정규직)
+                  </div>
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

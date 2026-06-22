@@ -32,7 +32,8 @@ export async function POST(req: Request) {
       start_date,
       end_date,
       work_place,
-      job_description
+      job_description,
+      contract_type
     } = await req.json();
 
     if (!operator_id) {
@@ -68,6 +69,7 @@ export async function POST(req: Request) {
       end_date: end_date || '',
       work_place: work_place || '',
       job_description: job_description || '',
+      contract_type: contract_type || 'STANDARD_LIMITED',
       status: 'PENDING',
       signature_image: null,
       signed_at: null,

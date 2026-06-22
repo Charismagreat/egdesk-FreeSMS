@@ -25,6 +25,7 @@ async function initContractsDatabase() {
         { name: 'end_date', type: 'TEXT' },
         { name: 'work_place', type: 'TEXT' },
         { name: 'job_description', type: 'TEXT' },
+        { name: 'contract_type', type: 'TEXT', defaultValue: 'STANDARD_LIMITED' },
         { name: 'status', type: 'TEXT', defaultValue: 'SIGNED' },
         { name: 'signature_image', type: 'TEXT' },
         { name: 'signed_at', type: 'TEXT' },
@@ -95,6 +96,7 @@ async function initContractsDatabase() {
         { name: 'end_date', type: 'TEXT' },
         { name: 'work_place', type: 'TEXT' },
         { name: 'job_description', type: 'TEXT' },
+        { name: 'contract_type', type: "TEXT DEFAULT 'STANDARD_LIMITED'" },
         { name: 'status', type: "TEXT DEFAULT 'SIGNED'" },
         { name: 'signature_image', type: 'TEXT' },
         { name: 'signed_at', type: 'TEXT' },
@@ -160,14 +162,26 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: '근로 계약 조건 변경 권한이 없습니다. 최고운영자 계정으로 서명 요청하세요.' }, { status: 403 });
     }
 
-    const { operator_id, hourly_wage, weekly_hours, allow_weekly_holiday_paid, work_days, contract_memo } = await req.json();
+    const { 
+      operator_id, 
+      hourly_wage, 
+      weekly_hours, 
+      allow_weekly_holiday_paid, 
+      work_days, 
+      contract_memo,
+      contract_type,
+      start_date,
+      end_date,
+      work_place,
+      job_description 
+    } = await req.json();
 
     if (!operator_id) {
       return NextResponse.json({ success: false, error: '근무 조건을 변경할 직원 ID가 누락되었습니다.' }, { status: 400 });
     }
 
     const nowStr = new Date().toISOString();
-    const updatedContract = {
+    const updatedContract: any = {
       operator_id: String(operator_id),
       hourly_wage: parseFloat(hourly_wage || 10000),
       weekly_hours: parseFloat(weekly_hours || 40),
@@ -176,6 +190,12 @@ export async function POST(req: Request) {
       contract_memo: contract_memo || '',
       updated_at: nowStr
     };
+
+    if (contract_type !== undefined) updatedContract.contract_type = contract_type;
+    if (start_date !== undefined) updatedContract.start_date = start_date;
+    if (end_date !== undefined) updatedContract.end_date = end_date;
+    if (work_place !== undefined) updatedContract.work_place = work_place;
+    if (job_description !== undefined) updatedContract.job_description = job_description;
 
     // Upsert 형태로 삽입/갱신 (uniqueKeyColumns에 맞춰 egdesk-helpers의 insertRows가 덮어씌움)
     await insertRows('crm_operator_contract_settings', [updatedContract]);

@@ -25,6 +25,7 @@ interface Contract {
   end_date?: string;
   work_place?: string;
   job_description?: string;
+  contract_type?: string;
   status: string;
   signature_image?: string | null;
   signed_at?: string | null;
@@ -241,7 +242,14 @@ export default function MobileContractSignPage() {
           {operator?.name}님과 (주)이지데스크 간의 표준근로계약이 법적으로 안전하게 체결되었습니다. 서명 완료본은 사내 인사 시스템에 자동 적재되어 보관됩니다.
         </p>
         <div className="w-full max-w-xs bg-white rounded-2xl border border-slate-100 p-4 shadow-sm text-left text-xs space-y-2 mb-6">
-          <div className="flex justify-between"><span className="text-slate-400">계약서 명칭</span><span className="font-semibold text-slate-700">표준근로계약서 (기간제)</span></div>
+          <div className="flex justify-between">
+            <span className="text-slate-400">계약서 명칭</span>
+            <span className="font-semibold text-slate-700">
+              {contract?.contract_type === "STANDARD_UNLIMITED" 
+                ? "표준근로계약서 (무기계약)" 
+                : "표준근로계약서 (기간제)"}
+            </span>
+          </div>
           <div className="flex justify-between"><span className="text-slate-400">근로자 성명</span><span className="font-semibold text-slate-700">{operator?.name}</span></div>
           <div className="flex justify-between"><span className="text-slate-400">체결 일시</span><span className="font-semibold text-slate-700 font-mono">{contract?.signed_at || new Date().toLocaleString()}</span></div>
           <div className="flex justify-between"><span className="text-slate-400">계약 상태</span><span className="font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">합의 체결 완료</span></div>
@@ -262,7 +270,11 @@ export default function MobileContractSignPage() {
       <div className="bg-indigo-900 text-white px-5 py-6 rounded-b-[32px] shadow-lg">
         <div className="flex items-center gap-2.5">
           <FileText className="w-6 h-6 text-indigo-200" />
-          <h2 className="text-base font-bold tracking-tight">표준근로계약서 (기간제)</h2>
+          <h2 className="text-base font-bold tracking-tight">
+            {contract?.contract_type === "STANDARD_UNLIMITED" 
+              ? "표준근로계약서 (기간의 정함이 없는 경우)" 
+              : "표준근로계약서 (기간의 정함이 있는 경우)"}
+          </h2>
         </div>
         <p className="text-xs text-indigo-200/80 mt-1 leading-relaxed">
           (주)이지데스크(이하 "사업주")와 {operator?.name}님(이하 "근로자")은 서로 합의 하에 근로기준법을 성실히 준수하며 아래와 같이 근로계약을 체결합니다.
@@ -279,9 +291,13 @@ export default function MobileContractSignPage() {
           </h3>
           <div className="space-y-3.5 text-xs">
             <div>
-              <p className="text-slate-400 font-medium">제1조. 근로계약기간</p>
+              <p className="text-slate-400 font-medium">
+                {contract?.contract_type === "STANDARD_UNLIMITED" ? "제1조. 근로개시일" : "제1조. 근로계약기간"}
+              </p>
               <p className="text-slate-800 font-bold mt-0.5">
-                {contract?.start_date || "채용일"}부터 {contract?.end_date || "기간 정함 없음"}까지
+                {contract?.contract_type === "STANDARD_UNLIMITED" 
+                  ? `${contract?.start_date || "채용일"}부터 (기간의 정함이 없는 근로계약)`
+                  : `${contract?.start_date || "채용일"}부터 ${contract?.end_date || "기간 정함 없음"}까지`}
               </p>
             </div>
             <div>
@@ -377,7 +393,10 @@ export default function MobileContractSignPage() {
         {/* 4. 법정 약관 및 약정 (제7조 ~ 제11조) */}
         <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm space-y-4">
           <h3 className="text-xs font-bold text-indigo-900 flex items-center gap-1.5 border-b border-slate-100 pb-2">
-            <CheckCircle2 className="w-4 h-4" /> 제7조 ~ 제11조. 근로 권리 및 의무 약정
+            <CheckCircle2 className="w-4 h-4" /> 
+            {contract?.contract_type === "STANDARD_UNLIMITED" 
+              ? "제7조 ~ 제10조. 근로 권리 및 의무 약정" 
+              : "제7조 ~ 제11조. 근로 권리 및 의무 약정"}
           </h3>
           <div className="space-y-3 text-xs leading-relaxed text-slate-600">
             <p>
@@ -398,12 +417,16 @@ export default function MobileContractSignPage() {
               <strong className="text-slate-800 font-semibold block">제9조. 근로계약서 교부</strong>
               사업주는 근로계약을 체결함과 동시에 본 계약서를 복사 또는 디지털 서본하여 근로자의 별도 교부요구 없이 근로자에게 즉시 메신저/이메일 등으로 교부합니다. (근로기준법 제17조 준수)
             </p>
+            {contract?.contract_type !== "STANDARD_UNLIMITED" && (
+              <p>
+                <strong className="text-slate-800 font-semibold block">제10조. 성실 이행 의무</strong>
+                사업주와 근로자는 각자가 근로계약, 취업규칙, 단체협약을 성실히 준수하고 신의칙에 의거하여 이행할 것을 서약합니다.
+              </p>
+            )}
             <p>
-              <strong className="text-slate-800 font-semibold block">제10조. 성실 이행 의무</strong>
-              사업주와 근로자는 각자가 근로계약, 취업규칙, 단체협약을 성실히 준수하고 신의칙에 의거하여 이행할 것을 서약합니다.
-            </p>
-            <p>
-              <strong className="text-slate-800 font-semibold block">제11조. 기타 조항</strong>
+              <strong className="text-slate-800 font-semibold block">
+                {contract?.contract_type === "STANDARD_UNLIMITED" ? "제10조. 기타 조항" : "제11조. 기타 조항"}
+              </strong>
               본 계약에 정하지 않은 근무 조건 및 해석 분쟁은 대한민국 근로기준법령 및 노동 관련 관례에 따릅니다.
             </p>
           </div>
@@ -420,6 +443,12 @@ export default function MobileContractSignPage() {
               <span className="text-slate-400">사업주 (갑)</span>
               <span className="font-bold text-slate-800">(주)이지데스크 대표자 (인)</span>
             </div>
+            {contract?.contract_type === "STANDARD_UNLIMITED" && (
+              <div className="flex justify-between">
+                <span className="text-slate-400">사업주 연락처</span>
+                <span className="font-bold text-slate-800">02-1234-5678</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-slate-400">근로자 (을) 성명</span>
               <span className="font-bold text-slate-800">{operator?.name}</span>
