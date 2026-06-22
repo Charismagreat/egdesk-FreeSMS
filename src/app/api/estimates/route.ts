@@ -246,14 +246,7 @@ export async function GET(req: Request) {
       }
 
       const estRes = await queryTable('crm_estimates', { filters: { id: estimateId } });
-      const estimate = estRes.rows && estRes.rows.length > 0 && !estRes.rows[0].deleted_at ? estRes.rows[0] : null;
-
-      if (!estimate) {
-        return NextResponse.json({ success: false, error: '해당 견적 내역을 찾을 수 없습니다.' }, { status: 404 });
-      }
-
-      const itemsRes = await queryTable('crm_estimate_items', { filters: { estimate_id: estimateId } });
-      const items = itemsRes.rows || [];
+      let estimate = estRes.rows && estRes.rows.length > 0 && !estRes.rows[0].deleted_at ? estRes.rows[0] : null;
 
       // 💡 안전 가드: 발주서(crm_purchase_orders) 또는 수주서(crm_sales_orders)로의 전환 여부 검사 (queryTable 우회)
       const poRes = await queryTable('crm_purchase_orders', { filters: { estimate_id: estimateId }, limit: 1 });
@@ -262,6 +255,60 @@ export async function GET(req: Request) {
       const soRows = soRes.rows || [];
       
       const isLinked = poRows.length > 0 || soRows.length > 0;
+
+      // 💡 폴백 가드: 견적서 마스터가 데이터베이스에 존재하지 않는 경우 (예: 다이렉트 수주 등으로 섀도우 누락 시)
+      // 수주서 또는 발주서가 존재한다면 임시 가상 견적 객체를 구성하여 404 에러를 방지합니다.
+      if (!estimate) {
+        if (soRows.length > 0) {
+          const so = soRows[0];
+          estimate = {
+            id: estimateId,
+            type: 'OUTBOUND',
+            direction_status: 'RECEIVED',
+            partner_name: so.customer_name || '알 수 없는 바이어',
+            partner_phone: so.customer_phone || '',
+            total_amount: so.total_amount || 0,
+            file_url: 'AI 수주 연동 자동 복구',
+            ai_parsed: 1,
+            sales_order_number: so.client_order_no || so.id,
+            created_at: so.created_at || new Date().toISOString()
+          };
+        } else if (poRows.length > 0) {
+          const po = poRows[0];
+          estimate = {
+            id: estimateId,
+            type: 'INBOUND',
+            direction_status: 'SENT',
+            partner_name: po.vendor_name || '알 수 없는 공급처',
+            partner_phone: po.vendor_phone || '',
+            total_amount: po.total_amount || 0,
+            file_url: 'AI 발주 연동 자동 복구',
+            ai_parsed: 1,
+            purchase_order_number: po.id,
+            created_at: po.created_at || new Date().toISOString()
+          };
+        }
+      }
+
+      if (!estimate) {
+        return NextResponse.json({ success: false, error: '해당 견적 내역을 찾을 수 없습니다.' }, { status: 404 });
+      }
+
+      const itemsRes = await queryTable('crm_estimate_items', { filters: { estimate_id: estimateId } });
+      let items = itemsRes.rows || [];
+
+      // 만약 품목 정보도 누락되어 있다면 가상의 품목을 추가하여 화면이 정상 렌더링되도록 보정
+      if (items.length === 0) {
+        items = [{
+          id: Date.now(),
+          estimate_id: estimateId,
+          product_id: '',
+          product_name: '수발주 연동 통합 품목',
+          quantity: 1,
+          unit_price: estimate.total_amount || 0,
+          amount: estimate.total_amount || 0
+        }];
+      }
 
       return NextResponse.json({ 
         success: true, 
