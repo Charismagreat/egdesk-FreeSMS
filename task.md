@@ -16,5 +16,5 @@
   - [x] `src/app/m/form-management-new/components/MobileFormIssuer.tsx` 내 [이메일로 발송] 버튼 및 이메일 입력 모달 추가
 - [/] 타입 검증 및 동작 확인
   - [ ] `npx tsc --noEmit` 정적 타입 검증
-  - [ ] 수동 시나리오 검증 및 테스트 진행
+  - [x] UI를 통한 업로드 및 빌드 테스트 확인진행
 - [ ] Walkthrough 보고서 작성 및 최종 커밋

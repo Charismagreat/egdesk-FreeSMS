@@ -40,6 +40,40 @@ export default function OutboundHub({
   // 다중 선택 로컬 상태
   const [selectedOutboundIds, setSelectedOutboundIds] = useState<Set<string>>(new Set());
 
+  // 다이렉트 수주 업로드 로컬 상태
+  const [isUploading, setIsUploading] = useState(false);
+
+  // 다이렉트 수주 업로드 핸들러
+  const handleDirectSoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch("/api/estimates/ocr-sales-order", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message);
+        // 페이지 리로드로 대장 갱신 (또는 상위에서 fetchData를 호출해야 하는데 props에 없으므로 리로드 유도)
+        window.location.reload();
+      } else {
+        alert("업로드 실패: " + data.error);
+      }
+    } catch (error) {
+      console.error(error);
+      alert("오류가 발생했습니다.");
+    } finally {
+      setIsUploading(false);
+      e.target.value = "";
+    }
+  };
+
   // 필터링 및 정렬 파이프라인
   const filteredOutboundEstimates = estimates
     .filter((e) => e.type === "OUTBOUND")
@@ -199,6 +233,27 @@ export default function OutboundHub({
               <Plus className="w-4 h-4 text-amber-450" />
               AI 최적 가격 견적서 작성
             </button>
+          )}
+
+          {outboundSubTab === "sos" && (
+            <div className="flex gap-2">
+              <input
+                type="file"
+                id="direct-so-upload"
+                accept="image/*,application/pdf"
+                className="hidden"
+                onChange={handleDirectSoUpload}
+                disabled={isUploading}
+              />
+              <label
+                htmlFor="direct-so-upload"
+                className={`px-4 py-2 ${
+                  isUploading ? "bg-indigo-400" : "bg-indigo-600 hover:bg-indigo-500"
+                } text-white text-xs font-bold rounded-xl shadow-lg flex items-center gap-1.5 cursor-pointer`}
+              >
+                {isUploading ? "🔄 AI 스캔 중..." : "📥 바이어 발주서 스캔 (다이렉트 수주)"}
+              </label>
+            </div>
           )}
         </div>
       </div>

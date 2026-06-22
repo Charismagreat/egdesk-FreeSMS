@@ -380,7 +380,9 @@ export async function setupDatabase() {
     { name: 'id', type: 'INTEGER', notNull: true },
     { name: 'estimate_id', type: 'TEXT', notNull: true },
     { name: 'product_id', type: 'TEXT' },
+    { name: 'item_code', type: 'TEXT' },
     { name: 'product_name', type: 'TEXT', notNull: true },
+    { name: 'spec', type: 'TEXT' },
     { name: 'quantity', type: 'INTEGER', notNull: true },
     { name: 'unit_price', type: 'INTEGER', notNull: true },
     { name: 'amount', type: 'INTEGER', notNull: true }
@@ -402,10 +404,12 @@ export async function setupDatabase() {
   await safeCreateTable('수주서 관리', [
     { name: 'id', type: 'TEXT', notNull: true },
     { name: 'estimate_id', type: 'TEXT' },
+    { name: 'client_order_no', type: 'TEXT' },                   // 바이어 수주번호
     { name: 'customer_name', type: 'TEXT', notNull: true },
     { name: 'customer_phone', type: 'TEXT' },
     { name: 'status', type: 'TEXT', notNull: true },             // 'REGISTERED', 'CONFIRMED'
     { name: 'total_amount', type: 'INTEGER' },
+    { name: 'delivery_date', type: 'TEXT' },                     // 납기일
     { name: 'created_at', type: 'TEXT', notNull: true }
   ], { tableName: 'crm_sales_orders', uniqueKeyColumns: ['id'] });
 
