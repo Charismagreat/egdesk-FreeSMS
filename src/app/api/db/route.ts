@@ -11,7 +11,8 @@ import {
   insertRows,
   updateRows,
   deleteRows,
-  deleteTable
+  deleteTable,
+  aggregateTable
 } from '../../../../egdesk-helpers';
 
 export const dynamic = 'force-dynamic';
@@ -64,12 +65,10 @@ export async function GET(request: Request) {
           const hasDeletedCol = columns.some((col: any) => col.name === 'deleted_at');
           
           // 소프트 삭제된 테이블인 경우 일반 감시 카운트는 deleted_at IS NULL인 항목만 계산
-          const countQuery = hasDeletedCol 
-            ? `SELECT COUNT(*) as cnt FROM "${name}" WHERE "deleted_at" IS NULL`
-            : `SELECT COUNT(*) as cnt FROM "${name}"`;
-          
-          const countRes = await executeSQL(countQuery);
-          const cnt = countRes.rows?.[0]?.cnt || 0;
+          const countCol = columns[0]?.name || 'id';
+          const aggOptions = hasDeletedCol ? { filters: { deleted_at: null } } : {};
+          const countRes = await aggregateTable(name, countCol, 'COUNT', aggOptions);
+          const cnt = countRes.value || 0;
           
           // TABLES 설정을 기반으로 동적으로 displayName 매핑 (설정 파일 누락 시 물리명 폴백 적용)
           const foundTable = Object.values(TABLES).find((tbl: any) => tbl.name === name);
