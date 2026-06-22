@@ -23,24 +23,24 @@ export function Header({ activeTab, setActiveTab }: HeaderProps) {
       <div className="flex bg-slate-200/60 p-1.5 rounded-2xl border border-slate-100 max-w-md shadow-inner shrink-0">
         <button 
           onClick={() => setActiveTab("VENDOR")}
-          className={`flex-1 py-2.5 px-4 rounded-xl text-xs md:text-sm font-black flex items-center justify-center transition-all border-none bg-transparent cursor-pointer ${
-            activeTab === "VENDOR" ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:text-slate-800"
+          className={`flex-1 py-2.5 px-4 rounded-xl text-xs md:text-sm font-black flex items-center justify-center transition-all border-none cursor-pointer whitespace-nowrap ${
+            activeTab === "VENDOR" ? "bg-emerald-600 text-white shadow-md" : "bg-transparent text-slate-500 hover:text-slate-800"
           }`}
         >
           공급처 (Vendor)
         </button>
         <button 
           onClick={() => setActiveTab("BUYER")}
-          className={`flex-1 py-2.5 px-4 rounded-xl text-xs md:text-sm font-black flex items-center justify-center transition-all border-none bg-transparent cursor-pointer ${
-            activeTab === "BUYER" ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:text-slate-800"
+          className={`flex-1 py-2.5 px-4 rounded-xl text-xs md:text-sm font-black flex items-center justify-center transition-all border-none cursor-pointer whitespace-nowrap ${
+            activeTab === "BUYER" ? "bg-emerald-600 text-white shadow-md" : "bg-transparent text-slate-500 hover:text-slate-800"
           }`}
         >
           바이어 (Buyer)
         </button>
         <button 
           onClick={() => setActiveTab("AFFILIATE")}
-          className={`flex-1 py-2.5 px-4 rounded-xl text-xs md:text-sm font-black flex items-center justify-center transition-all border-none bg-transparent cursor-pointer whitespace-nowrap ${
-            activeTab === "AFFILIATE" ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:text-slate-800"
+          className={`flex-1 py-2.5 px-4 rounded-xl text-xs md:text-sm font-black flex items-center justify-center transition-all border-none cursor-pointer whitespace-nowrap ${
+            activeTab === "AFFILIATE" ? "bg-emerald-600 text-white shadow-md" : "bg-transparent text-slate-500 hover:text-slate-800"
           }`}
         >
           🤝 관계사 (Affiliate)
