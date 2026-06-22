@@ -12,6 +12,8 @@ interface PartnerTableProps {
   handleEditClick: (pt: Partner, e: React.MouseEvent) => void;
   handleCreateClick: () => void;
   handleDeletePartner: (pt: Partner, e: React.MouseEvent) => void;
+  // 🔍 AI 위해 모니터링 Props 추가
+  openAnalysisPopup: (pt: Partner, e: React.MouseEvent) => void;
 }
 
 export function PartnerTable({
@@ -23,7 +25,9 @@ export function PartnerTable({
   openDetailPopup,
   handleEditClick,
   handleCreateClick,
-  handleDeletePartner
+  handleDeletePartner,
+  // 🔍 AI 위해 모니터링 Props 추가
+  openAnalysisPopup
 }: PartnerTableProps) {
   return (
     <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-5">
@@ -115,6 +119,13 @@ export function PartnerTable({
                   </td>
                   <td className="py-4 px-3 text-right">
                     <div className="flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
+                      <button 
+                        onClick={(e) => openAnalysisPopup(pt, e)}
+                        className="flex items-center gap-1.5 py-1.5 px-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg transition-colors border-none cursor-pointer text-[10px] font-black shrink-0"
+                        title="AI 위해 분석"
+                      >
+                        🔍 AI 분석
+                      </button>
                       <button 
                         onClick={(e) => handleEditClick(pt, e)}
                         className="p-1.5 bg-slate-100 text-slate-650 hover:bg-slate-200 rounded-lg transition-colors border-none cursor-pointer"

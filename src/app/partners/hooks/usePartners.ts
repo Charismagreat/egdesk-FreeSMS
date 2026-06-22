@@ -38,6 +38,12 @@ export function usePartners() {
   const [contacts, setContacts] = useState<any[]>([]);
   const [isCardAnalyzing, setIsCardAnalyzing] = useState(false);
 
+  // 🔍 AI 거래처 위해 모니터링 상태 변수
+  const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
+  const [analysisPartner, setAnalysisPartner] = useState<Partner | null>(null);
+  const [partnerReports, setPartnerReports] = useState<any[]>([]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
   // 상세 거래 타임라인 팝업 상태
   const [isDetailOpen, setIsDetailOpen, isDetailOpenRestored] = usePersistedState("egdesk_partners_isDetailOpen", false);
   const [selectedPartner, setSelectedPartner, isSelectedPartnerRestored] = usePersistedState<Partner | null>("egdesk_partners_selectedPartner", null);
@@ -184,6 +190,55 @@ export function usePartners() {
     } catch (err: any) {
       alert(err.message || '명함 처리 중 오류가 발생했습니다.');
       setIsCardAnalyzing(false);
+    }
+  };
+
+  // 🔍 AI 거래처 조사 팝업 구동 및 과거 이력 조회
+  const openAnalysisPopup = async (pt: Partner, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setAnalysisPartner(pt);
+    setIsAnalysisOpen(true);
+    await fetchPartnerReports(pt.id);
+  };
+
+  const fetchPartnerReports = async (partnerId: string) => {
+    try {
+      const res = await fetch(`/api/partners/analyze?partner_id=${partnerId}`);
+      const data = await res.json();
+      if (data.success) {
+        setPartnerReports(data.reports || []);
+      }
+    } catch (err) {
+      console.error("AI 리포트 이력 조회 실패:", err);
+    }
+  };
+
+  // 🔍 AI 리스크 조사 실행 API 호출
+  const handleRunAiAnalysis = async (type: 'NEWS' | 'REPUTATION' | 'FINANCIAL', payload: any) => {
+    if (!analysisPartner) return;
+    setIsAnalyzing(true);
+    try {
+      const res = await fetch('/api/partners/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          partner_id: analysisPartner.id,
+          company_name: analysisPartner.company_name,
+          analysis_type: type,
+          payload
+        })
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        await fetchPartnerReports(analysisPartner.id);
+      } else {
+        alert(`⚠️ AI 분석 오류: ${data.error}`);
+      }
+    } catch (err) {
+      alert("서버 연결에 실패하여 분석을 실행하지 못했습니다.");
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -428,6 +483,15 @@ export function usePartners() {
     totalSales,
     contacts,
     isCardAnalyzing,
-    handleCardUpload
+    handleCardUpload,
+    // 🔍 AI 위해 모니터링 추가
+    isAnalysisOpen,
+    setIsAnalysisOpen,
+    analysisPartner,
+    setAnalysisPartner,
+    partnerReports,
+    isAnalyzing,
+    openAnalysisPopup,
+    handleRunAiAnalysis
   };
 }

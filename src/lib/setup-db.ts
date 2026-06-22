@@ -1396,6 +1396,25 @@ export async function setupDatabase() {
     { name: 'restored_by', type: 'TEXT' }
   ], { tableName: 'easybot_action_audit_logs', uniqueKeyColumns: ['id'] });
 
+  // 41-9. B2B 거래처 AI 리스크 분석 보고서 대장 (crm_partner_ai_reports)
+  await safeCreateTable('거래처 AI 리스크 보고서', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'partner_id', type: 'TEXT', notNull: true },
+    { name: 'company_name', type: 'TEXT', notNull: true },
+    { name: 'report_type', type: 'TEXT', notNull: true },         // 'NEWS' | 'REPUTATION' | 'FINANCIAL'
+    { name: 'risk_grade', type: 'TEXT' },                         // 위해 등급 ('안정' | '보통' | '주의' | '위험' 등) 또는 risk_score (1~5)
+    { name: 'summary', type: 'TEXT' },
+    { name: 'result_json', type: 'TEXT', notNull: true },         // AI 분석 결과 원본 JSON (Stringified)
+    { name: 'created_at', type: 'TEXT', notNull: true },
+    { name: 'uuid', type: 'TEXT' },
+    { name: 'updated_at', type: 'TEXT' },
+    { name: 'updated_by', type: 'TEXT' },
+    { name: 'deleted_at', type: 'TEXT' },
+    { name: 'deleted_by', type: 'TEXT' },
+    { name: 'restored_at', type: 'TEXT' },
+    { name: 'restored_by', type: 'TEXT' }
+  ], { tableName: 'crm_partner_ai_reports', uniqueKeyColumns: ['id'] });
+
   // 42. Safety Policies Table (안전보건방침 및 목표 설정 대장)
   await safeCreateTable('안전보건방침 및 목표', [
     { name: 'id', type: 'INTEGER', notNull: true },

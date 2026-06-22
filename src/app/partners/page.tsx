@@ -1,11 +1,12 @@
 "use client";
-
+ 
 import { usePartners } from "./hooks/usePartners";
 import { Header } from "./components/Header";
 import { StatsSummary } from "./components/StatsSummary";
 import { PartnerTable } from "./components/PartnerTable";
 import { PartnerFormModal } from "./components/PartnerFormModal";
 import { PartnerDetailModal } from "./components/PartnerDetailModal";
+import { PartnerAnalysisModal } from "./components/PartnerAnalysisModal";
 
 export default function PartnersDashboard() {
   const {
@@ -44,7 +45,15 @@ export default function PartnersDashboard() {
     // 📇 명함 관리 추가
     contacts,
     isCardAnalyzing,
-    handleCardUpload
+    handleCardUpload,
+    // 🔍 AI 위해 모니터링 추가
+    isAnalysisOpen,
+    setIsAnalysisOpen,
+    analysisPartner,
+    partnerReports,
+    isAnalyzing,
+    openAnalysisPopup,
+    handleRunAiAnalysis
   } = usePartners();
 
   // 외상 거래 경고 거래처 집계
@@ -81,6 +90,8 @@ export default function PartnersDashboard() {
         handleEditClick={handleEditClick}
         handleCreateClick={handleCreateClick}
         handleDeletePartner={handleDeletePartner}
+        // 🔍 AI 위해 모니터링 추가
+        openAnalysisPopup={openAnalysisPopup}
       />
 
       <PartnerFormModal
@@ -107,6 +118,15 @@ export default function PartnersDashboard() {
         selectedPartner={selectedPartner}
         detailHistory={detailHistory}
         detailLoading={detailLoading}
+      />
+
+      <PartnerAnalysisModal
+        isAnalysisOpen={isAnalysisOpen}
+        setIsAnalysisOpen={setIsAnalysisOpen}
+        analysisPartner={analysisPartner}
+        partnerReports={partnerReports}
+        isAnalyzing={isAnalyzing}
+        handleRunAiAnalysis={handleRunAiAnalysis}
       />
 
     </div>
