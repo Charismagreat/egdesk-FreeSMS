@@ -59,96 +59,64 @@ export async function POST(req: Request) {
 }
 `;
 
-    let parsedData: any = null;
-    let isFallbackApplied = false;
-
-    try {
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
-      const response = await fetchGeminiWithFallback(geminiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                { text: prompt },
-                {
-                  inlineData: {
-                    mimeType: mimeType,
-                    data: base64Image
-                  }
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
+    const response = await fetchGeminiWithFallback(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { text: prompt },
+              {
+                inlineData: {
+                  mimeType: mimeType,
+                  data: base64Image
                 }
-              ]
-            }
-          ],
-          generationConfig: {
-            responseMimeType: "application/json"
+              }
+            ]
           }
-        })
-      });
+        ],
+        generationConfig: {
+          responseMimeType: "application/json"
+        }
+      })
+    });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
+    if (!response.ok) {
+      throw new Error(`Gemini OCR API 통신 실패: HTTP ${response.status}`);
+    }
 
-      const aiData = await response.json();
-      const responseText = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
+    const aiData = await response.json();
+    const responseText = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
 
-      // AI 토큰 사용량 로깅
-      try {
-        const prompt_tokens = aiData.usageMetadata?.promptTokenCount || 0;
-        const completion_tokens = aiData.usageMetadata?.candidatesTokenCount || 0;
-        const total_tokens = aiData.usageMetadata?.totalTokenCount || (prompt_tokens + completion_tokens);
-        const logId = `TKC-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-        const logTime = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
-        await insertRows('ai_token_usage_logs', [{
-          id: logId,
-          model: selectedModel || 'gemini-3.5-flash',
-          purpose: 'DIRECT_SO_OCR',
-          prompt_tokens,
-          completion_tokens,
-          total_tokens,
-          created_at: logTime
-        }]);
-      } catch (e: any) {
-        console.error('AI 토큰 로깅 실패:', e.message);
-      }
+    // AI 토큰 사용량 로깅
+    try {
+      const prompt_tokens = aiData.usageMetadata?.promptTokenCount || 0;
+      const completion_tokens = aiData.usageMetadata?.candidatesTokenCount || 0;
+      const total_tokens = aiData.usageMetadata?.totalTokenCount || (prompt_tokens + completion_tokens);
+      const logId = `TKC-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      const logTime = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+      await insertRows('ai_token_usage_logs', [{
+        id: logId,
+        model: selectedModel || 'gemini-3.5-flash',
+        purpose: 'DIRECT_SO_OCR',
+        prompt_tokens,
+        completion_tokens,
+        total_tokens,
+        created_at: logTime
+      }]);
+    } catch (e: any) {
+      console.error('AI 토큰 로깅 실패:', e.message);
+    }
 
-      try {
-        const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
-        parsedData = JSON.parse(cleanJson);
-      } catch (e) {
-        console.error('Failed to parse Gemini response:', responseText);
-        throw new Error('AI 분석 결과를 JSON으로 변환하는 데 실패했습니다.');
-      }
-    } catch (geminiErr: any) {
-      console.warn(`[OCR API Fallback Activated] Gemini API 실패 (${geminiErr.message}), 모의 판독 데이터로 대체 처리합니다.`);
-      isFallbackApplied = true;
-      parsedData = {
-        partnerName: "(주)미래푸드 유통 [모의 판독]",
-        picName: "박정우 대표",
-        orderNo: `MOCK-PO-${Date.now().toString().slice(-6)}`,
-        orderDate: nowStr.split(' ')[0],
-        deliveryDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        items: [
-          {
-            itemCode: "PRD-ET-YEG-1K",
-            itemName: "에티오피아 예가체프 G1 워시드 원두 1kg",
-            spec: "1kg / 원두",
-            quantity: 50,
-            unitPrice: 18500,
-            amount: 925000
-          },
-          {
-            itemCode: "PRD-CUP-WHT-MD",
-            itemName: "친환경 다회용 컵 (중형/화이트)",
-            spec: "100개입",
-            quantity: 20,
-            unitPrice: 1500,
-            amount: 30000
-          }
-        ]
-      };
+    let parsedData;
+    try {
+      const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+      parsedData = JSON.parse(cleanJson);
+    } catch (e) {
+      console.error('Failed to parse Gemini response:', responseText);
+      throw new Error('AI 분석 결과를 JSON으로 변환하는 데 실패했습니다.');
     }
 
     const { partnerName, orderNo, orderDate, deliveryDate, items } = parsedData;
