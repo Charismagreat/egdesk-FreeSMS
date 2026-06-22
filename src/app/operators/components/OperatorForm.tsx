@@ -70,6 +70,16 @@ export function OperatorForm({
           />
         </div>
         <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">연락처 (휴대폰)</label>
+          <input
+            type="text"
+            value={form.phone}
+            onChange={(e) => onUpdateField("phone", e.target.value)}
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white"
+            placeholder="예: 01012345678 (숫자만 입력)"
+          />
+        </div>
+        <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">
             사원번호 <span className="text-xs text-red-500 font-normal">(필수)</span>
           </label>

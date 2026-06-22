@@ -13,7 +13,8 @@ export function useOperators() {
     password: "",
     name: "",
     role: "SUB_OPERATOR",
-    employee_number: ""
+    employee_number: "",
+    phone: ""
   });
   const [editingOperator, setEditingOperator] = useState<Operator | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,7 +54,8 @@ export function useOperators() {
       password: "", // 보안상 비움 (수정 시 미기입하면 기존 비밀번호 유지)
       name: op.name,
       role: op.role,
-      employee_number: op.employee_number || ""
+      employee_number: op.employee_number || "",
+      phone: op.phone || ""
     });
   };
 
@@ -64,7 +66,8 @@ export function useOperators() {
       password: "",
       name: "",
       role: "SUB_OPERATOR",
-      employee_number: ""
+      employee_number: "",
+      phone: ""
     });
   };
 
@@ -87,14 +90,16 @@ export function useOperators() {
             password: form.password,
             name: form.name,
             newRole: form.role,
-            employee_number: form.employee_number
+            employee_number: form.employee_number,
+            phone: form.phone
           }
         : {
             username: form.username,
             password: form.password,
             name: form.name,
             newRole: form.role,
-            employee_number: form.employee_number
+            employee_number: form.employee_number,
+            phone: form.phone
           };
 
       const res = await fetch(url, {

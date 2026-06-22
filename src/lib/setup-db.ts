@@ -245,6 +245,7 @@ export async function setupDatabase() {
     { name: 'name', type: 'TEXT', notNull: true },
     { name: 'role', type: 'TEXT', notNull: true }, // 'SUPER_ADMIN' or 'SUB_OPERATOR'
     { name: 'employee_number', type: 'TEXT' },
+    { name: 'phone', type: 'TEXT' },
     { name: 'my_card_image_url', type: 'TEXT' }, // 직원 본인의 명함 이미지 URL
     { name: 'created_at', type: 'TEXT' },
     { name: 'uuid', type: 'TEXT' },
@@ -2030,6 +2031,18 @@ export async function setupDatabase() {
       }
     } catch (e: any) {
       console.warn('⚠️ crm_operators migration check warning:', e.message);
+    }
+
+    // 8-2) crm_operators 테이블 연락처(phone) 컬럼 보정
+    try {
+      const colInfoRes = await executeSQL("PRAGMA table_info(crm_operators);");
+      const opCols = (colInfoRes?.rows || []).map((c: any) => c.name);
+      if (!opCols.includes('phone')) {
+        await executeSQL("ALTER TABLE crm_operators ADD COLUMN phone TEXT;");
+        console.log('✓ In-app migration: added phone to crm_operators');
+      }
+    } catch (e: any) {
+      console.warn('⚠️ crm_operators phone migration check warning:', e.message);
     }
   } catch (err: any) {
     console.error('⚠️ In-app migration error:', err.message);

@@ -1,5 +1,5 @@
 import React from "react";
-import { ShieldAlert, ShieldCheck, Trash2, Edit2 } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Trash2, Edit2, FileText } from "lucide-react";
 import { Operator } from "../types";
 
 interface OperatorTableProps {
@@ -7,13 +7,15 @@ interface OperatorTableProps {
   operators: Operator[];
   onDelete: (id: number) => Promise<void>;
   onEdit: (op: Operator) => void;
+  onAnalyzeContract: (op: Operator) => void;
 }
 
 export function OperatorTable({
   isLoading,
   operators,
   onDelete,
-  onEdit
+  onEdit,
+  onAnalyzeContract
 }: OperatorTableProps) {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
@@ -23,6 +25,7 @@ export function OperatorTable({
             <th className="p-4 font-semibold text-slate-600">이름</th>
             <th className="p-4 font-semibold text-slate-600">사원번호</th>
             <th className="p-4 font-semibold text-slate-600">아이디</th>
+            <th className="p-4 font-semibold text-slate-600">연락처</th>
             <th className="p-4 font-semibold text-slate-600">권한</th>
             <th className="p-4 font-semibold text-slate-600">생성일</th>
             <th className="p-4 font-semibold text-slate-600 text-center">관리</th>
@@ -31,11 +34,11 @@ export function OperatorTable({
         <tbody className="divide-y divide-slate-100">
           {isLoading ? (
             <tr>
-              <td colSpan={6} className="p-8 text-center text-slate-400">불러오는 중...</td>
+              <td colSpan={7} className="p-8 text-center text-slate-400">불러오는 중...</td>
             </tr>
           ) : operators.length === 0 ? (
             <tr>
-              <td colSpan={6} className="p-8 text-center text-slate-400">등록된 직원이 없습니다.</td>
+              <td colSpan={7} className="p-8 text-center text-slate-400">등록된 직원이 없습니다.</td>
             </tr>
           ) : (
             operators.map((op) => (
@@ -43,6 +46,7 @@ export function OperatorTable({
                 <td className="p-4 font-medium text-slate-800">{op.name}</td>
                 <td className="p-4 text-slate-600 font-mono">{op.employee_number || "-"}</td>
                 <td className="p-4 text-slate-600">{op.username}</td>
+                <td className="p-4 text-slate-600">{op.phone || "-"}</td>
                 <td className="p-4">
                   {op.role === 'SUPER_ADMIN' ? (
                     <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
@@ -65,6 +69,14 @@ export function OperatorTable({
                   {new Date(op.created_at).toLocaleDateString()}
                 </td>
                 <td className="p-4 text-center">
+                  <button
+                    type="button"
+                    onClick={() => onAnalyzeContract(op)}
+                    className="p-2 text-slate-400 hover:text-indigo-500 transition-colors border-0 bg-transparent cursor-pointer mr-1"
+                    title="근로계약 AI 분석 및 등록"
+                  >
+                    <FileText className="w-4 h-4" />
+                  </button>
                   <button
                     type="button"
                     onClick={() => onEdit(op)}

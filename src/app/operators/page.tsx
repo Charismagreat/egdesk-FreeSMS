@@ -1,10 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useOperators } from "./hooks/useOperators";
 import { OperatorHeader } from "./components/OperatorHeader";
 import { OperatorForm } from "./components/OperatorForm";
 import { OperatorTable } from "./components/OperatorTable";
+import { ContractAnalyzerModal } from "./components/ContractAnalyzerModal";
+import { Operator } from "./types";
 
 export default function OperatorsPage() {
   const {
@@ -19,6 +21,8 @@ export default function OperatorsPage() {
     startEdit,
     cancelEdit
   } = useOperators();
+
+  const [activeAnalysisOperator, setActiveAnalysisOperator] = useState<Operator | null>(null);
 
   return (
     <div className="w-full space-y-6 pb-20 min-w-0 font-sans text-slate-800 animate-fade-in text-left" data-easybot-hint="직원 관리: 이지데스크 플랫폼에 접근할 수 있는 사내 서브 운영자 및 일반 직원 계정을 추가하고 접근 권한을 관리합니다.">
@@ -45,9 +49,18 @@ export default function OperatorsPage() {
             operators={operators}
             onDelete={handleDelete}
             onEdit={startEdit}
+            onAnalyzeContract={(op) => setActiveAnalysisOperator(op)}
           />
         </div>
       </div>
+
+      {/* 근로계약서 AI 분석 모달 */}
+      {activeAnalysisOperator && (
+        <ContractAnalyzerModal 
+          operator={activeAnalysisOperator}
+          onClose={() => setActiveAnalysisOperator(null)}
+        />
+      )}
     </div>
   );
 }
