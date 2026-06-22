@@ -47,6 +47,7 @@ export interface Partner {
 export interface EstimateItem {
   id?: number;
   product_id?: string;
+  item_code?: string;
   product_name: string;
   quantity: number;
   unit_price: number;

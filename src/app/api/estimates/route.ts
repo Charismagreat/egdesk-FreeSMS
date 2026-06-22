@@ -492,6 +492,7 @@ export async function PUT(req: Request) {
 
         return {
           product_id: item.product_id || '',
+          item_code: item.item_code || '',
           product_name: item.product_name,
           quantity: qty,
           unit_price: price,
@@ -508,6 +509,7 @@ export async function PUT(req: Request) {
         id: Date.now() + idx,
         estimate_id: estimateId,
         product_id: row.product_id,
+        item_code: row.item_code,
         product_name: row.product_name,
         quantity: row.quantity,
         unit_price: row.unit_price,

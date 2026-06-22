@@ -153,6 +153,7 @@ export default function EstimateDetailModal({
       items: detailData.items.map((item: any) => ({
         id: item.id,
         product_id: item.product_id || '',
+        item_code: item.item_code || '',
         product_name: item.product_name,
         quantity: item.quantity,
         unit_price: item.unit_price,
@@ -173,6 +174,7 @@ export default function EstimateDetailModal({
         ...prev.items,
         {
           product_id: "",
+          item_code: "",
           product_name: "",
           quantity: 1,
           unit_price: 0,
@@ -206,6 +208,8 @@ export default function EstimateDetailModal({
         target.product_name = value;
       } else if (field === 'product_id') {
         target.product_id = value;
+      } else if (field === 'item_code') {
+        target.item_code = value;
       }
       
       nextItems[idx] = target;
@@ -608,22 +612,34 @@ export default function EstimateDetailModal({
                         <div className="space-y-3 max-h-[540px] overflow-y-auto pr-1">
                           {editForm.items.map((item, idx) => (
                             <div key={idx} className="p-3.5 bg-slate-50/60 border border-slate-100 rounded-2xl space-y-2.5 animate-fade-in relative">
-                              {/* 첫 번째 행: 품목명 전체 너비 입력 */}
-                              <div>
-                                <div className="flex justify-between items-center mb-1">
-                                  <label className="text-[10px] text-slate-400 font-bold">품목명 *</label>
-                                  <span className="text-[9px] bg-indigo-50 text-indigo-500 font-black px-1.5 py-0.5 rounded">
-                                    품목 #{idx + 1}
-                                  </span>
+                              {/* 첫 번째 행: 품목코드 및 품목명 */}
+                              <div className="grid grid-cols-12 gap-2.5">
+                                <div className="col-span-4">
+                                  <label className="text-[10px] text-slate-400 font-bold block mb-1">품목코드</label>
+                                  <input 
+                                    type="text" 
+                                    value={item.item_code || ''}
+                                    onChange={e => handleEditItemChange(idx, 'item_code', e.target.value)}
+                                    placeholder="코드 입력"
+                                    className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold outline-none focus:border-indigo-500 transition-all shadow-sm"
+                                  />
                                 </div>
-                                <input 
-                                  type="text" 
-                                  value={item.product_name}
-                                  onChange={e => handleEditItemChange(idx, 'product_name', e.target.value)}
-                                  placeholder="품목명을 입력하세요"
-                                  className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 transition-all shadow-sm"
-                                  required
-                                />
+                                <div className="col-span-8">
+                                  <div className="flex justify-between items-center mb-1">
+                                    <label className="text-[10px] text-slate-400 font-bold">품목명 *</label>
+                                    <span className="text-[9px] bg-indigo-50 text-indigo-500 font-black px-1.5 py-0.5 rounded">
+                                      품목 #{idx + 1}
+                                    </span>
+                                  </div>
+                                  <input 
+                                    type="text" 
+                                    value={item.product_name}
+                                    onChange={e => handleEditItemChange(idx, 'product_name', e.target.value)}
+                                    placeholder="품목명을 입력하세요"
+                                    className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 transition-all shadow-sm"
+                                    required
+                                  />
+                                </div>
                               </div>
 
                               {/* 두 번째 행: 수량, 단가, 공급금액, 삭제 버튼 가로 배치 */}
@@ -681,6 +697,7 @@ export default function EstimateDetailModal({
                           <table className="w-full text-left text-xs font-semibold">
                             <thead>
                               <tr className="border-b border-slate-100 text-slate-400 text-[10px]">
+                                <th className="py-2.5 px-3 w-[110px] sticky top-0 bg-slate-50 z-10">품목코드</th>
                                 <th className="py-2.5 px-3 sticky top-0 bg-slate-50 z-10">품목명</th>
                                 <th className="py-2.5 px-2 text-center w-[70px] sticky top-0 bg-slate-50 z-10">수량</th>
                                 <th className="py-2.5 px-2 text-right w-[110px] sticky top-0 bg-slate-50 z-10">단가</th>
@@ -690,6 +707,7 @@ export default function EstimateDetailModal({
                             <tbody>
                               {detailData.items.map((item: any, idx: number) => (
                                 <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/40">
+                                  <td className="py-3 px-3 text-slate-500 font-mono text-[11px]">{item.item_code || "-"}</td>
                                   <td className="py-3 px-3 text-slate-800 font-bold">{item.product_name}</td>
                                   <td className="py-3 px-2 text-center text-slate-600 font-bold">{item.quantity}개</td>
                                   <td className="py-3 px-2 text-right text-slate-500 font-medium">{(item.unit_price || 0).toLocaleString()}원</td>
