@@ -60,7 +60,7 @@ export async function GET(request: Request) {
         
         try {
           const schemaInfo = await getTableSchema(name);
-          const columns = schemaInfo.columns || [];
+          const columns = schemaInfo.schema || [];
           const hasDeletedCol = columns.some((col: any) => col.name === 'deleted_at');
           
           // 소프트 삭제된 테이블인 경우 일반 감시 카운트는 deleted_at IS NULL인 항목만 계산
@@ -102,10 +102,19 @@ export async function GET(request: Request) {
       const ddlRes = await executeSQL(`SELECT sql FROM sqlite_master WHERE type='table' AND name='${tableName}'`);
       const ddl = ddlRes.rows?.[0]?.sql || '';
 
+      const mappedSchema = (schemaInfo.schema || []).map((col: any, idx: number) => ({
+        cid: idx,
+        name: col.name,
+        type: col.type || 'TEXT',
+        notnull: col.notNull ? 1 : 0,
+        dflt_value: col.defaultValue !== undefined ? col.defaultValue : null,
+        pk: col.name === 'id' ? 1 : 0
+      }));
+
       return NextResponse.json({ 
         success: true, 
         tableName, 
-        schema: schemaInfo.columns || [],
+        schema: mappedSchema,
         ddl 
       });
     }
@@ -123,7 +132,7 @@ export async function GET(request: Request) {
       const showDeleted = searchParams.get('showDeleted') === 'true'; // 휴지통 보기 토글 스위치 대응
 
       const schemaInfo = await getTableSchema(tableName);
-      const columns = schemaInfo.columns || [];
+      const columns = schemaInfo.schema || [];
       const hasDeletedCol = columns.some((col: any) => col.name === 'deleted_at');
       const pkCol = columns.find((col: any) => col.pk === 1 || col.pk === true || col.name === 'id')?.name || 'id';
 
@@ -225,7 +234,7 @@ export async function POST(request: Request) {
       }
 
       const schemaInfo = await getTableSchema(tableName);
-      const columns = schemaInfo.columns || [];
+      const columns = schemaInfo.schema || [];
       const hasUuid = columns.some((col: any) => col.name === 'uuid');
       const hasCreatedAt = columns.some((col: any) => col.name === 'created_at');
 
@@ -272,7 +281,7 @@ export async function PUT(request: Request) {
       }
 
       const schemaInfo = await getTableSchema(tableName);
-      const columns = schemaInfo.columns || [];
+      const columns = schemaInfo.schema || [];
       const hasRestored = columns.some((col: any) => col.name === 'restored_at');
       const pkCol = columns.find((col: any) => col.pk === 1 || col.pk === true || col.name === 'id')?.name || 'id';
 
@@ -303,7 +312,7 @@ export async function PUT(request: Request) {
     }
 
     const schemaInfo = await getTableSchema(tableName);
-    const columns = schemaInfo.columns || [];
+    const columns = schemaInfo.schema || [];
     const hasUpdatedAt = columns.some((col: any) => col.name === 'updated_at');
     const hasUpdatedBy = columns.some((col: any) => col.name === 'updated_by');
     const pkCol = columns.find((col: any) => col.pk === 1 || col.pk === true || col.name === 'id')?.name || 'id';
@@ -357,7 +366,7 @@ export async function DELETE(request: Request) {
       }
 
       const schemaInfo = await getTableSchema(tableName);
-      const columns = schemaInfo.columns || [];
+      const columns = schemaInfo.schema || [];
       const hasDeletedAt = columns.some((col: any) => col.name === 'deleted_at');
       const hasDeletedBy = columns.some((col: any) => col.name === 'deleted_by');
       const pkCol = columns.find((col: any) => col.pk === 1 || col.pk === true || col.name === 'id')?.name || 'id';
