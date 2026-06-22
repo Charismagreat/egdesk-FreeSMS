@@ -207,7 +207,6 @@ export default function FinanceCardsTab({
 
           <div className="flex flex-col md:flex-row gap-3">
             <div className="flex-1 flex flex-col gap-2 bg-white/70 p-3 rounded-2xl border border-indigo-100/30">
-              <div className="text-[9.5px] font-extrabold text-indigo-500">✨ 새로운 자연어 규칙 기술하기</div>
               <textarea
                 value={newRuleText}
                 onChange={(e) => setNewRuleText(e.target.value)}
