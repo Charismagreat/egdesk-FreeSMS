@@ -26,6 +26,7 @@ async function initContractsDatabase() {
         { name: 'work_place', type: 'TEXT' },
         { name: 'job_description', type: 'TEXT' },
         { name: 'contract_type', type: 'TEXT', defaultValue: 'STANDARD_LIMITED' },
+        { name: 'paper_contract_file', type: 'TEXT' },
         { name: 'status', type: 'TEXT', defaultValue: 'SIGNED' },
         { name: 'signature_image', type: 'TEXT' },
         { name: 'signed_at', type: 'TEXT' },
@@ -97,6 +98,7 @@ async function initContractsDatabase() {
         { name: 'work_place', type: 'TEXT' },
         { name: 'job_description', type: 'TEXT' },
         { name: 'contract_type', type: "TEXT DEFAULT 'STANDARD_LIMITED'" },
+        { name: 'paper_contract_file', type: 'TEXT' },
         { name: 'status', type: "TEXT DEFAULT 'SIGNED'" },
         { name: 'signature_image', type: 'TEXT' },
         { name: 'signed_at', type: 'TEXT' },
@@ -173,7 +175,8 @@ export async function POST(req: Request) {
       start_date,
       end_date,
       work_place,
-      job_description 
+      job_description,
+      paper_contract_file 
     } = await req.json();
 
     if (!operator_id) {
@@ -196,6 +199,7 @@ export async function POST(req: Request) {
     if (end_date !== undefined) updatedContract.end_date = end_date;
     if (work_place !== undefined) updatedContract.work_place = work_place;
     if (job_description !== undefined) updatedContract.job_description = job_description;
+    if (paper_contract_file !== undefined) updatedContract.paper_contract_file = paper_contract_file;
 
     // Upsert 형태로 삽입/갱신 (uniqueKeyColumns에 맞춰 egdesk-helpers의 insertRows가 덮어씌움)
     await insertRows('crm_operator_contract_settings', [updatedContract]);

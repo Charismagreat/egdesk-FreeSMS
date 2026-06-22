@@ -33,7 +33,8 @@ export async function POST(req: Request) {
       end_date,
       work_place,
       job_description,
-      contract_type
+      contract_type,
+      paper_contract_file
     } = await req.json();
 
     if (!operator_id) {
@@ -70,6 +71,7 @@ export async function POST(req: Request) {
       work_place: work_place || '',
       job_description: job_description || '',
       contract_type: contract_type || 'STANDARD_LIMITED',
+      paper_contract_file: paper_contract_file || null,
       status: 'PENDING',
       signature_image: null,
       signed_at: null,

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { X, Send, Calendar, MapPin, Briefcase, DollarSign, Clock, HelpCircle, Loader2 } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { X, Send, Calendar, MapPin, Briefcase, DollarSign, Clock, HelpCircle, Loader2, Upload, FileText } from "lucide-react";
 import { Operator } from "../types";
 
 interface ContractRequestModalProps {
@@ -36,6 +36,34 @@ export function ContractRequestModal({ operator, onClose }: ContractRequestModal
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // 서면 계약서 파일 관련 상태
+  const [paperContractFile, setPaperContractFile] = useState<string | null>(null);
+  const [uploadFileName, setUploadFileName] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      processFile(e.target.files[0]);
+    }
+  };
+
+  const processFile = (file: File) => {
+    const validTypes = ["image/png", "image/jpeg", "image/jpg"];
+    if (!validTypes.includes(file.type)) {
+      setError("PNG 또는 JPG 이미지 파일만 업로드할 수 있습니다.");
+      return;
+    }
+    setError(null);
+    setUploadFileName(file.name);
+    
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => {
+      setPaperContractFile(reader.result as string);
+    };
+  };
+
   // 주당 소정근로시간 변경에 따른 주휴수당 자동 추천 로직
   useEffect(() => {
     if (weeklyHours < 15) {
@@ -61,15 +89,25 @@ export function ContractRequestModal({ operator, onClose }: ContractRequestModal
 
     // 검증
     const isLimited = contractType === "STANDARD_LIMITED";
-    if (!startDate || (isLimited && !endDate)) {
-      setError(isLimited ? "근로 계약 기간을 설정해 주세요." : "근로 개시일을 입력해 주세요.");
-      setIsSubmitting(false);
-      return;
-    }
-    if (!workPlace.trim() || !jobDescription.trim()) {
-      setError("근무 장소 및 업무 내용을 입력해 주세요.");
-      setIsSubmitting(false);
-      return;
+    const isPaperSignOnly = contractType === "PAPER_SIGN_ONLY";
+
+    if (isPaperSignOnly) {
+      if (!paperContractFile) {
+        setError("서면 계약서 원본 파일을 업로드해 주세요.");
+        setIsSubmitting(false);
+        return;
+      }
+    } else {
+      if (!startDate || (isLimited && !endDate)) {
+        setError(isLimited ? "근로 계약 기간을 설정해 주세요." : "근로 개시일을 입력해 주세요.");
+        setIsSubmitting(false);
+        return;
+      }
+      if (!workPlace.trim() || !jobDescription.trim()) {
+        setError("근무 장소 및 업무 내용을 입력해 주세요.");
+        setIsSubmitting(false);
+        return;
+      }
     }
 
     try {
@@ -78,16 +116,17 @@ export function ContractRequestModal({ operator, onClose }: ContractRequestModal
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           operator_id: operator.id,
-          hourly_wage: hourlyWage,
-          weekly_hours: weeklyHours,
-          allow_weekly_holiday_paid: allowWeeklyHolidayPaid,
-          work_days: workDays,
+          hourly_wage: isPaperSignOnly ? 0 : hourlyWage,
+          weekly_hours: isPaperSignOnly ? 0 : weeklyHours,
+          allow_weekly_holiday_paid: isPaperSignOnly ? 0 : allowWeeklyHolidayPaid,
+          work_days: isPaperSignOnly ? "" : workDays,
           contract_memo: contractMemo,
           start_date: startDate,
-          end_date: isLimited ? endDate : "",
-          work_place: workPlace,
-          job_description: jobDescription,
-          contract_type: contractType
+          end_date: isPaperSignOnly ? "" : (isLimited ? endDate : ""),
+          work_place: isPaperSignOnly ? "" : workPlace,
+          job_description: isPaperSignOnly ? "" : jobDescription,
+          contract_type: contractType,
+          paper_contract_file: isPaperSignOnly ? paperContractFile : null
         })
       });
 
@@ -153,11 +192,77 @@ export function ContractRequestModal({ operator, onClose }: ContractRequestModal
             >
               <option value="STANDARD_LIMITED">표준근로계약서 (기간의 정함이 있는 경우)</option>
               <option value="STANDARD_UNLIMITED">표준근로계약서 (기간의 정함이 없는 경우)</option>
+              <option value="PAPER_SIGN_ONLY">서면 작성 완료본 (모바일 서명만 받기)</option>
             </select>
           </div>
 
+          {/* 서면 근로계약 파일 업로드 영역 */}
+          {contractType === "PAPER_SIGN_ONLY" && (
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3 text-left">
+              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                <Upload className="w-3.5 h-3.5 text-slate-400" /> 서면 계약서 원본 파일 업로드
+              </h4>
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragOver(true);
+                }}
+                onDragLeave={() => setIsDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragOver(false);
+                  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    processFile(e.dataTransfer.files[0]);
+                  }
+                }}
+                onClick={() => fileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all ${
+                  isDragOver ? "border-indigo-500 bg-indigo-50/50" : "border-slate-200 hover:border-indigo-400 bg-white"
+                }`}
+              >
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  accept="image/png, image/jpeg, image/jpg"
+                  className="hidden"
+                />
+                <div className="flex flex-col items-center justify-center gap-2">
+                  <div className="p-2 bg-slate-50 text-slate-400 rounded-full">
+                    <Upload className="w-5 h-5" />
+                  </div>
+                  {uploadFileName ? (
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-slate-800 break-all">{uploadFileName}</p>
+                      <p className="text-[10px] text-indigo-600">클릭하거나 파일을 다시 드래그앤드롭하여 변경</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-slate-600">클릭하거나 파일을 이 영역으로 드래그앤드롭</p>
+                      <p className="text-[10px] text-slate-400">PNG, JPG 이미지 파일 (최대 5MB)</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {paperContractFile && (
+                <div className="border border-slate-100 rounded-xl overflow-hidden max-h-[220px] bg-slate-100 flex items-center justify-center relative group">
+                  <img
+                    src={paperContractFile}
+                    alt="업로드된 계약서 미리보기"
+                    className="max-h-[220px] max-w-full object-contain"
+                  />
+                  <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <span className="text-white text-xs font-bold bg-slate-900/60 px-3 py-1.5 rounded-full">업로드 완료</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* 1. 계약 기본 조항 카드 */}
-          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+          {contractType !== "PAPER_SIGN_ONLY" && (
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
             <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5" /> 1. 근로 계약 기본 정보
             </h4>
@@ -219,9 +324,11 @@ export function ContractRequestModal({ operator, onClose }: ContractRequestModal
               </div>
             </div>
           </div>
+          )}
 
           {/* 2. 근무 시간 및 주휴수당 조건 */}
-          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+          {contractType !== "PAPER_SIGN_ONLY" && (
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
             <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5" /> 2. 소정근로시간 및 일수
             </h4>
@@ -286,9 +393,11 @@ export function ContractRequestModal({ operator, onClose }: ContractRequestModal
               )}
             </div>
           </div>
+          )}
 
           {/* 3. 급여 조건 카드 */}
-          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+          {contractType !== "PAPER_SIGN_ONLY" && (
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
             <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
               <DollarSign className="w-3.5 h-3.5" /> 3. 임금 설정 및 자동 계산
             </h4>
@@ -318,6 +427,7 @@ export function ContractRequestModal({ operator, onClose }: ContractRequestModal
               ※ 주 소정 {weeklyHours}시간 + 주휴 {holidayHours.toFixed(1)}시간 적용 시, 월평균 근로 {Math.round(monthlyHours)}시간 기준 시급을 적용한 예상 환산 급여입니다.
             </p>
           </div>
+          )}
 
           {/* 4. 메모 */}
           <div>

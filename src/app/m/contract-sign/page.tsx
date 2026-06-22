@@ -26,6 +26,7 @@ interface Contract {
   work_place?: string;
   job_description?: string;
   contract_type?: string;
+  paper_contract_file?: string | null;
   status: string;
   signature_image?: string | null;
   signed_at?: string | null;
@@ -245,9 +246,11 @@ export default function MobileContractSignPage() {
           <div className="flex justify-between">
             <span className="text-slate-400">계약서 명칭</span>
             <span className="font-semibold text-slate-700">
-              {contract?.contract_type === "STANDARD_UNLIMITED" 
-                ? "표준근로계약서 (무기계약)" 
-                : "표준근로계약서 (기간제)"}
+              {contract?.contract_type === "PAPER_SIGN_ONLY"
+                ? "서면 근로계약서 (서명 전용)"
+                : contract?.contract_type === "STANDARD_UNLIMITED" 
+                  ? "표준근로계약서 (무기계약)" 
+                  : "표준근로계약서 (기간제)"}
             </span>
           </div>
           <div className="flex justify-between"><span className="text-slate-400">근로자 성명</span><span className="font-semibold text-slate-700">{operator?.name}</span></div>
@@ -271,166 +274,195 @@ export default function MobileContractSignPage() {
         <div className="flex items-center gap-2.5">
           <FileText className="w-6 h-6 text-indigo-200" />
           <h2 className="text-base font-bold tracking-tight">
-            {contract?.contract_type === "STANDARD_UNLIMITED" 
-              ? "표준근로계약서 (기간의 정함이 없는 경우)" 
-              : "표준근로계약서 (기간의 정함이 있는 경우)"}
+            {contract?.contract_type === "PAPER_SIGN_ONLY" 
+              ? "서면 작성 완료 근로계약서 확인"
+              : contract?.contract_type === "STANDARD_UNLIMITED" 
+                ? "표준근로계약서 (기간의 정함이 없는 경우)" 
+                : "표준근로계약서 (기간의 정함이 있는 경우)"}
           </h2>
         </div>
         <p className="text-xs text-indigo-200/80 mt-1 leading-relaxed">
-          (주)이지데스크(이하 "사업주")와 {operator?.name}님(이하 "근로자")은 서로 합의 하에 근로기준법을 성실히 준수하며 아래와 같이 근로계약을 체결합니다.
+          {contract?.contract_type === "PAPER_SIGN_ONLY"
+            ? `(주)이지데스크와 ${operator?.name}님 간에 오프라인(서면)으로 작성이 완료된 근로계약서입니다. 내용을 검토하신 후 하단에 서명해 주세요.`
+            : `(주)이지데스크(이하 "사업주")와 ${operator?.name}님(이하 "근로자")은 서로 합의 하에 근로기준법을 성실히 준수하며 아래와 같이 근로계약을 체결합니다.`}
         </p>
       </div>
 
       {/* 모바일 최적화 컨테이너 */}
       <div className="px-4 -mt-4 space-y-5">
         
-        {/* 1. 계약 기본 조항 */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm space-y-4">
-          <h3 className="text-xs font-bold text-indigo-900 flex items-center gap-1.5 border-b border-slate-100 pb-2">
-            <Calendar className="w-4 h-4" /> 제1조 ~ 제3조. 근로 기간 및 직무
-          </h3>
-          <div className="space-y-3.5 text-xs">
-            <div>
-              <p className="text-slate-400 font-medium">
-                {contract?.contract_type === "STANDARD_UNLIMITED" ? "제1조. 근로개시일" : "제1조. 근로계약기간"}
-              </p>
-              <p className="text-slate-800 font-bold mt-0.5">
-                {contract?.contract_type === "STANDARD_UNLIMITED" 
-                  ? `${contract?.start_date || "채용일"}부터 (기간의 정함이 없는 근로계약)`
-                  : `${contract?.start_date || "채용일"}부터 ${contract?.end_date || "기간 정함 없음"}까지`}
-              </p>
-            </div>
-            <div>
-              <p className="text-slate-400 font-medium">제2조. 근무 장소</p>
-              <p className="text-slate-800 font-bold mt-0.5 flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                {contract?.work_place || "본사 사무실 및 지정 장소"}
-              </p>
-            </div>
-            <div>
-              <p className="text-slate-400 font-medium">제3조. 업무의 내용</p>
-              <p className="text-slate-800 font-bold mt-0.5 flex items-center gap-1">
-                <Briefcase className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                {contract?.job_description || "사무행정 및 개발 지원 업무"}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* 2. 근무 시간 및 주휴수당 조건 */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm space-y-4">
-          <h3 className="text-xs font-bold text-indigo-900 flex items-center gap-1.5 border-b border-slate-100 pb-2">
-            <Clock className="w-4 h-4" /> 제4조 ~ 제5조. 근로 시간 및 요일
-          </h3>
-          <div className="space-y-4 text-xs">
-            <div>
-              <p className="text-slate-400 font-medium">제4조. 소정근로시간</p>
-              <p className="text-slate-800 font-bold mt-0.5">
-                주당 소정근로 <span className="text-indigo-600 font-extrabold font-mono">{contract?.weekly_hours}시간</span>
-              </p>
-              <p className="text-[10px] text-slate-400 mt-0.5">
-                (기본 근무 시간: 09:00 ~ 18:00 / 휴게시간: 12:00 ~ 13:00 적용)
-              </p>
-            </div>
-            <div>
-              <p className="text-slate-400 font-medium">제5조. 근무일 및 주휴일</p>
-              <p className="text-slate-800 font-bold mt-0.5">
-                매주 <span className="font-mono text-indigo-600">{contract?.work_days}</span> 근무
-              </p>
-              <p className="text-[10px] text-slate-500 mt-1 flex items-center gap-1 bg-slate-50 p-2 rounded-lg">
-                <Check className="w-3 h-3 text-indigo-600" />
-                주휴일은 매주 일요일(혹은 주휴 유급 휴일)을 적용합니다.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* 3. 급여 조건 */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm space-y-4">
-          <h3 className="text-xs font-bold text-indigo-900 flex items-center gap-1.5 border-b border-slate-100 pb-2">
-            <DollarSign className="w-4 h-4" /> 제6조. 임금 및 지급 방법
-          </h3>
-          <div className="space-y-4 text-xs">
-            <div>
-              <p className="text-slate-400 font-medium">통상 시급</p>
-              <p className="text-lg font-bold text-slate-800 font-mono mt-0.5">
-                {contract?.hourly_wage.toLocaleString()}원
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-4 border-t border-slate-50 pt-3">
-              <div>
-                <p className="text-slate-400 font-medium">상여금 여부</p>
-                <p className="text-slate-700 font-semibold mt-0.5">없음 (또는 기본급에 산입)</p>
+        {contract?.contract_type === "PAPER_SIGN_ONLY" ? (
+          /* 서면 근로계약서 이미지 렌더링 */
+          <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm space-y-3">
+            <h3 className="text-xs font-bold text-indigo-900 flex items-center gap-1.5 border-b border-slate-100 pb-2">
+              <FileText className="w-4 h-4 text-indigo-600" /> 업로드된 서면 근로계약서 원본
+            </h3>
+            {contract.paper_contract_file ? (
+              <div className="border border-slate-100 rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center">
+                <img
+                  src={contract.paper_contract_file}
+                  alt="서면 근로계약서 원본"
+                  className="w-full h-auto object-contain max-h-[80vh]"
+                />
               </div>
-              <div>
-                <p className="text-slate-400 font-medium">기타 제수당</p>
-                <p className="text-slate-700 font-semibold mt-0.5">없음 (실비 변상 별도)</p>
-              </div>
-            </div>
-            <div className="border-t border-slate-50 pt-3 space-y-2">
-              <div>
-                <p className="text-slate-400 font-medium">임금 지급일</p>
-                <p className="text-slate-700 font-semibold mt-0.5">
-                  매월 10일 (지급일이 토요일/휴일인 경우 전일 지급)
-                </p>
-              </div>
-              <div>
-                <p className="text-slate-400 font-medium">지급 방법</p>
-                <p className="text-slate-700 font-semibold mt-0.5">
-                  근로자 본인 명의 예금통장에 직접 계좌이체 입금
-                </p>
-              </div>
-            </div>
-            <div className="bg-indigo-50 border border-indigo-100 p-3 rounded-xl">
-              <p className="text-[10px] text-indigo-500">예상 월 환산급여 (주휴 포함)</p>
-              <p className="text-base font-extrabold text-indigo-800 font-mono mt-0.5">
-                {estimatedMonthlyWage.toLocaleString()}원
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* 4. 법정 약관 및 약정 (제7조 ~ 제11조) */}
-        <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm space-y-4">
-          <h3 className="text-xs font-bold text-indigo-900 flex items-center gap-1.5 border-b border-slate-100 pb-2">
-            <CheckCircle2 className="w-4 h-4" /> 
-            {contract?.contract_type === "STANDARD_UNLIMITED" 
-              ? "제7조 ~ 제10조. 근로 권리 및 의무 약정" 
-              : "제7조 ~ 제11조. 근로 권리 및 의무 약정"}
-          </h3>
-          <div className="space-y-3 text-xs leading-relaxed text-slate-600">
-            <p>
-              <strong className="text-slate-800 font-semibold block">제7조. 연차유급휴가</strong>
-              연차유급휴가는 근로기준법에서 정하는 바(1개월 개근 시 1일 유급휴가 등)에 따라 성실히 부여하고 사용합니다.
-            </p>
-            <p>
-              <strong className="text-slate-800 font-semibold block">제8조. 사회보험 적용여부</strong>
-              본 계약 체결 시 아래 관계 법령에 의거하여 4대 사회보험에 의무 가입됩니다.
-            </p>
-            <div className="flex gap-1.5 flex-wrap pt-1">
-              <span className="inline-flex items-center px-2 py-1 rounded bg-indigo-50 text-indigo-700 text-[10px] font-bold">고용보험 가입</span>
-              <span className="inline-flex items-center px-2 py-1 rounded bg-indigo-50 text-indigo-700 text-[10px] font-bold">산재보험 가입</span>
-              <span className="inline-flex items-center px-2 py-1 rounded bg-indigo-50 text-indigo-700 text-[10px] font-bold">국민연금 가입</span>
-              <span className="inline-flex items-center px-2 py-1 rounded bg-indigo-50 text-indigo-700 text-[10px] font-bold">건강보험 가입</span>
-            </div>
-            <p className="border-t border-slate-100 pt-3">
-              <strong className="text-slate-800 font-semibold block">제9조. 근로계약서 교부</strong>
-              사업주는 근로계약을 체결함과 동시에 본 계약서를 복사 또는 디지털 서본하여 근로자의 별도 교부요구 없이 근로자에게 즉시 메신저/이메일 등으로 교부합니다. (근로기준법 제17조 준수)
-            </p>
-            {contract?.contract_type !== "STANDARD_UNLIMITED" && (
-              <p>
-                <strong className="text-slate-800 font-semibold block">제10조. 성실 이행 의무</strong>
-                사업주와 근로자는 각자가 근로계약, 취업규칙, 단체협약을 성실히 준수하고 신의칙에 의거하여 이행할 것을 서약합니다.
-              </p>
+            ) : (
+              <p className="text-xs text-red-500 py-4 text-center">업로드된 계약서 이미지가 존재하지 않습니다.</p>
             )}
-            <p>
-              <strong className="text-slate-800 font-semibold block">
-                {contract?.contract_type === "STANDARD_UNLIMITED" ? "제10조. 기타 조항" : "제11조. 기타 조항"}
-              </strong>
-              본 계약에 정하지 않은 근무 조건 및 해석 분쟁은 대한민국 근로기준법령 및 노동 관련 관례에 따릅니다.
+            <p className="text-[10px] text-slate-400 text-center leading-relaxed">
+              ※ 손가락으로 두드려 확대하거나 이미지를 길게 누르면 크게 보실 수 있습니다.
             </p>
           </div>
-        </div>
+        ) : (
+          <>
+            {/* 1. 계약 기본 조항 */}
+            <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm space-y-4">
+              <h3 className="text-xs font-bold text-indigo-900 flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                <Calendar className="w-4 h-4" /> 제1조 ~ 제3조. 근로 기간 및 직무
+              </h3>
+              <div className="space-y-3.5 text-xs">
+                <div>
+                  <p className="text-slate-400 font-medium">
+                    {contract?.contract_type === "STANDARD_UNLIMITED" ? "제1조. 근로개시일" : "제1조. 근로계약기간"}
+                  </p>
+                  <p className="text-slate-800 font-bold mt-0.5">
+                    {contract?.contract_type === "STANDARD_UNLIMITED" 
+                      ? `${contract?.start_date || "채용일"}부터 (기간의 정함이 없는 근로계약)`
+                      : `${contract?.start_date || "채용일"}부터 ${contract?.end_date || "기간 정함 없음"}까지`}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-slate-400 font-medium">제2조. 근무 장소</p>
+                  <p className="text-slate-800 font-bold mt-0.5 flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                    {contract?.work_place || "본사 사무실 및 지정 장소"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-slate-400 font-medium">제3조. 업무의 내용</p>
+                  <p className="text-slate-800 font-bold mt-0.5 flex items-center gap-1">
+                    <Briefcase className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                    {contract?.job_description || "사무행정 및 개발 지원 업무"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. 근무 시간 및 주휴수당 조건 */}
+            <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm space-y-4">
+              <h3 className="text-xs font-bold text-indigo-900 flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                <Clock className="w-4 h-4" /> 제4조 ~ 제5조. 근로 시간 및 요일
+              </h3>
+              <div className="space-y-4 text-xs">
+                <div>
+                  <p className="text-slate-400 font-medium">제4조. 소정근로시간</p>
+                  <p className="text-slate-800 font-bold mt-0.5">
+                    주당 소정근로 <span className="text-indigo-600 font-extrabold font-mono">{contract?.weekly_hours}시간</span>
+                  </p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    (기본 근무 시간: 09:00 ~ 18:00 / 휴게시간: 12:00 ~ 13:00 적용)
+                  </p>
+                </div>
+                <div>
+                  <p className="text-slate-400 font-medium">제5조. 근무일 및 주휴일</p>
+                  <p className="text-slate-800 font-bold mt-0.5">
+                    매주 <span className="font-mono text-indigo-600">{contract?.work_days}</span> 근무
+                  </p>
+                  <p className="text-[10px] text-slate-500 mt-1 flex items-center gap-1 bg-slate-50 p-2 rounded-lg">
+                    <Check className="w-3 h-3 text-indigo-600" />
+                    주휴일은 매주 일요일(혹은 주휴 유급 휴일)을 적용합니다.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. 급여 조건 */}
+            <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm space-y-4">
+              <h3 className="text-xs font-bold text-indigo-900 flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                <DollarSign className="w-4 h-4" /> 제6조. 임금 및 지급 방법
+              </h3>
+              <div className="space-y-4 text-xs">
+                <div>
+                  <p className="text-slate-400 font-medium">통상 시급</p>
+                  <p className="text-lg font-bold text-slate-800 font-mono mt-0.5">
+                    {contract?.hourly_wage.toLocaleString()}원
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-4 border-t border-slate-50 pt-3">
+                  <div>
+                    <p className="text-slate-400 font-medium">상여금 여부</p>
+                    <p className="text-slate-700 font-semibold mt-0.5">없음 (또는 기본급에 산입)</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-400 font-medium">기타 제수당</p>
+                    <p className="text-slate-700 font-semibold mt-0.5">없음 (실비 변상 별도)</p>
+                  </div>
+                </div>
+                <div className="border-t border-slate-50 pt-3 space-y-2">
+                  <div>
+                    <p className="text-slate-400 font-medium">임금 지급일</p>
+                    <p className="text-slate-700 font-semibold mt-0.5">
+                      매월 10일 (지급일이 토요일/휴일인 경우 전일 지급)
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-slate-400 font-medium">지급 방법</p>
+                    <p className="text-slate-700 font-semibold mt-0.5">
+                      근로자 본인 명의 예금통장에 직접 계좌이체 입금
+                    </p>
+                  </div>
+                </div>
+                <div className="bg-indigo-50 border border-indigo-100 p-3 rounded-xl">
+                  <p className="text-[10px] text-indigo-500">예상 월 환산급여 (주휴 포함)</p>
+                  <p className="text-base font-extrabold text-indigo-800 font-mono mt-0.5">
+                    {estimatedMonthlyWage.toLocaleString()}원
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* 4. 법정 약관 및 약정 (제7조 ~ 제11조) */}
+            <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm space-y-4">
+              <h3 className="text-xs font-bold text-indigo-900 flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                <CheckCircle2 className="w-4 h-4" /> 
+                {contract?.contract_type === "STANDARD_UNLIMITED" 
+                  ? "제7조 ~ 제10조. 근로 권리 및 의무 약정" 
+                  : "제7조 ~ 제11조. 근로 권리 및 의무 약정"}
+              </h3>
+              <div className="space-y-3 text-xs leading-relaxed text-slate-600">
+                <p>
+                  <strong className="text-slate-800 font-semibold block">제7조. 연차유급휴가</strong>
+                  연차유급휴가는 근로기준법에서 정하는 바(1개월 개근 시 1일 유급휴가 등)에 따라 성실히 부여하고 사용합니다.
+                </p>
+                <p>
+                  <strong className="text-slate-800 font-semibold block">제8조. 사회보험 적용여부</strong>
+                  본 계약 체결 시 아래 관계 법령에 의거하여 4대 사회보험에 의무 가입됩니다.
+                </p>
+                <div className="flex gap-1.5 flex-wrap pt-1">
+                  <span className="inline-flex items-center px-2 py-1 rounded bg-indigo-50 text-indigo-700 text-[10px] font-bold">고용보험 가입</span>
+                  <span className="inline-flex items-center px-2 py-1 rounded bg-indigo-50 text-indigo-700 text-[10px] font-bold">산재보험 가입</span>
+                  <span className="inline-flex items-center px-2 py-1 rounded bg-indigo-50 text-indigo-700 text-[10px] font-bold">국민연금 가입</span>
+                  <span className="inline-flex items-center px-2 py-1 rounded bg-indigo-50 text-indigo-700 text-[10px] font-bold">건강보험 가입</span>
+                </div>
+                <p className="border-t border-slate-100 pt-3">
+                  <strong className="text-slate-800 font-semibold block">제9조. 근로계약서 교부</strong>
+                  사업주는 근로계약을 체결함과 동시에 본 계약서를 복사 또는 디지털 서본하여 근로자의 별도 교부요구 없이 근로자에게 즉시 메신저/이메일 등으로 교부합니다. (근로기준법 제17조 준수)
+                </p>
+                {contract?.contract_type !== "STANDARD_UNLIMITED" && (
+                  <p>
+                    <strong className="text-slate-800 font-semibold block">제10조. 성실 이행 의무</strong>
+                    사업주와 근로자는 각자가 근로계약, 취업규칙, 단체협약을 성실히 준수하고 신의칙에 의거하여 이행할 것을 서약합니다.
+                  </p>
+                )}
+                <p>
+                  <strong className="text-slate-800 font-semibold block">
+                    {contract?.contract_type === "STANDARD_UNLIMITED" ? "제10조. 기타 조항" : "제11조. 기타 조항"}
+                  </strong>
+                  본 계약에 정하지 않은 근무 조건 및 해석 분쟁은 대한민국 근로기준법령 및 노동 관련 관례에 따릅니다.
+                </p>
+              </div>
+            </div>
+          </>
+        )}
 
         {/* 5. 당사자 서명 영역 */}
         <div className="bg-white rounded-2xl p-5 border border-indigo-100 shadow-md space-y-4">
