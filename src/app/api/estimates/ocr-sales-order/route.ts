@@ -157,8 +157,8 @@ export async function POST(req: Request) {
 
     // 3. 견적서 섀도우 생성 (crm_estimates)
     const estimateId = `EST-${Date.now()}`;
+    const uuid = `EST-UUID-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     await insertRows('crm_estimates', [{
-      id: estimateId,
       type: 'OUTBOUND',
       direction_status: 'RECEIVED', // 보낸 견적서이나, 이미 수락된 상태로 처리
       partner_name: partnerName,
@@ -166,13 +166,19 @@ export async function POST(req: Request) {
       total_amount,
       file_url: 'AI 발주서 다이렉트 자동 스캔',
       ai_parsed: 1,
+      uuid,
       created_at: nowStr
     }]);
+
+    // 실제 정수 id 가져오기
+    const insertedEstRes = await queryTable('crm_estimates', { filters: { uuid }, limit: 1 });
+    const insertedEst = insertedEstRes.rows && insertedEstRes.rows.length > 0 ? insertedEstRes.rows[0] : null;
+    const realEstimateId = insertedEst ? String(insertedEst.id) : estimateId;
 
     // 4. 견적 품목 생성 (crm_estimate_items)
     const detailRows = itemRows.map((row: any, idx: number) => ({
       id: Date.now() + idx,
-      estimate_id: estimateId,
+      estimate_id: realEstimateId,
       product_id: '',
       item_code: row.item_code,
       product_name: row.product_name,
@@ -187,7 +193,7 @@ export async function POST(req: Request) {
     const soId = `SO-${Date.now()}`;
     await insertRows('crm_sales_orders', [{
       id: soId,
-      estimate_id: estimateId,
+      estimate_id: realEstimateId,
       client_order_no: orderNo || '',
       customer_name: partnerName,
       customer_phone: parsedData.picName || '',

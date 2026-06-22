@@ -389,17 +389,55 @@ If no fields are found for partner, contact or estimate, leave them as null in t
       // 미팅/녹취 기반 AI 수주 견적서 자동 기안!
       const estItems = aiResultJson.extracted_data.estimate.items || [];
       const estimateId = `EST-${Date.now()}`;
+      const uuid = `EST-UUID-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
       
       let total_amount = 0;
+      estItems.forEach((item: any) => {
+        const qty = parseInt(item.quantity) || 1;
+        const price = parseInt(item.unit_price) || 10000;
+        total_amount += qty * price;
+      });
+
+      // 파트너 정보 가져오기
+      let partnerName = '임시 B2B 거래처';
+      let partnerPhone = '010-0000-0000';
+      if (currentTask.partner_id) {
+        const partnerRes = await queryTable('crm_partners', { filters: { id: currentTask.partner_id }, limit: 1 });
+        if (partnerRes.rows && partnerRes.rows.length > 0) {
+          partnerName = partnerRes.rows[0].company_name;
+          partnerPhone = partnerRes.rows[0].phone || '010-0000-0000';
+        }
+      } else if (currentTask.partner_company_name) {
+        partnerName = currentTask.partner_company_name;
+      }
+
+      // 1. 견적서 마스터 등록 (id 컬럼은 제외하여 SQLite AUTOINCREMENT 적용)
+      await insertRows('crm_estimates', [{
+        type: 'INBOUND',
+        direction_status: 'DRAFT', // AI 기안 초안 상태
+        partner_name: partnerName,
+        partner_phone: partnerPhone,
+        total_amount,
+        file_url: savedFileUrl,
+        ai_parsed: 1,
+        uuid: uuid,
+        created_at: nowStr
+      }]);
+
+      // 2. 방금 삽입된 실제 정수 id 가져오기
+      const insertedEstRes = await queryTable('crm_estimates', { filters: { uuid }, limit: 1 });
+      const insertedEst = insertedEstRes.rows && insertedEstRes.rows.length > 0 ? insertedEstRes.rows[0] : null;
+      const realEstimateId = insertedEst ? String(insertedEst.id) : estimateId;
+
+      // 3. 견적서 디테일 적재 준비
       const detailRows = estItems.map((item: any, idx: number) => {
         const qty = parseInt(item.quantity) || 1;
         const price = parseInt(item.unit_price) || 10000;
         const amount = qty * price;
-        total_amount += amount;
 
         return {
           id: Date.now() + idx + 10,
-          estimate_id: estimateId,
+          estimate_id: realEstimateId,
           product_id: '',
           product_name: item.product_name,
           quantity: qty,
@@ -408,20 +446,7 @@ If no fields are found for partner, contact or estimate, leave them as null in t
         };
       });
 
-      // 1. 견적서 마스터 등록
-      await insertRows('crm_estimates', [{
-        id: estimateId,
-        type: 'INBOUND',
-        direction_status: 'DRAFT', // AI 기안 초안 상태
-        partner_name: currentTask.partner_company_name || '미결 잠재거래처',
-        partner_phone: '010-0000-0000',
-        total_amount,
-        file_url: savedFileUrl,
-        ai_parsed: 1,
-        created_at: nowStr
-      }]);
-
-      // 2. 견적서 디테일 적재
+      // 4. 견적서 디테일 적재
       if (detailRows.length > 0) {
         await insertRows('crm_estimate_items', detailRows);
       }

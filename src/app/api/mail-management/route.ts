@@ -183,9 +183,9 @@ export async function POST(req: Request) {
         // 2. 비즈니스 자동 연동 액션 수행
         if (mail.action_type === 'CREATE_ESTIMATE' && mail.orderData) {
           const od = mail.orderData;
+          const uuid = `est-uuid-${od.estimateId}-${Date.now()}`;
           // crm_estimates 추가
           await insertRows('crm_estimates', [{
-            id: od.estimateId,
             type: 'INBOUND',
             direction_status: 'RECEIVED',
             partner_name: od.partnerName,
@@ -194,12 +194,17 @@ export async function POST(req: Request) {
             file_url: null,
             ai_parsed: 1,
             created_at: nowStr,
-            uuid: `est-uuid-${od.estimateId}`
+            uuid: uuid
           }]);
+
+          // 실제 정수 id 가져오기
+          const insertedEstRes = await queryTable('crm_estimates', { filters: { uuid }, limit: 1 });
+          const insertedEst = insertedEstRes.rows && insertedEstRes.rows.length > 0 ? insertedEstRes.rows[0] : null;
+          const realEstimateId = insertedEst ? String(insertedEst.id) : od.estimateId;
 
           // crm_estimate_items 추가
           await insertRows('crm_estimate_items', [{
-            estimate_id: od.estimateId,
+            estimate_id: realEstimateId,
             product_id: od.productId,
             product_name: od.productName,
             quantity: od.quantity,

@@ -366,13 +366,13 @@ export async function POST(req: Request) {
       };
     });
 
-    // 2. 견적서 고유 식별 마스터 ID 생성
+    // 2. 견적서 고유 식별 마스터 ID 생성 및 UUID 부여
     const estimateId = `EST-${Date.now()}`;
+    const uuid = `EST-UUID-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
 
     // 3. crm_estimates 마스터 테이블 삽입
     await insertRows('crm_estimates', [{
-      id: estimateId,
       type,
       direction_status,
       partner_name,
@@ -382,13 +382,19 @@ export async function POST(req: Request) {
       business_license_url, // 첨부된 사업자등록증 URL 매핑
       ai_parsed,
       tags,
+      uuid,
       created_at: nowStr
     }]);
+
+    // 방금 삽입된 실제 정수 id 가져오기
+    const insertedEstRes = await queryTable('crm_estimates', { filters: { uuid }, limit: 1 });
+    const insertedEst = insertedEstRes.rows && insertedEstRes.rows.length > 0 ? insertedEstRes.rows[0] : null;
+    const realEstimateId = insertedEst ? String(insertedEst.id) : estimateId;
 
     // 4. crm_estimate_items 디테일 테이블 품목 삽입
     const detailRows = itemRows.map((row: any, idx: number) => ({
       id: Date.now() + idx,
-      estimate_id: estimateId,
+      estimate_id: realEstimateId,
       product_id: row.product_id,
       product_name: row.product_name,
       quantity: row.quantity,
@@ -410,11 +416,11 @@ export async function POST(req: Request) {
     if (targetEmail) {
       if (type === 'INBOUND') {
         // 모바일 접수 확인 메일: 사용자 대기 최소화를 위해 백그라운드 비동기 발송
-        sendEstimateEmail(estimateId, type, direction_status, partner_name, targetEmail, total_amount, itemRows)
+        sendEstimateEmail(realEstimateId, type, direction_status, partner_name, targetEmail, total_amount, itemRows)
           .catch((e) => console.warn('B2B 견적 접수 메일 백그라운드 발송 실패:', e.message));
       } else if (type === 'OUTBOUND' && direction_status === 'SENT') {
         // 관리자 정식 발송: 메일 발송 실패 시 에러를 반환
-        const mailRes = await sendEstimateEmail(estimateId, type, direction_status, partner_name, targetEmail, total_amount, itemRows);
+        const mailRes = await sendEstimateEmail(realEstimateId, type, direction_status, partner_name, targetEmail, total_amount, itemRows);
         if (!mailRes.success) {
           return NextResponse.json({
             success: false,
