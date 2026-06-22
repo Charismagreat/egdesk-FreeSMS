@@ -115,18 +115,20 @@ export async function POST(req: Request) {
   "monitoring_recommendation": "향후 상시 모니터링 필요 여부 및 실무자 조치 권고사항"
 }`;
     } else if (analysis_type === 'REPUTATION') {
-      systemInstruction = `당신은 B2B 기업 평판 및 노동 환경 분석가입니다. 제공된 거래처 임직원들의 리뷰 텍스트(익명 평판 데이터)를 분석하여, 해당 기업의 숨겨진 재무적 리스크, 조직 안정성, 이직률 등을 파악합니다. 과장된 감정적 비난은 걸러내고, '자금 상황 악화', '사업 축소', '임금 체불', '핵심 인력 이탈' 등 비즈니스 연속성에 직접적 위해가 되는 신호를 정확히 감지하십시오. 반드시 지정된 JSON 구조로만 답변하세요.`;
-      userPrompt = `수집된 아래 B2B 기업의 임직원 리뷰 텍스트 데이터를 분석하여 비즈니스 안전성 관점의 위험 요인을 분석해 주세요.
+      systemInstruction = `당신은 B2B 기업 평판 및 노동 환경 분석가입니다. 웹 검색 도구(Google Search)를 적극 활용하여 요청받은 기업에 대한 온라인 임직원 평판(잡플래닛, 블라인드, 잡코리아 등) 및 조직 분위기, 퇴사율 동향을 검색하고 분석하십시오. '자금 상황 악화', '사업 축소', '임금 체불', '핵심 인력 이탈' 등 비즈니스 연속성에 직접적 위해가 되는 신호를 감지하고, 반드시 지정된 JSON 구조로만 답변하세요.`;
+      userPrompt = `다음 거래처에 대한 온라인 임직원 평판 및 조직 안정성 리스크 분석을 수행해 주세요.
 
-[분석 대상 기업 및 데이터]
+[분석 대상 기업]
 - 기업명: ${company_name}
-- 수집된 리뷰 데이터:
----
-${payload?.review_text || '제공된 임직원 리뷰 텍스트가 없습니다.'}
----
+
+[검색 핵심 키워드 조합 예시]
+"${company_name}" + (잡플래닛 OR 블라인드 OR 평판 OR 이직률 OR 임금체불)
+
+[추가 참조 정보]
+${payload?.review_text ? `사용자 기입 보조 정보:\n${payload.review_text}` : '제공된 사용자 기입 추가 정보 없음. 구글 검색 평판 데이터에만 의존하여 분석하십시오.'}
 
 [작성 및 출력 조건]
-1. 정량적 수치 분석과 정성적 맥락 분석을 동시에 수행하세요.
+1. 반드시 Google Search 도구를 사용하여 최신 임직원 리뷰 및 평판을 실시간으로 검색하세요.
 2. 아래 JSON 포맷으로 출력하세요. JSON 외의 다른 설명 텍스트는 절대 포함하지 마십시오.
 
 {
@@ -197,8 +199,8 @@ ${payload?.review_text || '제공된 임직원 리뷰 텍스트가 없습니다.
         generationConfig: {
           responseMimeType: "application/json"
         },
-        // 뉴스 분석 템플릿일 때만 Google Search Grounding 도구를 탑재
-        tools: analysis_type === 'NEWS' ? [{ googleSearch: {} }] : []
+        // 뉴스 분석 혹은 익명 평판 분석 템플릿일 때 Google Search Grounding 도구를 탑재
+        tools: (analysis_type === 'NEWS' || analysis_type === 'REPUTATION') ? [{ googleSearch: {} }] : []
       })
     });
 

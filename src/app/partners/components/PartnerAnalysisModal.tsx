@@ -24,6 +24,7 @@ export function PartnerAnalysisModal({
 
   // 1. 평판 분석용 입력 폼 상태
   const [reviewText, setReviewText] = useState("");
+  const [showManualReputation, setShowManualReputation] = useState(false);
 
   // 2. 재무 분석용 입력 폼 상태
   const [revenue, setRevenue] = useState("");
@@ -40,10 +41,6 @@ export function PartnerAnalysisModal({
   const handleExecute = async () => {
     let payload: any = {};
     if (activeSubTab === 'REPUTATION') {
-      if (!reviewText.trim()) {
-        alert("임직원 평판 리뷰 텍스트를 입력해 주세요.");
-        return;
-      }
       payload = { review_text: reviewText };
     } else if (activeSubTab === 'FINANCIAL') {
       payload = {
@@ -162,15 +159,44 @@ export function PartnerAnalysisModal({
             )}
 
             {activeSubTab === 'REPUTATION' && (
-              <div className="space-y-2">
-                <label className="text-[10px] text-slate-400 font-bold block">임직원 리뷰 텍스트 (잡플래닛, 블라인드 등에서 스크랩한 원문 붙여넣기)</label>
-                <textarea
-                  rows={6}
-                  value={reviewText}
-                  onChange={e => setReviewText(e.target.value)}
-                  placeholder="예: 월급이 최근 2개월 동안 밀려서 퇴사율이 엄청납니다... 신규 수주도 다 끊기고 내부 분위기 최악입니다."
-                  className="w-full p-3 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 bg-white placeholder-slate-400 focus:border-emerald-500 outline-none resize-none leading-relaxed"
-                />
+              <div className="space-y-3">
+                <div className="bg-slate-50/50 p-4 border border-slate-100 rounded-2xl space-y-3">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">실시간 평판 자율 마이닝 가이드</span>
+                  <p className="text-xs leading-relaxed text-slate-600 font-medium">
+                    잡플래닛, 블라인드, 잡코리아 등의 익명 리뷰와 온라인 커뮤니티 평판을 **Google Search** 실시간 수집을 통해 자동으로 마이닝하고 분석을 기동합니다.
+                  </p>
+                  <div className="p-3 bg-white border border-slate-150 rounded-xl font-mono text-[10px] text-indigo-600 font-bold">
+                    검색 키워드: &ldquo;{analysisPartner.company_name}&rdquo; + (잡플래닛 OR 블라인드 OR 평판 OR 이직률 OR 임금체불)
+                  </div>
+                </div>
+
+                {/* 접이식 추가 정보 입력 아코디언 */}
+                <div className="border border-slate-150 rounded-2xl overflow-hidden bg-white">
+                  <button
+                    type="button"
+                    onClick={() => setShowManualReputation(!showManualReputation)}
+                    className="w-full px-4 py-3 bg-slate-50 hover:bg-slate-100 flex items-center justify-between text-xs font-black text-slate-700 border-none cursor-pointer transition-colors"
+                  >
+                    <span>➕ 보조 참고 텍스트 추가 입력 (선택)</span>
+                    <span className="text-[10px] text-slate-400 font-bold">
+                      {showManualReputation ? "접기" : "펼치기"}
+                    </span>
+                  </button>
+                  {showManualReputation && (
+                    <div className="p-3 border-t border-slate-150 bg-white space-y-2">
+                      <label className="text-[9px] text-slate-400 font-bold block">
+                        사내 비공개 정보나 직접 수집한 리뷰가 있다면 입력해 주세요. (구글 검색과 결합하여 분석)
+                      </label>
+                      <textarea
+                        rows={4}
+                        value={reviewText}
+                        onChange={e => setReviewText(e.target.value)}
+                        placeholder="예: 최근 회사 소문 외에 직접 들은 바로는 연구소 핵심 인력 3명이 경쟁사로 이직 준비 중이라고 함."
+                        className="w-full p-2.5 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 bg-white placeholder-slate-400 focus:border-emerald-500 outline-none resize-none leading-relaxed"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
