@@ -66,9 +66,15 @@ export async function GET(request: Request) {
           
           // 소프트 삭제된 테이블인 경우 일반 감시 카운트는 deleted_at IS NULL인 항목만 계산
           const countCol = columns[0]?.name || 'id';
-          const aggOptions = hasDeletedCol ? { filters: { deleted_at: null } } : {};
-          const countRes = await aggregateTable(name, countCol, 'COUNT', aggOptions);
-          const cnt = countRes.value || 0;
+          const countRes = await aggregateTable(name, countCol, 'COUNT');
+          let cnt = countRes.value || 0;
+          
+          if (cnt > 0 && hasDeletedCol) {
+            const queryRes = await queryTable(name, { limit: 10000 });
+            const rows = queryRes.rows || [];
+            const nonDeletedRows = rows.filter((r: any) => r.deleted_at === null || r.deleted_at === undefined || r.deleted_at === '');
+            cnt = nonDeletedRows.length;
+          }
           
           // TABLES 설정을 기반으로 동적으로 displayName 매핑 (설정 파일 누락 시 물리명 폴백 적용)
           const foundTable = Object.values(TABLES).find((tbl: any) => tbl.name === name);
