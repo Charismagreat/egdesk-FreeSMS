@@ -199,7 +199,7 @@ export default function FinanceCardsTab({
             </div>
             <div className="flex flex-col">
               <h3 className="font-extrabold text-slate-800 text-xs sm:text-sm">
-                계정과목 <span className="text-[10px] text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-md font-bold ml-1">AI Rule Builder</span>
+                계정과목 AI 분류 <span className="text-[10px] text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-md font-bold ml-1">AI Rule Builder</span>
               </h3>
               <p className="text-[10px] text-slate-400 font-medium">관리자가 자연어로 설정한 지능형 조건에 매핑되는 승인 건을 영구 자동 분류합니다.</p>
             </div>
