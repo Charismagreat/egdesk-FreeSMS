@@ -82,12 +82,12 @@ export async function POST(req: Request) {
     // 1. 최고관리자 세션 권한 검증
     await verifySuperAdmin();
 
-    const { file, mimeType } = await req.json();
+    const { file, mimeType, action } = await req.json();
 
     if (!file || !mimeType) {
       return NextResponse.json({
         success: false,
-        error: '분석할 사업자등록증 파일 데이터(Base64) 및 mimeType이 누락되었습니다.'
+        error: '분석할 파일 데이터(Base64) 및 mimeType이 누락되었습니다.'
       }, { status: 400 });
     }
 
@@ -113,6 +113,107 @@ export async function POST(req: Request) {
     const selectedModel = modelRes.rows && modelRes.rows.length > 0 && modelRes.rows[0].value
       ? modelRes.rows[0].value
       : 'gemini-3.5-flash';
+
+    // ─── [명함 이미지 분석 분기] ───
+    if (action === 'card') {
+      const geminiPrompt = `제공된 명함(이미지 사진 또는 PDF 문서)에서 다음 실무 담당자 정보를 정밀하게 판독하여 추출해 주세요:
+- 성명 (name)
+- 직책/직급 (position): 예: "과장", "팀장", "대표" 등, 없으면 빈칸
+- 휴대전화번호/연락처 (phone): "010-0000-0000" 또는 "02-000-0000" 형식으로 정제해서 반환, 없으면 빈칸
+- 이메일 주소 (email): 이메일 형식으로 반환, 없으면 빈칸
+- 회사명 (companyName): 명함의 소속 회사/상호명
+
+반드시 아래 JSON 스키마 규격을 충실히 준수하여 순수 JSON 문자열로만 응답해 주세요. 다른 마크다운 백틱(\`\`\`) 기호나 텍스트, 설명은 절대 포함하지 마세요.
+
+응답 JSON 규격 예시:
+{
+  "name": "홍길동",
+  "position": "팀장",
+  "phone": "010-1234-5678",
+  "email": "gildong@partner.com",
+  "companyName": "주식회사 이지텍"
+}`;
+
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
+      const response = await fetchGeminiWithFallback(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                { text: geminiPrompt },
+                {
+                  inlineData: {
+                    mimeType: mimeType,
+                    data: base64Data
+                  }
+                }
+              ]
+            }
+          ],
+          generationConfig: {
+            responseMimeType: "application/json"
+          }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Gemini OCR API 통신 실패: HTTP ${response.status}`);
+      }
+
+      const aiData = await response.json();
+      const rawText = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      // AI 토큰 사용량 로깅
+      try {
+        const prompt_tokens = aiData.usageMetadata?.promptTokenCount || 0;
+        const completion_tokens = aiData.usageMetadata?.candidatesTokenCount || 0;
+        const total_tokens = aiData.usageMetadata?.totalTokenCount || (prompt_tokens + completion_tokens);
+        const logId = `TKC-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        const logTime = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+        await insertRows('ai_token_usage_logs', [{
+          id: logId,
+          model: selectedModel || 'gemini-3.5-flash',
+          purpose: 'PARTNER_CONTACT_OCR',
+          prompt_tokens,
+          completion_tokens,
+          total_tokens,
+          created_at: logTime
+        }]);
+      } catch (e: any) {
+        console.error('AI 토큰 로깅 실패:', e.message);
+      }
+
+      if (!rawText) {
+        throw new Error('Gemini AI로부터 분석 응답을 수신하지 못했습니다.');
+      }
+
+      let parsedCard;
+      try {
+        parsedCard = JSON.parse(rawText.trim());
+      } catch (err) {
+        const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          parsedCard = JSON.parse(jsonMatch[0].trim());
+        } else {
+          throw new Error('AI 분석 결과의 JSON 포맷이 올바르지 않습니다.');
+        }
+      }
+
+      const cleanedPhone = normalizePhone(parsedCard.phone || '');
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          name: parsedCard.name ? parsedCard.name.trim() : '',
+          position: parsedCard.position ? parsedCard.position.trim() : '',
+          phone: cleanedPhone,
+          email: parsedCard.email ? parsedCard.email.trim() : '',
+          companyName: parsedCard.companyName ? parsedCard.companyName.trim() : ''
+        }
+      });
+    }
 
     // 3. Gemini API 사업자등록증 구조화 분석 프롬프트 설계
     const geminiPrompt = `제공된 사업자등록증(이미지 사진 또는 PDF 문서)에서 다음 정보를 정밀하게 판독하여 추출해 주세요:

@@ -34,6 +34,10 @@ export function usePartners() {
   const [ocrResult, setOcrResult] = useState<OcrResult | null>(null);
   const [fileDragOver, setFileDragOver] = useState(false);
 
+  // 📇 명함 관리 AI 및 자동 추천 상태 변수
+  const [contacts, setContacts] = useState<any[]>([]);
+  const [isCardAnalyzing, setIsCardAnalyzing] = useState(false);
+
   // 상세 거래 타임라인 팝업 상태
   const [isDetailOpen, setIsDetailOpen, isDetailOpenRestored] = usePersistedState("egdesk_partners_isDetailOpen", false);
   const [selectedPartner, setSelectedPartner, isSelectedPartnerRestored] = usePersistedState<Partner | null>("egdesk_partners_selectedPartner", null);
@@ -131,9 +135,62 @@ export function usePartners() {
     }
   };
 
+  // 📇 명함 파일 업로드 및 AI 스캔 연동
+  const handleCardUpload = async (fileObj: File) => {
+    if (!fileObj) return;
+
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+    if (!allowedTypes.includes(fileObj.type)) {
+      alert('⚠️ 지원되지 않는 파일 포맷입니다. 명함 사진(JPG, PNG) 또는 PDF 문서만 업로드해 주세요.');
+      return;
+    }
+
+    setIsCardAnalyzing(true);
+
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64Data = e.target?.result as string;
+
+        // 백엔드 AI OCR API 호출 (명함 분석용)
+        const res = await fetch('/api/partners/ocr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file: base64Data, mimeType: fileObj.type, action: 'card' })
+        });
+
+        const resData = await res.json();
+
+        if (!resData.success) {
+          throw new Error(resData.error || '명함 분석에 실패했습니다.');
+        }
+
+        const cardData = resData.data;
+
+        // 담당자 폼 자동 입력
+        setForm(prev => ({
+          ...prev,
+          manager_name: cardData.name || prev.manager_name,
+          manager_phone: cardData.phone || prev.manager_phone,
+          email: cardData.email || prev.email
+        }));
+
+        alert(`✨ 명함 인식 성공! 담당자 [${cardData.name || '미상'}] 정보를 폼에 자동 입력했습니다.`);
+        setIsCardAnalyzing(false);
+      };
+
+      reader.readAsDataURL(fileObj);
+
+    } catch (err: any) {
+      alert(err.message || '명함 처리 중 오류가 발생했습니다.');
+      setIsCardAnalyzing(false);
+    }
+  };
+
   useEffect(() => {
     if (isRestored) {
       fetchPartners();
+      fetchContacts();
     }
   }, [isRestored]);
 
@@ -173,6 +230,18 @@ export function usePartners() {
       console.error("거래처 로드 실패:", e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchContacts = async () => {
+    try {
+      const res = await fetch("/api/partners?action=contacts");
+      const data = await res.json();
+      if (data.success) {
+        setContacts(data.contacts || []);
+      }
+    } catch (e) {
+      console.error("명함첩 로드 실패:", e);
     }
   };
 
@@ -356,6 +425,9 @@ export function usePartners() {
     totalBuyers,
     totalAffiliates,
     totalPurchases,
-    totalSales
+    totalSales,
+    contacts,
+    isCardAnalyzing,
+    handleCardUpload
   };
 }

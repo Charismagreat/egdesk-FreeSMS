@@ -40,7 +40,11 @@ export default function PartnersDashboard() {
     totalBuyers,
     totalAffiliates,
     totalPurchases,
-    totalSales
+    totalSales,
+    // 📇 명함 관리 추가
+    contacts,
+    isCardAnalyzing,
+    handleCardUpload
   } = usePartners();
 
   // 외상 거래 경고 거래처 집계
@@ -91,6 +95,10 @@ export default function PartnersDashboard() {
         setFileDragOver={setFileDragOver}
         handleFileUpload={handleFileUpload}
         handleSavePartner={handleSavePartner}
+        // 📇 명함 관리 추가
+        contacts={contacts}
+        isCardAnalyzing={isCardAnalyzing}
+        handleCardUpload={handleCardUpload}
       />
 
       <PartnerDetailModal

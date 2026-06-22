@@ -13,6 +13,15 @@ export async function GET(req: Request) {
     const business_number = searchParams.get('business_number');
 
     // ────────────────────────────────────────────────────────
+    // 0-0. 기존 명함 대장 조회 (AI 추천용)
+    // ────────────────────────────────────────────────────────
+    if (action === 'contacts') {
+      const contactsRes = await queryTable('crm_partner_contacts', {});
+      const contacts = (contactsRes.rows || []).filter((c: any) => !c.deleted_at);
+      return NextResponse.json({ success: true, contacts });
+    }
+
+    // ────────────────────────────────────────────────────────
     // 0. 사업자등록번호로 기존 파트너가 있는지 실시간 조회 (중복 가입 방지)
     // ────────────────────────────────────────────────────────
     if (action === 'check-biz' && business_number) {

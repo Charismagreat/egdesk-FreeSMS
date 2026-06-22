@@ -14,6 +14,10 @@ interface PartnerFormModalProps {
   setFileDragOver: (val: boolean) => void;
   handleFileUpload: (file: File) => Promise<void>;
   handleSavePartner: (e: React.FormEvent) => Promise<void>;
+  // 📇 명함 관리 AI Props
+  contacts: any[];
+  isCardAnalyzing: boolean;
+  handleCardUpload: (file: File) => Promise<void>;
 }
 
 export function PartnerFormModal({
@@ -27,7 +31,11 @@ export function PartnerFormModal({
   fileDragOver,
   setFileDragOver,
   handleFileUpload,
-  handleSavePartner
+  handleSavePartner,
+  // 📇 명함 관리 AI Props
+  contacts,
+  isCardAnalyzing,
+  handleCardUpload
 }: PartnerFormModalProps) {
   if (!isModalOpen) return null;
 
@@ -321,10 +329,38 @@ export function PartnerFormModal({
 
           {/* B2B 담당자 정보 */}
           <div className="bg-slate-50/50 p-4.5 rounded-2xl border border-slate-100 space-y-3">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">실무 담당자 명세</span>
+            <div className="flex justify-between items-center pb-1.5 border-b border-slate-100/50">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">실무 담당자 명세</span>
+              
+              {/* 📷 명함 사진 업로드 AI 스캔 */}
+              {modalMode === 'create' && (
+                <div className="relative">
+                  <button
+                    type="button"
+                    disabled={isCardAnalyzing}
+                    onClick={() => document.getElementById('card-uploader')?.click()}
+                    className="flex items-center gap-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-[9px] font-black border-none cursor-pointer transition-colors disabled:opacity-50"
+                  >
+                    <Sparkles className={`w-3 h-3 ${isCardAnalyzing ? 'animate-spin' : ''}`} />
+                    <span>{isCardAnalyzing ? '스캔 중...' : '📷 명함 자동 입력'}</span>
+                  </button>
+                  <input
+                    type="file"
+                    id="card-uploader"
+                    accept="image/*,application/pdf"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0] && handleCardUpload) {
+                        handleCardUpload(e.target.files[0]);
+                      }
+                    }}
+                    className="hidden"
+                  />
+                </div>
+              )}
+            </div>
             
             <div className="grid grid-cols-2 gap-3">
-              <div>
+              <div className="relative">
                 <label className="text-[10px] text-slate-400 font-bold block mb-1">담당자 성함</label>
                 <input 
                   type="text" 
@@ -333,6 +369,48 @@ export function PartnerFormModal({
                   placeholder="실무자 이름"
                   className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
                 />
+
+                {/* 💡 기존 명함 대장 AI 추천 자동완성 드롭다운 */}
+                {form.manager_name && contacts && contacts.length > 0 && (
+                  (() => {
+                    const query = form.manager_name.toLowerCase();
+                    const matched = contacts.filter((c: any) => 
+                      (c.name && c.name.toLowerCase().includes(query)) ||
+                      (form.company_name && c.company_name && c.company_name.toLowerCase().includes(form.company_name.toLowerCase()))
+                    ).slice(0, 3); // 최대 3개 추천
+
+                    if (matched.length === 0) return null;
+
+                    return (
+                      <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-150 rounded-xl shadow-lg z-20 max-h-40 overflow-y-auto divide-y divide-slate-50 text-[11px] font-bold">
+                        <div className="p-2 bg-slate-50 text-[9px] text-slate-400 tracking-wider">💡 명함대장 AI 추천 연락처</div>
+                        {matched.map((c: any) => (
+                          <div 
+                            key={c.id}
+                            onClick={() => {
+                              setForm(prev => ({
+                                ...prev,
+                                manager_name: c.name || prev.manager_name,
+                                manager_phone: c.phone || prev.manager_phone,
+                                email: c.email || prev.email
+                              }));
+                            }}
+                            className="p-2.5 hover:bg-emerald-50/50 cursor-pointer flex justify-between items-center text-slate-700 transition-colors"
+                          >
+                            <div>
+                              <span className="text-slate-850 font-black">{c.name}</span>
+                              {c.position && <span className="text-slate-400 ml-1">({c.position})</span>}
+                            </div>
+                            <div className="text-right text-[10px] text-slate-400">
+                              <div>{c.phone}</div>
+                              {c.email && <div className="text-[9px]">{c.email}</div>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()
+                )}
               </div>
               <div>
                 <label className="text-[10px] text-slate-400 font-bold block mb-1">담당자 연락처 (휴대폰)</label>
