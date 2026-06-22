@@ -6,6 +6,7 @@ import { OperatorHeader } from "./components/OperatorHeader";
 import { OperatorForm } from "./components/OperatorForm";
 import { OperatorTable } from "./components/OperatorTable";
 import { ContractAnalyzerModal } from "./components/ContractAnalyzerModal";
+import { ContractRequestModal } from "./components/ContractRequestModal";
 import { Operator } from "./types";
 
 export default function OperatorsPage() {
@@ -23,6 +24,7 @@ export default function OperatorsPage() {
   } = useOperators();
 
   const [activeAnalysisOperator, setActiveAnalysisOperator] = useState<Operator | null>(null);
+  const [activeRequestOperator, setActiveRequestOperator] = useState<Operator | null>(null);
 
   return (
     <div className="w-full space-y-6 pb-20 min-w-0 font-sans text-slate-800 animate-fade-in text-left" data-easybot-hint="직원 관리: 이지데스크 플랫폼에 접근할 수 있는 사내 서브 운영자 및 일반 직원 계정을 추가하고 접근 권한을 관리합니다.">
@@ -50,6 +52,7 @@ export default function OperatorsPage() {
             onDelete={handleDelete}
             onEdit={startEdit}
             onAnalyzeContract={(op) => setActiveAnalysisOperator(op)}
+            onContractRequest={(op) => setActiveRequestOperator(op)}
           />
         </div>
       </div>
@@ -59,6 +62,14 @@ export default function OperatorsPage() {
         <ContractAnalyzerModal 
           operator={activeAnalysisOperator}
           onClose={() => setActiveAnalysisOperator(null)}
+        />
+      )}
+
+      {/* 근로계약 모바일 서명 요청 모달 */}
+      {activeRequestOperator && (
+        <ContractRequestModal 
+          operator={activeRequestOperator}
+          onClose={() => setActiveRequestOperator(null)}
         />
       )}
     </div>

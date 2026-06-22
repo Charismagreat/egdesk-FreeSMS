@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
-import { createTable, queryTable, insertRows } from '../../../../../egdesk-helpers';
+import { createTable, queryTable, insertRows, executeSQL } from '../../../../../egdesk-helpers';
 
 /**
  * 🛡️ 근로계약 상세 설정 테이블 자율 생성 및 데모 백필 (Self-Healing Auto-Migration)
@@ -21,7 +21,20 @@ async function initContractsDatabase() {
         { name: 'allow_weekly_holiday_paid', type: 'INTEGER', defaultValue: 1 }, // 1: 적용, 0: 미적용
         { name: 'work_days', type: 'TEXT' },
         { name: 'contract_memo', type: 'TEXT' },
-        { name: 'updated_at', type: 'TEXT', notNull: true }
+        { name: 'start_date', type: 'TEXT' },
+        { name: 'end_date', type: 'TEXT' },
+        { name: 'work_place', type: 'TEXT' },
+        { name: 'job_description', type: 'TEXT' },
+        { name: 'status', type: 'TEXT', defaultValue: 'SIGNED' },
+        { name: 'signature_image', type: 'TEXT' },
+        { name: 'signed_at', type: 'TEXT' },
+        { name: 'updated_at', type: 'TEXT', notNull: true },
+        { name: 'uuid', type: 'TEXT' },
+        { name: 'updated_by', type: 'TEXT' },
+        { name: 'deleted_at', type: 'TEXT' },
+        { name: 'deleted_by', type: 'TEXT' },
+        { name: 'restored_at', type: 'TEXT' },
+        { name: 'restored_by', type: 'TEXT' }
       ], {
         tableName: 'crm_operator_contract_settings',
         uniqueKeyColumns: ['operator_id']
@@ -71,6 +84,37 @@ async function initContractsDatabase() {
       await insertRows('crm_operator_contract_settings', defaultContracts);
       console.log('✓ 임직원 4인에 대한 기본 근로 계약 데이터 적재 성공!');
     });
+
+    // 이미 존재하는 경우 동적 ALTER TABLE 보정
+    try {
+      const colInfoRes = await executeSQL("PRAGMA table_info(crm_operator_contract_settings);");
+      const cols = (colInfoRes?.rows || []).map((c: any) => c.name);
+      
+      const newCols = [
+        { name: 'start_date', type: 'TEXT' },
+        { name: 'end_date', type: 'TEXT' },
+        { name: 'work_place', type: 'TEXT' },
+        { name: 'job_description', type: 'TEXT' },
+        { name: 'status', type: "TEXT DEFAULT 'SIGNED'" },
+        { name: 'signature_image', type: 'TEXT' },
+        { name: 'signed_at', type: 'TEXT' },
+        { name: 'uuid', type: 'TEXT' },
+        { name: 'updated_by', type: 'TEXT' },
+        { name: 'deleted_at', type: 'TEXT' },
+        { name: 'deleted_by', type: 'TEXT' },
+        { name: 'restored_at', type: 'TEXT' },
+        { name: 'restored_by', type: 'TEXT' }
+      ];
+
+      for (const col of newCols) {
+        if (!cols.includes(col.name)) {
+          await executeSQL(`ALTER TABLE crm_operator_contract_settings ADD COLUMN ${col.name} ${col.type};`);
+          console.log(`✓ In-app migration: added ${col.name} to crm_operator_contract_settings`);
+        }
+      }
+    } catch (e: any) {
+      console.warn('⚠️ crm_operator_contract_settings migration warning:', e.message);
+    }
   } catch (err) {
     console.error('Contracts DB 초기화 및 백필 중 오류:', err);
   }

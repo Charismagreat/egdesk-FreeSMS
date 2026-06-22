@@ -1,5 +1,5 @@
 import React from "react";
-import { ShieldAlert, ShieldCheck, Trash2, Edit2, FileText } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Trash2, Edit2, FileText, PenTool } from "lucide-react";
 import { Operator } from "../types";
 
 interface OperatorTableProps {
@@ -8,6 +8,7 @@ interface OperatorTableProps {
   onDelete: (id: number) => Promise<void>;
   onEdit: (op: Operator) => void;
   onAnalyzeContract: (op: Operator) => void;
+  onContractRequest: (op: Operator) => void;
 }
 
 export function OperatorTable({
@@ -15,7 +16,8 @@ export function OperatorTable({
   operators,
   onDelete,
   onEdit,
-  onAnalyzeContract
+  onAnalyzeContract,
+  onContractRequest
 }: OperatorTableProps) {
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
@@ -76,6 +78,14 @@ export function OperatorTable({
                     title="근로계약 AI 분석 및 등록"
                   >
                     <FileText className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onContractRequest(op)}
+                    className="p-2 text-slate-400 hover:text-indigo-500 transition-colors border-0 bg-transparent cursor-pointer mr-1"
+                    title="근로계약 모바일 서명 요청 발송"
+                  >
+                    <PenTool className="w-4 h-4" />
                   </button>
                   <button
                     type="button"
