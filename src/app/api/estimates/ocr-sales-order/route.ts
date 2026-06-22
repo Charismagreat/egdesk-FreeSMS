@@ -155,6 +155,8 @@ export async function POST(req: Request) {
       await executeSQL('ALTER TABLE crm_estimate_items ADD COLUMN spec TEXT');
     } catch(e) {}
 
+    const soId = `SO-${Date.now()}`;
+
     // 3. 견적서 섀도우 생성 (crm_estimates)
     const estimateId = `EST-${Date.now()}`;
     const uuid = `EST-UUID-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
@@ -167,6 +169,7 @@ export async function POST(req: Request) {
       file_url: 'AI 발주서 다이렉트 자동 스캔',
       ai_parsed: 1,
       uuid,
+      sales_order_number: orderNo || soId,
       created_at: nowStr
     }]);
 
@@ -190,7 +193,6 @@ export async function POST(req: Request) {
     await insertRows('crm_estimate_items', detailRows);
 
     // 5. 수주 마스터 생성 (crm_sales_orders)
-    const soId = `SO-${Date.now()}`;
     await insertRows('crm_sales_orders', [{
       id: soId,
       estimate_id: realEstimateId,

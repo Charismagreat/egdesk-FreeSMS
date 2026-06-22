@@ -247,7 +247,11 @@ export default function EstimatesDashboard() {
 
   // 수주 전환
   const handleConvertToSo = async (est: Estimate) => {
-    if (!confirm(`${est.partner_name} 바이어의 견적 수락에 따라 수주로 전환하시겠습니까?`)) return;
+    const salesOrderNumber = prompt(
+      `${est.partner_name} 바이어의 견적 수락에 따라 수주로 전환하시겠습니까?\n바이어의 수주(발주)번호가 있다면 입력해주세요 (생략 시 자동 생성됩니다):`
+    );
+    if (salesOrderNumber === null) return; // 취소 누를 시 중단
+
     try {
       const res = await fetch("/api/estimates/process", {
         method: "POST",
@@ -258,6 +262,7 @@ export default function EstimatesDashboard() {
           partner_name: est.partner_name,
           partner_phone: est.partner_phone,
           total_amount: est.total_amount,
+          sales_order_number: salesOrderNumber.trim() || undefined,
         }),
       });
       const data = await res.json();

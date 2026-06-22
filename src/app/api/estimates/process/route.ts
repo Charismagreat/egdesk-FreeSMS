@@ -169,11 +169,13 @@ export async function POST(req: Request) {
       }
 
       const soId = `SO-${Date.now()}`;
+      const { sales_order_number } = body;
 
       // 수주 등록
       await insertRows('crm_sales_orders', [{
         id: soId,
         estimate_id: estimateId,
+        client_order_no: sales_order_number || '',
         customer_name: partner_name,
         customer_phone: partner_phone || '',
         status: 'REGISTERED',
@@ -181,8 +183,11 @@ export async function POST(req: Request) {
         created_at: nowStr
       }]);
 
-      // 보낸 견적 상태 변경
-      await updateRows('crm_estimates', { direction_status: 'RECEIVED' }, { filters: { id: estimateId } });
+      // 보낸 견적 상태 변경 및 수주 번호 기입
+      await updateRows('crm_estimates', { 
+        direction_status: 'RECEIVED',
+        sales_order_number: sales_order_number || soId
+      }, { filters: { id: estimateId } });
 
       return NextResponse.json({
         success: true,

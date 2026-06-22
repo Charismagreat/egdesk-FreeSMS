@@ -518,6 +518,12 @@ export default function EstimateDetailModal({
                           <span className="text-slate-400 font-bold block">AI 판독 구분</span>
                           <span className="text-slate-800 font-bold">{detailData.estimate.ai_parsed ? '🧠 Gemini AI OCR' : '✍️ 수동 등록'}</span>
                         </div>
+                        {detailData.estimate.sales_order_number && (
+                          <div className="col-span-2 bg-indigo-50/50 p-2.5 rounded-xl border border-indigo-150/60 flex justify-between items-center my-0.5">
+                            <span className="text-indigo-600 font-bold">🔗 연동 수주번호</span>
+                            <span className="text-slate-800 font-black font-mono text-xs">{detailData.estimate.sales_order_number}</span>
+                          </div>
+                        )}
                         <div className="col-span-2">
                           <span className="text-slate-400 font-bold block mb-1.5">비고(태그)</span>
                           <div className="flex flex-wrap gap-1.5">

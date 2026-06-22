@@ -11,6 +11,7 @@ export interface Estimate {
   first_item_name?: string;
   item_count?: number;
   tags?: string;
+  sales_order_number?: string;
 }
 
 export interface PurchaseOrder {
@@ -32,6 +33,7 @@ export interface SalesOrder {
   status: "REGISTERED" | "CONFIRMED";
   total_amount: number;
   created_at: string;
+  client_order_no?: string;
 }
 
 export interface Partner {

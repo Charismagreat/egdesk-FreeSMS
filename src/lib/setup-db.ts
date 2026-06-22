@@ -367,6 +367,7 @@ export async function setupDatabase() {
     { name: 'ai_parsed', type: 'INTEGER', defaultValue: 0 },
     { name: 'created_at', type: 'TEXT', notNull: true },
     { name: 'uuid', type: 'TEXT' },
+    { name: 'sales_order_number', type: 'TEXT' },
     { name: 'updated_at', type: 'TEXT' },
     { name: 'updated_by', type: 'TEXT' },
     { name: 'deleted_at', type: 'TEXT' },
@@ -1905,6 +1906,18 @@ export async function setupDatabase() {
       }
     } catch (e: any) {
       console.warn('⚠️ crm_meetings migration check warning:', e.message);
+    }
+
+    // 2-2) crm_estimates 테이블 컬럼 보정
+    try {
+      const colInfoRes = await executeSQL("PRAGMA table_info(crm_estimates);");
+      const estimateCols = (colInfoRes?.rows || []).map((c: any) => c.name);
+      if (!estimateCols.includes('sales_order_number')) {
+        await executeSQL("ALTER TABLE crm_estimates ADD COLUMN sales_order_number TEXT;");
+        console.log('✓ In-app migration: added sales_order_number to crm_estimates');
+      }
+    } catch (e: any) {
+      console.warn('⚠️ crm_estimates migration check warning:', e.message);
     }
 
     // 3) crm_recruitment_applicants 테이블 컬럼 보정
