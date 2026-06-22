@@ -522,16 +522,16 @@ export default function EstimateDetailModal({
                           <span className="text-slate-400 font-bold block">AI 판독 구분</span>
                           <span className="text-slate-800 font-bold">{detailData.estimate.ai_parsed ? '🧠 Gemini AI OCR' : '✍️ 수동 등록'}</span>
                         </div>
-                        {detailData.estimate.type === 'OUTBOUND' && detailData.estimate.sales_order_number && (
+                        {detailData.estimate.type === 'OUTBOUND' && (detailData.estimate.sales_order_number || detailData.salesOrderNumber) && (
                           <div className="col-span-2 bg-indigo-50/50 p-2.5 rounded-xl border border-indigo-150/60 flex justify-between items-center my-0.5 animate-fade-in">
                             <span className="text-indigo-600 font-bold">🔗 연동 수주번호</span>
-                            <span className="text-slate-800 font-black font-mono text-xs">{detailData.estimate.sales_order_number}</span>
+                            <span className="text-slate-800 font-black font-mono text-xs">{detailData.estimate.sales_order_number || detailData.salesOrderNumber}</span>
                           </div>
                         )}
-                        {detailData.estimate.type === 'INBOUND' && detailData.estimate.purchase_order_number && (
+                        {detailData.estimate.type === 'INBOUND' && (detailData.estimate.purchase_order_number || detailData.purchaseOrderNumber) && (
                           <div className="col-span-2 bg-amber-50/50 p-2.5 rounded-xl border border-amber-150/60 flex justify-between items-center my-0.5 animate-fade-in">
                             <span className="text-amber-600 font-bold">🔗 연동 발주번호</span>
-                            <span className="text-slate-800 font-black font-mono text-xs">{detailData.estimate.purchase_order_number}</span>
+                            <span className="text-slate-800 font-black font-mono text-xs">{detailData.estimate.purchase_order_number || detailData.purchaseOrderNumber}</span>
                           </div>
                         )}
                         <div className="col-span-2">

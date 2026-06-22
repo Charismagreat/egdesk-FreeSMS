@@ -263,7 +263,14 @@ export async function GET(req: Request) {
       
       const isLinked = poRows.length > 0 || soRows.length > 0;
 
-      return NextResponse.json({ success: true, estimate, items, isLinked });
+      return NextResponse.json({ 
+        success: true, 
+        estimate, 
+        items, 
+        isLinked,
+        salesOrderNumber: soRows.length > 0 ? (soRows[0].client_order_no || soRows[0].id) : null,
+        purchaseOrderNumber: poRows.length > 0 ? poRows[0].id : null
+      });
     }
 
     // 기본값: 모바일용 견적 상품 목록 조회
