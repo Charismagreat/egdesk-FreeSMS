@@ -1,4 +1,4 @@
-﻿"use strict";
+"use strict";
 /**
  * EGDesk User Data Configuration
  * Generated at: 2026-05-28T01:34:49.960Z
@@ -108,8 +108,8 @@ exports.TABLES = {
         name: 'crm_sales_orders',
         displayName: '수주서 관리',
         rowCount: 0,
-        columnCount: 7,
-        columns: ['id', 'estimate_id', 'customer_name', 'customer_phone', 'status', 'total_amount', 'created_at']
+        columnCount: 17,
+        columns: ['id', 'estimate_id', 'client_order_no', 'customer_name', 'customer_phone', 'customer_manager', 'status', 'total_amount', 'delivery_date', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
     },
     table15: {
         name: 'crm_purchase_orders',
@@ -129,8 +129,8 @@ exports.TABLES = {
         name: 'crm_estimates',
         displayName: '견적서 관리',
         rowCount: 0,
-        columnCount: 10,
-        columns: ['id', 'type', 'direction_status', 'partner_name', 'partner_phone', 'total_amount', 'file_url', 'business_license_url', 'ai_parsed', 'created_at']
+        columnCount: 21,
+        columns: ['id', 'type', 'direction_status', 'partner_name', 'partner_phone', 'partner_manager', 'tags', 'total_amount', 'file_url', 'business_license_url', 'ai_parsed', 'created_at', 'uuid', 'sales_order_number', 'purchase_order_number', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
     },
     table18: {
         name: 'crm_point_history',
