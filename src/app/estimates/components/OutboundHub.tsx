@@ -485,8 +485,24 @@ export default function OutboundHub({
                   className="py-3 px-2 cursor-pointer hover:text-slate-805"
                   onClick={() => handleSort("created_at")}
                 >
-                  수주일시 {outboundSortKey === "created_at" && (outboundSortDir === "asc" ? "▲" : "▼")}
+                  등록일시 {outboundSortKey === "created_at" && (outboundSortDir === "asc" ? "▲" : "▼")}
                 </th>
+                <th className="py-3 px-2">발주번호</th>
+                <th
+                  className="py-3 px-2 cursor-pointer hover:text-slate-850"
+                  onClick={() => handleSort("id")}
+                >
+                  발주등록번호/견적번호 {outboundSortKey === "id" && (outboundSortDir === "asc" ? "▲" : "▼")}
+                </th>
+                <th className="py-3 px-2">바이어명</th>
+                <th
+                  className="py-3 px-2 cursor-pointer hover:text-slate-805"
+                  onClick={() => handleSort("total_amount")}
+                >
+                  총 수주액 {outboundSortKey === "total_amount" && (outboundSortDir === "asc" ? "▲" : "▼")}
+                </th>
+                <th className="py-3 px-2">상태</th>
+                <th className="py-3 px-2">납기일</th>
                 <th className="py-3 px-2 text-right">작업</th>
               </tr>
             </thead>
@@ -494,7 +510,7 @@ export default function OutboundHub({
               {filteredOutboundSOs.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={9}
                     className="text-center py-12 text-slate-400 font-semibold"
                   >
                     조건에 맞는 수주 내역이 없습니다.
@@ -519,14 +535,22 @@ export default function OutboundHub({
                         className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                       />
                     </td>
-                    <td className="py-3.5 px-2">
-                      <span className="font-mono text-slate-700 block">{so.id}</span>
-                      <button
-                        onClick={() => onOpenDetailModal(so.estimate_id)}
-                        className="text-indigo-500 hover:underline text-[9px] font-bold block mt-0.5 text-left"
-                      >
-                        견적: {so.estimate_id} 🔗
-                      </button>
+                    <td className="py-3.5 px-2 text-slate-55 font-medium">
+                      {so.created_at ? so.created_at.substring(0, 16) : "-"}
+                    </td>
+                    <td className="py-3.5 px-2 font-mono text-slate-700">
+                      {so.client_order_no || <span className="text-slate-400">-</span>}
+                    </td>
+                    <td className="py-3.5 px-2 font-mono text-slate-700">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-slate-850">{so.id}</span>
+                        <button
+                          onClick={() => onOpenDetailModal(so.estimate_id)}
+                          className="text-indigo-500 hover:underline text-[9px] font-bold block mt-0.5 text-left font-sans"
+                        >
+                          견적: {so.estimate_id} 🔗
+                        </button>
+                      </div>
                     </td>
                     <td className="py-3.5 px-2">
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -556,8 +580,8 @@ export default function OutboundHub({
                         {so.status === "REGISTERED" ? "수주등록" : "확인완료"}
                       </span>
                     </td>
-                    <td className="py-3.5 px-2 text-slate-505 font-medium">
-                      {so.created_at.substring(0, 16)}
+                    <td className="py-3.5 px-2 text-slate-500 font-medium">
+                      {so.delivery_date || "-"}
                     </td>
                     <td className="py-3.5 px-2 text-right">
                       <div className="flex items-center justify-end gap-2">
