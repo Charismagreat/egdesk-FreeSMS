@@ -20,8 +20,8 @@ export default function EstimateWriteModal({
   const [selectedPartnerId, setSelectedPartnerId] = useState("direct");
   const [writePartner, setWritePartner] = useState("");
   const [writePhone, setWritePhone] = useState("");
-  const [writeItems, setWriteItems] = useState<Array<{ product_name: string; quantity: number; unit_price: number }>>([
-    { product_name: "에티오피아 예가체프 G1 워시드 원두 1kg", quantity: 15, unit_price: 18500 }
+  const [writeItems, setWriteItems] = useState<Array<{ item_code: string; product_name: string; spec: string; quantity: number; unit_price: number }>>([
+    { item_code: "BEAN-ETH1K", product_name: "에티오피아 예가체프 G1 워시드 원두 1kg", spec: "1kg/백", quantity: 15, unit_price: 18500 }
   ]);
   const [pricingLoading, setPricingLoading] = useState(false);
   const [pricingResult, setPricingResult] = useState<any>(null);
@@ -48,7 +48,7 @@ export default function EstimateWriteModal({
     setWritePhone("");
     setSelectedPartnerId("direct");
     setWriteItems([
-      { product_name: "에티오피아 예가체프 G1 워시드 원두 1kg", quantity: 15, unit_price: 18500 }
+      { item_code: "BEAN-ETH1K", product_name: "에티오피아 예가체프 G1 워시드 원두 1kg", spec: "1kg/백", quantity: 15, unit_price: 18500 }
     ]);
     onClose();
   };
@@ -212,32 +212,122 @@ export default function EstimateWriteModal({
 
           {/* 품목 입력란 B2B */}
           <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">제안 품목 및 수량</span>
-            {writeItems.map((item, idx) => (
-              <div key={idx} className="grid grid-cols-3 gap-2 items-center">
-                <div className="col-span-2 text-xs font-bold bg-white p-2.5 rounded-xl border border-slate-200 text-slate-750 truncate">
-                  {item.product_name}
+            <div className="flex justify-between items-center border-b border-slate-200 pb-1.5 mb-2">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">제안 품목 및 수량</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setWriteItems([...writeItems, { item_code: "", product_name: "", spec: "", quantity: 1, unit_price: 10000 }]);
+                }}
+                className="p-1 text-indigo-650 hover:bg-indigo-50 rounded-lg border border-indigo-150 flex items-center gap-0.5 text-[9px] font-black cursor-pointer"
+              >
+                <Plus className="w-3 h-3" /> 품목 추가
+              </button>
+            </div>
+
+            <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
+              {writeItems.map((item, idx) => (
+                <div key={idx} className="bg-white p-4 rounded-2xl border border-slate-200 space-y-3 text-left relative">
+                  <div className="flex justify-between items-center">
+                    <label className="block text-[9px] font-black text-indigo-600 uppercase tracking-wider">품목 #{idx + 1}</label>
+                    {writeItems.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setWriteItems(writeItems.filter((_, i) => i !== idx));
+                        }}
+                        className="text-[9px] font-bold text-rose-500 hover:text-rose-700 cursor-pointer"
+                      >
+                        삭제
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[9px] font-bold text-slate-400 mb-1">품목코드</label>
+                      <input 
+                        type="text" 
+                        placeholder="예: ITEM-001"
+                        value={item.item_code}
+                        onChange={e => {
+                          const next = [...writeItems];
+                          next[idx].item_code = e.target.value;
+                          setWriteItems(next);
+                        }}
+                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-[9px] font-bold text-slate-400 mb-1">품명 *</label>
+                      <input 
+                        type="text" 
+                        placeholder="예: 예가체프 원두"
+                        value={item.product_name}
+                        onChange={e => {
+                          const next = [...writeItems];
+                          next[idx].product_name = e.target.value;
+                          setWriteItems(next);
+                        }}
+                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[9px] font-bold text-slate-400 mb-1">규격</label>
+                      <input 
+                        type="text" 
+                        placeholder="예: 1kg"
+                        value={item.spec}
+                        onChange={e => {
+                          const next = [...writeItems];
+                          next[idx].spec = e.target.value;
+                          setWriteItems(next);
+                        }}
+                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-bold text-slate-400 mb-1">수량 *</label>
+                      <input 
+                        type="number" 
+                        value={item.quantity}
+                        onChange={e => {
+                          const next = [...writeItems];
+                          next[idx].quantity = parseInt(e.target.value) || 0;
+                          setWriteItems(next);
+                        }}
+                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-center"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-bold text-slate-400 mb-1">기준단가 (원) *</label>
+                      <input 
+                        type="number" 
+                        value={item.unit_price}
+                        onChange={e => {
+                          const next = [...writeItems];
+                          next[idx].unit_price = parseInt(e.target.value) || 0;
+                          setWriteItems(next);
+                        }}
+                        className="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-right font-mono"
+                        required
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <input 
-                    type="number" 
-                    value={item.quantity}
-                    onChange={e => {
-                      const next = [...writeItems];
-                      next[idx].quantity = parseInt(e.target.value) || 0;
-                      setWriteItems(next);
-                    }}
-                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-center"
-                  />
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
             
             <button
               type="button"
               onClick={handleCalculatePricing}
               disabled={pricingLoading}
-              className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5"
+              className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 cursor-pointer mt-2"
             >
               <Sparkles className="w-4 h-4 text-amber-400" />
               {pricingLoading ? "AI가 우수고객 이력 및 볼륨 디스카운트 단가 연산 중..." : "AI 볼륨 할인 및 단가 계산 실행"}

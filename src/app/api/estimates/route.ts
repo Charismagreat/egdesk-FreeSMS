@@ -417,13 +417,20 @@ export async function POST(req: Request) {
       const amount = qty * price;
       total_amount += amount;
 
+      // spec이 객체라면 문자열로 직렬화하여 저장
+      const specVal = item.spec && typeof item.spec === 'object' 
+        ? JSON.stringify(item.spec) 
+        : (item.spec || '');
+
       return {
         product_id: item.product_id || '',
+        item_code: item.item_code || '',
         product_name: item.product_name,
         quantity: qty,
         unit_price: price,
         amount: amount,
-        delivery_date: item.delivery_date || ''
+        delivery_date: item.delivery_date || '',
+        spec: specVal
       };
     });
 
@@ -501,11 +508,13 @@ export async function POST(req: Request) {
       id: Date.now() + idx,
       estimate_id: realEstimateId,
       product_id: row.product_id,
+      item_code: row.item_code,
       product_name: row.product_name,
       quantity: row.quantity,
       unit_price: row.unit_price,
       amount: row.amount,
-      delivery_date: row.delivery_date
+      delivery_date: row.delivery_date,
+      spec: row.spec
     }));
 
     await insertRows('crm_estimate_items', detailRows);
@@ -598,6 +607,10 @@ export async function PUT(req: Request) {
         const amount = qty * price;
         total_amount += amount;
 
+        const specVal = item.spec && typeof item.spec === 'object'
+          ? JSON.stringify(item.spec)
+          : (item.spec || '');
+
         return {
           product_id: item.product_id || '',
           item_code: item.item_code || '',
@@ -605,7 +618,8 @@ export async function PUT(req: Request) {
           quantity: qty,
           unit_price: price,
           amount: amount,
-          delivery_date: item.delivery_date || ''
+          delivery_date: item.delivery_date || '',
+          spec: specVal
         };
       });
       masterUpdates.total_amount = total_amount;
@@ -623,7 +637,8 @@ export async function PUT(req: Request) {
         quantity: row.quantity,
         unit_price: row.unit_price,
         amount: row.amount,
-        delivery_date: row.delivery_date
+        delivery_date: row.delivery_date,
+        spec: row.spec
       }));
 
       if (detailRows.length > 0) {

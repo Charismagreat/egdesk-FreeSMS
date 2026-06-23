@@ -89,7 +89,9 @@ Your job is to look at the provided image (which is a supply estimate / quote / 
 4. "document_date": String (문서 작성/발행 일자. Format: "YYYY-MM-DD", otherwise "")
 5. "document_memo": String (유효기간, 결제조건, 인도조건 등 비고/기타 설명 텍스트. If not found, "")
 6. "items": Array of objects, each containing:
-   - "product_name": String (Name of the item)
+   - "item_code": String (품목코드 혹은 도번. If not found, "")
+   - "product_name": String (품명 혹은 제품명)
+   - "spec": String (규격 혹은 단위 정보. If not found, "")
    - "quantity": Integer (Number of items requested/quoted)
    - "unit_price": Integer (Price per unit)
 
@@ -115,7 +117,7 @@ Format example of output:
   "document_date": "2026-06-23",
   "document_memo": "유효기간: 발행일로부터 30일\n결제조건: 현금\n납기조건: 7일 이내",
   "items": [
-    { "product_name": "특A급 아메리카노 원두 10kg", "quantity": 5, "unit_price": 45000 }
+    { "item_code": "ITEM-9012", "product_name": "특A급 아메리카노 원두 10kg", "spec": "10kg/bag", "quantity": 5, "unit_price": 45000 }
   ]
 }
 Do NOT output anything other than this JSON string. No markdown block wrapper.
@@ -372,9 +374,9 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
       let receiverMatched = true;
 
       let mockItems = [
-        { product_name: "친환경 다회용 컵 (중형/화이트)", quantity: 200, unit_price: 1500 },
-        { product_name: "최고급 유기농 바질 에센스 500ml", quantity: 15, unit_price: 24000 },
-        { product_name: "프리미엄 드립 필터 페이퍼 (100매입)", quantity: 50, unit_price: 4500 }
+        { item_code: "CUP-W01", product_name: "친환경 다회용 컵 (중형/화이트)", spec: "중형/화이트", quantity: 200, unit_price: 1500 },
+        { item_code: "BAZ-E500", product_name: "최고급 유기농 바질 에센스 500ml", spec: "500ml", quantity: 15, unit_price: 24000 },
+        { item_code: "PAP-DF100", product_name: "프리미엄 드립 필터 페이퍼 (100매입)", spec: "100매/팩", quantity: 50, unit_price: 4500 }
       ];
 
       // 사용자가 타사 대상 문서를 업로드해 검증 실패 경고를 유도할 수 있도록 시뮬레이션
@@ -395,22 +397,22 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
         mockPartnerName = "로스트빈 팩토리";
         mockPartnerPhone = "010-9876-5432";
         mockItems = [
-          { product_name: "에티오피아 예가체프 G1 워시드 원두 1kg", quantity: 20, unit_price: 18500 },
-          { product_name: "콜롬비아 수프리모 후일라 원두 1kg", quantity: 30, unit_price: 16000 }
+          { item_code: "BEAN-ETH1K", product_name: "에티오피아 예가체프 G1 워시드 원두 1kg", spec: "1kg/백", quantity: 20, unit_price: 18500 },
+          { item_code: "BEAN-COL1K", product_name: "콜롬비아 수프리모 후일라 원두 1kg", spec: "1kg/백", quantity: 30, unit_price: 16000 }
         ];
       } else if (filename && (filename.toLowerCase().includes('box') || filename.toLowerCase().includes('pack'))) {
         mockPartnerName = "대경 포장산업";
         mockPartnerPhone = "031-777-6655";
         mockItems = [
-          { product_name: "손잡이형 피자 박스 12인치 (100개입)", quantity: 10, unit_price: 32000 },
-          { product_name: "매장 포장용 종이 크라프트백 (중)", quantity: 500, unit_price: 250 }
+          { item_code: "BOX-P12", product_name: "손잡이형 피자 박스 12인치 (100개입)", spec: "12인치/100개", quantity: 10, unit_price: 32000 },
+          { item_code: "BAG-KRAFT", product_name: "매장 포장용 종이 크라프트백 (중)", spec: "중형", quantity: 500, unit_price: 250 }
         ];
       } else if (filename && (filename.toLowerCase().includes('cup') || filename.includes('컵') || filename.toLowerCase().includes('코메스'))) {
         mockPartnerName = "코메스 유통 (컵 전문)";
         mockPartnerPhone = "010-3333-5555";
         mockItems = [
-          { product_name: "친환경 생분해 테이크아웃 컵 10oz (100개입)", quantity: 50, unit_price: 8500 },
-          { product_name: "고급 크라프트 종이 컵 홀더 (500개입)", quantity: 5, unit_price: 12000 }
+          { item_code: "CUP-PLA10", product_name: "친환경 생분해 테이크아웃 컵 10oz (100개입)", spec: "10oz/100개", quantity: 50, unit_price: 8500 },
+          { item_code: "HLD-KRAFT", product_name: "고급 크라프트 종이 컵 홀더 (500개입)", spec: "500개/박스", quantity: 5, unit_price: 12000 }
         ];
       }
 

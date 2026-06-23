@@ -127,11 +127,12 @@ export async function POST(req: Request) {
 
           db.prepare(`
             INSERT INTO crm_estimate_items (
-              estimate_id, product_id, product_name, quantity, unit_price, amount,
+              estimate_id, product_id, item_code, product_name, quantity, unit_price, amount,
               uuid, updated_at, updated_by, spec
-            ) VALUES (?, 'MANUAL', ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, 'MANUAL', ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `).run(
             estimateId,
+            item.item_code || '',
             item.product_name || '품목명 없음',
             String(item.quantity || 1),
             String(item.unit_price || 0),
@@ -207,11 +208,12 @@ export async function POST(req: Request) {
 
           db.prepare(`
             INSERT INTO crm_estimate_items (
-              estimate_id, product_id, product_name, quantity, unit_price, amount,
+              estimate_id, product_id, item_code, product_name, quantity, unit_price, amount,
               uuid, updated_at, updated_by, spec
-            ) VALUES (?, 'MANUAL', ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, 'MANUAL', ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `).run(
             shadowEstimateId,
+            item.item_code || '',
             item.product_name || '품목명 없음',
             String(item.quantity || 1),
             String(item.unit_price || 0),

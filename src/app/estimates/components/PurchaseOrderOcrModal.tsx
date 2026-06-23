@@ -39,6 +39,7 @@ export default function PurchaseOrderOcrModal({
     document_memo: "",
     transaction_type: "자재구매",
     items: [] as Array<{
+      item_code?: string;
       product_name: string;
       quantity: number;
       unit_price: number;
@@ -180,6 +181,7 @@ export default function PurchaseOrderOcrModal({
             const price = Number(it.unit_price) || 0;
             const amt = qty * price;
             return {
+              item_code: it.item_code || it.itemCode || "",
               product_name: it.product_name || "품목명 없음",
               quantity: qty,
               unit_price: price,
@@ -491,9 +493,23 @@ export default function PurchaseOrderOcrModal({
                 <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
                   {ocrForm.items.map((item, idx) => (
                     <div key={idx} className="p-4 bg-slate-50/50 rounded-xl border border-slate-200 space-y-3 relative">
-                      <div className="grid grid-cols-1 md:grid-cols-5 gap-3 pr-2">
+                      <div className="grid grid-cols-1 md:grid-cols-6 gap-3 pr-2">
+                        <div>
+                          <label className="block text-[9px] font-bold text-slate-500 mb-1">품목코드</label>
+                          <input 
+                            type="text" 
+                            value={item.item_code || ""}
+                            onChange={e => {
+                              const newItems = [...ocrForm.items];
+                              newItems[idx].item_code = e.target.value;
+                              setOcrForm({ ...ocrForm, items: newItems });
+                            }}
+                            className="w-full p-1.5 bg-white border border-slate-200 rounded text-xs font-bold"
+                            placeholder="코드"
+                          />
+                        </div>
                         <div className="md:col-span-2">
-                          <label className="block text-[9px] font-bold text-slate-500 mb-1">품명 및 규격</label>
+                          <label className="block text-[9px] font-bold text-slate-500 mb-1">품명 및 규격 *</label>
                           <input 
                             type="text" 
                             value={item.product_name}
@@ -503,6 +519,7 @@ export default function PurchaseOrderOcrModal({
                               setOcrForm({ ...ocrForm, items: newItems });
                             }}
                             className="w-full p-1.5 bg-white border border-slate-200 rounded text-xs font-bold"
+                            required
                           />
                         </div>
                         <div>

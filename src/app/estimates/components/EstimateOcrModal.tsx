@@ -27,7 +27,7 @@ export default function EstimateOcrModal({
     partner_name: "",
     partner_phone: "",
     partner_manager: "",
-    items: [] as Array<{ product_name: string; quantity: number; unit_price: number }>,
+    items: [] as Array<{ item_code?: string; product_name: string; spec?: string; quantity: number; unit_price: number }>,
     file_url: "",
     business_number: "",
     representative: "",
@@ -379,17 +379,89 @@ export default function EstimateOcrModal({
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] text-slate-400 font-bold block">상세 품목 리스트</label>
-                {ocrForm.items.map((item, idx) => (
-                  <div key={idx} className="bg-white p-3 rounded-xl border border-slate-100 flex items-center justify-between text-xs font-semibold">
-                    <div className="flex-1 truncate pr-2">
-                      <span className="font-bold text-slate-800">{item.product_name}</span>
-                      <span className="text-[10px] text-slate-400 block mt-0.5">단가: {item.unit_price.toLocaleString()}원</span>
+              <div className="space-y-3">
+                <label className="text-[10px] text-slate-400 font-bold block text-left">상세 품목 리스트</label>
+                <div className="space-y-3 max-h-[250px] overflow-y-auto pr-1">
+                  {ocrForm.items.map((item, idx) => (
+                    <div key={idx} className="bg-white p-3.5 rounded-2xl border border-slate-200 space-y-2.5 text-left">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                        <div>
+                          <label className="block text-[9px] font-bold text-slate-400 mb-0.5">품목코드</label>
+                          <input 
+                            type="text" 
+                            value={item.item_code || ""}
+                            onChange={e => {
+                              const newItems = [...ocrForm.items];
+                              newItems[idx].item_code = e.target.value;
+                              setOcrForm({ ...ocrForm, items: newItems });
+                            }}
+                            className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-700"
+                            placeholder="품목코드"
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <label className="block text-[9px] font-bold text-slate-400 mb-0.5">품명 *</label>
+                          <input 
+                            type="text" 
+                            value={item.product_name}
+                            onChange={e => {
+                              const newItems = [...ocrForm.items];
+                              newItems[idx].product_name = e.target.value;
+                              setOcrForm({ ...ocrForm, items: newItems });
+                            }}
+                            className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-700"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <label className="block text-[9px] font-bold text-slate-400 mb-0.5">규격</label>
+                          <input 
+                            type="text" 
+                            value={item.spec || ""}
+                            onChange={e => {
+                              const newItems = [...ocrForm.items];
+                              newItems[idx].spec = e.target.value;
+                              setOcrForm({ ...ocrForm, items: newItems });
+                            }}
+                            className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-700"
+                            placeholder="규격"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold text-slate-400 mb-0.5">수량 *</label>
+                          <input 
+                            type="number" 
+                            value={item.quantity}
+                            onChange={e => {
+                              const newItems = [...ocrForm.items];
+                              newItems[idx].quantity = parseInt(e.target.value) || 0;
+                              setOcrForm({ ...ocrForm, items: newItems });
+                            }}
+                            className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-700 text-center"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold text-slate-400 mb-0.5">단가 (원) *</label>
+                          <input 
+                            type="number" 
+                            value={item.unit_price}
+                            onChange={e => {
+                              const newItems = [...ocrForm.items];
+                              newItems[idx].unit_price = parseInt(e.target.value) || 0;
+                              setOcrForm({ ...ocrForm, items: newItems });
+                            }}
+                            className="w-full p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-700 text-right font-mono"
+                            required
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <span className="font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded shrink-0">{item.quantity}개</span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           )}

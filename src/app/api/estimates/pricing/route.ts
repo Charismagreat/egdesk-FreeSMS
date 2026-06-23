@@ -26,7 +26,6 @@ export async function POST(req: Request) {
         const parsed = JSON.parse(myCompanySetting.rows[0].value);
         if (parsed.companyName) myCompanyProfile.companyName = parsed.companyName;
         if (parsed.representative) myCompanyProfile.representative = parsed.representative;
-        if (parsed.phone) myCompanyProfile.phone = parsed.phone;
       }
     } catch (e) {
       console.error('본사 정보 설정 조회 실패:', e);
@@ -73,7 +72,9 @@ export async function POST(req: Request) {
 
       return {
         product_id: item.product_id || '',
+        item_code: item.item_code || '',
         product_name: item.product_name,
+        spec: item.spec || '',
         quantity: qty,
         unit_price: finalUnitPrice,
         amount: finalAmount,
