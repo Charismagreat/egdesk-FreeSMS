@@ -20,7 +20,7 @@ export function usePersistedState<T>(
   useEffect(() => {
     if (typeof window !== "undefined") {
       const saved = sessionStorage.getItem(key);
-      if (saved !== null) {
+      if (saved !== null && saved !== "undefined") {
         try {
           setState(JSON.parse(saved));
         } catch (e) {
@@ -37,7 +37,11 @@ export function usePersistedState<T>(
 
     if (typeof window !== "undefined") {
       try {
-        sessionStorage.setItem(key, JSON.stringify(state));
+        if (state === undefined) {
+          sessionStorage.removeItem(key);
+        } else {
+          sessionStorage.setItem(key, JSON.stringify(state));
+        }
       } catch (e) {
         console.error(`Error writing sessionStorage key "${key}":`, e);
       }
