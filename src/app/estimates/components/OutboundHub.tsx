@@ -469,34 +469,15 @@ export default function OutboundHub({
                 </th>
                 <th
                   className="py-3 px-2 cursor-pointer hover:text-slate-800"
-                  onClick={() => handleSort("id")}
-                >
-                  수주 번호 {outboundSortKey === "id" && (outboundSortDir === "asc" ? "▲" : "▼")}
-                </th>
-                <th className="py-3 px-2">바이어명</th>
-                <th
-                  className="py-3 px-2 cursor-pointer hover:text-slate-800"
-                  onClick={() => handleSort("total_amount")}
-                >
-                  총 수주액 {outboundSortKey === "total_amount" && (outboundSortDir === "asc" ? "▲" : "▼")}
-                </th>
-                <th className="py-3 px-2">상태</th>
-                <th
-                  className="py-3 px-2 cursor-pointer hover:text-slate-805"
                   onClick={() => handleSort("created_at")}
                 >
                   등록일시 {outboundSortKey === "created_at" && (outboundSortDir === "asc" ? "▲" : "▼")}
                 </th>
                 <th className="py-3 px-2">발주번호</th>
-                <th
-                  className="py-3 px-2 cursor-pointer hover:text-slate-850"
-                  onClick={() => handleSort("id")}
-                >
-                  발주등록번호/견적번호 {outboundSortKey === "id" && (outboundSortDir === "asc" ? "▲" : "▼")}
-                </th>
+                <th className="py-3 px-2">발주등록번호/견적번호</th>
                 <th className="py-3 px-2">바이어명</th>
                 <th
-                  className="py-3 px-2 cursor-pointer hover:text-slate-805"
+                  className="py-3 px-2 cursor-pointer hover:text-slate-800"
                   onClick={() => handleSort("total_amount")}
                 >
                   총 수주액 {outboundSortKey === "total_amount" && (outboundSortDir === "asc" ? "▲" : "▼")}
