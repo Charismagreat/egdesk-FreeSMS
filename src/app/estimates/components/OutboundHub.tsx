@@ -345,32 +345,18 @@ export default function OutboundHub({
                       {est.created_at ? est.created_at.substring(0, 16) : "-"}
                     </td>
                     <td className="py-3.5 px-2 font-mono text-slate-700">
-                      {est.type === 'OUTBOUND' && est.direction_status === 'RECEIVED' ? (
-                        <span className="text-slate-400">-</span>
-                      ) : (
-                        <button
-                          onClick={() => onOpenDetailModal(est.id)}
-                          className="text-indigo-600 hover:underline cursor-pointer font-bold text-left"
-                        >
-                          {est.id}
-                        </button>
-                      )}
+                      <button
+                        onClick={() => onOpenDetailModal(est.id)}
+                        className="text-indigo-600 hover:underline cursor-pointer font-bold text-left"
+                      >
+                        {est.id}
+                      </button>
                     </td>
                     <td className="py-3.5 px-2 font-mono text-slate-700">
                       {est.type === 'OUTBOUND' && est.direction_status === 'RECEIVED' ? (
-                        <div className="flex flex-col">
-                          <button
-                            onClick={() => onOpenDetailModal(est.id)}
-                            className="text-indigo-600 hover:underline cursor-pointer font-bold text-left"
-                          >
-                            {est.id}
-                          </button>
-                          {est.sales_order_number && est.sales_order_number !== est.id && (
-                            <span className="text-[10px] text-slate-400 block mt-0.5" title="문서 상의 실제 발주 번호">
-                              📄 {est.sales_order_number}
-                            </span>
-                          )}
-                        </div>
+                        <span className="font-bold text-slate-800">
+                          {est.sales_order_number || <span className="text-slate-400">-</span>}
+                        </span>
                       ) : (
                         <span className="text-slate-400">-</span>
                       )}
