@@ -51,7 +51,12 @@ export default function OutboundHub({
       const term = outboundSearch.toLowerCase();
       return (
         e.partner_name.toLowerCase().includes(term) ||
-        e.id.toLowerCase().includes(term)
+        e.id.toLowerCase().includes(term) ||
+        (e.partner_phone && e.partner_phone.toLowerCase().includes(term)) ||
+        (e.partner_manager && e.partner_manager.toLowerCase().includes(term)) ||
+        (e.first_item_name && e.first_item_name.toLowerCase().includes(term)) ||
+        (e.tags && e.tags.toLowerCase().includes(term)) ||
+        (e.sales_order_number && e.sales_order_number.toLowerCase().includes(term))
       );
     })
     .filter((e) => {
@@ -88,7 +93,10 @@ export default function OutboundHub({
       const term = outboundSearch.toLowerCase();
       return (
         so.customer_name.toLowerCase().includes(term) ||
-        so.id.toLowerCase().includes(term)
+        so.id.toLowerCase().includes(term) ||
+        (so.customer_phone && so.customer_phone.toLowerCase().includes(term)) ||
+        (so.estimate_id && so.estimate_id.toLowerCase().includes(term)) ||
+        (so.client_order_no && so.client_order_no.toLowerCase().includes(term))
       );
     })
     .filter((so) => {
