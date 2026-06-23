@@ -151,87 +151,112 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
           })
         });
 
-        if (response.ok) {
-          const data = await response.json();
+        if (!response.ok) {
+          return NextResponse.json({
+            success: false,
+            error: `AI OCR API 호출에 실패하였습니다. (HTTP ${response.status})`
+          }, { status: 500 });
+        }
+
+        const data = await response.json();
+        
+        // 실시간 AI 호출 토큰 감사록 기록 적재
+        try {
+          const promptTokens = data.usageMetadata?.promptTokenCount || 0;
+          const completionTokens = data.usageMetadata?.candidatesTokenCount || 0;
+          const totalTokens = data.usageMetadata?.totalTokenCount || 0;
           
-          // 실시간 AI 호출 토큰 감사록 기록 적재
-          try {
-            const promptTokens = data.usageMetadata?.promptTokenCount || 0;
-            const completionTokens = data.usageMetadata?.candidatesTokenCount || 0;
-            const totalTokens = data.usageMetadata?.totalTokenCount || 0;
-            
-            if (totalTokens > 0) {
-              const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
-              await insertRows('ai_token_usage_logs', [{
-                id: `TKC-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-                model: selectedModel || 'gemini-3.5-flash',
-                purpose: document_type === 'license' ? 'business-license-ocr' : 'estimates-ocr',
-                prompt_tokens: promptTokens,
-                completion_tokens: completionTokens,
-                total_tokens: totalTokens,
-                created_at: nowStr
-              }]);
-            }
-          } catch (logErr: any) {
-            console.error('Real Gemini OCR token logging failed:', logErr.message);
+          if (totalTokens > 0) {
+            const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+            await insertRows('ai_token_usage_logs', [{
+              id: `TKC-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+              model: selectedModel || 'gemini-3.5-flash',
+              purpose: document_type === 'license' ? 'business-license-ocr' : 'estimates-ocr',
+              prompt_tokens: promptTokens,
+              completion_tokens: completionTokens,
+              total_tokens: totalTokens,
+              created_at: nowStr
+            }]);
           }
+        } catch (logErr: any) {
+          console.error('Real Gemini OCR token logging failed:', logErr.message);
+        }
 
-          const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-          const ocrJson = JSON.parse(text.trim());
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+        const ocrJson = JSON.parse(text.trim());
 
-          if (document_type === 'license') {
-            if (ocrJson.business_number && ocrJson.company_name) {
-              return NextResponse.json({
-                success: true,
-                document_type: 'license',
-                business_number: ocrJson.business_number,
-                company_name: ocrJson.company_name,
-                representative: ocrJson.representative || '',
-                address: ocrJson.address || '',
-                phone: ocrJson.phone || '',
-                email: ocrJson.email || '',
-                method: 'REAL_GEMINI_OCR'
-              });
-            }
+        if (document_type === 'license') {
+          if (ocrJson.business_number && ocrJson.company_name) {
+            return NextResponse.json({
+              success: true,
+              document_type: 'license',
+              business_number: ocrJson.business_number,
+              company_name: ocrJson.company_name,
+              representative: ocrJson.representative || '',
+              address: ocrJson.address || '',
+              phone: ocrJson.phone || '',
+              email: ocrJson.email || '',
+              method: 'REAL_GEMINI_OCR'
+            });
           } else {
-            if ((ocrJson.supplier || ocrJson.buyer) && ocrJson.items) {
-              const myBizNum = myCompanyProfile.businessNumber.replace(/\D/g, '');
-              const myCompName = myCompanyProfile.companyName.replace(/[^가-힣a-zA-Z0-9]/g, '');
+            return NextResponse.json({
+              success: false,
+              error: '사업자등록증에서 필수 정보를 추출하는 데 실패했습니다.'
+            }, { status: 500 });
+          }
+        } else {
+          if ((ocrJson.supplier || ocrJson.buyer) && ocrJson.items) {
+            const myBizNum = myCompanyProfile.businessNumber.replace(/\D/g, '');
+            const myCompName = myCompanyProfile.companyName.replace(/[^가-힣a-zA-Z0-9]/g, '');
 
-              const supBiz = (ocrJson.supplier?.business_number || '').replace(/\D/g, '');
-              const supName = (ocrJson.supplier?.company_name || '').replace(/[^가-힣a-zA-Z0-9]/g, '');
+            const supBiz = (ocrJson.supplier?.business_number || '').replace(/\D/g, '');
+            const supName = (ocrJson.supplier?.company_name || '').replace(/[^가-힣a-zA-Z0-9]/g, '');
 
-              const buyBiz = (ocrJson.buyer?.business_number || '').replace(/\D/g, '');
-              const buyName = (ocrJson.buyer?.company_name || '').replace(/[^가-힣a-zA-Z0-9]/g, '');
+            const buyBiz = (ocrJson.buyer?.business_number || '').replace(/\D/g, '');
+            const buyName = (ocrJson.buyer?.company_name || '').replace(/[^가-힣a-zA-Z0-9]/g, '');
 
-              // 1단계: 자사가 공급사(Supplier) 혹은 공급받는자(Buyer)인지 판별
-              const isSupplierMyCompany = (supBiz && supBiz === myBizNum) ||
-                                          (supName && (supName.includes(myCompName) || myCompName.includes(supName)));
-              const isBuyerMyCompany = (buyBiz && buyBiz === myBizNum) ||
-                                       (buyName && (buyName.includes(myCompName) || myCompName.includes(buyName)));
+            // 1단계: 자사가 공급사(Supplier) 혹은 공급받는자(Buyer)인지 판별
+            const isSupplierMyCompany = (supBiz && supBiz === myBizNum) ||
+                                        (supName && (supName.includes(myCompName) || myCompName.includes(supName)));
+            const isBuyerMyCompany = (buyBiz && buyBiz === myBizNum) ||
+                                     (buyName && (buyName.includes(myCompName) || myCompName.includes(buyName)));
 
-              let targetType = 'INBOUND';
-              let partnerName = '';
-              let partnerPhone = '';
-              let partnerBizNo = '';
-              let partnerManager = '';
-              let partnerRepresentative = '';
-              let partnerAddress = '';
-              let receiverMatched = true;
+            let targetType = 'INBOUND';
+            let partnerName = '';
+            let partnerPhone = '';
+            let partnerBizNo = '';
+            let partnerManager = '';
+            let partnerRepresentative = '';
+            let partnerAddress = '';
+            let receiverMatched = true;
 
-              // 2단계: 판정 결과에 따른 문서 방향 및 상대 거래처 매핑
-              if (isBuyerMyCompany) {
-                // 자사가 공급받는자이므로 받은 견적서(INBOUND)
-                targetType = 'INBOUND';
-                partnerName = ocrJson.supplier?.company_name || '';
-                partnerPhone = ocrJson.supplier?.phone || '';
-                partnerBizNo = ocrJson.supplier?.business_number || '';
-                partnerManager = ocrJson.supplier?.pic_name || '';
-                partnerRepresentative = ocrJson.supplier?.representative || '';
-                partnerAddress = ocrJson.supplier?.address || '';
-              } else if (isSupplierMyCompany) {
-                // 자사가 공급자이므로 보낸 견적서(OUTBOUND)
-                targetType = 'OUTBOUND';
+            // 2단계: 판정 결과에 따른 문서 방향 및 상대 거래처 매핑
+            if (isBuyerMyCompany) {
+              // 자사가 공급받는자이므로 받은 견적서(INBOUND)
+              targetType = 'INBOUND';
+              partnerName = ocrJson.supplier?.company_name || '';
+              partnerPhone = ocrJson.supplier?.phone || '';
+              partnerBizNo = ocrJson.supplier?.business_number || '';
+              partnerManager = ocrJson.supplier?.pic_name || '';
+              partnerRepresentative = ocrJson.supplier?.representative || '';
+              partnerAddress = ocrJson.supplier?.address || '';
+            } else if (isSupplierMyCompany) {
+              // 자사가 공급자이므로 보낸 견적서(OUTBOUND)
+              targetType = 'OUTBOUND';
+              partnerName = ocrJson.buyer?.company_name || '';
+              partnerPhone = ocrJson.buyer?.phone || '';
+              partnerBizNo = ocrJson.buyer?.business_number || '';
+              partnerManager = ocrJson.buyer?.pic_name || '';
+              partnerRepresentative = ocrJson.buyer?.representative || '';
+              partnerAddress = ocrJson.buyer?.address || '';
+            } else {
+              // 자사 정보와 매치되지 않는 경우 (폴백 조치)
+              // 사용자 공식: "받은 견적서일 경우 사업자번호가 있는 업체가 상대방 거래처이다"
+              // 디폴트로 공급자(supplier)가 사업자번호를 지닐 확률이 높으므로 사업자번호 존재 여부를 확인해 세팅.
+              const hasSupBiz = !!supBiz;
+              const hasBuyBiz = !!buyBiz;
+
+              if (hasBuyBiz && !hasSupBiz) {
                 partnerName = ocrJson.buyer?.company_name || '';
                 partnerPhone = ocrJson.buyer?.phone || '';
                 partnerBizNo = ocrJson.buyer?.business_number || '';
@@ -239,52 +264,47 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
                 partnerRepresentative = ocrJson.buyer?.representative || '';
                 partnerAddress = ocrJson.buyer?.address || '';
               } else {
-                // 자사 정보와 매치되지 않는 경우 (폴백 조치)
-                // 사용자 공식: "받은 견적서일 경우 사업자번호가 있는 업체가 상대방 거래처이다"
-                // 디폴트로 공급자(supplier)가 사업자번호를 지닐 확률이 높으므로 사업자번호 존재 여부를 확인해 세팅.
-                const hasSupBiz = !!supBiz;
-                const hasBuyBiz = !!buyBiz;
-
-                if (hasBuyBiz && !hasSupBiz) {
-                  partnerName = ocrJson.buyer?.company_name || '';
-                  partnerPhone = ocrJson.buyer?.phone || '';
-                  partnerBizNo = ocrJson.buyer?.business_number || '';
-                  partnerManager = ocrJson.buyer?.pic_name || '';
-                  partnerRepresentative = ocrJson.buyer?.representative || '';
-                  partnerAddress = ocrJson.buyer?.address || '';
-                } else {
-                  partnerName = ocrJson.supplier?.company_name || '';
-                  partnerPhone = ocrJson.supplier?.phone || '';
-                  partnerBizNo = ocrJson.supplier?.business_number || '';
-                  partnerManager = ocrJson.supplier?.pic_name || '';
-                  partnerRepresentative = ocrJson.supplier?.representative || '';
-                  partnerAddress = ocrJson.supplier?.address || '';
-                }
-                receiverMatched = false;
+                partnerName = ocrJson.supplier?.company_name || '';
+                partnerPhone = ocrJson.supplier?.phone || '';
+                partnerBizNo = ocrJson.supplier?.business_number || '';
+                partnerManager = ocrJson.supplier?.pic_name || '';
+                partnerRepresentative = ocrJson.supplier?.representative || '';
+                partnerAddress = ocrJson.supplier?.address || '';
               }
-
-              return NextResponse.json({
-                success: true,
-                document_type: 'estimate',
-                type: targetType,
-                partner_name: partnerName || '미확인 거래처',
-                partner_phone: partnerPhone || '010-0000-0000',
-                partner_manager: partnerManager || '',
-                partner_business_number: partnerBizNo || '',
-                partner_representative: partnerRepresentative || '',
-                partner_address: partnerAddress || '',
-                document_number: ocrJson.document_number || '',
-                document_date: ocrJson.document_date || '',
-                document_memo: ocrJson.document_memo || '',
-                items: ocrJson.items || [],
-                receiver_matched: receiverMatched,
-                method: 'REAL_GEMINI_OCR'
-              });
+              receiverMatched = false;
             }
+
+            return NextResponse.json({
+              success: true,
+              document_type: 'estimate',
+              type: targetType,
+              partner_name: partnerName || '미확인 거래처',
+              partner_phone: partnerPhone || '010-0000-0000',
+              partner_manager: partnerManager || '',
+              partner_business_number: partnerBizNo || '',
+              partner_representative: partnerRepresentative || '',
+              partner_address: partnerAddress || '',
+              document_number: ocrJson.document_number || '',
+              document_date: ocrJson.document_date || '',
+              document_memo: ocrJson.document_memo || '',
+              items: ocrJson.items || [],
+              receiver_matched: receiverMatched,
+              my_company_name: myCompanyProfile.companyName,
+              method: 'REAL_GEMINI_OCR'
+            });
+          } else {
+            return NextResponse.json({
+              success: false,
+              error: '견적서에서 필수 정보를 추출하는 데 실패했습니다.'
+            }, { status: 500 });
           }
         }
-      } catch (geminiErr) {
-        console.error('Gemini Vision OCR API fail, using fallback:', geminiErr);
+      } catch (geminiErr: any) {
+        console.error('Gemini Vision OCR API fail:', geminiErr);
+        return NextResponse.json({
+          success: false,
+          error: `AI OCR 분석 중 오류가 발생했습니다: ${geminiErr.message || geminiErr}`
+        }, { status: 500 });
       }
     }
 
@@ -431,6 +451,7 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
         document_memo: '유효기간: 발행일로부터 15일\n납기: 수주 후 10일 이내',
         items: mockItems,
         receiver_matched: receiverMatched,
+        my_company_name: myCompanyProfile.companyName,
         method: 'MOCKUP_INTELLIGENT_OCR'
       });
     }

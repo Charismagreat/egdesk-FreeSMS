@@ -21,6 +21,7 @@ export interface EstimateMetadata {
   document_number: string;
   document_date: string;
   document_memo: string;
+  delivery_date?: string;
 }
 
 /**
@@ -34,7 +35,8 @@ export const parseEstimateMetadata = (tagsString: string): EstimateMetadata => {
     representative: "",
     document_number: "",
     document_date: "",
-    document_memo: ""
+    document_memo: "",
+    delivery_date: ""
   };
   
   if (!tagsString) return defaultMeta;
@@ -50,7 +52,8 @@ export const parseEstimateMetadata = (tagsString: string): EstimateMetadata => {
         representative: parsed.representative || "",
         document_number: parsed.document_number || "",
         document_date: parsed.document_date || "",
-        document_memo: parsed.document_memo || ""
+        document_memo: parsed.document_memo || "",
+        delivery_date: parsed.delivery_date || ""
       };
     } catch (e) {
       // 파싱 실패 시 예외 처리 없음

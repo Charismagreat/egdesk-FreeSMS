@@ -389,7 +389,8 @@ export async function setupDatabase() {
     { name: 'spec', type: 'TEXT' },
     { name: 'quantity', type: 'INTEGER', notNull: true },
     { name: 'unit_price', type: 'INTEGER', notNull: true },
-    { name: 'amount', type: 'INTEGER', notNull: true }
+    { name: 'amount', type: 'INTEGER', notNull: true },
+    { name: 'delivery_date', type: 'TEXT' }
   ], { tableName: 'crm_estimate_items', uniqueKeyColumns: ['id'] });
 
   // 22. CRM Purchase Orders Table (발주 관리)
@@ -1954,6 +1955,18 @@ export async function setupDatabase() {
       }
     } catch (e: any) {
       console.warn('⚠️ crm_sales_orders migration check warning:', e.message);
+    }
+
+    // 2-4) crm_estimate_items 테이블 컬럼 보정
+    try {
+      const schemaInfo = await getTableSchema('crm_estimate_items');
+      const itemCols = (schemaInfo?.schema || []).map((c: any) => c.name);
+      if (!itemCols.includes('delivery_date')) {
+        await executeSQL("ALTER TABLE crm_estimate_items ADD COLUMN delivery_date TEXT;");
+        console.log('✓ In-app migration: added delivery_date to crm_estimate_items');
+      }
+    } catch (e: any) {
+      console.warn('⚠️ crm_estimate_items migration check warning:', e.message);
     }
 
     // 3) crm_recruitment_applicants 테이블 컬럼 보정

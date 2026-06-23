@@ -125,6 +125,16 @@ Guidelines for SQL Generation:
 6. DO NOT include "deleted_at" or "deleted_by" columns or terms anywhere in the query (WHERE, SELECT, etc.). The system will handle soft-delete filtering in the backend. If you include 'delete' related terms, the API server will reject the query due to security filters.
 7. Safely escape the search keyword in the query as a string literal: e.g. \`WHERE o.name = '홍길동'\` (or using LIKE if appropriate, but exact match is preferred for names/IDs).
 8. Ensure the query returns exactly one row or uses \`LIMIT 1\`.
+9. IMPORTANT: The "crm_estimate_items" table has a "spec" column which stores a JSON string. To access individual properties of this JSON column, you MUST use SQLite's json_extract() function.
+   - Example properties inside "spec" JSON:
+     * $.cost_breakdown.material_cost (자재비)
+     * $.cost_breakdown.processing_cost (외주가공/작업비)
+     * $.cost_breakdown.overhead_cost (일반관리비)
+     * $.cost_breakdown.other_expenses (기타경비)
+     * $.cost_breakdown.delivery_expense (운반비)
+     * $.settlement_type (정산방식 - e.g., '1식', '시간당', '단가당')
+     * $.delivery_date (품목별 납기일 - e.g., '2026-07-30')
+   - Example query syntax: \`json_extract(spec, '$.cost_breakdown.material_cost') AS material_cost\`
 `;
 
     console.log("Calling Gemini for dynamic SQL query generation...");

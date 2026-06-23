@@ -607,6 +607,90 @@ export async function POST(req: Request) {
   - message (TEXT): 구체적인 경고 알림 내용
   - due_date (TEXT): 법정 시정 및 변경신고 마감 기한 (YYYY-MM-DD)
   - is_resolved (INTEGER): 조치 완료 여부 (1: 완료, 0: 미해결/대기)
+
+[Estimates Table (crm_estimates)]
+- Description: 견적서 및 SCM 거래 마스터 정보가 저장된 테이블입니다. type이 'OUTBOUND'이면 보낸 견적서, 'INBOUND'이면 받은 견적서입니다.
+- Columns:
+  - id (TEXT PRIMARY KEY): 견적서 고유 ID
+  - estimate_no (TEXT): 견적서 번호
+  - title (TEXT): 견적서 제목
+  - partner_id (TEXT): 거래처 ID
+  - partner_name (TEXT): 거래처명
+  - operator_name (TEXT): 담당자명
+  - estimate_date (TEXT): 견적 일자 (YYYY-MM-DD)
+  - total_amount (INTEGER): 총 공급가액
+  - vat (INTEGER): 부가세
+  - grand_total (INTEGER): 합계 금액 (공급가액 + 부가세)
+  - status (TEXT): 상태 ('DRAFT', 'SENT', 'APPROVED', 'REJECTED')
+  - tags (TEXT): 거래 유형 태그 (예: '외주작업', '자재구매', '임가공' 등 자유 태그)
+  - type (TEXT): 'OUTBOUND' (보낸 것) 또는 'INBOUND' (받은 것)
+  - notes (TEXT): 비고
+
+[Estimate Items Table (crm_estimate_items)]
+- Description: 견적서 및 발주서에 포함된 개별 품목 상세와 5대 비용 명세 정보가 저장된 테이블입니다.
+- Columns:
+  - id (TEXT PRIMARY KEY): 품목 상세 고유 ID
+  - estimate_id (TEXT): 연계된 견적서 ID (crm_estimates.id 또는 crm_purchase_orders.id와 조인 가능)
+  - item_name (TEXT): 품목명
+  - quantity (REAL): 수량
+  - price (INTEGER): 단가
+  - amount (INTEGER): 금액 (수량 * 단가)
+  - spec (TEXT): 규격 및 스펙이 저장된 JSON 문자열입니다. 5대 원가와 정산단위를 조회하려면 SQLite의 json_extract() 함수를 활용하여 이 컬럼에서 파싱해야 합니다. (절대 DELETE 같은 키워드는 쿼리에 쓰지 마세요)
+    * json_extract(spec, '$.cost_breakdown.material_cost') : 자재비 (원 단위 정수)
+    * json_extract(spec, '$.cost_breakdown.processing_cost') : 외주가공/작업비 (원 단위 정수)
+    * json_extract(spec, '$.cost_breakdown.overhead_cost') : 일반관리비 (원 단위 정수)
+    * json_extract(spec, '$.cost_breakdown.other_expenses') : 기타경비 (원 단위 정수)
+    * json_extract(spec, '$.cost_breakdown.delivery_expense') : 운반비 (원 단위 정수)
+    * json_extract(spec, '$.settlement_type') : 정산방식 (예: '1식', '시간당', '단가당' 등)
+    * json_extract(spec, '$.delivery_date') : 품목별 개별 납기일 (예: '2026-07-30')
+  - notes (TEXT): 품목 비고
+
+[Purchase Orders Table (crm_purchase_orders)]
+- Description: 발주서 마스터 정보가 저장된 테이블입니다.
+- Columns:
+  - id (TEXT PRIMARY KEY): 발주서 고유 ID
+  - po_no (TEXT): 발주 번호
+  - title (TEXT): 발주서 제목
+  - partner_id (TEXT): 공급처 ID
+  - partner_name (TEXT): 공급처명
+  - po_date (TEXT): 발주 일자 (YYYY-MM-DD)
+  - delivery_date (TEXT): 납기 일자 (YYYY-MM-DD)
+  - total_amount (INTEGER): 공급가액 총액
+  - vat (INTEGER): 부가세
+  - grand_total (INTEGER): 합계 금액
+  - status (TEXT): 상태
+  - tags (TEXT): 거래 유형 (예: '자재구매', '임가공' 등)
+  - type (TEXT): 'OUTBOUND' (보낸 발주서) 또는 'INBOUND' (받은 발주서)
+
+[Sales Orders Table (crm_sales_orders)]
+- Description: 수주서 마스터 정보가 저장된 테이블입니다.
+- Columns:
+  - id (TEXT PRIMARY KEY): 수주서 고유 ID
+  - so_no (TEXT): 수주 번호
+  - title (TEXT): 수주서 제목
+  - partner_id (TEXT): 발주처 ID
+  - partner_name (TEXT): 발주처명
+  - so_date (TEXT): 수주 일자 (YYYY-MM-DD)
+  - delivery_date (TEXT): 납기 예정일 (YYYY-MM-DD)
+  - total_amount (INTEGER): 공급가액 총액
+  - vat (INTEGER): 부가세
+  - grand_total (INTEGER): 합계 금액
+  - status (TEXT): 상태
+  - tags (TEXT): 거래 유형 (예: '외주제작' 등)
+
+- 중요 분석 및 쿼리 제한 사항 안내:
+  - crm_estimates, crm_estimate_items, crm_purchase_orders, crm_sales_orders 조회를 요청할 때, 품목별 상세 비용 명세(자재비 등)나 품목별 개별 납기일 조건이 자연어에 포함되어 있으면 반드시 crm_estimate_items 테이블과 조인(JOIN)하여 json_extract(spec, '$.cost_breakdown.material_cost') 또는 json_extract(spec, '$.delivery_date') 등을 통해 조회해 내야 합니다.
+  - 쿼리 내에 단어 'DELETE'가 부분 문자열로라도 포함되면(예: 'deleted_at') 실행이 원천 차단됩니다. 따라서 생성하는 SELECT 쿼리 안에 절대 'deleted_at' 또는 'deleted_at IS NULL' 컬럼 조건을 포함하지 마십시오. 소프트 삭제 필터링은 시스템이 별도로 처리하므로 단순 컬럼만 매핑 조회하십시오.
+  - 예시 1: 외주작업비가 4,000원 이상인 품목의 발주건 거래처명을 찾을 때 (deleted_at 조건을 절대 쓰지 마십시오):
+    SELECT e.partner_name, i.item_name, json_extract(i.spec, '$.cost_breakdown.processing_cost') AS processing_cost
+    FROM crm_estimate_items i
+    JOIN crm_estimates e ON i.estimate_id = e.id
+    WHERE CAST(json_extract(i.spec, '$.cost_breakdown.processing_cost') AS INTEGER) >= 4000
+  - 예시 2: 특정 품목별 납기일(예: '2026-07-30')에 해당하는 품목명과 발주처를 찾을 때 (deleted_at 조건을 절대 쓰지 마십시오):
+    SELECT e.partner_name, i.item_name, json_extract(i.spec, '$.delivery_date') AS delivery_date
+    FROM crm_estimate_items i
+    JOIN crm_estimates e ON i.estimate_id = e.id
+    WHERE json_extract(i.spec, '$.delivery_date') = '2026-07-30'
 `;
     dbTablesInfo += "\n" + rndTablesInfo;
 

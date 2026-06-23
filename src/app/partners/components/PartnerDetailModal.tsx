@@ -259,7 +259,7 @@ export function PartnerDetailModal({
                         <div className="text-right">
                           <span className="text-indigo-600 block">{parseInt(po.total_amount).toLocaleString()}원</span>
                           <span className={`inline-block px-1.5 py-0.2 rounded text-[8px] font-black uppercase mt-1 ${po.status === 'PENDING_INBOUND' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                            {po.status === 'PENDING_INBOUND' ? '입고대기' : '입고완료'}
+                            {po.status === 'PENDING_INBOUND' ? '발주완료' : '입고완료'}
                           </span>
                         </div>
                       </div>

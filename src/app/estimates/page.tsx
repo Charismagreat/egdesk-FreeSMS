@@ -388,7 +388,7 @@ export default function EstimatesDashboard() {
         e.partner_name,
         e.partner_phone,
         e.total_amount,
-        e.direction_status === "REQUESTED" ? "견적요청" : "발주완료",
+        e.direction_status === "REQUESTED" ? "견적접수" : "발주완료",
         e.ai_parsed ? "AI OCR" : "수동",
         e.created_at,
       ]);
@@ -397,14 +397,14 @@ export default function EstimatesDashboard() {
       const targetIds =
         selectedIds.size > 0 ? selectedIds : new Set(purchaseOrders.map((p) => p.id));
       const selected = purchaseOrders.filter((p) => targetIds.has(p.id));
-      headers = ["발주번호", "견적번호", "공급처명", "연락처", "총 발주액", "상태", "발주일시"];
+      headers = ["발주등록번호/발주번호", "견적번호", "공급처명", "연락처", "총 발주액", "상태", "발주일시"];
       rows = selected.map((p) => [
         p.id,
         p.estimate_id,
         p.vendor_name,
         p.vendor_phone,
         p.total_amount,
-        p.status === "PENDING_INBOUND" ? "입고대기" : "입고완료",
+        p.status === "PENDING_INBOUND" ? "발주완료" : "입고완료",
         p.created_at,
       ]);
       filename = `발주대장_${selectedIds.size > 0 ? "선택출력" : "전체출력"}.csv`;

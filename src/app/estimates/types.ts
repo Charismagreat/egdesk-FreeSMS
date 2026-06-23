@@ -36,6 +36,7 @@ export interface SalesOrder {
   total_amount: number;
   created_at: string;
   client_order_no?: string;
+  delivery_date?: string;
 }
 
 export interface Partner {
@@ -54,4 +55,5 @@ export interface EstimateItem {
   quantity: number;
   unit_price: number;
   amount: number;
+  delivery_date?: string;
 }

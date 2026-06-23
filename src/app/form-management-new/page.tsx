@@ -105,6 +105,46 @@ export default function FormManagementNewPage() {
     issue_day: ''
   });
 
+  // SCM용 입력 데이터 상태
+  const [scmData, setScmData] = useState<any>({
+    recipient_company: '',
+    recipient_address: '',
+    recipient_contact: '',
+    recipient_phone: '',
+    supplier_company: '',
+    supplier_address: '',
+    supplier_owner: '',
+    supplier_phone: '',
+    transaction_type: '자재구매',
+    document_memo: '',
+    items: [
+      {
+        product_name: '',
+        billing_type: 'general',
+        billing_type_name: '일반단가',
+        unit: 'EA',
+        quantity: 1,
+        unit_price: 0,
+        amount: 0,
+        delivery_date: '',
+        has_cost_breakdown: false,
+        cost_breakdown: {
+          material_cost: 0,
+          processing_cost: 0,
+          overhead_cost: 0,
+          other_expenses: 0,
+          delivery_expense: 0
+        }
+      }
+    ]
+  });
+
+  const activePrintTemplate = templates.find(t => t.id === printTemplateId);
+  const isScmTemplate = activePrintTemplate?.document_type && (
+    activePrintTemplate.document_type.startsWith('ESTIMATE_') ||
+    activePrintTemplate.document_type.startsWith('PURCHASE_ORDER_')
+  );
+
   // 모든 세션 상태 복원이 완료되었는지 감시하는 플래그
   const isRestored = isActiveTabRestored && isViewModeRestored && isLogSearchQueryRestored && isLogCurrentPageRestored && isLogPerPageRestored && isSelectedTemplateIdRestored && isSearchKeywordRestored && isManualDataRestored;
 
@@ -382,22 +422,69 @@ export default function FormManagementNewPage() {
     setPrintTemplateId(template.id);
     setPrintTemplateName(template.template_name);
     setIsPrintModalOpen(true);
-    setPrintStep('search');
-    setSearchKeyword('');
-    setAiError(null);
-    setGeneratedSql(null);
-    setShowSql(false);
-    setCompanyProfile({});
     
     // 회사 기본 정보 사전 로딩
+    let currentProfile = {};
     try {
       const res = await fetch(`/api/templates-new?action=detail&id=${template.id}`);
       const data = await res.json();
       if (data.success && data.companyProfile) {
         setCompanyProfile(data.companyProfile);
+        currentProfile = data.companyProfile;
       }
     } catch (err) {
       console.error('회사 프로필 사전 로드 실패:', err);
+    }
+
+    const isScm = template.document_type && (
+      template.document_type.startsWith('ESTIMATE_') || 
+      template.document_type.startsWith('PURCHASE_ORDER_')
+    );
+
+    if (isScm) {
+      setPrintStep('configure');
+      const isPurchaseOrder = template.document_type.startsWith('PURCHASE_ORDER_');
+      let defaultType = '자재구매';
+      if (template.document_type.includes('PROCESSING')) defaultType = '임가공';
+      if (template.document_type.includes('OUTSOURCING')) defaultType = '외주작업';
+
+      setScmData({
+        recipient_company: isPurchaseOrder ? '' : '',
+        recipient_address: '',
+        recipient_contact: '',
+        recipient_phone: '',
+        supplier_company: isPurchaseOrder ? (currentProfile as any).company_name || '' : '',
+        supplier_address: isPurchaseOrder ? (currentProfile as any).address || '' : '',
+        supplier_owner: isPurchaseOrder ? (currentProfile as any).representative || '' : '',
+        supplier_phone: isPurchaseOrder ? (currentProfile as any).phone || '' : '',
+        transaction_type: defaultType,
+        document_memo: '',
+        items: [
+          {
+            product_name: '',
+            billing_type: 'general',
+            billing_type_name: '일반단가',
+            unit: 'EA',
+            quantity: 1,
+            unit_price: 0,
+            amount: 0,
+            has_cost_breakdown: false,
+            cost_breakdown: {
+              material_cost: 0,
+              processing_cost: 0,
+              overhead_cost: 0,
+              other_expenses: 0,
+              delivery_expense: 0
+            }
+          }
+        ]
+      });
+    } else {
+      setPrintStep('search');
+      setSearchKeyword('');
+      setAiError(null);
+      setGeneratedSql(null);
+      setShowSql(false);
     }
   };
 
@@ -487,23 +574,79 @@ export default function FormManagementNewPage() {
 
   // 수기 보완이 끝난 데이터셋을 localstorage에 올리고 최종 인쇄 팝업 트리거
   const handleExecutePrint = () => {
-    if (!manualData.staff_name.trim()) {
-      alert('대상자 성명(명칭)은 필수 입력 항목입니다.');
-      return;
-    }
-
     if (!printTemplateId) return;
 
-    // 로컬 스토리지에 데이터를 안전하게 올려 팝업창에서 직접 수신하도록 조율
-    const printDataPayload = {
-      ...companyProfile,
-      ...manualData
-    };
-    localStorage.setItem('web_form_print_data', JSON.stringify(printDataPayload));
+    const activeTemplate = templates.find(t => t.id === printTemplateId);
+    const isScm = activeTemplate?.document_type && (
+      activeTemplate.document_type.startsWith('ESTIMATE_') || 
+      activeTemplate.document_type.startsWith('PURCHASE_ORDER_')
+    );
 
-    setIsPrintModalOpen(false);
-    const url = `/form-management-new/print?templateId=${printTemplateId}`;
-    window.open(url, `WebFormPrint_${Date.now()}`, 'width=1280,height=900,scrollbars=yes,resizable=yes');
+    if (isScm) {
+      // SCM 데이터 검증
+      const isPurchaseOrder = activeTemplate.document_type.startsWith('PURCHASE_ORDER_');
+      const targetCompany = isPurchaseOrder ? scmData.supplier_company : scmData.recipient_company;
+      if (!targetCompany.trim()) {
+        alert(isPurchaseOrder ? '공급자(거래처) 상호는 필수 입력 항목입니다.' : '공급받는자(바이어) 상호는 필수 입력 항목입니다.');
+        return;
+      }
+      if (scmData.items.some((it: any) => !it.product_name.trim())) {
+        alert('품명은 필수 입력 항목입니다.');
+        return;
+      }
+
+      // items의 합계 및 5대 비용 명세 가공
+      const processedItems = scmData.items.map((it: any) => {
+        const qty = Number(it.quantity) || 0;
+        const price = Number(it.unit_price) || 0;
+        const amt = qty * price;
+        return {
+          ...it,
+          quantity: qty,
+          unit_price: price,
+          amount: amt,
+          cost_breakdown: {
+            material_cost: Number(it.cost_breakdown.material_cost) || 0,
+            processing_cost: Number(it.cost_breakdown.processing_cost) || 0,
+            overhead_cost: Number(it.cost_breakdown.overhead_cost) || 0,
+            other_expenses: Number(it.cost_breakdown.other_expenses) || 0,
+            delivery_expense: Number(it.cost_breakdown.delivery_expense) || 0
+          }
+        };
+      });
+
+      const totalAmount = processedItems.reduce((sum: number, it: any) => sum + it.amount, 0);
+
+      const printDataPayload = {
+        ...companyProfile,
+        ...scmData,
+        items: processedItems,
+        total_amount: totalAmount
+      };
+
+      localStorage.setItem('web_form_print_data', JSON.stringify(printDataPayload));
+
+      setIsPrintModalOpen(false);
+      const url = `/form-management-new/print?templateId=${printTemplateId}`;
+      window.open(url, `WebFormPrint_${Date.now()}`, 'width=1280,height=900,scrollbars=yes,resizable=yes');
+
+    } else {
+      // 기존 재직증명서용 로직
+      if (!manualData.staff_name.trim()) {
+        alert('대상자 성명(명칭)은 필수 입력 항목입니다.');
+        return;
+      }
+
+      const printDataPayload = {
+        ...companyProfile,
+        ...manualData
+      };
+      localStorage.setItem('web_form_print_data', JSON.stringify(printDataPayload));
+
+      setIsPrintModalOpen(false);
+      const url = `/form-management-new/print?templateId=${printTemplateId}`;
+      window.open(url, `WebFormPrint_${Date.now()}`, 'width=1280,height=900,scrollbars=yes,resizable=yes');
+    }
 
     // 대장 갱신 트리거
     setTimeout(() => {
@@ -1038,232 +1181,708 @@ export default function FormManagementNewPage() {
 
             {/* 2단계: 데이터 검토 및 수기 완결 */}
             {printStep === 'configure' && (
-              <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5 bg-slate-50/30">
-                <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-100/70 flex items-start gap-2.5 shrink-0">
-                  <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                  <p className="text-xs text-amber-850 font-bold leading-normal">
-                    AI 조인 검색에 기반한 연계 데이터가 아래 입력창에 로드되었습니다. <br />
-                    실제 인쇄될 내용 중 **비어 있거나 수정이 필요한 항목(주민번호, 용도 등)**을 수기로 마저 입력하여 증명서를 완성해 주십시오.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* 대상자 인적 사항 */}
-                  <div className="space-y-3 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-left">
-                    <span className="text-[11px] font-black text-slate-400 block border-b border-slate-100 pb-1.5 uppercase tracking-wider">대상자 인적 사항</span>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 mb-1">성명 (Name) <span className="text-rose-500">*</span></label>
-                      <input
-                        type="text"
-                        value={manualData.staff_name}
-                        onChange={e => setManualData({ ...manualData, staff_name: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-violet-500 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800"
-                        placeholder="사원 성명"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 mb-1">소속 (Department)</label>
-                      <input
-                        type="text"
-                        value={manualData.department}
-                        onChange={e => setManualData({ ...manualData, department: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-violet-500 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800"
-                        placeholder="예: R&D 개발본부"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 mb-1">직위 (Position)</label>
-                      <input
-                        type="text"
-                        value={manualData.position}
-                        onChange={e => setManualData({ ...manualData, position: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-violet-500 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800"
-                        placeholder="예: 책임연구원"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 mb-1 flex items-center gap-1.5">
-                        주민등록번호 (Resident ID)
-                        <span className="text-amber-600 text-[8px] font-black bg-amber-100 px-1.5 py-0.5 rounded">수기 입력</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={manualData.resident_id}
-                        onChange={e => setManualData({ ...manualData, resident_id: e.target.value })}
-                        className="w-full bg-amber-50/15 border-2 border-dashed border-amber-400 focus:bg-white focus:border-amber-600 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 transition-colors"
-                        placeholder="예: 900101-1234567"
-                      />
-                    </div>
+              isScmTemplate ? (
+                // SCM 전용 동적 폼 UI 렌더링
+                <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5 bg-slate-50/30 text-left">
+                  {/* SCM 상단 가이드 */}
+                  <div className="p-3.5 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-start gap-2.5 shrink-0">
+                    <Info className="w-4 h-4 text-indigo-650 shrink-0 mt-0.5" />
+                    <p className="text-xs text-indigo-900 font-bold leading-normal">
+                      양식에 들어갈 SCM 상세 내용을 직접 입력하십시오.<br />
+                      5대 원가(자재비, 외주가공/작업비, 일반관리비, 기타경비, 운반비)를 기입하여 원가 상세 내역을 포함할 수 있으며, 정산단위를 다채롭게 제어할 수 있습니다.
+                    </p>
                   </div>
 
-                  {/* 거주 주소 및 출력 용도 */}
-                  <div className="space-y-3 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-left">
-                    <span className="text-[11px] font-black text-slate-400 block border-b border-slate-100 pb-1.5 uppercase tracking-wider">주소 및 발급/출력 정보</span>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 mb-1">거주 주소 (Address)</label>
-                      <textarea
-                        rows={3}
-                        value={manualData.address}
-                        onChange={e => setManualData({ ...manualData, address: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-violet-500 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 resize-none"
-                        placeholder="주민등록상 거주 주소 입력"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 mb-1">재직 기간 (Employment Period)</label>
-                      <input
-                        type="text"
-                        value={manualData.employment_period}
-                        onChange={e => setManualData({ ...manualData, employment_period: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-violet-500 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800"
-                        placeholder="예: 2024.03.15 ~ 현재 재직 중"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-500 mb-1 flex items-center gap-1.5">
-                        제출 용도 (Usage)
-                        <span className="text-amber-600 text-[8px] font-black bg-amber-100 px-1.5 py-0.5 rounded">수기 입력</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={manualData.usage}
-                        onChange={e => setManualData({ ...manualData, usage: e.target.value })}
-                        className="w-full bg-amber-50/15 border-2 border-dashed border-amber-400 focus:bg-white focus:border-amber-600 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 transition-colors"
-                        placeholder="예: 금융기관 제출용, 관공서 제출용"
-                      />
-                    </div>
-                  </div>
-
-                  {/* 발급 회사 부서 정보 */}
-                  <div className="space-y-3 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-left">
-                    <span className="text-[11px] font-black text-slate-400 block border-b border-slate-100 pb-1.5 uppercase tracking-wider">회사 발급/출력부서 정보</span>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1 flex items-center gap-1">
-                          발급/출력 부서명
-                          <span className="text-amber-600 text-[7px] font-black bg-amber-100 px-1 py-0.5 rounded shrink-0">수기</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={manualData.issue_dept}
-                          onChange={e => setManualData({ ...manualData, issue_dept: e.target.value })}
-                          className="w-full bg-amber-50/15 border-2 border-dashed border-amber-400 focus:bg-white focus:border-amber-600 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 transition-colors"
-                          placeholder="인사팀 등"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1">발급/출력 연락처</label>
-                        <input
-                          type="text"
-                          value={manualData.issue_phone}
-                          onChange={e => setManualData({ ...manualData, issue_phone: e.target.value })}
-                          className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-violet-500 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800"
-                        />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1">이메일</label>
-                        <input
-                          type="text"
-                          value={manualData.issue_email}
-                          onChange={e => setManualData({ ...manualData, issue_email: e.target.value })}
-                          className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-violet-500 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-500 mb-1 flex items-center gap-1">
-                          FAX 번호
-                          <span className="text-amber-600 text-[7px] font-black bg-amber-100 px-1 py-0.5 rounded shrink-0">수기</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={manualData.issue_fax}
-                          onChange={e => setManualData({ ...manualData, issue_fax: e.target.value })}
-                          className="w-full bg-amber-50/15 border-2 border-dashed border-amber-400 focus:bg-white focus:border-amber-600 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 transition-colors"
-                          placeholder="FAX"
-                        />
-                      </div>
-                    </div>
-
-                    <span className="text-[11px] font-black text-slate-400 block border-b border-slate-100 pb-1.5 pt-2 uppercase tracking-wider">시스템 자동 정보</span>
-                    <div className="grid grid-cols-3 gap-1.5 text-center">
-                      <div className="bg-slate-50 border border-slate-100 py-1.5 rounded-lg">
-                        <span className="block text-[8px] text-slate-400 font-bold">출력 연도</span>
-                        <span className="text-[11px] font-extrabold text-slate-700">{manualData.issue_year}년</span>
-                      </div>
-                      <div className="bg-slate-50 border border-slate-100 py-1.5 rounded-lg">
-                        <span className="block text-[8px] text-slate-400 font-bold">출력 월</span>
-                        <span className="text-[11px] font-extrabold text-slate-700">{manualData.issue_month}월</span>
-                      </div>
-                      <div className="bg-slate-50 border border-slate-100 py-1.5 rounded-lg">
-                        <span className="block text-[8px] text-slate-400 font-bold">출력 일</span>
-                        <span className="text-[11px] font-extrabold text-slate-700">{manualData.issue_day}일</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* AI 실행 SQL 쿼리 조회 아코디언 패널 */}
-                  {showSql && generatedSql && (
-                    <div className="col-span-1 md:col-span-3 mt-2 p-4 bg-slate-900 rounded-2xl border border-slate-800 text-left font-mono relative group transition-all duration-200">
-                      <div className="absolute right-3.5 top-3.5 flex items-center gap-2">
-                        <span className="text-[8px] bg-slate-800 text-violet-400 px-2 py-0.5 rounded-full font-bold">
-                          SQLite3
-                        </span>
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(generatedSql);
-                            alert('AI SQL 쿼리문이 클립보드에 성공적으로 복사되었습니다.');
-                          }}
-                          className="p-1.5 rounded-xl bg-slate-800 text-slate-450 hover:text-white hover:bg-slate-700 transition cursor-pointer"
-                          title="쿼리 복사"
-                        >
-                          <Copy className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                      <span className="block text-[9px] font-black text-slate-500 mb-2.5 uppercase tracking-wider">
-                        🤖 AI가 데이터 조인을 위해 자동 생성한 SQL 실행문
+                  {/* SCM 상단 기본 정보 입력 (수신자/공급사 및 거래유형) */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* 공급받는자 (바이어) */}
+                    <div className="space-y-3 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-left">
+                      <span className="text-[11px] font-black text-slate-400 block border-b border-slate-100 pb-1.5 uppercase tracking-wider">
+                        공급받는자 (바이어 정보)
                       </span>
-                      <pre className="text-[11px] text-slate-300 overflow-x-auto whitespace-pre-wrap leading-relaxed select-all">
-                        {generatedSql}
-                      </pre>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1">상호 (Company)</label>
+                          <input
+                            type="text"
+                            value={scmData.recipient_company}
+                            onChange={e => setScmData({ ...scmData, recipient_company: e.target.value })}
+                            className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800"
+                            placeholder="바이어 상호"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1">담당자명 (Contact)</label>
+                          <input
+                            type="text"
+                            value={scmData.recipient_contact}
+                            onChange={e => setScmData({ ...scmData, recipient_contact: e.target.value })}
+                            className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800"
+                            placeholder="담당자 성명"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1">연락처 (Phone)</label>
+                          <input
+                            type="text"
+                            value={scmData.recipient_phone}
+                            onChange={e => setScmData({ ...scmData, recipient_phone: e.target.value })}
+                            className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800"
+                            placeholder="연락처 번호"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1">사업장 주소 (Address)</label>
+                          <input
+                            type="text"
+                            value={scmData.recipient_address}
+                            onChange={e => setScmData({ ...scmData, recipient_address: e.target.value })}
+                            className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800"
+                            placeholder="사업장 소재지 주소"
+                          />
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </div>
 
-                {/* 하단 제어 버튼 그룹 */}
-                <div className="flex items-center justify-between pt-3 border-t border-slate-150 shrink-0">
-                  <div className="flex items-center gap-2">
+                    {/* 공급자 (거래처 또는 우리회사) */}
+                    <div className="space-y-3 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-left">
+                      <span className="text-[11px] font-black text-slate-400 block border-b border-slate-100 pb-1.5 uppercase tracking-wider">
+                        공급자 (제조/납품처 정보)
+                      </span>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1">상호 (Company)</label>
+                          <input
+                            type="text"
+                            value={scmData.supplier_company}
+                            onChange={e => setScmData({ ...scmData, supplier_company: e.target.value })}
+                            className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800"
+                            placeholder="공급처 상호"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1">대표자명 (Owner)</label>
+                          <input
+                            type="text"
+                            value={scmData.supplier_owner}
+                            onChange={e => setScmData({ ...scmData, supplier_owner: e.target.value })}
+                            className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800"
+                            placeholder="대표자 성명"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1">연락처 (Phone)</label>
+                          <input
+                            type="text"
+                            value={scmData.supplier_phone}
+                            onChange={e => setScmData({ ...scmData, supplier_phone: e.target.value })}
+                            className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800"
+                            placeholder="연락처 번호"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1">사업장 주소 (Address)</label>
+                          <input
+                            type="text"
+                            value={scmData.supplier_address}
+                            onChange={e => setScmData({ ...scmData, supplier_address: e.target.value })}
+                            className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800"
+                            placeholder="사업장 소재지 주소"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 거래 유형 및 메모 */}
+                  <div className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-left space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1">거래유형 (Transaction Type)</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={scmData.transaction_type}
+                            onChange={e => setScmData({ ...scmData, transaction_type: e.target.value })}
+                            className="flex-1 bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800"
+                            placeholder="예: 자재구매, 임가공, 외주작업 등 자유입력"
+                          />
+                          <div className="flex gap-1">
+                            {['자재구매', '임가공', '외주작업'].map(type => (
+                              <button
+                                key={type}
+                                type="button"
+                                onClick={() => setScmData({ ...scmData, transaction_type: type })}
+                                className={`px-2.5 py-1 rounded-xl text-[10px] font-extrabold border transition cursor-pointer ${
+                                  scmData.transaction_type === type
+                                    ? 'bg-indigo-600 border-indigo-600 text-white'
+                                    : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                                }`}
+                              >
+                                {type}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1">특기사항 / 메모 (Document Memo)</label>
+                        <input
+                          type="text"
+                          value={scmData.document_memo}
+                          onChange={e => setScmData({ ...scmData, document_memo: e.target.value })}
+                          className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-indigo-500 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800"
+                          placeholder="특기사항 내용을 입력하십시오."
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SCM 품목 동적 테이블 */}
+                  <div className="p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-left space-y-4">
+                    <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                      <span className="text-[11px] font-black text-slate-400 uppercase tracking-wider">
+                        세부 품목 내역 리스트
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const newItems = [...scmData.items, {
+                            product_name: '',
+                            billing_type: 'general',
+                            billing_type_name: '일반단가',
+                            unit: 'EA',
+                            quantity: 1,
+                            unit_price: 0,
+                            amount: 0,
+                            delivery_date: '',
+                            has_cost_breakdown: false,
+                            cost_breakdown: {
+                              material_cost: 0,
+                              processing_cost: 0,
+                              overhead_cost: 0,
+                              other_expenses: 0,
+                              delivery_expense: 0
+                            }
+                          }];
+                          setScmData({ ...scmData, items: newItems });
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-[10px] font-black transition cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5 stroke-[2.5px]" />
+                        품목 추가
+                      </button>
+                    </div>
+
+                    <div className="space-y-4 max-h-[300px] overflow-y-auto pr-1">
+                      {scmData.items.map((item: any, idx: number) => (
+                        <div key={idx} className="p-4 bg-slate-50/50 rounded-2xl border border-slate-150 relative space-y-3">
+                          {/* 삭제 버튼 */}
+                          {scmData.items.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newItems = scmData.items.filter((_: any, i: number) => i !== idx);
+                                setScmData({ ...scmData, items: newItems });
+                              }}
+                              className="absolute right-3 top-3 text-slate-400 hover:text-rose-600 transition p-1 cursor-pointer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+
+                          {/* 기본 품목 정보 */}
+                          <div className="grid grid-cols-1 md:grid-cols-5 gap-3 pr-6">
+                            <div className="md:col-span-2">
+                              <label className="block text-[9px] font-bold text-slate-500 mb-1">품명 및 규격 <span className="text-rose-500">*</span></label>
+                              <input
+                                type="text"
+                                value={item.product_name}
+                                onChange={e => {
+                                  const newItems = [...scmData.items];
+                                  newItems[idx].product_name = e.target.value;
+                                  setScmData({ ...scmData, items: newItems });
+                                }}
+                                className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:outline-none rounded-lg px-2 py-1 text-xs font-bold text-slate-800"
+                                placeholder="예: 알루미늄 판넬 10T"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[9px] font-bold text-slate-500 mb-1">정산방식</label>
+                              <select
+                                value={item.billing_type}
+                                onChange={e => {
+                                  const type = e.target.value;
+                                  const newItems = [...scmData.items];
+                                  newItems[idx].billing_type = type;
+                                  if (type === 'general') {
+                                    newItems[idx].billing_type_name = '일반단가';
+                                    newItems[idx].unit = 'EA';
+                                  } else if (type === 'lump_sum') {
+                                    newItems[idx].billing_type_name = '1식';
+                                    newItems[idx].unit = '식';
+                                    newItems[idx].quantity = 1;
+                                  } else if (type === 'hourly') {
+                                    newItems[idx].billing_type_name = '시간당';
+                                    newItems[idx].unit = 'Hour';
+                                  }
+                                  // 재계산
+                                  newItems[idx].amount = newItems[idx].quantity * newItems[idx].unit_price;
+                                  setScmData({ ...scmData, items: newItems });
+                                }}
+                                className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:outline-none rounded-lg px-2 py-1 text-xs font-bold text-slate-700 cursor-pointer"
+                              >
+                                <option value="general">일반단가 (EA)</option>
+                                <option value="lump_sum">1식 정산 (식)</option>
+                                <option value="hourly">시간당 정산 (Hour)</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-[9px] font-bold text-slate-500 mb-1">수량</label>
+                              <input
+                                type="number"
+                                value={item.quantity}
+                                disabled={item.billing_type === 'lump_sum'}
+                                onChange={e => {
+                                  const qty = Number(e.target.value) || 0;
+                                  const newItems = [...scmData.items];
+                                  newItems[idx].quantity = qty;
+                                  newItems[idx].amount = qty * newItems[idx].unit_price;
+                                  setScmData({ ...scmData, items: newItems });
+                                }}
+                                className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:outline-none rounded-lg px-2 py-1 text-xs font-bold text-slate-800 disabled:bg-slate-100 disabled:text-slate-400"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[9px] font-bold text-slate-500 mb-1">단가 (원)</label>
+                              <input
+                                type="number"
+                                value={item.unit_price}
+                                onChange={e => {
+                                  const price = Number(e.target.value) || 0;
+                                  const newItems = [...scmData.items];
+                                  newItems[idx].unit_price = price;
+                                  newItems[idx].amount = newItems[idx].quantity * price;
+                                  setScmData({ ...scmData, items: newItems });
+                                }}
+                                className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:outline-none rounded-lg px-2 py-1 text-xs font-bold text-slate-800"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-5 gap-3 pr-6">
+                            <div>
+                              <label className="block text-[9px] font-bold text-slate-500 mb-1">정산단위</label>
+                              <input
+                                type="text"
+                                value={item.unit}
+                                onChange={e => {
+                                  const newItems = [...scmData.items];
+                                  newItems[idx].unit = e.target.value;
+                                  setScmData({ ...scmData, items: newItems });
+                                }}
+                                className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:outline-none rounded-lg px-2 py-1 text-xs font-bold text-slate-800"
+                                placeholder="단위"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[9px] font-bold text-slate-500 mb-1">개별 납기일</label>
+                              <input
+                                type="date"
+                                value={item.delivery_date || ''}
+                                onChange={e => {
+                                  const newItems = [...scmData.items];
+                                  newItems[idx].delivery_date = e.target.value;
+                                  setScmData({ ...scmData, items: newItems });
+                                }}
+                                className="w-full bg-white border border-slate-200 focus:border-indigo-500 focus:outline-none rounded-lg px-2 py-1 text-xs font-bold text-slate-800 cursor-pointer"
+                              />
+                            </div>
+                            <div className="flex items-center pt-5">
+                              <label className="flex items-center gap-1.5 text-[10px] font-bold text-slate-600 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={item.has_cost_breakdown}
+                                  onChange={e => {
+                                    const newItems = [...scmData.items];
+                                    newItems[idx].has_cost_breakdown = e.target.checked;
+                                    setScmData({ ...scmData, items: newItems });
+                                  }}
+                                  className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 cursor-pointer"
+                                />
+                                5대 원가 분석 추가
+                              </label>
+                            </div>
+                            <div className="md:col-span-2 flex items-center justify-end pt-5">
+                              <span className="text-[10px] font-bold text-slate-400 font-sans">품목 합계:</span>
+                              <span className="text-sm font-black text-indigo-600 ml-2 font-mono">
+                                {(item.quantity * item.unit_price).toLocaleString()}원
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* 5대 비용 명세 상세 입력 */}
+                          {item.has_cost_breakdown && (
+                            <div className="p-3 bg-white rounded-xl border border-slate-150 space-y-2.5 text-[9px]">
+                              <span className="font-extrabold text-indigo-600 block">↳ 5대 표준 비용 상세 분석 (원가 구성)</span>
+                              <div className="grid grid-cols-5 gap-2">
+                                <div>
+                                  <label className="block font-bold text-slate-500 mb-1">자재비 (원)</label>
+                                  <input
+                                    type="number"
+                                    value={item.cost_breakdown.material_cost}
+                                    onChange={e => {
+                                      const val = Number(e.target.value) || 0;
+                                      const newItems = [...scmData.items];
+                                      newItems[idx].cost_breakdown.material_cost = val;
+                                      setScmData({ ...scmData, items: newItems });
+                                    }}
+                                    className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none rounded px-2 py-1 text-xs font-semibold text-slate-800"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block font-bold text-slate-500 mb-1">외주가공/작업비 (원)</label>
+                                  <input
+                                    type="number"
+                                    value={item.cost_breakdown.processing_cost}
+                                    onChange={e => {
+                                      const val = Number(e.target.value) || 0;
+                                      const newItems = [...scmData.items];
+                                      newItems[idx].cost_breakdown.processing_cost = val;
+                                      setScmData({ ...scmData, items: newItems });
+                                    }}
+                                    className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none rounded px-2 py-1 text-xs font-semibold text-slate-800"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block font-bold text-slate-500 mb-1">일반관리비 (원)</label>
+                                  <input
+                                    type="number"
+                                    value={item.cost_breakdown.overhead_cost}
+                                    onChange={e => {
+                                      const val = Number(e.target.value) || 0;
+                                      const newItems = [...scmData.items];
+                                      newItems[idx].cost_breakdown.overhead_cost = val;
+                                      setScmData({ ...scmData, items: newItems });
+                                    }}
+                                    className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none rounded px-2 py-1 text-xs font-semibold text-slate-800"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block font-bold text-slate-500 mb-1">기타경비 (원)</label>
+                                  <input
+                                    type="number"
+                                    value={item.cost_breakdown.other_expenses}
+                                    onChange={e => {
+                                      const val = Number(e.target.value) || 0;
+                                      const newItems = [...scmData.items];
+                                      newItems[idx].cost_breakdown.other_expenses = val;
+                                      setScmData({ ...scmData, items: newItems });
+                                    }}
+                                    className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none rounded px-2 py-1 text-xs font-semibold text-slate-800"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block font-bold text-slate-500 mb-1">운반비 (원)</label>
+                                  <input
+                                    type="number"
+                                    value={item.cost_breakdown.delivery_expense}
+                                    onChange={e => {
+                                      const val = Number(e.target.value) || 0;
+                                      const newItems = [...scmData.items];
+                                      newItems[idx].cost_breakdown.delivery_expense = val;
+                                      setScmData({ ...scmData, items: newItems });
+                                    }}
+                                    className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:outline-none rounded px-2 py-1 text-xs font-semibold text-slate-800"
+                                  />
+                                </div>
+                              </div>
+                              {/* 밸리데이션 피드백 */}
+                              {(() => {
+                                const sum = 
+                                  Number(item.cost_breakdown.material_cost) +
+                                  Number(item.cost_breakdown.processing_cost) +
+                                  Number(item.cost_breakdown.overhead_cost) +
+                                  Number(item.cost_breakdown.other_expenses) +
+                                  Number(item.cost_breakdown.delivery_expense);
+                                const diff = item.amount - sum;
+                                return (
+                                  <div className="flex justify-between items-center text-[9px] font-bold mt-1.5 border-t border-slate-100 pt-1">
+                                    <span className="text-slate-400">비용 구성 총계: {sum.toLocaleString()}원</span>
+                                    {diff !== 0 ? (
+                                      <span className="text-rose-500 font-extrabold animate-pulse">
+                                        ⚠️ 합계 금액과의 차액: {diff > 0 ? `+${diff.toLocaleString()}` : diff.toLocaleString()}원
+                                      </span>
+                                    ) : (
+                                      <span className="text-emerald-600 font-extrabold">✓ 합계 금액과 비용 구성액이 완벽히 일치합니다.</span>
+                                    )}
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* SCM 하단 총액 요약 패널 */}
+                  <div className="p-4 bg-indigo-50/40 rounded-2xl border border-indigo-100 flex items-center justify-between text-left shrink-0">
+                    <span className="text-xs font-extrabold text-slate-600">등록 예정 거래 총합계 금액 (총 {scmData.items.length}개 품목)</span>
+                    <span className="text-lg font-black text-indigo-700 font-mono">
+                      {scmData.items.reduce((sum: number, it: any) => sum + (it.quantity * it.unit_price), 0).toLocaleString()}원
+                    </span>
+                  </div>
+
+                  {/* 하단 제어 버튼 그룹 */}
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-150 shrink-0">
                     <button
-                      onClick={() => setPrintStep('search')}
+                      onClick={() => setIsPrintModalOpen(false)}
                       className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs transition rounded-xl cursor-pointer"
                     >
-                      이전 단계로 (검색)
+                      취소
                     </button>
-                    
-                    {generatedSql && (
-                      <button
-                        onClick={() => setShowSql(!showSql)}
-                        className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-extrabold border transition cursor-pointer ${
-                          showSql 
-                            ? 'bg-slate-800 border-slate-700 text-white hover:bg-slate-700'
-                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                        }`}
-                      >
-                        <Database className="w-3.5 h-3.5 text-violet-500" />
-                        {showSql ? 'AI SQL 쿼리 닫기' : 'AI SQL 쿼리 보기'}
-                      </button>
+                    <button
+                      onClick={handleExecutePrint}
+                      className="flex items-center gap-1.5 px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white font-extrabold text-xs transition rounded-xl cursor-pointer shadow-lg shadow-indigo-600/10"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      양식 출력 실행 (Print)
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-5 bg-slate-50/30">
+                  <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-100/70 flex items-start gap-2.5 shrink-0">
+                    <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-850 font-bold leading-normal">
+                      AI 조인 검색에 기반한 연계 데이터가 아래 입력창에 로드되었습니다. <br />
+                      실제 인쇄될 내용 중 **비어 있거나 수정이 필요한 항목(주민번호, 용도 등)**을 수기로 마저 입력하여 증명서를 완성해 주십시오.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* 대상자 인적 사항 */}
+                    <div className="space-y-3 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-left">
+                      <span className="text-[11px] font-black text-slate-400 block border-b border-slate-100 pb-1.5 uppercase tracking-wider">대상자 인적 사항</span>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1">성명 (Name) <span className="text-rose-500">*</span></label>
+                        <input
+                          type="text"
+                          value={manualData.staff_name}
+                          onChange={e => setManualData({ ...manualData, staff_name: e.target.value })}
+                          className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-violet-500 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800"
+                          placeholder="사원 성명"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1">소속 (Department)</label>
+                        <input
+                          type="text"
+                          value={manualData.department}
+                          onChange={e => setManualData({ ...manualData, department: e.target.value })}
+                          className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-violet-500 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800"
+                          placeholder="예: R&D 개발본부"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1">직위 (Position)</label>
+                        <input
+                          type="text"
+                          value={manualData.position}
+                          onChange={e => setManualData({ ...manualData, position: e.target.value })}
+                          className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-violet-500 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800"
+                          placeholder="예: 책임연구원"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1 flex items-center gap-1.5">
+                          주민등록번호 (Resident ID)
+                          <span className="text-amber-600 text-[8px] font-black bg-amber-100 px-1.5 py-0.5 rounded">수기 입력</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={manualData.resident_id}
+                          onChange={e => setManualData({ ...manualData, resident_id: e.target.value })}
+                          className="w-full bg-amber-50/15 border-2 border-dashed border-amber-400 focus:bg-white focus:border-amber-600 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 transition-colors"
+                          placeholder="예: 900101-1234567"
+                        />
+                      </div>
+                    </div>
+
+                    {/* 거주 주소 및 출력 용도 */}
+                    <div className="space-y-3 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-left">
+                      <span className="text-[11px] font-black text-slate-400 block border-b border-slate-100 pb-1.5 uppercase tracking-wider">주소 및 발급/출력 정보</span>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1">거주 주소 (Address)</label>
+                        <textarea
+                          rows={3}
+                          value={manualData.address}
+                          onChange={e => setManualData({ ...manualData, address: e.target.value })}
+                          className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-violet-500 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 resize-none"
+                          placeholder="주민등록상 거주 주소 입력"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1">재직 기간 (Employment Period)</label>
+                        <input
+                          type="text"
+                          value={manualData.employment_period}
+                          onChange={e => setManualData({ ...manualData, employment_period: e.target.value })}
+                          className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-violet-500 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800"
+                          placeholder="예: 2024.03.15 ~ 현재 재직 중"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 mb-1 flex items-center gap-1.5">
+                          제출 용도 (Usage)
+                          <span className="text-amber-600 text-[8px] font-black bg-amber-100 px-1.5 py-0.5 rounded">수기 입력</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={manualData.usage}
+                          onChange={e => setManualData({ ...manualData, usage: e.target.value })}
+                          className="w-full bg-amber-50/15 border-2 border-dashed border-amber-400 focus:bg-white focus:border-amber-600 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 transition-colors"
+                          placeholder="예: 금융기관 제출용, 관공서 제출용"
+                        />
+                      </div>
+                    </div>
+
+                    {/* 발급 회사 부서 정보 */}
+                    <div className="space-y-3 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-left">
+                      <span className="text-[11px] font-black text-slate-400 block border-b border-slate-100 pb-1.5 uppercase tracking-wider">회사 발급/출력부서 정보</span>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1 flex items-center gap-1">
+                            발급/출력 부서명
+                            <span className="text-amber-600 text-[7px] font-black bg-amber-100 px-1 py-0.5 rounded shrink-0">수기</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={manualData.issue_dept}
+                            onChange={e => setManualData({ ...manualData, issue_dept: e.target.value })}
+                            className="w-full bg-amber-50/15 border-2 border-dashed border-amber-400 focus:bg-white focus:border-amber-600 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 transition-colors"
+                            placeholder="인사팀 등"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1">발급/출력 연락처</label>
+                          <input
+                            type="text"
+                            value={manualData.issue_phone}
+                            onChange={e => setManualData({ ...manualData, issue_phone: e.target.value })}
+                            className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-violet-500 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1">이메일</label>
+                          <input
+                            type="text"
+                            value={manualData.issue_email}
+                            onChange={e => setManualData({ ...manualData, issue_email: e.target.value })}
+                            className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-violet-500 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 mb-1 flex items-center gap-1">
+                            FAX 번호
+                            <span className="text-amber-600 text-[7px] font-black bg-amber-100 px-1 py-0.5 rounded shrink-0">수기</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={manualData.issue_fax}
+                            onChange={e => setManualData({ ...manualData, issue_fax: e.target.value })}
+                            className="w-full bg-amber-50/15 border-2 border-dashed border-amber-400 focus:bg-white focus:border-amber-600 focus:outline-none rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 transition-colors"
+                            placeholder="FAX"
+                          />
+                        </div>
+                      </div>
+
+                      <span className="text-[11px] font-black text-slate-400 block border-b border-slate-100 pb-1.5 pt-2 uppercase tracking-wider">시스템 자동 정보</span>
+                      <div className="grid grid-cols-3 gap-1.5 text-center">
+                        <div className="bg-slate-50 border border-slate-100 py-1.5 rounded-lg">
+                          <span className="block text-[8px] text-slate-400 font-bold">출력 연도</span>
+                          <span className="text-[11px] font-extrabold text-slate-700">{manualData.issue_year}년</span>
+                        </div>
+                        <div className="bg-slate-50 border border-slate-100 py-1.5 rounded-lg">
+                          <span className="block text-[8px] text-slate-400 font-bold">출력 월</span>
+                          <span className="text-[11px] font-extrabold text-slate-700">{manualData.issue_month}월</span>
+                        </div>
+                        <div className="bg-slate-50 border border-slate-100 py-1.5 rounded-lg">
+                          <span className="block text-[8px] text-slate-400 font-bold">출력 일</span>
+                          <span className="text-[11px] font-extrabold text-slate-700">{manualData.issue_day}일</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* AI 실행 SQL 쿼리 조회 아코디언 패널 */}
+                    {showSql && generatedSql && (
+                      <div className="col-span-1 md:col-span-3 mt-2 p-4 bg-slate-900 rounded-2xl border border-slate-800 text-left font-mono relative group transition-all duration-200">
+                        <div className="absolute right-3.5 top-3.5 flex items-center gap-2">
+                          <span className="text-[8px] bg-slate-800 text-violet-400 px-2 py-0.5 rounded-full font-bold">
+                            SQLite3
+                          </span>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(generatedSql);
+                              alert('AI SQL 쿼리문이 클립보드에 성공적으로 복사되었습니다.');
+                            }}
+                            className="p-1.5 rounded-xl bg-slate-800 text-slate-450 hover:text-white hover:bg-slate-700 transition cursor-pointer"
+                            title="쿼리 복사"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <span className="block text-[9px] font-black text-slate-500 mb-2.5 uppercase tracking-wider">
+                          🤖 AI가 데이터 조인을 위해 자동 생성한 SQL 실행문
+                        </span>
+                        <pre className="text-[11px] text-slate-300 overflow-x-auto whitespace-pre-wrap leading-relaxed select-all">
+                          {generatedSql}
+                        </pre>
+                      </div>
                     )}
                   </div>
-                  <button
-                    onClick={handleExecutePrint}
-                    className="flex items-center gap-1.5 px-6 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-extrabold text-xs transition rounded-xl cursor-pointer shadow-lg shadow-violet-600/10"
-                  >
-                    <Printer className="w-3.5 h-3.5" />
-                    양식 출력 실행 (Print)
-                  </button>
+
+                  {/* 하단 제어 버튼 그룹 */}
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-150 shrink-0">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setPrintStep('search')}
+                        className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs transition rounded-xl cursor-pointer"
+                      >
+                        이전 단계로 (검색)
+                      </button>
+                      
+                      {generatedSql && (
+                        <button
+                          onClick={() => setShowSql(!showSql)}
+                          className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-extrabold border transition cursor-pointer ${
+                            showSql 
+                              ? 'bg-slate-800 border-slate-700 text-white hover:bg-slate-700'
+                              : 'bg-white border-slate-200 text-slate-650 hover:bg-slate-50'
+                          }`}
+                        >
+                          <Database className="w-3.5 h-3.5 text-violet-500" />
+                          {showSql ? 'AI SQL 쿼리 닫기' : 'AI SQL 쿼리 보기'}
+                        </button>
+                      )}
+                    </div>
+                    <button
+                      onClick={handleExecutePrint}
+                      className="flex items-center gap-1.5 px-6 py-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-extrabold text-xs transition rounded-xl cursor-pointer shadow-lg shadow-violet-600/10"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      양식 출력 실행 (Print)
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )
             )}
 
           </div>

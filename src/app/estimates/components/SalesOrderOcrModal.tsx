@@ -2,21 +2,23 @@
 
 import React, { useState } from "react";
 import { Upload, X, FileText, CheckCircle2, RefreshCw } from "lucide-react";
+import { createPortal } from "react-dom";
 
-interface EstimateOcrModalProps {
+interface SalesOrderOcrModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export default function EstimateOcrModal({
+export default function SalesOrderOcrModal({
   isOpen,
   onClose,
   onSuccess
-}: EstimateOcrModalProps) {
+}: SalesOrderOcrModalProps) {
   const [ocrScanning, setOcrScanning] = useState(false);
   const [ocrSuccess, setOcrSuccess] = useState(false);
   const [ocrFilename, setOcrFilename] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [receiverMatched, setReceiverMatched] = useState<boolean>(true);
   const [myCompanyName, setMyCompanyName] = useState<string>("주식회사 쿠스");
   const [userRole, setUserRole] = useState<string>("SUB_OPERATOR");
@@ -27,13 +29,14 @@ export default function EstimateOcrModal({
     partner_name: "",
     partner_phone: "",
     partner_manager: "",
-    items: [] as Array<{ product_name: string; quantity: number; unit_price: number }>,
+    items: [] as Array<{ product_name: string; quantity: number; unit_price: number; delivery_date?: string }>,
     file_url: "",
     business_number: "",
     representative: "",
     address: "",
     document_number: "",
     document_date: "",
+    delivery_date: "",
     document_memo: ""
   });
 
@@ -61,6 +64,7 @@ export default function EstimateOcrModal({
     setOcrScanning(false);
     setOcrSuccess(false);
     setOcrFilename("");
+    setSuccessMessage("");
     setReceiverMatched(true);
     setMyCompanyName("주식회사 쿠스");
     setForceBypass(false);
@@ -76,6 +80,7 @@ export default function EstimateOcrModal({
       address: "",
       document_number: "",
       document_date: "",
+      delivery_date: "",
       document_memo: ""
     });
   };
@@ -85,8 +90,8 @@ export default function EstimateOcrModal({
     onClose();
   };
 
-  // 실제 이미지/PDF 파일 업로드 후 AI OCR 가동
-  const handleOcrFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 실제 이미지/PDF 파일 업로드 후 AI OCR 가동 (분석 전용 action=analyze 호출)
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -94,46 +99,50 @@ export default function EstimateOcrModal({
     setOcrSuccess(false);
     setOcrFilename(file.name);
 
+    const formData = new FormData();
+    formData.append("file", file);
+
     const reader = new FileReader();
     reader.onload = async () => {
       const base64Data = reader.result as string;
       try {
-        const res = await fetch("/api/estimates/ocr", {
+        const res = await fetch("/api/estimates/ocr-sales-order?action=analyze", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            imageBase64: base64Data,
-            filename: file.name,
-            mimeType: file.type,
-            document_type: "estimate"
-          })
+          body: formData,
         });
+        
         const data = await res.json();
+        
         if (data.success) {
           setOcrScanning(false);
           setOcrSuccess(true);
+          setSuccessMessage(`바이어, 연락처 및 ${data.items?.length || 0}개 품목의 단가/수량 파싱 완료`);
           setOcrForm({
-            partner_name: data.partner_name,
+            partner_name: data.partner_name || "",
             partner_phone: data.partner_phone || "",
             partner_manager: data.partner_manager || "",
-            items: data.items,
+            items: data.items || [],
             file_url: base64Data,
-            business_number: data.partner_business_number || "",
-            representative: data.partner_representative || "",
-            address: data.partner_address || "",
+            business_number: data.business_number || "",
+            representative: data.representative || "",
+            address: data.address || "",
             document_number: data.document_number || "",
             document_date: data.document_date || "",
+            delivery_date: data.delivery_date || "",
             document_memo: data.document_memo || ""
           });
           setReceiverMatched(data.receiver_matched !== false);
           setMyCompanyName(data.my_company_name || "주식회사 쿠스");
         } else {
           setOcrScanning(false);
-          alert(data.error || "OCR 파싱 실패");
+          alert("업로드 실패: " + (data.error || "알 수 없는 오류"));
+          resetOcrState();
         }
-      } catch (err) {
+      } catch (error) {
+        console.error(error);
         setOcrScanning(false);
-        alert("OCR 파싱 실패");
+        alert("오류가 발생했습니다.");
+        resetOcrState();
       }
     };
     reader.onerror = () => {
@@ -143,32 +152,18 @@ export default function EstimateOcrModal({
     reader.readAsDataURL(file);
   };
 
-  // OCR 완료된 받은 견적 접수 실행
-  const handleSaveOcrEstimate = async () => {
-    if (!ocrForm.partner_name || ocrForm.items.length === 0) return;
+  // OCR 완료된 바이어 발주서 접수 실행 (action=save 호출)
+  const handleSaveOcrSalesOrder = async () => {
+    if (!ocrForm.partner_name || ocrForm.items.length === 0) {
+      alert("바이어명 및 품목 정보는 필수 항목입니다.");
+      return;
+    }
     try {
-      const tagsObj = {
-        business_number: ocrForm.business_number,
-        representative: ocrForm.representative,
-        address: ocrForm.address,
-        document_number: ocrForm.document_number,
-        document_date: ocrForm.document_date,
-        document_memo: ocrForm.document_memo
-      };
-
-      const res = await fetch("/api/estimates", {
+      const res = await fetch("/api/estimates/ocr-sales-order?action=save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: "INBOUND",
-          direction_status: "REQUESTED",
-          partner_name: ocrForm.partner_name,
-          partner_phone: ocrForm.partner_phone,
-          partner_manager: ocrForm.partner_manager,
-          items: ocrForm.items,
-          ai_parsed: 1,
-          file_url: ocrForm.file_url,
-          tags: JSON.stringify(tagsObj),
+          ...ocrForm,
           force_bypass: forceBypass,
           bypass_reason: bypassReason
         })
@@ -177,30 +172,37 @@ export default function EstimateOcrModal({
       if (data.success) {
         handleClose();
         onSuccess();
-        alert("AI OCR 분석 견적이 성공적으로 접수 대장에 적재되었습니다.");
+        alert("AI OCR 분석 발주서가 성공적으로 접수 대장에 적재되었습니다.");
       } else {
-        alert(data.error || "접수 실패");
+        alert(data.error || "저장 실패");
       }
     } catch (e) {
-      alert("접수 중 오류 발생");
+      alert("저장 중 오류 발생");
     }
   };
 
-  return (
+  return typeof window !== "undefined" ? createPortal(
     <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-[32px] border border-slate-100 max-w-xl w-full p-6 md:p-8 shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh] animate-scale-up">
-        <button onClick={handleClose} className="absolute top-5 right-5 p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
+        {/* 우상단 닫기 버튼 */}
+        <button 
+          onClick={handleClose} 
+          disabled={ocrScanning}
+          className="absolute top-5 right-5 p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 transition-colors disabled:opacity-55"
+        >
           <X className="w-4 h-4" />
         </button>
 
+        {/* 모달 제목 */}
         <h3 className="text-lg font-black text-slate-800 flex items-center gap-2 mb-4">
           <Upload className="w-5 h-5 text-indigo-500" />
-          <span>받은 견적서 스캔 등록 (AI OCR)</span>
+          <span>바이어 발주서 스캔 등록 (AI OCR)</span>
         </h3>
 
+        {/* 메인 영역 */}
         <div className="space-y-6 flex-1 overflow-y-auto pr-1">
           {/* 이미지 가상 드롭존 */}
-          <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center bg-slate-50 relative min-h-[140px] overflow-hidden">
+          <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center bg-slate-50 relative min-h-[140px] overflow-hidden shrink-0">
             {ocrScanning && (
               <div className="absolute inset-x-0 h-1 bg-indigo-500 animate-bounce z-20"></div>
             )}
@@ -208,28 +210,30 @@ export default function EstimateOcrModal({
             {ocrScanning ? (
               <div className="flex flex-col items-center space-y-2 text-center">
                 <RefreshCw className="w-8 h-8 text-indigo-500 animate-spin" />
-                <span className="text-xs text-indigo-600 font-extrabold animate-pulse">Gemini Vision AI로 견적 이미지 고해상도 OCR 스캔 중...</span>
+                <span className="text-xs text-indigo-600 font-extrabold animate-pulse">
+                  Gemini Vision AI로 발주서 이미지 고해상도 OCR 스캔 중...
+                </span>
               </div>
             ) : ocrSuccess ? (
               <div className="text-center space-y-2">
-                <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto" />
+                <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto animate-scale-up" />
                 <div>
                   <span className="text-xs font-bold text-slate-700 block">{ocrFilename} 스캔 성공!</span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">공급사, 연락처 및 {ocrForm.items.length}개 품목의 단가/수량 파싱 완료</span>
+                  <span className="text-[10px] text-slate-400 block mt-0.5">{successMessage}</span>
                 </div>
               </div>
             ) : (
               <div className="text-center space-y-3">
                 <FileText className="w-8 h-8 text-slate-400 mx-auto" />
-                <div className="text-xs text-slate-500">견적서 사진/PDF 이미지 등록 시 AI가 데이터 자동 파싱</div>
+                <div className="text-xs text-slate-500">발주서 사진/PDF 이미지 등록 시 AI가 수주 자동 적재</div>
                 <label 
                   className="inline-block px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-black text-[11px] rounded-xl border border-indigo-100 cursor-pointer shadow-sm"
                 >
-                  견적서 파일 선택 (이미지 / PDF)
+                  발주서 파일 선택 (이미지 / PDF)
                   <input 
                     type="file" 
                     accept="image/*,application/pdf"
-                    onChange={handleOcrFileChange}
+                    onChange={handleFileChange}
                     className="hidden"
                   />
                 </label>
@@ -237,7 +241,7 @@ export default function EstimateOcrModal({
             )}
           </div>
 
-          {/* 스캔 결과 폼 */}
+          {/* 스캔 결과 프리뷰 폼 */}
           {ocrSuccess && (
             <div className="bg-slate-50 p-4.5 rounded-2xl border border-slate-100 space-y-4 animate-scale-up">
               {!receiverMatched && (
@@ -263,7 +267,7 @@ export default function EstimateOcrModal({
                           }}
                           className="rounded border-amber-300 text-amber-600 focus:ring-amber-500"
                         />
-                        불일치 경고를 무시하고 강제로 견적 등록 승인
+                        불일치 경고를 무시하고 강제로 수주 등록 승인
                       </label>
                       
                       {forceBypass && (
@@ -272,7 +276,7 @@ export default function EstimateOcrModal({
                           <textarea
                             value={bypassReason}
                             onChange={(e) => setBypassReason(e.target.value)}
-                            placeholder="예: 계열사 위탁 견적 대리 접수 건으로 임원 확인 완료"
+                            placeholder="예: 계열사 위탁 수주 대리 납품 건으로 임원 확인 완료"
                             className="w-full p-2.5 bg-white border border-amber-200 rounded-xl text-xs font-semibold outline-none focus:border-amber-500 text-slate-800"
                             rows={2}
                           />
@@ -284,15 +288,16 @@ export default function EstimateOcrModal({
               )}
 
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">AI 스캔 분석 결과 자동입력 대기</span>
-              
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] text-slate-400 font-bold block mb-1">공급처명</label>
+                  <label className="text-[10px] text-slate-400 font-bold block mb-1">바이어명 *</label>
                   <input 
                     type="text" 
                     value={ocrForm.partner_name}
                     onChange={e => setOcrForm(prev => ({ ...prev, partner_name: e.target.value }))}
-                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold"
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-indigo-500"
+                    required
                   />
                 </div>
                 <div>
@@ -301,7 +306,7 @@ export default function EstimateOcrModal({
                     type="text" 
                     value={ocrForm.partner_phone}
                     onChange={e => setOcrForm(prev => ({ ...prev, partner_phone: e.target.value }))}
-                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold"
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-indigo-500"
                   />
                 </div>
               </div>
@@ -313,7 +318,7 @@ export default function EstimateOcrModal({
                     type="text" 
                     value={ocrForm.business_number}
                     onChange={e => setOcrForm(prev => ({ ...prev, business_number: e.target.value }))}
-                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold"
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-indigo-500"
                   />
                 </div>
                 <div>
@@ -322,7 +327,7 @@ export default function EstimateOcrModal({
                     type="text" 
                     value={ocrForm.representative}
                     onChange={e => setOcrForm(prev => ({ ...prev, representative: e.target.value }))}
-                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold"
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-indigo-500"
                   />
                 </div>
               </div>
@@ -334,39 +339,49 @@ export default function EstimateOcrModal({
                     type="text" 
                     value={ocrForm.partner_manager}
                     onChange={e => setOcrForm(prev => ({ ...prev, partner_manager: e.target.value }))}
-                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold"
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-indigo-500"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] text-slate-400 font-bold block mb-1">문서번호</label>
+                  <label className="text-[10px] text-slate-400 font-bold block mb-1">문서 발주번호</label>
                   <input 
                     type="text" 
                     value={ocrForm.document_number}
                     onChange={e => setOcrForm(prev => ({ ...prev, document_number: e.target.value }))}
-                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold"
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-indigo-500"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[10px] text-slate-400 font-bold block mb-1">발행일자</label>
+                  <label className="text-[10px] text-slate-400 font-bold block mb-1">문서 발주일자</label>
                   <input 
                     type="text" 
                     value={ocrForm.document_date}
                     onChange={e => setOcrForm(prev => ({ ...prev, document_date: e.target.value }))}
-                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold"
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-indigo-500"
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] text-slate-400 font-bold block mb-1">소재지 주소</label>
+                  <label className="text-[10px] text-slate-400 font-bold block mb-1">납기일</label>
                   <input 
                     type="text" 
-                    value={ocrForm.address}
-                    onChange={e => setOcrForm(prev => ({ ...prev, address: e.target.value }))}
-                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold"
+                    value={ocrForm.delivery_date}
+                    onChange={e => setOcrForm(prev => ({ ...prev, delivery_date: e.target.value }))}
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-indigo-500"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] text-slate-400 font-bold block mb-1">소재지 주소</label>
+                <input 
+                  type="text" 
+                  value={ocrForm.address}
+                  onChange={e => setOcrForm(prev => ({ ...prev, address: e.target.value }))}
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-indigo-500"
+                />
               </div>
 
               <div>
@@ -374,7 +389,7 @@ export default function EstimateOcrModal({
                 <textarea 
                   value={ocrForm.document_memo}
                   onChange={e => setOcrForm(prev => ({ ...prev, document_memo: e.target.value }))}
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold resize-none"
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold resize-none outline-none focus:border-indigo-500"
                   rows={2}
                 />
               </div>
@@ -382,12 +397,19 @@ export default function EstimateOcrModal({
               <div className="space-y-2">
                 <label className="text-[10px] text-slate-400 font-bold block">상세 품목 리스트</label>
                 {ocrForm.items.map((item, idx) => (
-                  <div key={idx} className="bg-white p-3 rounded-xl border border-slate-100 flex items-center justify-between text-xs font-semibold">
-                    <div className="flex-1 truncate pr-2">
-                      <span className="font-bold text-slate-800">{item.product_name}</span>
-                      <span className="text-[10px] text-slate-400 block mt-0.5">단가: {item.unit_price.toLocaleString()}원</span>
+                  <div key={idx} className="bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-1 text-xs font-semibold">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 truncate pr-2">
+                        <span className="font-bold text-slate-800">{item.product_name}</span>
+                        <span className="text-[10px] text-slate-400 block mt-0.5">단가: {item.unit_price.toLocaleString()}원</span>
+                      </div>
+                      <span className="font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded shrink-0">{item.quantity}개</span>
                     </div>
-                    <span className="font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded shrink-0">{item.quantity}개</span>
+                    {item.delivery_date && (
+                      <div className="text-[9px] text-indigo-500 font-black">
+                        📅 납기일: {item.delivery_date}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -395,12 +417,17 @@ export default function EstimateOcrModal({
           )}
         </div>
 
-        <div className="mt-6 border-t border-slate-100 pt-4 flex gap-3">
-          <button onClick={handleClose} className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-xs">
+        {/* 하단 컨트롤 영역 */}
+        <div className="mt-6 border-t border-slate-100 pt-4 flex gap-3 shrink-0">
+          <button 
+            onClick={handleClose} 
+            disabled={ocrScanning}
+            className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-xs disabled:opacity-50"
+          >
             취소
           </button>
           <button 
-            onClick={handleSaveOcrEstimate}
+            onClick={handleSaveOcrSalesOrder}
             disabled={!ocrSuccess || (!receiverMatched && !forceBypass) || (forceBypass && bypassReason.trim().length < 5)}
             className={`flex-1 py-3 text-white font-bold text-xs rounded-xl disabled:opacity-50 transition-colors ${
               forceBypass 
@@ -408,10 +435,11 @@ export default function EstimateOcrModal({
                 : "bg-indigo-600 hover:bg-indigo-700"
             }`}
           >
-            {forceBypass ? "⚠️ 관리자 강제 승인 및 등록" : "받은 견적서 등록 승인"}
+            {forceBypass ? "⚠️ 관리자 강제 승인 및 등록" : "바이어 발주서 등록 승인"}
           </button>
         </div>
       </div>
-    </div>
-  );
+    </div>,
+    document.body
+  ) : null;
 }

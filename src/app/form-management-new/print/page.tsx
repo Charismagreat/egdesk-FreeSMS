@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { RefreshCw, AlertCircle, Printer, X, Laptop, Globe } from 'lucide-react';
+import { RefreshCw, AlertCircle, Printer, X, Laptop, Globe, FileCheck } from 'lucide-react';
 
 function PrintViewContent() {
   const searchParams = useSearchParams();
@@ -34,6 +34,46 @@ function PrintViewContent() {
   const [webTemplateHtml, setWebTemplateHtml] = useState<string>(''); // 웹 전용 HTML 템플릿
   const [companyProfileData, setCompanyProfileData] = useState<any>(null);
   const [templateName, setTemplateName] = useState<string>(''); // 템플릿 이름 저장용
+  const [documentType, setDocumentType] = useState<string>('');
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+
+  const isScm = documentType && (
+    documentType.startsWith('ESTIMATE_') || 
+    documentType.startsWith('PURCHASE_ORDER_')
+  );
+
+  const handleRegisterScm = async () => {
+    setIsRegistering(true);
+    try {
+      const res = await fetch('/api/estimates/direct-register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          document_type: documentType,
+          ...rawData
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message || 'SCM 거래가 성공적으로 등록되었습니다.');
+        localStorage.removeItem('web_form_print_data');
+        if (window.opener && !window.opener.closed) {
+          window.opener.location.href = '/estimates';
+        } else {
+          window.open('/estimates', '_blank');
+        }
+        window.close();
+      } else {
+        alert(`등록 실패: ${data.error}`);
+      }
+    } catch (err: any) {
+      alert(`서버 통신 중 오류가 발생했습니다: ${err.message}`);
+    } finally {
+      setIsRegistering(false);
+      setIsConfirmModalOpen(false);
+    }
+  };
 
   // 수동 입력 값들 상태 관리 (Mustache 바인딩 상태 유지용)
   const [manualData, setManualData] = useState({
@@ -180,6 +220,7 @@ function PrintViewContent() {
         setWebTemplateHtml(template.web_html_content || ''); // 웹 전용 HTML 보존
         setCompanyProfileData(companyProfile);
         setTemplateName(template.template_name || '');
+        setDocumentType(template.document_type || '');
         if (typeof window !== 'undefined' && template.template_name) {
           document.title = template.template_name;
         }
@@ -363,12 +404,50 @@ function PrintViewContent() {
   }, [renderedHtml, loading, error, printMode]);
 
   // Mustache 치환 엔진
-  const compileMustache = (html: string, data: Record<string, any>) => {
+  const compileMustache = (html: string, data: Record<string, any>): string => {
     if (!html) return '';
-    return html.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
+    let result = html;
+    
+    // items 배열 섹션 처리
+    result = result.replace(/\{\{#items\}\}([\s\S]*?)\{\{\/items\}\}/g, (match, body) => {
+      const items = data.items;
+      if (!Array.isArray(items)) return '';
+      return items.map((item: any) => {
+        let itemHtml = body;
+        itemHtml = itemHtml.replace(/\{\{#has_cost_breakdown\}\}([\s\S]*?)\{\{\/has_cost_breakdown\}\}/g, (m, innerBody) => {
+          return item.has_cost_breakdown ? compileMustache(innerBody, item) : '';
+        });
+        return compileMustache(itemHtml, item);
+      }).join('');
+    });
+
+    // 그 외 단일 Boolean 및 섹션 처리
+    result = result.replace(/\{\{#([a-zA-Z0-9_]+)\}\}([\s\S]*?)\{\{\/\1\}\}/g, (match, key, body) => {
+      const val = data[key];
+      if (Array.isArray(val)) {
+        return val.map((item: any) => compileMustache(body, item)).join('');
+      } else if (val) {
+        return compileMustache(body, data);
+      }
+      return '';
+    });
+
+    // 단일 변수 치환 (dot.notation 지원)
+    result = result.replace(/\{\{([a-zA-Z0-9_.]+)\}\}/g, (match, key) => {
       const cleanKey = key.trim();
+      if (cleanKey.includes('.')) {
+        const parts = cleanKey.split('.');
+        let current = data;
+        for (const part of parts) {
+          if (current === null || current === undefined) return '';
+          current = current[part];
+        }
+        return current !== undefined ? String(current) : '';
+      }
       return data[cleanKey] !== undefined ? String(data[cleanKey]) : '';
     });
+
+    return result;
   };
 
   // 발급 대장 이력 적재
@@ -871,6 +950,89 @@ function PrintViewContent() {
           />
         </div>
       </div>
+
+      {/* SCM 최종 등록 확인 모달 */}
+      {isConfirmModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in text-left">
+          <div className="bg-white rounded-3xl max-w-md w-full border border-slate-150 shadow-2xl flex flex-col overflow-hidden max-h-[85vh] text-slate-850">
+            
+            {/* 헤더 */}
+            <div className="p-6 border-b border-slate-150 bg-slate-50 flex items-start gap-3 shrink-0">
+              <div className="p-2 rounded-xl bg-indigo-100 text-indigo-600">
+                <FileCheck className="w-5 h-5" />
+              </div>
+              <div className="text-left">
+                <h3 className="text-base font-black text-slate-800">
+                  SCM 거래 등록 최종 확인
+                </h3>
+                <p className="text-[11px] text-slate-500 font-semibold mt-0.5">
+                  SCM 데이터베이스(DB)에 이 거래를 정식 등록하시겠습니까?
+                </p>
+              </div>
+            </div>
+
+            {/* 본문 */}
+            <div className="p-6 flex-1 min-h-0 overflow-y-auto space-y-4 text-left text-xs font-semibold text-slate-800">
+              <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100 flex flex-col gap-2.5">
+                <div className="flex justify-between border-b border-slate-150 pb-2">
+                  <span className="text-slate-400">거래 구분</span>
+                  <span className="font-extrabold text-indigo-700">
+                    {documentType.startsWith('ESTIMATE_') ? '보낼 견적서 (OUTBOUND)' : '보낼 발주서 (INBOUND PO)'}
+                  </span>
+                </div>
+                <div className="flex justify-between border-b border-slate-150 pb-2">
+                  <span className="text-slate-400">거래처 상호</span>
+                  <span className="font-bold">
+                    {documentType.startsWith('ESTIMATE_') ? rawData?.recipient_company : rawData?.supplier_company}
+                  </span>
+                </div>
+                <div className="flex justify-between border-b border-slate-150 pb-2">
+                  <span className="text-slate-400">거래 유형</span>
+                  <span className="font-bold">{rawData?.transaction_type}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">총합계 금액</span>
+                  <span className="font-black text-indigo-600 font-mono">
+                    {Number(rawData?.total_amount || 0).toLocaleString()}원
+                  </span>
+                </div>
+              </div>
+
+              {documentType.startsWith('PURCHASE_ORDER_') && (
+                <div className="p-3 bg-amber-50 border border-amber-150 rounded-xl text-[10px] text-amber-800 font-bold leading-normal">
+                  💡 <b>섀도우 견적 자동 연동:</b> 발주서 등록 시 공급처로부터 받은 섀도우 견적서(Inbound Estimate) 대장이 백엔드 트랜잭션에 의해 동시에 자동 생성 및 연계 적재됩니다.
+                </div>
+              )}
+            </div>
+
+            {/* 하단 버튼 */}
+            <div className="p-4 border-t border-slate-150 bg-slate-50 flex justify-end gap-2 shrink-0">
+              <button
+                onClick={() => setIsConfirmModalOpen(false)}
+                className="px-4 py-2 bg-slate-200 hover:bg-slate-350 text-slate-700 font-extrabold text-xs transition rounded-xl cursor-pointer"
+                disabled={isRegistering}
+              >
+                취소
+              </button>
+              <button
+                onClick={handleRegisterScm}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs transition rounded-xl cursor-pointer shadow-md flex items-center gap-1.5"
+                disabled={isRegistering}
+              >
+                {isRegistering ? (
+                  <>
+                    <RefreshCw className="w-3 h-3 animate-spin" />
+                    등록 처리 중...
+                  </>
+                ) : (
+                  '확인 및 DB 등록'
+                )}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }

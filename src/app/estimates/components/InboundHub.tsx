@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import { Upload, Eye, CheckCircle2, ChevronRight } from "lucide-react";
 import { Estimate, PurchaseOrder } from "../types";
 import InlineTagEditor from "./InlineTagEditor";
+import { parseEstimateMetadata } from "../utils";
+import PurchaseOrderOcrModal from "./PurchaseOrderOcrModal";
 
 interface InboundHubProps {
   estimates: Estimate[];
@@ -37,6 +39,7 @@ export default function InboundHub({
 }: InboundHubProps) {
   // 서브 탭 및 필터 로컬 상태
   const [inboundSubTab, setInboundSubTab] = useState<"estimates" | "pos">("estimates");
+  const [isPoOcrOpen, setIsPoOcrOpen] = useState(false);
   const [inboundSearch, setInboundSearch] = useState("");
   const [inboundStatusFilter, setInboundStatusFilter] = useState("ALL");
   const [inboundSortKey, setInboundSortKey] = useState("created_at");
@@ -58,7 +61,18 @@ export default function InboundHub({
     })
     .filter((e) => {
       if (inboundStatusFilter === "ALL") return true;
-      return e.direction_status === inboundStatusFilter;
+      const po = purchaseOrders.find((p) => p.id === e.purchase_order_number || p.estimate_id === e.id);
+      
+      if (inboundStatusFilter === "REQUESTED") {
+        return !po;
+      }
+      if (inboundStatusFilter === "RECEIVED") {
+        return po && po.status === "PENDING_INBOUND";
+      }
+      if (inboundStatusFilter === "INBOUND_COMPLETED") {
+        return po && po.status === "INBOUND_COMPLETED";
+      }
+      return true;
     })
     .sort((a, b) => {
       const valA = a[inboundSortKey as keyof Estimate] ?? "";
@@ -107,6 +121,35 @@ export default function InboundHub({
       setInboundSortKey(key);
       setInboundSortDir("desc");
     }
+  };
+
+  const getTransactionTypeBadge = (tagsStr: string) => {
+    if (!tagsStr) return null;
+    let type = null;
+    try {
+      const parsed = JSON.parse(tagsStr);
+      if (parsed && typeof parsed === 'object') {
+        type = parsed.transaction_type;
+      }
+    } catch (e) {
+      if (tagsStr.includes("자재구매")) type = "자재구매";
+      else if (tagsStr.includes("임가공")) type = "임가공";
+      else if (tagsStr.includes("외주작업")) type = "외주작업";
+      else if (tagsStr.length < 15) type = tagsStr;
+    }
+
+    if (!type) return null;
+
+    let badgeClass = "bg-slate-50 text-slate-650 border-slate-200";
+    if (type === "자재구매") badgeClass = "bg-blue-50 text-blue-600 border-blue-100";
+    else if (type === "임가공") badgeClass = "bg-purple-50 text-purple-600 border-purple-100";
+    else if (type === "외주작업") badgeClass = "bg-indigo-50 text-indigo-600 border-indigo-100";
+
+    return (
+      <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black border ${badgeClass} shrink-0 select-none`}>
+        {type}
+      </span>
+    );
   };
 
   // 선택 취소 핸들러
@@ -182,12 +225,13 @@ export default function InboundHub({
             <option value="ALL">모든 상태</option>
             {inboundSubTab === "estimates" ? (
               <>
-                <option value="REQUESTED">견적요청</option>
+                <option value="REQUESTED">견적접수</option>
                 <option value="RECEIVED">발주완료</option>
+                <option value="INBOUND_COMPLETED">입고완료</option>
               </>
             ) : (
               <>
-                <option value="PENDING_INBOUND">입고대기</option>
+                <option value="PENDING_INBOUND">발주완료</option>
                 <option value="INBOUND_COMPLETED">입고완료</option>
               </>
             )}
@@ -200,6 +244,16 @@ export default function InboundHub({
             >
               <Upload className="w-4 h-4" />
               받은 견적 이미지 AI 스캔
+            </button>
+          )}
+
+          {inboundSubTab === "pos" && (
+            <button
+              onClick={() => setIsPoOcrOpen(true)}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-indigo-600/10 flex items-center gap-1.5 cursor-pointer"
+            >
+              <Upload className="w-4 h-4" />
+              공급사 발주서 스캔 (다이렉트 발주)
             </button>
           )}
         </div>
@@ -238,19 +292,18 @@ export default function InboundHub({
                 </th>
                 <th
                   className="py-3 px-2 cursor-pointer hover:text-slate-800"
-                  onClick={() => handleSort("id")}
-                >
-                  견적 번호 {inboundSortKey === "id" && (inboundSortDir === "asc" ? "▲" : "▼")}
-                </th>
-                <th className="py-3 px-2">공급/요청처</th>
-                <th
-                  className="py-3 px-2 cursor-pointer hover:text-slate-800"
                   onClick={() => handleSort("created_at")}
                 >
-                  견적서일자 {inboundSortKey === "created_at" && (inboundSortDir === "asc" ? "▲" : "▼")}
+                  등록일시 {inboundSortKey === "created_at" && (inboundSortDir === "asc" ? "▲" : "▼")}
                 </th>
-                <th className="py-3 px-2">등록일시</th>
-                <th className="py-3 px-2">견적내용요약</th>
+                <th className="py-3 px-2">발주번호</th>
+                <th
+                  className="py-3 px-2 cursor-pointer hover:text-slate-800"
+                  onClick={() => handleSort("id")}
+                >
+                  견적등록번호/견적번호 {inboundSortKey === "id" && (inboundSortDir === "asc" ? "▲" : "▼")}
+                </th>
+                <th className="py-3 px-2">공급사명</th>
                 <th
                   className="py-3 px-2 cursor-pointer hover:text-slate-800"
                   onClick={() => handleSort("total_amount")}
@@ -261,6 +314,7 @@ export default function InboundHub({
                   🏷️ 비고(태그)
                 </th>
                 <th className="py-3 px-2">상태</th>
+                <th className="py-3 px-2">납기일</th>
                 <th className="py-3 px-2 text-right">작업</th>
               </tr>
             </thead>
@@ -304,52 +358,44 @@ export default function InboundHub({
                           className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                         />
                       </td>
+                      <td className="py-3.5 px-2 text-slate-505 font-medium">
+                        {est.created_at?.substring(0, 16) || "-"}
+                      </td>
+                      <td className="py-3.5 px-2 font-mono text-slate-700">
+                        {(() => {
+                          const po = purchaseOrders.find((p) => p.id === est.purchase_order_number || p.estimate_id === est.id);
+                          if (po) {
+                            return <span className="font-bold">{po.id}</span>;
+                          }
+                          return <span className="text-slate-400">-</span>;
+                        })()}
+                      </td>
                       <td className="py-3.5 px-2 font-mono text-slate-700">
                         <button
                           onClick={() => onOpenDetailModal(est.id)}
-                          className="text-indigo-600 hover:underline cursor-pointer font-bold text-left"
+                          className="text-indigo-600 hover:underline cursor-pointer font-bold text-left block"
                         >
                           {est.id}
                         </button>
+                        {(() => {
+                          const meta = parseEstimateMetadata(est.tags || "");
+                          return meta.document_number && meta.document_number !== est.id ? (
+                            <span className="text-[10px] text-slate-404 block mt-0.5" title="문서 상의 실제 견적 번호">
+                              📄 {meta.document_number}
+                            </span>
+                          ) : null;
+                        })()}
                       </td>
                       <td className="py-3.5 px-2">
-                        <span className="font-bold text-slate-800 block">
-                          {est.partner_name}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-bold text-slate-800">
+                            {est.partner_name}
+                          </span>
+                          {getTransactionTypeBadge(est.tags || "")}
+                        </div>
                         <span className="text-[10px] text-slate-400 block mt-0.5">
                           {est.partner_phone}
                         </span>
-                      </td>
-                      <td className="py-3.5 px-2 text-slate-605 font-medium whitespace-nowrap">
-                        {est.created_at ? est.created_at.split(" ")[0] : "-"}
-                      </td>
-                      <td className="py-3.5 px-2 text-slate-500 font-medium text-[11px] leading-snug">
-                        {est.created_at || "-"}
-                      </td>
-                      <td
-                        className="py-3.5 px-2 text-slate-700 max-w-[200px] truncate"
-                        title={
-                          est.first_item_name
-                            ? est.item_count && est.item_count > 1
-                              ? `${est.first_item_name} 외 ${est.item_count - 1}건`
-                              : est.first_item_name
-                            : "품목 없음"
-                        }
-                      >
-                        {est.first_item_name ? (
-                          <span className="font-bold text-slate-800">
-                            {est.first_item_name}
-                            {est.item_count && est.item_count > 1 && (
-                              <span className="text-indigo-500 font-black text-[10px] ml-1">
-                                외 {est.item_count - 1}건
-                              </span>
-                            )}
-                          </span>
-                        ) : (
-                          <span className="text-slate-404 italic text-[11px]">
-                            품목 내역 없음
-                          </span>
-                        )}
                       </td>
                       <td className="py-3.5 px-2">
                         <span className="text-indigo-600 font-bold block">
@@ -372,17 +418,31 @@ export default function InboundHub({
                         />
                       </td>
                       <td className="py-3.5 px-2">
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                            est.direction_status === "REQUESTED"
-                              ? "bg-amber-100 text-amber-600"
-                              : "bg-green-100 text-green-600"
-                          }`}
-                        >
-                          {est.direction_status === "REQUESTED"
-                            ? "견적요청"
-                            : "발주완료"}
-                        </span>
+                        {(() => {
+                          const po = purchaseOrders.find((p) => p.id === est.purchase_order_number || p.estimate_id === est.id);
+                          if (po) {
+                            return po.status === "INBOUND_COMPLETED" ? (
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-100 text-emerald-600 border border-emerald-200">
+                                입고완료
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-blue-100 text-blue-600 border border-blue-200">
+                                발주완료
+                              </span>
+                            );
+                          }
+                          return (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-100 text-amber-600 border border-amber-200">
+                              견적접수
+                            </span>
+                          );
+                        })()}
+                      </td>
+                      <td className="py-3.5 px-2 text-slate-500 font-medium">
+                        {(() => {
+                          const meta = parseEstimateMetadata(est.tags || "");
+                          return meta.delivery_date || "-";
+                        })()}
                       </td>
                       <td className="py-3.5 px-2 text-right">
                         <div className="flex items-center justify-end gap-2">
@@ -392,16 +452,24 @@ export default function InboundHub({
                           >
                             <Eye className="w-3.5 h-3.5" /> 상세
                           </button>
-                          {est.direction_status === "REQUESTED" ? (
-                            <button
-                              onClick={() => onConvertToPo(est)}
-                              className="px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg text-[10px] font-black flex items-center gap-0.5"
-                            >
-                              발주서 전환 <ChevronRight className="w-3 h-3" />
-                            </button>
-                          ) : (
-                            <span className="text-slate-405 text-[10px]">전환완료</span>
-                          )}
+                          {(() => {
+                            const po = purchaseOrders.find((p) => p.id === est.purchase_order_number || p.estimate_id === est.id);
+                            if (po) {
+                              return po.status === "INBOUND_COMPLETED" ? (
+                                <span className="text-emerald-500 font-bold text-[10px]">입고완료</span>
+                              ) : (
+                                <span className="text-slate-405 text-[10px]">전환완료</span>
+                              );
+                            }
+                            return (
+                              <button
+                                onClick={() => onConvertToPo(est)}
+                                className="px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg text-[10px] font-black flex items-center gap-0.5"
+                              >
+                                발주서 전환 <ChevronRight className="w-3 h-3" />
+                              </button>
+                            );
+                          })()}
                         </div>
                       </td>
                     </tr>
@@ -437,11 +505,18 @@ export default function InboundHub({
                 </th>
                 <th
                   className="py-3 px-2 cursor-pointer hover:text-slate-805"
+                  onClick={() => handleSort("created_at")}
+                >
+                  등록일시 {inboundSortKey === "created_at" && (inboundSortDir === "asc" ? "▲" : "▼")}
+                </th>
+                <th
+                  className="py-3 px-2 cursor-pointer hover:text-slate-805"
                   onClick={() => handleSort("id")}
                 >
-                  발주 번호 {inboundSortKey === "id" && (inboundSortDir === "asc" ? "▲" : "▼")}
+                  발주번호 {inboundSortKey === "id" && (inboundSortDir === "asc" ? "▲" : "▼")}
                 </th>
-                <th className="py-3 px-2">공급처명</th>
+                <th className="py-3 px-2">견적등록번호/견적번호</th>
+                <th className="py-3 px-2">공급사명</th>
                 <th
                   className="py-3 px-2 cursor-pointer hover:text-slate-805"
                   onClick={() => handleSort("total_amount")}
@@ -449,12 +524,10 @@ export default function InboundHub({
                   총 발주액 {inboundSortKey === "total_amount" && (inboundSortDir === "asc" ? "▲" : "▼")}
                 </th>
                 <th className="py-3 px-2">상태</th>
-                <th
-                  className="py-3 px-2 cursor-pointer hover:text-slate-855"
-                  onClick={() => handleSort("created_at")}
-                >
-                  발주일시 {inboundSortKey === "created_at" && (inboundSortDir === "asc" ? "▲" : "▼")}
+                <th className="py-3 px-2 text-amber-600 font-extrabold whitespace-nowrap">
+                  🏷️ 비고(태그)
                 </th>
+                <th className="py-3 px-2">납기일</th>
                 <th className="py-3 px-2 text-right">작업</th>
               </tr>
             </thead>
@@ -462,7 +535,7 @@ export default function InboundHub({
               {filteredInboundPOs.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={10}
                     className="text-center py-12 text-slate-400 font-semibold"
                   >
                     조건에 맞는 발주 내역이 없습니다.
@@ -472,18 +545,55 @@ export default function InboundHub({
                 filteredInboundPOs.map((po) => (
                   <tr key={po.id} className="border-b border-slate-50 hover:bg-slate-50/50">
                     <td className="py-3.5 px-2">
-                      <span className="font-mono text-slate-700 block">{po.id}</span>
+                      <input
+                        type="checkbox"
+                        checked={selectedInboundIds.has(po.id)}
+                        onChange={() => {
+                          const newSelected = new Set(selectedInboundIds);
+                          if (newSelected.has(po.id)) {
+                            newSelected.delete(po.id);
+                          } else {
+                            newSelected.add(po.id);
+                          }
+                          setSelectedInboundIds(newSelected);
+                        }}
+                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                    </td>
+                    <td className="py-3.5 px-2 text-slate-505 font-medium">
+                      {po.created_at?.substring(0, 16) || "-"}
+                    </td>
+                    <td className="py-3.5 px-2 font-mono text-slate-700">
+                      <span className="font-bold">{po.id}</span>
+                    </td>
+                    <td className="py-3.5 px-2 font-mono text-slate-700">
                       <button
                         onClick={() => onOpenDetailModal(po.estimate_id)}
-                        className="text-indigo-500 hover:underline text-[9px] font-bold block mt-0.5 text-left"
+                        className="text-indigo-605 hover:underline cursor-pointer font-bold text-left block"
                       >
-                        견적: {po.estimate_id} 🔗
+                        {po.estimate_id}
                       </button>
+                      {(() => {
+                        const est = estimates.find((e) => e.id === po.estimate_id);
+                        if (!est) return null;
+                        const meta = parseEstimateMetadata(est.tags || "");
+                        return meta.document_number && meta.document_number !== po.estimate_id ? (
+                          <span className="text-[10px] text-slate-404 block mt-0.5" title="문서 상의 실제 견적 번호">
+                            📄 {meta.document_number}
+                          </span>
+                        ) : null;
+                      })()}
                     </td>
                     <td className="py-3.5 px-2">
-                      <span className="font-bold text-slate-800 block">
-                        {po.vendor_name}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-slate-800">
+                          {po.vendor_name}
+                        </span>
+                        {(() => {
+                          const est = estimates.find((e) => e.id === po.estimate_id);
+                          return est ? getTransactionTypeBadge(est.tags || "") : null;
+                        })()}
+                      </div>
                       <span className="text-[10px] text-slate-400 block mt-0.5">
                         {po.vendor_phone}
                       </span>
@@ -499,11 +609,32 @@ export default function InboundHub({
                             : "bg-emerald-50 text-emerald-600 border-emerald-100"
                         }`}
                       >
-                        {po.status === "PENDING_INBOUND" ? "입고대기" : "입고완료"}
+                        {po.status === "PENDING_INBOUND" ? "발주완료" : "입고완료"}
                       </span>
                     </td>
-                    <td className="py-3.5 px-2 text-slate-505 font-medium">
-                      {po.created_at?.substring(0, 16) || "-"}
+                    <td className="py-3.5 px-2">
+                      {(() => {
+                        const est = estimates.find((e) => e.id === po.estimate_id);
+                        if (!est) return <span className="text-slate-400">-</span>;
+                        return (
+                          <InlineTagEditor
+                            estimateId={est.id}
+                            initialTags={est.tags || ""}
+                            aiParsed={est.ai_parsed}
+                            userRole={userRole}
+                            dbTags={dbTags}
+                            onUpdateTags={onUpdateTags}
+                          />
+                        );
+                      })()}
+                    </td>
+                    <td className="py-3.5 px-2 text-slate-500 font-medium">
+                      {(() => {
+                        const est = estimates.find((e) => e.id === po.estimate_id);
+                        if (!est) return "-";
+                        const meta = parseEstimateMetadata(est.tags || "");
+                        return meta.delivery_date || "-";
+                      })()}
                     </td>
                     <td className="py-3.5 px-2 text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -567,6 +698,14 @@ export default function InboundHub({
           </div>
         </div>
       )}
+      {/* 공급사 발주서 AI OCR 검토 등록 모달 */}
+      <PurchaseOrderOcrModal
+        isOpen={isPoOcrOpen}
+        onClose={() => setIsPoOcrOpen(false)}
+        onSuccess={() => {
+          window.location.reload();
+        }}
+      />
     </div>
   );
 }

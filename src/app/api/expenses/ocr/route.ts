@@ -74,48 +74,62 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
           })
         });
 
-        if (response.ok) {
-          const data = await response.json();
-          const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-          
-          // AI 토큰 사용량 로깅
-          try {
-            const prompt_tokens = data.usageMetadata?.promptTokenCount || 0;
-            const completion_tokens = data.usageMetadata?.candidatesTokenCount || 0;
-            const total_tokens = data.usageMetadata?.totalTokenCount || (prompt_tokens + completion_tokens);
-            const logId = `TKC-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-            const logTime = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
-            await insertRows('ai_token_usage_logs', [{
-              id: logId,
-              model: 'gemini-3.5-flash',
-              purpose: 'EXPENSE_OCR',
-              prompt_tokens,
-              completion_tokens,
-              total_tokens,
-              created_at: logTime
-            }]);
-          } catch (e: any) {
-            console.error('AI 토큰 로깅 실패:', e.message);
-          }
-
-          const ocrJson = JSON.parse(text.trim());
-
-          if (ocrJson.title && ocrJson.amount && ocrJson.category) {
-            return NextResponse.json({
-              success: true,
-              title: ocrJson.title,
-              category: ocrJson.category,
-              amount: Number(ocrJson.amount) || 0,
-              expense_date: ocrJson.expense_date || new Date().toISOString().slice(0, 10),
-              payment_method: ocrJson.payment_method || '법인카드',
-              memo: ocrJson.memo || '',
-              card_approval_no: ocrJson.card_approval_no || null,
-              method: 'REAL_GEMINI_OCR'
-            });
-          }
+        if (!response.ok) {
+          return NextResponse.json({
+            success: false,
+            error: `AI 영수증 OCR API 호출에 실패하였습니다. (HTTP ${response.status})`
+          }, { status: 500 });
         }
-      } catch (geminiErr) {
-        console.error('Gemini Vision OCR API fail, using fallback:', geminiErr);
+
+        const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+        
+        // AI 토큰 사용량 로깅
+        try {
+          const prompt_tokens = data.usageMetadata?.promptTokenCount || 0;
+          const completion_tokens = data.usageMetadata?.candidatesTokenCount || 0;
+          const total_tokens = data.usageMetadata?.totalTokenCount || (prompt_tokens + completion_tokens);
+          const logId = `TKC-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+          const logTime = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+          await insertRows('ai_token_usage_logs', [{
+            id: logId,
+            model: 'gemini-3.5-flash',
+            purpose: 'EXPENSE_OCR',
+            prompt_tokens,
+            completion_tokens,
+            total_tokens,
+            created_at: logTime
+          }]);
+        } catch (e: any) {
+          console.error('AI 토큰 로깅 실패:', e.message);
+        }
+
+        const ocrJson = JSON.parse(text.trim());
+
+        if (ocrJson.title && ocrJson.amount && ocrJson.category) {
+          return NextResponse.json({
+            success: true,
+            title: ocrJson.title,
+            category: ocrJson.category,
+            amount: Number(ocrJson.amount) || 0,
+            expense_date: ocrJson.expense_date || new Date().toISOString().slice(0, 10),
+            payment_method: ocrJson.payment_method || '법인카드',
+            memo: ocrJson.memo || '',
+            card_approval_no: ocrJson.card_approval_no || null,
+            method: 'REAL_GEMINI_OCR'
+          });
+        } else {
+          return NextResponse.json({
+            success: false,
+            error: '영수증에서 필수 정보를 추출하는 데 실패했습니다.'
+          }, { status: 500 });
+        }
+      } catch (geminiErr: any) {
+        console.error('Gemini Vision OCR API fail:', geminiErr);
+        return NextResponse.json({
+          success: false,
+          error: `AI 영수증 OCR 분석 중 오류가 발생했습니다: ${geminiErr.message || geminiErr}`
+        }, { status: 500 });
       }
     }
 

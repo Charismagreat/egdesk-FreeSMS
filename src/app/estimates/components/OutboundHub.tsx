@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Plus, Eye, CheckCircle2, ChevronRight } from "lucide-react";
 import { Estimate, SalesOrder, Partner } from "../types";
+import { parseEstimateMetadata } from "../utils";
 
 interface OutboundHubProps {
   estimates: Estimate[];
@@ -87,7 +88,18 @@ export default function OutboundHub({
     })
     .filter((e) => {
       if (outboundStatusFilter === "ALL") return true;
-      return e.direction_status === outboundStatusFilter;
+      const so = salesOrders.find((s) => s.id === e.sales_order_number || s.estimate_id === e.id);
+      
+      if (outboundStatusFilter === "SENT") {
+        return !so;
+      }
+      if (outboundStatusFilter === "RECEIVED") {
+        return so && so.status === "REGISTERED";
+      }
+      if (outboundStatusFilter === "CONFIRMED") {
+        return so && so.status === "CONFIRMED";
+      }
+      return true;
     })
     .sort((a, b) => {
       const valA = a[outboundSortKey as keyof Estimate] ?? "";
@@ -136,6 +148,35 @@ export default function OutboundHub({
       setOutboundSortKey(key);
       setOutboundSortDir("desc");
     }
+  };
+
+  const getTransactionTypeBadge = (tagsStr: string) => {
+    if (!tagsStr) return null;
+    let type = null;
+    try {
+      const parsed = JSON.parse(tagsStr);
+      if (parsed && typeof parsed === 'object') {
+        type = parsed.transaction_type;
+      }
+    } catch (e) {
+      if (tagsStr.includes("자재구매")) type = "자재구매";
+      else if (tagsStr.includes("임가공")) type = "임가공";
+      else if (tagsStr.includes("외주작업")) type = "외주작업";
+      else if (tagsStr.length < 15) type = tagsStr;
+    }
+
+    if (!type) return null;
+
+    let badgeClass = "bg-slate-50 text-slate-650 border-slate-200";
+    if (type === "자재구매") badgeClass = "bg-blue-50 text-blue-600 border-blue-100";
+    else if (type === "임가공") badgeClass = "bg-purple-50 text-purple-600 border-purple-100";
+    else if (type === "외주작업") badgeClass = "bg-indigo-50 text-indigo-650 border-indigo-100";
+
+    return (
+      <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black border ${badgeClass} shrink-0 select-none`}>
+        {type}
+      </span>
+    );
   };
 
   // 선택 취소 핸들러
@@ -215,12 +256,13 @@ export default function OutboundHub({
             {outboundSubTab === "estimates" ? (
               <>
                 <option value="SENT">견적발송</option>
-                <option value="RECEIVED">수주수락</option>
+                <option value="RECEIVED">수주등록</option>
+                <option value="CONFIRMED">납품완료</option>
               </>
             ) : (
               <>
                 <option value="REGISTERED">수주등록</option>
-                <option value="CONFIRMED">확인완료</option>
+                <option value="CONFIRMED">납품완료</option>
               </>
             )}
           </select>
@@ -291,11 +333,18 @@ export default function OutboundHub({
                 </th>
                 <th
                   className="py-3 px-2 cursor-pointer hover:text-slate-800"
+                  onClick={() => handleSort("created_at")}
+                >
+                  등록일시 {outboundSortKey === "created_at" && (outboundSortDir === "asc" ? "▲" : "▼")}
+                </th>
+                <th
+                  className="py-3 px-2 cursor-pointer hover:text-slate-800"
                   onClick={() => handleSort("id")}
                 >
                   견적 번호 {outboundSortKey === "id" && (outboundSortDir === "asc" ? "▲" : "▼")}
                 </th>
-                <th className="py-3 px-2">수신 바이어명</th>
+                <th className="py-3 px-2">발주등록번호/발주번호</th>
+                <th className="py-3 px-2">바이어명</th>
                 <th
                   className="py-3 px-2 cursor-pointer hover:text-slate-800"
                   onClick={() => handleSort("total_amount")}
@@ -303,7 +352,7 @@ export default function OutboundHub({
                   총 견적액 {outboundSortKey === "total_amount" && (outboundSortDir === "asc" ? "▲" : "▼")}
                 </th>
                 <th className="py-3 px-2">상태</th>
-                <th className="py-3 px-2">제안서</th>
+                <th className="py-3 px-2">납기일</th>
                 <th className="py-3 px-2 text-right">작업</th>
               </tr>
             </thead>
@@ -311,7 +360,7 @@ export default function OutboundHub({
               {filteredOutboundEstimates.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={9}
                     className="text-center py-12 text-slate-400 font-semibold"
                   >
                     조건에 맞는 견적 내역이 없습니다.
@@ -336,18 +385,47 @@ export default function OutboundHub({
                           className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                       />
                     </td>
+                    <td className="py-3.5 px-2 text-slate-505 font-medium">
+                      {est.created_at ? est.created_at.substring(0, 16) : "-"}
+                    </td>
                     <td className="py-3.5 px-2 font-mono text-slate-700">
-                      <button
-                        onClick={() => onOpenDetailModal(est.id)}
-                        className="text-indigo-600 hover:underline cursor-pointer font-bold text-left"
-                      >
-                        {est.id}
-                      </button>
+                      {est.type === 'OUTBOUND' && est.direction_status === 'RECEIVED' ? (
+                        <span className="text-slate-400">-</span>
+                      ) : (
+                        <button
+                          onClick={() => onOpenDetailModal(est.id)}
+                          className="text-indigo-600 hover:underline cursor-pointer font-bold text-left"
+                        >
+                          {est.id}
+                        </button>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-2 font-mono text-slate-700">
+                      {est.type === 'OUTBOUND' && est.direction_status === 'RECEIVED' ? (
+                        <div className="flex flex-col">
+                          <button
+                            onClick={() => onOpenDetailModal(est.id)}
+                            className="text-indigo-600 hover:underline cursor-pointer font-bold text-left"
+                          >
+                            {est.id}
+                          </button>
+                          {est.sales_order_number && est.sales_order_number !== est.id && (
+                            <span className="text-[10px] text-slate-400 block mt-0.5" title="문서 상의 실제 발주 번호">
+                              📄 {est.sales_order_number}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">-</span>
+                      )}
                     </td>
                     <td className="py-3.5 px-2">
-                      <span className="font-bold text-slate-800 block">
-                        {est.partner_name}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-slate-800">
+                          {est.partner_name}
+                        </span>
+                        {getTransactionTypeBadge(est.tags || "")}
+                      </div>
                       <span className="text-[10px] text-slate-400 block mt-0.5">
                         {est.partner_phone}
                       </span>
@@ -356,18 +434,28 @@ export default function OutboundHub({
                       {est.total_amount.toLocaleString()}원
                     </td>
                     <td className="py-3.5 px-2">
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                          est.direction_status === "SENT"
-                            ? "bg-amber-100 text-amber-600"
-                            : "bg-green-100 text-green-600"
-                        }`}
-                      >
-                        {est.direction_status === "SENT" ? "견적발송" : "수주수락"}
-                      </span>
+                      {(() => {
+                        const so = salesOrders.find((s) => s.id === est.sales_order_number || s.estimate_id === est.id);
+                        if (so) {
+                          return so.status === "CONFIRMED" ? (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-green-100 text-green-600 border border-green-200">
+                              납품완료
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-blue-100 text-blue-600 border border-blue-200">
+                              수주등록
+                            </span>
+                          );
+                        }
+                        return (
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-100 text-amber-600 border border-amber-200">
+                            견적발송
+                          </span>
+                        );
+                      })()}
                     </td>
-                    <td className="py-3.5 px-2 text-slate-500 font-medium max-w-[150px] truncate">
-                      {est.file_url || "AI 맞춤 레터 포함"}
+                    <td className="py-3.5 px-2 text-slate-500 font-medium">
+                      {parseEstimateMetadata(est.tags || "").delivery_date || "-"}
                     </td>
                     <td className="py-3.5 px-2 text-right">
                       <div className="flex items-center justify-end gap-2">
@@ -377,16 +465,20 @@ export default function OutboundHub({
                         >
                           <Eye className="w-3.5 h-3.5" /> 상세
                         </button>
-                        {est.direction_status === "SENT" ? (
-                          <button
-                            onClick={() => onConvertToSo(est)}
-                            className="px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg text-[10px] font-black flex items-center gap-0.5"
-                          >
-                            수주 전환 <ChevronRight className="w-3 h-3" />
-                          </button>
-                        ) : (
-                          <span className="text-slate-400 text-[10px]">수주완료</span>
-                        )}
+                        {(() => {
+                          const so = salesOrders.find((s) => s.id === est.sales_order_number || s.estimate_id === est.id);
+                          if (!so) {
+                            return (
+                              <button
+                                onClick={() => onConvertToSo(est)}
+                                className="px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-lg text-[10px] font-black flex items-center gap-0.5"
+                              >
+                                수주 전환 <ChevronRight className="w-3 h-3" />
+                              </button>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
                     </td>
                   </tr>
@@ -481,9 +573,15 @@ export default function OutboundHub({
                       </button>
                     </td>
                     <td className="py-3.5 px-2">
-                      <span className="font-bold text-slate-800 block">
-                        {so.customer_name}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-slate-800">
+                          {so.customer_name}
+                        </span>
+                        {(() => {
+                          const est = estimates.find((e) => e.id === so.estimate_id);
+                          return est ? getTransactionTypeBadge(est.tags || "") : null;
+                        })()}
+                      </div>
                       <span className="text-[10px] text-slate-400 block mt-0.5">
                         {so.customer_phone}
                       </span>

@@ -1,12 +1,139 @@
 import { NextResponse } from 'next/server';
 import { fetchGeminiWithFallback } from '../../../../lib/gemini-fallback';
 import { executeSQL, insertRows, queryTable } from '../../../../../egdesk-helpers';
+import { cookies } from 'next/headers';
+import { decodeJwt } from 'jose';
+
+// 최고 관리자(SUPER_ADMIN/PRESIDENT) 권한 검증 헬퍼
+async function verifyAdminRole() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('auth_token')?.value;
+  if (!token) return { isAuthorized: false, role: 'SUB_OPERATOR', username: '' };
+  try {
+    const payload = decodeJwt(token);
+    const role = (payload.role as string || '').toUpperCase();
+    const username = payload.username as string || '';
+    const isAuthorized = role === 'SUPER_ADMIN' || role === 'PRESIDENT';
+    return { isAuthorized, role, username };
+  } catch {
+    return { isAuthorized: false, role: 'SUB_OPERATOR', username: '' };
+  }
+}
 
 export const maxDuration = 60; // 60초 타임아웃
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const action = searchParams.get('action') || 'analyze';
+
+    if (action === 'save') {
+      const body = await req.json();
+      const { 
+        partner_name, partner_phone, partner_manager, items = [], file_url, 
+        business_number, representative, address, document_number, document_date, 
+        delivery_date, document_memo,
+        force_bypass = false, bypass_reason = ''
+      } = body;
+
+      const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+
+      let bypassApprovedBy = '';
+      if (force_bypass) {
+        const auth = await verifyAdminRole();
+        if (!auth.isAuthorized) {
+          return NextResponse.json({ success: false, error: '🔒 권한 차단: 수신인 불일치 문서의 강제 등록 승인은 최고관리자(SUPER_ADMIN)만 가능합니다.' }, { status: 403 });
+        }
+        bypassApprovedBy = auth.username || auth.role;
+      }
+
+      const soId = `SO-${Date.now()}`;
+      const nowObj = new Date();
+      const yy = String(nowObj.getFullYear()).slice(-2);
+      const mm = String(nowObj.getMonth() + 1).padStart(2, '0');
+      const dd = String(nowObj.getDate()).padStart(2, '0');
+      const hh = String(nowObj.getHours()).padStart(2, '0');
+      const min = String(nowObj.getMinutes()).padStart(2, '0');
+      const ss = String(nowObj.getSeconds()).padStart(2, '0');
+      const estimateId = `ORD-${yy}${mm}${dd}-${hh}${min}${ss}`;
+      const uuid = `ORD-UUID-${yy}${mm}${dd}-${hh}${min}${ss}-${Math.random().toString(36).substring(2, 9)}`;
+
+      const tagsObj: any = {
+        business_number: business_number || '',
+        representative: representative || '',
+        address: address || '',
+        document_number: document_number || '',
+        document_date: document_date || '',
+        document_memo: document_memo || '',
+        delivery_date: delivery_date || ''
+      };
+
+      if (force_bypass) {
+        tagsObj.bypass_matching = true;
+        tagsObj.bypass_approved_by = bypassApprovedBy;
+        tagsObj.bypass_reason = bypass_reason;
+      }
+
+      const resEst = await insertRows('crm_estimates', [{
+        id: estimateId,
+        type: 'OUTBOUND',
+        direction_status: 'RECEIVED',
+        partner_name,
+        partner_phone: partner_phone || '',
+        partner_manager: partner_manager || '',
+        total_amount: items.reduce((acc: number, curr: any) => acc + (curr.quantity * curr.unit_price), 0),
+        file_url: file_url || '',
+        ai_parsed: 1,
+        uuid,
+        tags: JSON.stringify(tagsObj),
+        sales_order_number: document_number || soId,
+        created_at: nowStr
+      }]);
+
+      if (!resEst.success) {
+        throw new Error('견적서 섀도우 적재에 실패했습니다.');
+      }
+
+      const insertedEstRes = await queryTable('crm_estimates', { filters: { uuid }, limit: 1 });
+      const insertedEst = insertedEstRes.rows && insertedEstRes.rows.length > 0 ? insertedEstRes.rows[0] : null;
+      const realEstimateId = insertedEst ? String(insertedEst.id) : estimateId;
+
+      const detailRows = items.map((row: any, idx: number) => ({
+        id: Date.now() + idx,
+        estimate_id: realEstimateId,
+        product_id: '',
+        item_code: row.item_code || '',
+        product_name: row.product_name,
+        spec: row.spec || '',
+        quantity: row.quantity,
+        unit_price: row.unit_price,
+        amount: row.quantity * row.unit_price,
+        delivery_date: row.delivery_date || ''
+      }));
+      await insertRows('crm_estimate_items', detailRows);
+
+      await insertRows('crm_sales_orders', [{
+        id: soId,
+        estimate_id: realEstimateId,
+        client_order_no: document_number || '',
+        customer_name: partner_name,
+        customer_phone: partner_phone || '',
+        customer_manager: partner_manager || '',
+        status: 'REGISTERED',
+        total_amount: items.reduce((acc: number, curr: any) => acc + (curr.quantity * curr.unit_price), 0),
+        delivery_date: delivery_date || '',
+        created_at: document_date || nowStr
+      }]);
+
+      return NextResponse.json({
+        success: true,
+        message: '발주서 스캔 및 수주 등록이 완료되었습니다.',
+        estimateId: realEstimateId,
+        soId
+      });
+    }
+
     const data = await req.formData();
     const file = data.get('file') as File;
     if (!file) {
@@ -16,6 +143,7 @@ export async function POST(req: Request) {
     const buffer = await file.arrayBuffer();
     const base64Image = Buffer.from(buffer).toString('base64');
     const mimeType = file.type || 'image/jpeg';
+    const fileDataUri = `data:${mimeType};base64,${base64Image}`;
 
     const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
 
@@ -66,7 +194,8 @@ export async function POST(req: Request) {
       "spec": "규격",
       "quantity": 100, // 숫자만
       "unitPrice": 15000, // 숫자만
-      "amount": 1500000 // 숫자만
+      "amount": 1500000, // 숫자만
+      "deliveryDate": "품목별 납기일 (YYYY-MM-DD 형식, 만약 전체 마스터 납기일과 일치하거나 기재가 없으면 마스터 납기일 기재)"
     }
   ]
 }
@@ -218,7 +347,8 @@ export async function POST(req: Request) {
         spec: item.spec || '',
         quantity: qty,
         unit_price: price,
-        amount: amount
+        amount: amount,
+        delivery_date: item.deliveryDate || deliveryDate || '' // 품목별 개별 납기일이 파싱되면 쓰고, 없으면 마스터 납기일 폴백
       };
     });
 
@@ -242,73 +372,23 @@ export async function POST(req: Request) {
       await executeSQL('ALTER TABLE crm_estimate_items ADD COLUMN spec TEXT');
     } catch(e) {}
 
-    const soId = `SO-${Date.now()}`;
-    const tagsObj = {
-      business_number: partnerBizNo || '',
-      representative: partnerRepresentative || '',
-      address: partnerAddress || '',
-      document_number: orderNo || '',
-      document_date: orderDate || '',
-      document_memo: parsedData.memo || ''
-    };
-
-    // 3. 견적서 섀도우 생성 (crm_estimates)
-    const estimateId = `EST-${Date.now()}`;
-    const uuid = `EST-UUID-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    await insertRows('crm_estimates', [{
-      type: 'OUTBOUND',
-      direction_status: 'RECEIVED', // 보낸 견적서이나, 이미 수락된 상태로 처리
+    const receiverMatched = isSupplierMyCompany || isBuyerMyCompany;
+    return NextResponse.json({
+      success: true,
+      receiver_matched: receiverMatched,
+      my_company_name: myCompanyProfile.companyName,
       partner_name: partnerName,
       partner_phone: picPhone || '',
       partner_manager: picName || '',
-      total_amount,
-      file_url: 'AI 발주서 다이렉트 자동 스캔',
-      ai_parsed: 1,
-      uuid,
-      tags: JSON.stringify(tagsObj),
-      sales_order_number: orderNo || soId,
-      created_at: nowStr
-    }]);
-
-    // 실제 정수 id 가져오기
-    const insertedEstRes = await queryTable('crm_estimates', { filters: { uuid }, limit: 1 });
-    const insertedEst = insertedEstRes.rows && insertedEstRes.rows.length > 0 ? insertedEstRes.rows[0] : null;
-    const realEstimateId = insertedEst ? String(insertedEst.id) : estimateId;
-
-    // 4. 견적 품목 생성 (crm_estimate_items)
-    const detailRows = itemRows.map((row: any, idx: number) => ({
-      id: Date.now() + idx,
-      estimate_id: realEstimateId,
-      product_id: '',
-      item_code: row.item_code,
-      product_name: row.product_name,
-      spec: row.spec,
-      quantity: row.quantity,
-      unit_price: row.unit_price,
-      amount: row.amount
-    }));
-    await insertRows('crm_estimate_items', detailRows);
-
-    // 5. 수주 마스터 생성 (crm_sales_orders)
-    await insertRows('crm_sales_orders', [{
-      id: soId,
-      estimate_id: realEstimateId,
-      client_order_no: orderNo || '',
-      customer_name: partnerName,
-      customer_phone: picPhone || '',
-      customer_manager: picName || '',
-      status: 'REGISTERED',
-      total_amount: total_amount,
+      business_number: partnerBizNo,
+      representative: partnerRepresentative,
+      address: partnerAddress,
+      document_number: orderNo || '',
+      document_date: orderDate || '',
       delivery_date: deliveryDate || '',
-      created_at: orderDate || nowStr
-    }]);
-
-    return NextResponse.json({
-      success: true,
-      message: '발주서 스캔 및 수주 등록이 완료되었습니다.',
-      parsedData,
-      estimateId,
-      soId
+      document_memo: parsedData.memo || '',
+      items: itemRows,
+      file_url: fileDataUri
     });
 
   } catch (error: any) {

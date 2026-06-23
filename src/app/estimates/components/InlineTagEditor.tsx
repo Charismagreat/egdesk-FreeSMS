@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { parseEstimateMetadata } from "../utils";
 
 interface Tag {
   id: string;
@@ -25,7 +26,10 @@ export default function InlineTagEditor({
   onUpdateTags,
 }: InlineTagEditorProps) {
   const [isEditing, setIsEditing] = useState(false);
-  const [tempTags, setTempTags] = useState(initialTags);
+  
+  // 💡 initialTags가 JSON 메타데이터일 경우 순수 tags 필드만 디스플레이 타깃으로 분리
+  const metadata = parseEstimateMetadata(initialTags || "");
+  const [tempTags, setTempTags] = useState(metadata.tags || "");
   const [isSaving, setIsSaving] = useState(false);
 
   // 로컬 태그 토글 핸들러
@@ -48,7 +52,21 @@ export default function InlineTagEditor({
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await onUpdateTags(estimateId, tempTags);
+      let finalTagsValue = tempTags;
+      
+      // 💡 만약 기존 initialTags가 JSON 문자열 포맷이었다면, 타 속성(사업자번호, 주소 등) 유실 방지를 위해 tags 속성만 교체 병합하여 직렬화 전송
+      const trimmed = (initialTags || "").trim();
+      if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          parsed.tags = tempTags;
+          finalTagsValue = JSON.stringify(parsed);
+        } catch (e) {
+          // 파싱 에러 시 입력된 순수 텍스트 전송 폴백
+        }
+      }
+
+      await onUpdateTags(estimateId, finalTagsValue);
       setIsEditing(false);
     } catch (e) {
       console.error("인라인 태그 저장 실패:", e);
@@ -140,7 +158,7 @@ export default function InlineTagEditor({
       className="min-h-[28px] flex items-center w-full cursor-pointer hover:bg-indigo-50/50 p-1 rounded-xl transition-all group"
       onClick={() => {
         setIsEditing(true);
-        setTempTags(initialTags || "");
+        setTempTags(metadata.tags || "");
       }}
       title="클릭하여 비고(태그) 인라인 수정"
     >
@@ -154,8 +172,8 @@ export default function InlineTagEditor({
         >
           {aiParsed ? "AI" : "수동"}
         </span>
-        {initialTags ? (
-          initialTags
+        {metadata.tags ? (
+          metadata.tags
             .split(",")
             .map((t) => t.trim())
             .filter(Boolean)

@@ -360,7 +360,11 @@ export async function POST(req: Request) {
       business_number = '',
       representative = '',
       email = '',
-      address = ''
+      address = '',
+
+      // 최고관리자 우회 강제 승인용 필드
+      force_bypass = false,
+      bypass_reason = ''
     } = body;
 
     if (!partner_name) {
@@ -418,17 +422,61 @@ export async function POST(req: Request) {
         product_name: item.product_name,
         quantity: qty,
         unit_price: price,
-        amount: amount
+        amount: amount,
+        delivery_date: item.delivery_date || ''
       };
     });
 
     // 2. 견적서 고유 식별 마스터 ID 생성 및 UUID 부여
-    const estimateId = `EST-${Date.now()}`;
-    const uuid = `EST-UUID-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const nowObj = new Date();
+    const yy = String(nowObj.getFullYear()).slice(-2);
+    const mm = String(nowObj.getMonth() + 1).padStart(2, '0');
+    const dd = String(nowObj.getDate()).padStart(2, '0');
+    const hh = String(nowObj.getHours()).padStart(2, '0');
+    const min = String(nowObj.getMinutes()).padStart(2, '0');
+    const ss = String(nowObj.getSeconds()).padStart(2, '0');
+    const rand = Math.floor(Math.random() * 90 + 10); // 10~99 난수
+
+    const isSalesOrderScan = type === 'OUTBOUND' && direction_status === 'RECEIVED';
+    const prefix = isSalesOrderScan ? 'ORD' : 'EST';
+    const estimateId = `${prefix}-${yy}${mm}${dd}-${hh}${min}${ss}`;
+    const uuid = `${prefix}-UUID-${yy}${mm}${dd}-${hh}${min}${ss}-${rand}-${Math.random().toString(36).substring(2, 9)}`;
     const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+
+    let finalTags = tags;
+    if (force_bypass) {
+      const cookieStore = await cookies();
+      const token = cookieStore.get('auth_token')?.value;
+      let isAuthorized = false;
+      let bypassApprovedBy = '';
+      if (token) {
+        try {
+          const payload = decodeJwt(token);
+          const role = (payload.role as string || '').toUpperCase();
+          isAuthorized = role === 'SUPER_ADMIN' || role === 'PRESIDENT';
+          bypassApprovedBy = (payload.username as string) || (payload.role as string);
+        } catch {}
+      }
+
+      if (!isAuthorized) {
+        return NextResponse.json({ success: false, error: '🔒 권한 차단: 수신인 불일치 문서의 강제 등록 승인은 최고관리자(SUPER_ADMIN)만 가능합니다.' }, { status: 403 });
+      }
+
+      let tagsObj: any = {};
+      if (tags) {
+        try {
+          tagsObj = JSON.parse(tags);
+        } catch {}
+      }
+      tagsObj.bypass_matching = true;
+      tagsObj.bypass_approved_by = bypassApprovedBy;
+      tagsObj.bypass_reason = bypass_reason;
+      finalTags = JSON.stringify(tagsObj);
+    }
 
     // 3. crm_estimates 마스터 테이블 삽입
     await insertRows('crm_estimates', [{
+      id: estimateId,
       type,
       direction_status,
       partner_name,
@@ -438,7 +486,7 @@ export async function POST(req: Request) {
       file_url,
       business_license_url, // 첨부된 사업자등록증 URL 매핑
       ai_parsed,
-      tags,
+      tags: finalTags,
       uuid,
       created_at: nowStr
     }]);
@@ -456,7 +504,8 @@ export async function POST(req: Request) {
       product_name: row.product_name,
       quantity: row.quantity,
       unit_price: row.unit_price,
-      amount: row.amount
+      amount: row.amount,
+      delivery_date: row.delivery_date
     }));
 
     await insertRows('crm_estimate_items', detailRows);
@@ -555,7 +604,8 @@ export async function PUT(req: Request) {
           product_name: item.product_name,
           quantity: qty,
           unit_price: price,
-          amount: amount
+          amount: amount,
+          delivery_date: item.delivery_date || ''
         };
       });
       masterUpdates.total_amount = total_amount;
@@ -572,7 +622,8 @@ export async function PUT(req: Request) {
         product_name: row.product_name,
         quantity: row.quantity,
         unit_price: row.unit_price,
-        amount: row.amount
+        amount: row.amount,
+        delivery_date: row.delivery_date
       }));
 
       if (detailRows.length > 0) {

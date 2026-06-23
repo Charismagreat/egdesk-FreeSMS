@@ -12,8 +12,12 @@ export async function fetchGeminiWithFallback(url: string, init?: RequestInit): 
       try {
         const res = await fetch(targetUrl, init);
         
+        if (res.ok) {
+          return res;
+        }
+
         // 일시적 서버 오류(503, 500) 및 할당량 제한(429) 감지 시 재시도 진행
-        if (!res.ok && (res.status === 503 || res.status === 429 || res.status === 500)) {
+        if (res.status === 503 || res.status === 429 || res.status === 500) {
           attempt++;
           if (attempt < maxRetries) {
             const delay = attempt * 1000; // 대기 시간 상향 (1s, 2s...)
@@ -22,8 +26,15 @@ export async function fetchGeminiWithFallback(url: string, init?: RequestInit): 
             continue;
           }
         }
-        return res;
+        
+        // 재시도 불가능한 에러(400, 404 등) 또는 최대 재시도 초과 시 에러 throw
+        throw new Error(`HTTP ${res.status}: ${res.statusText || 'Unknown Error'}`);
       } catch (err: any) {
+        // 이미 위에서 명시적으로 던진 HTTP 에러는 그대로 throw
+        if (err.message && err.message.startsWith('HTTP ')) {
+          throw err;
+        }
+        
         attempt++;
         if (attempt < maxRetries) {
           const delay = attempt * 1000;
@@ -40,16 +51,13 @@ export async function fetchGeminiWithFallback(url: string, init?: RequestInit): 
   try {
     // 1. 기본 설정된 주 모델 (예: gemini-3.5-flash) 호출 시도
     const primaryRes = await fetchWithRetry(url, '기본 모델');
-    if (primaryRes.ok) {
-      return primaryRes;
-    }
-    console.error(`[AI Emergency] 기본 모델 호출 실패 (Status: ${primaryRes.status}). 하위 플래시 모델로 자동 폴백을 수행합니다.`);
+    return primaryRes; // ok일 때만 반환됨 (오류면 throw되었으므로)
   } catch (primaryErr: any) {
-    console.error(`[AI Emergency] 기본 모델 호출 오류 발생: ${primaryErr.message}. 하위 플래시 모델로 자동 폴백을 수행합니다.`);
+    console.error(`[AI Emergency] 기본 모델 호출 실패/오류: ${primaryErr.message}. 하위 플래시 모델로 자동 폴백을 수행합니다.`);
   }
 
-  // 2. 주 모델 실패 시, 모델명을 하위 모델인 'gemini-1.5-flash'로 치환하여 폴백 호출
-  const fallbackModel = 'gemini-1.5-flash';
+  // 2. 주 모델 실패 시, 모델명을 하위 모델인 'gemini-3.1-flash-lite'로 치환하여 폴백 호출
+  const fallbackModel = 'gemini-3.1-flash-lite';
   const fallbackUrl = url.replace(/\/models\/[^:]+:/, `/models/${fallbackModel}:`);
   
   try {
