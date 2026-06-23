@@ -1,4 +1,4 @@
-import { createTable, queryTable, insertRows, updateRows, deleteRows, deleteTable, executeSQL } from '../../egdesk-helpers';
+import { createTable, queryTable, insertRows, updateRows, deleteRows, deleteTable, executeSQL, getTableSchema } from '../../egdesk-helpers';
 
 export async function setupDatabase() {
   const SHOULD_SEED_DEMO = process.env.SEED_DEMO_DATA === 'true';
@@ -34,9 +34,9 @@ export async function setupDatabase() {
 
       if (exists) {
         // [자동 마이그레이션] 이미 존재하는 테이블의 누락 감사 컬럼 보정
-        try {
-          const colInfoRes = await executeSQL(`PRAGMA table_info("${tableName}")`);
-          const existingColNames = (colInfoRes?.rows || []).map((c: any) => c.name.toLowerCase());
+      try {
+        const schemaInfo = await getTableSchema(tableName);
+        const existingColNames = (schemaInfo?.schema || []).map((c: any) => c.name.toLowerCase());
           
           for (const aCol of auditCols) {
             if (!existingColNames.includes(aCol.name.toLowerCase())) {
@@ -361,6 +361,7 @@ export async function setupDatabase() {
     { name: 'direction_status', type: 'TEXT' },                 // 'REQUESTED', 'DRAFT', 'SENT', 'RECEIVED'
     { name: 'partner_name', type: 'TEXT', notNull: true },
     { name: 'partner_phone', type: 'TEXT' },
+    { name: 'partner_manager', type: 'TEXT' },                   // 상대방 담당자명
     { name: 'total_amount', type: 'INTEGER' },
     { name: 'file_url', type: 'TEXT' },
     { name: 'business_license_url', type: 'TEXT' },             // 첫 견적 요청 시 사업자등록증 첨부 파일 경로
@@ -409,6 +410,7 @@ export async function setupDatabase() {
     { name: 'client_order_no', type: 'TEXT' },                   // 바이어 수주번호
     { name: 'customer_name', type: 'TEXT', notNull: true },
     { name: 'customer_phone', type: 'TEXT' },
+    { name: 'customer_manager', type: 'TEXT' },                 // 상대방 담당자명
     { name: 'status', type: 'TEXT', notNull: true },             // 'REGISTERED', 'CONFIRMED'
     { name: 'total_amount', type: 'INTEGER' },
     { name: 'delivery_date', type: 'TEXT' },                     // 납기일
@@ -1878,8 +1880,8 @@ export async function setupDatabase() {
   try {
     // 1) shared_dashboards 테이블 컬럼 보정
     try {
-      const colInfoRes = await executeSQL("PRAGMA table_info(shared_dashboards);");
-      const colNames = (colInfoRes?.rows || []).map((c: any) => c.name);
+      const schemaInfo = await getTableSchema('shared_dashboards');
+      const colNames = (schemaInfo?.schema || []).map((c: any) => c.name);
       
       if (!colNames.includes('sort_order')) {
         await executeSQL("ALTER TABLE shared_dashboards ADD COLUMN sort_order INTEGER DEFAULT 0;");
@@ -1899,8 +1901,8 @@ export async function setupDatabase() {
 
     // 2) crm_meetings 테이블 컬럼 보정
     try {
-      const colInfoRes = await executeSQL("PRAGMA table_info(crm_meetings);");
-      const meetingCols = (colInfoRes?.rows || []).map((c: any) => c.name);
+      const schemaInfo = await getTableSchema('crm_meetings');
+      const meetingCols = (schemaInfo?.schema || []).map((c: any) => c.name);
       if (!meetingCols.includes('audio_url')) {
         await executeSQL("ALTER TABLE crm_meetings ADD COLUMN audio_url TEXT;");
         console.log('✓ In-app migration: added audio_url to crm_meetings');
@@ -1911,8 +1913,8 @@ export async function setupDatabase() {
 
     // 2-2) crm_estimates 테이블 컬럼 보정
     try {
-      const colInfoRes = await executeSQL("PRAGMA table_info(crm_estimates);");
-      const estimateCols = (colInfoRes?.rows || []).map((c: any) => c.name);
+      const schemaInfo = await getTableSchema('crm_estimates');
+      const estimateCols = (schemaInfo?.schema || []).map((c: any) => c.name);
       if (!estimateCols.includes('sales_order_number')) {
         await executeSQL("ALTER TABLE crm_estimates ADD COLUMN sales_order_number TEXT;");
         console.log('✓ In-app migration: added sales_order_number to crm_estimates');
@@ -1921,14 +1923,38 @@ export async function setupDatabase() {
         await executeSQL("ALTER TABLE crm_estimates ADD COLUMN purchase_order_number TEXT;");
         console.log('✓ In-app migration: added purchase_order_number to crm_estimates');
       }
+      if (!estimateCols.includes('partner_manager')) {
+        await executeSQL("ALTER TABLE crm_estimates ADD COLUMN partner_manager TEXT;");
+        console.log('✓ In-app migration: added partner_manager to crm_estimates');
+      }
     } catch (e: any) {
       console.warn('⚠️ crm_estimates migration check warning:', e.message);
     }
 
+    // 2-3) crm_sales_orders 테이블 컬럼 보정
+    try {
+      const schemaInfo = await getTableSchema('crm_sales_orders');
+      const soCols = (schemaInfo?.schema || []).map((c: any) => c.name);
+      if (!soCols.includes('client_order_no')) {
+        await executeSQL("ALTER TABLE crm_sales_orders ADD COLUMN client_order_no TEXT;");
+        console.log('✓ In-app migration: added client_order_no to crm_sales_orders');
+      }
+      if (!soCols.includes('delivery_date')) {
+        await executeSQL("ALTER TABLE crm_sales_orders ADD COLUMN delivery_date TEXT;");
+        console.log('✓ In-app migration: added delivery_date to crm_sales_orders');
+      }
+      if (!soCols.includes('customer_manager')) {
+        await executeSQL("ALTER TABLE crm_sales_orders ADD COLUMN customer_manager TEXT;");
+        console.log('✓ In-app migration: added customer_manager to crm_sales_orders');
+      }
+    } catch (e: any) {
+      console.warn('⚠️ crm_sales_orders migration check warning:', e.message);
+    }
+
     // 3) crm_recruitment_applicants 테이블 컬럼 보정
     try {
-      const colInfoRes = await executeSQL("PRAGMA table_info(crm_recruitment_applicants);");
-      const applicantCols = (colInfoRes?.rows || []).map((c: any) => c.name);
+      const schemaInfo = await getTableSchema('crm_recruitment_applicants');
+      const applicantCols = (schemaInfo?.schema || []).map((c: any) => c.name);
       if (!applicantCols.includes('interview_logs')) {
         await executeSQL("ALTER TABLE crm_recruitment_applicants ADD COLUMN interview_logs TEXT;");
         console.log('✓ In-app migration: added interview_logs to crm_recruitment_applicants');
@@ -1943,8 +1969,8 @@ export async function setupDatabase() {
 
     // 4) ai_token_usage_logs 테이블 컬럼 보정
     try {
-      const colInfoRes = await executeSQL("PRAGMA table_info(ai_token_usage_logs);");
-      const tokenLogCols = (colInfoRes?.rows || []).map((c: any) => c.name);
+      const schemaInfo = await getTableSchema('ai_token_usage_logs');
+      const tokenLogCols = (schemaInfo?.schema || []).map((c: any) => c.name);
       if (!tokenLogCols.includes('user_name')) {
         await executeSQL("ALTER TABLE ai_token_usage_logs ADD COLUMN user_name TEXT;");
         console.log('✓ In-app migration: added user_name to ai_token_usage_logs');
@@ -1987,8 +2013,8 @@ export async function setupDatabase() {
 
     // 5) form_templates 테이블 컬럼 보정
     try {
-      const colInfoRes = await executeSQL("PRAGMA table_info(form_templates);");
-      const templateCols = (colInfoRes?.rows || []).map((c: any) => c.name);
+      const schemaInfo = await getTableSchema('form_templates');
+      const templateCols = (schemaInfo?.schema || []).map((c: any) => c.name);
       if (!templateCols.includes('query_sql')) {
         await executeSQL("ALTER TABLE form_templates ADD COLUMN query_sql TEXT;");
         console.log('✓ In-app migration: added query_sql to form_templates');
@@ -2010,8 +2036,8 @@ export async function setupDatabase() {
 
     // 6) form_mappings 테이블 컬럼 보정
     try {
-      const colInfoRes = await executeSQL("PRAGMA table_info(form_mappings);");
-      const mappingCols = (colInfoRes?.rows || []).map((c: any) => c.name);
+      const schemaInfo = await getTableSchema('form_mappings');
+      const mappingCols = (schemaInfo?.schema || []).map((c: any) => c.name);
       const auditCols = ['uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by'];
       for (const auditCol of auditCols) {
         if (!mappingCols.includes(auditCol)) {
@@ -2025,8 +2051,8 @@ export async function setupDatabase() {
 
     // 7) crm_web_templates 테이블 컬럼 보정
     try {
-      const colInfoRes = await executeSQL("PRAGMA table_info(crm_web_templates);");
-      const webTemplateCols = (colInfoRes?.rows || []).map((c: any) => c.name);
+      const schemaInfo = await getTableSchema('crm_web_templates');
+      const webTemplateCols = (schemaInfo?.schema || []).map((c: any) => c.name);
       if (!webTemplateCols.includes('web_html_content')) {
         await executeSQL("ALTER TABLE crm_web_templates ADD COLUMN web_html_content TEXT;");
         console.log('✓ In-app migration: added web_html_content to crm_web_templates');
@@ -2045,8 +2071,8 @@ export async function setupDatabase() {
 
     // 8) crm_operators 테이블 사원번호 컬럼 보정
     try {
-      const colInfoRes = await executeSQL("PRAGMA table_info(crm_operators);");
-      const opCols = (colInfoRes?.rows || []).map((c: any) => c.name);
+      const schemaInfo = await getTableSchema('crm_operators');
+      const opCols = (schemaInfo?.schema || []).map((c: any) => c.name);
       if (!opCols.includes('employee_number')) {
         await executeSQL("ALTER TABLE crm_operators ADD COLUMN employee_number TEXT;");
         console.log('✓ In-app migration: added employee_number to crm_operators');
@@ -2057,8 +2083,8 @@ export async function setupDatabase() {
 
     // 8-2) crm_operators 테이블 연락처(phone) 컬럼 보정
     try {
-      const colInfoRes = await executeSQL("PRAGMA table_info(crm_operators);");
-      const opCols = (colInfoRes?.rows || []).map((c: any) => c.name);
+      const schemaInfo = await getTableSchema('crm_operators');
+      const opCols = (schemaInfo?.schema || []).map((c: any) => c.name);
       if (!opCols.includes('phone')) {
         await executeSQL("ALTER TABLE crm_operators ADD COLUMN phone TEXT;");
         console.log('✓ In-app migration: added phone to crm_operators');

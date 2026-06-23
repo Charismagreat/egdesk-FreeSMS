@@ -34,6 +34,7 @@ export default function EstimateDetailModal({
   const [editForm, setEditForm] = useState<{
     partner_name: string;
     partner_phone: string;
+    partner_manager: string;
     tags: string;
     business_number: string;
     address: string;
@@ -45,6 +46,7 @@ export default function EstimateDetailModal({
   }>({
     partner_name: "",
     partner_phone: "",
+    partner_manager: "",
     tags: "",
     business_number: "",
     address: "",
@@ -143,6 +145,7 @@ export default function EstimateDetailModal({
     setEditForm({
       partner_name: detailData.estimate.partner_name,
       partner_phone: detailData.estimate.partner_phone,
+      partner_manager: detailData.estimate.partner_manager || "",
       tags: meta.tags,
       business_number: meta.business_number,
       address: meta.address,
@@ -249,6 +252,7 @@ export default function EstimateDetailModal({
           estimateId: estimateId,
           partner_name: editForm.partner_name,
           partner_phone: editForm.partner_phone,
+          partner_manager: editForm.partner_manager,
           tags: tagsJsonString,
           items: editForm.items
         })
@@ -388,6 +392,15 @@ export default function EstimateDetailModal({
                           />
                         </div>
                         <div>
+                          <label className="text-slate-400 font-bold block mb-1">담당자명</label>
+                          <input 
+                            type="text" 
+                            value={editForm.partner_manager}
+                            onChange={e => setEditForm(prev => ({ ...prev, partner_manager: e.target.value }))}
+                            className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-indigo-500"
+                          />
+                        </div>
+                        <div>
                           <label className="text-slate-400 font-bold block mb-1">연락처</label>
                           <input 
                             type="text" 
@@ -507,6 +520,10 @@ export default function EstimateDetailModal({
                         <div>
                           <span className="text-slate-400 font-bold block">거래처/고객명</span>
                           <span className="text-slate-800 font-bold">{detailData.estimate.partner_name}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400 font-bold block">담당자</span>
+                          <span className="text-slate-800 font-bold">{detailData.estimate.partner_manager || '-'}</span>
                         </div>
                         <div>
                           <span className="text-slate-400 font-bold block">연락처</span>

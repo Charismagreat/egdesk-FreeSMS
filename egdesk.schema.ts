@@ -493,8 +493,8 @@ export const TABLES = {
   crm_sales_orders: {
     name: 'crm_sales_orders',
     displayName: '수주서 관리',
-    columns: ['estimate_id', 'customer_name', 'customer_phone', 'status', 'total_amount', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by'],
-    columnCount: 13,
+    columns: ['estimate_id', 'client_order_no', 'customer_name', 'customer_phone', 'customer_manager', 'status', 'total_amount', 'delivery_date', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by'],
+    columnCount: 16,
     rowCount: 0,
   },
   crm_purchase_orders: {
@@ -514,8 +514,8 @@ export const TABLES = {
   crm_estimates: {
     name: 'crm_estimates',
     displayName: '견적서 관리',
-    columns: ['type', 'direction_status', 'partner_name', 'partner_phone', 'total_amount', 'file_url', 'business_license_url', 'ai_parsed', 'created_at', 'uuid', 'sales_order_number', 'purchase_order_number', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by'],
-    columnCount: 18,
+    columns: ['type', 'direction_status', 'partner_name', 'partner_phone', 'partner_manager', 'total_amount', 'file_url', 'business_license_url', 'ai_parsed', 'created_at', 'uuid', 'sales_order_number', 'purchase_order_number', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by'],
+    columnCount: 19,
     rowCount: 0,
   },
   crm_point_history: {

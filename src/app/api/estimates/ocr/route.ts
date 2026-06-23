@@ -75,11 +75,13 @@ Your job is to look at the provided image (which is a supply estimate / quote / 
 1. "supplier": Object containing:
    - "company_name": String (공급자/공급처 회사명. If not found, "")
    - "business_number": String (공급자 사업자번호. Format: "XXX-XX-XXXXX", otherwise "")
-   - "phone": String (공급자 연락처, otherwise "")
+   - "phone": String (공급자 연락처/전화번호, otherwise "")
+   - "pic_name": String (공급자 담당자 성명, otherwise "")
 2. "buyer": Object containing:
    - "company_name": String (공급받는자/수신처 회사명. If not found, "")
    - "business_number": String (공급받는자 사업자번호. Format: "XXX-XX-XXXXX", otherwise "")
-   - "phone": String (공급받는자 연락처, otherwise "")
+   - "phone": String (공급받는자 연락처/전화번호, otherwise "")
+   - "pic_name": String (공급받는자 담당자 성명, otherwise "")
 3. "items": Array of objects, each containing:
    - "product_name": String (Name of the item)
    - "quantity": Integer (Number of items requested/quoted)
@@ -90,12 +92,14 @@ Format example of output:
   "supplier": {
     "company_name": "태백유통(주)",
     "business_number": "123-45-67890",
-    "phone": "02-1234-5678"
+    "phone": "02-1234-5678",
+    "pic_name": "홍길동"
   },
   "buyer": {
     "company_name": "(주)쿠스",
     "business_number": "731-81-02023",
-    "phone": "010-0000-0000"
+    "phone": "010-0000-0000",
+    "pic_name": "차민수"
   },
   "items": [
     { "product_name": "특A급 아메리카노 원두 10kg", "quantity": 5, "unit_price": 45000 }
@@ -104,8 +108,13 @@ Format example of output:
 Do NOT output anything other than this JSON string. No markdown block wrapper.
 `;
         }
+        // 1. DB에서 구글 AI 모델 설정 정보 로드
+        const modelRes = await queryTable('system_settings', { filters: { key: 'google_ai_model' } });
+        const selectedModel = modelRes.rows && modelRes.rows.length > 0 && modelRes.rows[0].value
+          ? modelRes.rows[0].value
+          : 'gemini-3.5-flash';
 
-        const response = await fetchGeminiWithFallback(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`, {
+        const response = await fetchGeminiWithFallback(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -142,7 +151,7 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
               const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
               await insertRows('ai_token_usage_logs', [{
                 id: `TKC-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-                model: 'gemini-3.5-flash',
+                model: selectedModel || 'gemini-3.5-flash',
                 purpose: document_type === 'license' ? 'business-license-ocr' : 'estimates-ocr',
                 prompt_tokens: promptTokens,
                 completion_tokens: completionTokens,
@@ -192,6 +201,7 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
               let partnerName = '';
               let partnerPhone = '';
               let partnerBizNo = '';
+              let partnerManager = '';
               let receiverMatched = true;
 
               // 2단계: 판정 결과에 따른 문서 방향 및 상대 거래처 매핑
@@ -201,12 +211,14 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
                 partnerName = ocrJson.supplier?.company_name || '';
                 partnerPhone = ocrJson.supplier?.phone || '';
                 partnerBizNo = ocrJson.supplier?.business_number || '';
+                partnerManager = ocrJson.supplier?.pic_name || '';
               } else if (isSupplierMyCompany) {
                 // 자사가 공급자이므로 보낸 견적서(OUTBOUND)
                 targetType = 'OUTBOUND';
                 partnerName = ocrJson.buyer?.company_name || '';
                 partnerPhone = ocrJson.buyer?.phone || '';
                 partnerBizNo = ocrJson.buyer?.business_number || '';
+                partnerManager = ocrJson.buyer?.pic_name || '';
               } else {
                 // 자사 정보와 매치되지 않는 경우 (폴백 조치)
                 // 사용자 공식: "받은 견적서일 경우 사업자번호가 있는 업체가 상대방 거래처이다"
@@ -218,10 +230,12 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
                   partnerName = ocrJson.buyer?.company_name || '';
                   partnerPhone = ocrJson.buyer?.phone || '';
                   partnerBizNo = ocrJson.buyer?.business_number || '';
+                  partnerManager = ocrJson.buyer?.pic_name || '';
                 } else {
                   partnerName = ocrJson.supplier?.company_name || '';
                   partnerPhone = ocrJson.supplier?.phone || '';
                   partnerBizNo = ocrJson.supplier?.business_number || '';
+                  partnerManager = ocrJson.supplier?.pic_name || '';
                 }
                 receiverMatched = false;
               }
@@ -232,6 +246,7 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
                 type: targetType,
                 partner_name: partnerName || '미확인 거래처',
                 partner_phone: partnerPhone || '010-0000-0000',
+                partner_manager: partnerManager || '',
                 partner_business_number: partnerBizNo || '',
                 items: ocrJson.items || [],
                 receiver_matched: receiverMatched,

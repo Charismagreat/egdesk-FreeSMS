@@ -267,6 +267,7 @@ export async function GET(req: Request) {
             direction_status: 'RECEIVED',
             partner_name: so.customer_name || '알 수 없는 바이어',
             partner_phone: so.customer_phone || '',
+            partner_manager: so.customer_manager || '',
             total_amount: so.total_amount || 0,
             file_url: 'AI 수주 연동 자동 복구',
             ai_parsed: 1,
@@ -347,6 +348,7 @@ export async function POST(req: Request) {
       direction_status = 'REQUESTED', // REQUESTED(견적요청), DRAFT(초안), SENT(발송)
       partner_name, 
       partner_phone, 
+      partner_manager,
       items = [],                 // [{ product_id, product_name, quantity, unit_price }]
       file_url = '',
       ai_parsed = 0,
@@ -431,6 +433,7 @@ export async function POST(req: Request) {
       direction_status,
       partner_name,
       partner_phone,
+      partner_manager,
       total_amount,
       file_url,
       business_license_url, // 첨부된 사업자등록증 URL 매핑
@@ -512,6 +515,7 @@ export async function PUT(req: Request) {
       estimateId, 
       partner_name, 
       partner_phone, 
+      partner_manager,
       direction_status,
       tags,
       items
@@ -527,6 +531,7 @@ export async function PUT(req: Request) {
     };
     if (partner_name !== undefined) masterUpdates.partner_name = partner_name;
     if (partner_phone !== undefined) masterUpdates.partner_phone = partner_phone;
+    if (partner_manager !== undefined) masterUpdates.partner_manager = partner_manager;
     if (direction_status !== undefined) masterUpdates.direction_status = direction_status;
     if (tags !== undefined) masterUpdates.tags = tags;
 

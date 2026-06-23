@@ -50,6 +50,7 @@ export async function POST(req: Request) {
     "business_number": "공급받는자 사업자번호 (XXX-XX-XXXXX 형식)"
   },
   "picName": "담당자명",
+  "picPhone": "담당자 연락처 (전화번호, 없으면 \"\")",
   "orderNo": "수주번호 또는 발주번호",
   "orderDate": "수주일 (YYYY-MM-DD 형식)",
   "deliveryDate": "납기일 (YYYY-MM-DD 형식)",
@@ -139,7 +140,7 @@ export async function POST(req: Request) {
       console.error('본사 정보 설정 조회 실패:', e);
     }
 
-    const { orderNo, orderDate, deliveryDate, items } = parsedData;
+    const { orderNo, orderDate, deliveryDate, items, picName, picPhone } = parsedData;
     if (!items || items.length === 0) {
       throw new Error('품목을 인식하지 못했습니다.');
     }
@@ -209,6 +210,12 @@ export async function POST(req: Request) {
       await executeSQL('ALTER TABLE crm_sales_orders ADD COLUMN delivery_date TEXT');
     } catch(e) {}
     try {
+      await executeSQL('ALTER TABLE crm_sales_orders ADD COLUMN customer_manager TEXT');
+    } catch(e) {}
+    try {
+      await executeSQL('ALTER TABLE crm_estimates ADD COLUMN partner_manager TEXT');
+    } catch(e) {}
+    try {
       await executeSQL('ALTER TABLE crm_estimate_items ADD COLUMN item_code TEXT');
     } catch(e) {}
     try {
@@ -224,7 +231,8 @@ export async function POST(req: Request) {
       type: 'OUTBOUND',
       direction_status: 'RECEIVED', // 보낸 견적서이나, 이미 수락된 상태로 처리
       partner_name: partnerName,
-      partner_phone: parsedData.picName || '', // 담당자명을 전화번호 필드나 메모에 임시 저장 (스키마 제약상)
+      partner_phone: picPhone || '',
+      partner_manager: picName || '',
       total_amount,
       file_url: 'AI 발주서 다이렉트 자동 스캔',
       ai_parsed: 1,
@@ -258,7 +266,8 @@ export async function POST(req: Request) {
       estimate_id: realEstimateId,
       client_order_no: orderNo || '',
       customer_name: partnerName,
-      customer_phone: parsedData.picName || '',
+      customer_phone: picPhone || '',
+      customer_manager: picName || '',
       status: 'REGISTERED',
       total_amount: total_amount,
       delivery_date: deliveryDate || '',

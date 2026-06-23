@@ -384,7 +384,7 @@ function insertRows(tableName, rows) {
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
-                    if (typeof window === 'undefined') {
+                    if (typeof window === 'undefined' && false) { // 로컬 DB 직접 접근 비활성화 (항상 MCP API 사용)
                         try {
                             const os = require('os');
                             const path = require('path');
@@ -476,7 +476,7 @@ function updateRows(tableName, updates, options) {
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
-                    if (typeof window === 'undefined') {
+                    if (typeof window === 'undefined' && false) { // 로컬 DB 직접 접근 비활성화 (항상 MCP API 사용)
                         try {
                             const os = require('os');
                             const path = require('path');

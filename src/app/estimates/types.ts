@@ -4,6 +4,7 @@ export interface Estimate {
   direction_status: "REQUESTED" | "DRAFT" | "SENT" | "RECEIVED";
   partner_name: string;
   partner_phone: string;
+  partner_manager?: string;
   total_amount: number;
   file_url?: string;
   ai_parsed: number;
