@@ -33,15 +33,24 @@ export async function setupDatabase() {
       }
 
       if (exists) {
-        // [자동 마이그레이션] 이미 존재하는 테이블의 누락 감사 컬럼 보정
-      try {
-        const schemaInfo = await getTableSchema(tableName);
-        const existingColNames = (schemaInfo?.schema || []).map((c: any) => c.name.toLowerCase());
+        // [자동 마이그레이션] 이미 존재하는 테이블의 누락 감사 컬럼 및 명세 컬럼 자동 보정
+        try {
+          const schemaInfo = await getTableSchema(tableName);
+          const existingColNames = (schemaInfo?.schema || []).map((c: any) => c.name.toLowerCase());
           
+          // 1. 감사 컬럼 보정
           for (const aCol of auditCols) {
             if (!existingColNames.includes(aCol.name.toLowerCase())) {
               console.log(`[Auto-Migration] Adding missing audit column "${aCol.name}" to table "${tableName}"...`);
               await executeSQL(`ALTER TABLE "${tableName}" ADD COLUMN "${aCol.name}" TEXT`);
+            }
+          }
+
+          // 2. 신규 일반 명세 컬럼 보정
+          for (const col of columns) {
+            if (!existingColNames.includes(col.name.toLowerCase())) {
+              console.log(`[Auto-Migration] Adding missing specification column "${col.name}" to table "${tableName}"...`);
+              await executeSQL(`ALTER TABLE "${tableName}" ADD COLUMN "${col.name}" ${col.type}`);
             }
           }
         } catch (alterErr: any) {
