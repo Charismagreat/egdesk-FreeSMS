@@ -9,6 +9,7 @@ import EstimateDetailModal from "./components/EstimateDetailModal";
 import EstimateOcrModal from "./components/EstimateOcrModal";
 import InboundInspectModal from "./components/InboundInspectModal";
 import EstimateWriteModal from "./components/EstimateWriteModal";
+import SalesOrderOcrModal from "./components/SalesOrderOcrModal";
 
 // 신설한 격리 하위 컴포넌트 가져오기
 import EstimatesHeader from "./components/EstimatesHeader";
@@ -42,6 +43,7 @@ export default function EstimatesDashboard() {
   const [inspectPo, setInspectPo] = useState<PurchaseOrder | null>(null);
 
   const [isWriteModalOpen, setIsWriteModalOpen] = useState(false);
+  const [isSoOcrOpen, setIsSoOcrOpen] = useState(false);
 
   // 📂 태그 프리셋 로드
   useEffect(() => {
@@ -510,6 +512,7 @@ export default function EstimatesDashboard() {
               partners={partners}
               onOpenDetailModal={handleOpenDetailModal}
               onOpenWriteModal={() => setIsWriteModalOpen(true)}
+              onOpenOcrModal={() => setIsSoOcrOpen(true)}
               onConvertToSo={handleConvertToSo}
               onConfirmSalesOrder={handleConfirmSalesOrder}
               onBulkConfirmSalesOrder={handleBulkConfirmSalesOrder}
@@ -519,7 +522,7 @@ export default function EstimatesDashboard() {
         </>
       )}
 
-      {/* 4개의 독립 모달 컴포넌트 렌더링 */}
+      {/* 5개의 독립 모달 컴포넌트 렌더링 */}
       <EstimateDetailModal
         isOpen={isDetailModalOpen}
         onClose={() => {
@@ -551,6 +554,12 @@ export default function EstimatesDashboard() {
         isOpen={isWriteModalOpen}
         onClose={() => setIsWriteModalOpen(false)}
         partners={partners}
+        onSuccess={fetchData}
+      />
+
+      <SalesOrderOcrModal
+        isOpen={isSoOcrOpen}
+        onClose={() => setIsSoOcrOpen(false)}
         onSuccess={fetchData}
       />
     </div>
