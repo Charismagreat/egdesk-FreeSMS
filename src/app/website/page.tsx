@@ -121,7 +121,7 @@ export default function WebsiteBuilderPage() {
       const res = await fetch("/api/website/domain-info");
       const data = await res.json();
       if (data.success) {
-        setHomepageUrl(data.homepageUrl || "https://egdesk.cloud");
+        setHomepageUrl(data.homepageUrl !== undefined && data.homepageUrl !== null ? data.homepageUrl : "https://egdesk.cloud");
         setDomainHealth(data.primaryHealth || null);
       }
     } catch (e) {

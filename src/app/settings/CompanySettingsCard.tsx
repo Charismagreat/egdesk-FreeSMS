@@ -77,7 +77,7 @@ export default function CompanySettingsCard() {
               address: parsed.address || '경기도 시흥시 서울대학로 59-69',
               phone: parsed.phone || '010-7216-5884',
               email: parsed.email || 'chachogreat@gmail.com',
-              homepage: parsed.homepage || 'https://egdesk.cloud',
+              homepage: (parsed.homepage !== undefined && parsed.homepage !== null) ? parsed.homepage : 'https://egdesk.cloud',
               sidebarMainTitle: parsed.sidebarMainTitle || 'EGDESK SMS',
               sidebarSubTitle: parsed.sidebarSubTitle || '우리 회사 스마트 AI 시스템',
               sealImages: parsed.sealImages || [],

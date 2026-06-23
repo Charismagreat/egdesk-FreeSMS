@@ -47,7 +47,7 @@ export async function GET(req: Request) {
     if (profileRes.rows && profileRes.rows.length > 0) {
       try {
         rawProfileData = JSON.parse(profileRes.rows[0].value);
-        homepageUrl = rawProfileData.homepage || 'https://egdesk.cloud';
+        homepageUrl = (rawProfileData.homepage !== undefined && rawProfileData.homepage !== null) ? rawProfileData.homepage : 'https://egdesk.cloud';
       } catch (parseErr) {
         console.warn('my_company_profile 파싱 실패:', parseErr);
       }
