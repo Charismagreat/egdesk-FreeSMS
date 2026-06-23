@@ -516,24 +516,24 @@ export default function OutboundHub({
                         className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                       />
                     </td>
-                    <td className="py-3.5 px-2 text-slate-55 font-medium">
-                      {so.created_at ? so.created_at.substring(0, 16) : "-"}
+                    <td className="py-3.5 px-2 text-slate-500 font-medium">
+                      <div className="flex flex-col">
+                        <span>{so.created_at ? so.created_at.substring(0, 16) : "-"}</span>
+                        <span className="text-[10px] text-slate-400 block mt-0.5" title="내부 수주 번호">
+                          💼 {so.id}
+                        </span>
+                      </div>
                     </td>
                     <td className="py-3.5 px-2 font-mono text-slate-700">
                       {so.client_order_no || <span className="text-slate-400">-</span>}
                     </td>
                     <td className="py-3.5 px-2 font-mono text-slate-700">
-                      <div className="flex flex-col">
-                        <button
-                          onClick={() => onOpenDetailModal(so.estimate_id)}
-                          className="text-indigo-600 hover:underline cursor-pointer font-bold text-left"
-                        >
-                          {so.estimate_id}
-                        </button>
-                        <span className="text-[10px] text-slate-400 block mt-0.5" title="내부 수주 번호">
-                          💼 {so.id}
-                        </span>
-                      </div>
+                      <button
+                        onClick={() => onOpenDetailModal(so.estimate_id)}
+                        className="text-indigo-600 hover:underline cursor-pointer font-bold text-left"
+                      >
+                        {so.estimate_id}
+                      </button>
                     </td>
                     <td className="py-3.5 px-2">
                       <div className="flex items-center gap-1.5 flex-wrap">
