@@ -524,13 +524,15 @@ export default function OutboundHub({
                     </td>
                     <td className="py-3.5 px-2 font-mono text-slate-700">
                       <div className="flex flex-col">
-                        <span className="font-bold text-slate-850">{so.id}</span>
                         <button
                           onClick={() => onOpenDetailModal(so.estimate_id)}
-                          className="text-indigo-500 hover:underline text-[9px] font-bold block mt-0.5 text-left font-sans"
+                          className="text-indigo-600 hover:underline cursor-pointer font-bold text-left"
                         >
-                          견적: {so.estimate_id} 🔗
+                          {so.estimate_id}
                         </button>
+                        <span className="text-[10px] text-slate-400 block mt-0.5" title="내부 수주 번호">
+                          💼 {so.id}
+                        </span>
                       </div>
                     </td>
                     <td className="py-3.5 px-2">
