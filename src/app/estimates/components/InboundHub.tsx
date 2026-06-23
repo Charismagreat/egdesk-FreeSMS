@@ -60,7 +60,9 @@ export default function InboundHub({
         (e.partner_phone && e.partner_phone.toLowerCase().includes(term)) ||
         (e.partner_manager && e.partner_manager.toLowerCase().includes(term)) ||
         (e.first_item_name && e.first_item_name.toLowerCase().includes(term)) ||
-        (e.tags && e.tags.toLowerCase().includes(term))
+        (e.tags && e.tags.toLowerCase().includes(term)) ||
+        ((e as any).item_search_text && (e as any).item_search_text.toLowerCase().includes(term)) ||
+        ((e as any).document_memo_search && (e as any).document_memo_search.toLowerCase().includes(term))
       );
     })
     .filter((e) => {
@@ -99,7 +101,9 @@ export default function InboundHub({
         po.vendor_name.toLowerCase().includes(term) ||
         po.id.toLowerCase().includes(term) ||
         (po.vendor_phone && po.vendor_phone.toLowerCase().includes(term)) ||
-        (po.estimate_id && po.estimate_id.toLowerCase().includes(term))
+        (po.estimate_id && po.estimate_id.toLowerCase().includes(term)) ||
+        ((po as any).item_search_text && (po as any).item_search_text.toLowerCase().includes(term)) ||
+        ((po as any).document_memo_search && (po as any).document_memo_search.toLowerCase().includes(term))
       );
     })
     .filter((po) => {

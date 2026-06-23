@@ -56,7 +56,9 @@ export default function OutboundHub({
         (e.partner_manager && e.partner_manager.toLowerCase().includes(term)) ||
         (e.first_item_name && e.first_item_name.toLowerCase().includes(term)) ||
         (e.tags && e.tags.toLowerCase().includes(term)) ||
-        (e.sales_order_number && e.sales_order_number.toLowerCase().includes(term))
+        (e.sales_order_number && e.sales_order_number.toLowerCase().includes(term)) ||
+        ((e as any).item_search_text && (e as any).item_search_text.toLowerCase().includes(term)) ||
+        ((e as any).document_memo_search && (e as any).document_memo_search.toLowerCase().includes(term))
       );
     })
     .filter((e) => {
@@ -96,7 +98,9 @@ export default function OutboundHub({
         so.id.toLowerCase().includes(term) ||
         (so.customer_phone && so.customer_phone.toLowerCase().includes(term)) ||
         (so.estimate_id && so.estimate_id.toLowerCase().includes(term)) ||
-        (so.client_order_no && so.client_order_no.toLowerCase().includes(term))
+        (so.client_order_no && so.client_order_no.toLowerCase().includes(term)) ||
+        ((so as any).item_search_text && (so as any).item_search_text.toLowerCase().includes(term)) ||
+        ((so as any).document_memo_search && (so as any).document_memo_search.toLowerCase().includes(term))
       );
     })
     .filter((so) => {

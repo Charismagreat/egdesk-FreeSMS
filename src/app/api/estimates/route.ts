@@ -228,10 +228,32 @@ export async function GET(req: Request) {
       // 4. 결과 병합 조인
       const estimates = rawEstimates.map((e: any) => {
         const estItems = itemsMap[e.id] || [];
+        
+        // 품목명과 규격을 합쳐 검색 전용 텍스트 구축
+        const itemSearchText = estItems.map(item => {
+          const specStr = item.spec ? String(item.spec) : '';
+          return `${item.product_name} ${specStr}`;
+        }).join(' ');
+
+        // 비고란 내용(document_memo) 추출
+        let docMemo = '';
+        if (e.tags) {
+          try {
+            const parsed = JSON.parse(e.tags);
+            if (parsed && typeof parsed === 'object') {
+              docMemo = parsed.document_memo || parsed.tags || '';
+            }
+          } catch {
+            docMemo = e.tags;
+          }
+        }
+
         return {
           ...e,
           first_item_name: estItems.length > 0 ? estItems[0].product_name : null,
-          item_count: estItems.length
+          item_count: estItems.length,
+          item_search_text: itemSearchText,
+          document_memo_search: docMemo
         };
       });
 
