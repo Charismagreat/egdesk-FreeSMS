@@ -40,8 +40,8 @@ export async function fetchGeminiWithFallback(url: string, init?: RequestInit): 
   console.error(`[AI Emergency] 기본 모델 호출 실패. 하위 플래시 모델로 자동 폴백을 수행합니다.`);
   
   // 구글 API URL 형식: models/{modelName}:generateContent
-  // 정규식을 사용해 기존 모델명을 gemini-2.5-flash로 자동 치환
-  const fallbackModel = 'gemini-2.5-flash';
+  // 정규식을 사용해 기존 모델명을 gemini-1.5-flash로 자동 치환
+  const fallbackModel = 'gemini-1.5-flash';
   const fallbackUrl = url.replace(/\/models\/[^:]+:/, `/models/${fallbackModel}:`);
   
   try {
