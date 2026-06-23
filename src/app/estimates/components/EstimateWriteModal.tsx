@@ -19,13 +19,21 @@ export default function EstimateWriteModal({
 }: EstimateWriteModalProps) {
   const [selectedPartnerId, setSelectedPartnerId] = useState("direct");
   const [writePartner, setWritePartner] = useState("");
+  const [writeManager, setWriteManager] = useState("");
   const [writePhone, setWritePhone] = useState("");
+  const [writeEmail, setWriteEmail] = useState(""); // 수신 이메일 주소
+  const [writeFax, setWriteFax] = useState("");     // 수신 FAX 번호
   const [writeItems, setWriteItems] = useState<Array<{ item_code: string; product_name: string; spec: string; quantity: number; unit_price: number }>>([
     { item_code: "BEAN-ETH1K", product_name: "에티오피아 예가체프 G1 워시드 원두 1kg", spec: "1kg/백", quantity: 15, unit_price: 18500 }
   ]);
   const [pricingLoading, setPricingLoading] = useState(false);
   const [pricingResult, setPricingResult] = useState<any>(null);
   const [myProfile, setMyProfile] = useState<any>(null);
+
+  // 발송 패널 제어 상태
+  const [showSendPanel, setShowSendPanel] = useState(false);
+  const [sendMethod, setSendMethod] = useState<'EMAIL' | 'SMS' | 'FAX'>('EMAIL');
+  const [sendTarget, setSendTarget] = useState("");
 
   React.useEffect(() => {
     if (!isOpen) return;
@@ -45,11 +53,15 @@ export default function EstimateWriteModal({
   const handleClose = () => {
     setPricingResult(null);
     setWritePartner("");
+    setWriteManager("");
     setWritePhone("");
+    setWriteEmail("");
+    setWriteFax("");
     setSelectedPartnerId("direct");
     setWriteItems([
       { item_code: "BEAN-ETH1K", product_name: "에티오피아 예가체프 G1 워시드 원두 1kg", spec: "1kg/백", quantity: 15, unit_price: 18500 }
     ]);
+    setShowSendPanel(false);
     onClose();
   };
 
@@ -83,8 +95,40 @@ export default function EstimateWriteModal({
     }
   };
 
-  // 가격 제안서 전송 (보낸 견적 등록)
-  const handleSendProposal = async () => {
+  // 1. 견적서 임시 저장 (DRAFT)
+  const handleSaveDraft = async () => {
+    if (!pricingResult) return;
+    try {
+      const res = await fetch("/api/estimates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "OUTBOUND",
+          direction_status: "DRAFT",
+          partner_name: writePartner,
+          partner_phone: writePhone,
+          partner_manager: writeManager,
+          partner_id: selectedPartnerId === "direct" ? "" : selectedPartnerId,
+          email: writeEmail,
+          items: pricingResult.calculatedItems,
+          memo: pricingResult.aiLetter
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        handleClose();
+        onSuccess();
+        alert(data.message || "견적서가 임시 저장 상태로 성공적으로 등록되었습니다.");
+      } else {
+        alert(data.error || "임시 저장 실패");
+      }
+    } catch (e) {
+      alert("임시 저장 중 네트워크 에러 발생");
+    }
+  };
+
+  // 2. 견적서 등록 (SENT, 발송 없음)
+  const handleRegisterOnly = async () => {
     if (!pricingResult) return;
     try {
       const res = await fetch("/api/estimates", {
@@ -95,7 +139,9 @@ export default function EstimateWriteModal({
           direction_status: "SENT",
           partner_name: writePartner,
           partner_phone: writePhone,
+          partner_manager: writeManager,
           partner_id: selectedPartnerId === "direct" ? "" : selectedPartnerId,
+          email: writeEmail,
           items: pricingResult.calculatedItems,
           memo: pricingResult.aiLetter
         })
@@ -104,12 +150,50 @@ export default function EstimateWriteModal({
       if (data.success) {
         handleClose();
         onSuccess();
-        alert("바이어 맞춤형 AI 추천 단가 및 견적 서한이 문자로 정상 자동 발송되었습니다!");
+        alert(data.message || "견적서가 공식 등록 완료되었습니다.");
       } else {
-        alert(data.error || "발송 실패");
+        alert(data.error || "견적 등록 실패");
       }
     } catch (e) {
-      alert("발송 실패");
+      alert("견적 등록 중 네트워크 에러 발생");
+    }
+  };
+
+  // 3. 견적서 최종 발송 (선택 채널 연동)
+  const handleExecuteSend = async () => {
+    if (!pricingResult) return;
+    if (!sendTarget.trim()) {
+      alert("발송 수신처를 입력해 주세요.");
+      return;
+    }
+    try {
+      const res = await fetch("/api/estimates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "OUTBOUND",
+          direction_status: "SENT",
+          partner_name: writePartner,
+          partner_phone: writePhone,
+          partner_manager: writeManager,
+          partner_id: selectedPartnerId === "direct" ? "" : selectedPartnerId,
+          email: writeEmail,
+          items: pricingResult.calculatedItems,
+          memo: pricingResult.aiLetter,
+          send_method: sendMethod,
+          send_target: sendTarget
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        handleClose();
+        onSuccess();
+        alert(data.message || "선택하신 수단으로 견적서 발송이 성공적으로 완료되었습니다!");
+      } else {
+        alert(data.error || "견적 발송 실패");
+      }
+    } catch (e) {
+      alert("견적 발송 중 네트워크 에러 발생");
     }
   };
 
@@ -164,12 +248,17 @@ export default function EstimateWriteModal({
                   setSelectedPartnerId(ptId);
                   if (ptId === "direct") {
                     setWritePartner("");
+                    setWriteManager("");
                     setWritePhone("");
+                    setWriteEmail("");
+                    setWriteFax("");
                   } else {
                     const target = partners.find(p => p.id === ptId);
                     if (target) {
                       setWritePartner(target.company_name);
                       setWritePhone(target.phone || "");
+                      setWriteEmail((target as any).email || "");
+                      setWriteFax((target as any).fax || "");
                     }
                   }
                 }}
@@ -182,7 +271,7 @@ export default function EstimateWriteModal({
               </select>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
                 <label className="text-[10px] text-slate-400 font-bold block mb-1">바이어 성함/상호명 *</label>
                 <input 
@@ -196,6 +285,17 @@ export default function EstimateWriteModal({
                 />
               </div>
               <div>
+                <label className="text-[10px] text-slate-400 font-bold block mb-1">수신인명 (담당자)</label>
+                <input 
+                  type="text" 
+                  placeholder="예: 홍길동"
+                  value={writeManager}
+                  onChange={e => setWriteManager(e.target.value)}
+                  disabled={selectedPartnerId !== "direct"}
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold disabled:bg-slate-100/70 disabled:text-slate-500"
+                />
+              </div>
+              <div>
                 <label className="text-[10px] text-slate-400 font-bold block mb-1">수신처 연락처 *</label>
                 <input 
                   type="text" 
@@ -205,6 +305,31 @@ export default function EstimateWriteModal({
                   disabled={selectedPartnerId !== "direct"}
                   className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold disabled:bg-slate-100/70 disabled:text-slate-500"
                   required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] text-slate-400 font-bold block mb-1">수신처 이메일 주소</label>
+                <input 
+                  type="email" 
+                  placeholder="example@email.com"
+                  value={writeEmail}
+                  onChange={e => setWriteEmail(e.target.value)}
+                  disabled={selectedPartnerId !== "direct"}
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold disabled:bg-slate-100/70 disabled:text-slate-500"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 font-bold block mb-1">수신처 FAX 번호</label>
+                <input 
+                  type="text" 
+                  placeholder="예: 02-1234-5678"
+                  value={writeFax}
+                  onChange={e => setWriteFax(e.target.value)}
+                  disabled={selectedPartnerId !== "direct"}
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold disabled:bg-slate-100/70 disabled:text-slate-500"
                 />
               </div>
             </div>
@@ -380,17 +505,125 @@ export default function EstimateWriteModal({
           )}
         </div>
 
-        <div className="mt-6 border-t border-slate-100 pt-4 flex gap-3">
-          <button onClick={handleClose} className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-xs">
-            닫기
-          </button>
-          <button 
-            onClick={handleSendProposal}
-            disabled={!pricingResult}
-            className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl disabled:opacity-50"
-          >
-            AI 맞춤 견적서 발송 승인
-          </button>
+        <div className="mt-6 border-t border-slate-100 pt-4 flex flex-col gap-3">
+          {/* 발송 옵션 선택 패널 */}
+          {showSendPanel && (
+            <div className="bg-indigo-50/40 p-4.5 rounded-2xl border border-indigo-100/60 text-xs font-bold space-y-3.5 animate-scale-up text-left">
+              <span className="text-indigo-950 font-black flex items-center gap-1">✉️ 견적서 발송 방식 및 수신처 선택</span>
+              
+              <div className="flex gap-4">
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input 
+                    type="radio" 
+                    name="sendMethod" 
+                    value="EMAIL" 
+                    checked={sendMethod === 'EMAIL'} 
+                    onChange={() => {
+                      setSendMethod('EMAIL');
+                      setSendTarget(writeEmail);
+                    }}
+                    className="text-indigo-650 focus:ring-indigo-500" 
+                  />
+                  <span>이메일 발송</span>
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input 
+                    type="radio" 
+                    name="sendMethod" 
+                    value="SMS" 
+                    checked={sendMethod === 'SMS'} 
+                    onChange={() => {
+                      setSendMethod('SMS');
+                      setSendTarget(writePhone);
+                    }}
+                    className="text-indigo-650 focus:ring-indigo-500" 
+                  />
+                  <span>휴대폰 문자</span>
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input 
+                    type="radio" 
+                    name="sendMethod" 
+                    value="FAX" 
+                    checked={sendMethod === 'FAX'} 
+                    onChange={() => {
+                      setSendMethod('FAX');
+                      setSendTarget(writeFax);
+                    }}
+                    className="text-indigo-650 focus:ring-indigo-500" 
+                  />
+                  <span>팩스 발송</span>
+                </label>
+              </div>
+
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">
+                  {sendMethod === 'EMAIL' ? '수신 이메일 주소 *' : sendMethod === 'SMS' ? '수신 연락처 *' : '수신 FAX 번호 *'}
+                </label>
+                <input
+                  type="text"
+                  value={sendTarget}
+                  onChange={e => setSendTarget(e.target.value)}
+                  placeholder={sendMethod === 'EMAIL' ? 'example@email.com' : sendMethod === 'SMS' ? '010-1234-5678' : '02-1234-5678'}
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleExecuteSend}
+                  disabled={!sendTarget.trim()}
+                  className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors disabled:opacity-50"
+                >
+                  견적서 최종 발송
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowSendPanel(false)}
+                  className="px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl transition-colors"
+                >
+                  취소
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-2.5">
+            <button onClick={handleClose} className="px-4 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold text-xs">
+              닫기
+            </button>
+            <button 
+              type="button"
+              onClick={handleSaveDraft}
+              disabled={!pricingResult}
+              className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl disabled:opacity-50 cursor-pointer"
+            >
+              견적서 임시 저장
+            </button>
+            <button 
+              type="button"
+              onClick={handleRegisterOnly}
+              disabled={!pricingResult}
+              className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl disabled:opacity-50 cursor-pointer"
+            >
+              견적서 등록
+            </button>
+            <button 
+              type="button"
+              onClick={() => {
+                setShowSendPanel(true);
+                // 기본값 세팅
+                if (sendMethod === 'EMAIL') setSendTarget(writeEmail);
+                else if (sendMethod === 'SMS') setSendTarget(writePhone);
+                else setSendTarget(writeFax);
+              }}
+              disabled={!pricingResult}
+              className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl disabled:opacity-50 cursor-pointer"
+            >
+              견적서 발송
+            </button>
+          </div>
         </div>
       </div>
     </div>
