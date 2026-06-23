@@ -4,6 +4,7 @@ import React from "react";
 import DatabaseInitCard from "../DatabaseInitCard";
 import CompanySettingsCard from "../CompanySettingsCard";
 import SmtpSettingsCard from "../SmtpSettingsCard";
+import FaxSettingsCard from "../FaxSettingsCard";
 import AiSettingsCard from "../../AiSettingsCard";
 import EstimateSettingsCard from "../EstimateSettingsCard";
 import PointSettingsCard from "../../PointSettingsCard";
@@ -23,6 +24,9 @@ export function SettingsContainer() {
       
       {/* 발송 메일 SMTP 설정 카드 */}
       <SmtpSettingsCard />
+
+      {/* 팩스 발신 설정 카드 */}
+      <FaxSettingsCard />
       
       {/* AI 설정 카드 */}
       <AiSettingsCard />

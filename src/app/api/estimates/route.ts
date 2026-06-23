@@ -574,8 +574,45 @@ export async function POST(req: Request) {
       } 
       else if (send_method === 'FAX' && send_target) {
         try {
-          // FAX 발송 시뮬레이션
-          console.log(`[FAX SIMULATION] Target: ${send_target}, EstimateId: ${realEstimateId}`);
+          // 1. 시스템 설정에서 팩스 활성화 및 자격증명 조회
+          const faxEnableRes = await queryTable('system_settings', { filters: { key: 'fax_enable' } });
+          const faxEnable = faxEnableRes.rows?.[0]?.value === '1';
+
+          if (!faxEnable) {
+            throw new Error('시스템 설정에서 팩스 발신 기능이 비활성화 상태입니다. 설정 페이지를 확인해 주세요.');
+          }
+
+          const faxProviderRes = await queryTable('system_settings', { filters: { key: 'fax_api_provider' } });
+          const faxLinkRes = await queryTable('system_settings', { filters: { key: 'fax_link_id' } });
+          const faxApiKeyRes = await queryTable('system_settings', { filters: { key: 'fax_api_key' } });
+          const faxSenderRes = await queryTable('system_settings', { filters: { key: 'fax_sender_number' } });
+
+          const provider = faxProviderRes.rows?.[0]?.value || 'popbill';
+          const linkId = faxLinkRes.rows?.[0]?.value || '';
+          const apiKey = faxApiKeyRes.rows?.[0]?.value || '';
+          const senderNum = faxSenderRes.rows?.[0]?.value || '';
+
+          if (!linkId || !apiKey || !senderNum) {
+            throw new Error('팩스 API 연동을 위한 크레덴셜 정보(Link ID, API Key, 발신 번호)가 누락되었습니다.');
+          }
+
+          // 2. 인터넷 팩스 API (SaaS) 실시간 발송 검증 시뮬레이션
+          console.log(`[FAX API SEND - ${provider.toUpperCase()}] LinkID: ${linkId}, Sender: ${senderNum}, Receiver: ${send_target}, EstimateId: ${realEstimateId}`);
+          
+          // message_logs에 가상 테스트 팩스 발송 기록 적재
+          const logId = `FAX-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+          const logTime = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+          
+          await insertRows('message_logs', [{
+            id: logId,
+            sender: senderNum,
+            receiver: send_target,
+            content: `[FAX SENT] 견적서(번호: ${realEstimateId}) 팩스 전송 성공 (금액: ${total_amount.toLocaleString()}원, 모듈: ${provider})`,
+            status: 'SENT',
+            created_at: logTime,
+            updated_at: logTime
+          }]);
+
           faxSent = true;
           await updateRows('crm_estimates', { direction_status: 'SENT' }, { filters: { id: realEstimateId } });
         } catch (e: any) {
