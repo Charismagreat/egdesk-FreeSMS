@@ -29,6 +29,7 @@ export default function EstimateDetailModal({
   const [activeDetailTab, setActiveDetailTab] = useState<'info' | 'items'>('info');
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string>("");
   const [dbTags, setDbTags] = useState<any[]>([]);
+  const [myProfile, setMyProfile] = useState<any | null>(null);
 
   // 편집 폼 상태
   const [editForm, setEditForm] = useState<{
@@ -67,7 +68,7 @@ export default function EstimateDetailModal({
     detailData.estimate.type === 'OUTBOUND' && 
     detailData.estimate.direction_status === 'RECEIVED');
 
-  // 태그 프리셋 로드
+  // 태그 프리셋 및 본사 프로필 로드
   useEffect(() => {
     if (isOpen) {
       fetch("/api/expenses/tags")
@@ -78,6 +79,17 @@ export default function EstimateDetailModal({
           }
         })
         .catch((e) => console.error("태그 로드 에러:", e));
+
+      fetch('/api/settings?key=my_company_profile')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.value) {
+            try {
+              setMyProfile(JSON.parse(data.value));
+            } catch (e) {}
+          }
+        })
+        .catch((e) => console.error("본사 프로필 로드 에러:", e));
     }
   }, [isOpen]);
 
@@ -600,23 +612,43 @@ export default function EstimateDetailModal({
                         </div>
                         <div>
                           <span className="text-slate-400 font-bold block">사업자번호</span>
-                          <span className="text-slate-800 font-bold mt-1 inline-block">{detailMeta?.business_number || "-"}</span>
+                          <span className="text-slate-800 font-bold mt-1 inline-block">
+                            {detailData.estimate.type === 'OUTBOUND' 
+                              ? (myProfile?.businessNumber || "-")
+                              : (detailMeta?.business_number || "-")}
+                          </span>
                         </div>
                         <div>
                           <span className="text-slate-400 font-bold block">대표자명</span>
-                          <span className="text-slate-800 font-bold mt-1 inline-block">{detailMeta?.representative || "-"}</span>
+                          <span className="text-slate-800 font-bold mt-1 inline-block">
+                            {detailData.estimate.type === 'OUTBOUND' 
+                              ? (myProfile?.representative || "-")
+                              : (detailMeta?.representative || "-")}
+                          </span>
                         </div>
                         <div className="col-span-2">
                           <span className="text-slate-400 font-bold block">소재지 주소</span>
-                          <span className="text-slate-800 font-bold mt-1 inline-block">{detailMeta?.address || "-"}</span>
+                          <span className="text-slate-800 font-bold mt-1 inline-block">
+                            {detailData.estimate.type === 'OUTBOUND' 
+                              ? (myProfile?.address || "-")
+                              : (detailMeta?.address || "-")}
+                          </span>
                         </div>
                         <div>
                           <span className="text-slate-400 font-bold block">{isSalesOrderScan ? "문서 발주번호" : "문서 견적번호"}</span>
-                          <span className="text-slate-800 font-black font-mono mt-1 inline-block">{detailMeta?.document_number || "-"}</span>
+                          <span className="text-slate-800 font-black font-mono mt-1 inline-block">
+                            {detailData.estimate.type === 'OUTBOUND' 
+                              ? (detailData.estimate.id || "-")
+                              : (detailMeta?.document_number || "-")}
+                          </span>
                         </div>
                         <div>
                           <span className="text-slate-400 font-bold block">{isSalesOrderScan ? "문서 발주일자" : "문서 견적일자"}</span>
-                          <span className="text-slate-800 font-bold mt-1 inline-block">{detailMeta?.document_date || "-"}</span>
+                          <span className="text-slate-800 font-bold mt-1 inline-block">
+                            {detailData.estimate.type === 'OUTBOUND' 
+                              ? (detailData.estimate.created_at?.substring(0, 10) || "-")
+                              : (detailMeta?.document_date || "-")}
+                          </span>
                         </div>
                         {isSalesOrderScan && (
                           <div className="col-span-2">
@@ -765,26 +797,34 @@ export default function EstimateDetailModal({
                       ) : (
                         /* 조회 전용 일반 테이블 */
                         <div className="border border-slate-100 rounded-2xl overflow-hidden max-h-[540px] overflow-y-auto">
-                          <table className="w-full text-left text-xs font-semibold">
+                          <table className="w-full text-left text-xs font-semibold" style={{ tableLayout: "fixed" }}>
+                            <colgroup>
+                              <col style={{ width: "16%" }} /> {/* 품목코드 */}
+                              <col style={{ width: "42%" }} /> {/* 품목명 */}
+                              <col style={{ width: "10%" }} /> {/* 수량 */}
+                              <col style={{ width: "15%" }} /> {/* 단가 */}
+                              <col style={{ width: "17%" }} /> {/* 공급가액 */}
+                              {isSalesOrderScan && <col style={{ width: "15%" }} />} {/* 납기일 */}
+                            </colgroup>
                             <thead>
                               <tr className="border-b border-slate-100 text-slate-400 text-[10px]">
-                                <th className="py-2.5 px-3 w-[110px] sticky top-0 bg-slate-50 z-10">품목코드</th>
+                                <th className="py-2.5 px-3 sticky top-0 bg-slate-50 z-10">품목코드</th>
                                 <th className="py-2.5 px-3 sticky top-0 bg-slate-50 z-10">품목명</th>
-                                <th className="py-2.5 px-2 text-center w-[70px] sticky top-0 bg-slate-50 z-10">수량</th>
-                                <th className="py-2.5 px-2 text-right w-[110px] sticky top-0 bg-slate-50 z-10">단가</th>
-                                <th className="py-2.5 px-3 text-right w-[110px] sticky top-0 bg-slate-50 z-10">공급가액</th>
-                                {isSalesOrderScan && <th className="py-2.5 px-2 text-center w-[110px] sticky top-0 bg-slate-50 z-10">납기일</th>}
+                                <th className="py-2.5 px-2 text-center sticky top-0 bg-slate-50 z-10">수량</th>
+                                <th className="py-2.5 px-2 text-right sticky top-0 bg-slate-50 z-10">단가</th>
+                                <th className="py-2.5 px-3 text-right sticky top-0 bg-slate-50 z-10">공급가액</th>
+                                {isSalesOrderScan && <th className="py-2.5 px-2 text-center sticky top-0 bg-slate-50 z-10">납기일</th>}
                               </tr>
                             </thead>
                             <tbody>
                               {detailData.items.map((item: any, idx: number) => (
                                 <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/40">
-                                  <td className="py-3 px-3 text-slate-500 font-mono text-[11px]">{item.item_code || "-"}</td>
-                                  <td className="py-3 px-3 text-slate-800 font-bold">{item.product_name}</td>
-                                  <td className="py-3 px-2 text-center text-slate-600 font-bold">{item.quantity}개</td>
-                                  <td className="py-3 px-2 text-right text-slate-500 font-medium">{(item.unit_price || 0).toLocaleString()}원</td>
-                                  <td className="py-3 px-3 text-right text-indigo-600 font-bold">{((item.quantity || 0) * (item.unit_price || 0)).toLocaleString()}원</td>
-                                  {isSalesOrderScan && <td className="py-3 px-2 text-center text-slate-600 font-bold">{item.delivery_date || "-"}</td>}
+                                  <td className="py-3 px-3 text-slate-500 font-mono text-[11px] truncate" title={item.item_code || ""}>{item.item_code || "-"}</td>
+                                  <td className="py-3 px-3 text-slate-800 font-bold" style={{ wordBreak: "keep-all", overflowWrap: "break-word" }}>{item.product_name}</td>
+                                  <td className="py-3 px-2 text-center text-slate-600 font-bold whitespace-nowrap">{item.quantity}개</td>
+                                  <td className="py-3 px-2 text-right text-slate-500 font-medium whitespace-nowrap">{(item.unit_price || 0).toLocaleString()}원</td>
+                                  <td className="py-3 px-3 text-right text-indigo-600 font-bold whitespace-nowrap">{((item.quantity || 0) * (item.unit_price || 0)).toLocaleString()}원</td>
+                                  {isSalesOrderScan && <td className="py-3 px-2 text-center text-slate-600 font-bold whitespace-nowrap">{item.delivery_date || "-"}</td>}
                                 </tr>
                               ))}
                             </tbody>

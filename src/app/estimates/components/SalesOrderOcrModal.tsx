@@ -29,7 +29,7 @@ export default function SalesOrderOcrModal({
     partner_name: "",
     partner_phone: "",
     partner_manager: "",
-    items: [] as Array<{ product_name: string; quantity: number; unit_price: number; delivery_date?: string }>,
+    items: [] as Array<{ item_code?: string; product_name: string; spec?: string; quantity: number; unit_price: number; delivery_date?: string }>,
     file_url: "",
     business_number: "",
     representative: "",
@@ -400,7 +400,19 @@ export default function SalesOrderOcrModal({
                   <div key={idx} className="bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-1 text-xs font-semibold">
                     <div className="flex items-center justify-between">
                       <div className="flex-1 truncate pr-2">
-                        <span className="font-bold text-slate-800">{item.product_name}</span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-bold text-slate-800">{item.product_name}</span>
+                          {item.item_code && (
+                            <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[9px] font-bold rounded">
+                              {item.item_code}
+                            </span>
+                          )}
+                        </div>
+                        {item.spec && (
+                          <span className="text-[10px] text-slate-500 block mt-0.5">
+                            규격: {item.spec}
+                          </span>
+                        )}
                         <span className="text-[10px] text-slate-400 block mt-0.5">단가: {item.unit_price.toLocaleString()}원</span>
                       </div>
                       <span className="font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded shrink-0">{item.quantity}개</span>

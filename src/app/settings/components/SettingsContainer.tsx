@@ -5,6 +5,7 @@ import DatabaseInitCard from "../DatabaseInitCard";
 import CompanySettingsCard from "../CompanySettingsCard";
 import SmtpSettingsCard from "../SmtpSettingsCard";
 import AiSettingsCard from "../../AiSettingsCard";
+import EstimateSettingsCard from "../EstimateSettingsCard";
 import PointSettingsCard from "../../PointSettingsCard";
 import AiUsageMonitor from "../../AiUsageMonitor";
 import MenuSettingsCard from "../MenuSettingsCard";
@@ -25,6 +26,9 @@ export function SettingsContainer() {
       
       {/* AI 설정 카드 */}
       <AiSettingsCard />
+
+      {/* 견적/발주 AI 할인 및 템플릿 커스텀 설정 카드 */}
+      <EstimateSettingsCard />
       
       {/* AI 사용량 모니터링 카드 */}
       <AiUsageMonitor />
