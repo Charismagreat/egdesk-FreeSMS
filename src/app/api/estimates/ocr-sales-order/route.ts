@@ -43,17 +43,22 @@ export async function POST(req: Request) {
 {
   "supplier": {
     "company_name": "공급사 상호명(공급인)",
-    "business_number": "공급사 사업자번호 (XXX-XX-XXXXX 형식)"
+    "business_number": "공급사 사업자번호 (XXX-XX-XXXXX 형식)",
+    "representative": "공급자 대표자 성명 (없으면 \"\")",
+    "address": "공급자 주소 (없으면 \"\")"
   },
   "buyer": {
     "company_name": "공급받는자 상호명(발주처)",
-    "business_number": "공급받는자 사업자번호 (XXX-XX-XXXXX 형식)"
+    "business_number": "공급받는자 사업자번호 (XXX-XX-XXXXX 형식)",
+    "representative": "공급받는자 대표자 성명 (없으면 \"\")",
+    "address": "공급받는자 주소 (없으면 \"\")"
   },
   "picName": "담당자명",
   "picPhone": "담당자 연락처 (전화번호, 없으면 \"\")",
   "orderNo": "수주번호 또는 발주번호",
   "orderDate": "수주일 (YYYY-MM-DD 형식)",
   "deliveryDate": "납기일 (YYYY-MM-DD 형식)",
+  "memo": "발주서 비고 및 특이사항 (없으면 \"\")",
   "items": [
     {
       "itemCode": "품목코드",
@@ -161,12 +166,21 @@ export async function POST(req: Request) {
                              (buyName && (buyName.includes(myCompName) || myCompName.includes(buyName)));
 
     let partnerName = '';
+    let partnerBizNo = '';
+    let partnerRepresentative = '';
+    let partnerAddress = '';
     
-    // 2단계: 자사 역할 비교를 통한 상대방 바이어명 추출
+    // 2단계: 자사 역할 비교를 통한 상대방 바이어 정보 추출
     if (isSupplierMyCompany) {
       partnerName = parsedData.buyer?.company_name || '';
+      partnerBizNo = parsedData.buyer?.business_number || '';
+      partnerRepresentative = parsedData.buyer?.representative || '';
+      partnerAddress = parsedData.buyer?.address || '';
     } else if (isBuyerMyCompany) {
       partnerName = parsedData.supplier?.company_name || '';
+      partnerBizNo = parsedData.supplier?.business_number || '';
+      partnerRepresentative = parsedData.supplier?.representative || '';
+      partnerAddress = parsedData.supplier?.address || '';
     } else {
       // 자사 정보가 둘 다 불일치하는 경우 (폴백)
       // 사용자 공식: "수주등록용 발주서일 경우 사업자번호가 있는 업체가 상대방 정보이다"
@@ -175,8 +189,14 @@ export async function POST(req: Request) {
 
       if (hasBuyBiz && !hasSupBiz) {
         partnerName = parsedData.buyer?.company_name || '';
+        partnerBizNo = parsedData.buyer?.business_number || '';
+        partnerRepresentative = parsedData.buyer?.representative || '';
+        partnerAddress = parsedData.buyer?.address || '';
       } else {
         partnerName = parsedData.supplier?.company_name || '';
+        partnerBizNo = parsedData.supplier?.business_number || '';
+        partnerRepresentative = parsedData.supplier?.representative || '';
+        partnerAddress = parsedData.supplier?.address || '';
       }
     }
 
@@ -223,6 +243,14 @@ export async function POST(req: Request) {
     } catch(e) {}
 
     const soId = `SO-${Date.now()}`;
+    const tagsObj = {
+      business_number: partnerBizNo || '',
+      representative: partnerRepresentative || '',
+      address: partnerAddress || '',
+      document_number: orderNo || '',
+      document_date: orderDate || '',
+      document_memo: parsedData.memo || ''
+    };
 
     // 3. 견적서 섀도우 생성 (crm_estimates)
     const estimateId = `EST-${Date.now()}`;
@@ -237,6 +265,7 @@ export async function POST(req: Request) {
       file_url: 'AI 발주서 다이렉트 자동 스캔',
       ai_parsed: 1,
       uuid,
+      tags: JSON.stringify(tagsObj),
       sales_order_number: orderNo || soId,
       created_at: nowStr
     }]);

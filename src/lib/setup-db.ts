@@ -366,6 +366,7 @@ export async function setupDatabase() {
     { name: 'file_url', type: 'TEXT' },
     { name: 'business_license_url', type: 'TEXT' },             // 첫 견적 요청 시 사업자등록증 첨부 파일 경로
     { name: 'ai_parsed', type: 'INTEGER', defaultValue: 0 },
+    { name: 'tags', type: 'TEXT' },
     { name: 'created_at', type: 'TEXT', notNull: true },
     { name: 'uuid', type: 'TEXT' },
     { name: 'sales_order_number', type: 'TEXT' },
@@ -1926,6 +1927,10 @@ export async function setupDatabase() {
       if (!estimateCols.includes('partner_manager')) {
         await executeSQL("ALTER TABLE crm_estimates ADD COLUMN partner_manager TEXT;");
         console.log('✓ In-app migration: added partner_manager to crm_estimates');
+      }
+      if (!estimateCols.includes('tags')) {
+        await executeSQL("ALTER TABLE crm_estimates ADD COLUMN tags TEXT;");
+        console.log('✓ In-app migration: added tags to crm_estimates');
       }
     } catch (e: any) {
       console.warn('⚠️ crm_estimates migration check warning:', e.message);

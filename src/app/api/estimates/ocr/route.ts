@@ -68,21 +68,27 @@ Format example of output:
 Do NOT output anything other than this JSON string. No markdown block wrapper.
 `;
         } else {
-          // 기본 견적서 전용 프롬프트 (수신자 및 발급처 이중 추출 구조화)
           systemInstruction = `
 You are a highly advanced AI OCR scanner specializing in structured extraction of financial documents, receipts, and supply estimates.
 Your job is to look at the provided image (which is a supply estimate / quote / purchase order) and extract the following in valid JSON ONLY:
 1. "supplier": Object containing:
    - "company_name": String (공급자/공급처 회사명. If not found, "")
    - "business_number": String (공급자 사업자번호. Format: "XXX-XX-XXXXX", otherwise "")
+   - "representative": String (공급자 대표자 성명. If not found, "")
+   - "address": String (공급자 주소. If not found, "")
    - "phone": String (공급자 연락처/전화번호, otherwise "")
    - "pic_name": String (공급자 담당자 성명, otherwise "")
 2. "buyer": Object containing:
    - "company_name": String (공급받는자/수신처 회사명. If not found, "")
    - "business_number": String (공급받는자 사업자번호. Format: "XXX-XX-XXXXX", otherwise "")
+   - "representative": String (공급받는자 대표자 성명. If not found, "")
+   - "address": String (공급받는자 주소. If not found, "")
    - "phone": String (공급받는자 연락처/전화번호, otherwise "")
    - "pic_name": String (공급받는자 담당자 성명, otherwise "")
-3. "items": Array of objects, each containing:
+3. "document_number": String (문서상에 적힌 견적서/발주서 고유 번호. If not found, "")
+4. "document_date": String (문서 작성/발행 일자. Format: "YYYY-MM-DD", otherwise "")
+5. "document_memo": String (유효기간, 결제조건, 인도조건 등 비고/기타 설명 텍스트. If not found, "")
+6. "items": Array of objects, each containing:
    - "product_name": String (Name of the item)
    - "quantity": Integer (Number of items requested/quoted)
    - "unit_price": Integer (Price per unit)
@@ -92,15 +98,22 @@ Format example of output:
   "supplier": {
     "company_name": "태백유통(주)",
     "business_number": "123-45-67890",
+    "representative": "홍길동",
+    "address": "강원도 태백시 태백로 100",
     "phone": "02-1234-5678",
     "pic_name": "홍길동"
   },
   "buyer": {
     "company_name": "(주)쿠스",
     "business_number": "731-81-02023",
+    "representative": "차민수",
+    "address": "서울특별시 강남구 테헤란로 1",
     "phone": "010-0000-0000",
     "pic_name": "차민수"
   },
+  "document_number": "EST-20260623-01",
+  "document_date": "2026-06-23",
+  "document_memo": "유효기간: 발행일로부터 30일\n결제조건: 현금\n납기조건: 7일 이내",
   "items": [
     { "product_name": "특A급 아메리카노 원두 10kg", "quantity": 5, "unit_price": 45000 }
   ]
@@ -202,6 +215,8 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
               let partnerPhone = '';
               let partnerBizNo = '';
               let partnerManager = '';
+              let partnerRepresentative = '';
+              let partnerAddress = '';
               let receiverMatched = true;
 
               // 2단계: 판정 결과에 따른 문서 방향 및 상대 거래처 매핑
@@ -212,6 +227,8 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
                 partnerPhone = ocrJson.supplier?.phone || '';
                 partnerBizNo = ocrJson.supplier?.business_number || '';
                 partnerManager = ocrJson.supplier?.pic_name || '';
+                partnerRepresentative = ocrJson.supplier?.representative || '';
+                partnerAddress = ocrJson.supplier?.address || '';
               } else if (isSupplierMyCompany) {
                 // 자사가 공급자이므로 보낸 견적서(OUTBOUND)
                 targetType = 'OUTBOUND';
@@ -219,6 +236,8 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
                 partnerPhone = ocrJson.buyer?.phone || '';
                 partnerBizNo = ocrJson.buyer?.business_number || '';
                 partnerManager = ocrJson.buyer?.pic_name || '';
+                partnerRepresentative = ocrJson.buyer?.representative || '';
+                partnerAddress = ocrJson.buyer?.address || '';
               } else {
                 // 자사 정보와 매치되지 않는 경우 (폴백 조치)
                 // 사용자 공식: "받은 견적서일 경우 사업자번호가 있는 업체가 상대방 거래처이다"
@@ -231,11 +250,15 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
                   partnerPhone = ocrJson.buyer?.phone || '';
                   partnerBizNo = ocrJson.buyer?.business_number || '';
                   partnerManager = ocrJson.buyer?.pic_name || '';
+                  partnerRepresentative = ocrJson.buyer?.representative || '';
+                  partnerAddress = ocrJson.buyer?.address || '';
                 } else {
                   partnerName = ocrJson.supplier?.company_name || '';
                   partnerPhone = ocrJson.supplier?.phone || '';
                   partnerBizNo = ocrJson.supplier?.business_number || '';
                   partnerManager = ocrJson.supplier?.pic_name || '';
+                  partnerRepresentative = ocrJson.supplier?.representative || '';
+                  partnerAddress = ocrJson.supplier?.address || '';
                 }
                 receiverMatched = false;
               }
@@ -248,6 +271,11 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
                 partner_phone: partnerPhone || '010-0000-0000',
                 partner_manager: partnerManager || '',
                 partner_business_number: partnerBizNo || '',
+                partner_representative: partnerRepresentative || '',
+                partner_address: partnerAddress || '',
+                document_number: ocrJson.document_number || '',
+                document_date: ocrJson.document_date || '',
+                document_memo: ocrJson.document_memo || '',
                 items: ocrJson.items || [],
                 receiver_matched: receiverMatched,
                 method: 'REAL_GEMINI_OCR'
@@ -395,7 +423,12 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
         type: mockType,
         partner_name: mockPartnerName,
         partner_phone: mockPartnerPhone,
-        partner_business_number: mockBuyerBizNo !== myCompanyProfile.businessNumber ? mockBuyerBizNo : '',
+        partner_business_number: mockBuyerBizNo !== myCompanyProfile.businessNumber ? mockBuyerBizNo : '123-45-67890',
+        partner_representative: '홍길동',
+        partner_address: '경기도 성남시 분당구 판교역로 235',
+        document_number: 'EST-2026-MOCK-99',
+        document_date: '2026-06-23',
+        document_memo: '유효기간: 발행일로부터 15일\n납기: 수주 후 10일 이내',
         items: mockItems,
         receiver_matched: receiverMatched,
         method: 'MOCKUP_INTELLIGENT_OCR'

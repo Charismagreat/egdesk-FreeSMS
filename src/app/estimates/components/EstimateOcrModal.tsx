@@ -21,8 +21,15 @@ export default function EstimateOcrModal({
   const [ocrForm, setOcrForm] = useState({
     partner_name: "",
     partner_phone: "",
+    partner_manager: "",
     items: [] as Array<{ product_name: string; quantity: number; unit_price: number }>,
-    file_url: ""
+    file_url: "",
+    business_number: "",
+    representative: "",
+    address: "",
+    document_number: "",
+    document_date: "",
+    document_memo: ""
   });
 
   if (!isOpen) return null;
@@ -35,8 +42,15 @@ export default function EstimateOcrModal({
     setOcrForm({
       partner_name: "",
       partner_phone: "",
+      partner_manager: "",
       items: [],
-      file_url: ""
+      file_url: "",
+      business_number: "",
+      representative: "",
+      address: "",
+      document_number: "",
+      document_date: "",
+      document_memo: ""
     });
   };
 
@@ -75,8 +89,15 @@ export default function EstimateOcrModal({
           setOcrForm({
             partner_name: data.partner_name,
             partner_phone: data.partner_phone || "",
+            partner_manager: data.partner_manager || "",
             items: data.items,
-            file_url: base64Data
+            file_url: base64Data,
+            business_number: data.partner_business_number || "",
+            representative: data.partner_representative || "",
+            address: data.partner_address || "",
+            document_number: data.document_number || "",
+            document_date: data.document_date || "",
+            document_memo: data.document_memo || ""
           });
           setReceiverMatched(data.receiver_matched !== false);
         } else {
@@ -99,6 +120,15 @@ export default function EstimateOcrModal({
   const handleSaveOcrEstimate = async () => {
     if (!ocrForm.partner_name || ocrForm.items.length === 0) return;
     try {
+      const tagsObj = {
+        business_number: ocrForm.business_number,
+        representative: ocrForm.representative,
+        address: ocrForm.address,
+        document_number: ocrForm.document_number,
+        document_date: ocrForm.document_date,
+        document_memo: ocrForm.document_memo
+      };
+
       const res = await fetch("/api/estimates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -107,9 +137,11 @@ export default function EstimateOcrModal({
           direction_status: "REQUESTED",
           partner_name: ocrForm.partner_name,
           partner_phone: ocrForm.partner_phone,
+          partner_manager: ocrForm.partner_manager,
           items: ocrForm.items,
           ai_parsed: 1,
-          file_url: ocrForm.file_url
+          file_url: ocrForm.file_url,
+          tags: JSON.stringify(tagsObj)
         })
       });
       const data = await res.json();
@@ -210,6 +242,79 @@ export default function EstimateOcrModal({
                     className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] text-slate-400 font-bold block mb-1">사업자번호</label>
+                  <input 
+                    type="text" 
+                    value={ocrForm.business_number}
+                    onChange={e => setOcrForm(prev => ({ ...prev, business_number: e.target.value }))}
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-400 font-bold block mb-1">대표자명</label>
+                  <input 
+                    type="text" 
+                    value={ocrForm.representative}
+                    onChange={e => setOcrForm(prev => ({ ...prev, representative: e.target.value }))}
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] text-slate-400 font-bold block mb-1">담당자명</label>
+                  <input 
+                    type="text" 
+                    value={ocrForm.partner_manager}
+                    onChange={e => setOcrForm(prev => ({ ...prev, partner_manager: e.target.value }))}
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-400 font-bold block mb-1">문서번호</label>
+                  <input 
+                    type="text" 
+                    value={ocrForm.document_number}
+                    onChange={e => setOcrForm(prev => ({ ...prev, document_number: e.target.value }))}
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] text-slate-400 font-bold block mb-1">발행일자</label>
+                  <input 
+                    type="text" 
+                    value={ocrForm.document_date}
+                    onChange={e => setOcrForm(prev => ({ ...prev, document_date: e.target.value }))}
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-slate-400 font-bold block mb-1">소재지 주소</label>
+                  <input 
+                    type="text" 
+                    value={ocrForm.address}
+                    onChange={e => setOcrForm(prev => ({ ...prev, address: e.target.value }))}
+                    className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] text-slate-400 font-bold block mb-1">기타 비고</label>
+                <textarea 
+                  value={ocrForm.document_memo}
+                  onChange={e => setOcrForm(prev => ({ ...prev, document_memo: e.target.value }))}
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold resize-none"
+                  rows={2}
+                />
               </div>
 
               <div className="space-y-2">

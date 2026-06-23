@@ -514,8 +514,8 @@ export const TABLES = {
   crm_estimates: {
     name: 'crm_estimates',
     displayName: '견적서 관리',
-    columns: ['type', 'direction_status', 'partner_name', 'partner_phone', 'partner_manager', 'total_amount', 'file_url', 'business_license_url', 'ai_parsed', 'created_at', 'uuid', 'sales_order_number', 'purchase_order_number', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by'],
-    columnCount: 19,
+    columns: ['type', 'direction_status', 'partner_name', 'partner_phone', 'partner_manager', 'tags', 'total_amount', 'file_url', 'business_license_url', 'ai_parsed', 'created_at', 'uuid', 'sales_order_number', 'purchase_order_number', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by'],
+    columnCount: 20,
     rowCount: 0,
   },
   crm_point_history: {
