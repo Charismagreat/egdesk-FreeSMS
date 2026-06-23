@@ -68,25 +68,35 @@ Format example of output:
 Do NOT output anything other than this JSON string. No markdown block wrapper.
 `;
         } else {
-          // 기본 견적서 전용 프롬프트 (수신자 검증 데이터 추출 포함)
+          // 기본 견적서 전용 프롬프트 (수신자 및 발급처 이중 추출 구조화)
           systemInstruction = `
 You are a highly advanced AI OCR scanner specializing in structured extraction of financial documents, receipts, and supply estimates.
 Your job is to look at the provided image (which is a supply estimate / quote / purchase order) and extract the following in valid JSON ONLY:
-1. "partner_name": String (The name of the company/vendor who issued the estimate/PO)
-2. "partner_phone": String (The phone number or contact info of the company/vendor)
-3. "buyer_name": String (The recipient of the document / 공급받는자 / 수신인 / 발주처. If not found, output "")
-4. "buyer_business_number": String (The business registration number of the buyer, if found. Format: "XXX-XX-XXXXX", otherwise "")
-5. "items": Array of objects, each containing:
+1. "supplier": Object containing:
+   - "company_name": String (공급자/공급처 회사명. If not found, "")
+   - "business_number": String (공급자 사업자번호. Format: "XXX-XX-XXXXX", otherwise "")
+   - "phone": String (공급자 연락처, otherwise "")
+2. "buyer": Object containing:
+   - "company_name": String (공급받는자/수신처 회사명. If not found, "")
+   - "business_number": String (공급받는자 사업자번호. Format: "XXX-XX-XXXXX", otherwise "")
+   - "phone": String (공급받는자 연락처, otherwise "")
+3. "items": Array of objects, each containing:
    - "product_name": String (Name of the item)
    - "quantity": Integer (Number of items requested/quoted)
    - "unit_price": Integer (Price per unit)
 
 Format example of output:
 {
-  "partner_name": "태백유통(주)",
-  "partner_phone": "02-1234-5678",
-  "buyer_name": "(주)쿠스",
-  "buyer_business_number": "731-81-02023",
+  "supplier": {
+    "company_name": "태백유통(주)",
+    "business_number": "123-45-67890",
+    "phone": "02-1234-5678"
+  },
+  "buyer": {
+    "company_name": "(주)쿠스",
+    "business_number": "731-81-02023",
+    "phone": "010-0000-0000"
+  },
   "items": [
     { "product_name": "특A급 아메리카노 원두 10kg", "quantity": 5, "unit_price": 45000 }
   ]
@@ -162,32 +172,68 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
               });
             }
           } else {
-            if (ocrJson.partner_name && ocrJson.items) {
-              const buyerName = (ocrJson.buyer_name || '').trim();
-              const buyerBizNo = (ocrJson.buyer_business_number || '').replace(/\D/g, '');
-              
-              const cleanMyCompName = myCompanyProfile.companyName.replace(/[^가-힣a-zA-Z0-9]/g, '');
-              
-              let receiverMatched = true; // 수신자가 명시되어 있지 않은 견적서는 유연하게 승인 허용
-              
-              if (buyerName) {
-                const cleanExtBuyer = buyerName.replace(/[^가-힣a-zA-Z0-9]/g, '');
-                const hasMyName = cleanExtBuyer.includes(cleanMyCompName) || cleanMyCompName.includes(cleanExtBuyer);
-                const hasMyBiz = buyerBizNo && myCompanyProfile.businessNumber.replace(/\D/g, '') === buyerBizNo;
-                
-                if (!hasMyName && !hasMyBiz) {
-                  receiverMatched = false;
+            if ((ocrJson.supplier || ocrJson.buyer) && ocrJson.items) {
+              const myBizNum = myCompanyProfile.businessNumber.replace(/\D/g, '');
+              const myCompName = myCompanyProfile.companyName.replace(/[^가-힣a-zA-Z0-9]/g, '');
+
+              const supBiz = (ocrJson.supplier?.business_number || '').replace(/\D/g, '');
+              const supName = (ocrJson.supplier?.company_name || '').replace(/[^가-힣a-zA-Z0-9]/g, '');
+
+              const buyBiz = (ocrJson.buyer?.business_number || '').replace(/\D/g, '');
+              const buyName = (ocrJson.buyer?.company_name || '').replace(/[^가-힣a-zA-Z0-9]/g, '');
+
+              // 1단계: 자사가 공급사(Supplier) 혹은 공급받는자(Buyer)인지 판별
+              const isSupplierMyCompany = (supBiz && supBiz === myBizNum) ||
+                                          (supName && (supName.includes(myCompName) || myCompName.includes(supName)));
+              const isBuyerMyCompany = (buyBiz && buyBiz === myBizNum) ||
+                                       (buyName && (buyName.includes(myCompName) || myCompName.includes(buyName)));
+
+              let targetType = 'INBOUND';
+              let partnerName = '';
+              let partnerPhone = '';
+              let partnerBizNo = '';
+              let receiverMatched = true;
+
+              // 2단계: 판정 결과에 따른 문서 방향 및 상대 거래처 매핑
+              if (isBuyerMyCompany) {
+                // 자사가 공급받는자이므로 받은 견적서(INBOUND)
+                targetType = 'INBOUND';
+                partnerName = ocrJson.supplier?.company_name || '';
+                partnerPhone = ocrJson.supplier?.phone || '';
+                partnerBizNo = ocrJson.supplier?.business_number || '';
+              } else if (isSupplierMyCompany) {
+                // 자사가 공급자이므로 보낸 견적서(OUTBOUND)
+                targetType = 'OUTBOUND';
+                partnerName = ocrJson.buyer?.company_name || '';
+                partnerPhone = ocrJson.buyer?.phone || '';
+                partnerBizNo = ocrJson.buyer?.business_number || '';
+              } else {
+                // 자사 정보와 매치되지 않는 경우 (폴백 조치)
+                // 사용자 공식: "받은 견적서일 경우 사업자번호가 있는 업체가 상대방 거래처이다"
+                // 디폴트로 공급자(supplier)가 사업자번호를 지닐 확률이 높으므로 사업자번호 존재 여부를 확인해 세팅.
+                const hasSupBiz = !!supBiz;
+                const hasBuyBiz = !!buyBiz;
+
+                if (hasBuyBiz && !hasSupBiz) {
+                  partnerName = ocrJson.buyer?.company_name || '';
+                  partnerPhone = ocrJson.buyer?.phone || '';
+                  partnerBizNo = ocrJson.buyer?.business_number || '';
+                } else {
+                  partnerName = ocrJson.supplier?.company_name || '';
+                  partnerPhone = ocrJson.supplier?.phone || '';
+                  partnerBizNo = ocrJson.supplier?.business_number || '';
                 }
+                receiverMatched = false;
               }
 
               return NextResponse.json({
                 success: true,
                 document_type: 'estimate',
-                partner_name: ocrJson.partner_name,
-                partner_phone: ocrJson.partner_phone || '010-0000-0000',
-                items: ocrJson.items,
-                buyer_name: buyerName,
-                buyer_business_number: ocrJson.buyer_business_number || '',
+                type: targetType,
+                partner_name: partnerName || '미확인 거래처',
+                partner_phone: partnerPhone || '010-0000-0000',
+                partner_business_number: partnerBizNo || '',
+                items: ocrJson.items || [],
                 receiver_matched: receiverMatched,
                 method: 'REAL_GEMINI_OCR'
               });
@@ -323,14 +369,19 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
         console.error('Mock Estimate OCR token logging failed:', logErr.message);
       }
 
+      let mockType = 'INBOUND';
+      if (mockBuyerName && mockBuyerName !== myCompanyProfile.companyName) {
+        mockType = 'OUTBOUND';
+      }
+
       return NextResponse.json({
         success: true,
         document_type: 'estimate',
+        type: mockType,
         partner_name: mockPartnerName,
         partner_phone: mockPartnerPhone,
+        partner_business_number: mockBuyerBizNo !== myCompanyProfile.businessNumber ? mockBuyerBizNo : '',
         items: mockItems,
-        buyer_name: mockBuyerName,
-        buyer_business_number: mockBuyerBizNo,
         receiver_matched: receiverMatched,
         method: 'MOCKUP_INTELLIGENT_OCR'
       });

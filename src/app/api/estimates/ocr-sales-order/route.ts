@@ -41,7 +41,14 @@ export async function POST(req: Request) {
 이미지 내용을 바탕으로 아래 항목들을 정확히 추출하여 JSON 형식으로만 응답해 주세요. (Markdown 코드 블록 없이 순수 JSON만 반환)
 
 {
-  "partnerName": "거래처명(공급받는자 또는 발주처 이름)",
+  "supplier": {
+    "company_name": "공급사 상호명(공급인)",
+    "business_number": "공급사 사업자번호 (XXX-XX-XXXXX 형식)"
+  },
+  "buyer": {
+    "company_name": "공급받는자 상호명(발주처)",
+    "business_number": "공급받는자 사업자번호 (XXX-XX-XXXXX 형식)"
+  },
   "picName": "담당자명",
   "orderNo": "수주번호 또는 발주번호",
   "orderDate": "수주일 (YYYY-MM-DD 형식)",
@@ -119,9 +126,61 @@ export async function POST(req: Request) {
       throw new Error('AI 분석 결과를 JSON으로 변환하는 데 실패했습니다.');
     }
 
-    const { partnerName, orderNo, orderDate, deliveryDate, items } = parsedData;
-    if (!partnerName || !items || items.length === 0) {
-      throw new Error('바이어 명 또는 품목을 인식하지 못했습니다.');
+    // 본사 프로필 로드 (기본값 차민수/(주)쿠스/731-81-02023)
+    let myCompanyProfile = { companyName: '(주)쿠스', businessNumber: '731-81-02023' };
+    try {
+      const myCompanySetting = await queryTable('system_settings', { filters: { key: 'my_company_profile' } });
+      if (myCompanySetting.rows && myCompanySetting.rows.length > 0) {
+        const parsed = JSON.parse(myCompanySetting.rows[0].value);
+        if (parsed.companyName) myCompanyProfile.companyName = parsed.companyName;
+        if (parsed.businessNumber) myCompanyProfile.businessNumber = parsed.businessNumber;
+      }
+    } catch (e) {
+      console.error('본사 정보 설정 조회 실패:', e);
+    }
+
+    const { orderNo, orderDate, deliveryDate, items } = parsedData;
+    if (!items || items.length === 0) {
+      throw new Error('품목을 인식하지 못했습니다.');
+    }
+
+    const myBizNum = myCompanyProfile.businessNumber.replace(/\D/g, '');
+    const myCompName = myCompanyProfile.companyName.replace(/[^가-힣a-zA-Z0-9]/g, '');
+
+    const supBiz = (parsedData.supplier?.business_number || '').replace(/\D/g, '');
+    const supName = (parsedData.supplier?.company_name || '').replace(/[^가-힣a-zA-Z0-9]/g, '');
+
+    const buyBiz = (parsedData.buyer?.business_number || '').replace(/\D/g, '');
+    const buyName = (parsedData.buyer?.company_name || '').replace(/[^가-힣a-zA-Z0-9]/g, '');
+
+    // 1단계: 자사 매칭 판별
+    const isSupplierMyCompany = (supBiz && supBiz === myBizNum) ||
+                                (supName && (supName.includes(myCompName) || myCompName.includes(supName)));
+    const isBuyerMyCompany = (buyBiz && buyBiz === myBizNum) ||
+                             (buyName && (buyName.includes(myCompName) || myCompName.includes(buyName)));
+
+    let partnerName = '';
+    
+    // 2단계: 자사 역할 비교를 통한 상대방 바이어명 추출
+    if (isSupplierMyCompany) {
+      partnerName = parsedData.buyer?.company_name || '';
+    } else if (isBuyerMyCompany) {
+      partnerName = parsedData.supplier?.company_name || '';
+    } else {
+      // 자사 정보가 둘 다 불일치하는 경우 (폴백)
+      // 사용자 공식: "수주등록용 발주서일 경우 사업자번호가 있는 업체가 상대방 정보이다"
+      const hasSupBiz = !!supBiz;
+      const hasBuyBiz = !!buyBiz;
+
+      if (hasBuyBiz && !hasSupBiz) {
+        partnerName = parsedData.buyer?.company_name || '';
+      } else {
+        partnerName = parsedData.supplier?.company_name || '';
+      }
+    }
+
+    if (!partnerName) {
+      partnerName = parsedData.partnerName || '미확인 바이어';
     }
 
     // 총 금액 계산
