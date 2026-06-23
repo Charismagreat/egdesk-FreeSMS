@@ -264,7 +264,7 @@ export async function POST(req: Request) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: "당신은 이지봇이며, 최고관리자의 업무 대행이 가능한 자율 액션 에이전트입니다. 사용자가 문자 발송, 고객 등록, 지출 승인 등을 요구하면 선언된 적절한 도구(tool)를 호출해야 합니다." }] },
+        systemInstruction: { parts: [{ text: "당신은 이지봇이며, 최고관리자의 업무 대행이 가능한 자율 액션 에이전트입니다. 사용자가 문자 발송, 고객 등록, 지출 승인 등을 요구하면 선언된 적절한 도구(tool)를 호출해야 합니다. 단순 데이터 조회, 검색, 현황 파악, 통계 등은 도구를 사용하지 않고 텍스트로만 응답해 주십시오. 정의되지 않은 임의의 도구명을 만들어 호출하지 마십시오." }] },
         contents: [
           ...chatHistory.map((msg: any) => ({
             role: msg.role === 'user' ? 'user' : 'model',
@@ -286,8 +286,22 @@ export async function POST(req: Request) {
     const parts = candidate?.content?.parts || [];
     const functionCallPart = parts.find((p: any) => p.functionCall);
 
+    let executeAction = false;
+    let name = '';
+    let args: any = null;
+
     if (functionCallPart) {
-      const { name, args } = functionCallPart.functionCall;
+      name = functionCallPart.functionCall.name;
+      args = functionCallPart.functionCall.args;
+      const validTools = ['send_sms', 'register_customer', 'approve_expense'];
+      if (validTools.includes(name)) {
+        executeAction = true;
+      } else {
+        console.warn(`[이지봇 자율 액션 가드] 정의되지 않은 도구 호출 감지(${name}). DB 조회 분석 로직으로 폴백합니다.`);
+      }
+    }
+
+    if (executeAction) {
       console.log(`[이지봇 자율 액션 감지] Tool: ${name}, Args:`, args);
 
       // 1. 활성화 토글 검증 (system_settings 조회)
@@ -475,7 +489,7 @@ export async function POST(req: Request) {
   - amount (REAL): 금액 (원 단위 정수)
 
 - 중요 분석 및 쿼리 제한 사항 안내:
-  - [🚨 초긴급 필독] 백엔드 SQL 방화벽 정책에 의해, 쿼리 텍스트 내에 단어 'DELETE'가 부분 문자열로라도 포함되면(예: 'deleted_at') 실행이 원천 차단됩니다. 따라서 생성하는 SELECT 쿼리 안에 절대 'deleted_at' 또는 'deleted_at IS NULL' 컬럼 조건을 포함하지 마십시오. 소프트 삭제 필터링은 시스템이 별도로 처리하므로 단순 컬럼만 매핑 조회하십시오.
+  - [🚨 초긴급 필독] 백엔드 SQL 방화벽 정책에 의해, 쿼리 텍스트 내에 단어 'DELETE' 및 'CREATE'가 부분 문자열로라도 포함되면(예: 'deleted_at', 'created_at') 실행이 원천 차단됩니다. 따라서 생성하는 SELECT 쿼리 안에 절대 'deleted_at', 'deleted_at IS NULL', 'created_at' 컬럼이나 조건을 포함하지 마십시오. 생성일 정보가 필요하다면 컬럼 조회를 아예 생략하거나 crm_estimates 테이블의 다른 필드를 사용하십시오. 소프트 삭제 필터링은 시스템이 별도로 처리하므로 단순 컬럼만 매핑 조회하십시오.
   - 특정 연도의 특정 계정과목 금액을 검색할 때는 crm_financial_statements와 crm_financial_statement_items를 statement_id 기준으로 JOIN하여 검색해야 합니다.
   - 예시: 2025년 급여 금액 조회 시 (deleted_at 조건을 절대 쓰지 마십시오)
     SELECT i.account_name, i.amount, s.fiscal_year 
@@ -609,33 +623,34 @@ export async function POST(req: Request) {
   - is_resolved (INTEGER): 조치 완료 여부 (1: 완료, 0: 미해결/대기)
 
 [Estimates Table (crm_estimates)]
-- Description: 견적서 및 SCM 거래 마스터 정보가 저장된 테이블입니다. type이 'OUTBOUND'이면 보낸 견적서, 'INBOUND'이면 받은 견적서입니다.
+- Description: 견적서 및 SCM 거래 마스터 정보가 저장된 테이블입니다. type이 'OUTBOUND'이면 보낸 견적서/받은 발주서, 'INBOUND'이면 받은 견적서/보낸 발주서입니다.
 - Columns:
-  - id (TEXT PRIMARY KEY): 견적서 고유 ID
-  - estimate_no (TEXT): 견적서 번호
-  - title (TEXT): 견적서 제목
-  - partner_id (TEXT): 거래처 ID
-  - partner_name (TEXT): 거래처명
-  - operator_name (TEXT): 담당자명
-  - estimate_date (TEXT): 견적 일자 (YYYY-MM-DD)
-  - total_amount (INTEGER): 총 공급가액
-  - vat (INTEGER): 부가세
-  - grand_total (INTEGER): 합계 금액 (공급가액 + 부가세)
-  - status (TEXT): 상태 ('DRAFT', 'SENT', 'APPROVED', 'REJECTED')
-  - tags (TEXT): 거래 유형 태그 (예: '외주작업', '자재구매', '임가공' 등 자유 태그)
-  - type (TEXT): 'OUTBOUND' (보낸 것) 또는 'INBOUND' (받은 것)
-  - notes (TEXT): 비고
+  - id (TEXT PRIMARY KEY): 견적서 고유 ID (ORD-yymmdd-hhmmss 형식)
+  - type (TEXT): 거래 방향 ('OUTBOUND' 또는 'INBOUND')
+  - direction_status (TEXT): 상세 문서 진행 상태 ('SENT', 'RECEIVED' 등)
+  - partner_name (TEXT): 거래처 상호명
+  - partner_phone (TEXT): 거래처 연락처
+  - partner_manager (TEXT): 거래처 담당자명
+  - total_amount (INTEGER): 총 공급금액 합계
+  - file_url (TEXT): 첨부 파일 저장 경로 (OCR 분석 발주서인 경우 base64 이미지 데이터)
+  - tags (TEXT): 수주/발주 부가 정보 JSON 문자열 (예: {"business_number":"...", "delivery_date":"..."})
+  - sales_order_number (TEXT): 수주(발주등록)번호 또는 바이어 측의 실제 원본 문서상 발주번호
+  - purchase_order_number (TEXT): 공급사로 보낸 구매발주서 번호
+  - created_at (TEXT): 등록 일시 (YYYY-MM-DD HH:MM:SS)
 
 [Estimate Items Table (crm_estimate_items)]
-- Description: 견적서 및 발주서에 포함된 개별 품목 상세와 5대 비용 명세 정보가 저장된 테이블입니다.
+- Description: 견적서 및 SCM 거래 문서에 포함된 개별 상세 품목 정보가 저장된 테이블입니다.
 - Columns:
-  - id (TEXT PRIMARY KEY): 품목 상세 고유 ID
-  - estimate_id (TEXT): 연계된 견적서 ID (crm_estimates.id 또는 crm_purchase_orders.id와 조인 가능)
-  - item_name (TEXT): 품목명
+  - id (INTEGER PRIMARY KEY AUTOINCREMENT): 품목 상세 식별자
+  - estimate_id (TEXT): 연계된 견적서/발주등록 ID (crm_estimates.id 와 JOIN 가능)
+  - product_id (TEXT): 연계 제품 ID (비어있을 수 있음)
+  - product_name (TEXT): 품목명 (주목: 컬럼명이 product_name 입니다)
+  - item_code (TEXT): 품목코드 (예: DCOM-301920)
   - quantity (REAL): 수량
-  - price (INTEGER): 단가
+  - unit_price (INTEGER): 단가 (주목: 컬럼명이 unit_price 입니다)
   - amount (INTEGER): 금액 (수량 * 단가)
-  - spec (TEXT): 규격 및 스펙이 저장된 JSON 문자열입니다. 5대 원가와 정산단위를 조회하려면 SQLite의 json_extract() 함수를 활용하여 이 컬럼에서 파싱해야 합니다. (절대 DELETE 같은 키워드는 쿼리에 쓰지 마세요)
+  - delivery_date (TEXT): 품목별 개별 납기일 (YYYY-MM-DD)
+  - spec (TEXT): 규격 및 5대 세부 원가정보가 포함된 JSON 문자열입니다. json_extract() 함수를 활용하여 이 컬럼에서 파싱해야 합니다. (절대 DELETE 같은 키워드는 쿼리에 쓰지 마세요)
     * json_extract(spec, '$.cost_breakdown.material_cost') : 자재비 (원 단위 정수)
     * json_extract(spec, '$.cost_breakdown.processing_cost') : 외주가공/작업비 (원 단위 정수)
     * json_extract(spec, '$.cost_breakdown.overhead_cost') : 일반관리비 (원 단위 정수)
@@ -643,51 +658,42 @@ export async function POST(req: Request) {
     * json_extract(spec, '$.cost_breakdown.delivery_expense') : 운반비 (원 단위 정수)
     * json_extract(spec, '$.settlement_type') : 정산방식 (예: '1식', '시간당', '단가당' 등)
     * json_extract(spec, '$.delivery_date') : 품목별 개별 납기일 (예: '2026-07-30')
-  - notes (TEXT): 품목 비고
 
 [Purchase Orders Table (crm_purchase_orders)]
-- Description: 발주서 마스터 정보가 저장된 테이블입니다.
+- Description: 공급처(벤더)로 발송한 구매 발주서 마스터 정보가 저장된 테이블입니다.
 - Columns:
-  - id (TEXT PRIMARY KEY): 발주서 고유 ID
-  - po_no (TEXT): 발주 번호
-  - title (TEXT): 발주서 제목
-  - partner_id (TEXT): 공급처 ID
-  - partner_name (TEXT): 공급처명
-  - po_date (TEXT): 발주 일자 (YYYY-MM-DD)
-  - delivery_date (TEXT): 납기 일자 (YYYY-MM-DD)
-  - total_amount (INTEGER): 공급가액 총액
-  - vat (INTEGER): 부가세
-  - grand_total (INTEGER): 합계 금액
+  - id (INTEGER PRIMARY KEY AUTOINCREMENT): 구매발주 고유식별 번호
+  - estimate_id (TEXT): 연계된 견적서 ID (crm_estimates.id 와 JOIN 가능)
+  - vendor_name (TEXT): 공급처 상호명
+  - vendor_phone (TEXT): 공급처 연락처
   - status (TEXT): 상태
-  - tags (TEXT): 거래 유형 (예: '자재구매', '임가공' 등)
-  - type (TEXT): 'OUTBOUND' (보낸 발주서) 또는 'INBOUND' (받은 발주서)
+  - total_amount (INTEGER): 발주 총 금액
+  - created_at (TEXT): 발주 등록일시
 
 [Sales Orders Table (crm_sales_orders)]
-- Description: 수주서 마스터 정보가 저장된 테이블입니다.
+- Description: 바이어로부터 접수한 수주서 마스터 정보가 저장된 테이블입니다.
 - Columns:
-  - id (TEXT PRIMARY KEY): 수주서 고유 ID
-  - so_no (TEXT): 수주 번호
-  - title (TEXT): 수주서 제목
-  - partner_id (TEXT): 발주처 ID
-  - partner_name (TEXT): 발주처명
-  - so_date (TEXT): 수주 일자 (YYYY-MM-DD)
-  - delivery_date (TEXT): 납기 예정일 (YYYY-MM-DD)
-  - total_amount (INTEGER): 공급가액 총액
-  - vat (INTEGER): 부가세
-  - grand_total (INTEGER): 합계 금액
-  - status (TEXT): 상태
-  - tags (TEXT): 거래 유형 (예: '외주제작' 등)
+  - id (TEXT PRIMARY KEY): 수주서 고유 ID (SO-로 시작)
+  - estimate_id (TEXT): 연계된 견적서/발주등록 ID (crm_estimates.id 와 JOIN 가능)
+  - client_order_no (TEXT): 바이어 측 실제 원본 문서상의 발주번호
+  - customer_name (TEXT): 바이어 상호명
+  - customer_phone (TEXT): 바이어 연락처
+  - customer_manager (TEXT): 바이어 담당자명
+  - status (TEXT): 상태 (예: 'REGISTERED')
+  - total_amount (INTEGER): 수주 총 금액
+  - delivery_date (TEXT): 최종 납기일 (YYYY-MM-DD)
+  - created_at (TEXT): 수주 등록일시
 
 - 중요 분석 및 쿼리 제한 사항 안내:
   - crm_estimates, crm_estimate_items, crm_purchase_orders, crm_sales_orders 조회를 요청할 때, 품목별 상세 비용 명세(자재비 등)나 품목별 개별 납기일 조건이 자연어에 포함되어 있으면 반드시 crm_estimate_items 테이블과 조인(JOIN)하여 json_extract(spec, '$.cost_breakdown.material_cost') 또는 json_extract(spec, '$.delivery_date') 등을 통해 조회해 내야 합니다.
-  - 쿼리 내에 단어 'DELETE'가 부분 문자열로라도 포함되면(예: 'deleted_at') 실행이 원천 차단됩니다. 따라서 생성하는 SELECT 쿼리 안에 절대 'deleted_at' 또는 'deleted_at IS NULL' 컬럼 조건을 포함하지 마십시오. 소프트 삭제 필터링은 시스템이 별도로 처리하므로 단순 컬럼만 매핑 조회하십시오.
+  - 쿼리 내에 단어 'DELETE' 및 'CREATE'가 부분 문자열로라도 포함되면(예: 'deleted_at', 'created_at') 실행이 원천 차단됩니다. 따라서 생성하는 SELECT 쿼리 안에 절대 'deleted_at', 'deleted_at IS NULL', 'created_at' 컬럼이나 조건을 포함하지 마십시오. 생성일 정보가 필요하다면 컬럼 조회를 아예 생략하거나 crm_estimates 테이블의 다른 필드를 사용하십시오. 소프트 삭제 필터링은 시스템이 별도로 처리하므로 단순 컬럼만 매핑 조회하십시오.
   - 예시 1: 외주작업비가 4,000원 이상인 품목의 발주건 거래처명을 찾을 때 (deleted_at 조건을 절대 쓰지 마십시오):
-    SELECT e.partner_name, i.item_name, json_extract(i.spec, '$.cost_breakdown.processing_cost') AS processing_cost
+    SELECT e.partner_name, i.product_name, json_extract(i.spec, '$.cost_breakdown.processing_cost') AS processing_cost
     FROM crm_estimate_items i
     JOIN crm_estimates e ON i.estimate_id = e.id
     WHERE CAST(json_extract(i.spec, '$.cost_breakdown.processing_cost') AS INTEGER) >= 4000
   - 예시 2: 특정 품목별 납기일(예: '2026-07-30')에 해당하는 품목명과 발주처를 찾을 때 (deleted_at 조건을 절대 쓰지 마십시오):
-    SELECT e.partner_name, i.item_name, json_extract(i.spec, '$.delivery_date') AS delivery_date
+    SELECT e.partner_name, i.product_name, json_extract(i.spec, '$.delivery_date') AS delivery_date
     FROM crm_estimate_items i
     JOIN crm_estimates e ON i.estimate_id = e.id
     WHERE json_extract(i.spec, '$.delivery_date') = '2026-07-30'
@@ -753,7 +759,7 @@ If it requires database queries:
 - You can query ANY table (including system_settings, customers, orders, transactions, message_logs, coupons, etc.).
 - Ensure that the query is strictly a SELECT statement. Never suggest UPDATE, INSERT, or DELETE.
 - Use explicit column names or '*' where appropriate.
-- [🚨 CRITICAL] If the table you are querying has a "deleted_at" column, you MUST always add the condition "deleted_at IS NULL" in the WHERE clause (e.g. "WHERE deleted_at IS NULL" or "AND deleted_at IS NULL") to exclude soft-deleted data, unless the user explicitly asks for deleted/removed records.
+- [🚨 CRITICAL] NEVER include columns containing the words "DELETE" or "CREATE" (such as "deleted_at", "created_at") in your query. The backend firewall blocks queries containing these words as substrings. Do not add soft-delete filtering to the query; the backend system handles this automatically.
 - ALWAYS output in JSON format only.
 
 Available Database Tables Info:
@@ -904,7 +910,9 @@ If the user is asking about how to use the system, menus, manuals, guides, or tr
 - 표(Table), 리스트, 볼드체 등을 활용하여 프리미엄 SaaS의 위젯 안에서 읽기 편한 완벽한 텍스트 구조로 만들어 주세요.
 - 만약 SQL 쿼리가 실패했거나 오류가 있었다면, 관리자가 원인을 파악할 수 있도록 SQL 오류 메시지를 보여주며 원인 진단을 도와주세요.
 - 챗봇 자체에서 데이터를 임의로 수정/삭제(UPDATE/DELETE)할 수 없음을 인지하되, SELECT를 통한 깊이 있는 데이터 분석 및 인사이트 제공에 집중해 주세요.
-- [중요 💡] 만약 사용자가 특정 메뉴나 페이지로 직접 이동하기를 희망한다는 의도가 명백히 감지되면(예: "금융 정보 페이지로 가줘", "지출 관리 열어줘", "홈페이지 빌더 가자"), 최종 답변의 가장 마지막 줄에 정확하게 \`[REDIRECT:이동할_경로]\` (예: \`[REDIRECT:/finance]\`, \`[REDIRECT:/expenses]\`, \`[REDIRECT:/sms]\`, \`[REDIRECT:/settings]\`, \`[REDIRECT:/my-db]\`) 태그를 단독 라인으로 기입해 주세요. 시스템이 이를 감지하여 관리자에게 확인 창을 띄워 페이지를 실시간 자동 이동시킵니다.
+- [중요 💡] 만약 사용자가 특정 메뉴나 페이지로 직접 이동하기를 희망한다는 의도가 명백히 감지되면(예: "금융 정보 페이지로 가줘", "지출 관리 열어줘", "홈페이지 빌더 가자"), 최종 답변의 가장 마지막 줄에 정확하게 \`[REDIRECT:이동할_경로]\` (예: \`[REDIRECT:/finance]\`, \`[REDIRECT:/expenses]\`, \`[REDIRECT:/sms]\`, \`[REDIRECT:/settings]\`, \`[REDIRECT:/my-db]\`, \`[REDIRECT:/estimates]\`) 태그를 단독 라인으로 기입해 주세요. 시스템이 이를 감지하여 관리자에게 확인 창을 띄워 페이지를 실시간 자동 이동시킵니다.
+- [중요 🔗] 만약 답변에 견적서(Estimates), 발주서(Purchase Orders), 수주서(Sales Orders) 데이터가 포함되어 있고 각각의 고유 ID(예: \`ORD-260623-215908\`)가 존재하는 경우, 사용자가 클릭하여 상세 내역을 바로 조회할 수 있도록 각 ID에 \`[ORD-260623-215908](/estimates?detail_id=ORD-260623-215908)\` 형식으로 마크다운 링크를 반드시 걸어주세요.
+- [중요 🧭] 견적서/발주서/수주서 등을 조회하거나 찾는 의도가 감지되어 결과를 응답하는 경우, 최종 답변의 가장 마지막 줄에 정확하게 \`[REDIRECT:/estimates?detail_id=조회된첫번째ID]\` (만약 단일 건 또는 특정 건이 대표로 매치될 경우) 또는 \`[REDIRECT:/estimates]\` (여러 건이 검색되어 리스트를 보여줘야 할 경우) 태그를 단독 라인으로 반드시 기입해 주세요. 이를 통해 대화창 뒤에서 관련 견적서/발주서 관리 화면으로 실시간 이동하고 상세 모달이 자동 팝업됩니다.
 - [중요 ⚠️] 만약 사용자가 특정 직무나 작업 지시(스냅태스크)를 내리는 의도가 명백히 감지되면(예: "최우영 대리에게 안전센서 점검 6월 10일까지 마감인 고화질 스냅태스크 발행해줘"), 최종 답변의 가장 마지막 줄에 정확하게 \`[CREATE_TASK:담당자ID:우선순위:마감일(YYYY-MM-DD):제목:내용]\` (예: \`[CREATE_TASK:3:high:2026-06-10:안전센서 정기 점검:절삭기 가동 부위의 감지 센서 작동 여부 정밀 점검 요망]\`) 태그를 단독 라인으로 기입해 주세요. (담당자ID 후보: '1'=관리자/대표, '2'=영업팀, '3'=생산품질팀 / 우선순위 후보: 'low', 'medium', 'high', 'critical'). 그리고 답변 내용에는 "요청하신 작업 지시 사항이 이지봇 시스템을 통해 생산품질팀 담당자에게 정식으로 즉시 발급되었습니다. 해당 스냅태스크 진척 상황은 작업 대장에서 실시간 모니터링됩니다."와 같이 든든하고 신뢰감을 주는 멘트를 포함해 주세요.
 - [중요 🧭] 사용자가 현재 보고 있는 페이지 주소는 아래의 [현재 보고 있는 페이지 URL] 항목에 제공됩니다. 사용자의 현재 화면 위치 맥락을 고려하여, 페이지 성격에 꼭 맞는 맥락형 친절한 답변을 작성해 주세요. (예: /expenses인 경우 지출 관리 현황에 초점을 맞춰 응대)
 - [중요 🧭] 사용자가 "이 부분은 어떻게 써?", "이거 뭐야?" 처럼 지사 대명사로 특정 영역을 가리켜 질문하는 경우, 아래의 [현재 사용자가 마우스 호버/포커싱하여 가리키고 있는 UI 요소 힌트] 정보를 최우선 참조하여 해당 컴포넌트의 가이드라인을 1:1 맞춤형으로 아주 상세하게 직접 설명해 주세요.

@@ -43,6 +43,8 @@ interface Message {
 
 // React 19 무의존성 안전 마크다운 렌더러 컴포넌트 (밝은 색 테마 버전)
 function SafeMarkdown({ content }: { content: string }) {
+  const router = useRouter(); // Next.js 라우터 훅 연동
+
   if (!content) return null;
 
   const lines = content.split('\n');
@@ -62,8 +64,8 @@ function SafeMarkdown({ content }: { content: string }) {
       ? "px-2 py-0.5 rounded bg-white/20 text-white font-mono text-xs border border-white/30" 
       : "px-2 py-0.5 rounded bg-rose-50 text-rose-650 font-mono text-xs border border-rose-100";
     const linkClass = isUserMessage
-      ? "text-white underline font-bold hover:opacity-80 transition-opacity"
-      : "text-violet-600 underline font-bold hover:text-violet-850 transition-colors";
+      ? "text-white underline font-bold hover:opacity-80 transition-opacity cursor-pointer"
+      : "text-violet-600 underline font-bold hover:text-violet-850 transition-colors cursor-pointer";
 
     while (remaining.length > 0) {
       const boldMatch = remaining.match(/\*\*(.*?)\*\*/);
@@ -108,8 +110,16 @@ function SafeMarkdown({ content }: { content: string }) {
         }
         const linkText = linkMatch![1];
         const linkUrl = linkMatch![2];
+
+        const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+          if (!linkUrl.startsWith('http://') && !linkUrl.startsWith('https://')) {
+            e.preventDefault();
+            router.push(linkUrl);
+          }
+        };
+
         parts.push(
-          <a key={`link-${keyIndex}`} href={linkUrl} className={linkClass}>
+          <a key={`link-${keyIndex}`} href={linkUrl} onClick={handleLinkClick} className={linkClass}>
             {linkText}
           </a>
         );
