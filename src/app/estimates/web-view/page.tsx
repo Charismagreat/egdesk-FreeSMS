@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, Suspense, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { Sun, Moon, Eye, RefreshCw, X, Download } from "lucide-react";
+import { Sun, Moon, Eye, RefreshCw, X, Download, ArrowUp, ArrowDown } from "lucide-react";
 import { createPortal } from "react-dom";
 
 // B2B 대장 정보 타입 설정 및 디폴트 노출 컬럼 정의
@@ -71,6 +71,7 @@ function WebViewContent() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
+  const [columns, setColumns] = useState<string[]>([]);
   const [isColSelectorOpen, setIsColSelectorOpen] = useState(false);
   const [activeImageUrl, setActiveImageUrl] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -213,26 +214,26 @@ function WebViewContent() {
             const soItems = s.items && s.items.length > 0 ? s.items : [{}];
             soItems.forEach((item: any) => {
               rows.push([
-                s.id,
-                s.estimate_id,
-                s.client_order_no || "-",
-                s.customer_name,
-                s.customer_phone,
-                s.customer_manager || "-",
-                s.total_amount,
-                s.status === "REGISTERED" ? "수주등록" : "확인완료",
-                s.created_at,
-                s.created_at, // 등록일시
-                s.delivery_date || "-",
-                s.file_url || "-",
-                item.item_code || "-",
-                item.product_name || "-",
-                item.spec || "-",
-                item.quantity !== undefined ? item.quantity : "",
-                item.unit_price !== undefined ? item.unit_price : "",
-                item.amount !== undefined ? item.amount : "",
-                item.delivery_date || "-",
-                s.document_memo_search || "-"
+                s.created_at,          // 등록일시
+                s.client_order_no || "-", // 고객발주번호
+                s.customer_name,       // 바이어명
+                s.customer_manager || "-", // 바이어담당자
+                s.total_amount,        // 총 수주액
+                s.status === "REGISTERED" ? "수주등록" : "확인완료", // 상태
+                s.created_at,          // 수주일시
+                s.delivery_date || "-", // 마스터납기일
+                s.file_url || "-",     // 원본 파일
+                item.item_code || "-", // 품목코드
+                item.product_name || "-", // 품목명
+                item.spec || "-",      // 규격
+                item.quantity !== undefined ? item.quantity : "", // 수량
+                item.unit_price !== undefined ? item.unit_price : "", // 단가
+                item.amount !== undefined ? item.amount : "", // 금액
+                item.delivery_date || "-", // 품목납기일
+                s.document_memo_search || "-", // 상세비고
+                s.id,                  // 수주번호
+                s.estimate_id,          // 견적번호
+                s.customer_phone       // 연락처
               ]);
             });
           });
@@ -241,8 +242,33 @@ function WebViewContent() {
 
       setData({ title, headers, rows });
       
-      // 초기 컬럼 기본 노출 세팅 적용
-      if (visibleColumns.length === 0) {
+      // 로컬스토리지에서 컬럼 순서 및 숨김 설정 확인
+      if (typeof window !== "undefined") {
+        const savedColumns = localStorage.getItem(`egdesk_est_webview_cols_v2_${type}`);
+        const savedVisible = localStorage.getItem(`egdesk_est_webview_visible_v2_${type}`);
+        
+        if (savedColumns && savedVisible) {
+          try {
+            const parsedCols = JSON.parse(savedColumns) as string[];
+            const parsedVisible = JSON.parse(savedVisible) as string[];
+            
+            // 데이터의 실제 헤더와 동기화 (새로운 컬럼 대응)
+            const filteredCols = parsedCols.filter(c => headers.includes(c));
+            const missingCols = headers.filter(c => !filteredCols.includes(c));
+            setColumns([...filteredCols, ...missingCols]);
+            
+            const filteredVisible = parsedVisible.filter(c => headers.includes(c));
+            setVisibleColumns(filteredVisible);
+          } catch (e) {
+            setColumns(headers);
+            setVisibleColumns(typeConfig[type].defaultVisible);
+          }
+        } else {
+          setColumns(headers);
+          setVisibleColumns(typeConfig[type].defaultVisible);
+        }
+      } else {
+        setColumns(headers);
         setVisibleColumns(typeConfig[type].defaultVisible);
       }
     } catch (e) {
@@ -253,6 +279,13 @@ function WebViewContent() {
   };
 
   useEffect(() => {
+    if (type === "outbound_so") {
+      setSortKey(1); // 고객발주번호 (index: 1)
+      setSortDir("asc");
+    } else {
+      setSortKey(null);
+      setSortDir("desc");
+    }
     fetchData();
   }, [type]);
 
@@ -315,14 +348,12 @@ function WebViewContent() {
   const handleExportCsv = () => {
     if (!data) return;
 
-    // visibleColumns 인덱스 매칭
-    const headerIndices = data.headers
-      .map((h, idx) => (visibleColumns.includes(h) ? idx : -1))
-      .filter((idx) => idx !== -1);
+    // 사용자가 정렬한 columns 순서 중 visibleColumns에 포함된 것만 추출
+    const activeHeaders = columns.filter((h) => visibleColumns.includes(h));
+    const headerIndices = activeHeaders.map((h) => data.headers.indexOf(h));
 
-    const activeHeaders = headerIndices.map((idx) => data.headers[idx]);
     const activeRows = data.rows.map((row) =>
-      headerIndices.map((idx) => row[idx])
+      headerIndices.map((idx) => (idx !== -1 ? row[idx] : ""))
     );
 
     const csvContent =
@@ -345,24 +376,60 @@ function WebViewContent() {
     document.body.removeChild(link);
   };
 
+  // 컬럼 순서/노출 세팅 저장 헬퍼
+  const saveColumnSettings = (newCols: string[], newVisible: string[]) => {
+    setColumns(newCols);
+    setVisibleColumns(newVisible);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(`egdesk_est_webview_cols_v2_${type}`, JSON.stringify(newCols));
+      localStorage.setItem(`egdesk_est_webview_visible_v2_${type}`, JSON.stringify(newVisible));
+    }
+  };
+
   // 컬럼 노출 개별 토글
   const toggleColumn = (colName: string) => {
-    setVisibleColumns((prev) =>
-      prev.includes(colName)
-        ? prev.filter((c) => c !== colName)
-        : [...prev, colName]
-    );
+    const nextVisible = visibleColumns.includes(colName)
+      ? visibleColumns.filter((c) => c !== colName)
+      : [...visibleColumns, colName];
+    saveColumnSettings(columns, nextVisible);
   };
 
   // 컬럼 전체 선택 / 해제
   const toggleAllColumns = () => {
     if (!data) return;
-    if (visibleColumns.length === data.headers.length) {
-      // 전부 켜져 있으면 모두 해제 (단, 첫 번째 열인 ID는 보존)
-      setVisibleColumns([data.headers[0]]);
+    const nextVisible = visibleColumns.length === data.headers.length
+      ? [data.headers[0]]
+      : [...data.headers];
+    saveColumnSettings(columns, nextVisible);
+  };
+
+  // 컬럼 위/아래 이동
+  const moveColumn = (index: number, direction: "up" | "down") => {
+    if (direction === "up" && index === 0) return;
+    if (direction === "down" && index === columns.length - 1) return;
+
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    const newColumns = [...columns];
+    const temp = newColumns[index];
+    newColumns[index] = newColumns[targetIndex];
+    newColumns[targetIndex] = temp;
+    saveColumnSettings(newColumns, visibleColumns);
+  };
+
+  // 컬럼 설정을 기본값으로 복원
+  const resetToDefaultColumns = () => {
+    if (!data) return;
+    const defaultHeaders = typeConfig[type].headers;
+    const defaultVisible = typeConfig[type].defaultVisible;
+    saveColumnSettings(defaultHeaders, defaultVisible);
+    
+    // 정렬 상태도 기본값으로 복구
+    if (type === "outbound_so") {
+      setSortKey(1); // 고객발주번호 (index: 1)
+      setSortDir("asc");
     } else {
-      // 모두 선택
-      setVisibleColumns(data.headers);
+      setSortKey(null);
+      setSortDir("desc");
     }
   };
 
@@ -492,7 +559,7 @@ function WebViewContent() {
           </div>
           <div className="flex items-center gap-3 justify-end relative">
             
-            {/* 컬럼 숨기기/보이기 제어기 */}
+{/* 컬럼 숨기기/보이기 제어기 */}
             <div className="relative z-40">
               <button
                 ref={buttonRef}
@@ -528,29 +595,61 @@ function WebViewContent() {
                 >
                   <div className="flex items-center justify-between border-b border-solid border-slate-700/20 pb-2 mb-2">
                     <span className="text-[10px] font-black uppercase tracking-wider">표시 컬럼 선택</span>
-                    <button
-                      onClick={toggleAllColumns}
-                      className="text-[9px] font-black text-indigo-500 hover:underline border-none bg-transparent cursor-pointer"
-                    >
-                      {visibleColumns.length === data.headers.length ? "전체해제" : "전체선택"}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={toggleAllColumns}
+                        className="text-[9px] font-black text-indigo-500 hover:underline border-none bg-transparent cursor-pointer"
+                      >
+                        {visibleColumns.length === data.headers.length ? "전체해제" : "전체선택"}
+                      </button>
+                      <span className="text-[9px] text-slate-650">|</span>
+                      <button
+                        onClick={resetToDefaultColumns}
+                        className="text-[9px] font-black text-indigo-500 hover:underline border-none bg-transparent cursor-pointer"
+                        title="순서 및 숨김 상태를 기본 설정값으로 복원합니다."
+                      >
+                        기본값 복원
+                      </button>
+                    </div>
                   </div>
-                  <div className="max-h-60 overflow-y-auto space-y-1.5 custom-scrollbar text-left">
-                    {data.headers.map((h, idx) => {
+                  <div className="max-h-[480px] overflow-y-auto space-y-1 custom-scrollbar text-left">
+                    {columns.map((h, idx) => {
                       const isChecked = visibleColumns.includes(h);
                       return (
-                        <label
-                          key={idx}
-                          className="flex items-center gap-2 px-1.5 py-1 hover:bg-white/5 rounded-lg cursor-pointer text-[11px] font-bold transition-colors"
+                        <div
+                          key={h}
+                          className="flex items-center justify-between px-1.5 py-1 hover:bg-white/5 rounded-lg transition-colors group"
                         >
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => toggleColumn(h)}
-                            className="rounded border-slate-400 text-indigo-600 focus:ring-indigo-550 w-3.5 h-3.5 cursor-pointer"
-                          />
-                          <span className={isChecked ? "opacity-100" : "opacity-50"}>{h}</span>
-                        </label>
+                          <label className="flex items-center gap-2 cursor-pointer text-[11px] font-bold">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleColumn(h)}
+                              className="rounded border-slate-400 text-indigo-650 focus:ring-indigo-555 w-3.5 h-3.5 cursor-pointer"
+                            />
+                            <span className={isChecked ? "opacity-100" : "opacity-50"}>{h}</span>
+                          </label>
+                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              type="button"
+                              disabled={idx === 0}
+                              onClick={() => moveColumn(idx, "up")}
+                              className="p-0.5 hover:bg-white/10 disabled:opacity-20 rounded text-slate-400 hover:text-white cursor-pointer disabled:cursor-not-allowed border-none bg-transparent"
+                              title="위로 이동"
+                            >
+                              <ArrowUp size={11} />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={idx === columns.length - 1}
+                              onClick={() => moveColumn(idx, "down")}
+                              className="p-0.5 hover:bg-white/10 disabled:opacity-20 rounded text-slate-400 hover:text-white cursor-pointer disabled:cursor-not-allowed border-none bg-transparent"
+                              title="아래로 이동"
+                            >
+                              <ArrowDown size={11} />
+                            </button>
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
@@ -602,12 +701,14 @@ function WebViewContent() {
                     ? "border-white/10 bg-slate-900/30 text-slate-400" 
                     : "border-slate-200 bg-slate-50 text-slate-600"
                 } transition-colors duration-300`}>
-                  {data.headers.map((header, idx) => {
+                  {columns.map((header) => {
                     if (!visibleColumns.includes(header)) return null;
+                    const origIdx = data.headers.indexOf(header);
+                    if (origIdx === -1) return null;
                     return (
                       <th
-                        key={idx}
-                        onClick={() => handleSort(idx)}
+                        key={header}
+                        onClick={() => handleSort(origIdx)}
                         className={`py-3.5 px-3.5 cursor-pointer ${
                           isDarkMode ? "hover:text-white" : "hover:text-slate-900"
                         } select-none transition-colors group whitespace-nowrap`}
@@ -615,7 +716,7 @@ function WebViewContent() {
                         <div className="flex items-center gap-1">
                           {header}
                           <span className="text-indigo-500 font-bold group-hover:scale-110 transition-transform">
-                            {sortKey === idx ? (sortDir === "asc" ? " ▲" : " ▼") : " ↕"}
+                            {sortKey === origIdx ? (sortDir === "asc" ? " ▲" : " ▼") : " ↕"}
                           </span>
                         </div>
                       </th>
@@ -643,15 +744,17 @@ function WebViewContent() {
                           : "border-slate-100 hover:bg-slate-50/60"
                       } transition-colors duration-300`}
                     >
-                      {row.map((val, cIdx) => {
-                        const headerName = data.headers[cIdx];
+                      {columns.map((headerName) => {
                         if (!visibleColumns.includes(headerName)) return null;
+                        const cIdx = data.headers.indexOf(headerName);
+                        if (cIdx === -1) return null;
 
+                        const val = row[cIdx];
                         const strVal = String(val);
                         const isAttachedFile = detectFile(strVal);
                         
                         return (
-                          <td key={cIdx} className={`py-3 px-3.5 ${
+                          <td key={headerName} className={`py-3 px-3.5 ${
                             isDarkMode ? "text-slate-350" : "text-slate-700"
                           } font-medium whitespace-normal break-all max-w-[240px]`}>
                             {isAttachedFile ? (
