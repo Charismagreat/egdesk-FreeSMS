@@ -38,23 +38,55 @@ export async function setupDatabase() {
           const schemaInfo = await getTableSchema(tableName);
           const existingColNames = (schemaInfo?.schema || []).map((c: any) => c.name.toLowerCase());
           
-          // 1. 감사 컬럼 보정
+          let needsMigration = false;
+          
+          // 1. 감사 컬럼 누락 여부 검사
           for (const aCol of auditCols) {
             if (!existingColNames.includes(aCol.name.toLowerCase())) {
-              console.log(`[Auto-Migration] Adding missing audit column "${aCol.name}" to table "${tableName}"...`);
-              await executeSQL(`ALTER TABLE "${tableName}" ADD COLUMN "${aCol.name}" TEXT`);
+              needsMigration = true;
+              break;
             }
           }
 
-          // 2. 신규 일반 명세 컬럼 보정
-          for (const col of columns) {
-            if (!existingColNames.includes(col.name.toLowerCase())) {
-              console.log(`[Auto-Migration] Adding missing specification column "${col.name}" to table "${tableName}"...`);
-              await executeSQL(`ALTER TABLE "${tableName}" ADD COLUMN "${col.name}" ${col.type}`);
+          // 2. 일반 명세 컬럼 누락 여부 검사
+          if (!needsMigration) {
+            for (const col of columns) {
+              if (!existingColNames.includes(col.name.toLowerCase())) {
+                needsMigration = true;
+                break;
+              }
             }
           }
+
+          if (needsMigration) {
+            console.log(`[Auto-Migration] Table "${tableName}" requires schema updates. Starting data-preserving migration...`);
+            
+            // A. 기존 데이터 백업 (Read)
+            const readRes = await queryTable(tableName, { limit: 500000 });
+            const existingRows = readRes.rows || [];
+            console.log(`[Auto-Migration] Backed up ${existingRows.length} rows from "${tableName}".`);
+
+            // B. 기존 테이블 제거 (Drop)
+            await deleteTable(tableName);
+            console.log(`[Auto-Migration] Dropped legacy table "${tableName}".`);
+
+            // C. 새로운 스키마로 테이블 생성 (Recreate)
+            await createTable(displayName, columns, options);
+            console.log(`[Auto-Migration] Re-created table "${tableName}" with updated schema.`);
+
+            // D. 백업 데이터 복원 (Restore)
+            if (existingRows.length > 0) {
+              const restoreRes = await insertRows(tableName, existingRows);
+              if (restoreRes.success) {
+                console.log(`[Auto-Migration] Successfully restored ${existingRows.length} rows into "${tableName}".`);
+              } else {
+                throw new Error(restoreRes.error || "Data restoration failed");
+              }
+            }
+            console.log(`[Auto-Migration] Schema update for table "${tableName}" completed successfully without data loss.`);
+          }
         } catch (alterErr: any) {
-          console.warn(`[Auto-Migration Warning] Failed to audit alter table "${tableName}":`, alterErr.message);
+          console.error(`[Auto-Migration Error] Failed to migrate table "${tableName}":`, alterErr.message);
         }
         return;
       }

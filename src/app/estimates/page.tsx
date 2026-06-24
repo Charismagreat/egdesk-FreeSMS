@@ -92,17 +92,7 @@ export default function EstimatesDashboard() {
       if (poData && poData.success) {
         setPurchaseOrders(poData.purchaseOrders || []);
       } else {
-        setPurchaseOrders([
-          {
-            id: "PO-171569001",
-            estimate_id: "EST-171569000",
-            vendor_name: "로스트빈 팩토리",
-            vendor_phone: "010-9876-5432",
-            status: "PENDING_INBOUND",
-            total_amount: 512000,
-            created_at: "2026-05-24 10:00:00",
-          },
-        ]);
+        setPurchaseOrders([]);
       }
 
       // 3. 수주서 목록 패치
@@ -119,17 +109,7 @@ export default function EstimatesDashboard() {
       if (soData && soData.success) {
         setSalesOrders(soData.salesOrders || []);
       } else {
-        setSalesOrders([
-          {
-            id: "SO-171569901",
-            estimate_id: "EST-171569900",
-            customer_name: "유재석 (단골VIP)",
-            customer_phone: "010-7777-7777",
-            status: "REGISTERED",
-            total_amount: 320000,
-            created_at: "2026-05-24 11:00:00",
-          },
-        ]);
+        setSalesOrders([]);
       }
 
       // 4. 거래처 목록 패치
