@@ -267,6 +267,7 @@ JSON 응답 포맷:
     "business_number": "공급 주체 사업자번호 (XXX-XX-XXXXX 형식)",
     "representative": "공급 주체 대표자 성명 (없으면 \"\")",
     "address": "공급 주체 주소 (없으면 \"\")",
+    "phone": "공급 주체 회사 대표 전화번호 (없으면 \"\")",
     "manager_name": "공급 주체 담당자명 (없으면 \"\")",
     "manager_phone": "공급 주체 담당자 연락처 (없으면 \"\")"
   },
@@ -275,6 +276,7 @@ JSON 응답 포맷:
     "business_number": "구매/발주 주체 사업자번호 (XXX-XX-XXXXX 형식)",
     "representative": "구매/발주 주체 대표자 성명 (없으면 \"\")",
     "address": "구매/발주 주체 주소 (없으면 \"\")",
+    "phone": "구매/발주 주체 회사 대표 전화번호 (없으면 \"\")",
     "manager_name": "구매/발주 주체 담당자명 (없으면 \"\")",
     "manager_phone": "구매/발주 주체 담당자 연락처 (없으면 \"\")"
   },
@@ -418,35 +420,59 @@ JSON 응답 포맷:
       partnerBizNo = parsedData.buyer?.business_number || '';
       partnerRepresentative = parsedData.buyer?.representative || '';
       partnerAddress = parsedData.buyer?.address || '';
-      partnerManager = parsedData.buyer?.manager_name || picName || '';
-      partnerPhone = parsedData.buyer?.manager_phone || picPhone || '';
+      
+      // 공급사(자사) 담당자 정보가 picName/picPhone과 겹치면 상대방 정보로 차용하지 않음 (교차 오염 방지)
+      const isPicBelongsToSupplier = 
+        (parsedData.supplier?.manager_name && parsedData.supplier?.manager_name === picName) ||
+        (parsedData.supplier?.manager_phone && parsedData.supplier?.manager_phone === picPhone);
+
+      partnerManager = parsedData.buyer?.manager_name || (isPicBelongsToSupplier ? '' : picName) || '';
+      partnerPhone = parsedData.buyer?.manager_phone || parsedData.buyer?.phone || (isPicBelongsToSupplier ? '' : picPhone) || '';
     } else if (isBuyerMyCompany) {
       partnerName = parsedData.supplier?.company_name || '';
       partnerBizNo = parsedData.supplier?.business_number || '';
       partnerRepresentative = parsedData.supplier?.representative || '';
       partnerAddress = parsedData.supplier?.address || '';
-      partnerManager = parsedData.supplier?.manager_name || picName || '';
-      partnerPhone = parsedData.supplier?.manager_phone || picPhone || '';
+
+      // 바이어(자사) 담당자 정보가 picName/picPhone과 겹치면 상대방 정보로 차용하지 않음
+      const isPicBelongsToBuyer = 
+        (parsedData.buyer?.manager_name && parsedData.buyer?.manager_name === picName) ||
+        (parsedData.buyer?.manager_phone && parsedData.buyer?.manager_phone === picPhone);
+
+      partnerManager = parsedData.supplier?.manager_name || (isPicBelongsToBuyer ? '' : picName) || '';
+      partnerPhone = parsedData.supplier?.manager_phone || parsedData.supplier?.phone || (isPicBelongsToBuyer ? '' : picPhone) || '';
     } else {
       // 자사 정보가 둘 다 불일치하는 경우 (폴백)
-      // 사용자 공식: "수주등록용 발주서일 경우 사업자번호가 있는 업체가 상대방 정보이다"
       const hasSupBiz = !!supBiz;
       const hasBuyBiz = !!buyBiz;
 
-      if (hasBuyBiz && !hasSupBiz) {
-        partnerName = parsedData.buyer?.company_name || '';
-        partnerBizNo = parsedData.buyer?.business_number || '';
-        partnerRepresentative = parsedData.buyer?.representative || '';
-        partnerAddress = parsedData.buyer?.address || '';
-        partnerManager = parsedData.buyer?.manager_name || picName || '';
-        partnerPhone = parsedData.buyer?.manager_phone || picPhone || '';
-      } else {
+      // 수주등록용 API이므로 기본 상대방(바이어)은 발주처(buyer)입니다.
+      if (hasSupBiz && !hasBuyBiz) {
         partnerName = parsedData.supplier?.company_name || '';
         partnerBizNo = parsedData.supplier?.business_number || '';
         partnerRepresentative = parsedData.supplier?.representative || '';
         partnerAddress = parsedData.supplier?.address || '';
-        partnerManager = parsedData.supplier?.manager_name || picName || '';
-        partnerPhone = parsedData.supplier?.manager_phone || picPhone || '';
+
+        // 상대방이 공급사이므로, 발주사(buyer) 담당자 정보가 picName/picPhone과 겹치면 차용하지 않음
+        const isPicBelongsToBuyer = 
+          (parsedData.buyer?.manager_name && parsedData.buyer?.manager_name === picName) ||
+          (parsedData.buyer?.manager_phone && parsedData.buyer?.manager_phone === picPhone);
+
+        partnerManager = parsedData.supplier?.manager_name || (isPicBelongsToBuyer ? '' : picName) || '';
+        partnerPhone = parsedData.supplier?.manager_phone || parsedData.supplier?.phone || (isPicBelongsToBuyer ? '' : picPhone) || '';
+      } else {
+        partnerName = parsedData.buyer?.company_name || '';
+        partnerBizNo = parsedData.buyer?.business_number || '';
+        partnerRepresentative = parsedData.buyer?.representative || '';
+        partnerAddress = parsedData.buyer?.address || '';
+
+        // 상대방이 발주사(buyer)이므로, 공급사(supplier) 담당자 정보가 picName/picPhone과 겹치면 차용하지 않음
+        const isPicBelongsToSupplier = 
+          (parsedData.supplier?.manager_name && parsedData.supplier?.manager_name === picName) ||
+          (parsedData.supplier?.manager_phone && parsedData.supplier?.manager_phone === picPhone);
+
+        partnerManager = parsedData.buyer?.manager_name || (isPicBelongsToSupplier ? '' : picName) || '';
+        partnerPhone = parsedData.buyer?.manager_phone || parsedData.buyer?.phone || (isPicBelongsToSupplier ? '' : picPhone) || '';
       }
     }
 
@@ -503,8 +529,8 @@ JSON 응답 포맷:
       receiver_matched: receiverMatched,
       my_company_name: myCompanyProfile.companyName,
       partner_name: partnerName,
-      partner_phone: partnerPhone || picPhone || '',
-      partner_manager: partnerManager || picName || '',
+      partner_phone: partnerPhone || '',
+      partner_manager: partnerManager || '',
       business_number: partnerBizNo,
       representative: partnerRepresentative,
       address: partnerAddress,
