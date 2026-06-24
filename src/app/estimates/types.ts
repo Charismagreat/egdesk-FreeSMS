@@ -52,6 +52,7 @@ export interface EstimateItem {
   product_id?: string;
   item_code?: string;
   product_name: string;
+  spec?: string;
   quantity: number;
   unit_price: number;
   amount: number;

@@ -178,6 +178,7 @@ export default function EstimateDetailModal({
         product_id: item.product_id || '',
         item_code: item.item_code || '',
         product_name: item.product_name,
+        spec: item.spec || '',
         quantity: item.quantity,
         unit_price: item.unit_price,
         amount: item.amount,
@@ -200,6 +201,7 @@ export default function EstimateDetailModal({
           product_id: "",
           item_code: "",
           product_name: "",
+          spec: "",
           quantity: 1,
           unit_price: 0,
           amount: 0,
@@ -235,6 +237,8 @@ export default function EstimateDetailModal({
         target.product_id = value;
       } else if (field === 'item_code') {
         target.item_code = value;
+      } else if (field === 'spec') {
+        target.spec = value;
       } else if (field === 'delivery_date') {
         target.delivery_date = value;
       }
@@ -700,9 +704,9 @@ export default function EstimateDetailModal({
                         <div className="space-y-3 max-h-[540px] overflow-y-auto pr-1">
                           {editForm.items.map((item, idx) => (
                             <div key={idx} className="p-3.5 bg-slate-50/60 border border-slate-100 rounded-2xl space-y-2.5 animate-fade-in relative">
-                              {/* 첫 번째 행: 품목코드 및 품목명 */}
+                              {/* 첫 번째 행: 품목코드, 품목명, 규격 */}
                               <div className="grid grid-cols-12 gap-2.5">
-                                <div className="col-span-4">
+                                <div className="col-span-3">
                                   <label className="text-[10px] text-slate-400 font-bold block mb-1">품목코드</label>
                                   <input 
                                     type="text" 
@@ -712,20 +716,30 @@ export default function EstimateDetailModal({
                                     className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-mono font-bold outline-none focus:border-indigo-500 transition-all shadow-sm"
                                   />
                                 </div>
-                                <div className="col-span-8">
-                                  <div className="flex justify-between items-center mb-1">
-                                    <label className="text-[10px] text-slate-400 font-bold">품목명 *</label>
-                                    <span className="text-[9px] bg-indigo-50 text-indigo-500 font-black px-1.5 py-0.5 rounded">
-                                      품목 #{idx + 1}
-                                    </span>
-                                  </div>
+                                <div className="col-span-5">
+                                  <label className="text-[10px] text-slate-400 font-bold block mb-1">품목명 *</label>
                                   <input 
                                     type="text" 
                                     value={item.product_name}
                                     onChange={e => handleEditItemChange(idx, 'product_name', e.target.value)}
-                                    placeholder="품목명을 입력하세요"
+                                    placeholder="품목명 입력"
                                     className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 transition-all shadow-sm"
                                     required
+                                  />
+                                </div>
+                                <div className="col-span-4">
+                                  <div className="flex justify-between items-center mb-1">
+                                    <label className="text-[10px] text-slate-400 font-bold">규격</label>
+                                    <span className="text-[9px] bg-indigo-50 text-indigo-500 font-black px-1.5 py-0.5 rounded">
+                                      #{idx + 1}
+                                    </span>
+                                  </div>
+                                  <input 
+                                    type="text" 
+                                    value={item.spec || ''}
+                                    onChange={e => handleEditItemChange(idx, 'spec', e.target.value)}
+                                    placeholder="규격 입력"
+                                    className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 transition-all shadow-sm"
                                   />
                                 </div>
                               </div>
@@ -797,57 +811,61 @@ export default function EstimateDetailModal({
                       ) : (
                         /* 조회 전용 일반 테이블 */
                         <div className="border border-slate-100 rounded-2xl overflow-auto max-h-[540px]">
-                          {isSalesOrderScan ? (
-                            <table className="w-full text-left text-xs font-semibold min-w-[650px]" style={{ tableLayout: "fixed" }}>
-                              <colgroup><col style={{ width: "14%" }} /><col style={{ width: "29%" }} /><col style={{ width: "10%" }} /><col style={{ width: "15%" }} /><col style={{ width: "17%" }} /><col style={{ width: "15%" }} /></colgroup>
-                              <thead>
-                                <tr className="border-b border-slate-100 text-slate-400 text-[10px]">
-                                  <th className="py-2.5 px-3 sticky top-0 bg-slate-50 z-10">품목코드</th>
-                                  <th className="py-2.5 px-3 sticky top-0 bg-slate-50 z-10">품목명</th>
-                                  <th className="py-2.5 px-2 text-center sticky top-0 bg-slate-50 z-10">수량</th>
-                                  <th className="py-2.5 px-2 text-right sticky top-0 bg-slate-50 z-10">단가</th>
-                                  <th className="py-2.5 px-3 text-right sticky top-0 bg-slate-50 z-10">공급가액</th>
-                                  <th className="py-2.5 px-2 text-center sticky top-0 bg-slate-50 z-10">납기일</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {detailData.items.map((item: any, idx: number) => (
-                                  <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/40">
-                                    <td className="py-3 px-3 text-slate-500 font-mono text-[11px] truncate" title={item.item_code || ""}>{item.item_code || "-"}</td>
-                                    <td className="py-3 px-3 text-slate-800 font-bold" style={{ wordBreak: "keep-all", overflowWrap: "break-word" }}>{item.product_name}</td>
-                                    <td className="py-3 px-2 text-center text-slate-600 font-bold whitespace-nowrap">{item.quantity}개</td>
-                                    <td className="py-3 px-2 text-right text-slate-500 font-medium whitespace-nowrap">{(item.unit_price || 0).toLocaleString()}원</td>
-                                    <td className="py-3 px-3 text-right text-indigo-600 font-bold whitespace-nowrap">{((item.quantity || 0) * (item.unit_price || 0)).toLocaleString()}원</td>
-                                    <td className="py-3 px-2 text-center text-slate-600 font-bold whitespace-nowrap">{item.delivery_date || "-"}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          ) : (
-                            <table className="w-full text-left text-xs font-semibold min-w-[650px]" style={{ tableLayout: "fixed" }}>
-                              <colgroup><col style={{ width: "16%" }} /><col style={{ width: "42%" }} /><col style={{ width: "10%" }} /><col style={{ width: "15%" }} /><col style={{ width: "17%" }} /></colgroup>
-                              <thead>
-                                <tr className="border-b border-slate-100 text-slate-400 text-[10px]">
-                                  <th className="py-2.5 px-3 sticky top-0 bg-slate-50 z-10">품목코드</th>
-                                  <th className="py-2.5 px-3 sticky top-0 bg-slate-50 z-10">품목명</th>
-                                  <th className="py-2.5 px-2 text-center sticky top-0 bg-slate-50 z-10">수량</th>
-                                  <th className="py-2.5 px-2 text-right sticky top-0 bg-slate-50 z-10">단가</th>
-                                  <th className="py-2.5 px-3 text-right sticky top-0 bg-slate-50 z-10">공급가액</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {detailData.items.map((item: any, idx: number) => (
-                                  <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/40">
-                                    <td className="py-3 px-3 text-slate-500 font-mono text-[11px] truncate" title={item.item_code || ""}>{item.item_code || "-"}</td>
-                                    <td className="py-3 px-3 text-slate-800 font-bold" style={{ wordBreak: "keep-all", overflowWrap: "break-word" }}>{item.product_name}</td>
-                                    <td className="py-3 px-2 text-center text-slate-600 font-bold whitespace-nowrap">{item.quantity}개</td>
-                                    <td className="py-3 px-2 text-right text-slate-500 font-medium whitespace-nowrap">{(item.unit_price || 0).toLocaleString()}원</td>
-                                    <td className="py-3 px-3 text-right text-indigo-600 font-bold whitespace-nowrap">{((item.quantity || 0) * (item.unit_price || 0)).toLocaleString()}원</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          )}
+                           {isSalesOrderScan ? (
+                             <table className="w-full text-left text-xs font-semibold min-w-[650px]" style={{ tableLayout: "fixed" }}>
+                               <colgroup><col style={{ width: "12%" }} /><col style={{ width: "25%" }} /><col style={{ width: "15%" }} /><col style={{ width: "8%" }} /><col style={{ width: "12%" }} /><col style={{ width: "14%" }} /><col style={{ width: "14%" }} /></colgroup>
+                               <thead>
+                                 <tr className="border-b border-slate-100 text-slate-400 text-[10px]">
+                                   <th className="py-2.5 px-3 sticky top-0 bg-slate-50 z-10">품목코드</th>
+                                   <th className="py-2.5 px-3 sticky top-0 bg-slate-50 z-10">품목명</th>
+                                   <th className="py-2.5 px-2 sticky top-0 bg-slate-50 z-10">규격</th>
+                                   <th className="py-2.5 px-2 text-center sticky top-0 bg-slate-50 z-10">수량</th>
+                                   <th className="py-2.5 px-2 text-right sticky top-0 bg-slate-50 z-10">단가</th>
+                                   <th className="py-2.5 px-3 text-right sticky top-0 bg-slate-50 z-10">공급가액</th>
+                                   <th className="py-2.5 px-2 text-center sticky top-0 bg-slate-50 z-10">납기일</th>
+                                 </tr>
+                               </thead>
+                               <tbody>
+                                 {detailData.items.map((item: any, idx: number) => (
+                                   <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/40">
+                                     <td className="py-3 px-3 text-slate-500 font-mono text-[11px] truncate" title={item.item_code || ""}>{item.item_code || "-"}</td>
+                                     <td className="py-3 px-3 text-slate-800 font-bold" style={{ wordBreak: "keep-all", overflowWrap: "break-word" }}>{item.product_name}</td>
+                                     <td className="py-3 px-2 text-slate-600 font-medium whitespace-nowrap truncate" title={item.spec || ""}>{item.spec || "-"}</td>
+                                     <td className="py-3 px-2 text-center text-slate-600 font-bold whitespace-nowrap">{item.quantity}개</td>
+                                     <td className="py-3 px-2 text-right text-slate-500 font-medium whitespace-nowrap">{(item.unit_price || 0).toLocaleString()}원</td>
+                                     <td className="py-3 px-3 text-right text-indigo-600 font-bold whitespace-nowrap">{((item.quantity || 0) * (item.unit_price || 0)).toLocaleString()}원</td>
+                                     <td className="py-3 px-2 text-center text-slate-600 font-bold whitespace-nowrap">{item.delivery_date || "-"}</td>
+                                   </tr>
+                                 ))}
+                               </tbody>
+                             </table>
+                           ) : (
+                             <table className="w-full text-left text-xs font-semibold min-w-[650px]" style={{ tableLayout: "fixed" }}>
+                               <colgroup><col style={{ width: "14%" }} /><col style={{ width: "32%" }} /><col style={{ width: "16%" }} /><col style={{ width: "8%" }} /><col style={{ width: "14%" }} /><col style={{ width: "16%" }} /></colgroup>
+                               <thead>
+                                 <tr className="border-b border-slate-100 text-slate-400 text-[10px]">
+                                   <th className="py-2.5 px-3 sticky top-0 bg-slate-50 z-10">품목코드</th>
+                                   <th className="py-2.5 px-3 sticky top-0 bg-slate-50 z-10">품목명</th>
+                                   <th className="py-2.5 px-2 sticky top-0 bg-slate-50 z-10">규격</th>
+                                   <th className="py-2.5 px-2 text-center sticky top-0 bg-slate-50 z-10">수량</th>
+                                   <th className="py-2.5 px-2 text-right sticky top-0 bg-slate-50 z-10">단가</th>
+                                   <th className="py-2.5 px-3 text-right sticky top-0 bg-slate-50 z-10">공급가액</th>
+                                 </tr>
+                               </thead>
+                               <tbody>
+                                 {detailData.items.map((item: any, idx: number) => (
+                                   <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/40">
+                                     <td className="py-3 px-3 text-slate-500 font-mono text-[11px] truncate" title={item.item_code || ""}>{item.item_code || "-"}</td>
+                                     <td className="py-3 px-3 text-slate-800 font-bold" style={{ wordBreak: "keep-all", overflowWrap: "break-word" }}>{item.product_name}</td>
+                                     <td className="py-3 px-2 text-slate-600 font-medium whitespace-nowrap truncate" title={item.spec || ""}>{item.spec || "-"}</td>
+                                     <td className="py-3 px-2 text-center text-slate-600 font-bold whitespace-nowrap">{item.quantity}개</td>
+                                     <td className="py-3 px-2 text-right text-slate-500 font-medium whitespace-nowrap">{(item.unit_price || 0).toLocaleString()}원</td>
+                                     <td className="py-3 px-3 text-right text-indigo-600 font-bold whitespace-nowrap">{((item.quantity || 0) * (item.unit_price || 0)).toLocaleString()}원</td>
+                                   </tr>
+                                 ))}
+                               </tbody>
+                             </table>
+                           )}
                         </div>
                       )}
                     </div>
