@@ -54,7 +54,9 @@ export async function GET(req: Request) {
           ...po,
           item_search_text: itemSearchText,
           document_memo_search: docMemo,
-          items: estItems
+          items: estItems,
+          file_url: relatedEst ? relatedEst.file_url : null,
+          business_license_url: relatedEst ? relatedEst.business_license_url : null
         };
       });
 
@@ -108,7 +110,9 @@ export async function GET(req: Request) {
           ...so,
           item_search_text: itemSearchText,
           document_memo_search: docMemo,
-          items: estItems
+          items: estItems,
+          file_url: relatedEst ? relatedEst.file_url : null,
+          business_license_url: relatedEst ? relatedEst.business_license_url : null
         };
       });
 

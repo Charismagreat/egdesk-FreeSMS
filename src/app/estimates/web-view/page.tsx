@@ -1,35 +1,224 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
-import { Sun, Moon } from "lucide-react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { Sun, Moon, Eye, RefreshCw, X, Download } from "lucide-react";
 
-export default function WebViewPage() {
+// B2B 대장 정보 타입 설정 및 디폴트 노출 컬럼 정의
+const typeConfig = {
+  inbound_est: {
+    title: "받은 B2B 견적 및 요청 대장 내역",
+    headers: [
+      "견적번호", "공급/요청처", "연락처", "담당자명", "총 견적액", "상태", "AI스캔여부", "작성일",
+      "첨부파일", "사업자등록증", "연계발주번호", "품목코드", "품목명", "규격", "수량", "단가", "금액", "품목납기일", "상세비고"
+    ],
+    defaultVisible: [
+      "견적번호", "공급/요청처", "연락처", "총 견적액", "상태", "작성일", "품목명", "수량", "단가", "금액", "상세비고"
+    ]
+  },
+  inbound_po: {
+    title: "발주 및 실물 검수 대장 내역",
+    headers: [
+      "발주등록번호/발주번호", "견적번호", "공급처명", "연락처", "총 발주액", "상태", "발주일시",
+      "입고완료일시", "원본 파일", "품목코드", "품목명", "규격", "수량", "단가", "금액", "품목납기일", "상세비고"
+    ],
+    defaultVisible: [
+      "발주등록번호/발주번호", "견적번호", "공급처명", "연락처", "총 발주액", "상태", "발주일시", "원본 파일", "품목명", "수량", "단가", "금액", "상세비고"
+    ]
+  },
+  outbound_est: {
+    title: "보낸 견적서 관리 대장 내역",
+    headers: [
+      "견적번호", "수신바이어", "연락처", "담당자명", "총 견적액", "상태", "작성일",
+      "첨부파일", "연계수주번호", "품목코드", "품목명", "규격", "수량", "단가", "금액", "품목납기일", "상세비고"
+    ],
+    defaultVisible: [
+      "견적번호", "수신바이어", "연락처", "총 견적액", "상태", "작성일", "품목명", "수량", "단가", "금액", "상세비고"
+    ]
+  },
+  outbound_so: {
+    title: "수주 및 바이어 계약 대장 내역",
+    headers: [
+      "수주번호", "견적번호", "고객발주번호", "바이어명", "연락처", "바이어담당자", "총 수주액", "상태", "수주일시",
+      "마스터납기일", "원본 파일", "품목코드", "품목명", "규격", "수량", "단가", "금액", "품목납기일", "상세비고"
+    ],
+    defaultVisible: [
+      "수주번호", "견적번호", "바이어명", "연락처", "총 수주액", "상태", "수주일시", "원본 파일", "품목명", "수량", "단가", "금액", "상세비고"
+    ]
+  }
+};
+
+function WebViewContent() {
+  const searchParams = useSearchParams();
+  const typeParam = searchParams.get("type") || "inbound_est";
+  const type: "inbound_est" | "inbound_po" | "outbound_est" | "outbound_so" = 
+    ["inbound_est", "inbound_po", "outbound_est", "outbound_so"].includes(typeParam) 
+      ? (typeParam as any) 
+      : "inbound_est";
+
   const [data, setData] = useState<{
     title: string;
     headers: string[];
     rows: any[][];
   } | null>(null);
 
+  const [loading, setLoading] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<number | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
+  const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
+  const [isColSelectorOpen, setIsColSelectorOpen] = useState(false);
+  const [activeImageUrl, setActiveImageUrl] = useState<string | null>(null);
 
-  // 1. sessionStorage에서 데이터 로드
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const saved = sessionStorage.getItem("egdesk_webview_data");
-      if (saved) {
-        try {
-          setData(JSON.parse(saved));
-        } catch (e) {
-          console.error("데이터 복원 실패:", e);
+  // 1. 실시간 API 연동 및 데이터 패치
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const headers = typeConfig[type].headers;
+      const rows: any[] = [];
+      const title = typeConfig[type].title;
+
+      if (type === "inbound_est" || type === "outbound_est") {
+        const res = await fetch("/api/estimates?action=list");
+        const json = await res.json();
+        if (json.success && json.estimates) {
+          const estimatesList = json.estimates;
+          const filtered = estimatesList.filter((e: any) => 
+            type === "inbound_est" ? e.type === "INBOUND" : e.type === "OUTBOUND"
+          );
+
+          filtered.forEach((e: any) => {
+            const estItems = e.items && e.items.length > 0 ? e.items : [{}];
+            estItems.forEach((item: any) => {
+              if (type === "inbound_est") {
+                rows.push([
+                  e.id,
+                  e.partner_name,
+                  e.partner_phone,
+                  e.partner_manager || "-",
+                  e.total_amount,
+                  e.direction_status === "REQUESTED" ? "견적접수" : "발주완료",
+                  e.ai_parsed ? "AI OCR" : "수동",
+                  e.created_at,
+                  e.file_url || "-",
+                  e.business_license_url || "-",
+                  e.purchase_order_number || "-",
+                  item.item_code || "-",
+                  item.product_name || "-",
+                  item.spec || "-",
+                  item.quantity !== undefined ? item.quantity : "",
+                  item.unit_price !== undefined ? item.unit_price : "",
+                  item.amount !== undefined ? item.amount : "",
+                  item.delivery_date || "-",
+                  e.document_memo_search || "-"
+                ]);
+              } else {
+                rows.push([
+                  e.id,
+                  e.partner_name,
+                  e.partner_phone,
+                  e.partner_manager || "-",
+                  e.total_amount,
+                  e.direction_status === "SENT" ? "견적발송" : "수주수락",
+                  e.created_at,
+                  e.file_url || "-",
+                  e.sales_order_number || "-",
+                  item.item_code || "-",
+                  item.product_name || "-",
+                  item.spec || "-",
+                  item.quantity !== undefined ? item.quantity : "",
+                  item.unit_price !== undefined ? item.unit_price : "",
+                  item.amount !== undefined ? item.amount : "",
+                  item.delivery_date || "-",
+                  e.document_memo_search || "-"
+                ]);
+              }
+            });
+          });
+        }
+      } else if (type === "inbound_po") {
+        const res = await fetch("/api/estimates/process?action=po_list");
+        const json = await res.json();
+        if (json.success && json.purchaseOrders) {
+          const purchaseOrders = json.purchaseOrders;
+          purchaseOrders.forEach((p: any) => {
+            const poItems = p.items && p.items.length > 0 ? p.items : [{}];
+            poItems.forEach((item: any) => {
+              rows.push([
+                p.id,
+                p.estimate_id,
+                p.vendor_name,
+                p.vendor_phone,
+                p.total_amount,
+                p.status === "PENDING_INBOUND" ? "발주완료" : "입고완료",
+                p.created_at,
+                p.completed_at || "-",
+                p.file_url || "-",
+                item.item_code || "-",
+                item.product_name || "-",
+                item.spec || "-",
+                item.quantity !== undefined ? item.quantity : "",
+                item.unit_price !== undefined ? item.unit_price : "",
+                item.amount !== undefined ? item.amount : "",
+                item.delivery_date || "-",
+                p.document_memo_search || "-"
+              ]);
+            });
+          });
+        }
+      } else if (type === "outbound_so") {
+        const res = await fetch("/api/estimates/process?action=so_list");
+        const json = await res.json();
+        if (json.success && json.salesOrders) {
+          const salesOrders = json.salesOrders;
+          salesOrders.forEach((s: any) => {
+            const soItems = s.items && s.items.length > 0 ? s.items : [{}];
+            soItems.forEach((item: any) => {
+              rows.push([
+                s.id,
+                s.estimate_id,
+                s.client_order_no || "-",
+                s.customer_name,
+                s.customer_phone,
+                s.customer_manager || "-",
+                s.total_amount,
+                s.status === "REGISTERED" ? "수주등록" : "확인완료",
+                s.created_at,
+                s.delivery_date || "-",
+                s.file_url || "-",
+                item.item_code || "-",
+                item.product_name || "-",
+                item.spec || "-",
+                item.quantity !== undefined ? item.quantity : "",
+                item.unit_price !== undefined ? item.unit_price : "",
+                item.amount !== undefined ? item.amount : "",
+                item.delivery_date || "-",
+                s.document_memo_search || "-"
+              ]);
+            });
+          });
         }
       }
+
+      setData({ title, headers, rows });
+      
+      // 초기 컬럼 기본 노출 세팅 적용
+      if (visibleColumns.length === 0) {
+        setVisibleColumns(typeConfig[type].defaultVisible);
+      }
+    } catch (e) {
+      console.error("데이터 실시간 fetch 실패:", e);
+    } finally {
+      setLoading(false);
     }
-  }, []);
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [type]);
 
   // 2. 검색 및 필터링
   const filteredRows = useMemo(() => {
@@ -86,17 +275,29 @@ export default function WebViewPage() {
     setCurrentPage(1);
   };
 
-  // CSV 다운로드 폴백
+  // CSV 다운로드 (현재 표시된 컬럼과 데이터만 똑똑하게 추출하여 다운로드)
   const handleExportCsv = () => {
     if (!data) return;
+
+    // visibleColumns 인덱스 매칭
+    const headerIndices = data.headers
+      .map((h, idx) => (visibleColumns.includes(h) ? idx : -1))
+      .filter((idx) => idx !== -1);
+
+    const activeHeaders = headerIndices.map((idx) => data.headers[idx]);
+    const activeRows = data.rows.map((row) =>
+      headerIndices.map((idx) => row[idx])
+    );
+
     const csvContent =
       "\ufeff" +
       [
-        data.headers.join(","),
-        ...data.rows.map((r) =>
+        activeHeaders.join(","),
+        ...activeRows.map((r) =>
           r.map((val: any) => `"${String(val).replace(/"/g, '""')}"`).join(",")
         ),
       ].join("\n");
+
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -108,11 +309,39 @@ export default function WebViewPage() {
     document.body.removeChild(link);
   };
 
-  if (!data) {
+  // 컬럼 노출 개별 토글
+  const toggleColumn = (colName: string) => {
+    setVisibleColumns((prev) =>
+      prev.includes(colName)
+        ? prev.filter((c) => c !== colName)
+        : [...prev, colName]
+    );
+  };
+
+  // 컬럼 전체 선택 / 해제
+  const toggleAllColumns = () => {
+    if (!data) return;
+    if (visibleColumns.length === data.headers.length) {
+      // 전부 켜져 있으면 모두 해제 (단, 첫 번째 열인 ID는 보존)
+      setVisibleColumns([data.headers[0]]);
+    } else {
+      // 모두 선택
+      setVisibleColumns(data.headers);
+    }
+  };
+
+  // 이미지/문서 원본 뷰어 뱃지 감지 헬퍼
+  const detectFile = (str: string) => {
+    const isUrl = str.startsWith("http://") || str.startsWith("https://") || str.includes("/uploads/");
+    const isBase64 = str.startsWith("data:image/") || str.startsWith("data:application/pdf");
+    return isUrl || isBase64;
+  };
+
+  if (loading || !data) {
     return (
       <div className={`min-h-screen ${isDarkMode ? 'bg-slate-950 text-slate-350' : 'bg-slate-50 text-slate-600'} flex flex-col items-center justify-center font-sans p-6 transition-colors duration-300`}>
-        <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-sm font-black tracking-wide text-indigo-500">데이터를 로드하는 중입니다...</p>
+        <div className="w-16 h-16 border-4 border-indigo-650 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-sm font-black tracking-wide text-indigo-500 animate-pulse">실시간 데이터베이스를 조회 중입니다...</p>
       </div>
     );
   }
@@ -122,42 +351,57 @@ export default function WebViewPage() {
       isDarkMode 
         ? "bg-gradient-to-tr from-slate-950 via-slate-900 to-indigo-950 text-slate-100" 
         : "bg-gradient-to-tr from-slate-50 via-slate-100 to-indigo-50/30 text-slate-800"
-    } font-sans p-4 md:p-8 transition-colors duration-300 relative overflow-x-hidden`}>
+    } font-sans p-3 md:p-5 transition-colors duration-300 relative overflow-x-hidden w-full`}>
       {/* 럭셔리 네온 광원 */}
       <div className={`absolute top-10 left-10 w-80 h-80 ${isDarkMode ? 'bg-indigo-600/10' : 'bg-indigo-400/5'} rounded-full blur-3xl -z-10 animate-pulse`}></div>
       <div className={`absolute bottom-10 right-10 w-96 h-96 ${isDarkMode ? 'bg-purple-600/5' : 'bg-purple-400/5'} rounded-full blur-3xl -z-10`}></div>
 
-      <div className="max-w-7xl mx-auto space-y-6">
+      {/* 가로 공간 최대화를 위해 max-w-full 처리 */}
+      <div className="w-full space-y-4">
+        
         {/* 상단 헤더 패널 */}
         <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 ${
           isDarkMode 
             ? "bg-white/5 border-white/10" 
             : "bg-white/80 border-slate-200 shadow-xl shadow-slate-100/50"
-        } backdrop-blur-xl border p-6 rounded-3xl transition-all duration-300`}>
+        } backdrop-blur-xl border p-5 rounded-3xl transition-all duration-300`}>
           <div>
             <span className={`${
               isDarkMode 
                 ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/30" 
                 : "bg-indigo-50/80 text-indigo-650 border-indigo-200"
-            } border text-[10px] font-black tracking-widest px-3 py-1 rounded-full uppercase`}>
+            } border text-[9px] font-black tracking-widest px-2.5 py-0.5 rounded-full uppercase`}>
               B2B Realtime WebView
             </span>
-            <h1 className={`text-2xl font-black ${
+            <h1 className={`text-xl font-black ${
               isDarkMode 
                 ? "text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-indigo-300" 
                 : "text-slate-800"
-            } mt-2`}>
+            } mt-1.5`}>
               {data.title}
             </h1>
-            <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} mt-1 font-medium`}>
-              총 <span className="text-indigo-600 font-bold">{sortedRows.length}</span>개의 평탄화(Flattened) 품목 상세 정보가 적재되었습니다.
+            <p className={`text-[11px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} mt-0.5 font-medium`}>
+              실시간 DB 연계 조회 중 ➔ 총 <span className="text-indigo-600 font-bold">{sortedRows.length}</span>개의 상세 내역이 적재되어 있습니다.
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {/* 실시간 패치 새로고침 단추 */}
+            <button
+              onClick={fetchData}
+              className={`p-2.5 rounded-2xl border text-xs font-bold transition-all flex items-center justify-center cursor-pointer ${
+                isDarkMode 
+                  ? "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:text-white" 
+                  : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-sm"
+              }`}
+              title="데이터 새로고침"
+            >
+              <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+            </button>
+
             {/* 다크/라이트모드 토글 단추 */}
             <button
               onClick={() => setIsDarkMode(!isDarkMode)}
-              className={`px-4 py-2.5 rounded-2xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-2.5 rounded-2xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 isDarkMode 
                   ? "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:text-white" 
                   : "bg-white border-slate-200 text-slate-705 hover:bg-slate-50 hover:text-slate-900 shadow-sm"
@@ -177,49 +421,104 @@ export default function WebViewPage() {
               )}
             </button>
 
+            {/* CSV 내보내기 */}
             <button
               onClick={handleExportCsv}
               className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-750 text-white text-xs font-black rounded-2xl shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-1.5 cursor-pointer"
             >
-              📊 CSV 다운로드
-            </button>
-            <button
-              onClick={() => window.close()}
-              className={`px-4 py-2.5 ${
-                isDarkMode 
-                  ? "bg-white/5 hover:bg-white/10 text-slate-350 hover:text-white border-white/10" 
-                  : "bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 border-slate-200"
-              } text-xs font-bold rounded-2xl border transition-all cursor-pointer`}
-            >
-              닫기
+              <Download size={14} />
+              <span>CSV 내보내기</span>
             </button>
           </div>
         </div>
 
-        {/* 필터 및 검색 패널 */}
-        <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+        {/* 필터, 검색 및 컬럼 표시설정 제어 영역 */}
+        <div className={`flex flex-col md:flex-row md:items-center justify-between gap-3 ${
           isDarkMode 
             ? "bg-white/5 border-white/10" 
             : "bg-white/80 border-slate-200 shadow-xl shadow-slate-100/50"
-        } backdrop-blur-xl border p-5 rounded-3xl transition-all duration-300`}>
+        } backdrop-blur-xl border p-4 rounded-3xl transition-all duration-300 relative`}>
           <div className="flex flex-1 items-center max-w-md w-full">
             <input
               type="text"
-              placeholder="검색어를 입력해 주세요 (바이어명, 견적번호, 품목명 등 전체 조회)..."
+              placeholder="검색어를 입력해 주세요 (전체 대장 실시간 검색)..."
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
                 setCurrentPage(1);
               }}
-              className={`w-full px-4 py-3 border rounded-2xl text-xs font-bold shadow-inner outline-none transition-all ${
+              className={`w-full px-3.5 py-2.5 border rounded-2xl text-[11px] font-bold shadow-inner outline-none transition-all ${
                 isDarkMode 
                   ? "bg-slate-900/50 border-white/10 text-white placeholder-slate-500 focus:border-indigo-500/80" 
                   : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-indigo-500/70"
               }`}
             />
           </div>
-          <div className="flex items-center gap-3 justify-end">
-            <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} font-bold`}>페이지당 보기:</span>
+          <div className="flex items-center gap-3 justify-end relative">
+            {/* 컬럼 숨기기/보이기 제어기 */}
+            <div className="relative">
+              <button
+                onClick={() => setIsColSelectorOpen(!isColSelectorOpen)}
+                className={`px-3 py-2.5 rounded-2xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  isColSelectorOpen
+                    ? "bg-indigo-600 border-indigo-650 text-white shadow-md"
+                    : isDarkMode
+                    ? "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10"
+                    : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm"
+                }`}
+              >
+                <Eye size={13} />
+                <span>⚙️ 컬럼 표시 설정</span>
+              </button>
+              
+              {/* 컬럼 선택 팝업 드롭다운 (Glassmorphism 적용) */}
+              {isColSelectorOpen && (
+                <div className={`absolute right-0 mt-2.5 w-64 rounded-2xl border shadow-2xl p-4 z-30 backdrop-blur-2xl transition-all ${
+                  isDarkMode
+                    ? "bg-slate-900/95 border-slate-750 text-slate-200"
+                    : "bg-white/95 border-slate-200 text-slate-800"
+                }`}>
+                  <div className="flex items-center justify-between border-b border-solid border-slate-700/20 pb-2 mb-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider">표시 컬럼 선택</span>
+                    <button
+                      onClick={toggleAllColumns}
+                      className="text-[9px] font-black text-indigo-500 hover:underline border-none bg-transparent cursor-pointer"
+                    >
+                      {visibleColumns.length === data.headers.length ? "전체해제" : "전체선택"}
+                    </button>
+                  </div>
+                  <div className="max-h-60 overflow-y-auto space-y-1.5 custom-scrollbar text-left">
+                    {data.headers.map((h, idx) => {
+                      const isChecked = visibleColumns.includes(h);
+                      return (
+                        <label
+                          key={idx}
+                          className="flex items-center gap-2 px-1.5 py-1 hover:bg-white/5 rounded-lg cursor-pointer text-[11px] font-bold transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggleColumn(h)}
+                            className="rounded border-slate-400 text-indigo-600 focus:ring-indigo-550 w-3.5 h-3.5 cursor-pointer"
+                          />
+                          <span className={isChecked ? "opacity-100" : "opacity-50"}>{h}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <div className="border-t border-solid border-slate-700/20 pt-2 mt-2 flex justify-end">
+                    <button
+                      onClick={() => setIsColSelectorOpen(false)}
+                      className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black cursor-pointer border-none"
+                    >
+                      확인
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} font-bold`}>보기:</span>
             <select
               value={pageSize}
               onChange={(e) => {
@@ -229,7 +528,7 @@ export default function WebViewPage() {
               className={`px-3 py-2 border rounded-2xl text-xs font-bold shadow-sm outline-none transition-all ${
                 isDarkMode 
                   ? "bg-slate-900/50 border-white/10 text-slate-300" 
-                  : "bg-slate-50 border-slate-200 text-slate-700"
+                  : "bg-slate-50 border-slate-200 text-slate-705"
               }`}
             >
               <option value={10}>10개씩</option>
@@ -240,43 +539,46 @@ export default function WebViewPage() {
           </div>
         </div>
 
-        {/* 데이터 테이블 카드 */}
+        {/* 데이터 테이블 카드 (좌우 최대 폭 확장 및 가로 스크롤 방지 래핑 패턴) */}
         <div className={`${
           isDarkMode 
             ? "bg-white/5 border-white/10" 
             : "bg-white/80 border-slate-200 shadow-xl shadow-slate-100/50"
-        } backdrop-blur-xl border rounded-3xl overflow-hidden transition-all duration-300`}>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs font-semibold border-collapse">
+        } backdrop-blur-xl border rounded-3xl overflow-hidden transition-all duration-300 w-full`}>
+          <div className="w-full overflow-x-auto custom-scrollbar">
+            <table className="w-full text-left text-[11px] font-semibold border-collapse table-auto">
               <thead>
                 <tr className={`border-b ${
                   isDarkMode 
                     ? "border-white/10 bg-slate-900/30 text-slate-400" 
                     : "border-slate-200 bg-slate-50 text-slate-600"
                 } transition-colors duration-300`}>
-                  {data.headers.map((header, idx) => (
-                    <th
-                      key={idx}
-                      onClick={() => handleSort(idx)}
-                      className={`py-4 px-4 cursor-pointer ${
-                        isDarkMode ? "hover:text-white" : "hover:text-slate-900"
-                      } select-none transition-colors group whitespace-nowrap`}
-                    >
-                      <div className="flex items-center gap-1">
-                        {header}
-                        <span className="text-indigo-500 font-bold group-hover:scale-110 transition-transform">
-                          {sortKey === idx ? (sortDir === "asc" ? " ▲" : " ▼") : " ↕"}
-                        </span>
-                      </div>
-                    </th>
-                  ))}
+                  {data.headers.map((header, idx) => {
+                    if (!visibleColumns.includes(header)) return null;
+                    return (
+                      <th
+                        key={idx}
+                        onClick={() => handleSort(idx)}
+                        className={`py-3.5 px-3.5 cursor-pointer ${
+                          isDarkMode ? "hover:text-white" : "hover:text-slate-900"
+                        } select-none transition-colors group whitespace-nowrap`}
+                      >
+                        <div className="flex items-center gap-1">
+                          {header}
+                          <span className="text-indigo-500 font-bold group-hover:scale-110 transition-transform">
+                            {sortKey === idx ? (sortDir === "asc" ? " ▲" : " ▼") : " ↕"}
+                          </span>
+                        </div>
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
                 {paginatedRows.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={data.headers.length}
+                      colSpan={visibleColumns.length}
                       className={`text-center py-20 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} font-semibold`}
                     >
                       검색 조건에 맞는 내역이 존재하지 않습니다.
@@ -293,24 +595,24 @@ export default function WebViewPage() {
                       } transition-colors duration-300`}
                     >
                       {row.map((val, cIdx) => {
+                        const headerName = data.headers[cIdx];
+                        if (!visibleColumns.includes(headerName)) return null;
+
                         const strVal = String(val);
-                        // 파일 링크/URL 형식일 경우 스마트 뱃지로 렌더링
-                        const isUrl = strVal.startsWith("http://") || strVal.startsWith("https://") || strVal.includes("/uploads/");
+                        const isAttachedFile = detectFile(strVal);
                         
                         return (
-                          <td key={cIdx} className={`py-3.5 px-4 ${
+                          <td key={cIdx} className={`py-3 px-3.5 ${
                             isDarkMode ? "text-slate-350" : "text-slate-700"
-                          } font-medium whitespace-nowrap max-w-[200px] truncate`}>
-                            {isUrl ? (
-                              <a
-                                href={strVal}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="px-2.5 py-1 bg-indigo-500/10 text-indigo-600 hover:bg-indigo-500/20 rounded-lg text-[10px] font-black border border-indigo-500/20 transition-all inline-block"
-                                title={strVal}
+                          } font-medium whitespace-normal break-all max-w-[240px]`}>
+                            {isAttachedFile ? (
+                              <button
+                                onClick={() => setActiveImageUrl(strVal)}
+                                className="px-2.5 py-1 bg-indigo-500/10 text-indigo-600 hover:bg-indigo-500/20 rounded-lg text-[10px] font-black border border-indigo-500/20 transition-all inline-flex items-center gap-1 cursor-pointer"
+                                title="원본 파일 전체보기"
                               >
-                                🔗 파일확인
-                              </a>
+                                🔗 원본보기
+                              </button>
                             ) : strVal === "-" ? (
                               <span className={isDarkMode ? "text-slate-700" : "text-slate-400"}>-</span>
                             ) : (
@@ -333,26 +635,25 @@ export default function WebViewPage() {
             isDarkMode 
               ? "bg-white/5 border-white/10" 
               : "bg-white/80 border-slate-200 shadow-xl shadow-slate-100/50"
-          } backdrop-blur-xl border px-6 py-4 rounded-3xl transition-all duration-300`}>
-            <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} font-bold`}>
+          } backdrop-blur-xl border px-5 py-3 rounded-3xl transition-all duration-300`}>
+            <span className={`text-[11px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} font-bold`}>
               페이지 <span className="text-indigo-600 font-black">{currentPage}</span> / {totalPages}
             </span>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
               <button
                 onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className={`px-3.5 py-2 ${
+                className={`px-3 py-1.5 ${
                   isDarkMode 
                     ? "bg-slate-900/50 hover:bg-slate-900 border-white/5 text-slate-350" 
                     : "bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-600"
-                } border rounded-xl text-xs font-bold disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer`}
+                } border rounded-xl text-[11px] font-bold disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer`}
               >
                 이전
               </button>
               
               {Array.from({ length: totalPages }).map((_, idx) => {
                 const pageNum = idx + 1;
-                // 현재 페이지 주변 몇 개만 노출
                 if (Math.abs(currentPage - pageNum) > 2 && pageNum !== 1 && pageNum !== totalPages) {
                   if (pageNum === 2 || pageNum === totalPages - 1) {
                     return <span key={idx} className="text-slate-500 px-1 text-xs">...</span>;
@@ -364,7 +665,7 @@ export default function WebViewPage() {
                   <button
                     key={idx}
                     onClick={() => setCurrentPage(pageNum)}
-                    className={`w-8 h-8 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                    className={`w-7.5 h-7.5 rounded-xl text-[11px] font-black transition-all cursor-pointer ${
                       currentPage === pageNum
                         ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
                         : isDarkMode
@@ -380,11 +681,11 @@ export default function WebViewPage() {
               <button
                 onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
-                className={`px-3.5 py-2 ${
+                className={`px-3 py-1.5 ${
                   isDarkMode 
                     ? "bg-slate-900/50 hover:bg-slate-900 border-white/5 text-slate-350" 
                     : "bg-slate-100 hover:bg-slate-250 border-slate-200 text-slate-600"
-                } border rounded-xl text-xs font-bold disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer`}
+                } border rounded-xl text-[11px] font-bold disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer`}
               >
                 다음
               </button>
@@ -392,6 +693,57 @@ export default function WebViewPage() {
           </div>
         )}
       </div>
+
+      {/* 🖼️ 프리미엄 Glassmorphism 원본 파일 이미지 뷰어 모달 */}
+      {activeImageUrl && (
+        <div 
+          onClick={() => setActiveImageUrl(null)}
+          className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in cursor-zoom-out"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="relative max-w-4xl w-full bg-slate-900/40 border border-white/10 p-2.5 rounded-3xl shadow-2xl flex flex-col items-center cursor-default"
+          >
+            {/* 상단 닫기 단추 */}
+            <button
+              onClick={() => setActiveImageUrl(null)}
+              className="absolute top-4 right-4 z-10 w-9 h-9 flex items-center justify-center bg-black/60 border border-white/10 hover:bg-black/80 rounded-full text-white cursor-pointer transition-all hover:scale-105"
+            >
+              <X size={18} />
+            </button>
+            
+            <div className="w-full max-h-[82vh] overflow-auto custom-scrollbar flex justify-center items-center rounded-2xl bg-black/20 p-2">
+              {activeImageUrl.startsWith("data:application/pdf") ? (
+                <iframe 
+                  src={activeImageUrl} 
+                  className="w-full h-[75vh] rounded-xl border-none"
+                  title="PDF Document Viewer"
+                />
+              ) : (
+                <img
+                  src={activeImageUrl}
+                  alt="수발주 원본 증빙문서 파일"
+                  className="max-w-full h-auto object-contain rounded-xl shadow-lg border border-white/5"
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
+  );
+}
+
+export default function WebViewPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-300 font-sans p-6">
+        <div className="w-16 h-16 border-4 border-indigo-650 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-sm font-black tracking-wide text-indigo-400">페이지를 불러오는 중입니다...</p>
+      </div>
+    }>
+      <WebViewContent />
+    </Suspense>
   );
 }
