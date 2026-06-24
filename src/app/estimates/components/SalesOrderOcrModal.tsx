@@ -29,7 +29,7 @@ export default function SalesOrderOcrModal({
     partner_name: "",
     partner_phone: "",
     partner_manager: "",
-    items: [] as Array<{ item_code?: string; product_name: string; spec?: string; quantity: number; unit_price: number; delivery_date?: string }>,
+    items: [] as Array<{ item_code?: string; valid_item_code?: string; product_name: string; spec?: string; quantity: number; unit_price: number; delivery_date?: string }>,
     file_url: "",
     business_number: "",
     representative: "",
@@ -405,6 +405,11 @@ export default function SalesOrderOcrModal({
                           {item.item_code && (
                             <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[9px] font-bold rounded">
                               {item.item_code}
+                            </span>
+                          )}
+                          {item.valid_item_code && (
+                            <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-black rounded border border-emerald-200">
+                              유효품목코드: {item.valid_item_code}
                             </span>
                           )}
                         </div>

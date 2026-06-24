@@ -29,6 +29,16 @@ export function useKnowledgeAi() {
   const [showAutopilotModal, setShowAutopilotModal] = useState(false);
   const [autopilotResult, setAutopilotResult] = useState<any>(null);
 
+  // 직접 입력 모드 및 내용 상태
+  const [uploadMode, setUploadMode] = useState<"file" | "direct">("file");
+  const [directContent, setDirectContent] = useState("");
+
+  // 실시간 편집 상태
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState("");
+  const [editMetadata, setEditMetadata] = useState<Record<string, any>>({});
+  const [editSecurityLevel, setEditSecurityLevel] = useState<"A" | "B" | "C">("A");
+
   // RAG 챗봇 관련 상태
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
@@ -204,11 +214,17 @@ export function useKnowledgeAi() {
     }
   };
 
-  // 비정형 파일 시뮬레이션 업로드
+  // 비정형 파일 시뮬레이션 업로드 또는 마크다운 직접 등록
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!uploadTitle.trim()) return alert("기안 문서 제목을 입력하십시오.");
     if (!uploadType) return alert("자산 종류를 지정하십시오.");
+    if (uploadMode === "direct" && !directContent.trim()) {
+      return alert("마크다운 입력 내용을 작성해 주세요.");
+    }
+    if (uploadMode === "file" && !uploadFile) {
+      // 파일 등록 모드이지만 파일 누락 시 경고 (시뮬레이션이므로 임시 허용하지만 원칙적 락)
+    }
 
     setIsUploading(true);
     setUploadProgress(10);
@@ -226,6 +242,7 @@ export function useKnowledgeAi() {
     setTimeout(async () => {
       try {
         const dummyFileName = 
+          uploadMode === "direct" ? "direct_entry.md" :
           uploadType.includes("도면") ? "engine_casing_v4.dwg" :
           uploadType.includes("녹음") || uploadType.includes("영상") ? "board_meeting_0601.mp3" :
           uploadType.includes("명함") ? "partner_ceo_card.jpg" :
@@ -241,7 +258,10 @@ export function useKnowledgeAi() {
             creator_id: currentUser,
             dept_code: currentDept,
             file_name: dummyFileName,
-            file_size: "4.2 MB"
+            file_size: uploadMode === "direct" 
+              ? `${new Blob([directContent]).size} bytes` 
+              : "4.2 MB",
+            ...(uploadMode === "direct" ? { direct_content: directContent } : {})
           })
         });
 
@@ -265,14 +285,75 @@ export function useKnowledgeAi() {
 
           setUploadTitle("");
           setUploadFile(null);
+          setDirectContent(""); // 성공 시 초기화
           await fetchDocuments();
+        } else {
+          alert(`기안 상신 실패: ${data.error}`);
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error(err);
+        alert(`네트워크 오류가 발생했습니다: ${err.message}`);
       } finally {
         setIsUploading(false);
       }
     }, 1000);
+  };
+
+  // 등록된 지식 문서 수정(업데이트) API 호출
+  const handleUpdateDocument = async (docId: string, content: string, metadata?: Record<string, any>, securityLevel?: "A" | "B" | "C") => {
+    try {
+      const res = await fetch("/api/knowledge-ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "UPDATE",
+          document_id: docId,
+          content,
+          ...(metadata ? { metadata } : {}),
+          ...(securityLevel ? { security_level: securityLevel } : {})
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsEditing(false);
+        alert(data.message);
+        await fetchDocuments();
+      } else {
+        alert(`수정 실패: ${data.error}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("지식 수정 중 오류가 발생했습니다.");
+    }
+  };
+
+  // 등록된 지식 문서 삭제 API 호출
+  const handleDeleteDocument = async (docId: string) => {
+    if (!confirm("정말로 이 지식 자산을 삭제하시겠습니까?\n삭제된 지식은 RAG 검색 대상에서 제외됩니다.")) return;
+    try {
+      const res = await fetch("/api/knowledge-ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "DELETE",
+          document_id: docId
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message);
+        // 만약 선택된 지식이 삭제 대상이면 선택을 초기화하거나 해제
+        if (selectedDoc?.document_id === docId) {
+          setSelectedDoc(null);
+        }
+        await fetchDocuments();
+      } else {
+        alert(`삭제 실패: ${data.error}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("지식 삭제 중 오류가 발생했습니다.");
+    }
   };
 
   // RAG 질문 발송
@@ -482,11 +563,25 @@ export function useKnowledgeAi() {
     isPlayingAudio,
     setIsPlayingAudio,
     audioProgress,
+    uploadMode,
+    setUploadMode,
+    directContent,
+    setDirectContent,
+    isEditing,
+    setIsEditing,
+    editContent,
+    setEditContent,
+    editMetadata,
+    setEditMetadata,
+    editSecurityLevel,
+    setEditSecurityLevel,
     handleCreateAssetType,
     handleDeleteAssetType,
     handleDowngradeSecurity,
     handleApproveDocument,
     handleFileUpload,
+    handleUpdateDocument,
+    handleDeleteDocument,
     handleSendChat,
     handleMicClick,
     handleCadMouseDown,

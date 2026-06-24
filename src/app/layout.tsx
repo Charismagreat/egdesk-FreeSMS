@@ -6,6 +6,7 @@ import SidebarWrapper from "@/components/SidebarWrapper";
 import MainContentWrapper from "@/components/MainContentWrapper";
 import EasyBot from "@/components/EasyBot";
 import AIHelpManager from "@/components/AIHelpManager";
+import DynamicTitle from "@/components/DynamicTitle";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -24,6 +25,7 @@ export default function RootLayout({
   return (
     <html lang="ko" className="h-full" suppressHydrationWarning>
       <body className={`${inter.className} h-full overflow-hidden flex bg-slate-50 text-slate-900 antialiased`} suppressHydrationWarning>
+        <DynamicTitle />
         <SidebarWrapper>
           <Sidebar />
         </SidebarWrapper>

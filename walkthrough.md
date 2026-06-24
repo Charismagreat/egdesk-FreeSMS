@@ -60,45 +60,44 @@
   - 모바일 터치 드래그 및 마우스 드로잉을 매끄럽게 처리하는 Signature Canvas를 장착했습니다.
   - 그리기 도중 화면 스크롤이 흔들리지 않도록 `touch-action: none` 및 `preventDefault` 제어를 완비했습니다.
   - "다시 그리기" 초기화 및 "계약서 서명 및 제출" E2E E-Sign 완료 API 처리를 포함하고, 최종 체결 성공 시 체결 내역 영수증을 담은 성공 전환 화면을 모던하게 이식했습니다.
+
+---
+
+## 5. 스냅샷 자동 시딩을 통한 기안 상신 FOREIGN KEY 에러 해결
+* **문제 증상**: 직접 입력 모드로 지식을 기안 상신할 때 `Failed to execute knowledge_create_document: FOREIGN KEY constraint failed` 오류 발생.
+* **원인**: 백엔드 API 게이트웨이(8080)와 MCP 지식 저장소 테이블 구조에서 지식 문서는 특정 비즈니스 스냅샷(`snapshotId`)에 기속되는데, DB 셋업으로 인해 MCP 스냅샷 테이블이 비어 있게 되면서 폴백용 ID인 `'default_snapshot'`이 외래키 제약조건에 걸려 인서트가 실패함.
+* **해결 방안**: `src/app/api/knowledge-ai/route.ts` API에서 대표 스냅샷 ID를 획득할 때, 스냅샷 리스트가 비어 있는 경우 `businessidentity_create_snapshot` 툴을 통해 기본 비즈니스 식별 정보 스냅샷을 1회 자동으로 생성(Auto-Seeding)한 후 해당 실존 ID를 전달하도록 보완하였습니다. 이를 통해 에러 없이 기안 상신 및 RAG 지식 적재가 완벽히 성공합니다.
+
 - **사외 모바일 예외 규칙**:
   - 사내 UI/UX 규칙에 의거하여, `/m/contract-sign` 경로 진입 시 PC용 사이드바(`SidebarWrapper`)와 플로팅 이지봇(`EasyBot`), 도움말 버튼(`AIHelpManager`)을 전면 숨김 처리하여 모바일 사용성을 해치지 않도록 조치했습니다.
 
 ---
 
-## 5. 빌드 안정성 및 배포 검증
-
-- **정적 빌드 검사**: `npx tsc --noEmit` 정밀 컴파일을 수행하여, 형상 간 타입 모순이 완전히 해소된 **빌드 무결성(Zero Errors)**을 최종 달성했습니다.
-- **형상 배포**: 수동 기안, SMS 예약, 모바일 체결 E2E 시스템 코드를 원격 저장소(`master`)로 무사히 **`git push` 전송** 완료했습니다.
-
----
-
-## 6. 견적/발주/수주 AI 엑셀 대장 내보내기 컬럼 대폭 확장 (추가 완료)
-
-- **수정 파일**: [page.tsx (대시보드)](file:///C:/dev/egdesk-FreeSMS/src/app/estimates/page.tsx)
-- **내용**:
-  - 기존의 마스터 정보 및 품목 컬럼에 더해, 각 모듈(받은견적, 발주, 보낸견적, 수주)에 적재된 모든 비즈니스 정보와 **품목별 납기일(delivery_date)** 컬럼을 대대적으로 추가 매핑했습니다.
-  - **받은 견적 (`inbound_est`)**: `첨부파일(file_url)`, `사업자등록증(business_license_url)`, `연계발주번호(purchase_order_number)`, `품목납기일(delivery_date)` 추가 (총 19개 컬럼)
-  - **발주 대장 (`inbound_po`)**: `입고완료일시(completed_at)`, `품목납기일(delivery_date)` 추가 (총 16개 컬럼)
-  - **보낸 견적 (`outbound_est`)**: `첨부파일(file_url)`, `연계수주번호(sales_order_number)`, `품목납기일(delivery_date)` 추가 (총 17개 컬럼)
-  - **수주 대장 (`outbound_so`)**: `고객발주번호(client_order_no)`, `바이어담당자(customer_manager)`, `마스터납기일(delivery_date)`, `품목납기일(delivery_date)` 추가 (총 18개 컬럼)
-  - 데이터의 누락 및 컬럼 밀림 현상이 발생하지 않도록 컬럼 수와 매핑 값 개수를 엄격히 일치시켰으며, 한글 깨짐 방지용 UTF-8 BOM 헤더를 적용하여 Excel 호환성을 보장했습니다.
-  - `npx tsc --noEmit` 검사 결과 완벽한 무결성을 보장합니다.
+## 6. 지식자산 리스트 삭제 기능 추가
+* **백엔드 API 구현**: `src/app/api/knowledge-ai/route.ts` 파일의 `POST` 핸들러에 `action === 'DELETE'` 분기를 추가하여 MCP 지식 저장소에서 실물 지식 자산 문서를 영구적으로 제거할 수 있게 구현했습니다. 또한 문서 업로드 성공 후 실제 DB에 적재된 정확한 ID(`newDocRes.document.id`)가 분해되도록 ID 추출 경로를 보정하였습니다.
+* **프론트엔드 연동 및 UI 구현**: `useKnowledgeAi.ts` 훅에 `handleDeleteDocument` 함수를 설계하고, 상세 보기 화면([DocumentDetail.tsx](file:///C:/dev/egdesk-FreeSMS/src/app/knowledge-ai/components/DocumentDetail.tsx)) 우하단 플로팅 도구바 영역에 `✏️ 본문 수정하기` 버튼과 나란히 **`🗑️ 지식 삭제하기`** 버튼을 탑재했습니다. 삭제 실행 시 브라우저 컨펌 확인 후 안전하게 문서를 삭제하고 리스트를 동적 갱신하도록 처리했습니다.
 
 ---
 
-## 7. 평탄화 데이터 실시간 웹 뷰어 (Web View) 및 컴포넌트 연동 (완료)
+## 7. 지식 메타데이터 수정 기능 추가
+* **백엔드 API 구현**: `src/app/api/knowledge-ai/route.ts`의 `UPDATE` 핸들러가 `metadata` 페이로드도 함께 수신할 수 있도록 업데이트하였습니다. 텍스트 본문 업데이트와 동시에 전달된 메타데이터 값들로 기존 메타데이터 객체를 오버라이트 및 저장합니다.
+* **프론트엔드 연동 및 UI 구현**: `useKnowledgeAi.ts` 훅에 `editMetadata` 로컬 상태와 `handleUpdateDocument` 시에 메타데이터를 전송하는 시그니처를 수정했습니다. 상세 보기 화면([DocumentDetail.tsx](file:///C:/dev/egdesk-FreeSMS/src/app/knowledge-ai/components/DocumentDetail.tsx))에서 지식 수정 모드 진입 시, **AI 추출 정형 메타데이터** 영역의 필드값(`file_name`, `file_size`, `doc_type` 등)이 각각의 편집용 `input` 박스로 자동 전환되어 사용자가 직접 수정 및 저장 배포할 수 있도록 UI를 개편했습니다.
 
-- **신규 파일**: [page.tsx (웹뷰)](file:///C:/dev/egdesk-FreeSMS/src/app/estimates/web-view/page.tsx)
-- **수정 파일**:
-  - [page.tsx (대시보드)](file:///C:/dev/egdesk-FreeSMS/src/app/estimates/page.tsx)
-  - [InboundHub.tsx](file:///C:/dev/egdesk-FreeSMS/src/app/estimates/components/InboundHub.tsx)
-  - [OutboundHub.tsx](file:///C:/dev/egdesk-FreeSMS/src/app/estimates/components/OutboundHub.tsx)
-- **내용**:
-  - 엑셀 다운로드 버튼 바로 옆에 **"🖥️ 웹에서 보기"** 버튼을 배치하고, 대용량 데이터 전달을 위해 브라우저 `sessionStorage`를 데이터 매개체로 활용하여 새 탭(`_blank`)에서 전용 뷰어 웹페이지를 실행하도록 워크플로우를 설계했습니다.
-  - 새 탭에서 열리는 웹 뷰어에는 다음 핵심 기능들이 완전히 독립적으로 구동됩니다:
-    - **실시간 전체 텍스트 검색**: 검색어 입력 즉시 바이어명, 견적번호, 품목명 등 모든 텍스트에 대한 인라인 매칭 필터링이 즉각 수행됩니다.
-    - **헤더 클릭 기반 컬럼 정렬**: 텍스트 알파벳 정렬뿐 아니라 수량, 금액, 단가 등 숫자성 데이터 역시 쉼표/한글을 정제하여 크기순으로 오름차순/내림차순 정렬할 수 있는 동적 헬퍼를 이식했습니다.
-    - **유연한 페이지네이션**: 페이지당 개수 선택(10, 15, 30, 50개 보기) 및 이전/다음 및 개별 번호 뱃지 이동 제어가 완비되었습니다.
-    - **럭셔리 HSL 글래스모피즘 디자인**: 심야 블루 톤의 우아한 네온 광원 배경과 은은한 반투명 카드를 조화시킨 프리미엄 테마를 이식하여 사용성 극대화 및 고품격 비주얼을 제공합니다.
+---
 
+## 8. 지식 수정 시 메타데이터 필드 한글화 및 편집 모드 제한
+* **메타데이터 한국어 번역**: 상세 보기 및 지식 수정 화면에서 영어 메타데이터 키를 사용자 친화적인 한국어 명칭(`doc_type` -> "자산종류", `file_name` -> "파일명", `file_size` -> "파일크기")으로 일괄 렌더링되도록 번역 적용했습니다.
+* **자산종류 드롭다운(select) 교체**: "자산종류(`doc_type`)" 수정 시 텍스트 타이핑 방식 대신, 현재 시스템에 등록된 자산종류 목록(`assetTypes`)을 select 드롭다운 옵션으로 노출하여 관리자가 마우스 선택으로 안전하게 수정 및 저장할 수 있게 개선했습니다.
+* **파일크기 수정 비대상 고정**: "파일크기(`file_size`)"는 시스템 관리 메타데이터이므로 수정 모드 진입 시에도 `input` 요소로 변경되지 않고 오직 읽기 전용 텍스트 상태를 유지하도록 제한 조치했습니다.
 
+---
+
+## 9. 지식 수정 시 보안 등급 수정 기능 추가
+* **백엔드 API 구현**: `src/app/api/knowledge-ai/route.ts`의 `UPDATE` 핸들러가 `security_level` 페이로드도 수신하여, 텍스트 본문 업데이트와 동시에 전달된 등급 값(`A`, `B`, `C`)으로 문서 보안 등급을 변경 및 저장할 수 있게 개선했습니다.
+* **프론트엔드 연동 및 UI 구현**: `useKnowledgeAi.ts` 훅에 `editSecurityLevel` 로컬 상태를 마련하고 저장 요청 시 등급 정보가 전송되도록 바인딩했습니다. 상세 화면([DocumentDetail.tsx](file:///C:/dev/egdesk-FreeSMS/src/app/knowledge-ai/components/DocumentDetail.tsx)) 상단부의 보안 등급 뱃지(예: `🔒 최고 기밀 (A)`) 영역이 수정 모드일 때 **보안 등급 select 박스**로 동적 전환되도록 설계하여, 관리자가 본문 수정 시 보안 등급도 원터치로 직접 수정 및 RAG 배포를 할 수 있게 보완했습니다.
+
+---
+
+## 10. 빌드 안정성 및 배포 검증
+* **정적 빌드 검사**: `npx tsc --noEmit` 정밀 컴파일을 수행하여, 형상 간 타입 모순이 완전히 해소된 **빌드 무결성(Zero Errors)**을 최종 달성했습니다.
+* **형상 배포**: 수동 기안, SMS 예약, 모바일 체결 E2E 시스템 코드를 원격 저장소(`master`)로 무사히 **`git push` 전송** 완료했습니다.

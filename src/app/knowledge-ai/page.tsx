@@ -57,11 +57,25 @@ export default function KnowledgeAiDashboard() {
     isPlayingAudio,
     setIsPlayingAudio,
     audioProgress,
+    uploadMode,
+    setUploadMode,
+    directContent,
+    setDirectContent,
+    isEditing,
+    setIsEditing,
+    editContent,
+    setEditContent,
+    editMetadata,
+    setEditMetadata,
+    editSecurityLevel,
+    setEditSecurityLevel,
     handleCreateAssetType,
     handleDeleteAssetType,
     handleDowngradeSecurity,
     handleApproveDocument,
     handleFileUpload,
+    handleUpdateDocument,
+    handleDeleteDocument,
     handleSendChat,
     handleMicClick,
     handleCadMouseDown,
@@ -111,6 +125,10 @@ export default function KnowledgeAiDashboard() {
             setVaultError={setVaultError}
             setIsTypeVaultOpen={setIsTypeVaultOpen}
             handleFileUpload={handleFileUpload}
+            uploadMode={uploadMode}
+            setUploadMode={setUploadMode}
+            directContent={directContent}
+            setDirectContent={setDirectContent}
           />
 
           <AssetList
@@ -136,6 +154,17 @@ export default function KnowledgeAiDashboard() {
             isPlayingAudio={isPlayingAudio}
             setIsPlayingAudio={setIsPlayingAudio}
             audioProgress={audioProgress}
+            isEditing={isEditing}
+            setIsEditing={setIsEditing}
+            editContent={editContent}
+            setEditContent={setEditContent}
+            editMetadata={editMetadata}
+            setEditMetadata={setEditMetadata}
+            editSecurityLevel={editSecurityLevel}
+            setEditSecurityLevel={setEditSecurityLevel}
+            handleUpdateDocument={handleUpdateDocument}
+            handleDeleteDocument={handleDeleteDocument}
+            assetTypes={assetTypes}
           />
         </div>
 

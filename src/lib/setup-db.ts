@@ -399,7 +399,8 @@ export async function setupDatabase() {
     { name: 'quantity', type: 'INTEGER', notNull: true },
     { name: 'unit_price', type: 'INTEGER', notNull: true },
     { name: 'amount', type: 'INTEGER', notNull: true },
-    { name: 'delivery_date', type: 'TEXT' }
+    { name: 'delivery_date', type: 'TEXT' },
+    { name: 'valid_item_code', type: 'TEXT' }
   ], { tableName: 'crm_estimate_items', uniqueKeyColumns: ['id'] });
 
   // 22. CRM Purchase Orders Table (발주 관리)
@@ -425,6 +426,7 @@ export async function setupDatabase() {
     { name: 'status', type: 'TEXT', notNull: true },             // 'REGISTERED', 'CONFIRMED'
     { name: 'total_amount', type: 'INTEGER' },
     { name: 'delivery_date', type: 'TEXT' },                     // 납기일
+    { name: 'order_date', type: 'TEXT' },                        // 수주일시
     { name: 'created_at', type: 'TEXT', notNull: true }
   ], { tableName: 'crm_sales_orders', uniqueKeyColumns: ['id'] });
 

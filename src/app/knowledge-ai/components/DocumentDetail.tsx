@@ -4,6 +4,33 @@ import { KnowledgeDocument } from "../types";
 import { CadViewer } from "./CadViewer";
 import { AudioPlayer } from "./AudioPlayer";
 
+// UTC 시간 문자열을 한국 표준시(KST, UTC+9) 형식으로 포맷팅하는 헬퍼 함수
+function formatToKST(dateStr: string, isShort = false): string {
+  if (!dateStr) return "";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+
+    // UTC 시간을 KST(UTC+9)로 오프셋 보정
+    const kstOffset = 9 * 60 * 60 * 1000;
+    const kstDate = new Date(d.getTime() + kstOffset);
+
+    const year = kstDate.getUTCFullYear();
+    const month = String(kstDate.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(kstDate.getUTCDate()).padStart(2, "0");
+    const hour = String(kstDate.getUTCHours()).padStart(2, "0");
+    const minute = String(kstDate.getUTCMinutes()).padStart(2, "0");
+    const second = String(kstDate.getUTCSeconds()).padStart(2, "0");
+
+    if (isShort) {
+      return `${month}-${day} ${hour}:${minute}`;
+    }
+    return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+  } catch (e) {
+    return dateStr;
+  }
+}
+
 interface DocumentDetailProps {
   selectedDoc: KnowledgeDocument | null;
   handleApproveDocument: (docId: string, status: "APPROVED" | "REJECTED", comments: string) => void;
@@ -21,6 +48,19 @@ interface DocumentDetailProps {
   isPlayingAudio: boolean;
   setIsPlayingAudio: (val: boolean) => void;
   audioProgress: number;
+
+  // 지식 편집 props
+  isEditing: boolean;
+  setIsEditing: (val: boolean) => void;
+  editContent: string;
+  setEditContent: (val: string) => void;
+  editMetadata: Record<string, any>;
+  setEditMetadata: (val: Record<string, any> | ((prev: Record<string, any>) => Record<string, any>)) => void;
+  editSecurityLevel: "A" | "B" | "C";
+  setEditSecurityLevel: (val: "A" | "B" | "C" | ((prev: "A" | "B" | "C") => "A" | "B" | "C")) => void;
+  handleUpdateDocument: (docId: string, content: string, metadata?: Record<string, any>, securityLevel?: "A" | "B" | "C") => void;
+  handleDeleteDocument: (docId: string) => void;
+  assetTypes: Array<{ id: string | number; type_name: string }>;
 }
 
 export function DocumentDetail({
@@ -36,6 +76,17 @@ export function DocumentDetail({
   isPlayingAudio,
   setIsPlayingAudio,
   audioProgress,
+  isEditing,
+  setIsEditing,
+  editContent,
+  setEditContent,
+  editMetadata,
+  setEditMetadata,
+  editSecurityLevel,
+  setEditSecurityLevel,
+  handleUpdateDocument,
+  handleDeleteDocument,
+  assetTypes,
 }: DocumentDetailProps) {
   if (!selectedDoc) {
     return (
@@ -51,32 +102,73 @@ export function DocumentDetail({
       <div className="flex justify-between items-start border-b border-slate-200 pb-4 mb-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2 mb-1.5 font-mono">
-            <span
-              className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold border ${
-                selectedDoc.security_level === "A"
-                  ? "bg-rose-50 text-rose-600 border-rose-200"
+            {isEditing ? (
+              <select
+                value={editSecurityLevel}
+                onChange={(e) => setEditSecurityLevel(e.target.value as any)}
+                className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold border cursor-pointer focus:outline-none ${
+                  editSecurityLevel === "A"
+                    ? "bg-rose-50 text-rose-600 border-rose-200"
+                    : editSecurityLevel === "B"
+                    ? "bg-amber-50 text-amber-600 border-amber-200"
+                    : "bg-emerald-50 text-emerald-600 border-emerald-200"
+                }`}
+              >
+                <option value="A">🔒 최고 기밀 (A)</option>
+                <option value="B">🔑 부서 대외비 (B)</option>
+                <option value="C">🌐 사내 공개 (C)</option>
+              </select>
+            ) : (
+              <span
+                className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold border ${
+                  selectedDoc.security_level === "A"
+                    ? "bg-rose-50 text-rose-600 border-rose-200"
+                    : selectedDoc.security_level === "B"
+                    ? "bg-amber-50 text-amber-600 border-amber-200"
+                    : "bg-emerald-50 text-emerald-600 border-emerald-200"
+                }`}
+              >
+                {selectedDoc.security_level === "A"
+                  ? "🔒 최고 기밀 (A)"
                   : selectedDoc.security_level === "B"
-                  ? "bg-amber-50 text-amber-600 border-amber-200"
-                  : "bg-emerald-50 text-emerald-600 border-emerald-200"
-              }`}
-            >
-              {selectedDoc.security_level === "A"
-                ? "🔒 최고 기밀 (A)"
-                : selectedDoc.security_level === "B"
-                ? "🔑 부서 대외비 (B)"
-                : "🌐 사내 공개 (C)"}
-            </span>
+                  ? "🔑 부서 대외비 (B)"
+                  : "🌐 사내 공개 (C)"}
+              </span>
+            )}
             <span className="text-[10px] text-blue-600 font-bold">Autopilot Score: {selectedDoc.autopilot_score}p</span>
           </div>
           <h2 className="text-md font-bold text-slate-800 tracking-tight" id="detail-doc-title">{selectedDoc.title}</h2>
           <div className="flex items-center gap-3 text-xs text-slate-400 mt-2 font-mono">
             <span>기안자: {selectedDoc.creator_id}</span>
             <span>부서: {selectedDoc.dept_code}</span>
-            <span>일시: {selectedDoc.created_at}</span>
+            <span>일시: {formatToKST(selectedDoc.created_at)}</span>
           </div>
         </div>
 
-        <div className="flex flex-col items-end gap-1.5 font-mono">
+        <div className="flex items-center gap-2 font-mono">
+          {!isEditing && (
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditContent(selectedDoc.content || "");
+                  setEditMetadata(selectedDoc.metadata || {});
+                  setEditSecurityLevel(selectedDoc.security_level as any);
+                  setIsEditing(true);
+                }}
+                className="px-2.5 py-1 bg-white hover:bg-slate-100 text-blue-650 text-[10px] font-black rounded-lg border border-slate-200 cursor-pointer shadow-sm transition-all"
+              >
+                ✏️ 지식 수정
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeleteDocument(selectedDoc.document_id)}
+                className="px-2.5 py-1 bg-white hover:bg-rose-50 text-rose-600 text-[10px] font-black rounded-lg border border-rose-200 cursor-pointer shadow-sm transition-all"
+              >
+                🗑️ 지식 삭제
+              </button>
+            </div>
+          )}
           <span
             className={`text-xs font-bold px-3 py-1 rounded-full font-sans ${
               selectedDoc.status === "APPROVED_AUTO"
@@ -173,26 +265,108 @@ export function DocumentDetail({
         )}
       </div>
 
-      {/* 문서 상세 마크다운 텍스트 본문 */}
-      <div className="flex-1 overflow-y-auto bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs font-mono space-y-3 leading-relaxed max-h-[360px] scrollbar-thin text-slate-700">
-        <div className="whitespace-pre-wrap">{selectedDoc.content}</div>
+      {/* 문서 상세 마크다운 텍스트 본문 또는 편집 에디터 */}
+      <div className="flex-1 flex flex-col min-h-[240px] max-h-[360px] bg-slate-50 border border-slate-200 rounded-xl p-4 overflow-y-auto scrollbar-thin relative text-slate-700">
+        {isEditing ? (
+          <div className="flex-1 flex flex-col gap-2.5 h-full min-h-[200px]">
+            <textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              className="flex-1 w-full bg-white border border-slate-200 rounded-lg p-3 text-xs focus:outline-none focus:border-blue-500 font-mono resize-none leading-relaxed text-slate-800"
+              placeholder="수정할 마크다운 지식 내용을 입력해 주세요."
+            />
+            <div className="flex justify-end gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsEditing(false)}
+                className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-750 text-[10px] font-black rounded-lg border-none cursor-pointer transition-colors"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => handleUpdateDocument(selectedDoc.document_id, editContent, editMetadata, editSecurityLevel)}
+                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black rounded-lg border-none cursor-pointer transition-colors"
+              >
+                저장 및 RAG 배포
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="whitespace-pre-wrap text-xs font-mono leading-relaxed">{selectedDoc.content}</div>
+          </>
+        )}
 
-        {/* JSON 메타데이터 렌더링 */}
+        {/* JSON 메타데이터 렌더링 및 편집 */}
         {selectedDoc.metadata && (
           <div className="border-t border-slate-200 pt-3 mt-4 space-y-2">
             <span className="text-blue-600 font-bold flex items-center gap-1 font-sans">
-              <Cpu className="w-3.5 h-3.5 text-blue-500" /> AI 추출 정형 메타데이터
+              <Cpu className="w-3.5 h-3.5 text-blue-500" />
+              {isEditing ? "🔧 AI 추출 정형 메타데이터 편집" : "⚙️ AI 추출 정형 메타데이터"}
             </span>
             <div className="bg-white p-3 rounded-lg border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px]">
-              {Object.entries(selectedDoc.metadata).map(([k, v]: any) => {
-                if (typeof v === "object") return null;
-                return (
-                  <div key={k} className="flex justify-between border-b border-slate-100 pb-1">
-                    <span className="text-slate-400 font-semibold">{k}:</span>
-                    <span className="text-slate-700 font-bold">{String(v)}</span>
-                  </div>
-                );
-              })}
+              {isEditing ? (
+                Object.entries(editMetadata).map(([k, v]: any) => {
+                  if (typeof v === "object") return null;
+
+                  // 메타데이터 키 한글 매핑
+                  let labelName = k;
+                  if (k === "doc_type") labelName = "자산종류";
+                  else if (k === "file_name") labelName = "파일명";
+                  else if (k === "file_size") labelName = "파일크기";
+
+                  return (
+                    <div key={k} className="flex items-center justify-between border-b border-slate-100 pb-1.5 gap-2">
+                      <span className="text-slate-400 font-semibold shrink-0">{labelName}:</span>
+                      {k === "doc_type" ? (
+                        <select
+                          value={String(v)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setEditMetadata((prev) => ({ ...prev, [k]: val }));
+                          }}
+                          className="bg-slate-50 border border-slate-200 rounded px-2 py-0.5 text-xs text-slate-800 focus:outline-none focus:border-blue-500 font-sans w-full font-bold text-right cursor-pointer"
+                        >
+                          {assetTypes.map((type) => (
+                            <option key={type.id} value={type.type_name}>
+                              {type.type_name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : k === "file_size" ? (
+                        <span className="text-slate-700 font-bold py-0.5">{String(v)}</span>
+                      ) : (
+                        <input
+                          type="text"
+                          value={String(v)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setEditMetadata((prev) => ({ ...prev, [k]: val }));
+                          }}
+                          className="bg-slate-50 border border-slate-200 rounded px-2 py-0.5 text-xs text-slate-800 focus:outline-none focus:border-blue-500 font-mono w-full font-bold text-right"
+                        />
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                Object.entries(selectedDoc.metadata).map(([k, v]: any) => {
+                  if (typeof v === "object") return null;
+
+                  let labelName = k;
+                  if (k === "doc_type") labelName = "자산종류";
+                  else if (k === "file_name") labelName = "파일명";
+                  else if (k === "file_size") labelName = "파일크기";
+
+                  return (
+                    <div key={k} className="flex justify-between border-b border-slate-100 pb-1">
+                      <span className="text-slate-400 font-semibold">{labelName}:</span>
+                      <span className="text-slate-700 font-bold">{String(v)}</span>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         )}
@@ -234,7 +408,7 @@ export function DocumentDetail({
                   <span>
                     결재권자: {app.approver_id} ({app.step_type})
                   </span>
-                  <span>{app.processed_at || "결재대기"}</span>
+                  <span>{app.processed_at ? formatToKST(app.processed_at) : "결재대기"}</span>
                 </div>
                 <p className="text-slate-650 text-[11px] leading-relaxed font-sans">{app.comments}</p>
               </div>

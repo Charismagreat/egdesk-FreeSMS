@@ -493,8 +493,8 @@ export const TABLES = {
   crm_sales_orders: {
     name: 'crm_sales_orders',
     displayName: '수주서 관리',
-    columns: ['estimate_id', 'client_order_no', 'customer_name', 'customer_phone', 'customer_manager', 'status', 'total_amount', 'delivery_date', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by'],
-    columnCount: 16,
+    columns: ['estimate_id', 'client_order_no', 'customer_name', 'customer_phone', 'customer_manager', 'status', 'total_amount', 'delivery_date', 'order_date', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by'],
+    columnCount: 17,
     rowCount: 0,
   },
   crm_purchase_orders: {
@@ -507,8 +507,8 @@ export const TABLES = {
   crm_estimate_items: {
     name: 'crm_estimate_items',
     displayName: '견적서 품목 상세',
-    columns: ['estimate_id', 'product_id', 'product_name', 'quantity', 'unit_price', 'amount', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by'],
-    columnCount: 13,
+    columns: ['estimate_id', 'product_id', 'item_code', 'product_name', 'spec', 'quantity', 'unit_price', 'amount', 'delivery_date', 'valid_item_code', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by'],
+    columnCount: 17,
     rowCount: 0,
   },
   crm_estimates: {

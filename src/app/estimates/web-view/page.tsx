@@ -41,11 +41,11 @@ const typeConfig = {
     title: "수주 및 바이어 계약 대장 내역",
     headers: [
       "등록일시", "고객발주번호", "바이어명", "바이어담당자", "총 수주액", "상태", "수주일시", "마스터납기일",
-      "원본 파일", "품목코드", "품목명", "규격", "수량", "단가", "금액", "품목납기일", "상세비고"
+      "원본 파일", "품목코드", "유효품목코드", "품목명", "규격", "수량", "단가", "금액", "품목납기일", "상세비고"
     ],
     defaultVisible: [
       "등록일시", "고객발주번호", "바이어명", "바이어담당자", "총 수주액", "상태", "수주일시", "마스터납기일",
-      "원본 파일", "품목코드", "품목명", "규격", "수량", "단가", "금액", "품목납기일", "상세비고"
+      "원본 파일", "품목코드", "유효품목코드", "품목명", "규격", "수량", "단가", "금액", "품목납기일", "상세비고"
     ]
   }
 };
@@ -221,10 +221,11 @@ function WebViewContent() {
                 s.customer_manager || "-", // 바이어담당자
                 s.total_amount,        // 총 수주액
                 s.status === "REGISTERED" ? "수주등록" : "확인완료", // 상태
-                s.created_at,          // 수주일시
+                s.order_date || s.created_at, // 수주일시
                 s.delivery_date || "-", // 마스터납기일
                 s.file_url || "-",     // 원본 파일
                 item.item_code || "-", // 품목코드
+                item.valid_item_code || "-", // 유효품목코드
                 item.product_name || "-", // 품목명
                 item.spec || "-",      // 규격
                 item.quantity !== undefined ? item.quantity : "", // 수량
@@ -259,6 +260,9 @@ function WebViewContent() {
             setColumns([...filteredCols, ...missingCols]);
             
             const filteredVisible = parsedVisible.filter(c => headers.includes(c));
+            if (headers.includes("유효품목코드") && !filteredVisible.includes("유효품목코드")) {
+              filteredVisible.push("유효품목코드");
+            }
             setVisibleColumns(filteredVisible);
           } catch (e) {
             setColumns(headers);
@@ -751,8 +755,19 @@ function WebViewContent() {
                         if (cIdx === -1) return null;
 
                         const val = row[cIdx];
-                        const strVal = String(val);
+                        let strVal = String(val);
                         const isAttachedFile = detectFile(strVal);
+
+                        if (!isAttachedFile && strVal !== "-") {
+                          const isMoney = ["단가", "금액", "총 수주액", "총 발주액", "총 견적액"].includes(headerName);
+                          const isQty = ["수량"].includes(headerName);
+                          if (isMoney || isQty) {
+                            const cleanNum = Number(strVal.replace(/[^0-9.-]/g, ""));
+                            if (!isNaN(cleanNum)) {
+                              strVal = isMoney ? `${cleanNum.toLocaleString()}원` : `${cleanNum.toLocaleString()}`;
+                            }
+                          }
+                        }
                         
                         return (
                           <td key={headerName} className={`py-3 px-3.5 ${

@@ -266,7 +266,18 @@ export async function POST(req: Request) {
       }
 
       const soId = `SO-${Date.now()}`;
-      const { sales_order_number } = body;
+      const { sales_order_number, order_date } = body;
+
+      // 날짜 포맷 정규화 가드 추가 (예: 2026.06.18 -> 2026-06-18)
+      let formattedOrderDate = nowStr;
+      if (order_date && order_date.trim()) {
+        const cleanDate = order_date.trim().replace(/[\.\/]/g, '-');
+        if (cleanDate.length === 10) {
+          formattedOrderDate = `${cleanDate} ${nowStr.substring(11)}`;
+        } else {
+          formattedOrderDate = cleanDate;
+        }
+      }
 
       // 수주 등록
       await insertRows('crm_sales_orders', [{
@@ -277,6 +288,7 @@ export async function POST(req: Request) {
         customer_phone: partner_phone || '',
         status: 'REGISTERED',
         total_amount: total_amount || 0,
+        order_date: formattedOrderDate,
         created_at: nowStr
       }]);
 

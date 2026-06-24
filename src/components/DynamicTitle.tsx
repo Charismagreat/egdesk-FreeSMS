@@ -1,0 +1,119 @@
+"use client";
+
+import { useEffect, Suspense } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+
+function DynamicTitleHandler() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    let title = "EGDESK SMS"; // 기본값
+
+    // 정적 경로와 메뉴명 매핑
+    const staticTitles: Record<string, string> = {
+      "/": "모바일 채널",
+      "/sms": "무료 문자 발송 AI",
+      "/message-logs": "발송 내역 조회",
+      "/automation": "자동 발송 설정",
+      "/customers": "고객 관리 AI",
+      "/partners": "거래처 관리 AI",
+      "/transactions": "거래 관리 AI",
+      "/orders": "주문 관리 AI",
+      "/payments": "결제 관리 AI",
+      "/finance": "금융 정보 AI",
+      "/financials": "재무 정보 AI",
+      "/coupons": "쿠폰 관리 AI",
+      "/reservations": "예약 관리 AI",
+      "/deliveries": "배송 관리 AI",
+      "/products": "상품 관리 AI",
+      "/estimates": "견적/발주/수주 AI",
+      "/snaptasks": "AI 스냅태스크",
+      "/inventory": "재고 관리 AI",
+      "/expenses": "지출 관리 AI",
+      "/safety-management": "안전 관리 AI",
+      "/quality-control": "품질 관리 AI",
+      "/hr/attendance": "근태 관리 AI",
+      "/price-tracker": "가격 추적 AI",
+      "/website": "홈페이지 빌더 AI",
+      "/recruitment": "채용 매니저 AI",
+      "/instagram": "인스타그램 마케팅 AI",
+      "/naver-blog": "N-BLOG 포스팅 AI",
+      "/youtube-shorts": "YOUTUBE 쇼츠 AI",
+      "/knowledge-ai": "지식 관리 AI",
+      "/ecount-erp-ai": "이카운트 ERP AI",
+      "/ai-briefing": "AI 브리핑",
+      "/facility-management": "설비 관리 AI",
+      "/finance-cashflow": "자금/원가 AI",
+      "/production-plan": "생산 계획 AI",
+      "/energy-management": "에너지 관리 AI",
+      "/safety-detection": "위험 감지 AI",
+      "/scm-management": "공급망 관리 AI",
+      "/grant-management": "지원금 신청 AI",
+      "/labor-management": "노무 관리 AI",
+      "/lawyer-ai": "법률 상담 AI",
+      "/credit-risk": "채권 관리 AI",
+      "/password-ai": "비밀번호관리 AI",
+      "/rnd-management": "연구소 관리 AI",
+      "/rnd-manage": "연구소 관리 AI",
+      "/mail-management-ai": "메일 관리 AI",
+      "/form-management-new": "양식 관리 AI",
+      "/meeting-minutes": "회의 기록 AI",
+      "/m": "임직원 모바일 포털",
+      "/operators": "직원 관리",
+      "/my-db": "MY DB",
+      "/help": "Q&A 헬프센터",
+      "/ai-control-tower": "AI 컨트롤타워",
+      "/settings": "시스템 설정",
+      "/login": "로그인",
+    };
+
+    // 동적 경로 및 특수 조건 분기
+    if (pathname === "/estimates/web-view") {
+      const typeParam = searchParams.get("type") || "inbound_est";
+      const typeConfig: Record<string, string> = {
+        inbound_est: "받은 B2B 견적 및 요청 대장 내역",
+        inbound_po: "발주 및 실물 검수 대장 내역",
+        outbound_est: "보낸 견적서 관리 대장 내역",
+        outbound_so: "수주 및 바이어 계약 대장 내역",
+      };
+      title = typeConfig[typeParam] || "B2B 대장 내역";
+    } else if (pathname.startsWith("/form-management-new/print")) {
+      title = "양식 인쇄 및 미리보기";
+    } else if (pathname.startsWith("/shared/view")) {
+      title = "공유 문서 뷰어";
+    } else if (pathname.startsWith("/store")) {
+      title = "테이블 오더 상점";
+    } else if (pathname.startsWith("/table-order")) {
+      title = "테이블 오더";
+    } else if (pathname.startsWith("/booking")) {
+      title = "예약 시스템";
+    } else if (pathname.startsWith("/m/")) {
+      const subPath = pathname.substring(3);
+      if (subPath === "grant-management") title = "모바일 지원금 신청";
+      else if (subPath.startsWith("expenses")) title = "모바일 지출결의";
+      else title = "임직원 모바일 포털";
+    } else if (pathname.startsWith("/expenses/mobile-approve")) {
+      title = "모바일 결재 승인";
+    } else if (pathname.startsWith("/employee")) {
+      title = "임직원 정보 시스템";
+    } else if (pathname.startsWith("/interpretation-ai")) {
+      title = "AI 동시 통역기";
+    } else {
+      // 일반 정확도 매칭
+      title = staticTitles[pathname] || staticTitles[pathname.replace(/\/$/, "")] || "EGDESK SMS";
+    }
+
+    document.title = title;
+  }, [pathname, searchParams]);
+
+  return null;
+}
+
+export default function DynamicTitle() {
+  return (
+    <Suspense fallback={null}>
+      <DynamicTitleHandler />
+    </Suspense>
+  );
+}

@@ -12,6 +12,12 @@ export async function GET() {
     } catch (e) {
       console.log('crm_expenses table may not exist yet or skip dropping:', e);
     }
+    try {
+      await deleteTable('crm_estimate_items');
+      console.log('Successfully dropped crm_estimate_items table for schema/metadata synchronization.');
+    } catch (e) {
+      console.log('crm_estimate_items table may not exist yet or skip dropping:', e);
+    }
 
     await setupDatabase();
     return NextResponse.json({ success: true, message: 'DB setup complete and crm_expenses table has been successfully recreated with latest schemas.' });

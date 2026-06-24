@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { fetchGeminiWithFallback } from '../../../../lib/gemini-fallback';
-import { executeSQL, insertRows, queryTable } from '../../../../../egdesk-helpers';
+import { executeSQL, insertRows, queryTable, listBusinessIdentitySnapshots, listKnowledgeDocuments, getKnowledgeDocument } from '../../../../../egdesk-helpers';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
 
@@ -109,7 +109,8 @@ export async function POST(req: Request) {
         quantity: row.quantity,
         unit_price: row.unit_price,
         amount: row.quantity * row.unit_price,
-        delivery_date: row.delivery_date || ''
+        delivery_date: row.delivery_date || '',
+        valid_item_code: row.valid_item_code || ''
       }));
       await insertRows('crm_estimate_items', detailRows);
 
@@ -123,11 +124,12 @@ export async function POST(req: Request) {
         status: 'REGISTERED',
         total_amount: items.reduce((acc: number, curr: any) => acc + (curr.quantity * curr.unit_price), 0),
         delivery_date: delivery_date || '',
-        created_at: document_date 
-          ? (document_date.trim().length === 10 
-              ? `${document_date.trim()} ${nowStr.substring(11)}` 
-              : document_date)
-          : nowStr
+        order_date: document_date 
+          ? (document_date.trim().replace(/[\.\/]/g, '-').length === 10 
+              ? `${document_date.trim().replace(/[\.\/]/g, '-')} ${nowStr.substring(11)}` 
+              : document_date.trim().replace(/[\.\/]/g, '-'))
+          : nowStr,
+        created_at: nowStr
       }]);
 
       return NextResponse.json({
@@ -167,6 +169,54 @@ export async function POST(req: Request) {
       ? modelRes.rows[0].value
       : 'gemini-3.5-flash';
 
+    // RAG 지식 규정 마이닝
+    let rlsRulesText = '';
+    try {
+      let snapshotId = 'default_snapshot';
+      const snapshotListRes = await listBusinessIdentitySnapshots();
+      const snapshots = snapshotListRes?.snapshots || snapshotListRes || [];
+      if (snapshots && snapshots.length > 0) {
+        snapshotId = snapshots[0].id || snapshots[0].uuid || snapshotId;
+      }
+      
+      const docsRes = await listKnowledgeDocuments(snapshotId);
+      const rawDocs = docsRes?.documents || docsRes || [];
+      
+      const fullDocs = await Promise.all(
+        rawDocs.map(async (d: any) => {
+          const docId = d.id || d.document_id || d.uuid;
+          if (!d.content && docId) {
+            try {
+              const detail = await getKnowledgeDocument(docId);
+              return { ...d, ...detail };
+            } catch (e) {
+              return d;
+            }
+          }
+          return d;
+        })
+      );
+
+      // 승인된 문서 중 '품목코드' 또는 '유효' 등의 키워드가 포함된 문서를 RAG 컨텍스트로 취합
+      const approvedRules = fullDocs.filter((d: any) => {
+        const contentStr = d.content || '';
+        const isApproved = contentStr.includes('**결재상태**: APPROVED') || contentStr.includes('**결재상태**: APPROVED_AUTO') || d.status === 'APPROVED' || d.status === 'APPROVED_AUTO';
+        const hasKeyword = contentStr.includes('품목코드') || contentStr.includes('유효') || contentStr.includes('추출') || d.title.includes('품목') || d.title.includes('코드');
+        return isApproved && hasKeyword;
+      });
+
+      if (approvedRules.length > 0) {
+        rlsRulesText = approvedRules.map((d: any, idx: number) => {
+          const content = d.content || '';
+          const dividerIndex = content.lastIndexOf('\n\n--- \n*   **작성자**:');
+          const cleanBody = dividerIndex !== -1 ? content.substring(0, dividerIndex).trim() : content;
+          return `[지식규칙 #${idx + 1}] ${d.title}\n${cleanBody}`;
+        }).join('\n\n');
+      }
+    } catch (e) {
+      console.error('RAG 지식 마이닝 실패:', e);
+    }
+
     const prompt = `
 당신은 B2B 전문 AI 수발주 오퍼레이터입니다.
 다음 이미지는 바이어가 보내온 발주서(수주서) 문서입니다.
@@ -190,6 +240,24 @@ export async function POST(req: Request) {
 4. **수량/단가/금액 (quantity, unitPrice, amount)**:
    - 쉼표(,), 원화 기호(₩), 통화 기호 등은 모두 제외하고 순수 숫자 정수형태로만 추출하십시오.
 
+${rlsRulesText ? `
+### 📌 사내 유효품목코드 추출 및 변환 규정 (RAG 지식):
+다음은 승인된 사내 지식에 근거한 품목코드 변환 규정입니다.
+각 품목에 대해 아래의 규칙을 엄격히 적용하여 **유효품목코드 (validItemCode)**를 판단 및 추출해 주십시오.
+
+${rlsRulesText}
+
+**유효품목코드 (validItemCode) 추출 지침**:
+- 품명(itemName) 또는 규격(spec), 혹은 발주서 상의 비고란 등에서 위 규칙에 부합하는 패턴을 가진 코드가 식별되는지 찾으십시오.
+- 예를 들어 "X로 시작하고 뒤에 6자리 숫자로 구성된 패턴 (예: X575655)" 등이 있다면, 그것을 해당 품목의 'validItemCode' 필드에 기재해 주십시오.
+- 만약 그러한 규칙의 유효품목코드가 감지되지 않는다면, 빈 문자열("")로 기재해 주십시오.
+` : `
+5. **유효품목코드 (validItemCode)**:
+   - 각 품목의 품명(itemName), 규격(spec), 비고란 등을 탐색하여 "X로 시작하고 뒤에 6자리 숫자로 구성된 패턴" (예: X123456)을 지닌 사내 실제 품목코드가 발견될 경우, 이를 validItemCode 필드에 기재해 주십시오.
+   - 발견되지 않으면 빈 문자열("")을 반환하십시오.
+`}
+
+JSON 응답 포맷:
 {
   "supplier": {
     "company_name": "공급사 상호명(공급인)",
@@ -370,7 +438,8 @@ export async function POST(req: Request) {
         quantity: qty,
         unit_price: price,
         amount: amount,
-        delivery_date: item.deliveryDate || deliveryDate || '' // 품목별 개별 납기일이 파싱되면 쓰고, 없으면 마스터 납기일 폴백
+        delivery_date: item.deliveryDate || deliveryDate || '', // 품목별 개별 납기일이 파싱되면 쓰고, 없으면 마스터 납기일 폴백
+        valid_item_code: item.validItemCode || ''
       };
     });
 
@@ -392,6 +461,9 @@ export async function POST(req: Request) {
     } catch(e) {}
     try {
       await executeSQL('ALTER TABLE crm_estimate_items ADD COLUMN spec TEXT');
+    } catch(e) {}
+    try {
+      await executeSQL('ALTER TABLE crm_estimate_items ADD COLUMN delivery_date TEXT');
     } catch(e) {}
 
     const receiverMatched = isSupplierMyCompany || isBuyerMyCompany;

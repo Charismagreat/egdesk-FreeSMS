@@ -254,6 +254,13 @@ export default function EstimatesDashboard() {
     );
     if (salesOrderNumber === null) return; // 취소 누를 시 중단
 
+    const todayStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().substring(0, 10);
+    const orderDate = prompt(
+      `발주서상에 기재된 수주일자를 입력해주세요 (형식: YYYY-MM-DD, 기본값: 오늘):`,
+      todayStr
+    );
+    if (orderDate === null) return; // 취소 누를 시 중단
+
     try {
       const res = await fetch("/api/estimates/process", {
         method: "POST",
@@ -265,6 +272,7 @@ export default function EstimatesDashboard() {
           partner_phone: est.partner_phone,
           total_amount: est.total_amount,
           sales_order_number: salesOrderNumber.trim() || undefined,
+          order_date: orderDate.trim() || todayStr,
         }),
       });
       const data = await res.json();
@@ -504,7 +512,7 @@ export default function EstimatesDashboard() {
             s.customer_manager || "-",
             s.total_amount,
             s.status === "REGISTERED" ? "수주등록" : "확인완료",
-            s.created_at,
+            s.order_date || s.created_at,
             s.delivery_date || "-",
             item.item_code || "-",
             item.product_name || "-",

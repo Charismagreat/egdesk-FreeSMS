@@ -5,7 +5,8 @@ import {
   getKnowledgeDocument, 
   createKnowledgeDocument, 
   updateKnowledgeDocument, 
-  deleteKnowledgeDocument 
+  deleteKnowledgeDocument,
+  callInternalKnowledgeTool
 } from '../../../../egdesk-helpers';
 
 /**
@@ -79,9 +80,24 @@ export async function GET(request: Request) {
       const snapshots = snapshotListRes?.snapshots || snapshotListRes || [];
       if (snapshots && snapshots.length > 0) {
         snapshotId = snapshots[0].id || snapshots[0].uuid || snapshotId;
+      } else {
+        // 스냅샷 리스트가 비어있을 경우 기본 비즈니스 식별 정보 스냅샷 자동 생성
+        console.log('스냅샷 리스트가 비어 있어 기본 스냅샷을 자동 생성합니다...');
+        const newSnapshot = await callInternalKnowledgeTool('businessidentity_create_snapshot', {
+          brandKey: 'default_brand',
+          identityJson: JSON.stringify({
+            company_name: '기본 브랜드',
+            description: '자동 생성된 기본 비즈니스 식별 정보 스냅샷'
+          })
+        });
+        const createdSnapshot = newSnapshot?.snapshot || newSnapshot;
+        if (createdSnapshot && (createdSnapshot.id || createdSnapshot.uuid)) {
+          snapshotId = createdSnapshot.id || createdSnapshot.uuid;
+          console.log(`기본 스냅샷이 자동 생성되었습니다. ID: ${snapshotId}`);
+        }
       }
     } catch (err) {
-      console.warn('스냅샷 리스트 획득 실패:', err);
+      console.warn('스냅샷 리스트 획득 또는 자동 생성 실패:', err);
     }
 
     // 2. 해당 스냅샷의 지식 문서 목록 조회 (MCP 툴 사용!)
@@ -312,13 +328,28 @@ export async function POST(request: Request) {
       const snapshots = snapshotListRes?.snapshots || snapshotListRes || [];
       if (snapshots && snapshots.length > 0) {
         snapshotId = snapshots[0].id || snapshots[0].uuid || snapshotId;
+      } else {
+        // 스냅샷 리스트가 비어있을 경우 기본 비즈니스 식별 정보 스냅샷 자동 생성
+        console.log('스냅샷 리스트가 비어 있어 기본 스냅샷을 자동 생성합니다...');
+        const newSnapshot = await callInternalKnowledgeTool('businessidentity_create_snapshot', {
+          brandKey: 'default_brand',
+          identityJson: JSON.stringify({
+            company_name: '기본 브랜드',
+            description: '자동 생성된 기본 비즈니스 식별 정보 스냅샷'
+          })
+        });
+        const createdSnapshot = newSnapshot?.snapshot || newSnapshot;
+        if (createdSnapshot && (createdSnapshot.id || createdSnapshot.uuid)) {
+          snapshotId = createdSnapshot.id || createdSnapshot.uuid;
+          console.log(`기본 스냅샷이 자동 생성되었습니다. ID: ${snapshotId}`);
+        }
       }
     } catch (err) {
-      console.warn('스냅샷 리스트 획득 실패:', err);
+      console.warn('스냅샷 리스트 획득 또는 자동 생성 실패:', err);
     }
 
     if (action === 'UPLOAD') {
-      const { title, doc_type, creator_id, dept_code, file_name, file_size } = body;
+      const { title, doc_type, creator_id, dept_code, file_name, file_size, direct_content } = body;
 
       if (!title || !doc_type || !creator_id || !dept_code) {
         return NextResponse.json({ success: false, error: 'Missing required parameters' }, { status: 400 });
@@ -331,7 +362,17 @@ export async function POST(request: Request) {
       let autoScore = 0.0;
       let status = 'PENDING';
 
-      if (doc_type === 'CAD_BLUEPRINT') {
+      if (direct_content) {
+        parsedContent = direct_content;
+        metadata = {
+          file_name: file_name || 'direct_entry.md',
+          file_size: file_size || `${Buffer.byteLength(direct_content, 'utf8')} bytes`,
+          keywords: ['직접입력', '마크다운', '지식등록'],
+          doc_type: 'MANUAL'
+        };
+        thumbnailPath = 'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?w=500';
+        autoScore = 96.5;
+      } else if (doc_type === 'CAD_BLUEPRINT') {
         parsedContent = `### AI 해독 CAD 설계 도면: ${file_name}\n\n*   **도면 유형**: CAD 2D/3D 벡터 설계도\n*   **스캔 결과**: 실물 타이틀 블록 감지 완료. 차세대 소형 모빌리티 본체 프레임 구조 설계 장묘 수록.\n*   **BOM 파싱**: 탄소섬유 지지대 x2, 강화 볼트 v3 x16, 고장력 서스펜션 브래킷 x4 감지. 특이 형상 비정상 굴곡 부위 없음.`;
         metadata = {
           file_name,
@@ -398,7 +439,7 @@ export async function POST(request: Request) {
         completeContent
       );
 
-      const docId = newDocRes?.id || newDocRes?.document_id || newDocRes?.uuid || `doc-${Date.now()}`;
+      const docId = newDocRes?.document?.id || newDocRes?.id || newDocRes?.document_id || newDocRes?.uuid || `doc-${Date.now()}`;
 
       return NextResponse.json({
         success: true,
@@ -468,6 +509,58 @@ export async function POST(request: Request) {
         message: `문서 보안 등급이 ${new_level}등급으로 성공적으로 하향 조정되어 RAG 지식이 방출되었습니다.`,
         document_id,
         new_level
+      });
+    }
+
+    if (action === 'UPDATE') {
+      const { document_id, content, metadata, security_level } = body;
+
+      if (!document_id || content === undefined) {
+        return NextResponse.json({ success: false, error: 'Missing parameters' }, { status: 400 });
+      }
+
+      let originalDoc: any = null;
+      try {
+        originalDoc = await getKnowledgeDocument(document_id);
+      } catch (err) {
+        console.warn('기존 문서 조회 실패:', err);
+        return NextResponse.json({ success: false, error: '문서 조회 실패' }, { status: 404 });
+      }
+
+      const parsed = parseDocContent(originalDoc.content || originalDoc.parsedBody, originalDoc.title);
+      
+      // 전달받은 metadata가 있으면 기존 데이터 대신 적용
+      const finalMetadata = metadata || parsed.metadata || {};
+      const docType = finalMetadata.doc_type || parsed.doc_type || 'MANUAL';
+      // 전달받은 보안 등급이 있으면 적용
+      const finalSecurityLevel = security_level || parsed.security_level || 'A';
+
+      const completeContent = `${content}\n\n--- \n*   **작성자**: ${parsed.creator_id}\n*   **부서**: ${parsed.dept_code}\n*   **보안등급**: ${finalSecurityLevel}\n*   **결재상태**: ${parsed.status}\n*   **파서스코어**: ${parsed.autopilot_score}\n*   **메타데이터**: ${JSON.stringify({ ...finalMetadata, doc_type: docType })}`;
+
+      await updateKnowledgeDocument(document_id, {
+        content: completeContent
+      });
+
+      return NextResponse.json({ 
+        success: true, 
+        message: '지식 문서 내용, 메타데이터 및 보안 등급이 실시간으로 수정 및 업데이트되었습니다.',
+        document_id
+      });
+    }
+
+    if (action === 'DELETE') {
+      const { document_id } = body;
+
+      if (!document_id) {
+        return NextResponse.json({ success: false, error: 'Missing parameters' }, { status: 400 });
+      }
+
+      await deleteKnowledgeDocument(document_id);
+
+      return NextResponse.json({ 
+        success: true, 
+        message: '지식 문서가 성공적으로 삭제되었습니다.',
+        document_id
       });
     }
 

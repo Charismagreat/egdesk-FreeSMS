@@ -2,6 +2,33 @@ import React from "react";
 import { Layers } from "lucide-react";
 import { KnowledgeDocument } from "../types";
 
+// UTC 시간 문자열을 한국 표준시(KST, UTC+9) 형식으로 포맷팅하는 헬퍼 함수
+function formatToKST(dateStr: string, isShort = false): string {
+  if (!dateStr) return "";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+
+    // UTC 시간을 KST(UTC+9)로 오프셋 보정
+    const kstOffset = 9 * 60 * 60 * 1000;
+    const kstDate = new Date(d.getTime() + kstOffset);
+
+    const year = kstDate.getUTCFullYear();
+    const month = String(kstDate.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(kstDate.getUTCDate()).padStart(2, "0");
+    const hour = String(kstDate.getUTCHours()).padStart(2, "0");
+    const minute = String(kstDate.getUTCMinutes()).padStart(2, "0");
+    const second = String(kstDate.getUTCSeconds()).padStart(2, "0");
+
+    if (isShort) {
+      return `${month}-${day} ${hour}:${minute}`;
+    }
+    return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+  } catch (e) {
+    return dateStr;
+  }
+}
+
 interface AssetListProps {
   isLoading: boolean;
   documents: KnowledgeDocument[];
@@ -51,7 +78,7 @@ export function AssetList({ isLoading, documents, selectedDoc, setSelectedDoc }:
                 <h3 className="text-xs font-bold text-slate-800 truncate font-sans">{doc.title}</h3>
                 <div className="flex items-center justify-between text-[10px] text-slate-400 mt-2 font-mono">
                   <span>{doc.creator_id}</span>
-                  <span>{doc.created_at.substring(5, 16)}</span>
+                  <span>{formatToKST(doc.created_at, true)}</span>
                 </div>
               </div>
 
