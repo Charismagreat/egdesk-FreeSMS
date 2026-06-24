@@ -40,11 +40,12 @@ const typeConfig = {
   outbound_so: {
     title: "수주 및 바이어 계약 대장 내역",
     headers: [
-      "수주번호", "견적번호", "고객발주번호", "바이어명", "연락처", "바이어담당자", "총 수주액", "상태", "수주일시", "등록일시",
-      "마스터납기일", "원본 파일", "품목코드", "품목명", "규격", "수량", "단가", "금액", "품목납기일", "상세비고"
+      "등록일시", "고객발주번호", "바이어명", "바이어담당자", "총 수주액", "상태", "수주일시", "마스터납기일",
+      "원본 파일", "품목코드", "품목명", "규격", "수량", "단가", "금액", "품목납기일", "상세비고"
     ],
     defaultVisible: [
-      "수주번호", "견적번호", "바이어명", "연락처", "총 수주액", "상태", "수주일시", "등록일시", "원본 파일", "품목명", "수량", "단가", "금액", "상세비고"
+      "등록일시", "고객발주번호", "바이어명", "바이어담당자", "총 수주액", "상태", "수주일시", "마스터납기일",
+      "원본 파일", "품목코드", "품목명", "규격", "수량", "단가", "금액", "품목납기일", "상세비고"
     ]
   }
 };
@@ -244,8 +245,8 @@ function WebViewContent() {
       
       // 로컬스토리지에서 컬럼 순서 및 숨김 설정 확인
       if (typeof window !== "undefined") {
-        const savedColumns = localStorage.getItem(`egdesk_est_webview_cols_v2_${type}`);
-        const savedVisible = localStorage.getItem(`egdesk_est_webview_visible_v2_${type}`);
+        const savedColumns = localStorage.getItem(`egdesk_est_webview_cols_v3_${type}`);
+        const savedVisible = localStorage.getItem(`egdesk_est_webview_visible_v3_${type}`);
         
         if (savedColumns && savedVisible) {
           try {
@@ -381,8 +382,8 @@ function WebViewContent() {
     setColumns(newCols);
     setVisibleColumns(newVisible);
     if (typeof window !== "undefined") {
-      localStorage.setItem(`egdesk_est_webview_cols_v2_${type}`, JSON.stringify(newCols));
-      localStorage.setItem(`egdesk_est_webview_visible_v2_${type}`, JSON.stringify(newVisible));
+      localStorage.setItem(`egdesk_est_webview_cols_v3_${type}`, JSON.stringify(newCols));
+      localStorage.setItem(`egdesk_est_webview_visible_v3_${type}`, JSON.stringify(newVisible));
     }
   };
 
