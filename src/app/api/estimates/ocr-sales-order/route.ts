@@ -33,7 +33,7 @@ export async function POST(req: Request) {
       const { 
         partner_name, partner_phone, partner_manager, items = [], file_url, 
         business_number, representative, address, document_number, document_date, 
-        delivery_date, document_memo,
+        delivery_date, document_memo, approvers = [],
         force_bypass = false, bypass_reason = ''
       } = body;
 
@@ -66,7 +66,8 @@ export async function POST(req: Request) {
         document_number: document_number || '',
         document_date: document_date || '',
         document_memo: document_memo || '',
-        delivery_date: delivery_date || ''
+        delivery_date: delivery_date || '',
+        approvers: approvers || []
       };
 
       if (force_bypass) {
@@ -240,27 +241,24 @@ export async function POST(req: Request) {
 4. **수량/단가/금액 (quantity, unitPrice, amount)**:
    - 쉼표(,), 원화 기호(₩), 통화 기호 등은 모두 제외하고 순수 숫자 정수형태로만 추출하십시오.
 
-${rlsRulesText ? `
-### 📌 사내 유효품목코드 추출 및 변환 규정 (RAG 지식):
-다음은 승인된 사내 지식에 근거한 품목코드 변환 규정입니다.
-각 품목에 대해 아래의 규칙을 엄격히 적용하여 **유효품목코드 (validItemCode)**를 판단 및 추출해 주십시오.
-
-${rlsRulesText}
-
-**유효품목코드 (validItemCode) 추출 지침**:
-- 품명(itemName) 또는 규격(spec), 혹은 발주서 상의 비고란 등에서 위 규칙에 부합하는 패턴을 가진 코드가 식별되는지 찾으십시오.
-- 예를 들어 "X로 시작하고 뒤에 6자리 숫자로 구성된 패턴 (예: X575655)" 등이 있다면, 그것을 해당 품목의 'validItemCode' 필드에 기재해 주십시오.
-- 만약 그러한 규칙의 유효품목코드가 감지되지 않는다면, 빈 문자열("")로 기재해 주십시오.
-` : `
 5. **유효품목코드 (validItemCode)**:
-   - 각 품목의 품명(itemName), 규격(spec), 비고란 등을 탐색하여 "X로 시작하고 뒤에 6자리 숫자로 구성된 패턴" (예: X123456)을 지닌 사내 실제 품목코드가 발견될 경우, 이를 validItemCode 필드에 기재해 주십시오.
-   - 발견되지 않으면 빈 문자열("")을 반환하십시오.
+${rlsRulesText ? `
+   - 다음은 승인된 사내 지식에 근거한 품목코드 변환 규정입니다. 아래 규칙을 엄격히 적용하여 유효품목코드를 판단 및 추출해 주십시오.
+${rlsRulesText}
+   - 규칙에 부합하는 코드가 식별될 경우 'validItemCode' 필드에 기재하고, 발견되지 않으면 빈 문자열("")로 기재하십시오.
+` : `
+   - 각 품목의 품명(itemName), 규격(spec), 비고란 등을 탐색하여 "X로 시작하고 뒤에 6자리 숫자로 구성된 패턴" (예: X123456)을 지닌 사내 실제 품목코드가 발견될 경우, 이를 validItemCode 필드에 기재해 주십시오. 발견되지 않으면 빈 문자열("")을 반환하십시오.
+`}
+
 6. **주체 판별 용어 대응 및 담당자 구획 독립 추출 (supplier / buyer)**:
    - 문서상에서 공급인 측을 지칭하는 다양한 용어("공급인", "공급자", "공급사", "판매자", "매도인", "수탁자" 등)는 모두 'supplier' 객체에 담으십시오.
    - 문서상에서 공급받는자 측을 지칭하는 다양한 용어("공급받는자", "발주사", "발주처", "바이어", "구매처", "매수인", "위탁자" 등)는 모두 'buyer' 객체에 담으십시오.
    - **담당자 텍스트 단독 기재 대응**: 각 업체의 '담당자' 또는 '담당' 열이나 영역에 이름만 단독으로 기재되어 있고 연락처가 기재되어 있지 않더라도(예: "장준엽" 단독 기재), 절대 누락하지 말고 각 소속 업체의 'manager_name' 필드에 정확히 담아 반환하십시오.
    - **공급인/구매인 담당자 교차 오인 방지**: 눈에 띄는 특정 업체의 담당자 정보(예: 연락처가 있는 "이주용")를 연락처가 없는 다른 쪽 업체의 담당자 정보 자리에 교차 대입하거나 덮어써서는 안 됩니다. 수주처(supplier)와 발주처(buyer)의 담당자 정보는 상호 간에 철저하게 독립된 소속 구획(표 상의 열/행 구획) 내에서만 분리하여 매핑하십시오.
-`}
+
+7. **비고 및 결재선 정보 상세 추출**:
+   - **비고 (memo)**: 이미지 하단의 "NOTE." 구역이나 비고/특이사항 구역에 번호(예: 1~6번)로 기술된 지불조건, 납품/입고 절차, 소재사급 손실변제처리, 도면 접수일자 확인 등의 모든 비고 본문 텍스트를 줄바꿈을 포함하여 있는 그대로 단 한 글자도 누락 없이 상세히 추출하여 'memo' 필드에 기재해 주십시오.
+   - **결재자 목록 (approvers)**: 이미지 하단 우측이나 상단 우측 등의 결재선 구역(검토, 검사, 결재 등의 도장이 찍혀 있거나 서명 칸이 있는 곳)에 기재된 결재자들의 성명(예: "홍종현", "이주용")을 모두 판독하여 'approvers' 배열에 문자열 목록으로 담아 반환하십시오. 결재선에 이름이 없거나 발견되지 않을 경우에만 빈 배열([])을 입력하십시오.
 
 JSON 응답 포맷:
 {
@@ -285,7 +283,8 @@ JSON 응답 포맷:
   "orderNo": "수주번호 또는 발주번호",
   "orderDate": "수주일 (YYYY-MM-DD 형식)",
   "deliveryDate": "납기일 (YYYY-MM-DD 형식)",
-  "memo": "발주서 비고 및 특이사항 (없으면 \"\")",
+  "memo": "발주서 비고 및 특이사항 (NOTE. 구역의 1~6번 본문 전체 텍스트)",
+  "approvers": ["결재선 또는 도장 내 성명 목록 (예: 홍종현, 이주용) (없으면 [])"],
   "items": [
     {
       "itemCode": "품목코드",
@@ -513,6 +512,7 @@ JSON 응답 포맷:
       document_date: orderDate || '',
       delivery_date: deliveryDate || '',
       document_memo: parsedData.memo || '',
+      approvers: parsedData.approvers || [],
       items: itemRows,
       file_url: fileDataUri
     });

@@ -37,7 +37,8 @@ export default function SalesOrderOcrModal({
     document_number: "",
     document_date: "",
     delivery_date: "",
-    document_memo: ""
+    document_memo: "",
+    approvers: [] as string[]
   });
 
   React.useEffect(() => {
@@ -81,7 +82,8 @@ export default function SalesOrderOcrModal({
       document_number: "",
       document_date: "",
       delivery_date: "",
-      document_memo: ""
+      document_memo: "",
+      approvers: []
     });
   };
 
@@ -129,7 +131,8 @@ export default function SalesOrderOcrModal({
             document_number: data.document_number || "",
             document_date: data.document_date || "",
             delivery_date: data.delivery_date || "",
-            document_memo: data.document_memo || ""
+            document_memo: data.document_memo || "",
+            approvers: data.approvers || []
           });
           setReceiverMatched(data.receiver_matched !== false);
           setMyCompanyName(data.my_company_name || "주식회사 쿠스");
@@ -381,6 +384,20 @@ export default function SalesOrderOcrModal({
                   value={ocrForm.address}
                   onChange={e => setOcrForm(prev => ({ ...prev, address: e.target.value }))}
                   className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] text-slate-400 font-bold block mb-1">결재선 / 확인자 (쉼표로 구분)</label>
+                <input 
+                  type="text" 
+                  value={ocrForm.approvers.join(", ")}
+                  onChange={e => {
+                    const names = e.target.value.split(",").map(name => name.trim()).filter(Boolean);
+                    setOcrForm(prev => ({ ...prev, approvers: names }));
+                  }}
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-indigo-500"
+                  placeholder="예: 홍종현, 이주용"
                 />
               </div>
 
