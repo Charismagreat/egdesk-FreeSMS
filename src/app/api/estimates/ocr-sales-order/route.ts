@@ -123,7 +123,11 @@ export async function POST(req: Request) {
         status: 'REGISTERED',
         total_amount: items.reduce((acc: number, curr: any) => acc + (curr.quantity * curr.unit_price), 0),
         delivery_date: delivery_date || '',
-        created_at: document_date || nowStr
+        created_at: document_date 
+          ? (document_date.trim().length === 10 
+              ? `${document_date.trim()} ${nowStr.substring(11)}` 
+              : document_date)
+          : nowStr
       }]);
 
       return NextResponse.json({

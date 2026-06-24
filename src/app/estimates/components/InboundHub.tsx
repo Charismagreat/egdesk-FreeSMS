@@ -379,7 +379,7 @@ export default function InboundHub({
                         />
                       </td>
                       <td className="py-3.5 px-2 text-slate-505 font-medium">
-                        {est.created_at?.substring(0, 16) || "-"}
+                        {est.created_at ? (est.created_at.length <= 10 ? `${est.created_at} 00:00:00` : est.created_at.substring(0, 19)) : "-"}
                       </td>
                       <td className="py-3.5 px-2 font-mono text-slate-700">
                         {(() => {
@@ -581,7 +581,7 @@ export default function InboundHub({
                       />
                     </td>
                     <td className="py-3.5 px-2 text-slate-505 font-medium">
-                      {po.created_at?.substring(0, 16) || "-"}
+                      {po.created_at ? (po.created_at.length <= 10 ? `${po.created_at} 00:00:00` : po.created_at.substring(0, 19)) : "-"}
                     </td>
                     <td className="py-3.5 px-2 font-mono text-slate-700">
                       <span className="font-bold">{po.id}</span>

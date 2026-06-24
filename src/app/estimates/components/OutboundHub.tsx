@@ -367,7 +367,7 @@ export default function OutboundHub({
                       />
                     </td>
                     <td className="py-3.5 px-2 text-slate-505 font-medium">
-                      {est.created_at ? est.created_at.substring(0, 16) : "-"}
+                      {est.created_at ? (est.created_at.length <= 10 ? `${est.created_at} 00:00:00` : est.created_at.substring(0, 19)) : "-"}
                     </td>
                     <td className="py-3.5 px-2 font-mono text-slate-700">
                       <button
@@ -529,7 +529,7 @@ export default function OutboundHub({
                     </td>
                     <td className="py-3.5 px-2 text-slate-500 font-medium">
                       <div className="flex flex-col">
-                        <span>{so.created_at ? so.created_at.substring(0, 16) : "-"}</span>
+                        <span>{so.created_at ? (so.created_at.length <= 10 ? `${so.created_at} 00:00:00` : so.created_at.substring(0, 19)) : "-"}</span>
                         <span className="text-[10px] text-slate-400 block mt-0.5" title="내부 수주 번호">
                           💼 {so.id}
                         </span>
