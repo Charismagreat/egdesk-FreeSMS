@@ -798,26 +798,24 @@ export default function EstimateDetailModal({
                         /* 조회 전용 일반 테이블 */
                         <div className="border border-slate-100 rounded-2xl overflow-auto max-h-[540px]">
                           <table className="w-full text-left text-xs font-semibold min-w-[650px]" style={{ tableLayout: "fixed" }}>
-                            <colgroup>
-                              {isSalesOrderScan ? (
-                                <>
-                                  <col style={{ width: "14%" }} /> {/* 품목코드 */}
-                                  <col style={{ width: "29%" }} /> {/* 품목명 */}
-                                  <col style={{ width: "10%" }} /> {/* 수량 */}
-                                  <col style={{ width: "15%" }} /> {/* 단가 */}
-                                  <col style={{ width: "17%" }} /> {/* 공급가액 */}
-                                  <col style={{ width: "15%" }} /> {/* 납기일 */}
-                                </>
-                              ) : (
-                                <>
-                                  <col style={{ width: "16%" }} /> {/* 품목코드 */}
-                                  <col style={{ width: "42%" }} /> {/* 품목명 */}
-                                  <col style={{ width: "10%" }} /> {/* 수량 */}
-                                  <col style={{ width: "15%" }} /> {/* 단가 */}
-                                  <col style={{ width: "17%" }} /> {/* 공급가액 */}
-                                </>
-                              )}
-                            </colgroup>
+                            {isSalesOrderScan ? (
+                              <colgroup>
+                                <col style={{ width: "14%" }} /> {/* 품목코드 */}
+                                <col style={{ width: "29%" }} /> {/* 품목명 */}
+                                <col style={{ width: "10%" }} /> {/* 수량 */}
+                                <col style={{ width: "15%" }} /> {/* 단가 */}
+                                <col style={{ width: "17%" }} /> {/* 공급가액 */}
+                                <col style={{ width: "15%" }} /> {/* 납기일 */}
+                              </colgroup>
+                            ) : (
+                              <colgroup>
+                                <col style={{ width: "16%" }} /> {/* 품목코드 */}
+                                <col style={{ width: "42%" }} /> {/* 품목명 */}
+                                <col style={{ width: "10%" }} /> {/* 수량 */}
+                                <col style={{ width: "15%" }} /> {/* 단가 */}
+                                <col style={{ width: "17%" }} /> {/* 공급가액 */}
+                              </colgroup>
+                            )}
                             <thead>
                               <tr className="border-b border-slate-100 text-slate-400 text-[10px]">
                                 <th className="py-2.5 px-3 sticky top-0 bg-slate-50 z-10">품목코드</th>
