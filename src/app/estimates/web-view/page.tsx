@@ -540,7 +540,7 @@ function WebViewContent() {
         </div>
 
         {/* 데이터 테이블 카드 (좌우 최대 폭 확장 및 가로 스크롤 방지 래핑 패턴) */}
-        <div className={`${
+        <div className={`relative z-10 ${
           isDarkMode 
             ? "bg-white/5 border-white/10" 
             : "bg-white/80 border-slate-200 shadow-xl shadow-slate-100/50"
