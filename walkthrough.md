@@ -69,3 +69,18 @@
 
 - **정적 빌드 검사**: `npx tsc --noEmit` 정밀 컴파일을 수행하여, 형상 간 타입 모순이 완전히 해소된 **빌드 무결성(Zero Errors)**을 최종 달성했습니다.
 - **형상 배포**: 수동 기안, SMS 예약, 모바일 체결 E2E 시스템 코드를 원격 저장소(`master`)로 무사히 **`git push` 전송** 완료했습니다.
+
+---
+
+## 6. 견적/발주/수주 AI 엑셀 대장 내보내기 컬럼 대폭 확장 (추가 완료)
+
+- **수정 파일**: [page.tsx (대시보드)](file:///C:/dev/egdesk-FreeSMS/src/app/estimates/page.tsx)
+- **내용**:
+  - 기존의 마스터 정보 및 품목 컬럼에 더해, 각 모듈(받은견적, 발주, 보낸견적, 수주)에 적재된 모든 비즈니스 정보와 **품목별 납기일(delivery_date)** 컬럼을 대대적으로 추가 매핑했습니다.
+  - **받은 견적 (`inbound_est`)**: `첨부파일(file_url)`, `사업자등록증(business_license_url)`, `연계발주번호(purchase_order_number)`, `품목납기일(delivery_date)` 추가 (총 19개 컬럼)
+  - **발주 대장 (`inbound_po`)**: `입고완료일시(completed_at)`, `품목납기일(delivery_date)` 추가 (총 16개 컬럼)
+  - **보낸 견적 (`outbound_est`)**: `첨부파일(file_url)`, `연계수주번호(sales_order_number)`, `품목납기일(delivery_date)` 추가 (총 17개 컬럼)
+  - **수주 대장 (`outbound_so`)**: `고객발주번호(client_order_no)`, `바이어담당자(customer_manager)`, `마스터납기일(delivery_date)`, `품목납기일(delivery_date)` 추가 (총 18개 컬럼)
+  - 데이터의 누락 및 컬럼 밀림 현상이 발생하지 않도록 컬럼 수와 매핑 값 개수를 엄격히 일치시켰으며, 한글 깨짐 방지용 UTF-8 BOM 헤더를 적용하여 Excel 호환성을 보장했습니다.
+  - `npx tsc --noEmit` 검사 결과 완벽한 무결성을 보장합니다.
+

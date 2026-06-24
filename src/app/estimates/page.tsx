@@ -386,7 +386,7 @@ export default function EstimatesDashboard() {
       );
       headers = [
         "견적번호", "공급/요청처", "연락처", "담당자명", "총 견적액", "상태", "AI스캔여부", "작성일",
-        "품목코드", "품목명", "규격", "수량", "단가", "금액", "상세비고"
+        "첨부파일", "사업자등록증", "연계발주번호", "품목코드", "품목명", "규격", "수량", "단가", "금액", "품목납기일", "상세비고"
       ];
       selected.forEach((e: any) => {
         const estItems = e.items && e.items.length > 0 ? e.items : [{}];
@@ -400,12 +400,16 @@ export default function EstimatesDashboard() {
             e.direction_status === "REQUESTED" ? "견적접수" : "발주완료",
             e.ai_parsed ? "AI OCR" : "수동",
             e.created_at,
+            e.file_url || "-",
+            e.business_license_url || "-",
+            e.purchase_order_number || "-",
             item.item_code || "-",
             item.product_name || "-",
             item.spec || "-",
             item.quantity !== undefined ? item.quantity : "",
             item.unit_price !== undefined ? item.unit_price : "",
             item.amount !== undefined ? item.amount : "",
+            item.delivery_date || "-",
             e.document_memo_search || "-"
           ]);
         });
@@ -417,7 +421,7 @@ export default function EstimatesDashboard() {
       const selected = purchaseOrders.filter((p) => targetIds.has(p.id));
       headers = [
         "발주등록번호/발주번호", "견적번호", "공급처명", "연락처", "총 발주액", "상태", "발주일시",
-        "품목코드", "품목명", "규격", "수량", "단가", "금액", "상세비고"
+        "입고완료일시", "품목코드", "품목명", "규격", "수량", "단가", "금액", "품목납기일", "상세비고"
       ];
       selected.forEach((p: any) => {
         const poItems = p.items && p.items.length > 0 ? p.items : [{}];
@@ -430,12 +434,14 @@ export default function EstimatesDashboard() {
             p.total_amount,
             p.status === "PENDING_INBOUND" ? "발주완료" : "입고완료",
             p.created_at,
+            p.completed_at || "-",
             item.item_code || "-",
             item.product_name || "-",
             item.spec || "-",
             item.quantity !== undefined ? item.quantity : "",
             item.unit_price !== undefined ? item.unit_price : "",
             item.amount !== undefined ? item.amount : "",
+            item.delivery_date || "-",
             p.document_memo_search || "-"
           ]);
         });
@@ -451,7 +457,7 @@ export default function EstimatesDashboard() {
       );
       headers = [
         "견적번호", "수신바이어", "연락처", "담당자명", "총 견적액", "상태", "작성일",
-        "품목코드", "품목명", "규격", "수량", "단가", "금액", "상세비고"
+        "첨부파일", "연계수주번호", "품목코드", "품목명", "규격", "수량", "단가", "금액", "품목납기일", "상세비고"
       ];
       selected.forEach((e: any) => {
         const estItems = e.items && e.items.length > 0 ? e.items : [{}];
@@ -464,12 +470,15 @@ export default function EstimatesDashboard() {
             e.total_amount,
             e.direction_status === "SENT" ? "견적발송" : "수주수락",
             e.created_at,
+            e.file_url || "-",
+            e.sales_order_number || "-",
             item.item_code || "-",
             item.product_name || "-",
             item.spec || "-",
             item.quantity !== undefined ? item.quantity : "",
             item.unit_price !== undefined ? item.unit_price : "",
             item.amount !== undefined ? item.amount : "",
+            item.delivery_date || "-",
             e.document_memo_search || "-"
           ]);
         });
@@ -480,8 +489,8 @@ export default function EstimatesDashboard() {
         selectedIds.size > 0 ? selectedIds : new Set(salesOrders.map((s) => s.id));
       const selected = salesOrders.filter((s) => targetIds.has(s.id));
       headers = [
-        "수주번호", "견적번호", "바이어명", "연락처", "총 수주액", "상태", "수주일시",
-        "품목코드", "품목명", "규격", "수량", "단가", "금액", "상세비고"
+        "수주번호", "견적번호", "고객발주번호", "바이어명", "연락처", "바이어담당자", "총 수주액", "상태", "수주일시",
+        "마스터납기일", "품목코드", "품목명", "규격", "수량", "단가", "금액", "품목납기일", "상세비고"
       ];
       selected.forEach((s: any) => {
         const soItems = s.items && s.items.length > 0 ? s.items : [{}];
@@ -489,17 +498,21 @@ export default function EstimatesDashboard() {
           rows.push([
             s.id,
             s.estimate_id,
+            s.client_order_no || "-",
             s.customer_name,
             s.customer_phone,
+            s.customer_manager || "-",
             s.total_amount,
             s.status === "REGISTERED" ? "수주등록" : "확인완료",
             s.created_at,
+            s.delivery_date || "-",
             item.item_code || "-",
             item.product_name || "-",
             item.spec || "-",
             item.quantity !== undefined ? item.quantity : "",
             item.unit_price !== undefined ? item.unit_price : "",
             item.amount !== undefined ? item.amount : "",
+            item.delivery_date || "-",
             s.document_memo_search || "-"
           ]);
         });
