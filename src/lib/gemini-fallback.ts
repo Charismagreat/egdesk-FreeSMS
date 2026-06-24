@@ -56,8 +56,8 @@ export async function fetchGeminiWithFallback(url: string, init?: RequestInit): 
     console.error(`[AI Emergency] 기본 모델 호출 실패/오류: ${primaryErr.message}. 하위 플래시 모델로 자동 폴백을 수행합니다.`);
   }
 
-  // 2. 주 모델 실패 시, 모델명을 하위 모델인 'gemini-3.1-flash-lite'로 치환하여 폴백 호출
-  const fallbackModel = 'gemini-3.1-flash-lite';
+  // 2. 주 모델 실패 시, 모델명을 하위 모델인 'gemini-2.5-flash'로 치환하여 폴백 호출
+  const fallbackModel = 'gemini-2.5-flash';
   const fallbackUrl = url.replace(/\/models\/[^:]+:/, `/models/${fallbackModel}:`);
   
   try {

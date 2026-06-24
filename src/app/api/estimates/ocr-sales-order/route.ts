@@ -302,6 +302,7 @@ JSON 응답 포맷:
 `;
 
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
+
     const response = await fetchGeminiWithFallback(geminiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -330,6 +331,7 @@ JSON 응답 포맷:
     }
 
     const aiData = await response.json();
+
     const responseText = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
 
     // AI 토큰 사용량 로깅
@@ -544,6 +546,7 @@ JSON 응답 포맷:
     });
 
   } catch (error: any) {
+
     console.error('OCR Sales Order error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

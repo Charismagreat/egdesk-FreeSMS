@@ -75,7 +75,7 @@ export async function GET(req: Request) {
 
     // 3. Gemini API 로드 설정
     let apiKey: string | null = null;
-    let selectedModel = 'gemini-1.5-flash';
+    let selectedModel = 'gemini-3.5-flash';
     try {
       const keyRes = await executeSQL(`SELECT value FROM system_settings WHERE key = 'google_ai_api_key'`);
       const settingsKeyRow = keyRes.rows?.[0] as any;
@@ -85,9 +85,12 @@ export async function GET(req: Request) {
       const settingsModelRow = modelRes.rows?.[0] as any;
       if (settingsModelRow && settingsModelRow.value) {
         selectedModel = settingsModelRow.value;
+      } else {
+        selectedModel = 'gemini-2.5-flash';
       }
     } catch (dbErr) {
       console.error('API 설정 로드 실패:', dbErr);
+      selectedModel = 'gemini-2.5-flash';
     }
 
     if (!apiKey) {

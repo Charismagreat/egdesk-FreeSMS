@@ -261,7 +261,6 @@ export default function AiUsageMonitor() {
                             <span className="truncate max-w-[180px]">{getPurposeLabel(p.purpose)}</span>
                             <span className="shrink-0 flex items-center gap-1.5">
                               <span>{p.tokens.toLocaleString()} t ({pct.toFixed(1)}%)</span>
-                              <span className="text-[10px] text-amber-600 font-bold bg-amber-50 px-1.5 py-0.2 rounded-md">약 {(p.tokens * 0.00018).toFixed(1)}원</span>
                             </span>
                           </div>
                           <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
@@ -293,7 +292,6 @@ export default function AiUsageMonitor() {
                             <span className="font-mono text-indigo-650 truncate max-w-[180px]">{m.model}</span>
                             <span className="shrink-0 flex items-center gap-1.5">
                               <span>{m.tokens.toLocaleString()} t ({pct.toFixed(1)}%)</span>
-                              <span className="text-[10px] text-amber-650 font-bold bg-amber-50 px-1.5 py-0.2 rounded-md">약 {(m.tokens * (m.model.toLowerCase().includes("pro") ? 0.003 : 0.00018)).toFixed(1)}원</span>
                             </span>
                           </div>
                           <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">

@@ -294,9 +294,9 @@ export default function AiSettingsCard() {
                     title="Gemini AI 모델 선택"
                   >
                     <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+                    <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
                     <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-                    <option value="gemini-1.5-flash-latest">Gemini 1.5 Flash</option>
-                    <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                    <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite</option>
                   </select>
                   <div className="pr-4 pl-3 flex items-center justify-center shrink-0 pointer-events-none">
                     <svg className="h-4 w-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">

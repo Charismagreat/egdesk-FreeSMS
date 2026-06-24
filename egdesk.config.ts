@@ -1,6 +1,6 @@
 /**
  * EGDesk User Data Configuration
- * Generated at: 2026-06-24T10:29:28.701Z
+ * Generated at: 2026-06-24T13:13:59.983Z
  *
  * This file contains type-safe definitions for your EGDesk tables.
  */
@@ -1087,7 +1087,7 @@ export const TABLES = {
   table152: {
     name: 'ai_token_usage_logs',
     displayName: 'AI 토큰 사용량 로그',
-    rowCount: 61,
+    rowCount: 75,
     columnCount: 16,
     columns: ['id', 'model', 'purpose', 'prompt_tokens', 'completion_tokens', 'total_tokens', 'user_name', 'menu_path', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,

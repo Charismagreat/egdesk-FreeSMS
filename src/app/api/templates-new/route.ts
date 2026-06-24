@@ -248,7 +248,7 @@ export async function GET(req: Request) {
       // 0) Gemini API를 이용해 양식 사용 목적에 적합한 테이블 추천 시도
       let recommendedTableNames: string[] = [];
       let apiKey: string | null = null;
-      let selectedModel = 'gemini-1.5-flash';
+      let selectedModel = 'gemini-3.5-flash';
       try {
         const keyRes = await executeSQL(`SELECT value FROM system_settings WHERE key = 'google_ai_api_key'`);
         const settingsKeyRow = keyRes.rows?.[0] as any;
@@ -258,9 +258,12 @@ export async function GET(req: Request) {
         const settingsModelRow = modelRes.rows?.[0] as any;
         if (settingsModelRow && settingsModelRow.value) {
           selectedModel = settingsModelRow.value;
+        } else {
+          selectedModel = 'gemini-2.5-flash';
         }
       } catch (dbErr) {
         console.error('추천 API 설정 로드 오류:', dbErr);
+        selectedModel = 'gemini-2.5-flash';
       }
 
       if (!apiKey) {

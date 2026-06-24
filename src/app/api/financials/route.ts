@@ -220,7 +220,7 @@ export async function POST(req: Request) {
     const modelRes = await queryTable('system_settings', { filters: { key: 'google_ai_model' } });
     const selectedModel = modelRes.rows && modelRes.rows.length > 0 && modelRes.rows[0].value
       ? modelRes.rows[0].value
-      : 'gemini-1.5-flash';
+      : 'gemini-2.5-flash';
 
     let forecastText = 'AI 분석 키가 설정되지 않아 예측 리포트를 작성할 수 없습니다.';
     let consultingText = 'AI 분석 키가 설정되지 않아 재무 제언 리포트를 작성할 수 없습니다.';

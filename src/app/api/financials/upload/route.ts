@@ -77,7 +77,7 @@ export async function POST(req: Request) {
     const modelRes = await queryTable('system_settings', { filters: { key: 'google_ai_model' } });
     const selectedModel = modelRes.rows && modelRes.rows.length > 0 && modelRes.rows[0].value
       ? modelRes.rows[0].value
-      : 'gemini-1.5-flash';
+      : 'gemini-2.5-flash';
 
     // 5. PDF 파일을 Base64로 인코딩하여 Gemini API 요청
     const pdfBase64 = fileBuffer.toString('base64');
