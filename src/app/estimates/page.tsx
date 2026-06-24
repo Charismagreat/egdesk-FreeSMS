@@ -384,31 +384,62 @@ export default function EstimatesDashboard() {
       const selected = estimates.filter(
         (e) => e.type === "INBOUND" && targetIds.has(e.id)
       );
-      headers = ["견적번호", "공급/요청처", "연락처", "총 견적액", "상태", "AI스캔여부", "작성일"];
-      rows = selected.map((e) => [
-        e.id,
-        e.partner_name,
-        e.partner_phone,
-        e.total_amount,
-        e.direction_status === "REQUESTED" ? "견적접수" : "발주완료",
-        e.ai_parsed ? "AI OCR" : "수동",
-        e.created_at,
-      ]);
+      headers = [
+        "견적번호", "공급/요청처", "연락처", "담당자명", "총 견적액", "상태", "AI스캔여부", "작성일",
+        "품목코드", "품목명", "규격", "수량", "단가", "금액", "상세비고"
+      ];
+      selected.forEach((e: any) => {
+        const estItems = e.items && e.items.length > 0 ? e.items : [{}];
+        estItems.forEach((item: any) => {
+          rows.push([
+            e.id,
+            e.partner_name,
+            e.partner_phone,
+            e.partner_manager || "-",
+            e.total_amount,
+            e.direction_status === "REQUESTED" ? "견적접수" : "발주완료",
+            e.ai_parsed ? "AI OCR" : "수동",
+            e.created_at,
+            item.item_code || "-",
+            item.product_name || "-",
+            item.spec || "-",
+            item.quantity !== undefined ? item.quantity : "",
+            item.unit_price !== undefined ? item.unit_price : "",
+            item.amount !== undefined ? item.amount : "",
+            e.document_memo_search || "-"
+          ]);
+        });
+      });
       filename = `받은견적대장_${selectedIds.size > 0 ? "선택출력" : "전체출력"}.csv`;
     } else if (type === "inbound_po") {
       const targetIds =
         selectedIds.size > 0 ? selectedIds : new Set(purchaseOrders.map((p) => p.id));
       const selected = purchaseOrders.filter((p) => targetIds.has(p.id));
-      headers = ["발주등록번호/발주번호", "견적번호", "공급처명", "연락처", "총 발주액", "상태", "발주일시"];
-      rows = selected.map((p) => [
-        p.id,
-        p.estimate_id,
-        p.vendor_name,
-        p.vendor_phone,
-        p.total_amount,
-        p.status === "PENDING_INBOUND" ? "발주완료" : "입고완료",
-        p.created_at,
-      ]);
+      headers = [
+        "발주등록번호/발주번호", "견적번호", "공급처명", "연락처", "총 발주액", "상태", "발주일시",
+        "품목코드", "품목명", "규격", "수량", "단가", "금액", "상세비고"
+      ];
+      selected.forEach((p: any) => {
+        const poItems = p.items && p.items.length > 0 ? p.items : [{}];
+        poItems.forEach((item: any) => {
+          rows.push([
+            p.id,
+            p.estimate_id,
+            p.vendor_name,
+            p.vendor_phone,
+            p.total_amount,
+            p.status === "PENDING_INBOUND" ? "발주완료" : "입고완료",
+            p.created_at,
+            item.item_code || "-",
+            item.product_name || "-",
+            item.spec || "-",
+            item.quantity !== undefined ? item.quantity : "",
+            item.unit_price !== undefined ? item.unit_price : "",
+            item.amount !== undefined ? item.amount : "",
+            p.document_memo_search || "-"
+          ]);
+        });
+      });
       filename = `발주대장_${selectedIds.size > 0 ? "선택출력" : "전체출력"}.csv`;
     } else if (type === "outbound_est") {
       const targetIds =
@@ -418,30 +449,61 @@ export default function EstimatesDashboard() {
       const selected = estimates.filter(
         (e) => e.type === "OUTBOUND" && targetIds.has(e.id)
       );
-      headers = ["견적번호", "수신바이어", "연락처", "총 견적액", "상태", "작성일"];
-      rows = selected.map((e) => [
-        e.id,
-        e.partner_name,
-        e.partner_phone,
-        e.total_amount,
-        e.direction_status === "SENT" ? "견적발송" : "수주수락",
-        e.created_at,
-      ]);
+      headers = [
+        "견적번호", "수신바이어", "연락처", "담당자명", "총 견적액", "상태", "작성일",
+        "품목코드", "품목명", "규격", "수량", "단가", "금액", "상세비고"
+      ];
+      selected.forEach((e: any) => {
+        const estItems = e.items && e.items.length > 0 ? e.items : [{}];
+        estItems.forEach((item: any) => {
+          rows.push([
+            e.id,
+            e.partner_name,
+            e.partner_phone,
+            e.partner_manager || "-",
+            e.total_amount,
+            e.direction_status === "SENT" ? "견적발송" : "수주수락",
+            e.created_at,
+            item.item_code || "-",
+            item.product_name || "-",
+            item.spec || "-",
+            item.quantity !== undefined ? item.quantity : "",
+            item.unit_price !== undefined ? item.unit_price : "",
+            item.amount !== undefined ? item.amount : "",
+            e.document_memo_search || "-"
+          ]);
+        });
+      });
       filename = `보낸견적대장_${selectedIds.size > 0 ? "선택출력" : "전체출력"}.csv`;
     } else if (type === "outbound_so") {
       const targetIds =
         selectedIds.size > 0 ? selectedIds : new Set(salesOrders.map((s) => s.id));
       const selected = salesOrders.filter((s) => targetIds.has(s.id));
-      headers = ["수주번호", "견적번호", "바이어명", "연락처", "총 수주액", "상태", "수주일시"];
-      rows = selected.map((s) => [
-        s.id,
-        s.estimate_id,
-        s.customer_name,
-        s.customer_phone,
-        s.total_amount,
-        s.status === "REGISTERED" ? "수주등록" : "확인완료",
-        s.created_at,
-      ]);
+      headers = [
+        "수주번호", "견적번호", "바이어명", "연락처", "총 수주액", "상태", "수주일시",
+        "품목코드", "품목명", "규격", "수량", "단가", "금액", "상세비고"
+      ];
+      selected.forEach((s: any) => {
+        const soItems = s.items && s.items.length > 0 ? s.items : [{}];
+        soItems.forEach((item: any) => {
+          rows.push([
+            s.id,
+            s.estimate_id,
+            s.customer_name,
+            s.customer_phone,
+            s.total_amount,
+            s.status === "REGISTERED" ? "수주등록" : "확인완료",
+            s.created_at,
+            item.item_code || "-",
+            item.product_name || "-",
+            item.spec || "-",
+            item.quantity !== undefined ? item.quantity : "",
+            item.unit_price !== undefined ? item.unit_price : "",
+            item.amount !== undefined ? item.amount : "",
+            s.document_memo_search || "-"
+          ]);
+        });
+      });
       filename = `수주대장_${selectedIds.size > 0 ? "선택출력" : "전체출력"}.csv`;
     }
 

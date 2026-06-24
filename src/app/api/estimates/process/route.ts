@@ -53,7 +53,8 @@ export async function GET(req: Request) {
         return {
           ...po,
           item_search_text: itemSearchText,
-          document_memo_search: docMemo
+          document_memo_search: docMemo,
+          items: estItems
         };
       });
 
@@ -106,7 +107,8 @@ export async function GET(req: Request) {
         return {
           ...so,
           item_search_text: itemSearchText,
-          document_memo_search: docMemo
+          document_memo_search: docMemo,
+          items: estItems
         };
       });
 

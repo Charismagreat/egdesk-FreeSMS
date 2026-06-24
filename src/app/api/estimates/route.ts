@@ -253,7 +253,8 @@ export async function GET(req: Request) {
           first_item_name: estItems.length > 0 ? estItems[0].product_name : null,
           item_count: estItems.length,
           item_search_text: itemSearchText,
-          document_memo_search: docMemo
+          document_memo_search: docMemo,
+          items: estItems
         };
       });
 
