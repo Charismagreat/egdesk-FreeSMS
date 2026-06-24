@@ -69,6 +69,10 @@
 - [x] `src/app/api/estimates/ocr/route.ts` 수정
   - Gemini Vision OCR 프롬프트에 `item_code` 및 `spec` 추출 지침 추가
   - 실제 파싱 및 Mock 응답 생성부에서 `item_code` 및 `spec` 매핑하여 클라이언트에 반환
+- [x] 16. OCR 담당자 인식 정밀도 보완 및 교차 오인 방지 지침 보강
+  - [x] `src/app/api/estimates/ocr-sales-order/route.ts` 수정 (프롬프트 내 담당자 추출 정밀도 및 교차 오인 방지 지침 추가)
+  - [x] 통합 기능 테스트 및 타입 검사 (`npx tsc --noEmit`)
+  - [x] `walkthrough.md` 작성 및 git commit & push 완료
 
 ## UI (프론트엔드)
 - [x] `src/app/estimates/components/EstimateWriteModal.tsx` (보낼 견적 수동) 수정

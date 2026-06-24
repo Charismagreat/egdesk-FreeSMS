@@ -255,10 +255,11 @@ ${rlsRulesText}
 5. **유효품목코드 (validItemCode)**:
    - 각 품목의 품명(itemName), 규격(spec), 비고란 등을 탐색하여 "X로 시작하고 뒤에 6자리 숫자로 구성된 패턴" (예: X123456)을 지닌 사내 실제 품목코드가 발견될 경우, 이를 validItemCode 필드에 기재해 주십시오.
    - 발견되지 않으면 빈 문자열("")을 반환하십시오.
-6. **주체 판별 용어 대응 (supplier / buyer)**:
-   - 문서상에서 공급인 측을 지칭하는 다양한 용어("공급인", "공급자", "공급사", "판매자", "매도인", "수탁자" 등)는 모두 "supplier" 객체에 담으십시오.
-   - 문서상에서 공급받는자 측을 지칭하는 다양한 용어("공급받는자", "발주사", "발주처", "바이어", "구매처", "매수인", "위탁자" 등)는 모두 "buyer" 객체에 담으십시오.
-   - 각 소속 정보 내에 담당자명(manager_name) 및 연락처(manager_phone)가 기재되어 있다면 해당 업체 하위 정보로 정확히 귀속시키십시오.
+6. **주체 판별 용어 대응 및 담당자 구획 독립 추출 (supplier / buyer)**:
+   - 문서상에서 공급인 측을 지칭하는 다양한 용어("공급인", "공급자", "공급사", "판매자", "매도인", "수탁자" 등)는 모두 'supplier' 객체에 담으십시오.
+   - 문서상에서 공급받는자 측을 지칭하는 다양한 용어("공급받는자", "발주사", "발주처", "바이어", "구매처", "매수인", "위탁자" 등)는 모두 'buyer' 객체에 담으십시오.
+   - **담당자 텍스트 단독 기재 대응**: 각 업체의 '담당자' 또는 '담당' 열이나 영역에 이름만 단독으로 기재되어 있고 연락처가 기재되어 있지 않더라도(예: "장준엽" 단독 기재), 절대 누락하지 말고 각 소속 업체의 'manager_name' 필드에 정확히 담아 반환하십시오.
+   - **공급인/구매인 담당자 교차 오인 방지**: 눈에 띄는 특정 업체의 담당자 정보(예: 연락처가 있는 "이주용")를 연락처가 없는 다른 쪽 업체의 담당자 정보 자리에 교차 대입하거나 덮어써서는 안 됩니다. 수주처(supplier)와 발주처(buyer)의 담당자 정보는 상호 간에 철저하게 독립된 소속 구획(표 상의 열/행 구획) 내에서만 분리하여 매핑하십시오.
 `}
 
 JSON 응답 포맷:
@@ -377,14 +378,27 @@ JSON 응답 포맷:
       throw new Error('품목을 인식하지 못했습니다.');
     }
 
+    // 회사명에서 법인 유형(주식회사, (주) 등) 및 특수문자를 제거하여 순수 상호명만 추출하는 헬퍼 함수
+    const cleanCompanyName = (name: string): string => {
+      if (!name) return '';
+      return name
+        .replace(/\(주\)/g, '')
+        .replace(/주식회사/g, '')
+        .replace(/\(유\)/g, '')
+        .replace(/유한회사/g, '')
+        .replace(/\(합\)/g, '')
+        .replace(/합자회사/g, '')
+        .replace(/[^가-힣a-zA-Z0-9]/g, '');
+    };
+
     const myBizNum = myCompanyProfile.businessNumber.replace(/\D/g, '');
-    const myCompName = myCompanyProfile.companyName.replace(/[^가-힣a-zA-Z0-9]/g, '');
+    const myCompName = cleanCompanyName(myCompanyProfile.companyName);
 
     const supBiz = (parsedData.supplier?.business_number || '').replace(/\D/g, '');
-    const supName = (parsedData.supplier?.company_name || '').replace(/[^가-힣a-zA-Z0-9]/g, '');
+    const supName = cleanCompanyName(parsedData.supplier?.company_name || '');
 
     const buyBiz = (parsedData.buyer?.business_number || '').replace(/\D/g, '');
-    const buyName = (parsedData.buyer?.company_name || '').replace(/[^가-힣a-zA-Z0-9]/g, '');
+    const buyName = cleanCompanyName(parsedData.buyer?.company_name || '');
 
     // 1단계: 자사 매칭 판별
     const isSupplierMyCompany = (supBiz && supBiz === myBizNum) ||
