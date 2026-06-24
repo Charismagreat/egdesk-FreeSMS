@@ -456,7 +456,7 @@ function WebViewContent() {
           </div>
           <div className="flex items-center gap-3 justify-end relative">
             {/* 컬럼 숨기기/보이기 제어기 */}
-            <div className="relative">
+            <div className="relative z-40">
               <button
                 onClick={() => setIsColSelectorOpen(!isColSelectorOpen)}
                 className={`px-3 py-2.5 rounded-2xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
@@ -471,12 +471,12 @@ function WebViewContent() {
                 <span>⚙️ 컬럼 표시 설정</span>
               </button>
               
-              {/* 컬럼 선택 팝업 드롭다운 (Glassmorphism 적용) */}
+              {/* 컬럼 선택 팝업 드롭다운 (가독성 확보를 위해 불투명 배경 적용 및 z-index 상향) */}
               {isColSelectorOpen && (
-                <div className={`absolute right-0 mt-2.5 w-64 rounded-2xl border shadow-2xl p-4 z-30 backdrop-blur-2xl transition-all ${
+                <div className={`absolute right-0 top-full mt-2 w-64 rounded-2xl border shadow-2xl p-4 z-50 transition-all ${
                   isDarkMode
-                    ? "bg-slate-900/95 border-slate-750 text-slate-200"
-                    : "bg-white/95 border-slate-200 text-slate-800"
+                    ? "bg-slate-950 border-slate-800 text-slate-100 shadow-black/80"
+                    : "bg-white border-slate-200 text-slate-800 shadow-slate-200/50"
                 }`}>
                   <div className="flex items-center justify-between border-b border-solid border-slate-700/20 pb-2 mb-2">
                     <span className="text-[10px] font-black uppercase tracking-wider">표시 컬럼 선택</span>
