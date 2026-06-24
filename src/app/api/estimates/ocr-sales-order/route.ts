@@ -255,24 +255,32 @@ ${rlsRulesText}
 5. **유효품목코드 (validItemCode)**:
    - 각 품목의 품명(itemName), 규격(spec), 비고란 등을 탐색하여 "X로 시작하고 뒤에 6자리 숫자로 구성된 패턴" (예: X123456)을 지닌 사내 실제 품목코드가 발견될 경우, 이를 validItemCode 필드에 기재해 주십시오.
    - 발견되지 않으면 빈 문자열("")을 반환하십시오.
+6. **주체 판별 용어 대응 (supplier / buyer)**:
+   - 문서상에서 공급인 측을 지칭하는 다양한 용어("공급인", "공급자", "공급사", "판매자", "매도인", "수탁자" 등)는 모두 "supplier" 객체에 담으십시오.
+   - 문서상에서 공급받는자 측을 지칭하는 다양한 용어("공급받는자", "발주사", "발주처", "바이어", "구매처", "매수인", "위탁자" 등)는 모두 "buyer" 객체에 담으십시오.
+   - 각 소속 정보 내에 담당자명(manager_name) 및 연락처(manager_phone)가 기재되어 있다면 해당 업체 하위 정보로 정확히 귀속시키십시오.
 `}
 
 JSON 응답 포맷:
 {
   "supplier": {
-    "company_name": "공급사 상호명(공급인)",
-    "business_number": "공급사 사업자번호 (XXX-XX-XXXXX 형식)",
-    "representative": "공급자 대표자 성명 (없으면 \"\")",
-    "address": "공급자 주소 (없으면 \"\")"
+    "company_name": "공급 주체 상호명 (공급인/공급사/공급자/판매자 등)",
+    "business_number": "공급 주체 사업자번호 (XXX-XX-XXXXX 형식)",
+    "representative": "공급 주체 대표자 성명 (없으면 \"\")",
+    "address": "공급 주체 주소 (없으면 \"\")",
+    "manager_name": "공급 주체 담당자명 (없으면 \"\")",
+    "manager_phone": "공급 주체 담당자 연락처 (없으면 \"\")"
   },
   "buyer": {
-    "company_name": "공급받는자 상호명(발주처)",
-    "business_number": "공급받는자 사업자번호 (XXX-XX-XXXXX 형식)",
-    "representative": "공급받는자 대표자 성명 (없으면 \"\")",
-    "address": "공급받는자 주소 (없으면 \"\")"
+    "company_name": "구매/발주 주체 상호명 (공급받는자/발주사/발주처/바이어 등)",
+    "business_number": "구매/발주 주체 사업자번호 (XXX-XX-XXXXX 형식)",
+    "representative": "구매/발주 주체 대표자 성명 (없으면 \"\")",
+    "address": "구매/발주 주체 주소 (없으면 \"\")",
+    "manager_name": "구매/발주 주체 담당자명 (없으면 \"\")",
+    "manager_phone": "구매/발주 주체 담당자 연락처 (없으면 \"\")"
   },
-  "picName": "담당자명",
-  "picPhone": "담당자 연락처 (전화번호, 없으면 \"\")",
+  "picName": "문서 전체 대표 담당자명",
+  "picPhone": "문서 전체 대표 담당자 연락처 (전화번호, 없으면 \"\")",
   "orderNo": "수주번호 또는 발주번호",
   "orderDate": "수주일 (YYYY-MM-DD 형식)",
   "deliveryDate": "납기일 (YYYY-MM-DD 형식)",
@@ -388,6 +396,8 @@ JSON 응답 포맷:
     let partnerBizNo = '';
     let partnerRepresentative = '';
     let partnerAddress = '';
+    let partnerManager = '';
+    let partnerPhone = '';
     
     // 2단계: 자사 역할 비교를 통한 상대방 바이어 정보 추출
     if (isSupplierMyCompany) {
@@ -395,11 +405,15 @@ JSON 응답 포맷:
       partnerBizNo = parsedData.buyer?.business_number || '';
       partnerRepresentative = parsedData.buyer?.representative || '';
       partnerAddress = parsedData.buyer?.address || '';
+      partnerManager = parsedData.buyer?.manager_name || picName || '';
+      partnerPhone = parsedData.buyer?.manager_phone || picPhone || '';
     } else if (isBuyerMyCompany) {
       partnerName = parsedData.supplier?.company_name || '';
       partnerBizNo = parsedData.supplier?.business_number || '';
       partnerRepresentative = parsedData.supplier?.representative || '';
       partnerAddress = parsedData.supplier?.address || '';
+      partnerManager = parsedData.supplier?.manager_name || picName || '';
+      partnerPhone = parsedData.supplier?.manager_phone || picPhone || '';
     } else {
       // 자사 정보가 둘 다 불일치하는 경우 (폴백)
       // 사용자 공식: "수주등록용 발주서일 경우 사업자번호가 있는 업체가 상대방 정보이다"
@@ -411,11 +425,15 @@ JSON 응답 포맷:
         partnerBizNo = parsedData.buyer?.business_number || '';
         partnerRepresentative = parsedData.buyer?.representative || '';
         partnerAddress = parsedData.buyer?.address || '';
+        partnerManager = parsedData.buyer?.manager_name || picName || '';
+        partnerPhone = parsedData.buyer?.manager_phone || picPhone || '';
       } else {
         partnerName = parsedData.supplier?.company_name || '';
         partnerBizNo = parsedData.supplier?.business_number || '';
         partnerRepresentative = parsedData.supplier?.representative || '';
         partnerAddress = parsedData.supplier?.address || '';
+        partnerManager = parsedData.supplier?.manager_name || picName || '';
+        partnerPhone = parsedData.supplier?.manager_phone || picPhone || '';
       }
     }
 
@@ -472,8 +490,8 @@ JSON 응답 포맷:
       receiver_matched: receiverMatched,
       my_company_name: myCompanyProfile.companyName,
       partner_name: partnerName,
-      partner_phone: picPhone || '',
-      partner_manager: picName || '',
+      partner_phone: partnerPhone || picPhone || '',
+      partner_manager: partnerManager || picName || '',
       business_number: partnerBizNo,
       representative: partnerRepresentative,
       address: partnerAddress,
