@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, Suspense } from "react";
+import React, { useState, useEffect, useMemo, Suspense, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { Sun, Moon, Eye, RefreshCw, X, Download } from "lucide-react";
+import { createPortal } from "react-dom";
 
 // B2B 대장 정보 타입 설정 및 디폴트 노출 컬럼 정의
 const typeConfig = {
@@ -72,6 +73,37 @@ function WebViewContent() {
   const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
   const [isColSelectorOpen, setIsColSelectorOpen] = useState(false);
   const [activeImageUrl, setActiveImageUrl] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // 컬럼 선택 드롭다운용 React Portal 팝업 좌표 상태
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+
+  const updateCoords = () => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setCoords({
+        top: rect.bottom + window.scrollY + 8,
+        left: rect.right - 256 + window.scrollX
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (isColSelectorOpen) {
+      updateCoords();
+      window.addEventListener("resize", updateCoords);
+      window.addEventListener("scroll", updateCoords, true);
+    }
+    return () => {
+      window.removeEventListener("resize", updateCoords);
+      window.removeEventListener("scroll", updateCoords, true);
+    };
+  }, [isColSelectorOpen]);
 
   // 1. 실시간 API 연동 및 데이터 패치
   const fetchData = async () => {
@@ -362,9 +394,9 @@ function WebViewContent() {
         {/* 상단 헤더 패널 */}
         <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 ${
           isDarkMode 
-            ? "bg-white/5 border-white/10" 
-            : "bg-white/80 border-slate-200 shadow-xl shadow-slate-100/50"
-        } backdrop-blur-xl border p-5 rounded-3xl transition-all duration-300`}>
+            ? "bg-slate-900/90 border-white/10 shadow-2xl shadow-slate-950/50" 
+            : "bg-white border-slate-200 shadow-xl shadow-slate-100/50"
+        } border p-5 rounded-3xl transition-all duration-300`}>
           <div>
             <span className={`${
               isDarkMode 
@@ -435,9 +467,9 @@ function WebViewContent() {
         {/* 필터, 검색 및 컬럼 표시설정 제어 영역 */}
         <div className={`flex flex-col md:flex-row md:items-center justify-between gap-3 ${
           isDarkMode 
-            ? "bg-white/5 border-white/10" 
-            : "bg-white/80 border-slate-200 shadow-xl shadow-slate-100/50"
-        } backdrop-blur-xl border p-4 rounded-3xl transition-all duration-300 relative`}>
+            ? "bg-slate-900/90 border-white/10 shadow-2xl shadow-slate-950/50" 
+            : "bg-white border-slate-200 shadow-xl shadow-slate-100/50"
+        } border p-4 rounded-3xl transition-all duration-300 relative z-30`}>
           <div className="flex flex-1 items-center max-w-md w-full">
             <input
               type="text"
@@ -455,9 +487,11 @@ function WebViewContent() {
             />
           </div>
           <div className="flex items-center gap-3 justify-end relative">
+            
             {/* 컬럼 숨기기/보이기 제어기 */}
             <div className="relative z-40">
               <button
+                ref={buttonRef}
                 onClick={() => setIsColSelectorOpen(!isColSelectorOpen)}
                 className={`px-3 py-2.5 rounded-2xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                   isColSelectorOpen
@@ -471,13 +505,23 @@ function WebViewContent() {
                 <span>⚙️ 컬럼 표시 설정</span>
               </button>
               
-              {/* 컬럼 선택 팝업 드롭다운 (가독성 확보를 위해 불투명 배경 적용 및 z-index 상향) */}
-              {isColSelectorOpen && (
-                <div className={`absolute right-0 top-full mt-2 w-64 rounded-2xl border shadow-2xl p-4 z-50 transition-all ${
-                  isDarkMode
-                    ? "bg-slate-950 border-slate-800 text-slate-100 shadow-black/80"
-                    : "bg-white border-slate-200 text-slate-800 shadow-slate-200/50"
-                }`}>
+              {/* 컬럼 선택 팝업 드롭다운 (React Portal 이식으로 쌓임 맥락 및 가려짐 완벽 차단) */}
+              {mounted && isColSelectorOpen && typeof document !== 'undefined' && createPortal(
+                <div 
+                  className={`fixed rounded-2xl border shadow-2xl p-4 w-64 transition-all ${
+                    isDarkMode
+                      ? "border-slate-800 text-slate-100 shadow-black/90"
+                      : "border-slate-200 text-slate-800 shadow-slate-200/60"
+                  }`}
+                  style={{
+                    top: `${coords.top}px`,
+                    left: `${coords.left}px`,
+                    zIndex: 99999,
+                    backgroundColor: isDarkMode ? "#090d16" : "#ffffff",
+                    transform: "translate3d(0, 0, 9999px)",
+                    isolation: "isolate",
+                  }}
+                >
                   <div className="flex items-center justify-between border-b border-solid border-slate-700/20 pb-2 mb-2">
                     <span className="text-[10px] font-black uppercase tracking-wider">표시 컬럼 선택</span>
                     <button
@@ -509,12 +553,13 @@ function WebViewContent() {
                   <div className="border-t border-solid border-slate-700/20 pt-2 mt-2 flex justify-end">
                     <button
                       onClick={() => setIsColSelectorOpen(false)}
-                      className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black cursor-pointer border-none"
+                      className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-755 text-white rounded-lg text-[10px] font-black cursor-pointer border-none"
                     >
                       확인
                     </button>
                   </div>
-                </div>
+                </div>,
+                document.body
               )}
             </div>
 
@@ -542,9 +587,9 @@ function WebViewContent() {
         {/* 데이터 테이블 카드 (좌우 최대 폭 확장 및 가로 스크롤 방지 래핑 패턴) */}
         <div className={`relative z-10 ${
           isDarkMode 
-            ? "bg-white/5 border-white/10" 
-            : "bg-white/80 border-slate-200 shadow-xl shadow-slate-100/50"
-        } backdrop-blur-xl border rounded-3xl overflow-hidden transition-all duration-300 w-full`}>
+            ? "bg-slate-900/95 border-white/10 shadow-2xl shadow-slate-950/50" 
+            : "bg-white border-slate-200 shadow-xl shadow-slate-100/50"
+        } border rounded-3xl overflow-hidden transition-all duration-300 w-full`}>
           <div className="w-full overflow-x-auto custom-scrollbar">
             <table className="w-full text-left text-[11px] font-semibold border-collapse table-auto">
               <thead>
@@ -579,7 +624,7 @@ function WebViewContent() {
                   <tr>
                     <td
                       colSpan={visibleColumns.length}
-                      className={`text-center py-20 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} font-semibold`}
+                      className={`text-center py-20 ${isDarkMode ? 'text-slate-400' : 'text-slate-505'} font-semibold`}
                     >
                       검색 조건에 맞는 내역이 존재하지 않습니다.
                     </td>
@@ -608,7 +653,7 @@ function WebViewContent() {
                             {isAttachedFile ? (
                               <button
                                 onClick={() => setActiveImageUrl(strVal)}
-                                className="px-2.5 py-1 bg-indigo-500/10 text-indigo-600 hover:bg-indigo-500/20 rounded-lg text-[10px] font-black border border-indigo-500/20 transition-all inline-flex items-center gap-1 cursor-pointer"
+                                className="px-2.5 py-1 bg-indigo-500/10 text-indigo-650 hover:bg-indigo-500/20 rounded-lg text-[10px] font-black border border-indigo-500/20 transition-all inline-flex items-center gap-1 cursor-pointer"
                                 title="원본 파일 전체보기"
                               >
                                 🔗 원본보기
@@ -669,7 +714,7 @@ function WebViewContent() {
                       currentPage === pageNum
                         ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
                         : isDarkMode
-                        ? "bg-slate-900/30 hover:bg-white/5 text-slate-400 border border-white/5"
+                        ? "bg-slate-900/30 hover:bg-white/5 text-slate-450 border border-white/5"
                         : "bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200"
                     }`}
                   >
