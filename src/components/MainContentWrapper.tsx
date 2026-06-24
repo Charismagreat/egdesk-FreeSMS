@@ -16,7 +16,8 @@ export default function MainContentWrapper({ children }: { children: React.React
     pathname.startsWith('/m/') || 
     pathname.startsWith('/expenses/mobile-approve') ||
     pathname.startsWith('/employee') ||
-    pathname.startsWith('/interpretation-ai')
+    pathname.startsWith('/interpretation-ai') ||
+    pathname.startsWith('/estimates/web-view')
   ) {
     return <>{children}</>;
   }

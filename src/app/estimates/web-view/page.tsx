@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { Sun, Moon } from "lucide-react";
 
 export default function WebViewPage() {
   const [data, setData] = useState<{
@@ -9,6 +10,7 @@ export default function WebViewPage() {
     rows: any[][];
   } | null>(null);
 
+  const [isDarkMode, setIsDarkMode] = useState(true);
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState<number | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -108,34 +110,73 @@ export default function WebViewPage() {
 
   if (!data) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-300 font-sans p-6">
-        <div className="w-16 h-16 border-4 border-indigo-650 border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-sm font-black tracking-wide text-indigo-400">데이터를 로드하는 중입니다...</p>
+      <div className={`min-h-screen ${isDarkMode ? 'bg-slate-950 text-slate-350' : 'bg-slate-50 text-slate-600'} flex flex-col items-center justify-center font-sans p-6 transition-colors duration-300`}>
+        <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-sm font-black tracking-wide text-indigo-500">데이터를 로드하는 중입니다...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-tr from-slate-950 via-slate-900 to-indigo-950 text-slate-100 font-sans p-4 md:p-8">
+    <div className={`min-h-screen ${
+      isDarkMode 
+        ? "bg-gradient-to-tr from-slate-950 via-slate-900 to-indigo-950 text-slate-100" 
+        : "bg-gradient-to-tr from-slate-50 via-slate-100 to-indigo-50/30 text-slate-800"
+    } font-sans p-4 md:p-8 transition-colors duration-300 relative overflow-x-hidden`}>
       {/* 럭셔리 네온 광원 */}
-      <div className="absolute top-10 left-10 w-80 h-80 bg-indigo-600/10 rounded-full blur-3xl -z-10 animate-pulse"></div>
-      <div className="absolute bottom-10 right-10 w-96 h-96 bg-purple-600/5 rounded-full blur-3xl -z-10"></div>
+      <div className={`absolute top-10 left-10 w-80 h-80 ${isDarkMode ? 'bg-indigo-600/10' : 'bg-indigo-400/5'} rounded-full blur-3xl -z-10 animate-pulse`}></div>
+      <div className={`absolute bottom-10 right-10 w-96 h-96 ${isDarkMode ? 'bg-purple-600/5' : 'bg-purple-400/5'} rounded-full blur-3xl -z-10`}></div>
 
       <div className="max-w-7xl mx-auto space-y-6">
         {/* 상단 헤더 패널 */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/5 backdrop-blur-xl border border-white/10 p-6 rounded-3xl shadow-2xl">
+        <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+          isDarkMode 
+            ? "bg-white/5 border-white/10" 
+            : "bg-white/80 border-slate-200 shadow-xl shadow-slate-100/50"
+        } backdrop-blur-xl border p-6 rounded-3xl transition-all duration-300`}>
           <div>
-            <span className="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-black tracking-widest px-3 py-1 rounded-full uppercase">
+            <span className={`${
+              isDarkMode 
+                ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/30" 
+                : "bg-indigo-50/80 text-indigo-650 border-indigo-200"
+            } border text-[10px] font-black tracking-widest px-3 py-1 rounded-full uppercase`}>
               B2B Realtime WebView
             </span>
-            <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-indigo-300 mt-2">
+            <h1 className={`text-2xl font-black ${
+              isDarkMode 
+                ? "text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-100 to-indigo-300" 
+                : "text-slate-800"
+            } mt-2`}>
               {data.title}
             </h1>
-            <p className="text-xs text-slate-400 mt-1 font-medium">
-              총 <span className="text-indigo-400 font-bold">{sortedRows.length}</span>개의 평탄화(Flattened) 품목 상세 정보가 적재되었습니다.
+            <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} mt-1 font-medium`}>
+              총 <span className="text-indigo-600 font-bold">{sortedRows.length}</span>개의 평탄화(Flattened) 품목 상세 정보가 적재되었습니다.
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {/* 다크/라이트모드 토글 단추 */}
+            <button
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className={`px-4 py-2.5 rounded-2xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                isDarkMode 
+                  ? "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:text-white" 
+                  : "bg-white border-slate-200 text-slate-705 hover:bg-slate-50 hover:text-slate-900 shadow-sm"
+              }`}
+              title={isDarkMode ? "라이트모드로 전환" : "다크모드로 전환"}
+            >
+              {isDarkMode ? (
+                <>
+                  <Sun size={14} className="text-amber-400 animate-pulse" />
+                  <span>라이트모드</span>
+                </>
+              ) : (
+                <>
+                  <Moon size={14} className="text-indigo-600" />
+                  <span>다크모드</span>
+                </>
+              )}
+            </button>
+
             <button
               onClick={handleExportCsv}
               className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-750 text-white text-xs font-black rounded-2xl shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-1.5 cursor-pointer"
@@ -144,7 +185,11 @@ export default function WebViewPage() {
             </button>
             <button
               onClick={() => window.close()}
-              className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-slate-350 hover:text-white text-xs font-bold rounded-2xl border border-white/10 transition-all cursor-pointer"
+              className={`px-4 py-2.5 ${
+                isDarkMode 
+                  ? "bg-white/5 hover:bg-white/10 text-slate-350 hover:text-white border-white/10" 
+                  : "bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 border-slate-200"
+              } text-xs font-bold rounded-2xl border transition-all cursor-pointer`}
             >
               닫기
             </button>
@@ -152,7 +197,11 @@ export default function WebViewPage() {
         </div>
 
         {/* 필터 및 검색 패널 */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/5 backdrop-blur-xl border border-white/10 p-5 rounded-3xl shadow-xl">
+        <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+          isDarkMode 
+            ? "bg-white/5 border-white/10" 
+            : "bg-white/80 border-slate-200 shadow-xl shadow-slate-100/50"
+        } backdrop-blur-xl border p-5 rounded-3xl transition-all duration-300`}>
           <div className="flex flex-1 items-center max-w-md w-full">
             <input
               type="text"
@@ -162,18 +211,26 @@ export default function WebViewPage() {
                 setSearch(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full px-4 py-3 bg-slate-900/50 border border-white/10 rounded-2xl text-xs font-bold shadow-inner outline-none focus:border-indigo-500/80 transition-all text-white placeholder-slate-500"
+              className={`w-full px-4 py-3 border rounded-2xl text-xs font-bold shadow-inner outline-none transition-all ${
+                isDarkMode 
+                  ? "bg-slate-900/50 border-white/10 text-white placeholder-slate-500 focus:border-indigo-500/80" 
+                  : "bg-slate-50 border-slate-200 text-slate-900 placeholder-slate-400 focus:border-indigo-500/70"
+              }`}
             />
           </div>
           <div className="flex items-center gap-3 justify-end">
-            <span className="text-xs text-slate-400 font-bold">페이지당 보기:</span>
+            <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} font-bold`}>페이지당 보기:</span>
             <select
               value={pageSize}
               onChange={(e) => {
                 setPageSize(Number(e.target.value));
                 setCurrentPage(1);
               }}
-              className="px-3 py-2 bg-slate-900/50 border border-white/10 rounded-2xl text-xs font-bold shadow-sm outline-none text-slate-300"
+              className={`px-3 py-2 border rounded-2xl text-xs font-bold shadow-sm outline-none transition-all ${
+                isDarkMode 
+                  ? "bg-slate-900/50 border-white/10 text-slate-300" 
+                  : "bg-slate-50 border-slate-200 text-slate-700"
+              }`}
             >
               <option value={10}>10개씩</option>
               <option value={15}>15개씩</option>
@@ -184,20 +241,30 @@ export default function WebViewPage() {
         </div>
 
         {/* 데이터 테이블 카드 */}
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl overflow-hidden">
+        <div className={`${
+          isDarkMode 
+            ? "bg-white/5 border-white/10" 
+            : "bg-white/80 border-slate-200 shadow-xl shadow-slate-100/50"
+        } backdrop-blur-xl border rounded-3xl overflow-hidden transition-all duration-300`}>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs font-semibold border-collapse">
               <thead>
-                <tr className="border-b border-white/10 bg-slate-900/30 text-slate-400">
+                <tr className={`border-b ${
+                  isDarkMode 
+                    ? "border-white/10 bg-slate-900/30 text-slate-400" 
+                    : "border-slate-200 bg-slate-50 text-slate-600"
+                } transition-colors duration-300`}>
                   {data.headers.map((header, idx) => (
                     <th
                       key={idx}
                       onClick={() => handleSort(idx)}
-                      className="py-4 px-4 cursor-pointer hover:text-white select-none transition-colors group whitespace-nowrap"
+                      className={`py-4 px-4 cursor-pointer ${
+                        isDarkMode ? "hover:text-white" : "hover:text-slate-900"
+                      } select-none transition-colors group whitespace-nowrap`}
                     >
                       <div className="flex items-center gap-1">
                         {header}
-                        <span className="text-indigo-400 font-bold group-hover:scale-110 transition-transform">
+                        <span className="text-indigo-500 font-bold group-hover:scale-110 transition-transform">
                           {sortKey === idx ? (sortDir === "asc" ? " ▲" : " ▼") : " ↕"}
                         </span>
                       </div>
@@ -210,7 +277,7 @@ export default function WebViewPage() {
                   <tr>
                     <td
                       colSpan={data.headers.length}
-                      className="text-center py-20 text-slate-400 font-semibold"
+                      className={`text-center py-20 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} font-semibold`}
                     >
                       검색 조건에 맞는 내역이 존재하지 않습니다.
                     </td>
@@ -219,7 +286,11 @@ export default function WebViewPage() {
                   paginatedRows.map((row, rIdx) => (
                     <tr
                       key={rIdx}
-                      className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                      className={`border-b ${
+                        isDarkMode 
+                          ? "border-white/5 hover:bg-white/5" 
+                          : "border-slate-100 hover:bg-slate-50/60"
+                      } transition-colors duration-300`}
                     >
                       {row.map((val, cIdx) => {
                         const strVal = String(val);
@@ -227,19 +298,21 @@ export default function WebViewPage() {
                         const isUrl = strVal.startsWith("http://") || strVal.startsWith("https://") || strVal.includes("/uploads/");
                         
                         return (
-                          <td key={cIdx} className="py-3.5 px-4 text-slate-300 font-medium whitespace-nowrap max-w-[200px] truncate">
+                          <td key={cIdx} className={`py-3.5 px-4 ${
+                            isDarkMode ? "text-slate-350" : "text-slate-700"
+                          } font-medium whitespace-nowrap max-w-[200px] truncate`}>
                             {isUrl ? (
                               <a
                                 href={strVal}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="px-2.5 py-1 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 rounded-lg text-[10px] font-black border border-indigo-500/20 transition-all inline-block"
+                                className="px-2.5 py-1 bg-indigo-500/10 text-indigo-600 hover:bg-indigo-500/20 rounded-lg text-[10px] font-black border border-indigo-500/20 transition-all inline-block"
                                 title={strVal}
                               >
                                 🔗 파일확인
                               </a>
                             ) : strVal === "-" ? (
-                              <span className="text-slate-600">-</span>
+                              <span className={isDarkMode ? "text-slate-700" : "text-slate-400"}>-</span>
                             ) : (
                               strVal
                             )}
@@ -256,15 +329,23 @@ export default function WebViewPage() {
 
         {/* 하단 페이지네이션 패널 */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between bg-white/5 backdrop-blur-xl border border-white/10 px-6 py-4 rounded-3xl shadow-xl">
-            <span className="text-xs text-slate-400 font-bold">
-              페이지 <span className="text-indigo-400 font-black">{currentPage}</span> / {totalPages}
+          <div className={`flex items-center justify-between ${
+            isDarkMode 
+              ? "bg-white/5 border-white/10" 
+              : "bg-white/80 border-slate-200 shadow-xl shadow-slate-100/50"
+          } backdrop-blur-xl border px-6 py-4 rounded-3xl transition-all duration-300`}>
+            <span className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} font-bold`}>
+              페이지 <span className="text-indigo-600 font-black">{currentPage}</span> / {totalPages}
             </span>
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
                 disabled={currentPage === 1}
-                className="px-3.5 py-2 bg-slate-900/50 hover:bg-slate-900 border border-white/5 rounded-xl text-xs font-bold text-slate-350 disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer"
+                className={`px-3.5 py-2 ${
+                  isDarkMode 
+                    ? "bg-slate-900/50 hover:bg-slate-900 border-white/5 text-slate-350" 
+                    : "bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-600"
+                } border rounded-xl text-xs font-bold disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer`}
               >
                 이전
               </button>
@@ -286,7 +367,9 @@ export default function WebViewPage() {
                     className={`w-8 h-8 rounded-xl text-xs font-black transition-all cursor-pointer ${
                       currentPage === pageNum
                         ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                        : "bg-slate-900/30 hover:bg-white/5 text-slate-400 border border-white/5"
+                        : isDarkMode
+                        ? "bg-slate-900/30 hover:bg-white/5 text-slate-400 border border-white/5"
+                        : "bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200"
                     }`}
                   >
                     {pageNum}
@@ -297,7 +380,11 @@ export default function WebViewPage() {
               <button
                 onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
                 disabled={currentPage === totalPages}
-                className="px-3.5 py-2 bg-slate-900/50 hover:bg-slate-900 border border-white/5 rounded-xl text-xs font-bold text-slate-350 disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer"
+                className={`px-3.5 py-2 ${
+                  isDarkMode 
+                    ? "bg-slate-900/50 hover:bg-slate-900 border-white/5 text-slate-350" 
+                    : "bg-slate-100 hover:bg-slate-250 border-slate-200 text-slate-600"
+                } border rounded-xl text-xs font-bold disabled:opacity-40 disabled:pointer-events-none transition-all cursor-pointer`}
               >
                 다음
               </button>

@@ -16,7 +16,8 @@ export default function SidebarWrapper({ children }: { children: React.ReactNode
     pathname.startsWith('/m/') || 
     pathname.startsWith('/expenses/mobile-approve') || 
     pathname.startsWith('/employee') ||
-    pathname.startsWith('/interpretation-ai')
+    pathname.startsWith('/interpretation-ai') ||
+    pathname.startsWith('/estimates/web-view')
   ) {
     return null;
   }
