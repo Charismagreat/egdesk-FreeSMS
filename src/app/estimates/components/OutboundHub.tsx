@@ -18,6 +18,10 @@ interface OutboundHubProps {
     type: "outbound_est" | "outbound_so",
     selectedIds: Set<string>
   ) => void;
+  onBulkExportWebView: (
+    type: "outbound_est" | "outbound_so",
+    selectedIds: Set<string>
+  ) => void;
   onOpenOcrModal: () => void;
 }
 
@@ -31,6 +35,7 @@ export default function OutboundHub({
   onConfirmSalesOrder,
   onBulkConfirmSalesOrder,
   onBulkExportExcel,
+  onBulkExportWebView,
   onOpenOcrModal,
 }: OutboundHubProps) {
   // 서브 탭 및 필터 로컬 상태
@@ -174,6 +179,14 @@ export default function OutboundHub({
   // 일괄 엑셀 출력 로컬 핸들러
   const handleLocalBulkExportExcel = () => {
     onBulkExportExcel(
+      outboundSubTab === "estimates" ? "outbound_est" : "outbound_so",
+      selectedOutboundIds
+    );
+  };
+
+  // 일괄 웹뷰 출력 로컬 핸들러
+  const handleLocalBulkExportWebView = () => {
+    onBulkExportWebView(
       outboundSubTab === "estimates" ? "outbound_est" : "outbound_so",
       selectedOutboundIds
     );
@@ -612,10 +625,17 @@ export default function OutboundHub({
             )}
             <button
               onClick={handleLocalBulkExportExcel}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl shadow-md border border-slate-700 transition-all"
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl shadow-md border border-slate-700 transition-all cursor-pointer"
             >
               선택 일괄 엑셀 출력
             </button>
+            <button
+              onClick={handleLocalBulkExportWebView}
+              className="px-4 py-2 bg-indigo-650 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer"
+            >
+              🖥️ 웹에서 보기
+            </button>
+
             <button
               onClick={handleClearSelection}
               className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 text-xs font-bold rounded-xl transition-all"

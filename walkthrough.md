@@ -84,3 +84,21 @@
   - 데이터의 누락 및 컬럼 밀림 현상이 발생하지 않도록 컬럼 수와 매핑 값 개수를 엄격히 일치시켰으며, 한글 깨짐 방지용 UTF-8 BOM 헤더를 적용하여 Excel 호환성을 보장했습니다.
   - `npx tsc --noEmit` 검사 결과 완벽한 무결성을 보장합니다.
 
+---
+
+## 7. 평탄화 데이터 실시간 웹 뷰어 (Web View) 및 컴포넌트 연동 (완료)
+
+- **신규 파일**: [page.tsx (웹뷰)](file:///C:/dev/egdesk-FreeSMS/src/app/estimates/web-view/page.tsx)
+- **수정 파일**:
+  - [page.tsx (대시보드)](file:///C:/dev/egdesk-FreeSMS/src/app/estimates/page.tsx)
+  - [InboundHub.tsx](file:///C:/dev/egdesk-FreeSMS/src/app/estimates/components/InboundHub.tsx)
+  - [OutboundHub.tsx](file:///C:/dev/egdesk-FreeSMS/src/app/estimates/components/OutboundHub.tsx)
+- **내용**:
+  - 엑셀 다운로드 버튼 바로 옆에 **"🖥️ 웹에서 보기"** 버튼을 배치하고, 대용량 데이터 전달을 위해 브라우저 `sessionStorage`를 데이터 매개체로 활용하여 새 탭(`_blank`)에서 전용 뷰어 웹페이지를 실행하도록 워크플로우를 설계했습니다.
+  - 새 탭에서 열리는 웹 뷰어에는 다음 핵심 기능들이 완전히 독립적으로 구동됩니다:
+    - **실시간 전체 텍스트 검색**: 검색어 입력 즉시 바이어명, 견적번호, 품목명 등 모든 텍스트에 대한 인라인 매칭 필터링이 즉각 수행됩니다.
+    - **헤더 클릭 기반 컬럼 정렬**: 텍스트 알파벳 정렬뿐 아니라 수량, 금액, 단가 등 숫자성 데이터 역시 쉼표/한글을 정제하여 크기순으로 오름차순/내림차순 정렬할 수 있는 동적 헬퍼를 이식했습니다.
+    - **유연한 페이지네이션**: 페이지당 개수 선택(10, 15, 30, 50개 보기) 및 이전/다음 및 개별 번호 뱃지 이동 제어가 완비되었습니다.
+    - **럭셔리 HSL 글래스모피즘 디자인**: 심야 블루 톤의 우아한 네온 광원 배경과 은은한 반투명 카드를 조화시킨 프리미엄 테마를 이식하여 사용성 극대화 및 고품격 비주얼을 제공합니다.
+
+

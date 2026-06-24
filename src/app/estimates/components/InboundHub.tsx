@@ -22,6 +22,10 @@ interface InboundHubProps {
     type: "inbound_est" | "inbound_po",
     selectedIds: Set<string>
   ) => void;
+  onBulkExportWebView: (
+    type: "inbound_est" | "inbound_po",
+    selectedIds: Set<string>
+  ) => void;
 }
 
 export default function InboundHub({
@@ -36,6 +40,7 @@ export default function InboundHub({
   onBulkConvertToPo,
   onUpdateTags,
   onBulkExportExcel,
+  onBulkExportWebView,
 }: InboundHubProps) {
   // 서브 탭 및 필터 로컬 상태
   const [inboundSubTab, setInboundSubTab] = useState<"estimates" | "pos">("estimates");
@@ -177,6 +182,11 @@ export default function InboundHub({
   // 일괄 엑셀 내보내기 로컬 핸들러
   const handleLocalBulkExportExcel = () => {
     onBulkExportExcel(inboundSubTab === "estimates" ? "inbound_est" : "inbound_po", selectedInboundIds);
+  };
+
+  // 일괄 웹뷰 출력 로컬 핸들러
+  const handleLocalBulkExportWebView = () => {
+    onBulkExportWebView(inboundSubTab === "estimates" ? "inbound_est" : "inbound_po", selectedInboundIds);
   };
 
   return (
@@ -695,10 +705,17 @@ export default function InboundHub({
             )}
             <button
               onClick={handleLocalBulkExportExcel}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl shadow-md border border-slate-700 transition-all"
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl shadow-md border border-slate-700 transition-all cursor-pointer"
             >
               선택 일괄 엑셀 출력
             </button>
+            <button
+              onClick={handleLocalBulkExportWebView}
+              className="px-4 py-2 bg-indigo-650 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer"
+            >
+              🖥️ 웹에서 보기
+            </button>
+
             <button
               onClick={handleClearSelection}
               className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 text-xs font-bold rounded-xl transition-all"

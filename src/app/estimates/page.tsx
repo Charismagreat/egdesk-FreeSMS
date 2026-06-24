@@ -544,6 +544,168 @@ export default function EstimatesDashboard() {
     document.body.removeChild(link);
   };
 
+  // 일괄 웹뷰로 보기 (sessionStorage 적재 및 새 탭 오픈)
+  const handleBulkExportWebView = (
+    type: "inbound_est" | "inbound_po" | "outbound_est" | "outbound_so",
+    selectedIds: Set<string>
+  ) => {
+    let headers: string[] = [];
+    let rows: any[] = [];
+    let title = "";
+
+    if (type === "inbound_est") {
+      const targetIds =
+        selectedIds.size > 0
+          ? selectedIds
+          : new Set(estimates.filter((e) => e.type === "INBOUND").map((e) => e.id));
+      const selected = estimates.filter(
+        (e) => e.type === "INBOUND" && targetIds.has(e.id)
+      );
+      title = "받은 견적 및 요청 대장 내역";
+      headers = [
+        "견적번호", "공급/요청처", "연락처", "담당자명", "총 견적액", "상태", "AI스캔여부", "작성일",
+        "첨부파일", "사업자등록증", "연계발주번호", "품목코드", "품목명", "규격", "수량", "단가", "금액", "품목납기일", "상세비고"
+      ];
+      selected.forEach((e: any) => {
+        const estItems = e.items && e.items.length > 0 ? e.items : [{}];
+        estItems.forEach((item: any) => {
+          rows.push([
+            e.id,
+            e.partner_name,
+            e.partner_phone,
+            e.partner_manager || "-",
+            e.total_amount,
+            e.direction_status === "REQUESTED" ? "견적접수" : "발주완료",
+            e.ai_parsed ? "AI OCR" : "수동",
+            e.created_at,
+            e.file_url || "-",
+            e.business_license_url || "-",
+            e.purchase_order_number || "-",
+            item.item_code || "-",
+            item.product_name || "-",
+            item.spec || "-",
+            item.quantity !== undefined ? item.quantity : "",
+            item.unit_price !== undefined ? item.unit_price : "",
+            item.amount !== undefined ? item.amount : "",
+            item.delivery_date || "-",
+            e.document_memo_search || "-"
+          ]);
+        });
+      });
+    } else if (type === "inbound_po") {
+      const targetIds =
+        selectedIds.size > 0 ? selectedIds : new Set(purchaseOrders.map((p) => p.id));
+      const selected = purchaseOrders.filter((p) => targetIds.has(p.id));
+      title = "발주 및 실물 검수 대장 내역";
+      headers = [
+        "발주등록번호/발주번호", "견적번호", "공급처명", "연락처", "총 발주액", "상태", "발주일시",
+        "입고완료일시", "품목코드", "품목명", "규격", "수량", "단가", "금액", "품목납기일", "상세비고"
+      ];
+      selected.forEach((p: any) => {
+        const poItems = p.items && p.items.length > 0 ? p.items : [{}];
+        poItems.forEach((item: any) => {
+          rows.push([
+            p.id,
+            p.estimate_id,
+            p.vendor_name,
+            p.vendor_phone,
+            p.total_amount,
+            p.status === "PENDING_INBOUND" ? "발주완료" : "입고완료",
+            p.created_at,
+            p.completed_at || "-",
+            item.item_code || "-",
+            item.product_name || "-",
+            item.spec || "-",
+            item.quantity !== undefined ? item.quantity : "",
+            item.unit_price !== undefined ? item.unit_price : "",
+            item.amount !== undefined ? item.amount : "",
+            item.delivery_date || "-",
+            p.document_memo_search || "-"
+          ]);
+        });
+      });
+    } else if (type === "outbound_est") {
+      const targetIds =
+        selectedIds.size > 0
+          ? selectedIds
+          : new Set(estimates.filter((e) => e.type === "OUTBOUND").map((e) => e.id));
+      const selected = estimates.filter(
+        (e) => e.type === "OUTBOUND" && targetIds.has(e.id)
+      );
+      title = "보낸 견적서 관리 대장 내역";
+      headers = [
+        "견적번호", "수신바이어", "연락처", "담당자명", "총 견적액", "상태", "작성일",
+        "첨부파일", "연계수주번호", "품목코드", "품목명", "규격", "수량", "단가", "금액", "품목납기일", "상세비고"
+      ];
+      selected.forEach((e: any) => {
+        const estItems = e.items && e.items.length > 0 ? e.items : [{}];
+        estItems.forEach((item: any) => {
+          rows.push([
+            e.id,
+            e.partner_name,
+            e.partner_phone,
+            e.partner_manager || "-",
+            e.total_amount,
+            e.direction_status === "SENT" ? "견적발송" : "수주수락",
+            e.created_at,
+            e.file_url || "-",
+            e.sales_order_number || "-",
+            item.item_code || "-",
+            item.product_name || "-",
+            item.spec || "-",
+            item.quantity !== undefined ? item.quantity : "",
+            item.unit_price !== undefined ? item.unit_price : "",
+            item.amount !== undefined ? item.amount : "",
+            item.delivery_date || "-",
+            e.document_memo_search || "-"
+          ]);
+        });
+      });
+    } else if (type === "outbound_so") {
+      const targetIds =
+        selectedIds.size > 0 ? selectedIds : new Set(salesOrders.map((s) => s.id));
+      const selected = salesOrders.filter((s) => targetIds.has(s.id));
+      title = "수주 및 바이어 계약 대장 내역";
+      headers = [
+        "수주번호", "견적번호", "고객발주번호", "바이어명", "연락처", "바이어담당자", "총 수주액", "상태", "수주일시",
+        "마스터납기일", "품목코드", "품목명", "규격", "수량", "단가", "금액", "품목납기일", "상세비고"
+      ];
+      selected.forEach((s: any) => {
+        const soItems = s.items && s.items.length > 0 ? s.items : [{}];
+        soItems.forEach((item: any) => {
+          rows.push([
+            s.id,
+            s.estimate_id,
+            s.client_order_no || "-",
+            s.customer_name,
+            s.customer_phone,
+            s.customer_manager || "-",
+            s.total_amount,
+            s.status === "REGISTERED" ? "수주등록" : "확인완료",
+            s.created_at,
+            s.delivery_date || "-",
+            item.item_code || "-",
+            item.product_name || "-",
+            item.spec || "-",
+            item.quantity !== undefined ? item.quantity : "",
+            item.unit_price !== undefined ? item.unit_price : "",
+            item.amount !== undefined ? item.amount : "",
+            item.delivery_date || "-",
+            s.document_memo_search || "-"
+          ]);
+        });
+      });
+    }
+
+    if (rows.length === 0) {
+      alert("출력할 내역이 없습니다.");
+      return;
+    }
+
+    sessionStorage.setItem("egdesk_webview_data", JSON.stringify({ title, headers, rows }));
+    window.open("/estimates/web-view", "_blank");
+  };
+
   // 실물 검수 모달 호출
   const openInspectModal = (po: PurchaseOrder) => {
     setInspectPo(po);
@@ -576,6 +738,7 @@ export default function EstimatesDashboard() {
               onBulkConvertToPo={handleBulkConvertToPo}
               onUpdateTags={handleUpdateEstimateTags}
               onBulkExportExcel={handleBulkExportExcel}
+              onBulkExportWebView={handleBulkExportWebView}
             />
           )}
 
@@ -592,6 +755,7 @@ export default function EstimatesDashboard() {
               onConfirmSalesOrder={handleConfirmSalesOrder}
               onBulkConfirmSalesOrder={handleBulkConfirmSalesOrder}
               onBulkExportExcel={handleBulkExportExcel}
+              onBulkExportWebView={handleBulkExportWebView}
             />
           )}
         </>
