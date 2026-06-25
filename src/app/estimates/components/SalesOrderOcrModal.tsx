@@ -420,7 +420,7 @@ export default function SalesOrderOcrModal({
                 <label className="text-[10px] text-slate-400 font-bold block">상세 품목 리스트</label>
                 {ocrForm.items.map((item, idx) => (
                   <div key={idx} className="bg-white p-3 rounded-xl border border-slate-100 flex flex-col gap-1 text-xs font-semibold">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-start justify-between">
                       <div className="flex-1 truncate pr-2">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="font-bold text-slate-800">{item.product_name}</span>
@@ -442,7 +442,12 @@ export default function SalesOrderOcrModal({
                         )}
                         <span className="text-[10px] text-slate-400 block mt-0.5">단가: {item.unit_price.toLocaleString()}원</span>
                       </div>
-                      <span className="font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded shrink-0">{item.quantity}개</span>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <span className="font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded text-center">{item.quantity}개</span>
+                        <span className="text-[10px] font-black text-indigo-600 mt-1">
+                          금액: {(item.quantity * item.unit_price).toLocaleString()}원
+                        </span>
+                      </div>
                     </div>
                     {item.delivery_date && (
                       <div className="text-[9px] text-indigo-500 font-black">
