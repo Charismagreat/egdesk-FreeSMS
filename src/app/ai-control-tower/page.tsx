@@ -203,7 +203,8 @@ export default function AIControlTowerPage() {
     try {
       const res = await fetch("/api/governance?action=clear_logs", {
         method: "POST",
-        headers: { "Content-Type": "application/json" }
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({})
       });
       const data = await res.json();
       if (data.success) {
