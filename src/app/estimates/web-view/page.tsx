@@ -77,6 +77,42 @@ function WebViewContent() {
   const [activeMemo, setActiveMemo] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
+  const openFileInNewTab = (fileUrl: string) => {
+    if (!fileUrl) return;
+    
+    if (fileUrl.startsWith("data:")) {
+      const win = window.open();
+      if (win) {
+        const title = "수발주 원본 증빙문서 파일";
+        const isPdf = fileUrl.startsWith("data:application/pdf");
+        win.document.write(`
+          <html>
+            <head>
+              <title>${title}</title>
+              <style>
+                body { margin: 0; background: #0f172a; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: auto; font-family: sans-serif; }
+                .container { max-width: 100%; max-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
+                img { max-width: 100%; max-height: 90vh; object-fit: contain; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.5); border-radius: 12px; }
+                iframe { width: 100vw; height: 100vh; border: none; }
+              </style>
+            </head>
+            <body>
+              \${isPdf 
+                ? \`<iframe src="\${fileUrl}"></iframe>\` 
+                : \`<div class="container"><img src="\${fileUrl}" alt="\${title}" /></div>\`
+              }
+            </body>
+          </html>
+        `);
+        win.document.close();
+      } else {
+        alert("팝업 차단이 활성화되어 있을 수 있습니다. 팝업 차단을 해제해 주세요.");
+      }
+    } else {
+      window.open(fileUrl, "_blank");
+    }
+  };
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -774,15 +810,13 @@ function WebViewContent() {
                             isDarkMode ? "text-slate-350" : "text-slate-700"
                           } font-medium whitespace-normal break-all max-w-[240px]`}>
                             {isAttachedFile ? (
-                              <a
-                                href={strVal}
-                                target="_blank"
-                                rel="noreferrer"
+                              <button
+                                onClick={() => openFileInNewTab(strVal)}
                                 className="px-2.5 py-1 bg-indigo-500/10 text-indigo-650 hover:bg-indigo-500/20 rounded-lg text-[10px] font-black border border-indigo-500/20 transition-all inline-flex items-center gap-1 cursor-pointer"
                                 title="새 탭에서 원본 파일 열기"
                               >
                                 🔗 원본보기
-                              </a>
+                              </button>
                             ) : strVal === "-" ? (
                               <span className={isDarkMode ? "text-slate-700" : "text-slate-400"}>-</span>
                             ) : headerName === "상세비고" ? (
