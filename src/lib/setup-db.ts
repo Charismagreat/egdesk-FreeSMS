@@ -711,6 +711,18 @@ export async function setupDatabase() {
     { name: 'created_at', type: 'TEXT', notNull: true }
   ], { tableName: 'expense_settings', uniqueKeyColumns: ['id'] });
 
+  // 39. CRM Governance Logs Table (AI 결재 및 데이터 거버넌스 감사록)
+  await safeCreateTable('AI 결재 및 데이터 거버넌스 감사록', [
+    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'doc_type', type: 'TEXT', notNull: true },            // 'estimate', 'purchase_order', 'sales_order'
+    { name: 'doc_id', type: 'TEXT', notNull: true },              // 대상 문서 ID
+    { name: 'doc_title', type: 'TEXT', notNull: true },           // 대상 문서 요약명
+    { name: 'status', type: 'TEXT', notNull: true },              // 'APPROVED_AUTO', 'PENDING_APPROVAL', 'FORCE_APPROVED'
+    { name: 'reason', type: 'TEXT', notNull: true },              // AI 판정 사유
+    { name: 'operator', type: 'TEXT', notNull: true },            // 요청자
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'crm_governance_logs', uniqueKeyColumns: ['id'] });
+
   // ID 1의 기본 네이버 블로그 설정 존재 여부 확인 후 자동 주입
     try {
       const naverSettingsCheck = await queryTable('naver_blog_marketing_settings', { filters: { id: '1' } });

@@ -291,6 +291,73 @@ export default function EstimatesDashboard() {
     }
   };
 
+  // 수주 건 삭제
+  const handleDeleteSalesOrder = async (so: SalesOrder) => {
+    if (!confirm(`수주 번호 ${so.id} 건을 정말로 삭제하시겠습니까?\n이 작업은 데이터를 안전하게 소프트 삭제하며 복구하기 전까지 대장에서 제외됩니다.`)) return;
+    try {
+      const res = await fetch("/api/estimates/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "delete_sales_order",
+          orderId: so.id,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchData();
+        alert("수주 등록 건이 성공적으로 삭제되었습니다.");
+      } else {
+        alert(data.error || "삭제에 실패했습니다.");
+      }
+    } catch (e) {
+      alert("삭제 처리 중 에러가 발생했습니다.");
+    }
+  };
+
+  // 견적서 삭제
+  const handleDeleteEstimate = async (est: Estimate) => {
+    if (!confirm(`견적 번호 ${est.id} 건을 정말로 삭제하시겠습니까?\n이 작업은 데이터를 안전하게 소프트 삭제하며 복구하기 전까지 대장에서 제외됩니다.`)) return;
+    try {
+      const res = await fetch(`/api/estimates?estimateId=${est.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchData();
+        alert("견적서가 성공적으로 삭제되었습니다.");
+      } else {
+        alert(data.error || "삭제에 실패했습니다.");
+      }
+    } catch (e) {
+      alert("삭제 처리 중 에러가 발생했습니다.");
+    }
+  };
+
+  // 발주서 삭제
+  const handleDeletePurchaseOrder = async (po: PurchaseOrder) => {
+    if (!confirm(`발주 번호 ${po.id} 건을 정말로 삭제하시겠습니까?\n이 작업은 데이터를 안전하게 소프트 삭제하며 복구하기 전까지 대장에서 제외됩니다.`)) return;
+    try {
+      const res = await fetch("/api/estimates/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "delete_purchase_order",
+          orderId: po.id,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchData();
+        alert("발주 등록 건이 성공적으로 삭제되었습니다.");
+      } else {
+        alert(data.error || "삭제에 실패했습니다.");
+      }
+    } catch (e) {
+      alert("삭제 처리 중 에러가 발생했습니다.");
+    }
+  };
+
   // 일괄 발주 전환
   const handleBulkConvertToPo = async (ids: string[]) => {
     if (ids.length === 0) return;
@@ -573,6 +640,8 @@ export default function EstimatesDashboard() {
               onUpdateTags={handleUpdateEstimateTags}
               onBulkExportExcel={handleBulkExportExcel}
               onBulkExportWebView={handleBulkExportWebView}
+              onDeleteEstimate={handleDeleteEstimate}
+              onDeletePurchaseOrder={handleDeletePurchaseOrder}
             />
           )}
 
@@ -587,6 +656,8 @@ export default function EstimatesDashboard() {
               onOpenOcrModal={() => setIsSoOcrOpen(true)}
               onConvertToSo={handleConvertToSo}
               onConfirmSalesOrder={handleConfirmSalesOrder}
+              onDeleteSalesOrder={handleDeleteSalesOrder}
+              onDeleteEstimate={handleDeleteEstimate}
               onBulkConfirmSalesOrder={handleBulkConfirmSalesOrder}
               onBulkExportExcel={handleBulkExportExcel}
               onBulkExportWebView={handleBulkExportWebView}

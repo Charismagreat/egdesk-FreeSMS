@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { queryTable, insertRows, updateRows, executeSQL } from '../../../../../egdesk-helpers';
+import { checkRagApproval } from '../../../../lib/rag-approval';
 
 /**
  * GET: 발주 대장 및 수주 대장 목록 조회
@@ -333,6 +334,102 @@ export async function POST(req: Request) {
       return NextResponse.json({
         success: true,
         message: '수주 확정이 성공적으로 완료되었으며, 바이어에게 정중한 수주 확인서 알림톡 발송을 완료했습니다!'
+      });
+    }
+
+    // ────────────────────────────────────────────────────────
+    // 5. 수주 등록 건 소프트 삭제
+    // ────────────────────────────────────────────────────────
+    if (action === 'delete_sales_order') {
+      if (!orderId) {
+        return NextResponse.json({ success: false, error: '수주 번호가 누락되었습니다.' }, { status: 400 });
+      }
+
+      // 1. 수주 정보 조회
+      const soRes = await queryTable('crm_sales_orders', { filters: { id: orderId } });
+      const so = soRes.rows && soRes.rows.length > 0 ? soRes.rows[0] : null;
+      if (!so) {
+        return NextResponse.json({ success: false, error: '해당 수주 건이 존재하지 않습니다.' }, { status: 404 });
+      }
+
+      // RAG 결재 커넥터를 통한 사내 규정 심사
+      const ragResult = await checkRagApproval('sales_order', so);
+      if (!ragResult.approved) {
+        return NextResponse.json({
+          success: false,
+          error: `🔒 규정 위배 (결재 보류): ${ragResult.reason}`
+        }, { status: 400 });
+      }
+
+      // 2. 수주 데이터 소프트 삭제 (deleted_at 업데이트)
+      await updateRows('crm_sales_orders', {
+        deleted_at: nowStr,
+        deleted_by: 'system'
+      }, { filters: { id: orderId } });
+
+      // 3. 연동된 견적서 상태 복구 (수주 취소에 따른 복구)
+      if (so.estimate_id) {
+        await updateRows('crm_estimates', {
+          direction_status: 'SENT',
+          sales_order_number: ''
+        }, { filters: { id: so.estimate_id } });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: '선택하신 수주(발주서 등록) 건이 성공적으로 삭제되었습니다.'
+      });
+    }
+
+    // ────────────────────────────────────────────────────────
+    // 6. 발주 등록 건 소프트 삭제
+    // ────────────────────────────────────────────────────────
+    if (action === 'delete_purchase_order') {
+      if (!orderId) {
+        return NextResponse.json({ success: false, error: '발주 번호가 누락되었습니다.' }, { status: 400 });
+      }
+
+      // 1. 발주 정보 조회
+      const poRes = await queryTable('crm_purchase_orders', { filters: { id: orderId } });
+      const po = poRes.rows && poRes.rows.length > 0 ? poRes.rows[0] : null;
+      if (!po) {
+        return NextResponse.json({ success: false, error: '해당 발주 건이 존재하지 않습니다.' }, { status: 404 });
+      }
+
+      // 2. 입고 완료 건 삭제 원천 차단 (하드 가드)
+      if (po.status === 'INBOUND_COMPLETED') {
+        return NextResponse.json({
+          success: false,
+          error: '🔒 삭제 불가: 이미 실물 입고 검수가 최종 승인되어 재고 대장에 반영된 발주서는 삭제할 수 없습니다.'
+        }, { status: 400 });
+      }
+
+      // RAG 결재 커넥터를 통한 사내 규정 심사
+      const ragResult = await checkRagApproval('purchase_order', po);
+      if (!ragResult.approved) {
+        return NextResponse.json({
+          success: false,
+          error: `🔒 규정 위배 (결재 보류): ${ragResult.reason}`
+        }, { status: 400 });
+      }
+
+      // 3. 발주 데이터 소프트 삭제 (deleted_at 업데이트)
+      await updateRows('crm_purchase_orders', {
+        deleted_at: nowStr,
+        deleted_by: 'system'
+      }, { filters: { id: orderId } });
+
+      // 4. 연동된 견적서 상태 복구 (발주 취소에 따른 복구)
+      if (po.estimate_id) {
+        await updateRows('crm_estimates', {
+          direction_status: 'REQUESTED',
+          purchase_order_number: ''
+        }, { filters: { id: po.estimate_id } });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: '선택하신 발주 등록 건이 성공적으로 삭제되었습니다.'
       });
     }
 

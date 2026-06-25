@@ -75,6 +75,7 @@ function WebViewContent() {
   const [columns, setColumns] = useState<string[]>([]);
   const [isColSelectorOpen, setIsColSelectorOpen] = useState(false);
   const [activeImageUrl, setActiveImageUrl] = useState<string | null>(null);
+  const [activeMemo, setActiveMemo] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -783,6 +784,20 @@ function WebViewContent() {
                               </button>
                             ) : strVal === "-" ? (
                               <span className={isDarkMode ? "text-slate-700" : "text-slate-400"}>-</span>
+                            ) : headerName === "상세비고" ? (
+                              <div className="flex flex-col gap-1 max-w-[220px]">
+                                <div className="truncate text-left text-[10px] text-slate-400 font-semibold" title={strVal}>
+                                  {strVal.split("\n")[0] || "-"}
+                                </div>
+                                {strVal.length > 15 || strVal.includes("\n") ? (
+                                  <button
+                                    onClick={() => setActiveMemo(strVal)}
+                                    className="px-2 py-0.5 self-start bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-650 rounded text-[9px] font-bold transition-all border border-indigo-500/15 cursor-pointer mt-0.5 whitespace-nowrap inline-flex items-center gap-0.5"
+                                  >
+                                    🔎 비고전문 보기
+                                  </button>
+                                ) : null}
+                              </div>
                             ) : (
                               strVal
                             )}
@@ -894,6 +909,58 @@ function WebViewContent() {
                   className="max-w-full h-auto object-contain rounded-xl shadow-lg border border-white/5"
                 />
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📝 상세비고 팝업 모달 */}
+      {activeMemo && (
+        <div 
+          onClick={() => setActiveMemo(null)}
+          className="fixed inset-0 bg-slate-950/70 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className={`relative max-w-xl w-full ${
+              isDarkMode 
+                ? "bg-slate-900 border-white/10 text-slate-100" 
+                : "bg-white border-slate-200 text-slate-800"
+            } border p-6 rounded-3xl shadow-2xl flex flex-col cursor-default max-h-[80vh] overflow-hidden`}
+          >
+            {/* 상단 닫기 단추 */}
+            <button
+              onClick={() => setActiveMemo(null)}
+              className={`absolute top-4 right-4 z-10 w-9 h-9 flex items-center justify-center ${
+                isDarkMode 
+                  ? "bg-slate-800 border-white/5 hover:bg-slate-750 text-slate-350" 
+                  : "bg-slate-100 border-slate-200 hover:bg-slate-200 text-slate-600"
+              } border rounded-full cursor-pointer transition-all hover:scale-105`}
+            >
+              <X size={18} />
+            </button>
+
+            <h3 className="text-sm font-extrabold mb-4 pb-2 border-b border-slate-100/10 flex items-center gap-2">
+              📝 상세비고 전문 보기
+            </h3>
+            
+            <div className={`flex-1 overflow-y-auto custom-scrollbar p-4 rounded-2xl ${
+              isDarkMode ? "bg-black/30 text-slate-300" : "bg-slate-50 text-slate-700"
+            } text-[11px] leading-relaxed font-semibold whitespace-pre-wrap`}>
+              {activeMemo}
+            </div>
+            
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={() => setActiveMemo(null)}
+                className={`px-4 py-2 text-xs font-black rounded-xl transition-all cursor-pointer ${
+                  isDarkMode 
+                    ? "bg-indigo-650 hover:bg-indigo-600 text-white" 
+                    : "bg-indigo-500 hover:bg-indigo-600 text-white"
+                }`}
+              >
+                닫기
+              </button>
             </div>
           </div>
         </div>

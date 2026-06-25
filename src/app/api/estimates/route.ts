@@ -4,6 +4,7 @@ import { queryTable, insertRows, updateRows, deleteRows, executeSQL } from '../.
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
 import { sendMail } from '../../../lib/email';
+import { checkRagApproval } from '../../../lib/rag-approval';
 
 // 최고 관리자(SUPER_ADMIN) 권한 검증 헬퍼
 async function verifySuperAdmin() {
@@ -864,15 +865,50 @@ export async function DELETE(req: Request) {
       }, { status: 400 });
     }
 
-    // 1. crm_estimates 테이블에서 마스터 삭제
-    await deleteRows('crm_estimates', { filters: { id: estimateId } });
+    // RAG 결재 심사를 위해 견적 마스터 데이터 로드
+    const estRes = await queryTable('crm_estimates', { filters: { id: estimateId }, limit: 1 });
+    const estimate = estRes.rows && estRes.rows.length > 0 ? estRes.rows[0] : null;
+    if (!estimate) {
+      return NextResponse.json({ success: false, error: '해당 견적 내역이 존재하지 않습니다.' }, { status: 404 });
+    }
 
-    // 2. crm_estimate_items 테이블에서 상세 품목 일괄 삭제
-    await deleteRows('crm_estimate_items', { filters: { estimate_id: estimateId } });
+    // RAG 결재 커넥터를 통한 사내 규정 심사
+    const ragResult = await checkRagApproval('estimate', estimate);
+    if (!ragResult.approved) {
+      return NextResponse.json({
+        success: false,
+        error: `🔒 규정 위배 (결재 보류): ${ragResult.reason}`
+      }, { status: 400 });
+    }
+
+    // 1. 토큰에서 삭제 작업자 정보 추출
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth_token')?.value;
+    let deletedBy = 'system';
+    if (token) {
+      try {
+        const payload = decodeJwt(token);
+        deletedBy = (payload.username as string) || (payload.role as string) || 'system';
+      } catch {}
+    }
+
+    const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+
+    // 2. crm_estimates 테이블에서 마스터 소프트 삭제
+    await updateRows('crm_estimates', {
+      deleted_at: nowStr,
+      deleted_by: deletedBy
+    }, { filters: { id: estimateId } });
+
+    // 3. crm_estimate_items 테이블에서 상세 품목 일괄 소프트 삭제
+    await updateRows('crm_estimate_items', {
+      deleted_at: nowStr,
+      deleted_by: deletedBy
+    }, { filters: { estimate_id: estimateId } });
 
     return NextResponse.json({
       success: true,
-      message: '견적서 및 세부 품목이 성공적으로 삭제되었습니다.'
+      message: '견적서 및 세부 품목이 성공적으로 삭제(소프트 삭제)되었습니다.'
     });
 
   } catch (error: any) {

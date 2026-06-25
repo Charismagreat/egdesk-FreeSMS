@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Upload, Eye, CheckCircle2, ChevronRight } from "lucide-react";
+import { Upload, Eye, CheckCircle2, ChevronRight, Trash2 } from "lucide-react";
 import { Estimate, PurchaseOrder } from "../types";
 import InlineTagEditor from "./InlineTagEditor";
 import { parseEstimateMetadata } from "../utils";
@@ -26,6 +26,8 @@ interface InboundHubProps {
     type: "inbound_est" | "inbound_po",
     selectedIds: Set<string>
   ) => void;
+  onDeleteEstimate: (est: Estimate) => Promise<void>;
+  onDeletePurchaseOrder: (po: PurchaseOrder) => Promise<void>;
 }
 
 export default function InboundHub({
@@ -41,6 +43,8 @@ export default function InboundHub({
   onUpdateTags,
   onBulkExportExcel,
   onBulkExportWebView,
+  onDeleteEstimate,
+  onDeletePurchaseOrder,
 }: InboundHubProps) {
   // 서브 탭 및 필터 로컬 상태
   const [inboundSubTab, setInboundSubTab] = useState<"estimates" | "pos">("estimates");
@@ -490,6 +494,13 @@ export default function InboundHub({
                               </button>
                             );
                           })()}
+                          <button
+                            onClick={() => onDeleteEstimate(est)}
+                            className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-650 rounded-lg text-[10px] font-black border border-red-100 hover:border-red-200 transition-all inline-flex items-center gap-1 cursor-pointer"
+                            title="견적서 삭제"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> 삭제
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -665,12 +676,21 @@ export default function InboundHub({
                           <Eye className="w-3.5 h-3.5" /> 견적상세
                         </button>
                         {po.status === "PENDING_INBOUND" ? (
-                          <button
-                            onClick={() => onOpenInspectModal(po)}
-                            className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold rounded-lg flex items-center gap-1 shadow-md shadow-slate-900/10"
-                          >
-                            실물 입고 검수
-                          </button>
+                          <>
+                            <button
+                              onClick={() => onOpenInspectModal(po)}
+                              className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-[10px] font-bold rounded-lg flex items-center gap-1 shadow-md shadow-slate-900/10"
+                            >
+                              실물 입고 검수
+                            </button>
+                            <button
+                              onClick={() => onDeletePurchaseOrder(po)}
+                              className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-650 rounded-lg text-[10px] font-black border border-red-100 hover:border-red-200 transition-all inline-flex items-center gap-1 cursor-pointer"
+                              title="발주서 삭제"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" /> 삭제
+                            </button>
+                          </>
                         ) : (
                           <span className="text-xs text-emerald-500 font-bold flex items-center gap-0.5">
                             <CheckCircle2 className="w-3.5 h-3.5" /> 완료 (

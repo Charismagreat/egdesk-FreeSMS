@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plus, Eye, CheckCircle2, ChevronRight } from "lucide-react";
+import { Plus, Eye, CheckCircle2, ChevronRight, Trash2 } from "lucide-react";
 import { Estimate, SalesOrder, Partner } from "../types";
 import { parseEstimateMetadata } from "../utils";
 
@@ -13,6 +13,7 @@ interface OutboundHubProps {
   onOpenWriteModal: () => void;
   onConvertToSo: (est: Estimate) => Promise<void>;
   onConfirmSalesOrder: (so: SalesOrder) => Promise<void>;
+  onDeleteSalesOrder: (so: SalesOrder) => Promise<void>;
   onBulkConfirmSalesOrder: (ids: string[]) => Promise<void>;
   onBulkExportExcel: (
     type: "outbound_est" | "outbound_so",
@@ -23,6 +24,7 @@ interface OutboundHubProps {
     selectedIds: Set<string>
   ) => void;
   onOpenOcrModal: () => void;
+  onDeleteEstimate: (est: Estimate) => Promise<void>;
 }
 
 export default function OutboundHub({
@@ -33,10 +35,12 @@ export default function OutboundHub({
   onOpenWriteModal,
   onConvertToSo,
   onConfirmSalesOrder,
+  onDeleteSalesOrder,
   onBulkConfirmSalesOrder,
   onBulkExportExcel,
   onBulkExportWebView,
   onOpenOcrModal,
+  onDeleteEstimate,
 }: OutboundHubProps) {
   // 서브 탭 및 필터 로컬 상태
   const [outboundSubTab, setOutboundSubTab] = useState<"estimates" | "sos">("estimates");
@@ -446,6 +450,13 @@ export default function OutboundHub({
                           }
                           return null;
                         })()}
+                        <button
+                          onClick={() => onDeleteEstimate(est)}
+                          className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-650 rounded-lg text-[10px] font-black border border-red-100 hover:border-red-200 transition-all inline-flex items-center gap-1 cursor-pointer"
+                          title="견적서 삭제"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> 삭제
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -597,6 +608,13 @@ export default function OutboundHub({
                             <CheckCircle2 className="w-3.5 h-3.5" /> 수주 확인 메일 완료
                           </span>
                         )}
+                        <button
+                          onClick={() => onDeleteSalesOrder(so)}
+                          className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-650 rounded-lg text-[10px] font-black border border-red-100 hover:border-red-200 transition-all inline-flex items-center gap-1 cursor-pointer"
+                          title="수주 등록 건 삭제"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> 삭제
+                        </button>
                       </div>
                     </td>
                   </tr>
