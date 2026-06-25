@@ -23,6 +23,7 @@ export default function EstimateSettingsCard() {
     vipRate: 0.05
   });
   const [letterTemplate, setLetterTemplate] = useState<string>('');
+  const [bypassOcrReceiverCheck, setBypassOcrReceiverCheck] = useState<boolean>(false);
   
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
@@ -65,6 +66,13 @@ export default function EstimateSettingsCard() {
             `안녕하십니까, {{recipient_company}} 귀하.\n당사 {{supplier_company}}의 제품에 대해 요청하신 소중한 견적 세부 내역을 제안해 드립니다.\n\n이번 특별 견적은 고객님의 주문 수량과 파트너십을 고려하여 특별 맞춤 할인 혜택이 적용되었습니다. 총 금액은 {{total_amount}}입니다.\n\n세부 항목에 대해 문의 사항이 있으시거나 상세 일정 조율이 필요하신 경우 언제든 편하게 아래 연락처로 문의해 주시기 바랍니다.\n\n감사합니다.\n\n- {{supplier_company}} 대표 {{supplier_owner}} 올림 (대표전화: {{supplier_phone}}) -`
           );
         }
+
+        // 3. 수신인 불일치 거절 우회 여부 조회
+        const bypassRes = await fetch('/api/settings?key=bypass_ocr_receiver_check');
+        const bypassDataJson = await bypassRes.json();
+        if (bypassDataJson.success && bypassDataJson.value) {
+          setBypassOcrReceiverCheck(bypassDataJson.value === '1');
+        }
       } catch (err) {
         console.error('설정 로드 중 에러 발생:', err);
       } finally {
@@ -102,8 +110,19 @@ export default function EstimateSettingsCard() {
       });
       const templateSaveJson = await templateSave.json();
 
-      if (rulesSaveJson.success && templateSaveJson.success) {
-        setMessage({ type: 'success', text: '견적/발주 AI 할인 규칙 및 편지 템플릿 설정이 성공적으로 저장되었습니다!' });
+      // 3. 수신인 불일치 거절 우회 여부 저장
+      const bypassSave = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          key: 'bypass_ocr_receiver_check',
+          value: bypassOcrReceiverCheck ? '1' : '0'
+        })
+      });
+      const bypassSaveJson = await bypassSave.json();
+
+      if (rulesSaveJson.success && templateSaveJson.success && bypassSaveJson.success) {
+        setMessage({ type: 'success', text: '견적/발주 AI 할인 규칙, 편지 템플릿 및 수신인 검증 설정이 성공적으로 저장되었습니다!' });
       } else {
         setMessage({ type: 'error', text: '일부 설정을 저장하지 못했습니다.' });
       }
@@ -355,6 +374,34 @@ export default function EstimateSettingsCard() {
             className="w-full h-56 p-4 bg-slate-50/50 border border-slate-200 rounded-2xl text-xs text-slate-700 leading-relaxed outline-none focus:border-indigo-500 font-medium resize-none shadow-inner"
             placeholder="Mustache 태그를 활용해 정중한 기본 편지 양식을 입력하세요."
           />
+        </div>
+      </div>
+
+      {/* 바이어 발주서 수신처 검증 비활성화 설정 (신규 섹션) */}
+      <div className="border border-slate-200/80 rounded-[24px] p-5 md:p-6 bg-slate-50/50 space-y-3.5 mt-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <span className="text-xs font-extrabold text-slate-700 block flex items-center gap-1.5">
+              ⚠️ 바이어 발주서 수신인 검증 설정 (OCR 예외)
+            </span>
+            <p className="text-[11px] text-slate-400 font-semibold leading-relaxed">
+              바이어 발주서(수주서) 스캔 등록 시, 파싱된 수신처가 본사 상호명과 일치하지 않을 때 발생하는 거절 경고를 비활성화하고 강제 우회 접수를 기본 허용합니다. (최고관리자 권한으로 제어됩니다)
+            </p>
+          </div>
+          <div className="flex items-center gap-3 shrink-0 select-none">
+            <span className={`text-xs font-black transition-colors ${bypassOcrReceiverCheck ? 'text-indigo-650' : 'text-slate-400'}`}>
+              {bypassOcrReceiverCheck ? '검증 비활성화 (우회 허용)' : '검증 활성화 (기본 검증)'}
+            </span>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={bypassOcrReceiverCheck}
+                onChange={e => setBypassOcrReceiverCheck(e.target.checked)}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+            </label>
+          </div>
         </div>
       </div>
 

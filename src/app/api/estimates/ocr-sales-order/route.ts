@@ -226,22 +226,27 @@ export async function POST(req: Request) {
 ### 📌 데이터 추출 및 정제 지침:
 1. **품목코드 (itemCode)**:
    - 발주서 표에서 품목코드, 자재코드, 도번, 형번, 모델번호(Model No.), 파트번호(Part No.) 등이 기재되어 있는 열을 찾아 그 값을 추출하십시오.
-   - 만약 품명(itemName)과 코드(예: SUS-304-T10, A100-B200 등)가 한 셀에 병합되어 적혀 있다면, 규칙성 있는 모델코드 부분을 분리하여 itemCode에 기재하고, 명칭은 itemName으로 분리하십시오.
    - 아예 존재하지 않는 경우에만 빈 문자열("")로 둡니다.
 
-2. **규격 (spec)**:
+2. **품명 (itemName)**:
+   - 발주서 상에서 품목의 명칭이나 이름을 추출하십시오.
+   - **[중요 - 표 헤더 레이블 혼입 금지]**: 품명을 추출하거나 구성할 때, 문서의 표 헤더 명칭(예: '품목코드', '코드', '도번', '품명', '품목명', 'No', 'Model' 등) 자체가 품명 텍스트에 접두사나 접미사로 섞여 들어가지 않도록 철저히 배제해 주십시오. (예: '품목코드 049/X560014' 형태로 추출하지 말고, '품목코드' 문구를 제거한 '049/X560014' 형태로 추출하십시오.)
+   - 만약 품명(itemName)과 코드(예: SUS-304-T10, A100-B200 등)가 한 셀에 병합되어 적혀 있다면, 규칙성 있는 모델코드 부분을 분리하여 itemCode에 기재하고, 명칭은 itemName으로 분리하십시오.
+   - 품명 컬럼이 아예 존재하지 않아 코드값만 기재된 경우에는 '품목코드' 등의 헤더 텍스트 없이 해당 품목코드의 텍스트 자체(예: "049/X560014")만을 itemName에 기재하십시오.
+
+3. **규격 (spec)**:
    - 품목의 사이즈, 규격, 사양, 두께, 재질, 용량, 외경(예: 150A, 10T, 300*400*20, SUS304 등)이 명시된 텍스트를 정확하게 추출하십시오.
    - 품명(itemName)이나 품목코드에 규격 정보가 섞여 있는 경우가 많습니다. (예: "아세탈 판재 10T 500*500" -> 품명: "아세탈 판재", 규격: "10T 500*500"으로 분리하여 추출)
 
-3. **납기일 (deliveryDate) 및 수주일 (orderDate)**:
+4. **납기일 (deliveryDate) 및 수주일 (orderDate)**:
    - 문서 상단부나 비고란 혹은 품목별 행(row)에 표기된 날짜를 추출하십시오.
    - 행별 납기일이 공란이거나 명시되지 않은 경우, 문서 전체의 기준 납기일(마스터 납기일, 예: "납기: 2026.06.30", "납기일자: 2026/06/30")을 모든 품목의 deliveryDate에 복사하여 채워 넣으십시오.
    - 날짜는 "26년 6월 30일", "26.06.30", "2026/06/30" 등 다양한 표기 형식을 감지하여 반드시 표준 ISO 형식인 "YYYY-MM-DD" 형태로 정규화하여 출력하십시오. (예: 2026-06-30)
 
-4. **수량/단가/금액 (quantity, unitPrice, amount)**:
+5. **수량/단가/금액 (quantity, unitPrice, amount)**:
    - 쉼표(,), 원화 기호(₩), 통화 기호 등은 모두 제외하고 순수 숫자 정수형태로만 추출하십시오.
 
-5. **유효품목코드 (validItemCode)**:
+6. **유효품목코드 (validItemCode)**:
 ${rlsRulesText ? `
    - 다음은 승인된 사내 지식에 근거한 품목코드 변환 규정입니다. 아래 규칙을 엄격히 적용하여 유효품목코드를 판단 및 추출해 주십시오.
 ${rlsRulesText}
@@ -570,7 +575,9 @@ JSON 응답 포맷:
       await executeSQL('ALTER TABLE crm_estimate_items ADD COLUMN delivery_date TEXT');
     } catch(e) {}
 
-    const receiverMatched = isSupplierMyCompany || isBuyerMyCompany;
+    const bypassCheckRes = await queryTable('system_settings', { filters: { key: 'bypass_ocr_receiver_check' } });
+    const bypassCheck = bypassCheckRes.rows && bypassCheckRes.rows.length > 0 ? bypassCheckRes.rows[0].value : '0';
+    const receiverMatched = (bypassCheck === '1') ? true : (isSupplierMyCompany || isBuyerMyCompany);
     return NextResponse.json({
       success: true,
       receiver_matched: receiverMatched,

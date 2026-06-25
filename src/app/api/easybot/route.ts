@@ -111,6 +111,17 @@ async function executeActionTool(name: string, args: any, cookieHeader: string |
     }, cookieHeader);
   }
 
+  if (name === 'toggle_ocr_receiver_bypass') {
+    const { bypass } = args;
+    if (bypass === undefined) {
+      throw new Error('우회 활성화 여부(bypass) 파라미터가 필요합니다.');
+    }
+    return await callLocalApi('/api/settings', {
+      key: 'bypass_ocr_receiver_check',
+      value: bypass ? '1' : '0'
+    }, cookieHeader);
+  }
+
   throw new Error(`알 수 없는 도구명입니다: ${name}`);
 }
 
@@ -256,6 +267,17 @@ export async function POST(req: Request) {
           },
           required: ["expense_id", "status"]
         }
+      },
+      {
+        name: "toggle_ocr_receiver_bypass",
+        description: "받은 발주서(바이어 발주서) 등록 시 수신인 불일치 거절 옵션(수신인 검증 기능)을 켜거나 끕니다. 사용자가 수신인 불일치 거절을 안 뜨게 설정하거나, 수신인 검증을 끄도록(우회 허용) 요청하면 bypass를 true로 설정하고, 다시 정상적으로 수신인 검증을 켜거나 불일치 거절 경고를 활성화하도록 요청하면 bypass를 false로 설정합니다.",
+        parameters: {
+          type: "OBJECT",
+          properties: {
+            bypass: { type: "BOOLEAN", description: "검증을 비활성화(우회 허용)하려면 true, 검증을 활성화(정상 검증)하려면 false" }
+          },
+          required: ["bypass"]
+        }
       }
     ];
 
@@ -293,7 +315,7 @@ export async function POST(req: Request) {
     if (functionCallPart) {
       name = functionCallPart.functionCall.name;
       args = functionCallPart.functionCall.args;
-      const validTools = ['send_sms', 'register_customer', 'approve_expense'];
+      const validTools = ['send_sms', 'register_customer', 'approve_expense', 'toggle_ocr_receiver_bypass'];
       if (validTools.includes(name)) {
         executeAction = true;
       } else {
