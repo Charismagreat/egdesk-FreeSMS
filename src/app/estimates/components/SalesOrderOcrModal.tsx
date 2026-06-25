@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Upload, X, FileText, CheckCircle2, RefreshCw } from "lucide-react";
 import { createPortal } from "react-dom";
+import ProcessingOverlay from "../../../components/ProcessingOverlay";
 
 interface SalesOrderOcrModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ export default function SalesOrderOcrModal({
 }: SalesOrderOcrModalProps) {
   const [ocrScanning, setOcrScanning] = useState(false);
   const [ocrSuccess, setOcrSuccess] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [ocrFilename, setOcrFilename] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [receiverMatched, setReceiverMatched] = useState<boolean>(true);
@@ -162,6 +164,7 @@ export default function SalesOrderOcrModal({
       return;
     }
     try {
+      setIsProcessing(true);
       const res = await fetch("/api/estimates/ocr-sales-order?action=save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -181,6 +184,8 @@ export default function SalesOrderOcrModal({
       }
     } catch (e) {
       alert("저장 중 오류 발생");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -472,6 +477,11 @@ export default function SalesOrderOcrModal({
             {forceBypass ? "⚠️ 관리자 강제 승인 및 등록" : "바이어 발주서 등록 승인"}
           </button>
         </div>
+        <ProcessingOverlay
+          isOpen={isProcessing}
+          title="바이어 발주서 등록 승인 중"
+          message="AI가 발주서 내용을 검증하고 안전하게 수주 정보로 변환하여 시스템 대장에 등록 중입니다."
+        />
       </div>
     </div>,
     document.body

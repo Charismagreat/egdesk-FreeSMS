@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Plus, Eye, CheckCircle2, ChevronRight, Trash2, Clock } from "lucide-react";
 import { Estimate, SalesOrder, Partner } from "../types";
 import { parseEstimateMetadata } from "../utils";
+import { usePersistedState } from "../../../hooks/usePersistedState";
 
 interface OutboundHubProps {
   estimates: Estimate[];
@@ -43,11 +44,11 @@ export default function OutboundHub({
   onDeleteEstimate,
 }: OutboundHubProps) {
   // 서브 탭 및 필터 로컬 상태
-  const [outboundSubTab, setOutboundSubTab] = useState<"estimates" | "sos">("estimates");
-  const [outboundSearch, setOutboundSearch] = useState("");
-  const [outboundStatusFilter, setOutboundStatusFilter] = useState("ALL");
-  const [outboundSortKey, setOutboundSortKey] = useState("created_at");
-  const [outboundSortDir, setOutboundSortDir] = useState<"asc" | "desc">("desc");
+  const [outboundSubTab, setOutboundSubTab] = usePersistedState<"estimates" | "sos">("egdesk_outbound_subTab", "estimates");
+  const [outboundSearch, setOutboundSearch] = usePersistedState<string>("egdesk_outbound_search", "");
+  const [outboundStatusFilter, setOutboundStatusFilter] = usePersistedState<string>("egdesk_outbound_statusFilter", "ALL");
+  const [outboundSortKey, setOutboundSortKey] = usePersistedState<string>("egdesk_outbound_sortKey", "created_at");
+  const [outboundSortDir, setOutboundSortDir] = usePersistedState<"asc" | "desc">("egdesk_outbound_sortDir", "desc");
 
   // 다중 선택 로컬 상태
   const [selectedOutboundIds, setSelectedOutboundIds] = useState<Set<string>>(new Set());

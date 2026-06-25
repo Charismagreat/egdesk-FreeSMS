@@ -7,6 +7,7 @@ import {
 import { createPortal } from "react-dom";
 import { EstimateItem } from "../types";
 import { base64ToBlob, parseEstimateMetadata } from "../utils";
+import ProcessingOverlay from "../../../components/ProcessingOverlay";
 
 interface EstimateDetailModalProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ export default function EstimateDetailModal({
   const [detailData, setDetailData] = useState<any | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [isEditingDetail, setIsEditingDetail] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [activeDetailTab, setActiveDetailTab] = useState<'info' | 'items'>('info');
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string>("");
   const [dbTags, setDbTags] = useState<any[]>([]);
@@ -182,7 +184,8 @@ export default function EstimateDetailModal({
         quantity: item.quantity,
         unit_price: item.unit_price,
         amount: item.amount,
-        delivery_date: item.delivery_date || ''
+        delivery_date: item.delivery_date || '',
+        valid_item_code: item.valid_item_code || ''
       }))
     });
     setIsEditingDetail(true);
@@ -205,7 +208,8 @@ export default function EstimateDetailModal({
           quantity: 1,
           unit_price: 0,
           amount: 0,
-          delivery_date: ""
+          delivery_date: "",
+          valid_item_code: ""
         }
       ]
     }));
@@ -263,6 +267,7 @@ export default function EstimateDetailModal({
     }
 
     try {
+      setIsProcessing(true);
       const tagsJsonString = JSON.stringify({
         tags: editForm.tags,
         business_number: editForm.business_number,
@@ -299,6 +304,8 @@ export default function EstimateDetailModal({
       }
     } catch (err) {
       alert(isSalesOrderScan ? "발주 수정 중 네트워크 오류가 발생했습니다." : "견적 수정 중 네트워크 오류가 발생했습니다.");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -307,6 +314,7 @@ export default function EstimateDetailModal({
     if (!confirm(isSalesOrderScan ? "정말로 이 발주서를 완전히 삭제하시겠습니까? 관련 데이터가 영구 유실됩니다." : "정말로 이 견적서를 완전히 삭제하시겠습니까? 관련 데이터가 영구 유실됩니다.")) return;
     
     try {
+      setIsProcessing(true);
       const res = await fetch(`/api/estimates?estimateId=${estimateId}`, {
         method: "DELETE"
       });
@@ -317,9 +325,15 @@ export default function EstimateDetailModal({
         onClose();
       } else {
         alert(data.error || "삭제에 실패했습니다.");
+        if (data.error && (data.error.includes("보류") || data.error.includes("결재"))) {
+          onRefresh();
+          onClose();
+        }
       }
     } catch (err) {
       alert(isSalesOrderScan ? "발주 삭제 중 네트워크 오류가 발생했습니다." : "견적 삭제 중 네트워크 오류가 발생했습니다.");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -617,41 +631,51 @@ export default function EstimateDetailModal({
                         <div>
                           <span className="text-slate-400 font-bold block">사업자번호</span>
                           <span className="text-slate-800 font-bold mt-1 inline-block">
-                            {detailData.estimate.type === 'OUTBOUND' 
-                              ? (myProfile?.businessNumber || "-")
-                              : (detailMeta?.business_number || "-")}
+                            {isSalesOrderScan
+                              ? (detailMeta?.business_number || "-")
+                              : (detailData.estimate.type === 'OUTBOUND' 
+                                  ? (myProfile?.businessNumber || "-")
+                                  : (detailMeta?.business_number || "-"))}
                           </span>
                         </div>
                         <div>
                           <span className="text-slate-400 font-bold block">대표자명</span>
                           <span className="text-slate-800 font-bold mt-1 inline-block">
-                            {detailData.estimate.type === 'OUTBOUND' 
-                              ? (myProfile?.representative || "-")
-                              : (detailMeta?.representative || "-")}
+                            {isSalesOrderScan
+                              ? (detailMeta?.representative || "-")
+                              : (detailData.estimate.type === 'OUTBOUND' 
+                                  ? (myProfile?.representative || "-")
+                                  : (detailMeta?.representative || "-"))}
                           </span>
                         </div>
                         <div className="col-span-2">
                           <span className="text-slate-400 font-bold block">소재지 주소</span>
                           <span className="text-slate-800 font-bold mt-1 inline-block">
-                            {detailData.estimate.type === 'OUTBOUND' 
-                              ? (myProfile?.address || "-")
-                              : (detailMeta?.address || "-")}
+                            {isSalesOrderScan
+                              ? (detailMeta?.address || "-")
+                              : (detailData.estimate.type === 'OUTBOUND' 
+                                  ? (myProfile?.address || "-")
+                                  : (detailMeta?.address || "-"))}
                           </span>
                         </div>
                         <div>
                           <span className="text-slate-400 font-bold block">{isSalesOrderScan ? "문서 발주번호" : "문서 견적번호"}</span>
                           <span className="text-slate-800 font-black font-mono mt-1 inline-block">
-                            {detailData.estimate.type === 'OUTBOUND' 
-                              ? (detailData.estimate.id || "-")
-                              : (detailMeta?.document_number || "-")}
+                            {isSalesOrderScan
+                              ? (detailData.estimate.sales_order_number || detailMeta?.document_number || "-")
+                              : (detailData.estimate.type === 'OUTBOUND' 
+                                  ? (detailData.estimate.id || "-")
+                                  : (detailMeta?.document_number || "-"))}
                           </span>
                         </div>
                         <div>
                           <span className="text-slate-400 font-bold block">{isSalesOrderScan ? "문서 발주일자" : "문서 견적일자"}</span>
                           <span className="text-slate-800 font-bold mt-1 inline-block">
-                            {detailData.estimate.type === 'OUTBOUND' 
-                              ? (detailData.estimate.created_at?.substring(0, 10) || "-")
-                              : (detailMeta?.document_date || "-")}
+                            {isSalesOrderScan
+                              ? (detailMeta?.document_date || "-")
+                              : (detailData.estimate.type === 'OUTBOUND' 
+                                  ? (detailData.estimate.created_at?.substring(0, 10) || "-")
+                                  : (detailMeta?.document_date || "-"))}
                           </span>
                         </div>
                         {isSalesOrderScan && (
@@ -812,11 +836,12 @@ export default function EstimateDetailModal({
                         /* 조회 전용 일반 테이블 */
                         <div className="border border-slate-100 rounded-2xl overflow-auto max-h-[540px]">
                            {isSalesOrderScan ? (
-                             <table className="w-full text-left text-xs font-semibold min-w-[650px]" style={{ tableLayout: "fixed" }}>
-                               <colgroup><col style={{ width: "12%" }} /><col style={{ width: "25%" }} /><col style={{ width: "15%" }} /><col style={{ width: "8%" }} /><col style={{ width: "12%" }} /><col style={{ width: "14%" }} /><col style={{ width: "14%" }} /></colgroup>
+                             <table className="w-full text-left text-xs font-semibold min-w-[700px]" style={{ tableLayout: "fixed" }}>
+                               <colgroup><col style={{ width: "10%" }} /><col style={{ width: "15%" }} /><col style={{ width: "23%" }} /><col style={{ width: "12%" }} /><col style={{ width: "8%" }} /><col style={{ width: "10%" }} /><col style={{ width: "12%" }} /><col style={{ width: "10%" }} /></colgroup>
                                <thead>
                                  <tr className="border-b border-slate-100 text-slate-400 text-[10px]">
                                    <th className="py-2.5 px-3 sticky top-0 bg-slate-50 z-10">품목코드</th>
+                                   <th className="py-2.5 px-3 sticky top-0 bg-slate-50 z-10">유효품목코드</th>
                                    <th className="py-2.5 px-3 sticky top-0 bg-slate-50 z-10">품목명</th>
                                    <th className="py-2.5 px-2 sticky top-0 bg-slate-50 z-10">규격</th>
                                    <th className="py-2.5 px-2 text-center sticky top-0 bg-slate-50 z-10">수량</th>
@@ -829,6 +854,15 @@ export default function EstimateDetailModal({
                                  {detailData.items.map((item: any, idx: number) => (
                                    <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/40">
                                      <td className="py-3 px-3 text-slate-500 font-mono text-[11px] truncate" title={item.item_code || ""}>{item.item_code || "-"}</td>
+                                     <td className="py-3 px-3 text-slate-800 font-mono text-[11px] truncate">
+                                       {item.valid_item_code ? (
+                                         <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-black rounded border border-emerald-250/60 shadow-sm">
+                                           {item.valid_item_code}
+                                         </span>
+                                       ) : (
+                                         <span className="text-slate-450 font-normal">-</span>
+                                       )}
+                                     </td>
                                      <td className="py-3 px-3 text-slate-800 font-bold" style={{ wordBreak: "keep-all", overflowWrap: "break-word" }}>{item.product_name}</td>
                                      <td className="py-3 px-2 text-slate-600 font-medium whitespace-nowrap truncate" title={item.spec || ""}>{item.spec || "-"}</td>
                                      <td className="py-3 px-2 text-center text-slate-600 font-bold whitespace-nowrap">{item.quantity}개</td>
@@ -951,25 +985,37 @@ export default function EstimateDetailModal({
               <>
                 <button 
                   onClick={handleDeleteEstimate}
-                  disabled={detailData.isLinked}
+                  disabled={detailData.isLinked || detailData.isPendingDelete}
                   className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1 transition-all shadow-sm ${
-                    detailData.isLinked 
+                    (detailData.isLinked || detailData.isPendingDelete) 
                       ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none opacity-60' 
                       : 'bg-rose-50 hover:bg-rose-100 text-rose-600'
                   }`}
-                  title={detailData.isLinked ? (isSalesOrderScan ? "이미 연동 완료된 발주서입니다." : "이미 발주/수주로 전환된 견적서입니다.") : (isSalesOrderScan ? "발주서 완전히 삭제" : "견적서 완전히 삭제")}
+                  title={
+                    detailData.isLinked 
+                      ? (isSalesOrderScan ? "이미 연동 완료된 발주서입니다." : "이미 발주/수주로 전환된 견적서입니다.") 
+                      : detailData.isPendingDelete 
+                        ? "현재 RAG 결재 대기 중인 문서입니다." 
+                        : (isSalesOrderScan ? "발주서 완전히 삭제" : "견적서 완전히 삭제")
+                  }
                 >
                   🗑️ {isSalesOrderScan ? "발주 삭제" : "견적 삭제"}
                 </button>
                 <button 
                   onClick={handleStartEdit} 
-                  disabled={detailData.isLinked}
+                  disabled={detailData.isLinked || detailData.isPendingDelete}
                   className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1 transition-all shadow-sm ${
-                    detailData.isLinked 
+                    (detailData.isLinked || detailData.isPendingDelete) 
                       ? 'bg-slate-100 text-slate-400 cursor-not-allowed shadow-none opacity-60' 
                       : 'bg-amber-50 hover:bg-amber-100 text-amber-600'
                   }`}
-                  title={detailData.isLinked ? (isSalesOrderScan ? "이미 연동 완료된 발주서입니다." : "이미 발주/수주로 전환된 견적서입니다.") : (isSalesOrderScan ? "발주서 상세 정보 수정" : "견적서 상세 정보 수정")}
+                  title={
+                    detailData.isLinked 
+                      ? (isSalesOrderScan ? "이미 연동 완료된 발주서입니다." : "이미 발주/수주로 전환된 견적서입니다.") 
+                      : detailData.isPendingDelete 
+                        ? "현재 RAG 결재 대기 중인 문서입니다." 
+                        : (isSalesOrderScan ? "발주서 상세 정보 수정" : "견적서 상세 정보 수정")
+                  }
                 >
                   ✏️ {isSalesOrderScan ? "발주 수정" : "견적 수정"}
                 </button>
@@ -978,6 +1024,13 @@ export default function EstimateDetailModal({
                 {detailData.isLinked && (
                   <span className="text-[10px] text-amber-600 font-extrabold bg-amber-50/50 px-2.5 py-1.5 rounded-xl border border-amber-100/70 flex items-center gap-1 shrink-0">
                     🔒 연동됨: {isSalesOrderScan ? "이 발주서는 이미 연동 완료되어 수정 및 삭제할 수 없습니다." : "이 견적서는 발주/수주로 전환되어 수정 및 삭제할 수 없습니다."}
+                  </span>
+                )}
+
+                {/* 💡 RAG 결재 대기 중인 경우 경고 가이드 뱃지 표출 */}
+                {detailData.isPendingDelete && (
+                  <span className="text-[10px] text-amber-700 font-extrabold bg-amber-50 px-2.5 py-1.5 rounded-xl border border-amber-100 flex items-center gap-1 shrink-0 animate-pulse">
+                    ⏳ 결재 대기 중: 이 문서는 현재 삭제 요청에 대한 사내 RAG 결재 승인을 대기 중입니다.
                   </span>
                 )}
               </>
@@ -1009,6 +1062,11 @@ export default function EstimateDetailModal({
             )}
           </div>
         </div>
+        <ProcessingOverlay
+          isOpen={isProcessing}
+          title={isSalesOrderScan ? "발주서 처리 중" : "견적서 처리 중"}
+          message={isSalesOrderScan ? "AI 통제 센터가 바이어 발주서 정보를 안전하게 업데이트 또는 삭제하는 중입니다." : "AI 통제 센터가 견적서 정보를 안전하게 업데이트 또는 삭제하는 중입니다."}
+        />
       </div>
     </div>,
     document.body

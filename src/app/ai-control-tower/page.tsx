@@ -6,6 +6,8 @@ import {
   MessageSquare, Users, Coins, HelpCircle, ShieldAlert, CheckCircle2, XCircle, FileText, Send, X, Settings2,
   Clock
 } from "lucide-react";
+import ProcessingOverlay from "../../components/ProcessingOverlay";
+import { usePersistedState } from "../../hooks/usePersistedState";
 
 interface AuditLog {
   id: string;
@@ -32,7 +34,7 @@ interface Capability {
 
 export default function AIControlTowerPage() {
   // 0. 활성화 탭 상태 관리
-  const [activeTab, setActiveTab] = useState<"logs" | "settings" | "request" | "governance">("logs");
+  const [activeTab, setActiveTab, isActiveTabRestored] = usePersistedState<"logs" | "settings" | "request" | "governance">("egdesk_ctrl_activeTab", "logs");
 
   // 1. 에이전트 기능 통제 상태
   const [capabilities, setCapabilities] = useState<Capability[]>([
@@ -91,8 +93,8 @@ export default function AIControlTowerPage() {
   // 2. 감사 로그 리스트 상태
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [search, setSearch] = useState<string>("");
-  const [page, setPage] = useState<number>(1);
+  const [search, setSearch] = usePersistedState<string>("egdesk_ctrl_search", "");
+  const [page, setPage] = usePersistedState<number>("egdesk_ctrl_page", 1);
   const [limit] = useState<number>(10);
   const [total, setTotal] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(1);
@@ -112,8 +114,8 @@ export default function AIControlTowerPage() {
   const [feedbacks, setFeedbacks] = useState<any[]>([]);
   const [loadingFeedbacks, setLoadingFeedbacks] = useState<boolean>(false);
   
-  const [feedbackSearch, setFeedbackSearch] = useState<string>("");
-  const [feedbackPage, setFeedbackPage] = useState<number>(1);
+  const [feedbackSearch, setFeedbackSearch] = usePersistedState<string>("egdesk_ctrl_feedbackSearch", "");
+  const [feedbackPage, setFeedbackPage] = usePersistedState<number>("egdesk_ctrl_feedbackPage", 1);
   const [feedbackLimit] = useState<number>(5);
 
   // 거버넌스 관제 관련 상태
@@ -121,6 +123,15 @@ export default function AIControlTowerPage() {
   const [deletedItems, setDeletedItems] = useState<any[]>([]);
   const [loadingGov, setLoadingGov] = useState<boolean>(false);
   const [govError, setGovError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+
+  // 거버넌스 서브 탭 및 검색, 페이지네이션 상태 추가
+  const [govSubTab, setGovSubTab] = usePersistedState<"audit" | "deleted">("egdesk_ctrl_govSubTab", "audit");
+  const [govAuditSearch, setGovAuditSearch] = usePersistedState<string>("egdesk_ctrl_govAuditSearch", "");
+  const [govDeletedSearch, setGovDeletedSearch] = usePersistedState<string>("egdesk_ctrl_govDeletedSearch", "");
+  const [govAuditPage, setGovAuditPage] = usePersistedState<number>("egdesk_ctrl_govAuditPage", 1);
+  const [govDeletedPage, setGovDeletedPage] = usePersistedState<number>("egdesk_ctrl_govDeletedPage", 1);
+  const govPageSize = 10;
 
   // 거버넌스 데이터(RAG 감사 로그 및 소프트 삭제 대장) 로드
   const loadGovernanceData = async () => {
@@ -155,6 +166,7 @@ export default function AIControlTowerPage() {
       return;
     }
     try {
+      setIsProcessing(true);
       const res = await fetch("/api/governance?action=force_delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -169,6 +181,8 @@ export default function AIControlTowerPage() {
       }
     } catch (err: any) {
       alert(`서버 통신 오류: ${err.message}`);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -178,6 +192,7 @@ export default function AIControlTowerPage() {
       return;
     }
     try {
+      setIsProcessing(true);
       const res = await fetch("/api/governance?action=restore", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -192,6 +207,8 @@ export default function AIControlTowerPage() {
       }
     } catch (err: any) {
       alert(`서버 통신 오류: ${err.message}`);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -201,6 +218,7 @@ export default function AIControlTowerPage() {
       return;
     }
     try {
+      setIsProcessing(true);
       const res = await fetch("/api/governance?action=clear_logs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -215,18 +233,21 @@ export default function AIControlTowerPage() {
       }
     } catch (err: any) {
       alert(`서버 통신 오류: ${err.message}`);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   // 5. 초기 마운트 및 데이터 조회
   useEffect(() => {
+    if (!isActiveTabRestored) return; // sessionStorage 상태 복원 대기
     loadCapabilities();
     loadAuditLogs();
     loadFeedbacks();
     if (activeTab === "governance") {
       loadGovernanceData();
     }
-  }, [page, search, activeTab]);
+  }, [page, search, activeTab, isActiveTabRestored]);
 
   // 기능 토글 설정 로드
   const loadCapabilities = async () => {
@@ -442,6 +463,51 @@ export default function AIControlTowerPage() {
   }, [filteredFeedbacks, feedbackPage, feedbackLimit]);
 
   const totalFeedbackPages = Math.ceil(filteredFeedbacks.length / feedbackLimit);
+
+  // 거버넌스 삭제 결재 심사 기록 필터링 및 페이징
+  const filteredGovLogs = React.useMemo(() => {
+    return govLogs.filter((log: any) => {
+      if (!govAuditSearch) return true;
+      const q = govAuditSearch.toLowerCase();
+      return (
+        (log.created_at || "").toLowerCase().includes(q) ||
+        (log.doc_id || "").toLowerCase().includes(q) ||
+        (log.doc_title || "").toLowerCase().includes(q) ||
+        (log.reason || "").toLowerCase().includes(q) ||
+        (log.operator || "").toLowerCase().includes(q) ||
+        (log.status || "").toLowerCase().includes(q)
+      );
+    });
+  }, [govLogs, govAuditSearch]);
+
+  const paginatedGovLogs = React.useMemo(() => {
+    const start = (govAuditPage - 1) * govPageSize;
+    return filteredGovLogs.slice(start, start + govPageSize);
+  }, [filteredGovLogs, govAuditPage, govPageSize]);
+
+  const totalGovAuditPages = Math.max(1, Math.ceil(filteredGovLogs.length / govPageSize));
+
+  // 소프트 삭제된 전체 대장 내역 필터링 및 페이징
+  const filteredDeletedItems = React.useMemo(() => {
+    return deletedItems.filter((item: any) => {
+      if (!govDeletedSearch) return true;
+      const q = govDeletedSearch.toLowerCase();
+      return (
+        (item.deleted_at || "").toLowerCase().includes(q) ||
+        (item.doc_id || "").toLowerCase().includes(q) ||
+        (item.partner_name || "").toLowerCase().includes(q) ||
+        (item.deleted_by || "").toLowerCase().includes(q) ||
+        (item.doc_type || "").toLowerCase().includes(q)
+      );
+    });
+  }, [deletedItems, govDeletedSearch]);
+
+  const paginatedDeletedItems = React.useMemo(() => {
+    const start = (govDeletedPage - 1) * govPageSize;
+    return filteredDeletedItems.slice(start, start + govPageSize);
+  }, [filteredDeletedItems, govDeletedPage, govPageSize]);
+
+  const totalGovDeletedPages = Math.max(1, Math.ceil(filteredDeletedItems.length / govPageSize));
 
   return (
     <div className="w-full space-y-6 pb-20 min-w-0 font-sans text-slate-800 animate-fade-in text-left">
@@ -1043,183 +1109,324 @@ export default function AIControlTowerPage() {
               </div>
             </div>
           ) : (
-            <div className="space-y-6">
-              
-              {/* 섹션 1: 실시간 AI 결재 판정 및 보류 현황 */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-1 h-3.5 bg-indigo-600 rounded-full" />
-                  <h3 className="text-sm font-black text-slate-800">🛡️ 실시간 AI 삭제 결재 심사 기록</h3>
-                </div>
-                
-                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse text-xs">
-                      <thead>
-                        <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                          <th className="py-3 px-4">발생 일시</th>
-                          <th className="py-3 px-4">구분</th>
-                          <th className="py-3 px-4">문서 ID / 요약명</th>
-                          <th className="py-3 px-4">AI 판정 상태</th>
-                          <th className="py-3 px-4 max-w-sm">판정 근거 및 사유</th>
-                          <th className="py-3 px-4">요청자</th>
-                          <th className="py-3 px-4 text-center">동작</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 text-slate-700">
-                        {govLogs.length === 0 ? (
-                          <tr>
-                            <td colSpan={7} className="py-8 text-center text-slate-400">
-                              기록된 AI 삭제 결재 심사 이력이 없습니다.
-                            </td>
+            <div className="space-y-6 animate-fade-in">
+              {/* 거버넌스 서브 탭 컨트롤 바 */}
+              <div className="flex border-b border-slate-200 gap-6 shrink-0 mb-2">
+                <button
+                  type="button"
+                  onClick={() => setGovSubTab("audit")}
+                  className={`pb-2.5 px-1 text-xs font-black transition-all relative border-b-2 outline-none cursor-pointer ${
+                    govSubTab === "audit" 
+                      ? "text-indigo-650 border-indigo-650" 
+                      : "text-slate-450 border-transparent hover:text-slate-650"
+                  }`}
+                >
+                  🛡️ 실시간 AI 삭제 결재 심사 기록 ({filteredGovLogs.length}건)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGovSubTab("deleted")}
+                  className={`pb-2.5 px-1 text-xs font-black transition-all relative border-b-2 outline-none cursor-pointer ${
+                    govSubTab === "deleted" 
+                      ? "text-indigo-650 border-indigo-650" 
+                      : "text-slate-450 border-transparent hover:text-slate-650"
+                  }`}
+                >
+                  🗑️ 소프트 삭제된 전체 대장 내역 (통합 관제) ({filteredDeletedItems.length}건)
+                </button>
+              </div>
+
+              {/* 서브 탭 분기 조건부 렌더링 */}
+              {govSubTab === "audit" && (
+                <div className="space-y-3 animate-fade-in">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1 h-3.5 bg-indigo-650 rounded-full" />
+                      <h3 className="text-sm font-black text-slate-800">🛡️ 실시간 AI 삭제 결재 심사 기록</h3>
+                    </div>
+                    {/* 검색창 */}
+                    <div className="relative w-full sm:w-64">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        placeholder="결재 심사 기록 검색..."
+                        value={govAuditSearch}
+                        onChange={(e) => {
+                          setGovAuditSearch(e.target.value);
+                          setGovAuditPage(1);
+                        }}
+                        className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:bg-white focus:border-indigo-500 transition-all placeholder:text-slate-400"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                            <th className="py-3 px-4">발생 일시</th>
+                            <th className="py-3 px-4">구분</th>
+                            <th className="py-3 px-4">문서 ID / 요약명</th>
+                            <th className="py-3 px-4">AI 판정 상태</th>
+                            <th className="py-3 px-4 max-w-sm">판정 근거 및 사유</th>
+                            <th className="py-3 px-4">요청자</th>
+                            <th className="py-3 px-4 text-center">동작</th>
                           </tr>
-                        ) : (
-                          govLogs.map((log: any) => (
-                            <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
-                              <td className="py-3.5 px-4 text-slate-500 font-mono whitespace-nowrap">
-                                {log.created_at}
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-slate-700">
+                          {paginatedGovLogs.length === 0 ? (
+                            <tr>
+                              <td colSpan={7} className="py-8 text-center text-slate-400">
+                                {govAuditSearch ? "검색 결과에 매칭되는 AI 삭제 결재 심사 이력이 없습니다." : "기록된 AI 삭제 결재 심사 이력이 없습니다."}
                               </td>
-                              <td className="py-3.5 px-4 whitespace-nowrap">
-                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold border ${
-                                  log.doc_type === 'estimate'
-                                    ? 'bg-blue-50 text-blue-700 border-blue-100'
-                                    : log.doc_type === 'purchase_order'
-                                      ? 'bg-purple-50 text-purple-700 border-purple-100'
-                                      : 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                                }`}>
-                                  {log.doc_type === 'estimate' ? '견적' : log.doc_type === 'purchase_order' ? '발주' : '수주'}
-                                </span>
-                              </td>
-                              <td className="py-3.5 px-4 font-bold text-slate-800 whitespace-nowrap">
-                                <span className="block text-xs" title={log.doc_title}>{log.doc_title}</span>
-                                <span className="text-[10px] text-slate-400 font-mono block">ID: {log.doc_id}</span>
-                              </td>
-                              <td className="py-3.5 px-4 whitespace-nowrap">
-                                {log.status === "APPROVED_AUTO" ? (
-                                  <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                    <span>자동 승인</span>
+                            </tr>
+                          ) : (
+                            paginatedGovLogs.map((log: any) => (
+                              <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="py-3.5 px-4 text-slate-500 font-mono whitespace-nowrap">
+                                  {log.created_at}
+                                </td>
+                                <td className="py-3.5 px-4 whitespace-nowrap">
+                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold border ${
+                                    log.doc_type === 'estimate'
+                                      ? 'bg-blue-50 text-blue-700 border-blue-100'
+                                      : log.doc_type === 'purchase_order'
+                                        ? 'bg-purple-50 text-purple-700 border-purple-100'
+                                        : 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                  }`}>
+                                    {log.doc_type === 'estimate' ? '견적' : log.doc_type === 'purchase_order' ? '발주' : '수주'}
                                   </span>
-                                ) : log.status === "FORCE_APPROVED" ? (
-                                  <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-100 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                                    <ShieldAlert className="w-3 h-3 text-purple-600" />
-                                    <span>강제 승인</span>
-                                  </span>
-                                ) : log.status === "RESTORED" ? (
-                                  <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                                    <RefreshCw className="w-3 h-3 text-blue-600" />
-                                    <span>복원 완료</span>
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-100 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                                    <Clock className="w-3 h-3 text-amber-600 animate-pulse" />
-                                    <span>결재 보류</span>
-                                  </span>
-                                )}
+                                </td>
+                                <td className="py-3.5 px-4 font-bold text-slate-800 whitespace-nowrap">
+                                  <span className="block text-xs" title={log.doc_title}>{log.doc_title}</span>
+                                  <span className="text-[10px] text-slate-400 font-mono block">ID: {log.doc_id}</span>
+                                </td>
+                                <td className="py-3.5 px-4 whitespace-nowrap">
+                                  {log.status === "APPROVED_AUTO" ? (
+                                    <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-100 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                      <span>자동 승인</span>
+                                    </span>
+                                  ) : log.status === "FORCE_APPROVED" ? (
+                                    <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-100 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                                      <ShieldAlert className="w-3 h-3 text-purple-600" />
+                                      <span>강제 승인</span>
+                                    </span>
+                                  ) : log.status === "RESTORED" ? (
+                                    <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                                      <RefreshCw className="w-3 h-3 text-blue-600" />
+                                      <span>복원 완료</span>
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 border border-amber-100 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                                      <Clock className="w-3 h-3 text-amber-600 animate-pulse" />
+                                      <span>결재 보류</span>
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="py-3.5 px-4 max-w-sm text-slate-650 leading-relaxed break-all font-medium">
+                                  {log.reason}
+                                </td>
+                                <td className="py-3.5 px-4 text-slate-500 font-mono whitespace-nowrap">
+                                  {log.operator}
+                                </td>
+                                <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                                  {log.status === "PENDING_APPROVAL" ? (
+                                    <button
+                                      onClick={() => handleForceDelete(log.id, log.doc_type, log.doc_id)}
+                                      className="bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all cursor-pointer shadow-sm shadow-purple-600/10 active:scale-95 inline-flex items-center gap-1 border-0"
+                                    >
+                                      <ShieldAlert className="w-3.5 h-3.5" />
+                                      <span>강제 삭제 승인</span>
+                                    </button>
+                                  ) : (
+                                    <span className="text-[10px] text-slate-400 font-medium">-</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* 심사 기록 페이지네이션 제어판 */}
+                    {totalGovAuditPages > 1 && (
+                      <div className="px-4 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-4 text-xs font-bold text-slate-500">
+                        <span>
+                          총 {filteredGovLogs.length}건 중 {(govAuditPage - 1) * govPageSize + 1}~{Math.min(govAuditPage * govPageSize, filteredGovLogs.length)}건 표시
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setGovAuditPage(prev => Math.max(1, prev - 1))}
+                            disabled={govAuditPage === 1}
+                            className="p-1.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 transition-all cursor-pointer outline-none"
+                          >
+                            <ChevronLeft className="w-4 h-4 text-slate-600" />
+                          </button>
+                          {Array.from({ length: totalGovAuditPages }).map((_, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => setGovAuditPage(i + 1)}
+                              className={`w-7 h-7 rounded-lg text-xs font-black transition-all cursor-pointer outline-none ${
+                                govAuditPage === i + 1
+                                  ? "bg-indigo-650 text-white"
+                                  : "bg-white border border-slate-200 hover:bg-slate-50 text-slate-600"
+                              }`}
+                            >
+                              {i + 1}
+                            </button>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => setGovAuditPage(prev => Math.min(totalGovAuditPages, prev + 1))}
+                            disabled={govAuditPage === totalGovAuditPages}
+                            className="p-1.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 transition-all cursor-pointer outline-none"
+                          >
+                            <ChevronRight className="w-4 h-4 text-slate-600" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {govSubTab === "deleted" && (
+                <div className="space-y-3 animate-fade-in">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1 h-3.5 bg-indigo-650 rounded-full" />
+                      <h3 className="text-sm font-black text-slate-800">🗑️ 소프트 삭제된 전체 대장 내역 (통합 관제)</h3>
+                    </div>
+                    {/* 검색창 */}
+                    <div className="relative w-full sm:w-64">
+                      <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        placeholder="소프트 삭제 대장 검색..."
+                        value={govDeletedSearch}
+                        onChange={(e) => {
+                          setGovDeletedSearch(e.target.value);
+                          setGovDeletedPage(1);
+                        }}
+                        className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold outline-none focus:bg-white focus:border-indigo-500 transition-all placeholder:text-slate-400"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                            <th className="py-3 px-4">삭제 일시</th>
+                            <th className="py-3 px-4">대장 구분</th>
+                            <th className="py-3 px-4">문서 번호 (ID)</th>
+                            <th className="py-3 px-4">파트너 / 거래처</th>
+                            <th className="py-3 px-4 text-right">총 금액</th>
+                            <th className="py-3 px-4">삭제 작업자</th>
+                            <th className="py-3 px-4 text-center">동작</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-slate-700">
+                          {paginatedDeletedItems.length === 0 ? (
+                            <tr>
+                              <td colSpan={7} className="py-8 text-center text-slate-400">
+                                {govDeletedSearch ? "검색 결과에 매칭되는 소프트 삭제 대장이 없습니다." : "소프트 삭제 임시 보관함에 데이터가 없습니다."}
                               </td>
-                              <td className="py-3.5 px-4 max-w-sm text-slate-650 leading-relaxed break-all font-medium">
-                                {log.reason}
-                              </td>
-                              <td className="py-3.5 px-4 text-slate-500 font-mono whitespace-nowrap">
-                                {log.operator}
-                              </td>
-                              <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                                {log.status === "PENDING_APPROVAL" ? (
+                            </tr>
+                          ) : (
+                            paginatedDeletedItems.map((item: any) => (
+                              <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="py-3.5 px-4 text-slate-500 font-mono whitespace-nowrap">
+                                  {item.deleted_at}
+                                </td>
+                                <td className="py-3.5 px-4 whitespace-nowrap">
+                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold border ${
+                                    item.doc_type === 'estimate'
+                                      ? 'bg-blue-50 text-blue-700 border-blue-100'
+                                      : item.doc_type === 'purchase_order'
+                                        ? 'bg-purple-50 text-purple-700 border-purple-100'
+                                        : 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                  }`}>
+                                    {item.doc_type === 'estimate' ? '견적' : item.doc_type === 'purchase_order' ? '발주' : '수주'}
+                                  </span>
+                                </td>
+                                <td className="py-3.5 px-4 font-mono font-bold text-slate-800 whitespace-nowrap">
+                                  {item.id}
+                                </td>
+                                <td className="py-3.5 px-4 font-medium whitespace-nowrap">
+                                  {item.partner_name || item.vendor_name || item.customer_name || '-'}
+                                </td>
+                                <td className="py-3.5 px-4 text-right font-bold text-slate-800 whitespace-nowrap font-mono">
+                                  {(item.total_amount || 0).toLocaleString()}원
+                                </td>
+                                <td className="py-3.5 px-4 text-slate-500 font-mono whitespace-nowrap">
+                                  {item.deleted_by || 'system'}
+                                </td>
+                                <td className="py-3.5 px-4 text-center whitespace-nowrap">
                                   <button
-                                    onClick={() => handleForceDelete(log.id, log.doc_type, log.doc_id)}
-                                    className="bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all cursor-pointer shadow-sm shadow-purple-600/10 active:scale-95 inline-flex items-center gap-1 border-0"
+                                    onClick={() => handleRestore(item.doc_type, item.id)}
+                                    className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all cursor-pointer active:scale-95 inline-flex items-center gap-1 border-0"
                                   >
-                                    <ShieldAlert className="w-3.5 h-3.5" />
-                                    <span>강제 삭제 승인</span>
+                                    <RefreshCw className="w-3 h-3" />
+                                    <span>대장 복원</span>
                                   </button>
-                                ) : (
-                                  <span className="text-[10px] text-slate-400 font-medium">-</span>
-                                )}
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* 소프트 삭제 페이지네이션 제어판 */}
+                    {totalGovDeletedPages > 1 && (
+                      <div className="px-4 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-4 text-xs font-bold text-slate-500">
+                        <span>
+                          총 {filteredDeletedItems.length}건 중 {(govDeletedPage - 1) * govPageSize + 1}~{Math.min(govDeletedPage * govPageSize, filteredDeletedItems.length)}건 표시
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setGovDeletedPage(prev => Math.max(1, prev - 1))}
+                            disabled={govDeletedPage === 1}
+                            className="p-1.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 transition-all cursor-pointer outline-none"
+                          >
+                            <ChevronLeft className="w-4 h-4 text-slate-600" />
+                          </button>
+                          {Array.from({ length: totalGovDeletedPages }).map((_, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => setGovDeletedPage(i + 1)}
+                              className={`w-7 h-7 rounded-lg text-xs font-black transition-all cursor-pointer outline-none ${
+                                govDeletedPage === i + 1
+                                  ? "bg-indigo-650 text-white"
+                                  : "bg-white border border-slate-200 hover:bg-slate-50 text-slate-600"
+                              }`}
+                            >
+                              {i + 1}
+                            </button>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => setGovDeletedPage(prev => Math.min(totalGovDeletedPages, prev + 1))}
+                            disabled={govDeletedPage === totalGovDeletedPages}
+                            className="p-1.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-40 transition-all cursor-pointer outline-none"
+                          >
+                            <ChevronRight className="w-4 h-4 text-slate-600" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-
-              {/* 섹션 2: 소프트 삭제된 전체 대장 내역 */}
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-1 h-3.5 bg-indigo-600 rounded-full" />
-                  <h3 className="text-sm font-black text-slate-800">🗑️ 소프트 삭제된 전체 대장 내역 (통합 관제)</h3>
-                </div>
-                
-                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse text-xs">
-                      <thead>
-                        <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                          <th className="py-3 px-4">삭제 일시</th>
-                          <th className="py-3 px-4">대장 구분</th>
-                          <th className="py-3 px-4">문서 번호 (ID)</th>
-                          <th className="py-3 px-4">파트너 / 거래처</th>
-                          <th className="py-3 px-4 text-right">총 금액</th>
-                          <th className="py-3 px-4">삭제 작업자</th>
-                          <th className="py-3 px-4 text-center">동작</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 text-slate-700">
-                        {deletedItems.length === 0 ? (
-                          <tr>
-                            <td colSpan={7} className="py-8 text-center text-slate-400">
-                              소프트 삭제 임시 보관함에 데이터가 없습니다.
-                            </td>
-                          </tr>
-                        ) : (
-                          deletedItems.map((item: any) => (
-                            <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
-                              <td className="py-3.5 px-4 text-slate-500 font-mono whitespace-nowrap">
-                                {item.deleted_at}
-                              </td>
-                              <td className="py-3.5 px-4 whitespace-nowrap">
-                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold border ${
-                                  item.doc_type === 'estimate'
-                                    ? 'bg-blue-50 text-blue-700 border-blue-100'
-                                    : item.doc_type === 'purchase_order'
-                                      ? 'bg-purple-50 text-purple-700 border-purple-100'
-                                      : 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                                }`}>
-                                  {item.doc_type === 'estimate' ? '견적' : item.doc_type === 'purchase_order' ? '발주' : '수주'}
-                                </span>
-                              </td>
-                              <td className="py-3.5 px-4 font-mono font-bold text-slate-800 whitespace-nowrap">
-                                {item.id}
-                              </td>
-                              <td className="py-3.5 px-4 font-medium whitespace-nowrap">
-                                {item.partner_name || item.vendor_name || item.customer_name || '-'}
-                              </td>
-                              <td className="py-3.5 px-4 text-right font-bold text-slate-800 whitespace-nowrap font-mono">
-                                {(item.total_amount || 0).toLocaleString()}원
-                              </td>
-                              <td className="py-3.5 px-4 text-slate-500 font-mono whitespace-nowrap">
-                                {item.deleted_by || 'system'}
-                              </td>
-                              <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                                <button
-                                  onClick={() => handleRestore(item.doc_type, item.id)}
-                                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all cursor-pointer active:scale-95 inline-flex items-center gap-1"
-                                >
-                                  <RefreshCw className="w-3 h-3" />
-                                  <span>대장 복원</span>
-                                </button>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-
+              )}
             </div>
           )}
 
@@ -1602,6 +1809,11 @@ export default function AIControlTowerPage() {
         );
       })()}
 
+      <ProcessingOverlay
+        isOpen={isProcessing}
+        title="AI 거버넌스 제어 처리 중"
+        message="AI 컨트롤타워에서 데이터 무결성을 보장하기 위해 강제 삭제 승인 또는 소프트 삭제 대장 복원을 안전하게 처리 중입니다."
+      />
     </div>
   );
 }

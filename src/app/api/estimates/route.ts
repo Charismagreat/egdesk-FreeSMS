@@ -348,11 +348,29 @@ export async function GET(req: Request) {
         }];
       }
 
+      // 💡 RAG 결재 대기 여부 조회 (견적서 자체 또는 연동된 수주/발주가 결재 대기 중인지 검사)
+      let isPendingDelete = false;
+      try {
+        const docIdsToCheck = [estimateId];
+        if (soRows.length > 0) docIdsToCheck.push(soRows[0].id);
+        if (poRows.length > 0) docIdsToCheck.push(poRows[0].id);
+
+        const govRes = await queryTable('crm_governance_logs', {
+          filters: { status: 'PENDING_APPROVAL' },
+          limit: 100
+        });
+        const pendingLogs = govRes.rows || [];
+        isPendingDelete = pendingLogs.some((l: any) => l.doc_id && docIdsToCheck.includes(l.doc_id));
+      } catch (govErr) {
+        console.error('Failed to load pending governance log for detail:', govErr);
+      }
+
       return NextResponse.json({ 
         success: true, 
-        estimate, 
+        estimate: estimate ? { ...estimate, is_pending_delete: isPendingDelete } : null, 
         items, 
         isLinked,
+        isPendingDelete,
         salesOrderNumber: soRows.length > 0 ? (soRows[0].client_order_no || soRows[0].id) : null,
         purchaseOrderNumber: poRows.length > 0 ? poRows[0].id : null
       });
@@ -776,7 +794,8 @@ export async function PUT(req: Request) {
           unit_price: price,
           amount: amount,
           delivery_date: item.delivery_date || '',
-          spec: specVal
+          spec: specVal,
+          valid_item_code: item.valid_item_code || ''
         };
       });
       masterUpdates.total_amount = total_amount;
@@ -795,7 +814,8 @@ export async function PUT(req: Request) {
         unit_price: row.unit_price,
         amount: row.amount,
         delivery_date: row.delivery_date,
-        spec: row.spec
+        spec: row.spec,
+        valid_item_code: row.valid_item_code || ''
       }));
 
       if (detailRows.length > 0) {

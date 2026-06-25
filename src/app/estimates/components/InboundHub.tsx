@@ -6,6 +6,7 @@ import { Estimate, PurchaseOrder } from "../types";
 import InlineTagEditor from "./InlineTagEditor";
 import { parseEstimateMetadata } from "../utils";
 import PurchaseOrderOcrModal from "./PurchaseOrderOcrModal";
+import { usePersistedState } from "../../../hooks/usePersistedState";
 
 interface InboundHubProps {
   estimates: Estimate[];
@@ -47,12 +48,12 @@ export default function InboundHub({
   onDeletePurchaseOrder,
 }: InboundHubProps) {
   // 서브 탭 및 필터 로컬 상태
-  const [inboundSubTab, setInboundSubTab] = useState<"estimates" | "pos">("estimates");
+  const [inboundSubTab, setInboundSubTab] = usePersistedState<"estimates" | "pos">("egdesk_inbound_subTab", "estimates");
   const [isPoOcrOpen, setIsPoOcrOpen] = useState(false);
-  const [inboundSearch, setInboundSearch] = useState("");
-  const [inboundStatusFilter, setInboundStatusFilter] = useState("ALL");
-  const [inboundSortKey, setInboundSortKey] = useState("created_at");
-  const [inboundSortDir, setInboundSortDir] = useState<"asc" | "desc">("desc");
+  const [inboundSearch, setInboundSearch] = usePersistedState<string>("egdesk_inbound_search", "");
+  const [inboundStatusFilter, setInboundStatusFilter] = usePersistedState<string>("egdesk_inbound_statusFilter", "ALL");
+  const [inboundSortKey, setInboundSortKey] = usePersistedState<string>("egdesk_inbound_sortKey", "created_at");
+  const [inboundSortDir, setInboundSortDir] = usePersistedState<"asc" | "desc">("egdesk_inbound_sortDir", "desc");
 
   // 다중 선택 로컬 상태
   const [selectedInboundIds, setSelectedInboundIds] = useState<Set<string>>(new Set());

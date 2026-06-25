@@ -10,6 +10,7 @@ import EstimateOcrModal from "./components/EstimateOcrModal";
 import InboundInspectModal from "./components/InboundInspectModal";
 import EstimateWriteModal from "./components/EstimateWriteModal";
 import SalesOrderOcrModal from "./components/SalesOrderOcrModal";
+import ProcessingOverlay from "../../components/ProcessingOverlay";
 
 // 신설한 격리 하위 컴포넌트 가져오기
 import EstimatesHeader from "./components/EstimatesHeader";
@@ -19,6 +20,7 @@ import OutboundHub from "./components/OutboundHub";
 export default function EstimatesDashboard() {
   const [activeTab, setActiveTab, isActiveTabRestored] = usePersistedState<"inbound" | "outbound">("egdesk_estimates_activeTab", "inbound");
   const [loading, setLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // 데이터 리스트 상태
   const [estimates, setEstimates] = useState<Estimate[]>([]);
@@ -295,6 +297,7 @@ export default function EstimatesDashboard() {
   const handleDeleteSalesOrder = async (so: SalesOrder) => {
     if (!confirm(`수주 번호 ${so.id} 건을 정말로 삭제하시겠습니까?\n이 작업은 데이터를 안전하게 소프트 삭제하며 복구하기 전까지 대장에서 제외됩니다.`)) return;
     try {
+      setIsProcessing(true);
       const res = await fetch("/api/estimates/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -305,13 +308,15 @@ export default function EstimatesDashboard() {
       });
       const data = await res.json();
       if (data.success) {
-        fetchData();
         alert("수주 등록 건이 성공적으로 삭제되었습니다.");
       } else {
         alert(data.error || "삭제에 실패했습니다.");
       }
     } catch (e) {
       alert("삭제 처리 중 에러가 발생했습니다.");
+    } finally {
+      fetchData();
+      setIsProcessing(false);
     }
   };
 
@@ -319,18 +324,21 @@ export default function EstimatesDashboard() {
   const handleDeleteEstimate = async (est: Estimate) => {
     if (!confirm(`견적 번호 ${est.id} 건을 정말로 삭제하시겠습니까?\n이 작업은 데이터를 안전하게 소프트 삭제하며 복구하기 전까지 대장에서 제외됩니다.`)) return;
     try {
+      setIsProcessing(true);
       const res = await fetch(`/api/estimates?estimateId=${est.id}`, {
         method: "DELETE",
       });
       const data = await res.json();
       if (data.success) {
-        fetchData();
         alert("견적서가 성공적으로 삭제되었습니다.");
       } else {
         alert(data.error || "삭제에 실패했습니다.");
       }
     } catch (e) {
       alert("삭제 처리 중 에러가 발생했습니다.");
+    } finally {
+      fetchData();
+      setIsProcessing(false);
     }
   };
 
@@ -338,6 +346,7 @@ export default function EstimatesDashboard() {
   const handleDeletePurchaseOrder = async (po: PurchaseOrder) => {
     if (!confirm(`발주 번호 ${po.id} 건을 정말로 삭제하시겠습니까?\n이 작업은 데이터를 안전하게 소프트 삭제하며 복구하기 전까지 대장에서 제외됩니다.`)) return;
     try {
+      setIsProcessing(true);
       const res = await fetch("/api/estimates/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -348,13 +357,15 @@ export default function EstimatesDashboard() {
       });
       const data = await res.json();
       if (data.success) {
-        fetchData();
         alert("발주 등록 건이 성공적으로 삭제되었습니다.");
       } else {
         alert(data.error || "삭제에 실패했습니다.");
       }
     } catch (e) {
       alert("삭제 처리 중 에러가 발생했습니다.");
+    } finally {
+      fetchData();
+      setIsProcessing(false);
     }
   };
 
@@ -705,6 +716,12 @@ export default function EstimatesDashboard() {
         isOpen={isSoOcrOpen}
         onClose={() => setIsSoOcrOpen(false)}
         onSuccess={fetchData}
+      />
+
+      <ProcessingOverlay
+        isOpen={isProcessing}
+        title="AI 거버넌스 삭제 검증 중"
+        message="AI 결재 시스템에서 삭제 대상 데이터의 RAG 무결성 규정 준수 여부를 검증하고 있습니다."
       />
     </div>
   );
