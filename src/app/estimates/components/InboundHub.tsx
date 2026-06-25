@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Upload, Eye, CheckCircle2, ChevronRight, Trash2 } from "lucide-react";
+import { Upload, Eye, CheckCircle2, ChevronRight, Trash2, Clock } from "lucide-react";
 import { Estimate, PurchaseOrder } from "../types";
 import InlineTagEditor from "./InlineTagEditor";
 import { parseEstimateMetadata } from "../utils";
@@ -494,13 +494,19 @@ export default function InboundHub({
                               </button>
                             );
                           })()}
-                          <button
-                            onClick={() => onDeleteEstimate(est)}
-                            className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-650 rounded-lg text-[10px] font-black border border-red-100 hover:border-red-200 transition-all inline-flex items-center gap-1 cursor-pointer"
-                            title="견적서 삭제"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" /> 삭제
-                          </button>
+                          {est.is_pending_delete ? (
+                            <span className="px-2.5 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-[10px] font-black border border-amber-100 inline-flex items-center gap-1">
+                              <Clock className="w-3.5 h-3.5 animate-pulse" /> 결재 대기 중
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => onDeleteEstimate(est)}
+                              className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-650 rounded-lg text-[10px] font-black border border-red-100 hover:border-red-200 transition-all inline-flex items-center gap-1 cursor-pointer"
+                              title="견적서 삭제"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" /> 삭제
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -683,13 +689,19 @@ export default function InboundHub({
                             >
                               실물 입고 검수
                             </button>
-                            <button
-                              onClick={() => onDeletePurchaseOrder(po)}
-                              className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-650 rounded-lg text-[10px] font-black border border-red-100 hover:border-red-200 transition-all inline-flex items-center gap-1 cursor-pointer"
-                              title="발주서 삭제"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" /> 삭제
-                            </button>
+                            {po.is_pending_delete ? (
+                              <span className="px-2.5 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-[10px] font-black border border-amber-100 inline-flex items-center gap-1">
+                                <Clock className="w-3.5 h-3.5 animate-pulse" /> 결재 대기 중
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => onDeletePurchaseOrder(po)}
+                                className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-650 rounded-lg text-[10px] font-black border border-red-100 hover:border-red-200 transition-all inline-flex items-center gap-1 cursor-pointer"
+                                title="발주서 삭제"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" /> 삭제
+                              </button>
+                            )}
                           </>
                         ) : (
                           <span className="text-xs text-emerald-500 font-bold flex items-center gap-0.5">

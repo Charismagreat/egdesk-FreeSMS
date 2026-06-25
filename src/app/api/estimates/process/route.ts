@@ -11,6 +11,18 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const action = searchParams.get('action');
 
+    // 💡 RAG 결재 대기 중인 문서 ID 세트 조회
+    const pendingDocIds = new Set<string>();
+    try {
+      const govRes = await queryTable('crm_governance_logs', { filters: { status: 'PENDING_APPROVAL' } });
+      const pendingLogs = govRes.rows || [];
+      pendingLogs.forEach((l: any) => {
+        if (l.doc_id) pendingDocIds.add(l.doc_id);
+      });
+    } catch (govErr) {
+      console.error('Failed to load pending governance logs:', govErr);
+    }
+
     if (action === 'po_list') {
       const res = await queryTable('crm_purchase_orders', {});
       const rows = (res.rows || []).filter((a: any) => !a.deleted_at);
@@ -53,6 +65,7 @@ export async function GET(req: Request) {
 
         return {
           ...po,
+          is_pending_delete: pendingDocIds.has(po.id),
           item_search_text: itemSearchText,
           document_memo_search: docMemo,
           items: estItems,
@@ -109,6 +122,7 @@ export async function GET(req: Request) {
 
         return {
           ...so,
+          is_pending_delete: pendingDocIds.has(so.id),
           item_search_text: itemSearchText,
           document_memo_search: docMemo,
           items: estItems,
@@ -357,7 +371,7 @@ export async function POST(req: Request) {
       if (!ragResult.approved) {
         return NextResponse.json({
           success: false,
-          error: `🔒 규정 위배 (결재 보류): ${ragResult.reason}`
+          error: `🔒 사내 규정상 자동 삭제가 보류되었습니다. (${ragResult.reason}) 본 건은 최고관리자의 수동 승인이 필요하도록 결재선이 자동 상신되었습니다. AI 컨트롤타워 관제 센터에서 승인 완료 후 삭제가 반영됩니다.`
         }, { status: 400 });
       }
 
@@ -409,7 +423,7 @@ export async function POST(req: Request) {
       if (!ragResult.approved) {
         return NextResponse.json({
           success: false,
-          error: `🔒 규정 위배 (결재 보류): ${ragResult.reason}`
+          error: `🔒 사내 규정상 자동 삭제가 보류되었습니다. (${ragResult.reason}) 본 건은 최고관리자의 수동 승인이 필요하도록 결재선이 자동 상신되었습니다. AI 컨트롤타워 관제 센터에서 승인 완료 후 삭제가 반영됩니다.`
         }, { status: 400 });
       }
 

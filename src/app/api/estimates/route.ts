@@ -202,6 +202,18 @@ export async function GET(req: Request) {
 
     // 만약 견적서 목록을 조회하고 싶다면 (관리자용)
     if (action === 'list') {
+      // 💡 RAG 결재 대기 중인 문서 ID 세트 조회
+      const pendingDocIds = new Set<string>();
+      try {
+        const govRes = await queryTable('crm_governance_logs', { filters: { status: 'PENDING_APPROVAL' } });
+        const pendingLogs = govRes.rows || [];
+        pendingLogs.forEach((l: any) => {
+          if (l.doc_id) pendingDocIds.add(l.doc_id);
+        });
+      } catch (govErr) {
+        console.error('Failed to load pending governance logs:', govErr);
+      }
+
       // 1. 견적서 마스터 목록 조회 (deleted_at IS NULL은 queryTable 내부에서 자체 처리됨)
       const estRes = await queryTable('crm_estimates', {
         orderBy: 'id',
@@ -251,6 +263,7 @@ export async function GET(req: Request) {
 
         return {
           ...e,
+          is_pending_delete: pendingDocIds.has(e.id),
           first_item_name: estItems.length > 0 ? estItems[0].product_name : null,
           item_count: estItems.length,
           item_search_text: itemSearchText,
@@ -877,7 +890,7 @@ export async function DELETE(req: Request) {
     if (!ragResult.approved) {
       return NextResponse.json({
         success: false,
-        error: `🔒 규정 위배 (결재 보류): ${ragResult.reason}`
+        error: `🔒 사내 규정상 자동 삭제가 보류되었습니다. (${ragResult.reason}) 본 건은 최고관리자의 수동 승인이 필요하도록 결재선이 자동 상신되었습니다. AI 컨트롤타워 관제 센터에서 승인 완료 후 삭제가 반영됩니다.`
       }, { status: 400 });
     }
 

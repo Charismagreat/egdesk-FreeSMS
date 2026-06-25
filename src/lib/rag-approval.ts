@@ -7,7 +7,8 @@ import {
   listBusinessIdentitySnapshots, 
   listKnowledgeDocuments, 
   getKnowledgeDocument,
-  insertRows
+  insertRows,
+  updateRows
 } from '../../egdesk-helpers';
 import { fetchGeminiWithFallback } from './gemini-fallback';
 import { cookies } from 'next/headers';
@@ -50,9 +51,30 @@ async function saveGovernanceLog(
       docTitle = `문서 ID: ${docId}`;
     }
 
-    const logId = `${docType}_del_log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
 
+    // 중복 방지 가드: 동일한 문서의 'PENDING_APPROVAL' 상태 로그가 존재한다면 업데이트만 수행
+    if (status === 'PENDING_APPROVAL') {
+      const existRes = await queryTable('crm_governance_logs', {
+        filters: { doc_type: docType, doc_id: docId, status: 'PENDING_APPROVAL' }
+      });
+      const existRows = existRes.rows || [];
+      if (existRows.length > 0) {
+        const existLog = existRows[0];
+        const updates = {
+          created_at: nowStr,
+          updated_at: nowStr,
+          reason: reason,
+          operator: operator,
+          updated_by: operator
+        };
+        await updateRows('crm_governance_logs', updates, { filters: { id: existLog.id } });
+        console.log(`[Governance Log] Updated existing PENDING_APPROVAL log for ${docType} ID: ${docId}`);
+        return;
+      }
+    }
+
+    const logId = `${docType}_del_log_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const logRow = {
       id: logId,
       doc_type: docType,

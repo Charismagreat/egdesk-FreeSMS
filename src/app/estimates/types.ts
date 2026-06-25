@@ -14,6 +14,7 @@ export interface Estimate {
   tags?: string;
   sales_order_number?: string;
   purchase_order_number?: string;
+  is_pending_delete?: boolean;
 }
 
 export interface PurchaseOrder {
@@ -25,6 +26,7 @@ export interface PurchaseOrder {
   total_amount: number;
   created_at: string;
   completed_at?: string;
+  is_pending_delete?: boolean;
 }
 
 export interface SalesOrder {
@@ -37,6 +39,7 @@ export interface SalesOrder {
   created_at: string;
   client_order_no?: string;
   delivery_date?: string;
+  is_pending_delete?: boolean;
 }
 
 export interface Partner {
