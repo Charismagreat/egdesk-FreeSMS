@@ -74,7 +74,6 @@ function WebViewContent() {
   const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
   const [columns, setColumns] = useState<string[]>([]);
   const [isColSelectorOpen, setIsColSelectorOpen] = useState(false);
-  const [activeImageUrl, setActiveImageUrl] = useState<string | null>(null);
   const [activeMemo, setActiveMemo] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -775,13 +774,15 @@ function WebViewContent() {
                             isDarkMode ? "text-slate-350" : "text-slate-700"
                           } font-medium whitespace-normal break-all max-w-[240px]`}>
                             {isAttachedFile ? (
-                              <button
-                                onClick={() => setActiveImageUrl(strVal)}
+                              <a
+                                href={strVal}
+                                target="_blank"
+                                rel="noreferrer"
                                 className="px-2.5 py-1 bg-indigo-500/10 text-indigo-650 hover:bg-indigo-500/20 rounded-lg text-[10px] font-black border border-indigo-500/20 transition-all inline-flex items-center gap-1 cursor-pointer"
-                                title="원본 파일 전체보기"
+                                title="새 탭에서 원본 파일 열기"
                               >
                                 🔗 원본보기
-                              </button>
+                              </a>
                             ) : strVal === "-" ? (
                               <span className={isDarkMode ? "text-slate-700" : "text-slate-400"}>-</span>
                             ) : headerName === "상세비고" ? (
@@ -877,42 +878,7 @@ function WebViewContent() {
         )}
       </div>
 
-      {/* 🖼️ 프리미엄 Glassmorphism 원본 파일 이미지 뷰어 모달 */}
-      {activeImageUrl && (
-        <div 
-          onClick={() => setActiveImageUrl(null)}
-          className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in cursor-zoom-out"
-        >
-          <div 
-            onClick={(e) => e.stopPropagation()}
-            className="relative max-w-4xl w-full bg-slate-900/40 border border-white/10 p-2.5 rounded-3xl shadow-2xl flex flex-col items-center cursor-default"
-          >
-            {/* 상단 닫기 단추 */}
-            <button
-              onClick={() => setActiveImageUrl(null)}
-              className="absolute top-4 right-4 z-10 w-9 h-9 flex items-center justify-center bg-black/60 border border-white/10 hover:bg-black/80 rounded-full text-white cursor-pointer transition-all hover:scale-105"
-            >
-              <X size={18} />
-            </button>
-            
-            <div className="w-full max-h-[82vh] overflow-auto custom-scrollbar flex justify-center items-center rounded-2xl bg-black/20 p-2">
-              {activeImageUrl.startsWith("data:application/pdf") ? (
-                <iframe 
-                  src={activeImageUrl} 
-                  className="w-full h-[75vh] rounded-xl border-none"
-                  title="PDF Document Viewer"
-                />
-              ) : (
-                <img
-                  src={activeImageUrl}
-                  alt="수발주 원본 증빙문서 파일"
-                  className="max-w-full h-auto object-contain rounded-xl shadow-lg border border-white/5"
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* 📝 상세비고 팝업 모달 */}
       {activeMemo && (
