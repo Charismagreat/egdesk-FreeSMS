@@ -6,6 +6,7 @@ import {
   queryTable, 
   insertRows, 
   updateRows, 
+  deleteRows,
   executeSQL 
 } from '../../../../egdesk-helpers';
 
@@ -238,6 +239,23 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: true,
         message: '삭제되었던 문서가 정상적으로 복원되었습니다.'
+      });
+    }
+
+    if (action === 'clear_logs') {
+      // 실시간 AI 결재 심사 이력 전체 초기화 (데이터 비우기)
+      const res = await queryTable('crm_governance_logs', { limit: 10000 });
+      const rows = res.rows || [];
+      
+      if (rows.length > 0) {
+        // deleteRows 헬퍼를 통해 행 식별 ID 배열로 데이터 삭제를 수행
+        const ids = rows.map((r: any) => Number(r.id) || r.id);
+        await deleteRows('crm_governance_logs', { ids });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: '실시간 AI 결재 심사 이력이 성공적으로 초기화되었습니다.'
       });
     }
 

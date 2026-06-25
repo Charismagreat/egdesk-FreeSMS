@@ -195,6 +195,28 @@ export default function AIControlTowerPage() {
     }
   };
 
+  // 실시간 AI 결재 심사 이력 초기화
+  const handleClearLogs = async () => {
+    if (!confirm("🧹 정말 모든 실시간 AI 결재 심사 이력을 초기화하시겠습니까?\n이 작업은 crm_governance_logs 테이블의 데이터를 전부 비워줍니다.")) {
+      return;
+    }
+    try {
+      const res = await fetch("/api/governance?action=clear_logs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("🧹 심사 이력이 초기화되었습니다.");
+        loadGovernanceData();
+      } else {
+        alert(`초기화 실패: ${data.error}`);
+      }
+    } catch (err: any) {
+      alert(`서버 통신 오류: ${err.message}`);
+    }
+  };
+
   // 5. 초기 마운트 및 데이터 조회
   useEffect(() => {
     loadCapabilities();
@@ -434,7 +456,15 @@ export default function AIControlTowerPage() {
             이지봇 자율 액션 에이전트의 작동 권한을 통제하고, 모든 비즈니스 대행 이력을 정밀하게 모니터링합니다.
           </p>
         </div>
-        <div>
+        <div className="flex items-center gap-2">
+          {activeTab === "governance" && (
+            <button
+              onClick={handleClearLogs}
+              className="flex items-center gap-1.5 px-4 py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-sm active:scale-95 border-0"
+            >
+              <span>🧹 심사 이력 초기화</span>
+            </button>
+          )}
           <button 
             onClick={() => {
               if (activeTab === "logs") loadAuditLogs();
