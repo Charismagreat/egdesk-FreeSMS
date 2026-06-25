@@ -58,15 +58,23 @@ export async function GET(request: Request) {
     }
 
     if (action === 'deleted_items') {
-      // 소프트 삭제된 견적서, 발주서, 수주서 조회 (deleted_at IS NOT NULL)
-      // executeSQL을 사용하여 소프트 삭제된 항목만 효율적으로 조회합니다.
-      const estRes = await executeSQL('SELECT * FROM crm_estimates WHERE deleted_at IS NOT NULL');
-      const poRes = await executeSQL('SELECT * FROM crm_purchase_orders WHERE deleted_at IS NOT NULL');
-      const soRes = await executeSQL('SELECT * FROM crm_sales_orders WHERE deleted_at IS NOT NULL');
+      // 소프트 삭제된 견적서, 발주서, 수주서 조회
+      // 'DELETE' 금지 키워드 오감지(deleted_at 내의 delete 문자열)를 피하기 위해, queryTable로 전체를 받아와 메모리상에서 필터링합니다.
+      const estRes = await queryTable('crm_estimates', { limit: 10000 });
+      const poRes = await queryTable('crm_purchase_orders', { limit: 10000 });
+      const soRes = await queryTable('crm_sales_orders', { limit: 10000 });
 
-      const estimates = (estRes.rows || []).map((item: any) => ({ ...item, doc_type: 'estimate' }));
-      const purchaseOrders = (poRes.rows || []).map((item: any) => ({ ...item, doc_type: 'purchase_order' }));
-      const salesOrders = (soRes.rows || []).map((item: any) => ({ ...item, doc_type: 'sales_order' }));
+      const estimates = (estRes.rows || [])
+        .filter((item: any) => item.deleted_at !== null && item.deleted_at !== undefined && item.deleted_at !== '')
+        .map((item: any) => ({ ...item, doc_type: 'estimate' }));
+
+      const purchaseOrders = (poRes.rows || [])
+        .filter((item: any) => item.deleted_at !== null && item.deleted_at !== undefined && item.deleted_at !== '')
+        .map((item: any) => ({ ...item, doc_type: 'purchase_order' }));
+
+      const salesOrders = (soRes.rows || [])
+        .filter((item: any) => item.deleted_at !== null && item.deleted_at !== undefined && item.deleted_at !== '')
+        .map((item: any) => ({ ...item, doc_type: 'sales_order' }));
 
       // 통합 후 삭제일시(deleted_at) 기준 최근순 정렬
       const allDeleted = [...estimates, ...purchaseOrders, ...salesOrders];
