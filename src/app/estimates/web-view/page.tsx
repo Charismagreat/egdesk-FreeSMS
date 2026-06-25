@@ -75,43 +75,83 @@ function WebViewContent() {
   const [columns, setColumns] = useState<string[]>([]);
   const [isColSelectorOpen, setIsColSelectorOpen] = useState(false);
   const [activeMemo, setActiveMemo] = useState<string | null>(null);
+  const [activeFileUrl, setActiveFileUrl] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
   const openFileInNewTab = (fileUrl: string) => {
     if (!fileUrl) return;
+    setActiveFileUrl(fileUrl);
+  };
+
+  // 🖨️ 인쇄 기능 구현 (이미지/PDF 대응)
+  const handlePrint = () => {
+    if (!activeFileUrl) return;
+    const isPdf = activeFileUrl.startsWith("data:application/pdf") || activeFileUrl.toLowerCase().endsWith(".pdf");
     
-    if (fileUrl.startsWith("data:")) {
-      const win = window.open();
-      if (win) {
-        const title = "수발주 원본 증빙문서 파일";
-        const isPdf = fileUrl.startsWith("data:application/pdf");
-        win.document.write(`
-          <html>
-            <head>
-              <title>${title}</title>
-              <style>
-                body { margin: 0; background: #0f172a; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: auto; font-family: sans-serif; }
-                .container { max-width: 100%; max-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
-                img { max-width: 100%; max-height: 90vh; object-fit: contain; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.5); border-radius: 12px; }
-                iframe { width: 100vw; height: 100vh; border: none; }
-              </style>
-            </head>
-            <body>
-              \${isPdf 
-                ? \`<iframe src="\${fileUrl}"></iframe>\` 
-                : \`<div class="container"><img src="\${fileUrl}" alt="\${title}" /></div>\`
-              }
-            </body>
-          </html>
-        `);
-        win.document.close();
-      } else {
-        alert("팝업 차단이 활성화되어 있을 수 있습니다. 팝업 차단을 해제해 주세요.");
+    if (isPdf) {
+      const iframe = document.getElementById("print-iframe") as HTMLIFrameElement;
+      if (iframe && iframe.contentWindow) {
+        try {
+          iframe.contentWindow.focus();
+          iframe.contentWindow.print();
+          return;
+        } catch (e) {
+          console.error("iframe direct print failed, falling back to new window print", e);
+        }
       }
-    } else {
-      window.open(fileUrl, "_blank");
+    }
+
+    // 이미지이거나 iframe 인쇄 실패 시 새 창을 통해 인쇄 처리
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>인쇄하기 - EGDesk</title>
+            <style>
+              body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: white; }
+              img { max-width: 100%; max-height: 100vh; object-fit: contain; }
+              iframe { width: 100vw; height: 100vh; border: none; }
+            </style>
+          </head>
+          <body>
+            ${isPdf 
+              ? `<iframe src="${activeFileUrl}"></iframe>` 
+              : `<img src="${activeFileUrl}" onload="window.print();window.close();" />`
+            }
+            ${isPdf ? `<script>window.onload = function() { window.print(); window.close(); }</script>` : ""}
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
     }
   };
+
+  // 🔗 새 탭에서 열기 (Base64 data url 브라우저 차단 우회)
+  const handleOpenNewTab = () => {
+    if (!activeFileUrl) return;
+    if (activeFileUrl.startsWith("data:")) {
+      try {
+        const parts = activeFileUrl.split(",");
+        const mime = parts[0].match(/:(.*?);/)?.[1] || "";
+        const bstr = atob(parts[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        const blob = new Blob([u8arr], { type: mime });
+        const blobUrl = URL.createObjectURL(blob);
+        window.open(blobUrl, "_blank");
+      } catch (e) {
+        console.error("Blob url creation failed, falling back to default open", e);
+        window.open(activeFileUrl, "_blank");
+      }
+    } else {
+      window.open(activeFileUrl, "_blank");
+    }
+  };
+
 
   useEffect(() => {
     setMounted(true);
@@ -965,6 +1005,70 @@ function WebViewContent() {
           </div>
         </div>
       )}
+
+      {/* 📄 원본 증빙문서 전체화면 오버레이 모달 */}
+      {activeFileUrl && (() => {
+        const isPdf = activeFileUrl.startsWith("data:application/pdf") || activeFileUrl.toLowerCase().endsWith(".pdf");
+        return (
+          <div className="fixed inset-0 bg-slate-950/95 z-[100] flex flex-col backdrop-blur-sm animate-fade-in">
+            {/* 상단 럭셔리 컨트롤 바 */}
+            <div className="bg-slate-900/95 border-b border-white/10 px-6 py-4 flex items-center justify-between text-white shadow-2xl">
+              <div className="flex items-center gap-2">
+                <span className="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[9px] font-black tracking-widest px-2.5 py-0.5 rounded-full uppercase">
+                  Document Viewer
+                </span>
+                <h3 className="text-xs font-black tracking-wide">📄 수발주 원본 증빙문서 뷰어</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                {/* 🖨️ 인쇄하기 버튼 */}
+                <button
+                  onClick={handlePrint}
+                  className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black cursor-pointer transition-all flex items-center gap-1 shadow-md border-none"
+                  title="문서 인쇄하기"
+                >
+                  <span>🖨️ 인쇄하기</span>
+                </button>
+
+                {/* 🌐 새 탭에서 열기 버튼 */}
+                <button
+                  onClick={handleOpenNewTab}
+                  className="px-3.5 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-slate-200 rounded-xl text-[10px] font-black cursor-pointer transition-all flex items-center gap-1 shadow-md"
+                  title="브라우저 새 탭에서 열기 (차단 우회 적용)"
+                >
+                  <span>🌐 새 탭에서 열기</span>
+                </button>
+
+                {/* ❌ 닫기 버튼 */}
+                <button
+                  onClick={() => setActiveFileUrl(null)}
+                  className="w-9 h-9 flex items-center justify-center bg-slate-800 border border-white/5 hover:bg-slate-700 text-slate-300 rounded-full cursor-pointer transition-all hover:scale-105"
+                  title="뷰어 닫기"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* 원본 파일 렌더링 구역 (잘림 방지 및 최대화 레이아웃) */}
+            <div className="flex-1 flex justify-center items-center p-6 overflow-auto bg-slate-950">
+              {isPdf ? (
+                <iframe
+                  id="print-iframe"
+                  src={activeFileUrl}
+                  className="w-full h-full max-w-5xl max-h-[82vh] rounded-2xl border border-white/10 bg-white shadow-2xl"
+                  title="PDF 원본 뷰어"
+                />
+              ) : (
+                <img
+                  src={activeFileUrl}
+                  alt="원본 증빙 이미지"
+                  className="max-h-[82vh] max-w-full object-contain rounded-2xl border border-white/10 shadow-2xl bg-slate-900/50"
+                />
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );
