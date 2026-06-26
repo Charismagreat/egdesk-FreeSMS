@@ -30,10 +30,10 @@ export async function POST(req: Request) {
     const modelRes = await queryTable('system_settings', { filters: { key: 'google_ai_model' } });
     const selectedModel = modelRes.rows && modelRes.rows.length > 0 && modelRes.rows[0].value
       ? modelRes.rows[0].value
-      : 'gemini-2.5-flash'; // 법률 분석용 기본 모델 적용
+      : 'gemini-2.5-flash';
 
-    // 본사 프로필 로드 (기본값 차민수/(주)쿠스/731-81-02023)
-    let myCompanyProfile = { companyName: '(주)쿠스', representative: '차민수', businessNumber: '731-81-02023' };
+    // 본사 프로필 로드 (기본값 주식회사 원컨덕터트레이딩/지상현/2428700357)
+    let myCompanyProfile = { companyName: '주식회사 원컨덕터트레이딩', representative: '지상현', businessNumber: '2428700357' };
     try {
       const myCompanySetting = await queryTable('system_settings', { filters: { key: 'my_company_profile' } });
       if (myCompanySetting.rows && myCompanySetting.rows.length > 0) {
@@ -64,7 +64,7 @@ export async function POST(req: Request) {
 
 제공된 문서 및 계약서에서 '우리 회사(${myCompanyProfile.companyName})'를 사건의 당사자(원고/피고, 또는 갑/을)로 설정하고, 철저히 우리 회사의 이익과 방어적 관점에서 불리한 독소 조항, 계약 상의 불이익, 대금 지급 조건, 법적 리스크, 그리고 행정적 대응 마감 기한(예: 답변서 제출 기한 YYYY-MM-DD 등)을 집중 식별하여 개인화된 가이드라인을 제공해 주세요.
 
-반드시 다음 구조화된 레이아웃을 엄격히 준수하여 한글로 마크다운 리포트를 작성해 주세요:
+ must 반드시 다음 구조화된 레이아웃을 엄격히 준수하여 한글로 마크다운 리포트를 작성해 주세요:
 
 ---
 # ⚖️ 소송 문서 AI 정밀 분석 보고서

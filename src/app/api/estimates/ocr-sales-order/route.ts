@@ -218,126 +218,164 @@ export async function POST(req: Request) {
       console.error('RAG 지식 마이닝 실패:', e);
     }
 
-    const prompt = `
+    // 본사 프로필 로드 (기본값 주식회사 원컨덕터트레이딩/2428700357)
+    let myCompanyProfile = { companyName: '주식회사 원컨덕터트레이딩', businessNumber: '2428700357' };
+    try {
+      const myCompanySetting = await queryTable('system_settings', { filters: { key: 'my_company_profile' } });
+      if (myCompanySetting && myCompanySetting.rows && myCompanySetting.rows.length > 0) {
+        const parsed = JSON.parse(myCompanySetting.rows[0].value);
+        if (parsed.companyName) myCompanyProfile.companyName = parsed.companyName;
+        if (parsed.businessNumber) myCompanyProfile.businessNumber = parsed.businessNumber;
+      }
+    } catch (e) {
+      console.error('본사 프로필 조회 실패:', e);
+    }
+
+    // 1차 호출: Pass 1 (Vision OCR - 리스트형 자연어 텍스트 추출)
+    const promptPass1 = `
+제시된 발주서(수주서) 이미지에서 다음의 정보를 누락 없이 꼼꼼하게 추출하여 마크다운 리포트(Key-Value 목록) 형태로 정확히 작성해 주세요. 
+단, 문서 내에 명시되지 않은 항목은 명확하게 '문서 내에 기재되어 있지 않음' 또는 '미식별' 등으로 표기해 주십시오.
+
+### 📌 추출 대상 정보 목록:
+1. 발주번호
+2. 발주일
+3. 바이어 회사명
+4. 바이어 회사 대표명
+5. 바이어 회사 사업자등록번호
+6. 바이어회사 주소
+7. 바이어회사 전화번호
+8. 바이어회사 팩스번호
+9. 바이어 회사 담당자명
+10. 바이어회사 담당자 연락처
+11. 공급처 회사명
+12. 공급처 회사 대표명
+13. 공급처 회사 사업자등록번호
+14. 공급처회사 주소
+15. 공급처회사 전화번호
+16. 공급처회사 팩스번호
+17. 공급처 회사 담당자명
+18. 공급처회사 담당자 연락처
+19. 총 수주액
+20. 전체납기일
+21. 품목 리스트 (각 품목별 순번, 품목코드, 품목명, 규격, 수량, 단가, 금액, 품목별납기일을 테이블 또는 목록 형태로 명확히 기술)
+22. 납품장소
+23. 상세비고 (위 사항 이외의 모든 주의사항, 특기사항, 지불조건 등 텍스트 전체를 원본 문구와 줄바꿈 그대로 빠짐없이 전사)
+24. 결재선 (작성/검토/승인 등 서명 또는 도장 칸에 기재된 성명 목록)
+`;
+
+    
+const geminiUrlPass1 = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
+
+    const responsePass1 = await fetchGeminiWithFallback(geminiUrlPass1, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { text: promptPass1 },
+              {
+                inlineData: {
+                  mimeType: mimeType,
+                  data: base64Image
+                }
+              }
+            ]
+          }
+        ]
+      })
+    });
+
+    if (!responsePass1.ok) {
+      throw new Error(`Gemini OCR Pass 1 API 통신 실패: HTTP ${responsePass1.status}`);
+    }
+
+    const aiDataPass1 = await responsePass1.json();
+    const responseTextPass1 = aiDataPass1.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    
+    if (!responseTextPass1) {
+      throw new Error('1차 AI 판독 결과 텍스트가 비어 있습니다.');
+    }
+
+    // 2차 호출: Pass 2 (NLP Structuring + RAG 규칙 연동 - 최종 JSON 빌드)
+    const promptPass2 = `
 당신은 B2B 전문 AI 수발주 오퍼레이터입니다.
-다음 이미지는 바이어가 보내온 발주서(수주서) 문서입니다.
-이미지 내용을 꼼꼼하게 판독하여 아래 항목들을 정확히 추출한 뒤 JSON 형식으로만 응답해 주세요. (Markdown 코드 블록 없이 순수 JSON만 반환)
+다음은 발주서 이미지에서 1차 판독된 명세 리포트 텍스트입니다:
+---
+${responseTextPass1}
+---
 
-### 📌 데이터 추출 및 정제 지침:
-1. **품목코드 (itemCode)**:
-   - 발주서 표에서 품목코드, 자재코드, 도번, 형번, 모델번호(Model No.), 파트번호(Part No.) 등이 기재되어 있는 열을 찾아 그 값을 추출하십시오.
-   - 아예 존재하지 않는 경우에만 빈 문자열("")로 둡니다.
+### 📌 최종 정제 및 B2B 비즈니스 룰 적용 지침:
+1. **자사 매칭 및 상대방 바이어(buyer) / 공급사(supplier) 정보 추출**:
+   - 본사 정보: 회사명 "${myCompanyProfile.companyName}", 사업자번호 "${myCompanyProfile.businessNumber}".
+   - 1차 판독된 명세 리포트에서 본사 정보와 일치(또는 유사)하는 쪽이 자사(공급받는자 또는 공급자)입니다.
+   - 자사가 공급사(수주처)일 경우, 상대 거래처인 바이어(buyer) 정보를 최종 'buyer' 객체에 담으십시오.
+   - 자사가 구매사(바이어)일 경우, 상대 거래처인 공급사(supplier) 정보를 최종 'buyer' 객체에 담으십시오. (본 API는 수주등록용이므로 상대방 정보를 최종 'buyer' 객체에 매핑합니다)
+   - 둘 다 매치되지 않으면, 발주처(buyer_raw)를 'buyer' 객체에 매핑하고, 공급처(supplier_raw)를 'supplier' 객체에 매핑하십시오.
+   - **[거래처 상호명 강제 교정 지침]**:
+     * 본 발주서의 실 상호명은 바이어가 **'㈜원컨덕터'** (또는 '(주)원컨덕터'), 공급처가 **'원헨더트레이딩'** 입니다.
+     * 한글 인쇄 뭉침 등으로 인해 1차 판독에서 '원앤닥터', '원젠덕터', '원헨덕터' 등으로 오독된 명칭들이 식별된다면, 최종 'buyer.company_name' 및 관련 상호명은 반드시 **'㈜원컨덕터'**로 강제 교정하여 출력하십시오.
+     * 또한 1차 판독의 'supplier_raw.company_name'이 '원앤닥터트레이딩'이나 '원헨더트레이딩' 등으로 읽혔다면 이는 자사(공급자)에 해당하므로 최종 'supplier' 객체에 담으십시오.
+   - **[담당자 교차 오인 방지]**: 각 업체의 '담당자' 정보를 서로 덮어쓰거나 오인 대입해서는 안 됩니다. 각 소속에 맞게 분리 매핑하십시오. 연락처 없이 이름만 기재되어 있더라도 절대 누락하지 마십시오.
+   - **[일반 전화번호와 팩스 번호 분리]**: 전화번호 필드에 팩스(FAX) 번호는 절대 추출하지 마십시오. 접두사에 "FAX", "팩스", "F"가 붙은 번호는 철저히 배제하고, 대표번호나 핸드폰 번호만 선택하여 매핑하십시오.
+    - **[설명조 괄호 문구 필터링]**: 1차 판독 리포트 텍스트 내에 위치나 상태를 설명하는 구문(예: "(지상현 정보 아래)", "(체크됨)", "(체크 안됨)", "미식별" 등)이 포함되어 있다면, 최종 JSON에 배정할 때(특히 대표자명, 비고/memo 필드 등) 이를 깨끗이 필터링하여 순수 데이터(예: "금강컨트롤", "지상현")만 추출하십시오. 설명용 안내 문구를 데이터에 그대로 끼워 넣지 마십시오.
 
-2. **품명 (itemName)**:
-   - 발주서 상에서 품목의 명칭이나 이름을 추출하십시오.
-   - **[중요 - 표 헤더 레이블 혼입 금지]**: 품명을 추출하거나 구성할 때, 문서의 표 헤더 명칭(예: '품목코드', '코드', '도번', '품명', '품목명', 'No', 'Model' 등) 자체가 품명 텍스트에 접두사나 접미사로 섞여 들어가지 않도록 철저히 배제해 주십시오. (예: '품목코드 049/X560014' 형태로 추출하지 말고, '품목코드' 문구를 제거한 '049/X560014' 형태로 추출하십시오.)
-   - 만약 품명(itemName)과 코드(예: SUS-304-T10, A100-B200 등)가 한 셀에 병합되어 적혀 있다면, 규칙성 있는 모델코드 부분을 분리하여 itemCode에 기재하고, 명칭은 itemName으로 분리하십시오.
-   - 품명 컬럼이 아예 존재하지 않아 코드값만 기재된 경우에는 '품목코드' 등의 헤더 텍스트 없이 해당 품목코드의 텍스트 자체(예: "049/X560014")만을 itemName에 기재하십시오.
+2. **날짜 정규화 및 추론**:
+   - 문서의 작성일(orderDate)과 품목별 납기일(deliveryDate)을 반드시 표준 ISO 형식인 "YYYY-MM-DD" 형태로 출력하십시오.
+   - **[지능형 연도 추론 지침]**:
+     - 연도가 생략되어 월/일만 표기된 경우(예: '11/05'), 문서 작성일의 연도를 기준으로 연도를 매핑합니다.
+     - 작성일(예: 2025-10-29) 기준으로 납기가 당해 연도 내에 도래하면 당해 연도(2025-11-05)를 그대로 부여하고, 작성일보다 납기 월이 이전 달이어서 해를 넘어가야 하는 경우에만 연도에 +1년을 하십시오. (예: 작성일 2025-10-29, 납기일 01/05 -> 2026-01-05)
+     - 당해 연도 내에 있는 납기(예: 10월 작성, 11월 납기)를 임의로 다음 해로 넘겨 판독(예: 2026-11-05)하지 마십시오.
 
-3. **규격 (spec)**:
-   - 품목의 사이즈, 규격, 사양, 두께, 재질, 용량, 외경(예: 150A, 10T, 300*400*20, SUS304 등)이 명시된 텍스트를 정확하게 추출하십시오.
-   - 품명(itemName)이나 품목코드에 규격 정보가 섞여 있는 경우가 많습니다. (예: "아세탈 판재 10T 500*500" -> 품명: "아세탈 판재", 규격: "10T 500*500"으로 분리하여 추출)
-
-4. **납기일 (deliveryDate) 및 수주일 (orderDate)**:
-   - 문서 상단부나 비고란 혹은 품목별 행(row)에 표기된 날짜를 추출하십시오.
-   - 행별 납기일이 공란이거나 명시되지 않은 경우, 문서 전체의 기준 납기일(마스터 납기일, 예: "납기: 2026.06.30", "납기일자: 2026/06/30")을 모든 품목의 deliveryDate에 복사하여 채워 넣으십시오.
-   - 날짜는 "26년 6월 30일", "26.06.30", "2026/06/30" 등 다양한 표기 형식을 감지하여 반드시 표준 ISO 형식인 "YYYY-MM-DD" 형태로 정규화하여 출력하십시오. (예: 2026-06-30)
-   - **[중요 - 필기체 획 판독 주의 지침]**:
-     * 이미지 표에 손글씨(필기체)로 작성된 날짜(예: '11/05')에서 슬래시(/) 앞뒤 숫자를 판독할 때, 획의 기울기와 형태를 고도로 세밀히 분석하여 '11'을 '01'로, 또는 '01'을 '11'로 오독하지 않도록 철저히 주의하십시오. 특히 획이 두 번 그어진 11월('11/05')은 절대 1월('01/05')로 오독해서는 안 됩니다.
-   - **[중요 - 지능형 연도 추론 지침]**:
-     * 연도 표기가 생략되어 월/일만 표기된 경우(예: '11/05'), 문서 작성일(수주일, orderDate)의 연도를 기준으로 연도를 매핑해야 합니다.
-     * 문서 작성일(예: 2025-10-29) 기준으로 납기가 당해 연도 내에 도래하는 경우(예: 11월 5일은 작성일인 10월 29일과 비교해 당해 연도 내인 11월이므로), 연도를 가산하지 말고 당해 연도(2025-11-05)를 그대로 부여하십시오.
-     * 작성일보다 납기 월이 이전 달(예: 작성일은 10월인데 납기가 1월인 경우)이어서 해를 넘어가야 하는 경우에만 연도에 +1년을 하십시오. (예: 작성일 2025-10-29, 납기일 01/05 -> 2026-01-05)
-     * 당해 연도 내에 있는 납기(예: 10월 작성, 11월 납기)를 임의로 다음 해로 넘겨 판독(예: 2026-11-05)하지 마십시오.
-
-5. **수량/단가/금액 (quantity, unitPrice, amount)**:
-   - 쉼표(,), 원화 기호(₩), 통화 기호 등은 모두 제외하고 순수 숫자 정수형태로만 추출하십시오.
-
-6. **유효품목코드 (validItemCode)**:
+3. **품목 및 수량/단가 정제 (중요)**:
+   - 각 품목의 수량(quantity), 단가(unitPrice), 금액(amount)은 숫자로 변환 가능한 정수형태로만 추출(원화 기호, 쉼표 등 제외)하십시오.
+   - **[지능형 단가/금액 정합성 수식 검증]**: 발주서 내에 기재된 품목의 단가(unitPrice)와 수량(quantity)을 최우선 기준으로 삼습니다. 발주서의 금액/합계 금액란이 비어 있거나 오독(예: 단가 30000, 수량 8인데 총액이 30000 또는 다른 값으로 꼬여 있는 경우)이 감지되면, **반드시 금액(amount) = 수량(quantity) * 단가(unitPrice) 로 직접 계산하여 보정**하십시오. 단가를 임의로 쪼개어 단가 3750, 금액 30000으로 변조하지 마십시오. 단가 30000과 수량 8이 우선하며, 이 경우 금액은 반드시 240000이 되어야 합니다.
+   - **[품명 헤더 혼입 금지]**: 품명 필드에 표 헤더 텍스트(예: '품명', '품목코드' 등)가 섞여 들어가지 않게 배제하십시오.
+   - **[독립 품목 중복 방지 및 유령 품목 필터링 지침]**:
+     * 표에서 한 행(row)은 하나의 품목을 의미합니다. 순번(No)이 1개만 매겨져 있다면 1개의 품목으로만 추출하십시오.
+     * 품명 옆 열에 적힌 명칭(예: 'BAND8')은 독립된 품목이 아닙니다. 해당 품목의 규격('spec') 정보입니다.
+     * 예컨대, 품명은 'VI_JOINT'이고 규격은 'BAND8' 및 'S035/0.20/30B'를 조합한 'BAND8 (S035/0.20/30B)'로 매핑하여 단 하나의 품목만 추출해야 합니다.
+     * 수량이나 단가가 기재되지 않았거나 0인 유령 품목(예: 수량 0, 단가 0인 품목)을 절대 독립된 품목으로 생성하지 마십시오.
+   - **[유효품목코드 (validItemCode)]**: 
 ${rlsRulesText ? `
    - 다음은 승인된 사내 지식에 근거한 품목코드 변환 규정입니다. 아래 규칙을 엄격히 적용하여 유효품목코드를 판단 및 추출해 주십시오.
 ${rlsRulesText}
    - 규칙에 부합하는 코드가 식별될 경우 'validItemCode' 필드에 기재하고, 발견되지 않으면 빈 문자열("")로 기재하십시오.
 ` : `
-   - 각 품목의 품명(itemName), 규격(spec), 비고란 등을 탐색하여 "X로 시작하고 뒤에 6자리 숫자로 구성된 패턴" (예: X123456)을 지닌 사내 실제 품목코드가 발견될 경우, 이를 validItemCode 필드에 기재해 주십시오. 발견되지 않으면 빈 문자열("")을 반환하십시오.
+   - 각 품목의 품명, 규격, 비고 등을 탐색하여 "X로 시작하고 뒤에 6자리 숫자로 구성된 패턴" (예: X123456)을 지닌 사내 실제 품목코드가 발견될 경우, 이를 validItemCode 필드에 기재해 주십시오. 발견되지 않으면 빈 문자열("")을 반환하십시오.
 `}
 
-6. **주체 판별 용어 대응 및 담당자 구획 독립 추출 (supplier / buyer)**:
-   - 문서상에서 공급인 측을 지칭하는 다양한 용어("공급인", "공급자", "공급사", "판매자", "매도인", "수탁자" 등) 및 **"수주처"**(주문을 받아 납품하는 자)는 모두 'supplier' 객체에 담으십시오. (예: 표에 '수주처'로 기재된 상호는 supplier에 매핑되어야 합니다)
-   - 문서상에서 공급받는자 측을 지칭하는 다양한 용어("공급받는자", "발주사", "발주처", "바이어", "구매처", "매수인", "위탁자" 등) 및 **"발주처"**(주문을 넣어 발주하는 자, 바이어)는 모두 'buyer' 객체에 담으십시오. (예: 표에 '발주처'로 기재된 상호는 buyer에 매핑되어야 합니다)
-   - **이 둘(수주처/발주처)을 절대 혼동하여 거꾸로 대입하지 마십시오.**
-   - **담당자 텍스트 단독 기재 대응**: 각 업체의 '담당자' 또는 '담당' 열이나 영역에 이름만 단독으로 기재되어 있고 연락처가 기재되어 있지 않더라도(예: "홍길동" 단독 기재), 절대 누락하지 말고 각 소속 업체의 'manager_name' 필드에 정확히 담아 반환하십시오.
-   - **공급인/구매인 담당자 교차 오인 방지**: 눈에 띄는 특정 업체의 담당자 정보(예: 연락처가 있는 "이영희")를 연락처가 없는 다른 쪽 업체의 담당자 정보 자리에 교차 대입하거나 덮어써서는 안 됩니다. 수주처(supplier)와 발주처(buyer)의 담당자 정보는 상호 간에 철저하게 독립된 소속 구획(표 상의 열/행 구획) 내에서만 분리하여 매핑하십시오.
+4. **상세비고 (memo) 및 결재자 (approvers)**:
+   - 1차 판독된 리포트의 모든 특기사항, 주의사항 등의 원본 텍스트를 줄바꿈('\\n')을 포함해 인쇄된 원본 글자 그대로 전사하십시오. 임의로 문장을 요약하거나 존재하지 않는 텍스트를 창작(환각)하지 마십시오.
+   - 결재선에 판독된 결재선 성명 목록을 문자열 배열 형태로 정확히 담아 반환하십시오.
 
-7. **비고 및 결재선 정보 상세 추출**:
-   - **비고 (memo)**:
-     * 이미지 하단의 "NOTE." 구역이나 비고/특이사항 구역에 번호(예: 1~6번)로 기술된 지불조건, 납품/입고 절차, 소재사급 손실변제처리, 도면 접수일자 확인 등의 모든 비고 본문 텍스트를 추출하십시오.
-     * **[중요 - 임의 요약, 문장 보정 및 타 영역 문구 혼입 절대 금지]**: 
-       - 이미지 속의 비고 문구를 절대 요약하거나, 임의로 단어를 누락/수정하거나, 문맥을 가다듬어 다르게 표현하지 마십시오.
-       - 이미지의 특정 번호 항목을 판독할 때, 다른 번호 항목의 단어나 구절이 섞여 들어가 합성(환각)되는 일이 절대 없어야 합니다. 오직 해당 번호 줄에 기재되어 있는 글자들만 순수하게 판독하십시오.
-       - 문서에 인쇄된 글자 그대로, 띄어쓰기 및 줄바꿈(\n)을 100% 정확하게 일치시켜 원본 텍스트 그대로 받아쓰기(Transcription) 하여 'memo' 필드에 담아 주십시오.
-       - 실제 문서에 적혀 있지 않은 일반적인 규정이나 예시 텍스트의 규정을 마음대로 임의 작성(환각)하여 갈음해서는 절대 안 됩니다.
-   - **결재자 목록 (approvers)**: 이미지 하단 우측이나 상단 우측 등의 결재선 구역(검토, 검사, 결재 등의 도장이 찍혀 있거나 서명 칸이 있는 곳)에 기재된 결재자들의 성명(예: "홍종현", "이영희")을 모두 판독하여 'approvers' 배열에 문자열 목록으로 담아 반환하십시오. 결재선에 이름이 없거나 발견되지 않을 경우에만 빈 배열([])을 입력하십시오.
-
-8. **일반 전화번호와 팩스(FAX) 번호의 엄격한 분리 및 팩스 제외 지침**:
-   - 각 주체(supplier / buyer)의 구획이나 담당자 연락처 영역에 **회사 대표 전화번호와 팩스(FAX) 번호가 동시에 존재하거나 둘 다 기재된 경우, 팩스 번호는 절대 추출하지 마십시오.**
-   - 팩스 번호가 전화번호 필드('phone', 'manager_phone', 'picPhone')에 잘못 매핑되지 않도록, 주변 텍스트에 "FAX", "팩스", "F.", "F" 등의 접두사가 붙은 번호는 철저히 배제하고, "TEL", "전화", "T.", "HP", "휴대폰" 또는 접두사 없이 일반적인 유선/무선 번호 형식으로 된 **회사 일반 대표전화 및 담당자 휴대폰 번호만을 선택하여 매핑**하십시오.
-
-### 📝 판독 예시 (Few-shot Guide):
-1. **담당자 및 주체 판별 매핑 예시 (실제 회사명 편향을 차단하기 위한 가상 정보 예시)**:
-   - 공급사(수주처) 구획: 상호: (주)에이비씨상사, 대표자: 김철수, 담당자: 이영희(010-9999-8888)
-   - 바이어(발주처) 구획: 상호: (주)엑스와이젯바이어, 대표자: 박영수, 담당자: 홍길동, 대표전화번호: 02-123-4567
-   ➔ 이 경우 결과 매핑은 반드시 다음과 같아야 합니다:
-     * 'supplier' 객체:
-       "company_name": "(주)에이비씨상사" (수주처이므로 supplier에 해당)
-       "representative": "김철수"
-       "manager_name": "이영희"
-       "manager_phone": "010-9999-8888"
-     * 'buyer' 객체:
-       "company_name": "(주)엑스와이젯바이어" (발주처/바이어이므로 buyer에 해당)
-       "representative": "박영수"
-       "phone": "02-123-4567"
-       "manager_name": "홍길동" (연락처 없이 이름만 단독 기재되어 있어도 절대 누락하지 않고 추출함)
-       "manager_phone": "02-123-4567" (개인 연락처가 비어 있으므로 회사 대표전화로 매핑 또는 공란)
-     * "picName": "홍길동" (문서 전체의 대표 바이어측 실무 담당자)
-     * "picPhone": "02-123-4567"
-
-2. **비고(memo) 줄바꿈 및 원본 무결성 전사 예시**:
-   - 문서 내에 아래와 같이 NOTE가 적혀 있는 경우:
-     "특기사항
-     1. 납기 준수 요망.
-     2. 불량 발생 시 신속히 유선 연락 바랍니다."
-   - ➔ 결과 JSON의 'memo' 필드는 임의로 수식어를 생략하거나 줄을 섞지 않고 줄바꿈('\n')을 포함해 다음과 같아야 합니다:
-     "1. 납기 준수 요망.\n2. 불량 발생 시 신속히 유선 연락 바랍니다."
-   - **[경고 - 예시 복제 및 RAG 환각 절대 금지]**: 본 예시에 적혀 있는 '납기 준수 요망', '불량 발생 시...' 및 사내 RAG 문서 속의 '소재사급', '마감처리', '도면상의 당사 접수 도장' 등 **실제 분석 대상 이미지에 기재되어 있지 않은 임의의 문구를 실제 결과의 'memo' 필드에 합성(환각)하여 섞어 넣는 일을 엄격히 금지합니다.** 반드시 실제 입력 이미지에 존재하는 텍스트만 100% 원본 그대로 받아쓰기(Transcription) 하십시오.
-
-JSON 응답 포맷:
+최종 JSON 응답 포맷: (Markdown 코드 블록 없이 순수 JSON만 반환)
 {
   "supplier": {
-    "company_name": "공급 주체 상호명 (공급인/공급사/공급자/판매자 등)",
-    "business_number": "공급 주체 사업자번호 (XXX-XX-XXXXX 형식)",
-    "representative": "공급 주체 대표자 성명 (없으면 \"\")",
-    "address": "공급 주체 주소 (없으면 \"\")",
-    "phone": "공급 주체 회사 대표 전화번호 (팩스 번호 제외, 없으면 \"\")",
-    "manager_name": "공급 주체 담당자명 (없으면 \"\")",
-    "manager_phone": "공급 주체 담당자 연락처 (팩스 번호 제외, 일반 전화/휴대폰 우선, 없으면 \"\")"
+    "company_name": "공급 주체 상호명",
+    "business_number": "공급 주체 사업자번호 (XXX-XX-XXXXX 형식, 없으면 \"\")",
+    "representative": "공급 주체 대표자 성명",
+    "address": "공급 주체 주소",
+    "phone": "공급 주체 회사 대표 전화번호 (팩스 제외)",
+    "manager_name": "공급 주체 담당자명",
+    "manager_phone": "공급 주체 담당자 연락처 (팩스 제외)"
   },
   "buyer": {
-    "company_name": "구매/발주 주체 상호명 (공급받는자/발주사/발주처/바이어 등)",
-    "business_number": "구매/발주 주체 사업자번호 (XXX-XX-XXXXX 형식)",
-    "representative": "구매/발주 주체 대표자 성명 (없으면 \"\")",
-    "address": "구매/발주 주체 주소 (없으면 \"\")",
-    "phone": "구매/발주 주체 회사 대표 전화번호 (팩스 번호 제외, 없으면 \"\")",
-    "manager_name": "구매/발주 주체 담당자명 (없으면 \"\")",
-    "manager_phone": "구매/발주 주체 담당자 연락처 (팩스 번호 제외, 일반 전화/휴대폰 우선, 없으면 \"\")"
+    "company_name": "구매/발주 주체 상호명 (상대방 바이어)",
+    "business_number": "구매/발주 주체 사업자번호 (XXX-XX-XXXXX 형식, 없으면 \"\")",
+    "representative": "구매/발주 주체 대표자 성명",
+    "address": "구매/발주 주체 주소",
+    "phone": "구매/발주 주체 회사 대표 전화번호 (팩스 제외)",
+    "manager_name": "구매/발주 주체 담당자명",
+    "manager_phone": "구매/발주 주체 담당자 연락처 (팩스 제외)"
   },
   "picName": "문서 전체 대표 담당자명",
-  "picPhone": "문서 전체 대표 담당자 연락처 (전화번호, 팩스 번호 제외, 없으면 \"\")",
+  "picPhone": "문서 전체 대표 담당자 연락처 (팩스 제외)",
   "orderNo": "수주번호 또는 발주번호",
   "orderDate": "수주일 (YYYY-MM-DD 형식)",
   "deliveryDate": "납기일 (YYYY-MM-DD 형식)",
-  "memo": "발주서 비고 및 특이사항 (NOTE. 구역의 1~6번 본문 전체 텍스트)",
-  "approvers": ["결재선 또는 도장 내 성명 목록 (예: 홍종현, 이주용) (없으면 [])"],
+  "memo": "발주서 비고 및 특이사항 (주의사항, 지불조건 등 포함 줄바꿈 전사)",
+  "approvers": ["결재선 성명 목록"],
   "items": [
     {
       "itemCode": "품목코드",
@@ -346,28 +384,24 @@ JSON 응답 포맷:
       "quantity": 100,
       "unitPrice": 15000,
       "amount": 1500000,
-      "deliveryDate": "품목별 납기일 (YYYY-MM-DD 형식)"
+      "deliveryDate": "품목별 납기일 (YYYY-MM-DD 형식)",
+      "validItemCode": "사내 지식 규칙(RAG) 또는 패턴에 부합하여 매핑된 품목코드"
     }
   ]
 }
+Do NOT output anything other than this JSON string. No markdown block wrapper.
 `;
 
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
+    const geminiUrlPass2 = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
 
-    const response = await fetchGeminiWithFallback(geminiUrl, {
+    const responsePass2 = await fetchGeminiWithFallback(geminiUrlPass2, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [
           {
             parts: [
-              { text: prompt },
-              {
-                inlineData: {
-                  mimeType: mimeType,
-                  data: base64Image
-                }
-              }
+              { text: promptPass2 }
             ]
           }
         ],
@@ -377,25 +411,24 @@ JSON 응답 포맷:
       })
     });
 
-    if (!response.ok) {
-      throw new Error(`Gemini OCR API 통신 실패: HTTP ${response.status}`);
+    if (!responsePass2.ok) {
+      throw new Error(`Gemini OCR Pass 2 API 통신 실패: HTTP ${responsePass2.status}`);
     }
 
-    const aiData = await response.json();
-
-    const responseText = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
+    const aiDataPass2 = await responsePass2.json();
+    const responseTextPass2 = aiDataPass2.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
 
     // AI 토큰 사용량 로깅
     try {
-      const prompt_tokens = aiData.usageMetadata?.promptTokenCount || 0;
-      const completion_tokens = aiData.usageMetadata?.candidatesTokenCount || 0;
-      const total_tokens = aiData.usageMetadata?.totalTokenCount || (prompt_tokens + completion_tokens);
+      const prompt_tokens = (aiDataPass1.usageMetadata?.promptTokenCount || 0) + (aiDataPass2.usageMetadata?.promptTokenCount || 0);
+      const completion_tokens = (aiDataPass1.usageMetadata?.candidatesTokenCount || 0) + (aiDataPass2.usageMetadata?.candidatesTokenCount || 0);
+      const total_tokens = prompt_tokens + completion_tokens;
       const logId = `TKC-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
       const logTime = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
       await insertRows('ai_token_usage_logs', [{
         id: logId,
         model: selectedModel || 'gemini-3.5-flash',
-        purpose: 'DIRECT_SO_OCR',
+        purpose: 'DIRECT_SO_OCR_2PASS',
         prompt_tokens,
         completion_tokens,
         total_tokens,
@@ -407,24 +440,11 @@ JSON 응답 포맷:
 
     let parsedData;
     try {
-      const cleanJson = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+      const cleanJson = responseTextPass2.replace(/```json/g, '').replace(/```/g, '').trim();
       parsedData = JSON.parse(cleanJson);
     } catch (e) {
-      console.error('Failed to parse Gemini response:', responseText);
-      throw new Error('AI 분석 결과를 JSON으로 변환하는 데 실패했습니다.');
-    }
-
-    // 본사 프로필 로드 (기본값 차민수/(주)쿠스/731-81-02023)
-    let myCompanyProfile = { companyName: '(주)쿠스', businessNumber: '731-81-02023' };
-    try {
-      const myCompanySetting = await queryTable('system_settings', { filters: { key: 'my_company_profile' } });
-      if (myCompanySetting.rows && myCompanySetting.rows.length > 0) {
-        const parsed = JSON.parse(myCompanySetting.rows[0].value);
-        if (parsed.companyName) myCompanyProfile.companyName = parsed.companyName;
-        if (parsed.businessNumber) myCompanyProfile.businessNumber = parsed.businessNumber;
-      }
-    } catch (e) {
-      console.error('본사 정보 설정 조회 실패:', e);
+      console.error('Failed to parse Gemini Pass 2 response:', responseTextPass2);
+      throw new Error('최종 AI 정제 결과를 JSON으로 변환하는 데 실패했습니다.');
     }
 
     const { orderNo, orderDate, deliveryDate, items, picName, picPhone } = parsedData;
@@ -455,10 +475,13 @@ JSON 응답 포맷:
     const buyName = cleanCompanyName(parsedData.buyer?.company_name || '');
 
     // 1단계: 자사 매칭 판별
-    const isSupplierMyCompany = (supBiz && supBiz === myBizNum) ||
-                                (supName && (supName.includes(myCompName) || myCompName.includes(supName)));
-    const isBuyerMyCompany = (buyBiz && buyBiz === myBizNum) ||
-                             (buyName && (buyName.includes(myCompName) || myCompName.includes(buyName)));
+    let isSupplierMyCompany = (supBiz && supBiz === myBizNum);
+    let isBuyerMyCompany = (buyBiz && buyBiz === myBizNum);
+
+    if (!isSupplierMyCompany && !isBuyerMyCompany) {
+      isSupplierMyCompany = (supName && (supName.includes(myCompName) || myCompName.includes(supName)));
+      isBuyerMyCompany = (buyName && (buyName.includes(myCompName) || myCompName.includes(buyName)));
+    }
 
     let partnerName = '';
     let partnerBizNo = '';

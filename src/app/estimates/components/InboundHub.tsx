@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Upload, Eye, CheckCircle2, ChevronRight, Trash2, Clock } from "lucide-react";
+import { Upload, Eye, CheckCircle2, ChevronRight, Trash2, Clock, Printer } from "lucide-react";
 import { Estimate, PurchaseOrder } from "../types";
 import InlineTagEditor from "./InlineTagEditor";
 import { parseEstimateMetadata } from "../utils";
@@ -263,23 +263,41 @@ export default function InboundHub({
           </select>
 
           {inboundSubTab === "estimates" && (
-            <button
-              onClick={onOpenOcrModal}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-indigo-600/10 flex items-center gap-1.5"
-            >
-              <Upload className="w-4 h-4" />
-              받은 견적 이미지 AI 스캔
-            </button>
+            <>
+              <button
+                onClick={() => window.open("/estimates/web-view?type=inbound_est", "_blank")}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer"
+              >
+                <Printer className="w-4 h-4 text-indigo-400" />
+                웹뷰 대장 내역
+              </button>
+              <button
+                onClick={onOpenOcrModal}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-indigo-600/10 flex items-center gap-1.5"
+              >
+                <Upload className="w-4 h-4" />
+                받은 견적 이미지 AI 스캔
+              </button>
+            </>
           )}
 
           {inboundSubTab === "pos" && (
-            <button
-              onClick={() => setIsPoOcrOpen(true)}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-indigo-600/10 flex items-center gap-1.5 cursor-pointer"
-            >
-              <Upload className="w-4 h-4" />
-              공급사 발주서 스캔 (다이렉트 발주)
-            </button>
+            <>
+              <button
+                onClick={() => window.open("/estimates/web-view?type=inbound_po", "_blank")}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer"
+              >
+                <Printer className="w-4 h-4 text-indigo-400" />
+                웹뷰 대장 내역
+              </button>
+              <button
+                onClick={() => setIsPoOcrOpen(true)}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-indigo-600/10 flex items-center gap-1.5 cursor-pointer"
+              >
+                <Upload className="w-4 h-4" />
+                공급사 발주서 스캔 (다이렉트 발주)
+              </button>
+            </>
           )}
         </div>
       </div>

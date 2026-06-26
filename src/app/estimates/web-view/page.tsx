@@ -10,11 +10,12 @@ const typeConfig = {
   inbound_est: {
     title: "받은 B2B 견적 및 요청 대장 내역",
     headers: [
-      "견적번호", "공급/요청처", "연락처", "담당자명", "총 견적액", "상태", "AI스캔여부", "작성일", "등록일시",
-      "첨부파일", "사업자등록증", "연계발주번호", "품목코드", "품목명", "규격", "수량", "단가", "금액", "품목납기일", "상세비고"
+      "등록일시", "견적번호", "공급/요청처", "담당자명", "연락처", "총 견적액", "상태", "작성일", 
+      "첨부파일", "사업자등록증", "연계발주번호", "품목코드", "유효품목코드", "품목명", "규격", "수량", "단가", "금액", "품목납기일", "상세비고", "AI스캔여부"
     ],
     defaultVisible: [
-      "견적번호", "공급/요청처", "연락처", "총 견적액", "상태", "작성일", "등록일시", "품목명", "수량", "단가", "금액", "상세비고"
+      "등록일시", "견적번호", "공급/요청처", "담당자명", "총 견적액", "상태", "작성일", 
+      "첨부파일", "유효품목코드", "품목명", "규격", "수량", "단가", "금액", "품목납기일", "상세비고"
     ]
   },
   inbound_po: {
@@ -205,26 +206,27 @@ function WebViewContent() {
             estItems.forEach((item: any) => {
               if (type === "inbound_est") {
                 rows.push([
-                  e.id,
-                  e.partner_name,
-                  e.partner_phone,
-                  e.partner_manager || "-",
-                  e.total_amount,
-                  e.direction_status === "REQUESTED" ? "견적접수" : "발주완료",
-                  e.ai_parsed ? "AI OCR" : "수동",
-                  e.created_at,
-                  e.created_at, // 등록일시
-                  e.file_url || "-",
-                  e.business_license_url || "-",
-                  e.purchase_order_number || "-",
-                  item.item_code || "-",
-                  item.product_name || "-",
-                  item.spec || "-",
-                  item.quantity !== undefined ? item.quantity : "",
-                  item.unit_price !== undefined ? item.unit_price : "",
-                  item.amount !== undefined ? item.amount : "",
-                  item.delivery_date || "-",
-                  e.document_memo_search || "-"
+                  e.created_at,                          // 등록일시
+                  e.id,                                  // 견적번호
+                  e.partner_name,                        // 공급/요청처
+                  e.partner_manager || "-",               // 담당자명
+                  e.partner_phone,                       // 연락처
+                  e.total_amount,                        // 총 견적액
+                  e.direction_status === "REQUESTED" ? "견적접수" : "발주완료", // 상태
+                  e.created_at,                          // 작성일
+                  e.file_url || "-",                     // 첨부파일
+                  e.business_license_url || "-",         // 사업자등록증
+                  e.purchase_order_number || "-",        // 연계발주번호
+                  item.item_code || "-",                  // 품목코드
+                  item.valid_item_code || item.validItemCode || "-", // 유효품목코드
+                  item.product_name || "-",              // 품목명
+                  item.spec || "-",                      // 규격
+                  item.quantity !== undefined ? item.quantity : "", // 수량
+                  item.unit_price !== undefined ? item.unit_price : "", // 단가
+                  item.amount !== undefined ? item.amount : "", // 금액
+                  item.delivery_date || "-",             // 품목납기일
+                  e.document_memo_search || "-",          // 상세비고
+                  e.ai_parsed ? "AI OCR" : "수동"          // AI스캔여부
                 ]);
               } else {
                 rows.push([

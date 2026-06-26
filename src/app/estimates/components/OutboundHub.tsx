@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plus, Eye, CheckCircle2, ChevronRight, Trash2, Clock } from "lucide-react";
+import { Plus, Eye, CheckCircle2, ChevronRight, Trash2, Clock, Printer } from "lucide-react";
 import { Estimate, SalesOrder, Partner } from "../types";
 import { parseEstimateMetadata } from "../utils";
 import { usePersistedState } from "../../../hooks/usePersistedState";
@@ -266,22 +266,40 @@ export default function OutboundHub({
           </select>
 
           {outboundSubTab === "estimates" && (
-            <button
-              onClick={onOpenWriteModal}
-              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-lg flex items-center gap-1.5"
-            >
-              <Plus className="w-4 h-4 text-amber-450" />
-              AI 최적 가격 견적서 작성
-            </button>
+            <>
+              <button
+                onClick={() => window.open("/estimates/web-view?type=outbound_est", "_blank")}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer"
+              >
+                <Printer className="w-4 h-4 text-indigo-400" />
+                웹뷰 대장 내역
+              </button>
+              <button
+                onClick={onOpenWriteModal}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-lg flex items-center gap-1.5"
+              >
+                <Plus className="w-4 h-4 text-amber-450" />
+                AI 최적 가격 견적서 작성
+              </button>
+            </>
           )}
 
           {outboundSubTab === "sos" && (
-            <button
-              onClick={onOpenOcrModal}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-lg flex items-center gap-1.5"
-            >
-              📥 바이어 발주서 스캔 (다이렉트 수주)
-            </button>
+            <>
+              <button
+                onClick={() => window.open("/estimates/web-view?type=outbound_so", "_blank")}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer"
+              >
+                <Printer className="w-4 h-4 text-indigo-400" />
+                웹뷰 대장 내역
+              </button>
+              <button
+                onClick={onOpenOcrModal}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-lg flex items-center gap-1.5"
+              >
+                📥 바이어 발주서 스캔 (다이렉트 수주)
+              </button>
+            </>
           )}
         </div>
       </div>

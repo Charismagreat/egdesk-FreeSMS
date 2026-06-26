@@ -1,109 +1,84 @@
-const Database = require("better-sqlite3");
-const os = require("os");
-const path = require("path");
-const fs = require("fs");
+const path = require('path');
+const Database = require('better-sqlite3');
 
-async function clearAllFinanceData() {
-  console.log("🚀 이지데스크 금융 데이터(계좌, 거래내역, 카드, 홈택스, 동기화로그) 전면 초기화를 시작합니다...\n");
+const dbPaths = [
+  'C:/Users/CHARISMA/AppData/Roaming/EGDesk/database/user_data.db',
+  'C:/Users/CHARISMA/AppData/Roaming/EGDesk/user-data/development/projects/49a59fa4-40b6-40f4-8c3d-0231be79c7f9/user_data.db',
+  'C:/Users/CHARISMA/AppData/Roaming/EGDesk/user-data/production/projects/49a59fa4-40b6-40f4-8c3d-0231be79c7f9/user_data.db',
+  'C:/Users/CHARISMA/AppData/Roaming/egdesk/database/user_data.db',
+  'C:/Users/CHARISMA/AppData/Roaming/egdesk/user-data/development/projects/49a59fa4-40b6-40f4-8c3d-0231be79c7f9/user_data.db',
+  'C:/Users/CHARISMA/AppData/Roaming/egdesk/user-data/production/projects/49a59fa4-40b6-40f4-8c3d-0231be79c7f9/user_data.db'
+];
 
-  // 1. 로컬 SQLite DB (financehub.db) 데이터 완전 청소
-  const homeDir = os.homedir();
-  const appData = process.env.APPDATA || path.join(homeDir, "AppData/Roaming");
-  const paths = [
-    path.join(appData, "EGDesk/database/financehub.db"),
-    path.join(appData, "egdesk/database/financehub.db")
+function runCleanup() {
+  console.log('=== Starting Direct SQLite DB Cleanup (using better-sqlite3) ===');
+
+  const tables = [
+    'crm_estimate_items',
+    'crm_estimates',
+    'crm_purchase_orders',
+    'crm_sales_orders',
+    'inventory_logs',
+    'message_logs'
   ];
 
-  let targetPath = "";
-  for (const p of paths) {
-    if (fs.existsSync(p)) {
-      targetPath = p;
-      break;
+  for (const dbPath of dbPaths) {
+    const fs = require('fs');
+    if (!fs.existsSync(dbPath)) {
+      console.log(`- DB Path does not exist, skipping: ${dbPath}`);
+      continue;
     }
-  }
 
-  if (targetPath) {
-    console.log(`[SQLite] 대상 DB 파일 발견: ${targetPath}`);
+    console.log(`Processing DB Path: ${dbPath}`);
+    let db;
     try {
-      const db = new Database(targetPath);
-      
-      // UDF 에뮬레이팅 우회 등록
-      try {
-        db.function("notify_change_financehub_changed", { varargs: true }, (...args) => {
-          console.log("UDF trigger intercepted:", args);
-        });
-      } catch (udfErr) {
-        console.warn("UDF registration failed:", udfErr.message);
-      }
+      db = new Database(dbPath, { fileMustExist: true });
+      console.log('✓ Successfully connected.');
 
-      // 존재하는 테이블 목록 확인
-      const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(t => t.name);
-      
-      // 비워야 할 금융 정보 테이블 리스트
-      const targetTables = [
-        'bank_transactions',
-        'bank_accounts',
-        'sync_operations',
-        'card_transactions',
-        'hometax_connections',
-        'tax_invoices',
-        'tax_exempt_invoices',
-        'cash_receipts'
-      ];
-      
-      db.transaction(() => {
-        for (const table of targetTables) {
-          if (tables.includes(table)) {
-            db.prepare(`DELETE FROM ${table}`).run();
-            console.log(`🧹 SQLite 테이블 비우기 성공: ${table}`);
-          }
-        }
-      })();
-      
-      db.close();
-      console.log("✨ [SQLite] 로컬 데이터베이스 금융 정보 청소 완료!\n");
-    } catch (dbErr) {
-      console.warn("⚠️ [SQLite] 로컬 DB 비우기 도중 경고 발생:", dbErr.message);
-    }
-  } else {
-    console.log("ℹ️ [SQLite] 로컬 DB 파일을 찾을 수 없어 헬퍼 API 단계로 즉시 넘어갑니다.");
-  }
-
-  // 2. egdesk-helpers를 활용하여 이지데스크 백엔드 API (localhost:8080) 단 데이터 완전 청소
-  try {
-    const relativeHelpersPath = path.join(process.cwd(), "egdesk-helpers.js");
-    
-    if (fs.existsSync(relativeHelpersPath)) {
-      console.log("[API] egdesk-helpers 모듈 로드 완료. API를 통한 원격 삭제를 시작합니다...");
-      const helpers = require(relativeHelpersPath);
-      
-      // (1) 현재 등록된 계좌 조회 및 루프 삭제
-      try {
-        const accountsRes = await helpers.listAccounts().catch(() => ({ accounts: [] }));
-        const accounts = Array.isArray(accountsRes) ? accountsRes : (accountsRes?.accounts || []);
-        
-        if (accounts.length > 0) {
-          console.log(`[API] 총 ${accounts.length}개의 활성화 계좌를 발견했습니다. 개별 계좌 데이터 및 연동 삭제 중...`);
-          for (const acc of accounts) {
-            const bankId = acc.bank_id || acc.bankId;
-            const accNum = acc.account_number || acc.accountNumber;
-            if (bankId && accNum) {
-              await helpers.deleteFinanceHubAccount(bankId, accNum).catch(() => null);
-              console.log(`🧹 [API] 계좌 삭제 완료: ${bankId} - ${accNum}`);
+      // 트랜잭션으로 일괄 실행
+      const transaction = db.transaction(() => {
+        for (const table of tables) {
+          try {
+            // 테이블 존재 여부 확인
+            const checkTable = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`).get(table);
+            if (!checkTable) {
+              console.log(`- Table [${table}] does not exist in this DB.`);
+              continue;
             }
+
+            // 테이블 데이터 삭제
+            const deleteStmt = db.prepare(`DELETE FROM ${table}`);
+            const info = deleteStmt.run();
+            console.log(`✓ Table [${table}]: deleted ${info.changes} rows.`);
+
+            // sqlite_sequence 초기화
+            try {
+              const seqStmt = db.prepare(`DELETE FROM sqlite_sequence WHERE name = ?`);
+              seqStmt.run(table);
+              console.log(`✓ Table [${table}]: reset sqlite_sequence.`);
+            } catch (seqErr) {
+              // ignore
+            }
+          } catch (tableErr) {
+            console.warn(`⚠️ Error processing table [${table}]:`, tableErr.message);
           }
         }
-      } catch (e) {
-        console.warn("⚠️ [API] 계좌 목록 조회 및 루프 삭제 실패 (계속 진행):", e.message);
+      });
+
+      transaction();
+      console.log(`✓ Finished processing: ${dbPath}`);
+
+    } catch (err) {
+      console.error(`Fatal DB error on ${dbPath}:`, err.message);
+    } finally {
+      if (db) {
+        db.close();
+        console.log('✓ Connection closed.\n');
       }
-    } else {
-      console.log("ℹ️ [API] egdesk-helpers.js 모듈 경로를 탐색할 수 없어 SQLite 청소 결과로 마무리합니다.");
     }
-  } catch (apiErr) {
-    console.warn("⚠️ [API] 원격 API 연동 삭제 도중 경고 발생 (로컬 DB가 정상 비워졌다면 실사용엔 지장 없습니다):", apiErr.message);
   }
 
-  console.log("🎉 [성공] 모든 테스트용 금융 정보가 완벽하게 초기화되었습니다. 이제 새로 엑셀 업로드 테스트를 안전하게 다시 시작하실 수 있습니다!");
+  console.log('=== All DB Cleanup Completed ===');
 }
 
-clearAllFinanceData();
+runCleanup();

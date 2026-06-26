@@ -18,8 +18,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: '견적 산정을 위한 품목이 지정되지 않았습니다.' }, { status: 400 });
     }
 
-    // 본사 프로필 로드 (기본값 차민수/(주)쿠스/010-7216-5884)
-    let myCompanyProfile = { companyName: '(주)쿠스', representative: '차민수', phone: '010-7216-5884' };
+    // 본사 프로필 로드 (기본값 주식회사 원컨덕터트레이딩/지상현/031-319-9090)
+    let myCompanyProfile = { companyName: '주식회사 원컨덕터트레이딩', representative: '지상현', phone: '031-319-9090' };
     try {
       const myCompanySetting = await queryTable('system_settings', { filters: { key: 'my_company_profile' } });
       if (myCompanySetting.rows && myCompanySetting.rows.length > 0) {

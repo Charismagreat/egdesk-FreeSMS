@@ -56,17 +56,27 @@ export async function fetchGeminiWithFallback(url: string, init?: RequestInit): 
     console.error(`[AI Emergency] 기본 모델 호출 실패/오류: ${primaryErr.message}. 하위 플래시 모델로 자동 폴백을 수행합니다.`);
   }
 
-  // 2. 주 모델 실패 시, 모델명을 하위 모델인 'gemini-2.5-flash'로 치환하여 폴백 호출
-  const fallbackModel = 'gemini-2.5-flash';
-  const fallbackUrl = url.replace(/\/models\/[^:]+:/, `/models/${fallbackModel}:`);
+  // 2. 주 모델 실패 시, 1차 폴백 모델명 'gemini-2.5-flash'로 치환하여 폴백 호출
+  const fallbackModel1 = 'gemini-2.5-flash';
+  const fallbackUrl1 = url.replace(/\/models\/[^:]+:/, `/models/${fallbackModel1}:`);
   
   try {
-    console.log(`[AI Fallback] 폴백 API 요청 전송: ${fallbackUrl}`);
-    // 폴백 모델 호출 시에도 재시도 및 백오프 로직을 적용하여 안정성 보장!
-    return await fetchWithRetry(fallbackUrl, '폴백 모델');
-  } catch (fallbackErr: any) {
-    console.error(`[AI Critical] 폴백 모델 호출 마저 실패하였습니다: ${fallbackErr.message}`);
-    throw fallbackErr;
+    console.log(`[AI Fallback 1] 1차 폴백 API 요청 전송: ${fallbackUrl1}`);
+    return await fetchWithRetry(fallbackUrl1, '1차 폴백 모델');
+  } catch (fallbackErr1: any) {
+    console.error(`[AI Emergency] 1차 폴백 모델 호출 실패: ${fallbackErr1.message}. 2차 플래시 모델로 자동 폴백을 수행합니다.`);
+  }
+
+  // 3. 1차 폴백 실패 시, 2차 폴백 모델명 'gemini-flash-latest'로 치환하여 최종 호출
+  const fallbackModel2 = 'gemini-flash-latest';
+  const fallbackUrl2 = url.replace(/\/models\/[^:]+:/, `/models/${fallbackModel2}:`);
+  
+  try {
+    console.log(`[AI Fallback 2] 2차 폴백 API 요청 전송: ${fallbackUrl2}`);
+    return await fetchWithRetry(fallbackUrl2, '2차 폴백 모델');
+  } catch (fallbackErr2: any) {
+    console.error(`[AI Critical] 2차 폴백 모델 호출 마저 실패하였습니다: ${fallbackErr2.message}`);
+    throw fallbackErr2;
   }
 }
 

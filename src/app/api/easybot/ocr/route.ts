@@ -438,9 +438,9 @@ ${JSON.stringify(facilitiesListForRag)}
     const trackedItemsRes = await queryTable('tracked_items', {});
     const allTrackedItems = trackedItemsRes.rows || [];
 
-    // 본사 프로필 로드 (기본값 차민수/(주)쿠스/731-81-02023)
-    let myCompanyName = '(주)쿠스';
-    let myCompanyBizNo = '731-81-02023';
+    // 본사 프로필 로드 (기본값 주식회사 원컨덕터트레이딩/2428700357)
+    let myCompanyName = '주식회사 원컨덕터트레이딩';
+    let myCompanyBizNo = '2428700357';
     try {
       const myCompanySetting = await queryTable('system_settings', { filters: { key: 'my_company_profile' } });
       if (myCompanySetting.rows && myCompanySetting.rows.length > 0) {
