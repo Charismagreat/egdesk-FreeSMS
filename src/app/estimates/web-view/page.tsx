@@ -476,8 +476,8 @@ function WebViewContent() {
                 formatItemType(log.itemType),                      // 품목구분
                 "일반재고",                                         // 카테고리
                 log.itemName || "-",                               // 품목명
-                log.itemId !== -1 ? `ITEM-${log.itemId}` : "-",     // 품목코드
-                "-",                                               // 바코드
+                log.itemBarcode || (log.itemId !== -1 ? `INV-${log.itemId}` : "-"), // 품목코드
+                log.itemBarcode || "-",                            // 바코드
                 "-",                                               // 규격
                 "개",                                              // 단위
                 "1 개",                                            // 박스입수량
