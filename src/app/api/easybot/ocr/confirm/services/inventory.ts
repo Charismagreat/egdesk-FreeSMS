@@ -88,14 +88,14 @@ export async function handleInventoryInbound(reqBody: any, nowStr: string) {
 
       await insertRows('inventory_items', [{
         id: finalMatchedItemId,
-        type: '자재',
+        type: item.itemType || '자재',
         name: itemName,
         category: '기타',
         price: price,
         partner: partnerName || '',
         stock: qty,
         safeStock: 0,
-        location: '자율입고창고',
+        location: item.location || '자율입고창고',
         spec: spec,
         unitType: item.unitType || '개',
         unitValue: '1',

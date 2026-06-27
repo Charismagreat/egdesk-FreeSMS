@@ -42,6 +42,8 @@ export default function InboundExcelModal({
     unit_price: "",
     unit_type: "",
     box_contains: "",
+    item_type: "",
+    location: "",
     note: "",
     partner_name: "",
     inbound_date: ""
@@ -57,6 +59,8 @@ export default function InboundExcelModal({
     unit_price: "0",
     unit_type: "개",
     box_contains: "1",
+    item_type: "자재",
+    location: "자율입고창고",
     note: "",
     partner_name: "일반공급처",
     inbound_date: new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
@@ -159,6 +163,8 @@ export default function InboundExcelModal({
           unit_price: String(excelMeta.headers.findIndex(h => h.includes("단가") || h.includes("금액") || h.includes("가격") || h.includes("price") || h.includes("Price"))),
           unit_type: String(excelMeta.headers.findIndex(h => h.includes("단위") || h.includes("구분") || h.includes("unit") || h.includes("Unit"))),
           box_contains: String(excelMeta.headers.findIndex(h => h.includes("입수") || h.includes("입수량") || h.includes("박스입수") || h.includes("pack") || h.includes("Pack"))),
+          item_type: String(excelMeta.headers.findIndex(h => h.includes("자재구분") || h.includes("구분") || h.includes("타입") || h.includes("type") || h.includes("Type"))),
+          location: String(excelMeta.headers.findIndex(h => h.includes("위치") || h.includes("창고위치") || h.includes("적재위치") || h.includes("location") || h.includes("Location"))),
           note: String(excelMeta.headers.findIndex(h => h.includes("비고") || h.includes("메모") || h.includes("설명") || h.includes("note") || h.includes("Note"))),
           partner_name: String(excelMeta.headers.findIndex(h => h.includes("공급처") || h.includes("거래처") || h.includes("제조사") || h.includes("상호"))),
           inbound_date: String(excelMeta.headers.findIndex(h => h.includes("일자") || h.includes("입고일") || h.includes("날짜") || h.includes("date") || h.includes("Date")))
@@ -200,6 +206,8 @@ export default function InboundExcelModal({
         unit_price: Number(mapping.unit_price),
         unit_type: Number(mapping.unit_type),
         box_contains: Number(mapping.box_contains),
+        item_type: Number(mapping.item_type),
+        location: Number(mapping.location),
         note: Number(mapping.note),
         partner_name: Number(mapping.partner_name),
         inbound_date: Number(mapping.inbound_date),
@@ -249,6 +257,8 @@ export default function InboundExcelModal({
           unit_price: Number(mapping.unit_price),
           unit_type: Number(mapping.unit_type),
           box_contains: Number(mapping.box_contains),
+          item_type: Number(mapping.item_type),
+          location: Number(mapping.location),
           note: Number(mapping.note),
           partner_name: Number(mapping.partner_name),
           inbound_date: Number(mapping.inbound_date),
@@ -615,6 +625,55 @@ export default function InboundExcelModal({
                   </div>
 
                   <div>
+                    <label className="text-[10px] text-slate-400 font-bold block mb-1">구분 열(선택)</label>
+                    <select
+                      value={mapping.item_type}
+                      onChange={(e) => setMapping(prev => ({ ...prev, item_type: e.target.value }))}
+                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
+                    >
+                      <option value="-1">매핑안함</option>
+                      <option value="-2">직접 입력 (고정값 지정)</option>
+                      {excelData.columns.map((col, idx) => (
+                        <option key={idx} value={idx}>{col}</option>
+                      ))}
+                    </select>
+                    {mapping.item_type === "-2" && (
+                      <select
+                        value={directInputs.item_type}
+                        onChange={(e) => handleDirectInputChange("item_type", e.target.value)}
+                        className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
+                      >
+                        <option value="자재">자재</option>
+                        <option value="제품">제품</option>
+                      </select>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-slate-400 font-bold block mb-1">적재위치 열(선택)</label>
+                    <select
+                      value={mapping.location}
+                      onChange={(e) => setMapping(prev => ({ ...prev, location: e.target.value }))}
+                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
+                    >
+                      <option value="-1">매핑안함</option>
+                      <option value="-2">직접 입력 (고정값 지정)</option>
+                      {excelData.columns.map((col, idx) => (
+                        <option key={idx} value={idx}>{col}</option>
+                      ))}
+                    </select>
+                    {mapping.location === "-2" && (
+                      <input
+                        type="text"
+                        value={directInputs.location}
+                        onChange={(e) => handleDirectInputChange("location", e.target.value)}
+                        placeholder="적재위치 직접 입력"
+                        className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
+                      />
+                    )}
+                  </div>
+
+                  <div>
                     <label className="text-[10px] text-slate-400 font-bold block mb-1">비고 열(선택)</label>
                     <select
                       value={mapping.note}
@@ -680,6 +739,8 @@ export default function InboundExcelModal({
                       <th className="p-3">규격</th>
                       <th className="p-3">단위</th>
                       <th className="p-3 text-right">박스입수량</th>
+                      <th className="p-3">구분</th>
+                      <th className="p-3">적재위치</th>
                       <th className="p-3">수집비고 및 메모</th>
                       <th className="p-3 text-right">수량</th>
                       <th className="p-3 text-right">단가</th>
@@ -695,6 +756,8 @@ export default function InboundExcelModal({
                         <td className="p-3 text-slate-400 truncate max-w-[80px]">{item.spec || "-"}</td>
                         <td className="p-3 text-slate-500 font-bold">{item.unit_type || "개"}</td>
                         <td className="p-3 text-right font-mono text-slate-500">{item.box_contains || 1}</td>
+                        <td className="p-3 text-slate-600 font-bold">{item.item_type || "자재"}</td>
+                        <td className="p-3 text-slate-600 font-bold">{item.location || "자율입고창고"}</td>
                         <td className="p-3 text-slate-400/90 italic truncate max-w-[140px]" title={item.note}>{item.note || "-"}</td>
                         <td className="p-3 text-right text-indigo-650 font-bold">{item.quantity.toLocaleString()} {item.unit_type || "개"}</td>
                         <td className="p-3 text-right text-slate-700">{item.unit_price.toLocaleString()} 원</td>
