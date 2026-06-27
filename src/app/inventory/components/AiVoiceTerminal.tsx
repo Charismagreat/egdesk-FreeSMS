@@ -82,20 +82,48 @@ export const AiVoiceTerminal: React.FC<AiVoiceTerminalProps> = ({
               setSelectedVoicePreset(null);
               onResetSuccess();
             }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && voiceText.trim() && !aiVoiceLoading) {
+                onVoiceAnalysisTrigger(voiceText);
+              }
+            }}
             placeholder="예: 초경량 모터 5개 출고. 2공장 생산 투입 건"
-            className="w-full pl-3 pr-10 py-3 rounded-xl border border-slate-200 text-xs focus:ring-1 focus:ring-red-400 focus:border-red-400 outline-none"
+            className="w-full pl-3 pr-20 py-3 rounded-xl border border-slate-200 text-xs focus:ring-1 focus:ring-red-400 focus:border-red-400 outline-none"
           />
-          {voiceText && (
-            <button 
+          <div className="absolute right-2 top-1.5 flex items-center space-x-0.5 z-10">
+            {voiceText && (
+              <button 
+                onClick={() => {
+                  setVoiceText('');
+                  setSelectedVoicePreset(null);
+                }}
+                className="p-1.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                title="지우기"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+            <button
               onClick={() => {
-                setVoiceText('');
-                setSelectedVoicePreset(null);
+                if (voiceText.trim() && !aiVoiceLoading) {
+                  onVoiceAnalysisTrigger(voiceText);
+                }
               }}
-              className="absolute right-3 top-3 text-slate-400 hover:text-slate-600"
+              disabled={!voiceText.trim() || aiVoiceLoading}
+              className={`p-1.5 rounded-lg transition-all flex items-center justify-center cursor-pointer ${
+                voiceText.trim() && !aiVoiceLoading
+                  ? 'bg-red-50 hover:bg-red-100 text-red-650'
+                  : 'text-slate-350 bg-slate-50 cursor-not-allowed'
+              }`}
+              title="AI 분석 실행"
             >
-              <X className="w-4 h-4" />
+              {aiVoiceLoading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="w-3.5 h-3.5" />
+              )}
             </button>
-          )}
+          </div>
         </div>
         <button
           onClick={onToggleRecording}
@@ -130,35 +158,14 @@ export const AiVoiceTerminal: React.FC<AiVoiceTerminalProps> = ({
         </div>
       )}
 
-      {/* AI 파싱 분석 실행 및 성공 표시 */}
-      <div className="flex items-center justify-between mt-auto">
-        <div>
-          {aiVoiceSuccess ? (
-            <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
-              <CheckCircle className="w-3.5 h-3.5" /> 파싱 성공! 출고 전용 폼에 데이터 바인딩 됨
-            </span>
-          ) : (
-            <span className="text-[10px] text-slate-400">* 자연어 텍스트 입력 후 AI 분석 버튼을 클릭하세요.</span>
-          )}
-        </div>
-        
-        <button
-          onClick={() => onVoiceAnalysisTrigger()}
-          disabled={aiVoiceLoading}
-          className="bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs px-4 py-2.5 rounded-xl border border-red-100 flex items-center space-x-1.5 active:scale-95 transition-all"
-        >
-          {aiVoiceLoading ? (
-            <>
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              <span>분석 중...</span>
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>NLP AI 분석 실행</span>
-            </>
-          )}
-        </button>
+      <div className="mt-auto pt-2 border-t border-slate-50">
+        {aiVoiceSuccess ? (
+          <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
+            <CheckCircle className="w-3.5 h-3.5" /> 파싱 성공! 출고 전용 폼에 데이터 바인딩 됨
+          </span>
+        ) : (
+          <span className="text-[10px] text-slate-400">* 자연어 입력 후 Enter 키 또는 인풋 창 내 우측 번개 단추를 클릭하세요.</span>
+        )}
       </div>
     </div>
   );

@@ -139,23 +139,8 @@ export const AiVisionTerminal: React.FC<AiVisionTerminalProps> = ({
         )}
       </div>
 
-      {/* 신규 품목 등록으로 바로 연동하는 원클릭 액션 */}
-      <div className="mt-4 flex items-center justify-between">
-        <span className="text-[11px] text-slate-400">
-          * 실제 파일 업로드 시 <strong className="text-indigo-600">실시간 AI OCR 모달</strong>이 팝업되어 입고를 일괄 승인합니다.
-        </span>
-        <button
-          onClick={() => {
-            if (!selectedVisionPreset && !onFileSelect) {
-              alert('먼저 명세서 샘플을 선택하여 AI 스캔을 수행해 주세요.');
-              return;
-            }
-            onOpenItemModal();
-          }}
-          className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold text-xs px-4 py-2.5 rounded-xl border border-indigo-100 transition-colors cursor-pointer"
-        >
-          품목 폼에서 확인하기 &rarr;
-        </button>
+      <div className="mt-4 flex items-center justify-between text-[11px] text-slate-400">
+        <span>* 실제 파일 업로드 시 <strong className="text-indigo-600">실시간 AI OCR 모달</strong>이 팝업되어 입고를 일괄 승인합니다.</span>
       </div>
     </div>
   );
