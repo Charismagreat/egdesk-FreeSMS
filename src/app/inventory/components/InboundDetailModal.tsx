@@ -90,7 +90,7 @@ export const InboundDetailModal: React.FC<InboundDetailModalProps> = ({ inboundI
         </div>
 
         {/* 모달 바디 */}
-        <div className="p-6 overflow-y-auto flex-1 space-y-4">
+        <div className="p-6 overflow-y-auto overflow-x-auto flex-1 space-y-4 w-full">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-16 space-y-3">
               <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
