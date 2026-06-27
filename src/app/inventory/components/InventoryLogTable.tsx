@@ -94,6 +94,7 @@ export const InventoryLogTable: React.FC<InventoryLogTableProps> = ({ logs }) =>
               <tr className="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 sticky top-0 z-10">
                 <th className="py-3 px-4 bg-slate-50">일시</th>
                 <th className="py-3 px-4 bg-slate-50">품목명</th>
+                <th className="py-3 px-4 bg-slate-50">품목코드</th>
                 <th className="py-3 px-4 bg-slate-50">품목 구분</th>
                 <th className="py-3 px-4 text-center bg-slate-50">변동 종류</th>
                 <th className="py-3 px-4 text-right bg-slate-50">수량</th>
@@ -114,6 +115,7 @@ export const InventoryLogTable: React.FC<InventoryLogTableProps> = ({ logs }) =>
                     })}
                   </td>
                   <td className="py-3 px-4 font-semibold text-slate-700">{log.itemName}</td>
+                  <td className="py-3 px-4 font-mono text-slate-500 text-[11px]">{log.itemBarcode || `INV-${log.itemId}`}</td>
                   <td className="py-3 px-4">
                     <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
                       (log.itemType === '원부자재' || log.itemType === '자재' || log.itemType === 'material')

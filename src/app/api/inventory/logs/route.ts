@@ -25,6 +25,22 @@ export async function GET() {
     // 최종 100건 제한
     rows = rows.slice(0, 100);
 
+    // 품목 마스터 정보를 매핑하여 품목코드(barcode)를 가져옴
+    const itemsRes = await queryTable('inventory_items', {});
+    const items = itemsRes.rows || [];
+    const itemMap = new Map();
+    items.forEach((item: any) => {
+      itemMap.set(Number(item.id), item);
+    });
+
+    rows = rows.map((row: any) => {
+      const matchedItem = itemMap.get(Number(row.itemId));
+      return {
+        ...row,
+        itemBarcode: matchedItem ? (matchedItem.barcode || '') : ''
+      };
+    });
+
     return NextResponse.json({ success: true, data: rows });
   } catch (error: any) {
     console.error('재고 로그 조회 중 오류 발생:', error);

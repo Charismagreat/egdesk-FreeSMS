@@ -25,6 +25,7 @@ export interface InventoryLog {
   itemId: number;
   itemName: string;
   itemType: 'material' | 'product';
+  itemBarcode?: string;
   changeType: 'in' | 'out' | 'adjust';
   quantity: number;
   price: number;
