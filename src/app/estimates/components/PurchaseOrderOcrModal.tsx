@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Upload, X, FileText, CheckCircle2, RefreshCw, Sparkles, Plus, Trash2, Calendar, Database } from "lucide-react";
+import { Upload, X, FileText, CheckCircle2, RefreshCw, Sparkles, Plus, Trash2, Calendar, Database, AlertCircle } from "lucide-react";
 
 interface PurchaseOrderOcrModalProps {
   isOpen: boolean;
@@ -38,6 +38,8 @@ export default function PurchaseOrderOcrModal({
     document_date: "",
     document_memo: "",
     transaction_type: "자재구매",
+    originalTotalAmount: 0,
+    originalTotalQuantity: 0,
     items: [] as Array<{
       item_code?: string;
       product_name: string;
@@ -105,6 +107,8 @@ export default function PurchaseOrderOcrModal({
       document_date: "",
       document_memo: "",
       transaction_type: "자재구매",
+      originalTotalAmount: 0,
+      originalTotalQuantity: 0,
       items: []
     });
   };
@@ -212,6 +216,8 @@ export default function PurchaseOrderOcrModal({
             document_date: data.document_date || "",
             document_memo: memo,
             transaction_type: recommendedType,
+            originalTotalAmount: 0,
+            originalTotalQuantity: 0,
             items: parsedItems
           });
 
@@ -230,11 +236,34 @@ export default function PurchaseOrderOcrModal({
     reader.readAsDataURL(file);
   };
 
+  // 품목 합산금액 및 합계수량 계산
+  const calculatedTotal = ocrForm.items.reduce((sum, it) => sum + (it.quantity * it.unit_price), 0);
+  const calculatedTotalQuantity = ocrForm.items.reduce((sum, it) => sum + Number(it.quantity || 0), 0);
+  const isAmountMatching = ocrForm.originalTotalAmount === calculatedTotal;
+  const isQuantityMatching = ocrForm.originalTotalQuantity === calculatedTotalQuantity;
+
   // SCM DB에 직접 기입 등록 처리
   const handleSaveOcrPurchaseOrder = async () => {
     if (!ocrForm.partner_name || ocrForm.items.length === 0) {
       alert("거래처 상호와 최소 1개 이상의 품목은 필수입니다.");
       return;
+    }
+
+    // 금액 및 수량 불일치에 대한 이중 가드 컨펌 작동
+    const hasAmountMismatch = ocrForm.originalTotalAmount > 0 && calculatedTotal !== ocrForm.originalTotalAmount;
+    const hasQuantityMismatch = ocrForm.originalTotalQuantity > 0 && calculatedTotalQuantity !== ocrForm.originalTotalQuantity;
+
+    if (hasAmountMismatch || hasQuantityMismatch) {
+      let warningMsg = '[금액/수량 불일치 경고]\n\n';
+      if (hasAmountMismatch) {
+        warningMsg += `- 원본 명세서 금액(${ocrForm.originalTotalAmount.toLocaleString()}원)과 입력된 품목 합계금액(${calculatedTotal.toLocaleString()}원)이 일치하지 않습니다.\n`;
+      }
+      if (hasQuantityMismatch) {
+        warningMsg += `- 원본 명세서 수량(${ocrForm.originalTotalQuantity.toLocaleString()}개)과 입력된 품목 합계수량(${calculatedTotalQuantity.toLocaleString()}개)이 일치하지 않습니다.\n`;
+      }
+      warningMsg += '\n이대로 강제로 공급사 발주서 등록을 진행하시겠습니까?';
+      const confirmForce = window.confirm(warningMsg);
+      if (!confirmForce) return;
     }
 
     try {
@@ -401,6 +430,85 @@ export default function PurchaseOrderOcrModal({
               {/* 기본 SCM 거래 메타 정보 */}
               <div className="bg-slate-50 p-4.5 rounded-2xl border border-slate-100 space-y-4">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block text-left">1. 거래 메타 정보 정보</span>
+                
+                {/* 금액 및 수량 실시간 대조 배지 바 */}
+                <div className="flex flex-wrap items-center gap-2 bg-slate-100 p-2.5 rounded-2xl text-[10px] border border-slate-200 text-left">
+                  <div className="flex items-center space-x-1">
+                    <span className="font-bold text-slate-500">실물총액:</span>
+                    <input
+                      type="number"
+                      value={ocrForm.originalTotalAmount || ''}
+                      onChange={(e) => setOcrForm({ ...ocrForm, originalTotalAmount: Number(e.target.value) || 0 })}
+                      className="w-20 px-1.5 py-0.5 border border-slate-200 rounded text-slate-800 font-mono font-bold text-right focus:outline-none focus:border-indigo-500 bg-white"
+                      placeholder="수동 입력"
+                      title="명세서에 적힌 원본 최종 합계금액"
+                    />
+                    <span className="font-bold text-slate-500">원</span>
+                  </div>
+                  
+                  <div className="h-3 w-px bg-slate-350 hidden md:block"></div>
+
+                  <div className="flex items-center space-x-1">
+                    <span className="font-bold text-slate-500">계산액:</span>
+                    <span className="font-mono font-black text-slate-800">{calculatedTotal.toLocaleString()}원</span>
+                  </div>
+
+                  {ocrForm.originalTotalAmount > 0 && (
+                    <>
+                      <div className="h-3 w-px bg-slate-350"></div>
+                      {isAmountMatching ? (
+                        <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded text-[9px] font-black flex items-center gap-0.5 leading-none">
+                          <CheckCircle2 className="w-2.5 h-2.5" />
+                          금액 일치
+                        </span>
+                      ) : (
+                        <span className="px-1.5 py-0.5 bg-rose-50 text-rose-600 border border-rose-200 rounded text-[9px] font-black flex items-center gap-0.5 leading-none animate-pulse">
+                          <AlertCircle className="w-2.5 h-2.5" />
+                          금액 불일치
+                        </span>
+                      )}
+                    </>
+                  )}
+
+                  <div className="h-4 w-px bg-slate-300 w-full md:w-px md:h-3"></div>
+
+                  <div className="flex items-center space-x-1">
+                    <span className="font-bold text-slate-500">실물수량:</span>
+                    <input
+                      type="number"
+                      value={ocrForm.originalTotalQuantity || ''}
+                      onChange={(e) => setOcrForm({ ...ocrForm, originalTotalQuantity: Number(e.target.value) || 0 })}
+                      className="w-14 px-1.5 py-0.5 border border-slate-200 rounded text-slate-800 font-mono font-bold text-right focus:outline-none focus:border-indigo-500 bg-white"
+                      placeholder="수동 입력"
+                      title="명세서에 적힌 원본 최종 합계 수량"
+                    />
+                    <span className="font-bold text-slate-500">개</span>
+                  </div>
+
+                  <div className="h-3 w-px bg-slate-350 hidden md:block"></div>
+
+                  <div className="flex items-center space-x-1">
+                    <span className="font-bold text-slate-500">계산수량:</span>
+                    <span className="font-mono font-black text-slate-800">{calculatedTotalQuantity.toLocaleString()}개</span>
+                  </div>
+
+                  {ocrForm.originalTotalQuantity > 0 && (
+                    <>
+                      <div className="h-3 w-px bg-slate-350"></div>
+                      {isQuantityMatching ? (
+                        <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded text-[9px] font-black flex items-center gap-0.5 leading-none">
+                          <CheckCircle2 className="w-2.5 h-2.5" />
+                          수량 일치
+                        </span>
+                      ) : (
+                        <span className="px-1.5 py-0.5 bg-rose-50 text-rose-600 border border-rose-200 rounded text-[9px] font-black flex items-center gap-0.5 leading-none animate-pulse">
+                          <AlertCircle className="w-2.5 h-2.5" />
+                          수량 불일치
+                        </span>
+                      )}
+                    </>
+                  )}
+                </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-left">
                   <div>
