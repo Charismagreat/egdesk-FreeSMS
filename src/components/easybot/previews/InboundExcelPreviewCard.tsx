@@ -47,25 +47,31 @@ export default function InboundExcelPreviewCard({
       
       const parsedItems = (parsed.items || []).map((item: any) => {
         let matchedId = 'NEW';
-        const searchToken = String(item.barcode_or_name || "").trim();
+        const itemName = String(item.item_name || "").trim();
+        const itemCode = String(item.item_code || "").trim();
+        const barcode = String(item.barcode || "").trim();
 
-        // 바코드 매칭
-        const matchedByBarcode = inventoryList.find(i => i.barcode === searchToken);
-        if (matchedByBarcode) {
-          matchedId = String(matchedByBarcode.id);
+        // 1. 바코드 대조
+        if (barcode) {
+          const matchedByBarcode = inventoryList.find(i => String(i.barcode || "").trim() === barcode);
+          if (matchedByBarcode) matchedId = String(matchedByBarcode.id);
         }
 
-        // 품명 매칭
-        if (matchedId === 'NEW') {
-          const matchedByName = inventoryList.find(i => i.name === searchToken);
-          if (matchedByName) {
-            matchedId = String(matchedByName.id);
-          }
+        // 2. 품목코드 대조
+        if (matchedId === 'NEW' && itemCode) {
+          const matchedByCode = inventoryList.find(i => String(i.barcode || "").trim() === itemCode);
+          if (matchedByCode) matchedId = String(matchedByCode.id);
+        }
+
+        // 3. 품목명 대조
+        if (matchedId === 'NEW' && itemName) {
+          const matchedByName = inventoryList.find(i => String(i.name || "").trim() === itemName);
+          if (matchedByName) matchedId = String(matchedByName.id);
         }
 
         return {
           ...item,
-          itemName: item.barcode_or_name || "",
+          itemName: itemName,
           matchedItemId: matchedId
         };
       });
@@ -80,18 +86,23 @@ export default function InboundExcelPreviewCard({
     if (inventoryList.length > 0 && items.length > 0 && items.every(item => item.matchedItemId === 'NEW')) {
       const updated = items.map((item: any) => {
         let matchedId = 'NEW';
-        const searchToken = String(item.itemName || "").trim();
+        const itemName = String(item.itemName || "").trim();
+        const itemCode = String(item.item_code || "").trim();
+        const barcode = String(item.barcode || "").trim();
 
-        const matchedByBarcode = inventoryList.find(i => i.barcode === searchToken);
-        if (matchedByBarcode) {
-          matchedId = String(matchedByBarcode.id);
+        if (barcode) {
+          const matchedByBarcode = inventoryList.find(i => String(i.barcode || "").trim() === barcode);
+          if (matchedByBarcode) matchedId = String(matchedByBarcode.id);
         }
 
-        if (matchedId === 'NEW') {
-          const matchedByName = inventoryList.find(i => i.name === searchToken);
-          if (matchedByName) {
-            matchedId = String(matchedByName.id);
-          }
+        if (matchedId === 'NEW' && itemCode) {
+          const matchedByCode = inventoryList.find(i => String(i.barcode || "").trim() === itemCode);
+          if (matchedByCode) matchedId = String(matchedByCode.id);
+        }
+
+        if (matchedId === 'NEW' && itemName) {
+          const matchedByName = inventoryList.find(i => String(i.name || "").trim() === itemName);
+          if (matchedByName) matchedId = String(matchedByName.id);
         }
         return { ...item, matchedItemId: matchedId };
       });
@@ -119,10 +130,13 @@ export default function InboundExcelPreviewCard({
     try {
       // 엑셀 가공 API 형식에 맞춰 페이로드 정규화
       const formattedItems = items.map(it => ({
-        barcode_or_name: it.itemName,
+        item_name: it.itemName,
+        item_code: it.item_code || "",
+        barcode: it.barcode || "",
         spec: it.spec || "",
         quantity: Number(it.quantity) || 0,
-        unit_price: Number(it.unit_price) || Number(it.price) || 0
+        unit_price: Number(it.unit_price) || Number(it.price) || 0,
+        note: it.note || ""
       }));
 
       const response = await fetch('/api/inventory/inbounds/excel-upload', {
@@ -201,7 +215,22 @@ export default function InboundExcelPreviewCard({
                   <span className="text-slate-400 truncate text-[9px]">{item.spec || '규격 없음'}</span>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-1.5">
+                {/* 품목코드 및 바코드 정보가 있는 경우 컴팩트하게 노출 */}
+                {(item.item_code || item.barcode) && (
+                  <div className="flex flex-wrap gap-2 text-[8px] text-slate-450 font-mono scale-95 origin-left">
+                    {item.item_code && <span>코드: {item.item_code}</span>}
+                    {item.barcode && <span>바코드: {item.barcode}</span>}
+                  </div>
+                )}
+
+                {/* 비고 수집 정보가 있는 경우 이탤릭체 노출 */}
+                {item.note && (
+                  <div className="text-[8.5px] text-slate-400/90 italic bg-slate-50 p-1 rounded-sm border border-slate-100/50 truncate" title={item.note}>
+                    메모: {item.note}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-1.5 pt-0.5">
                   <div>
                     <label className="text-[9px] text-slate-440">수량</label>
                     <input

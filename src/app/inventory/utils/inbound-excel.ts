@@ -1,10 +1,13 @@
 import * as XLSX from 'xlsx';
 
 export interface InboundExcelParsedItem {
-  barcode_or_name: string; // 품명 또는 바코드
+  item_name: string;      // 품목명 (필수)
+  item_code: string;      // 품목코드 (선택)
+  barcode: string;        // 바코드 (선택)
   spec: string;           // 규격
   quantity: number;       // 수량
   unit_price: number;     // 단가
+  note: string;           // 비고 (매핑안된 데이터 병합 수집)
 }
 
 export interface InboundExcelParsedResult {
@@ -61,7 +64,7 @@ export const getExcelColumnsAndRawData = async (
     const row = rawRows[r];
     if (!row) continue;
 
-    // 품명/바코드, 수량, 단가 등으로 추정되는 일반적 단어가 포함된 첫 행을 헤더 행으로 지능형 검출
+    // 핵심 컬럼 추정 일반 단어로 첫 헤더 행 지능형 감출
     const rowText = row.map(v => String(v || "").trim());
     const hasCoreColumn = rowText.some(v => 
       v.includes("품명") || v.includes("상품명") || v.includes("품목명") || 
@@ -92,16 +95,19 @@ export const getExcelColumnsAndRawData = async (
 
 /**
  * 저장된 매핑(열 인덱스 및 설정) 정보를 바탕으로 엑셀 로우(rawRows) 데이터를 해석하여 자율 입고 품목 목록을 빌드합니다.
- * mapping 구조: { barcode_or_name: number, spec: number, quantity: number, unit_price: number, partner_name: number, inbound_date: number }
+ * 매핑되지 않은 모든 컬럼들의 셀 값은 'note(비고)' 필드에 기타 정보로 수집 및 병합됩니다.
  */
 export const parseInboundExcelWithMapping = (
   rawRows: any[][],
   headerRowIndex: number,
   mapping: {
-    barcode_or_name: number;
+    item_name: number;
+    item_code?: number;
+    barcode?: number;
     spec: number;
     quantity: number;
     unit_price: number;
+    note?: number;
     partner_name?: number;
     inbound_date?: number;
   },
@@ -116,33 +122,81 @@ export const parseInboundExcelWithMapping = (
   const headerCols = headerRow.map(v => String(v || "").trim()).filter(Boolean);
   const header_signature = headerCols.join('|');
 
+  // 매핑에 사용된 실제 인덱스 목록 (Unmapped 열 데이터 필터링용)
+  const usedIndices = [
+    mapping.item_name,
+    mapping.item_code,
+    mapping.barcode,
+    mapping.spec,
+    mapping.quantity,
+    mapping.unit_price,
+    mapping.note,
+    mapping.partner_name,
+    mapping.inbound_date
+  ].filter(idx => idx !== undefined && idx !== -1);
+
   // 2. 헤더 행 다음 라인부터 데이터를 매핑하여 읽어옴
   for (let r = headerRowIndex + 1; r < rawRows.length; r++) {
     const row = rawRows[r];
     if (!row || row.length === 0) continue;
 
-    // 품명/바코드 컬럼이 매핑되어 있고 해당 값이 유효한지 검사
-    const barcodeOrNameIdx = mapping.barcode_or_name;
-    const barcode_or_name = barcodeOrNameIdx !== undefined && barcodeOrNameIdx !== -1 && row[barcodeOrNameIdx]
-      ? String(row[barcodeOrNameIdx]).trim()
+    // 품목명은 필수값
+    const nameIdx = mapping.item_name;
+    const item_name = nameIdx !== undefined && nameIdx !== -1 && row[nameIdx]
+      ? String(row[nameIdx]).trim()
       : "";
 
-    if (!barcode_or_name) continue;
+    if (!item_name) continue;
 
+    // 품목코드 (선택)
+    const codeIdx = mapping.item_code;
+    const item_code = codeIdx !== undefined && codeIdx !== -1 && row[codeIdx]
+      ? String(row[codeIdx]).trim()
+      : "";
+
+    // 바코드 (선택)
+    const barcodeIdx = mapping.barcode;
+    const barcode = barcodeIdx !== undefined && barcodeIdx !== -1 && row[barcodeIdx]
+      ? String(row[barcodeIdx]).trim()
+      : "";
+
+    // 규격
     const specIdx = mapping.spec;
     const spec = specIdx !== undefined && specIdx !== -1 && row[specIdx]
       ? String(row[specIdx]).trim()
       : "";
 
+    // 수량
     const qtyIdx = mapping.quantity;
     const quantity = qtyIdx !== undefined && qtyIdx !== -1 && row[qtyIdx]
       ? Number(row[qtyIdx]) || 1
       : 1;
 
+    // 단가
     const priceIdx = mapping.unit_price;
     const unit_price = priceIdx !== undefined && priceIdx !== -1 && row[priceIdx]
       ? Number(row[priceIdx]) || 0
       : 0;
+
+    // 매핑안된 나머지 컬럼 데이터를 자동으로 수집하여 문자열로 병합
+    const unmappedData = row
+      .map((val, idx) => {
+        if (usedIndices.includes(idx)) return null;
+        if (val === undefined || val === null || String(val).trim() === '') return null;
+        const headerName = headerRow[idx] || `열${idx + 1}`;
+        return `${headerName}: ${String(val).trim()}`;
+      })
+      .filter(Boolean)
+      .join(', ');
+
+    // 지정된 비고 컬럼 데이터 파싱
+    const noteIdx = mapping.note;
+    const explicitNote = noteIdx !== undefined && noteIdx !== -1 && row[noteIdx]
+      ? String(row[noteIdx]).trim()
+      : "";
+
+    // 지정된 비고 정보와 매핑되지 않은 기타 정보를 최종 결합
+    const note = [explicitNote, unmappedData ? `[기타정보] ${unmappedData}` : ''].filter(Boolean).join(' | ');
 
     // 행마다 공급처가 적혀있는지 수집 (첫 번째 유효한 값을 공급처로 사용)
     const partnerIdx = mapping.partner_name;
@@ -157,10 +211,13 @@ export const parseInboundExcelWithMapping = (
     }
 
     items.push({
-      barcode_or_name,
+      item_name,
+      item_code,
+      barcode,
       spec,
       quantity,
-      unit_price
+      unit_price,
+      note
     });
   }
 

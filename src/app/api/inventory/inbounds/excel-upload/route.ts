@@ -26,30 +26,42 @@ export async function POST(req: Request) {
 
     const timestamp = getKoreanTimestamp();
 
-    // 1. 기존 재고 목록을 가져와서 엑셀 항목들과 지능형 품목 매칭 (바코드 또는 품명 기준)
+    // 1. 기존 재고 목록을 가져와서 엑셀 항목들과 지능형 품목 매칭 (바코드 ➡️ 품목코드 ➡️ 품명 순서로 고도화 대조)
     const existingItemsRes = await queryTable('inventory_items', {});
     const existingItems = existingItemsRes.rows || [];
 
     const mappedItems = items.map((item: any) => {
-      const barcodeOrName = String(item.barcode_or_name || "").trim();
+      const itemName = String(item.item_name || "").trim();
+      const itemCode = String(item.item_code || "").trim();
+      const barcode = String(item.barcode || "").trim();
       const spec = String(item.spec || "").trim();
       const quantity = Number(item.quantity) || 0;
       const price = Number(item.unit_price) || 0;
+      const note = String(item.note || "").trim();
 
-      // 바코드 또는 품명으로 기존 아이템 검색
-      const matched = existingItems.find((ei: any) => {
-        const eiBarcode = String(ei.barcode || "").trim();
-        const eiName = String(ei.name || "").trim();
-        return (eiBarcode && eiBarcode === barcodeOrName) || (eiName && eiName === barcodeOrName);
-      });
+      // 지능형 품목 매칭 3단계 가동
+      let matched = null;
+      if (barcode) {
+        matched = existingItems.find((ei: any) => String(ei.barcode || "").trim() === barcode);
+      }
+      if (!matched && itemCode) {
+        matched = existingItems.find((ei: any) => String(ei.barcode || "").trim() === itemCode);
+      }
+      if (!matched && itemName) {
+        matched = existingItems.find((ei: any) => String(ei.name || "").trim() === itemName);
+      }
+
+      // 최종적으로 적용할 바코드 및 품명 매칭 결과 조합
+      const finalBarcode = barcode || itemCode || (matched ? matched.barcode : "");
 
       return {
-        barcode: matched ? matched.barcode : (barcodeOrName.match(/^\d+$/) ? barcodeOrName : ""),
-        itemName: matched ? matched.name : barcodeOrName,
+        barcode: finalBarcode,
+        itemName: matched ? matched.name : itemName,
         spec: spec || (matched ? matched.spec : ""),
         quantity,
         price,
-        matchedItemId: matched ? String(matched.id) : "NEW"
+        matchedItemId: matched ? String(matched.id) : "NEW",
+        note: note // 비고 데이터도 파이프라인으로 전달
       };
     });
 

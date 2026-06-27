@@ -34,10 +34,13 @@ export default function InboundExcelModal({
 
   // 매핑 필드 설정 (열 인덱스를 문자열 또는 숫자로 보관)
   const [mapping, setMapping] = useState({
-    barcode_or_name: "",
+    item_name: "",
+    item_code: "",
+    barcode: "",
     spec: "",
     quantity: "",
     unit_price: "",
+    note: "",
     partner_name: "",
     inbound_date: ""
   });
@@ -129,10 +132,13 @@ export default function InboundExcelModal({
         // 처음 본 양식인 경우 Step 2: 수동 매핑 모드로 진입
         // 초기 매핑값 자동 감지 시도
         const newMapping = {
-          barcode_or_name: String(excelMeta.headers.findIndex(h => h.includes("품명") || h.includes("바코드") || h.includes("상품명") || h.includes("품목명") || h.includes("자재명"))),
+          item_name: String(excelMeta.headers.findIndex(h => h.includes("품명") || h.includes("상품명") || h.includes("품목명") || h.includes("자재명") || h.includes("자재명칭"))),
+          item_code: String(excelMeta.headers.findIndex(h => h.includes("품목코드") || h.includes("코드") || h.includes("code") || h.includes("자재코드"))),
+          barcode: String(excelMeta.headers.findIndex(h => h.includes("바코드") || h.includes("barcode"))),
           spec: String(excelMeta.headers.findIndex(h => h.includes("규격") || h.includes("사양") || h.includes("spec") || h.includes("Spec"))),
           quantity: String(excelMeta.headers.findIndex(h => h.includes("수량") || h.includes("수") || h.includes("qty") || h.includes("Qty"))),
           unit_price: String(excelMeta.headers.findIndex(h => h.includes("단가") || h.includes("금액") || h.includes("가격") || h.includes("price") || h.includes("Price"))),
+          note: String(excelMeta.headers.findIndex(h => h.includes("비고") || h.includes("메모") || h.includes("설명") || h.includes("note") || h.includes("Note"))),
           partner_name: String(excelMeta.headers.findIndex(h => h.includes("공급처") || h.includes("거래처") || h.includes("제조사") || h.includes("상호"))),
           inbound_date: String(excelMeta.headers.findIndex(h => h.includes("일자") || h.includes("입고일") || h.includes("날짜") || h.includes("date") || h.includes("Date")))
         };
@@ -151,8 +157,8 @@ export default function InboundExcelModal({
   const handleApplyMapping = () => {
     if (!excelData || !fileObject) return;
 
-    if (mapping.barcode_or_name === "-1" || !mapping.barcode_or_name) {
-      setError("품명/바코드 매핑 컬럼은 필수 선택 사항입니다.");
+    if (mapping.item_name === "-1" || !mapping.item_name) {
+      setError("품목명 매핑 컬럼은 필수 선택 사항입니다.");
       return;
     }
     if (mapping.quantity === "-1" || !mapping.quantity) {
@@ -165,10 +171,13 @@ export default function InboundExcelModal({
 
     try {
       const numericMapping = {
-        barcode_or_name: Number(mapping.barcode_or_name),
+        item_name: Number(mapping.item_name),
+        item_code: Number(mapping.item_code),
+        barcode: Number(mapping.barcode),
         spec: Number(mapping.spec),
         quantity: Number(mapping.quantity),
         unit_price: Number(mapping.unit_price),
+        note: Number(mapping.note),
         partner_name: Number(mapping.partner_name),
         inbound_date: Number(mapping.inbound_date)
       };
@@ -208,10 +217,13 @@ export default function InboundExcelModal({
       // A. 매핑 규칙 저장 활성화 시 시그니처 등록
       if (rememberFormat && excelData) {
         const numericMapping = {
-          barcode_or_name: Number(mapping.barcode_or_name),
+          item_name: Number(mapping.item_name),
+          item_code: Number(mapping.item_code),
+          barcode: Number(mapping.barcode),
           spec: Number(mapping.spec),
           quantity: Number(mapping.quantity),
           unit_price: Number(mapping.unit_price),
+          note: Number(mapping.note),
           partner_name: Number(mapping.partner_name),
           inbound_date: Number(mapping.inbound_date)
         };
@@ -332,13 +344,41 @@ export default function InboundExcelModal({
                   <h4 className="text-xs font-black text-slate-700 border-l-3 border-indigo-500 pl-2">핵심 항목 매핑 (필수)</h4>
                   
                   <div>
-                    <label className="text-[10px] text-slate-400 font-bold block mb-1">품명 / 바코드 열</label>
+                    <label className="text-[10px] text-slate-400 font-bold block mb-1">품목명 열</label>
                     <select
-                      value={mapping.barcode_or_name}
-                      onChange={(e) => setMapping(prev => ({ ...prev, barcode_or_name: e.target.value }))}
+                      value={mapping.item_name}
+                      onChange={(e) => setMapping(prev => ({ ...prev, item_name: e.target.value }))}
                       className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
                     >
-                      <option value="">-- 컬럼 선택 --</option>
+                      <option value="-1">매핑안함</option>
+                      {excelData.columns.map((col, idx) => (
+                        <option key={idx} value={idx}>{col}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-slate-400 font-bold block mb-1">품목코드 열(선택)</label>
+                    <select
+                      value={mapping.item_code}
+                      onChange={(e) => setMapping(prev => ({ ...prev, item_code: e.target.value }))}
+                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
+                    >
+                      <option value="-1">매핑안함</option>
+                      {excelData.columns.map((col, idx) => (
+                        <option key={idx} value={idx}>{col}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-slate-400 font-bold block mb-1">바코드 열(선택)</label>
+                    <select
+                      value={mapping.barcode}
+                      onChange={(e) => setMapping(prev => ({ ...prev, barcode: e.target.value }))}
+                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
+                    >
+                      <option value="-1">매핑안함</option>
                       {excelData.columns.map((col, idx) => (
                         <option key={idx} value={idx}>{col}</option>
                       ))}
@@ -352,7 +392,7 @@ export default function InboundExcelModal({
                       onChange={(e) => setMapping(prev => ({ ...prev, quantity: e.target.value }))}
                       className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
                     >
-                      <option value="">-- 컬럼 선택 --</option>
+                      <option value="-1">매핑안함</option>
                       {excelData.columns.map((col, idx) => (
                         <option key={idx} value={idx}>{col}</option>
                       ))}
@@ -366,7 +406,7 @@ export default function InboundExcelModal({
                       onChange={(e) => setMapping(prev => ({ ...prev, unit_price: e.target.value }))}
                       className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
                     >
-                      <option value="">-- 컬럼 선택 --</option>
+                      <option value="-1">매핑안함</option>
                       {excelData.columns.map((col, idx) => (
                         <option key={idx} value={idx}>{col}</option>
                       ))}
@@ -430,7 +470,21 @@ export default function InboundExcelModal({
                       onChange={(e) => setMapping(prev => ({ ...prev, spec: e.target.value }))}
                       className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
                     >
-                      <option value="-1">-- 매핑 안 함 --</option>
+                      <option value="-1">매핑안함</option>
+                      {excelData.columns.map((col, idx) => (
+                        <option key={idx} value={idx}>{col}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-slate-400 font-bold block mb-1">비고 열(선택)</label>
+                    <select
+                      value={mapping.note}
+                      onChange={(e) => setMapping(prev => ({ ...prev, note: e.target.value }))}
+                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
+                    >
+                      <option value="-1">매핑안함</option>
                       {excelData.columns.map((col, idx) => (
                         <option key={idx} value={idx}>{col}</option>
                       ))}
@@ -470,11 +524,14 @@ export default function InboundExcelModal({
               </div>
 
               <div className="border border-slate-100 rounded-2xl overflow-hidden max-h-[250px] overflow-y-auto">
-                <table className="w-full border-collapse text-left text-[11px]">
+                <table className="w-full border-collapse text-left text-[10px]">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-100 font-black text-slate-500">
-                      <th className="p-3">품명/바코드</th>
+                      <th className="p-3">품목명</th>
+                      <th className="p-3">품목코드</th>
+                      <th className="p-3">바코드</th>
                       <th className="p-3">규격</th>
+                      <th className="p-3">수집비고 및 메모</th>
                       <th className="p-3 text-right">수량</th>
                       <th className="p-3 text-right">단가</th>
                       <th className="p-3 text-right">총액</th>
@@ -483,8 +540,11 @@ export default function InboundExcelModal({
                   <tbody>
                     {parsedResult.items.map((item, idx) => (
                       <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/50">
-                        <td className="p-3 font-semibold text-slate-800 truncate max-w-[150px]">{item.barcode_or_name}</td>
-                        <td className="p-3 text-slate-400 truncate max-w-[100px]">{item.spec || "-"}</td>
+                        <td className="p-3 font-semibold text-slate-800 truncate max-w-[120px]" title={item.item_name}>{item.item_name}</td>
+                        <td className="p-3 text-slate-450 truncate font-mono max-w-[80px]">{item.item_code || "-"}</td>
+                        <td className="p-3 text-slate-450 truncate font-mono max-w-[80px]">{item.barcode || "-"}</td>
+                        <td className="p-3 text-slate-400 truncate max-w-[80px]">{item.spec || "-"}</td>
+                        <td className="p-3 text-slate-400/90 italic truncate max-w-[140px]" title={item.note}>{item.note || "-"}</td>
                         <td className="p-3 text-right text-indigo-650 font-bold">{item.quantity.toLocaleString()} 개</td>
                         <td className="p-3 text-right text-slate-700">{item.unit_price.toLocaleString()} 원</td>
                         <td className="p-3 text-right text-slate-900 font-black">{(item.quantity * item.unit_price).toLocaleString()} 원</td>
