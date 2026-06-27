@@ -282,15 +282,15 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
           {ocrSuccess && (
             <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-10 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
               
-              {/* 좌측: 업로드된 원본 문서 뷰어 (30% 점유, 높이 73vh 극대화) */}
-              <div className="lg:col-span-3 border border-slate-100 rounded-2xl bg-slate-50 p-2 flex flex-col items-center justify-center min-h-[450px] lg:min-h-[73vh] h-[73vh] relative overflow-hidden">
+              {/* 좌측: 업로드된 원본 문서 뷰어 (30% 점유, 높이 76vh로 대폭 확장) */}
+              <div className="lg:col-span-3 border border-slate-100 rounded-2xl bg-slate-50 p-2 flex flex-col items-center justify-center min-h-[450px] lg:min-h-[76vh] h-[76vh] relative overflow-hidden">
                 <span className="text-[9px] font-black text-slate-400 absolute top-2 left-2 bg-white/80 px-2 py-0.5 rounded border border-slate-100 z-10 shadow-sm">📄 명세서 원본 문서</span>
                 {ocrForm.fileUrl ? (
                   ocrForm.fileUrl.startsWith('data:application/pdf') ? (
                     <embed src={ocrForm.fileUrl} type="application/pdf" className="w-full h-full rounded-xl" />
                   ) : (
                     <div className="w-full h-full overflow-auto flex items-center justify-center p-2">
-                      <img src={ocrForm.fileUrl} className="max-w-full max-h-[70vh] object-contain rounded-xl shadow-sm animate-fade-in" alt="명세서 원본" />
+                      <img src={ocrForm.fileUrl} className="max-w-full max-h-[72vh] object-contain rounded-xl shadow-sm animate-fade-in" alt="명세서 원본" />
                     </div>
                   )
                 ) : (
@@ -298,8 +298,8 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
                 )}
               </div>
 
-              {/* 우측: AI 보정 폼 테이블 (70% 점유, 대칭 높이 73vh 설정) */}
-              <div className="lg:col-span-7 flex flex-col min-h-0 space-y-4 lg:h-[73vh] h-[73vh]">
+              {/* 우측: AI 보정 폼 테이블 (70% 점유, 대칭 높이 76vh 설정) */}
+              <div className="lg:col-span-7 flex flex-col min-h-0 space-y-4 lg:h-[76vh] h-[76vh]">
                 <h4 className="text-xs font-black text-indigo-500 uppercase tracking-wider shrink-0">📋 AI 판독 데이터 검증 및 보정 (14개 전체 컬럼 매핑)</h4>
                 
                 <div className="grid grid-cols-2 gap-4 shrink-0">
