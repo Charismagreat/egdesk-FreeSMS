@@ -273,7 +273,7 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
                   </h3>
 
                   {/* 버튼 그룹 (상단으로 이동) */}
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 pr-12">
                     <button
                       onClick={handleClose}
                       disabled={isProcessing}
