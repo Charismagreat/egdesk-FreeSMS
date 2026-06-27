@@ -52,10 +52,10 @@ const typeConfig = {
   inventory_inout: {
     title: "재고 입출고 및 변동 대장 내역",
     headers: [
-      "등록일시", "품목ID", "품목명", "품목구분", "변동종류", "수량", "단가", "담당자", "변동 메모 및 AI 분석 사유", "증빙조회"
+      "등록일시", "변동종류", "품목구분", "카테고리", "품목명", "품목코드", "바코드", "규격", "단위", "박스입수량", "수량", "단가", "공급처", "입고일자", "보관위치", "상세비고", "담당자", "증빙조회"
     ],
     defaultVisible: [
-      "등록일시", "품목ID", "품목명", "품목구분", "변동종류", "수량", "단가", "담당자", "변동 메모 및 AI 분석 사유", "증빙조회"
+      "등록일시", "변동종류", "품목구분", "카테고리", "품목명", "품목코드", "바코드", "규격", "단위", "박스입수량", "수량", "단가", "공급처", "입고일자", "보관위치", "상세비고", "담당자", "증빙조회"
     ]
   }
 };
@@ -383,14 +383,22 @@ function WebViewContent() {
                 
                 rows.push([
                   dateStr,                                           // 등록일시
-                  det.item_code || det.id || "-",                   // 품목ID
-                  det.item_name || "-",                              // 품목명
-                  det.type || log.itemType || "-",                   // 품목구분
                   typeStr,                                           // 변동종류
+                  det.type || log.itemType || "-",                   // 품목구분
+                  det.category || "기타",                            // 카테고리
+                  det.item_name || "-",                              // 품목명
+                  det.item_code || det.id || "-",                   // 품목코드
+                  det.barcode || "-",                                // 바코드
+                  det.spec || "-",                                   // 규격
+                  det.unit || "개",                                  // 단위
+                  det.box_qty !== undefined ? `${det.box_qty} 개` : "1 개", // 박스입수량
                   detQtyStr,                                         // 수량
                   detPriceStr,                                       // 단가
+                  det.partner_name || "미지정 공급처",                 // 공급처
+                  det.inbound_date || dateStr,                       // 입고일자
+                  det.location || "-",                               // 보관위치
+                  det.note || cleanNote || "-",                      // 상세비고
                   log.operator || "-",                               // 담당자
-                  `${det.partner_name || '공급처'} 개별 입고 등록 건`,   // 변동 메모 및 AI 분석 사유
                   log.note || ""                                     // 증빙조회
                 ]);
               });
@@ -410,14 +418,22 @@ function WebViewContent() {
 
               rows.push([
                 dateStr,                                           // 등록일시
-                log.itemId !== -1 ? String(log.itemId) : "-",     // 품목ID
-                log.itemName || "-",                               // 품목명
-                log.itemType || "-",                               // 품목구분
                 typeStr,                                           // 변동종류
+                log.itemType || "-",                               // 품목구분
+                "일반재고",                                         // 카테고리
+                log.itemName || "-",                               // 품목명
+                log.itemId !== -1 ? String(log.itemId) : "-",     // 품목코드
+                "-",                                               // 바코드
+                "-",                                               // 규격
+                "개",                                              // 단위
+                "1 개",                                            // 박스입수량
                 qtyStr,                                            // 수량
                 log.price !== undefined ? `₩ ${log.price.toLocaleString()}` : "₩ 0", // 단가
+                "-",                                               // 공급처
+                dateStr,                                           // 입고일자
+                "-",                                               // 보관위치
+                cleanNote || "-",                                  // 상세비고
                 log.operator || "-",                               // 담당자
-                cleanNote || "-",                                  // 변동 메모 및 AI 분석 사유
                 proofPath                                          // 증빙조회
               ]);
             }
