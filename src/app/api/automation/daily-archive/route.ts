@@ -18,23 +18,22 @@ export async function POST(req: Request) {
 
     console.log(`[Daily Archive] Starting archiving for date: ${dateStr}`);
 
-    // 2. 당일 현장 데이터 수집 (SQL 쿼리)
+    // 2. 당일 현장 데이터 수집 (안전한 queryTable 이용)
     // 2-1. 안전 TBM 로그
-    const tbmRes = await executeSQL(
-      `SELECT * FROM safety_tbm_logs WHERE created_at LIKE '${dateStr}%'`
-    );
+    const tbmRes = await queryTable('safety_tbm_logs', {
+      filters: { tbm_date: dateStr }
+    });
     const tbmLogs = tbmRes.rows || [];
 
     // 2-2. 품질 체크리스트 제출 이력
-    const qualityRes = await executeSQL(
-      `SELECT * FROM crm_quality_checklist_submissions WHERE submittedAt LIKE '${dateStr}%'`
-    );
-    const qualityLogs = qualityRes.rows || [];
+    const qualityRes = await queryTable('crm_quality_checklist_submissions', {});
+    const allQualityLogs = qualityRes.rows || [];
+    const qualityLogs = allQualityLogs.filter((q: any) => q.submittedAt && q.submittedAt.startsWith(dateStr));
 
     // 2-3. 안전점검 감사 대장
-    const inspectRes = await executeSQL(
-      `SELECT * FROM safety_inspect_logs WHERE inspect_date = '${dateStr}' OR created_at LIKE '${dateStr}%'`
-    );
+    const inspectRes = await queryTable('safety_inspect_logs', {
+      filters: { inspect_date: dateStr }
+    });
     const inspectLogs = inspectRes.rows || [];
 
     // 3. 아카이빙 발송 판단 (데이터가 아예 없다면 굳이 발송하지 않음)

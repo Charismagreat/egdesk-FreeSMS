@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { EGDESK_CONFIG } from '../../../../egdesk.config';
-import { listTables, createTable, executeSQL } from '../../../../egdesk-helpers';
+import { listTables, createTable, queryTable, insertRows, updateRows } from '../../../../egdesk-helpers';
 
 // 5대 표준 시나리오 메타데이터 맵 (실제 파일과 동적 매핑용)
 const SCRIPT_METADATA_PRESETS: Record<string, { title: string; menuPath: string; targetTable: string; description: string; category: string; columns: string[]; defaultDaysRange: number }> = {
@@ -242,7 +242,7 @@ async function initializeLockDatabase() {
         uniqueKeyColumns: ['id']
       });
       // 초기 레코드 삽입
-      await executeSQL("INSERT INTO ecount_rpa_lock (id, is_locked, locked_by, locked_at, cooldown_until) VALUES (1, 0, '', '', '');");
+      await insertRows('ecount_rpa_lock', [{ id: 1, is_locked: 0, locked_by: '', locked_at: '', cooldown_until: '' }]);
       console.log('[Lock System] ecount_rpa_lock 테이블 초기값 적재 완료.');
     }
   } catch (e: any) {
@@ -253,8 +253,8 @@ async function initializeLockDatabase() {
 async function checkAndAcquireLock(scriptFile: string): Promise<{ success: boolean; reason?: string }> {
   try {
     await initializeLockDatabase();
-    const lockRes = await executeSQL("SELECT * FROM ecount_rpa_lock WHERE id = 1;");
-    const rows = lockRes.rows || lockRes || [];
+    const lockRes = await queryTable('ecount_rpa_lock', { filters: { id: 1 } });
+    const rows = lockRes.rows || [];
     const lock = rows[0];
     
     if (!lock) return { success: true };
@@ -267,7 +267,7 @@ async function checkAndAcquireLock(scriptFile: string): Promise<{ success: boole
       // 좀비 락 방지 (15분 초과 시 강제 해제)
       if (now.getTime() - lockedAt.getTime() > 15 * 60 * 1000) {
         console.log('[Lock System] 좀비 락 자동 만료 해제 처리.');
-        await executeSQL("UPDATE ecount_rpa_lock SET is_locked = 0, locked_by = '' WHERE id = 1;");
+        await updateRows('ecount_rpa_lock', { is_locked: 0, locked_by: '' }, { filters: { id: '1' } });
       } else {
         return {
           success: false,
@@ -291,7 +291,11 @@ async function checkAndAcquireLock(scriptFile: string): Promise<{ success: boole
     }
 
     // 3. 락 선점
-    await executeSQL(`UPDATE ecount_rpa_lock SET is_locked = 1, locked_by = '${scriptFile}', locked_at = '${now.toISOString()}', cooldown_until = '' WHERE id = 1;`);
+    await updateRows(
+      'ecount_rpa_lock', 
+      { is_locked: 1, locked_by: scriptFile, locked_at: now.toISOString(), cooldown_until: '' }, 
+      { filters: { id: '1' } }
+    );
     return { success: true };
   } catch (error: any) {
     console.error('락 획득 중 오류 발생 (폴백 허용):', error.message);
@@ -303,7 +307,11 @@ async function releaseLockAndCooldown(scriptFile: string) {
   try {
     const now = new Date();
     const cooldownTime = new Date(now.getTime() + 5 * 60 * 1000); // 5분 후
-    await executeSQL(`UPDATE ecount_rpa_lock SET is_locked = 0, locked_by = '', cooldown_until = '${cooldownTime.toISOString()}' WHERE id = 1;`);
+    await updateRows(
+      'ecount_rpa_lock',
+      { is_locked: 0, locked_by: '', cooldown_until: cooldownTime.toISOString() },
+      { filters: { id: '1' } }
+    );
     console.log(`[Lock Engine] 스크립트 ${scriptFile} 락 해제 완료. 5분 Cooldown 돌입 (~${cooldownTime.toLocaleTimeString()})`);
   } catch (e: any) {
     console.error('락 해제 중 오류:', e.message);
