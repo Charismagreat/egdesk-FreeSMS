@@ -794,7 +794,7 @@ export default function InventoryPage() {
 
     // 0.8초 고속 지능형 자연어 구문 분석 NLP 시뮬레이션
     setTimeout(() => {
-      const matchedPreset = voicePresets.find(p => rawText.includes(p.parsed.itemName) || p.text === rawText);
+      const matchedPreset = (voicePresets || []).find(p => p && p.parsed && (rawText.includes(p.parsed.itemName) || p.text === rawText));
       
       let parsedResult = {
         itemName: '써모글로우 텀블러',
@@ -851,7 +851,10 @@ export default function InventoryPage() {
   const toggleRecording = () => {
     if (isRecording) {
       setIsRecording(false);
-      const randomPreset = voicePresets[Math.floor(Math.random() * voicePresets.length)];
+      const fallbackPreset = { id: 999, text: "써모글로우 텀블러 5개 출고하고 VIP 발송이라고 메모해줘" };
+      const randomPreset = voicePresets && voicePresets.length > 0 
+        ? voicePresets[Math.floor(Math.random() * voicePresets.length)]
+        : fallbackPreset;
       setVoiceText(randomPreset.text);
       setSelectedVoicePreset(randomPreset.id);
     } else {
