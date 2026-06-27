@@ -236,72 +236,37 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
           <X className="w-4 h-4" />
         </button>
 
-        {/* 모달 제목 */}
-        <h3 className="text-lg font-black text-slate-800 flex items-center justify-center gap-2 mb-4 shrink-0">
-          <Upload className="w-5 h-5 text-indigo-500" />
-          <span>명세서 실물 분석 입고 (14대 전체 항목 매핑 검증)</span>
-        </h3>
-
-        {/* 메인 스크롤 영역 */}
-        <div className="space-y-3 flex-1 overflow-y-auto pr-1 min-h-0 flex flex-col">
-          {/* 이미지 가상 드롭존 (분석 성공 전 혹은 로딩 중에만 표시) */}
-          {!ocrSuccess && (
-            <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center bg-slate-50 relative min-h-[140px] overflow-hidden shrink-0">
-              {ocrScanning && (
-                <div className="absolute inset-x-0 h-1 bg-indigo-500 animate-bounce z-20"></div>
-              )}
-
-              {ocrScanning ? (
-                <div className="flex flex-col items-center space-y-2 text-center">
-                  <RefreshCw className="w-8 h-8 text-indigo-500 animate-spin" />
-                  <span className="text-xs text-indigo-600 font-extrabold animate-pulse">
-                    Gemini Vision AI로 명세서(영수증/PDF) 이미지 고해상도 OCR 분석 중...
-                  </span>
-                </div>
+        {ocrSuccess ? (
+          /* 분석 성공 시: 좌우 완전 2분할 (좌측은 천장부터 꽉 참, 우측은 타이틀+컨트롤+테이블+푸터 포함) */
+          <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-10 gap-6 h-full">
+            
+            {/* 좌측: 업로드된 원본 문서 뷰어 (30% 점유, 천장부터 바닥까지 꽉 채우는 h-[70vh] 및 여백 최소화) */}
+            <div className="lg:col-span-3 border border-slate-150 rounded-2xl bg-slate-50 p-1 flex flex-col items-center justify-center h-[70vh] lg:h-[70vh] relative overflow-hidden shadow-inner">
+              <span className="text-[9px] font-black text-slate-400 absolute top-2 left-2 bg-white/80 px-2 py-0.5 rounded border border-slate-100 z-10 shadow-sm">📄 명세서 원본 문서</span>
+              {ocrForm.fileUrl ? (
+                ocrForm.fileUrl.startsWith('data:application/pdf') ? (
+                  <embed src={`${ocrForm.fileUrl}#toolbar=0&navpanes=0`} type="application/pdf" className="w-full h-full rounded-xl" />
+                ) : (
+                  <div className="w-full h-full overflow-auto flex items-center justify-center p-1">
+                    <img src={ocrForm.fileUrl} className="max-w-full max-h-[68vh] object-contain rounded-xl shadow-sm animate-fade-in" alt="명세서 원본" />
+                  </div>
+                )
               ) : (
-                <div className="text-center space-y-3">
-                  <FileTextIcon className="w-8 h-8 text-slate-400 mx-auto" />
-                  <div className="text-xs text-slate-500">명세서 실물 사진/PDF 이미지 등록 시 AI가 입고 대장 자동 적재</div>
-                  <label 
-                    className="inline-block px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-black text-[11px] rounded-xl border border-indigo-100 cursor-pointer shadow-sm active:scale-95 transition-transform"
-                  >
-                    명세서 파일 선택 (이미지 / PDF)
-                    <input 
-                      type="file" 
-                      accept="image/*,application/pdf"
-                      onChange={handleFileChange}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
+                <div className="text-slate-400 text-xs font-bold">원본 문서 이미지가 없습니다.</div>
               )}
             </div>
-          )}
 
-          {/* 파싱된 폼 검증/수정 영역 */}
-          {ocrSuccess && (
-            <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-10 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            {/* 우측: 70% 점유, 타이틀 + 입고정보 + 15컬럼 테이블 + 하단 버튼들 */}
+            <div className="lg:col-span-7 flex flex-col h-[70vh] lg:h-[70vh] min-h-0 justify-between">
               
-              {/* 좌측: 업로드된 원본 문서 뷰어 (30% 점유, 높이 64vh로 세로 꽉 차게 피팅) */}
-              <div className="lg:col-span-3 border border-slate-100 rounded-2xl bg-slate-50 p-2 flex flex-col items-center justify-center min-h-[400px] lg:min-h-[64vh] h-[64vh] relative overflow-hidden">
-                <span className="text-[9px] font-black text-slate-400 absolute top-2 left-2 bg-white/80 px-2 py-0.5 rounded border border-slate-100 z-10 shadow-sm">📄 명세서 원본 문서</span>
-                {ocrForm.fileUrl ? (
-                  ocrForm.fileUrl.startsWith('data:application/pdf') ? (
-                    <embed src={`${ocrForm.fileUrl}#toolbar=0&navpanes=0`} type="application/pdf" className="w-full h-full rounded-xl" />
-                  ) : (
-                    <div className="w-full h-full overflow-auto flex items-center justify-center p-2">
-                      <img src={ocrForm.fileUrl} className="max-w-full max-h-[60vh] object-contain rounded-xl shadow-sm animate-fade-in" alt="명세서 원본" />
-                    </div>
-                  )
-                ) : (
-                  <div className="text-slate-400 text-xs font-bold">원본 문서 이미지가 없습니다.</div>
-                )}
-              </div>
+              {/* 타이틀 및 메인 폼 */}
+              <div className="flex flex-col min-h-0 flex-1 space-y-2">
+                {/* 모달 제목 */}
+                <h3 className="text-base font-black text-slate-800 flex items-center justify-center gap-2 mb-1 shrink-0">
+                  <Upload className="w-4 h-4 text-indigo-500" />
+                  <span>명세서 실물 분석 입고 (14대 전체 항목 매핑 검증)</span>
+                </h3>
 
-              {/* 우측: AI 보정 폼 테이블 (70% 점유, 대칭 높이 64vh 설정) */}
-              <div className="lg:col-span-7 flex flex-col min-h-0 space-y-4 lg:h-[64vh] h-[64vh]">
-                <h4 className="text-xs font-black text-indigo-500 uppercase tracking-wider shrink-0">📋 AI 판독 데이터 검증 및 보정 (14개 전체 컬럼 매핑)</h4>
-                
                 <div className="grid grid-cols-2 gap-4 shrink-0">
                   <div>
                     <label className="text-[10px] font-bold text-slate-455 block mb-1">공급처명(거래처)*</label>
@@ -309,7 +274,7 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
                       type="text"
                       value={ocrForm.partnerName}
                       onChange={(e) => setOcrForm({ ...ocrForm, partnerName: e.target.value })}
-                      className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
+                      className="w-full px-3.5 py-1.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
                       placeholder="공급처(상호명) 입력"
                     />
                   </div>
@@ -319,12 +284,12 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
                       type="date"
                       value={ocrForm.inboundDate}
                       onChange={(e) => setOcrForm({ ...ocrForm, inboundDate: e.target.value })}
-                      className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
+                      className="w-full px-3.5 py-1.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
                     />
                   </div>
                 </div>
 
-                {/* 14개 전체 컬럼을 가로 스크롤 없이 보여주는 컴팩트 테이블 */}
+                {/* 14개 전체 컬럼 컴팩트 테이블 (세로 공간 꽉 채우기 위해 flex-1) */}
                 <div className="flex-1 min-h-0 border border-slate-100 rounded-2xl overflow-y-auto bg-white shadow-sm">
                   <table className="w-full border-collapse text-left text-[10px] table-fixed">
                     <thead>
@@ -521,39 +486,91 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
                 </div>
               </div>
 
-            </div>
-          )}
-        </div>
+              {/* 우측 하단 푸터 (취소/승인 버튼) */}
+              <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end space-x-2 shrink-0">
+                <button
+                  onClick={handleClose}
+                  disabled={isProcessing}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs rounded-xl transition cursor-pointer active:scale-95"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleConfirmInbound}
+                  disabled={isProcessing}
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-md flex items-center gap-1.5 transition active:scale-95 cursor-pointer disabled:opacity-50"
+                >
+                  {isProcessing ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>적재 반영 중...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-3.5 h-3.5 fill-current" />
+                      <span>최종 입고 승인 및 적재</span>
+                    </>
+                  )}
+                </button>
+              </div>
 
-        {/* 모달 푸터 */}
-        <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end space-x-2 shrink-0">
-          <button
-            onClick={handleClose}
-            disabled={isProcessing}
-            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs rounded-xl transition cursor-pointer active:scale-95"
-          >
-            취소
-          </button>
-          {ocrSuccess && (
-            <button
-              onClick={handleConfirmInbound}
-              disabled={isProcessing}
-              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-md shadow-indigo-150 flex items-center gap-1.5 transition active:scale-95 cursor-pointer disabled:opacity-50"
-            >
-              {isProcessing ? (
-                <>
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  <span>적재 반영 중...</span>
-                </>
-              ) : (
-                <>
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>최종 입고 승인 및 적재</span>
-                </>
-              )}
-            </button>
-          )}
-        </div>
+            </div>
+          </div>
+        ) : (
+          /* 분석 대기 중 혹은 업로드 전: 원래의 슬림 드롭존 형태 그대로 렌더링 */
+          <>
+            {/* 모달 제목 */}
+            <h3 className="text-lg font-black text-slate-800 flex items-center justify-center gap-2 mb-4 shrink-0">
+              <Upload className="w-5 h-5 text-indigo-500" />
+              <span>명세서 실물 분석 입고 (14대 전체 항목 매핑 검증)</span>
+            </h3>
+
+            {/* 메인 스크롤 영역 */}
+            <div className="space-y-3 flex-1 overflow-y-auto pr-1 min-h-0 flex flex-col">
+              <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center bg-slate-50 relative min-h-[140px] overflow-hidden shrink-0">
+                {ocrScanning && (
+                  <div className="absolute inset-x-0 h-1 bg-indigo-500 animate-bounce z-20"></div>
+                )}
+
+                {ocrScanning ? (
+                  <div className="flex flex-col items-center space-y-2 text-center">
+                    <RefreshCw className="w-8 h-8 text-indigo-500 animate-spin" />
+                    <span className="text-xs text-indigo-600 font-extrabold animate-pulse">
+                      Gemini Vision AI로 명세서(영수증/PDF) 이미지 고해상도 OCR 분석 중...
+                    </span>
+                  </div>
+                ) : (
+                  <div className="text-center space-y-3">
+                    <FileTextIcon className="w-8 h-8 text-slate-400 mx-auto" />
+                    <div className="text-xs text-slate-500">명세서 실물 사진/PDF 이미지 등록 시 AI가 입고 대장 자동 적재</div>
+                    <label 
+                      className="inline-block px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-black text-[11px] rounded-xl border border-indigo-100 cursor-pointer shadow-sm active:scale-95 transition-transform"
+                    >
+                      명세서 파일 선택 (이미지 / PDF)
+                      <input 
+                        type="file" 
+                        accept="image/*,application/pdf"
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 모달 푸터 */}
+            <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end space-x-2 shrink-0">
+              <button
+                onClick={handleClose}
+                disabled={ocrScanning || isProcessing}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs rounded-xl transition cursor-pointer active:scale-95"
+              >
+                취소
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>,
     document.body
