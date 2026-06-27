@@ -260,7 +260,7 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
             </div>
 
             {/* 우측: 70% 점유, 타이틀 + 입고정보 + 15컬럼 테이블 + 하단 버튼들 */}
-            <div className="lg:col-span-7 flex flex-col h-[75vh] lg:h-[75vh] min-h-0 justify-between">
+            <div className="lg:col-span-7 flex flex-col h-[75vh] lg:h-[75vh] min-h-0">
               
               {/* 타이틀 및 메인 폼 */}
               <div className="flex flex-col min-h-0 flex-1 space-y-2">
@@ -271,8 +271,8 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
                 </h3>
 
 
-                {/* 14개 전체 컬럼 컴팩트 테이블 (세로 공간 꽉 채우기 위해 flex-1) */}
-                <div className="flex-1 min-h-0 border border-slate-100 rounded-2xl overflow-y-auto bg-white shadow-sm">
+                {/* 14개 전체 컬럼 컴팩트 테이블 (세로 공간 꽉 채우기 위해 59vh 고정) */}
+                <div className="h-[59vh] lg:h-[59vh] border border-slate-100 rounded-2xl overflow-y-auto bg-white shadow-sm">
                   <table className="w-full border-collapse text-left text-[10px] table-fixed">
                     <thead>
                       <tr className="bg-slate-50/80 border-b border-slate-100 font-black text-slate-500 text-[9px] sticky top-0 z-10 backdrop-blur-sm">
@@ -487,7 +487,7 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
               </div>
 
               {/* 우측 하단 푸터 (취소/승인 버튼) */}
-              <div className="mt-2 pt-2 pb-1 border-t border-slate-100 flex justify-end space-x-2 shrink-0">
+              <div className="mt-auto pt-2 pb-1 border-t border-slate-100 flex justify-end space-x-2 shrink-0">
                 <button
                   onClick={handleClose}
                   disabled={isProcessing}
