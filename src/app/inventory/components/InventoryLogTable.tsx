@@ -125,11 +125,11 @@ export const InventoryLogTable: React.FC<InventoryLogTableProps> = ({ logs }) =>
                               </button>
                             )}
                             {proofPath && (
-                              <a
-                                href="#"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  if (proofPath.startsWith('data:')) {
+                              proofPath.startsWith('data:') ? (
+                                <a
+                                  href="#"
+                                  onClick={(e) => {
+                                    e.preventDefault();
                                     try {
                                       const parts = proofPath.split(';base64,');
                                       const contentType = parts[0].split(':')[1];
@@ -146,17 +146,27 @@ export const InventoryLogTable: React.FC<InventoryLogTableProps> = ({ logs }) =>
                                       console.error('Base64 디코딩 에러:', err);
                                       window.open(proofPath, '_blank');
                                     }
-                                  } else {
-                                    alert(
-                                      `[안내] 해당 항목은 원본 파일 데이터(Base64)가 포함되지 않고 파일명만 기록된 일반 전표 문서입니다.\n\n- 파일명: ${proofPath}`
-                                    );
-                                  }
-                                }}
-                                className="inline-flex items-center gap-0.5 px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-650 hover:text-indigo-800 rounded-md text-[9px] font-extrabold border border-indigo-100 transition-colors cursor-pointer"
-                                title="자율입고 증빙 파일 조회"
-                              >
-                                📄 증빙 조회
-                              </a>
+                                  }}
+                                  className="inline-flex items-center gap-0.5 px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-650 hover:text-indigo-800 rounded-md text-[9px] font-extrabold border border-indigo-100 transition-colors cursor-pointer"
+                                  title="자율입고 증빙 파일 조회"
+                                >
+                                  📄 증빙 조회
+                                </a>
+                              ) : (proofPath.endsWith('.xlsx') || proofPath.endsWith('.xls') || proofPath.includes('excel')) ? (
+                                <span 
+                                  className="inline-flex items-center px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-md text-[9px] font-extrabold border border-emerald-150"
+                                  title={`엑셀 파일 업로드 건: ${proofPath}`}
+                                >
+                                  EXCEL
+                                </span>
+                              ) : (
+                                <span 
+                                  className="inline-flex items-center px-2 py-0.5 bg-slate-50 text-slate-500 rounded-md text-[9px] font-extrabold border border-slate-200"
+                                  title={`수동/일반 기록: ${proofPath}`}
+                                >
+                                  일반
+                                </span>
+                              )
                             )}
                           </div>
                         </div>
