@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { fetchGeminiWithFallback } from '@/lib/gemini-fallback';
+import { fetchGeminiWithFallback } from '../../../../../lib/gemini-fallback';
 import { queryTable } from '../../../../../../egdesk-helpers';
 
 export const maxDuration = 60; // 60초 타임아웃
