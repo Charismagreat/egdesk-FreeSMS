@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { fetchGeminiWithFallback } from '../../../../../lib/gemini-fallback';
-import { queryTable } from '../../../../../../egdesk-helpers';
+import { queryTable } from '@/../egdesk-helpers';
 
 export const maxDuration = 60; // 60초 타임아웃
 export const dynamic = 'force-dynamic';
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
 
     // 2. 사내 품목 대장 사전 정보를 로딩하여 Fuzzy 매칭 정확도 향상 유도
     const itemsRes = await queryTable('inventory_items', {});
-    const masterItems = itemsRes.rows || [];
+    const masterItems = (itemsRes && itemsRes.rows) ? itemsRes.rows : [];
     const itemReferenceText = masterItems.map((it: any) => 
       `- ID: ${it.id}, 품목명: ${it.name}, 규격: ${it.spec || ''}, 바코드: ${it.barcode || ''}`
     ).join('\n');
