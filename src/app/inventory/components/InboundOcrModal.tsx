@@ -94,7 +94,9 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
             price: Number(it.price) || 0,
             location: it.location || '자율입고창고',
             note: it.note || '',
-            matchedItemId: it.matchedItemId || 'NEW'
+            matchedItemId: it.matchedItemId || 'NEW',
+            partnerName: data.partnerName || '',
+            inboundDate: data.inboundDate || new Date().toISOString().slice(0, 10)
           }));
 
           setOcrForm({
@@ -166,12 +168,13 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
 
   // 최종 입고 승인 실행 (confirm/route.ts 혹은 handleInventoryInbound 호출)
   const handleConfirmInbound = async () => {
-    if (!ocrForm.partnerName) {
-      alert('공급처 상호명은 필수 입력 항목입니다.');
-      return;
-    }
     if (ocrForm.items.length === 0) {
       alert('입고할 품목 정보가 없습니다.');
+      return;
+    }
+    const missingPartner = ocrForm.items.some(it => !it.partnerName);
+    if (missingPartner) {
+      alert('공급처 상호명은 필수 입력 항목입니다.');
       return;
     }
 
@@ -198,8 +201,8 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           actionName: 'ocr_confirm_inventory_inbound',
-          partnerName: ocrForm.partnerName,
-          inboundDate: ocrForm.inboundDate,
+          partnerName: ocrForm.items[0]?.partnerName || ocrForm.partnerName,
+          inboundDate: ocrForm.items[0]?.inboundDate || ocrForm.inboundDate,
           items: requestItems,
           pdfFilePath: file?.name || 'AI 비전 OCR 입고',
           operator: '최고 관리자'
@@ -267,29 +270,6 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
                   <span>명세서 실물 분석 입고 (14대 전체 항목 매핑 검증)</span>
                 </h3>
 
-                <div className="grid grid-cols-2 gap-4 shrink-0 bg-slate-50/50 p-2 rounded-xl border border-slate-100/80">
-                  {/* 공급처명 */}
-                  <div className="flex items-center space-x-2">
-                    <label className="text-[10px] font-black text-slate-500 shrink-0 w-24">공급처명(거래처)*</label>
-                    <input
-                      type="text"
-                      value={ocrForm.partnerName}
-                      onChange={(e) => setOcrForm({ ...ocrForm, partnerName: e.target.value })}
-                      className="flex-1 px-3 py-1 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 bg-white focus:outline-none focus:border-indigo-500"
-                      placeholder="공급처(상호명) 입력"
-                    />
-                  </div>
-                  {/* 입고일자 */}
-                  <div className="flex items-center space-x-2">
-                    <label className="text-[10px] font-black text-slate-500 shrink-0 w-16">입고일자</label>
-                    <input
-                      type="date"
-                      value={ocrForm.inboundDate}
-                      onChange={(e) => setOcrForm({ ...ocrForm, inboundDate: e.target.value })}
-                      className="flex-1 px-3 py-1 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 bg-white focus:outline-none focus:border-indigo-500"
-                    />
-                  </div>
-                </div>
 
                 {/* 14개 전체 컬럼 컴팩트 테이블 (세로 공간 꽉 채우기 위해 flex-1) */}
                 <div className="flex-1 min-h-0 border border-slate-100 rounded-2xl overflow-y-auto bg-white shadow-sm">
@@ -446,13 +426,31 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
                           <td className="py-2 px-1 text-right text-slate-900 font-black font-mono">
                             {((item.quantity || 0) * (item.price || 0)).toLocaleString()} 원
                           </td>
-                          {/* 12. 공급처명 (부모 값 바인딩) */}
-                          <td className="py-2 px-1 text-slate-500 truncate" title={ocrForm.partnerName}>
-                            {ocrForm.partnerName || '-'}
+                          {/* 12. 공급처명 (행별 보정) */}
+                          <td className="py-2 px-1">
+                            <input
+                              type="text"
+                              value={item.partnerName || ''}
+                              onChange={(e) => {
+                                const newItems = [...ocrForm.items];
+                                newItems[idx].partnerName = e.target.value;
+                                setOcrForm({ ...ocrForm, items: newItems });
+                              }}
+                              className="w-full px-0.5 py-0.5 border border-transparent hover:border-slate-200 rounded text-[10px] text-slate-700 font-bold focus:outline-none focus:border-indigo-500"
+                            />
                           </td>
-                          {/* 13. 입고일자 (부모 값 바인딩) */}
-                          <td className="py-2 px-1 text-center text-slate-500 font-mono">
-                            {ocrForm.inboundDate || '-'}
+                          {/* 13. 입고일자 (행별 보정) */}
+                          <td className="py-2 px-1">
+                            <input
+                              type="date"
+                              value={item.inboundDate || ''}
+                              onChange={(e) => {
+                                const newItems = [...ocrForm.items];
+                                newItems[idx].inboundDate = e.target.value;
+                                setOcrForm({ ...ocrForm, items: newItems });
+                              }}
+                              className="w-full px-0.5 py-0.5 border border-transparent hover:border-slate-200 rounded text-[10px] text-slate-600 font-mono focus:outline-none focus:border-indigo-500"
+                            />
                           </td>
                           {/* 14. 적재위치 */}
                           <td className="py-2 px-1 text-center">
