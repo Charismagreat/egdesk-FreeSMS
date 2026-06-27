@@ -70,9 +70,11 @@ export default function InventoryPage() {
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
   const [isInboundExcelModalOpen, setIsInboundExcelModalOpen] = useState(false);
   const [isInboundOcrModalOpen, setIsInboundOcrModalOpen] = useState(false);
+  const [inboundOcrFile, setInboundOcrFile] = useState<File | null>(null);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
 
   const handleOcrFileSelect = (file: File) => {
+    setInboundOcrFile(file);
     setIsInboundOcrModalOpen(true);
   };
   
@@ -1156,8 +1158,9 @@ export default function InventoryPage() {
 
       <InboundOcrModal
         isOpen={isInboundOcrModalOpen}
-        onClose={() => setIsInboundOcrModalOpen(false)}
+        onClose={() => { setIsInboundOcrModalOpen(false); setInboundOcrFile(null); }}
         onSuccess={fetchData}
+        initialFile={inboundOcrFile}
       />
     </div>
   );

@@ -24,12 +24,14 @@ interface InboundOcrModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  initialFile?: File | null;
 }
 
 export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
   isOpen,
   onClose,
-  onSuccess
+  onSuccess,
+  initialFile
 }) => {
   const [file, setFile] = useState<File | null>(null);
   const [ocrScanning, setOcrScanning] = useState<boolean>(false);
@@ -51,32 +53,8 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
     fileUrl: ''
   });
 
-  if (!isOpen) return null;
-
-  const resetOcrState = () => {
-    setFile(null);
-    setOcrScanning(false);
-    setOcrSuccess(false);
-    setOcrFilename('');
-    setSuccessMessage('');
-    setOcrForm({
-      partnerName: '',
-      inboundDate: '',
-      items: [],
-      fileUrl: ''
-    });
-  };
-
-  const handleClose = () => {
-    resetOcrState();
-    onClose();
-  };
-
-  // 파일 선택 및 이미지 분석 트리거 (Gemini Vision OCR API 호출)
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (!selectedFile) return;
-
+  // 파일 분석 공통 처리 로직
+  const processOcrFile = async (selectedFile: File) => {
     setFile(selectedFile);
     setOcrScanning(true);
     setOcrSuccess(false);
@@ -141,6 +119,42 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
       alert('파일을 읽는 도중 오류가 발생했습니다.');
     };
     reader.readAsDataURL(selectedFile);
+  };
+
+  // 모달이 열리고 initialFile이 들어오면 자동으로 OCR 분석 기동
+  React.useEffect(() => {
+    if (isOpen && initialFile) {
+      processOcrFile(initialFile);
+    }
+  }, [isOpen, initialFile]);
+
+  if (!isOpen) return null;
+
+  const resetOcrState = () => {
+    setFile(null);
+    setOcrScanning(false);
+    setOcrSuccess(false);
+    setOcrFilename('');
+    setSuccessMessage('');
+    setOcrForm({
+      partnerName: '',
+      inboundDate: '',
+      items: [],
+      fileUrl: ''
+    });
+  };
+
+  const handleClose = () => {
+    resetOcrState();
+    onClose();
+  };
+
+  // 수동 파일 선택 시 분석 트리거
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      processOcrFile(selectedFile);
+    }
   };
 
   // 최종 입고 승인 실행 (confirm/route.ts 혹은 handleInventoryInbound 호출)
