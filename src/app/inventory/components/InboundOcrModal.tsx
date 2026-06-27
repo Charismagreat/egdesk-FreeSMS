@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Upload, RefreshCw, CheckCircle2, AlertCircle, Play } from 'lucide-react';
+import { X, Upload, RefreshCw, CheckCircle2, AlertCircle, Play, ExternalLink } from 'lucide-react';
 
 interface InboundOcrItem {
   itemType?: string;      // 1. 구분
@@ -254,6 +254,17 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
             {/* 좌측: 업로드된 원본 문서 뷰어 (30% 점유, 천장부터 바닥까지 꽉 채우는 h-[70vh] 및 여백 최소화) */}
             <div className="lg:col-span-3 border border-slate-150 rounded-2xl bg-slate-50 p-1 flex flex-col items-center justify-center h-[75vh] lg:h-[75vh] relative overflow-hidden shadow-inner">
               <span className="text-[9px] font-black text-slate-400 absolute top-2 left-2 bg-white/80 px-2 py-0.5 rounded border border-slate-100 z-10 shadow-sm">📄 명세서 원본 문서</span>
+              {ocrForm.fileUrl && (
+                <button
+                  type="button"
+                  onClick={() => window.open(ocrForm.fileUrl, '_blank')}
+                  className="absolute top-2 right-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[9px] py-1 px-2.5 rounded-lg flex items-center gap-1 transition-all shadow-md shrink-0 z-20 cursor-pointer"
+                  title="새 창에서 원본 파일 열람 및 인쇄"
+                >
+                  <ExternalLink className="w-3 h-3 text-amber-400" />
+                  <span>새 창 열람/인쇄</span>
+                </button>
+              )}
               {ocrForm.fileUrl ? (
                 ocrForm.fileUrl.startsWith('data:application/pdf') ? (
                   <embed src={`${ocrForm.fileUrl}#toolbar=0&navpanes=0`} type="application/pdf" className="w-full h-full rounded-xl" />
