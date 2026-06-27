@@ -13,26 +13,22 @@ export const InventoryLogTable: React.FC<InventoryLogTableProps> = ({ logs }) =>
 
   const getFileUrl = (url: string | null) => {
     if (!url) return "";
-    
-    if (url.includes("/api/estimates/ocr") || url.includes("/api/estimates/process")) {
-      const cleanUrl = url.replace("http://localhost:8080", "http://localhost:4000");
-      if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
-        return cleanUrl;
-      }
-      const feHost = "http://localhost:4000";
-      const normalizedUrl = cleanUrl.startsWith("/") ? cleanUrl : `/${cleanUrl}`;
-      return `${feHost}${normalizedUrl}`;
-    }
-    
     if (url.startsWith("data:")) return url;
-    if (url.startsWith("http://") || url.startsWith("https://")) return url;
     
-    const apiHost = process.env.NEXT_PUBLIC_EGDESK_API_URL || "http://localhost:8080";
-    if (!url.startsWith("/") && (url.endsWith(".pdf") || /\.(png|jpg|jpeg|gif)$/i.test(url))) {
-      return `${apiHost}/uploads/financials/${url}`;
+    // 포트 8080 백엔드 주소가 붙어있는 경우, 정적 파일 및 API 로드를 위해 프론트엔드 포트 4000으로 치환합니다.
+    let cleanUrl = url.replace("http://localhost:8080", "http://localhost:4000");
+    if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
+      return cleanUrl;
     }
-    const normalizedUrl = url.startsWith("/") ? url : `/${url}`;
-    return `${apiHost}${normalizedUrl}`;
+    
+    // 그 외의 모든 상대 주소 및 단순 파일명은 프론트엔드(http://localhost:4000)의 정적 uploads 구역으로 연결합니다.
+    const feHost = "http://localhost:4000";
+    if (!cleanUrl.startsWith("/") && (cleanUrl.endsWith(".pdf") || /\.(png|jpg|jpeg|gif)$/i.test(cleanUrl))) {
+      return `${feHost}/uploads/financials/${cleanUrl}`;
+    }
+    
+    const normalizedUrl = cleanUrl.startsWith("/") ? cleanUrl : `/${cleanUrl}`;
+    return `${feHost}${normalizedUrl}`;
   };
 
   const openBase64InNewTab = (fileUrl: string) => {
