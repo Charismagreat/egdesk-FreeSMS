@@ -37,6 +37,8 @@ export async function POST(req: Request) {
       const spec = String(item.spec || "").trim();
       const quantity = Number(item.quantity) || 0;
       const price = Number(item.unit_price) || 0;
+      const unitType = String(item.unit_type || "개").trim();
+      const boxContains = Number(item.box_contains) || 1;
       const note = String(item.note || "").trim();
 
       // 지능형 품목 매칭 3단계 가동
@@ -60,6 +62,8 @@ export async function POST(req: Request) {
         spec: spec || (matched ? matched.spec : ""),
         quantity,
         price,
+        unitType,
+        boxContains,
         matchedItemId: matched ? String(matched.id) : "NEW",
         note: note // 비고 데이터도 파이프라인으로 전달
       };

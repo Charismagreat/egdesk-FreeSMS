@@ -136,6 +136,8 @@ export default function InboundExcelPreviewCard({
         spec: it.spec || "",
         quantity: Number(it.quantity) || 0,
         unit_price: Number(it.unit_price) || Number(it.price) || 0,
+        unit_type: it.unit_type || "개",
+        box_contains: Number(it.box_contains) || 1,
         note: it.note || ""
       }));
 
@@ -207,7 +209,7 @@ export default function InboundExcelPreviewCard({
             <span>엑셀 파싱 품목 목록</span>
             <span>총 {items.length}건</span>
           </div>
-          <div className="max-h-[160px] overflow-y-auto divide-y divide-slate-100">
+          <div className="max-h-[220px] overflow-y-auto divide-y divide-slate-100">
             {items.map((item, idx) => (
               <div key={idx} className="p-2 space-y-1.5 bg-white">
                 <div className="flex justify-between items-center gap-1.5">
@@ -230,24 +232,44 @@ export default function InboundExcelPreviewCard({
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-1.5 pt-0.5">
+                <div className="grid grid-cols-4 gap-1 pt-0.5">
                   <div>
-                    <label className="text-[9px] text-slate-440">수량</label>
+                    <label className="text-[8px] text-slate-440">수량</label>
                     <input
                       type="number"
-                      className="w-full bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 text-center text-slate-800"
+                      className="w-full bg-slate-50 border border-slate-200 rounded px-1 py-0.5 text-center text-slate-800 text-[10px]"
                       value={item.quantity || 0}
                       onChange={(e) => handleItemFieldChange(idx, 'quantity', Number(e.target.value))}
                       disabled={saved || saving}
                     />
                   </div>
                   <div>
-                    <label className="text-[9px] text-slate-440">단가</label>
+                    <label className="text-[8px] text-slate-440">단가</label>
                     <input
                       type="number"
-                      className="w-full bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 text-center text-slate-800"
+                      className="w-full bg-slate-50 border border-slate-200 rounded px-1 py-0.5 text-center text-slate-800 text-[10px]"
                       value={item.unit_price || item.price || 0}
                       onChange={(e) => handleItemFieldChange(idx, 'unit_price', Number(e.target.value))}
+                      disabled={saved || saving}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[8px] text-slate-440">단위</label>
+                    <input
+                      type="text"
+                      className="w-full bg-slate-50 border border-slate-200 rounded px-1 py-0.5 text-center text-slate-800 text-[10px]"
+                      value={item.unit_type || "개"}
+                      onChange={(e) => handleItemFieldChange(idx, 'unit_type', e.target.value)}
+                      disabled={saved || saving}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[8px] text-slate-440">입수량</label>
+                    <input
+                      type="number"
+                      className="w-full bg-slate-50 border border-slate-200 rounded px-1 py-0.5 text-center text-slate-800 text-[10px]"
+                      value={item.box_contains || 1}
+                      onChange={(e) => handleItemFieldChange(idx, 'box_contains', Number(e.target.value))}
                       disabled={saved || saving}
                     />
                   </div>
@@ -265,7 +287,7 @@ export default function InboundExcelPreviewCard({
                     <option value="NEW">➕ 신규 품목으로 자동 등록</option>
                     {inventoryList.map((inv) => (
                       <option key={inv.id} value={inv.id}>
-                        {inv.name} ({inv.spec || '스펙없음'}) [재고: {inv.stock}개]
+                        {inv.name} ({inv.spec || '스펙없음'}) [{inv.unitType || '개'} / 입수량: {inv.boxContains || 1}] [재고: {inv.stock}개]
                       </option>
                     ))}
                   </select>

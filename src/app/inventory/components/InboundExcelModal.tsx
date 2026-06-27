@@ -40,15 +40,31 @@ export default function InboundExcelModal({
     spec: "",
     quantity: "",
     unit_price: "",
+    unit_type: "",
+    box_contains: "",
     note: "",
     partner_name: "",
     inbound_date: ""
   });
 
-  const [directPartner, setDirectPartner] = useState("일반공급처");
-  const [directDate, setDirectDate] = useState(() => {
-    return new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  // 수동 입력 고정값 보관 (직접입력 -2 선택 시 활용)
+  const [directInputs, setDirectInputs] = useState({
+    item_name: "",
+    item_code: "",
+    barcode: "",
+    spec: "",
+    quantity: "1",
+    unit_price: "0",
+    unit_type: "개",
+    box_contains: "1",
+    note: "",
+    partner_name: "일반공급처",
+    inbound_date: new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10)
   });
+
+  const handleDirectInputChange = (field: string, value: string) => {
+    setDirectInputs(prev => ({ ...prev, [field]: value }));
+  };
 
   // 최종 파싱 결과
   const [parsedResult, setParsedResult] = useState<InboundExcelParsedResult | null>(null);
@@ -120,6 +136,9 @@ export default function InboundExcelModal({
       if (matchedConfig) {
         // 이미 저장된 매핑 규칙이 있다면 바로 Step 3: 리뷰 모드로 자동 도약
         const configMapping = JSON.parse(matchedConfig.mapping_info);
+        if (configMapping.direct_values) {
+          setDirectInputs(prev => ({ ...prev, ...configMapping.direct_values }));
+        }
         const result = parseInboundExcelWithMapping(
           excelMeta.rawRows,
           excelMeta.headerRowIndex,
@@ -138,6 +157,8 @@ export default function InboundExcelModal({
           spec: String(excelMeta.headers.findIndex(h => h.includes("규격") || h.includes("사양") || h.includes("spec") || h.includes("Spec"))),
           quantity: String(excelMeta.headers.findIndex(h => h.includes("수량") || h.includes("수") || h.includes("qty") || h.includes("Qty"))),
           unit_price: String(excelMeta.headers.findIndex(h => h.includes("단가") || h.includes("금액") || h.includes("가격") || h.includes("price") || h.includes("Price"))),
+          unit_type: String(excelMeta.headers.findIndex(h => h.includes("단위") || h.includes("구분") || h.includes("unit") || h.includes("Unit"))),
+          box_contains: String(excelMeta.headers.findIndex(h => h.includes("입수") || h.includes("입수량") || h.includes("박스입수") || h.includes("pack") || h.includes("Pack"))),
           note: String(excelMeta.headers.findIndex(h => h.includes("비고") || h.includes("메모") || h.includes("설명") || h.includes("note") || h.includes("Note"))),
           partner_name: String(excelMeta.headers.findIndex(h => h.includes("공급처") || h.includes("거래처") || h.includes("제조사") || h.includes("상호"))),
           inbound_date: String(excelMeta.headers.findIndex(h => h.includes("일자") || h.includes("입고일") || h.includes("날짜") || h.includes("date") || h.includes("Date")))
@@ -177,9 +198,12 @@ export default function InboundExcelModal({
         spec: Number(mapping.spec),
         quantity: Number(mapping.quantity),
         unit_price: Number(mapping.unit_price),
+        unit_type: Number(mapping.unit_type),
+        box_contains: Number(mapping.box_contains),
         note: Number(mapping.note),
         partner_name: Number(mapping.partner_name),
-        inbound_date: Number(mapping.inbound_date)
+        inbound_date: Number(mapping.inbound_date),
+        direct_values: directInputs
       };
 
       const result = parseInboundExcelWithMapping(
@@ -190,11 +214,11 @@ export default function InboundExcelModal({
       );
 
       // 직접 입력 정보가 있으면 덮어쓰기
-      if (numericMapping.partner_name === -1 && directPartner) {
-        result.partner_name = directPartner;
+      if (mapping.partner_name === "-2" && directInputs.partner_name) {
+        result.partner_name = directInputs.partner_name;
       }
-      if (numericMapping.inbound_date === -1 && directDate) {
-        result.inbound_date = directDate;
+      if (mapping.inbound_date === "-2" && directInputs.inbound_date) {
+        result.inbound_date = directInputs.inbound_date;
       }
 
       setParsedResult(result);
@@ -223,9 +247,12 @@ export default function InboundExcelModal({
           spec: Number(mapping.spec),
           quantity: Number(mapping.quantity),
           unit_price: Number(mapping.unit_price),
+          unit_type: Number(mapping.unit_type),
+          box_contains: Number(mapping.box_contains),
           note: Number(mapping.note),
           partner_name: Number(mapping.partner_name),
-          inbound_date: Number(mapping.inbound_date)
+          inbound_date: Number(mapping.inbound_date),
+          direct_values: directInputs
         };
 
         const headers = excelData.columns;
@@ -351,10 +378,20 @@ export default function InboundExcelModal({
                       className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
                     >
                       <option value="-1">매핑안함</option>
+                      <option value="-2">직접 입력 (고정값 지정)</option>
                       {excelData.columns.map((col, idx) => (
                         <option key={idx} value={idx}>{col}</option>
                       ))}
                     </select>
+                    {mapping.item_name === "-2" && (
+                      <input
+                        type="text"
+                        value={directInputs.item_name}
+                        onChange={(e) => handleDirectInputChange("item_name", e.target.value)}
+                        placeholder="품목명 직접 입력"
+                        className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
+                      />
+                    )}
                   </div>
 
                   <div>
@@ -365,10 +402,20 @@ export default function InboundExcelModal({
                       className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
                     >
                       <option value="-1">매핑안함</option>
+                      <option value="-2">직접 입력 (고정값 지정)</option>
                       {excelData.columns.map((col, idx) => (
                         <option key={idx} value={idx}>{col}</option>
                       ))}
                     </select>
+                    {mapping.item_code === "-2" && (
+                      <input
+                        type="text"
+                        value={directInputs.item_code}
+                        onChange={(e) => handleDirectInputChange("item_code", e.target.value)}
+                        placeholder="품목코드 직접 입력"
+                        className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
+                      />
+                    )}
                   </div>
 
                   <div>
@@ -379,10 +426,20 @@ export default function InboundExcelModal({
                       className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
                     >
                       <option value="-1">매핑안함</option>
+                      <option value="-2">직접 입력 (고정값 지정)</option>
                       {excelData.columns.map((col, idx) => (
                         <option key={idx} value={idx}>{col}</option>
                       ))}
                     </select>
+                    {mapping.barcode === "-2" && (
+                      <input
+                        type="text"
+                        value={directInputs.barcode}
+                        onChange={(e) => handleDirectInputChange("barcode", e.target.value)}
+                        placeholder="바코드 직접 입력"
+                        className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
+                      />
+                    )}
                   </div>
 
                   <div>
@@ -393,10 +450,20 @@ export default function InboundExcelModal({
                       className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
                     >
                       <option value="-1">매핑안함</option>
+                      <option value="-2">직접 입력 (고정값 지정)</option>
                       {excelData.columns.map((col, idx) => (
                         <option key={idx} value={idx}>{col}</option>
                       ))}
                     </select>
+                    {mapping.quantity === "-2" && (
+                      <input
+                        type="number"
+                        value={directInputs.quantity}
+                        onChange={(e) => handleDirectInputChange("quantity", e.target.value)}
+                        placeholder="수량 고정값 지정"
+                        className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
+                      />
+                    )}
                   </div>
 
                   <div>
@@ -407,16 +474,26 @@ export default function InboundExcelModal({
                       className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
                     >
                       <option value="-1">매핑안함</option>
+                      <option value="-2">직접 입력 (고정값 지정)</option>
                       {excelData.columns.map((col, idx) => (
                         <option key={idx} value={idx}>{col}</option>
                       ))}
                     </select>
+                    {mapping.unit_price === "-2" && (
+                      <input
+                        type="number"
+                        value={directInputs.unit_price}
+                        onChange={(e) => handleDirectInputChange("unit_price", e.target.value)}
+                        placeholder="단가 고정값 지정"
+                        className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
+                      />
+                    )}
                   </div>
                 </div>
 
                 {/* 메타값 매핑 */}
                 <div className="space-y-3.5">
-                  <h4 className="text-xs font-black text-slate-700 border-l-3 border-emerald-500 pl-2">공급처 및 입고일 지정</h4>
+                  <h4 className="text-xs font-black text-slate-700 border-l-3 border-emerald-500 pl-2">공급처 및 스펙 정보 지정</h4>
 
                   <div>
                     <label className="text-[10px] text-slate-400 font-bold block mb-1">공급처명(거래처) 열</label>
@@ -425,18 +502,19 @@ export default function InboundExcelModal({
                       onChange={(e) => setMapping(prev => ({ ...prev, partner_name: e.target.value }))}
                       className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
                     >
-                      <option value="-1">직접 입력 (아래 텍스트로 지정)</option>
+                      <option value="-1">매핑안함</option>
+                      <option value="-2">직접 입력 (고정값 지정)</option>
                       {excelData.columns.map((col, idx) => (
                         <option key={idx} value={idx}>{col}</option>
                       ))}
                     </select>
-                    {mapping.partner_name === "-1" && (
+                    {mapping.partner_name === "-2" && (
                       <input
                         type="text"
-                        value={directPartner}
-                        onChange={(e) => setDirectPartner(e.target.value)}
+                        value={directInputs.partner_name}
+                        onChange={(e) => handleDirectInputChange("partner_name", e.target.value)}
                         placeholder="공급처 직접 입력"
-                        className="w-full text-xs p-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:border-indigo-400 mt-1.5"
+                        className="w-full text-xs p-2 py-1.5 bg-white border border-slate-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
                       />
                     )}
                   </div>
@@ -448,17 +526,18 @@ export default function InboundExcelModal({
                       onChange={(e) => setMapping(prev => ({ ...prev, inbound_date: e.target.value }))}
                       className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
                     >
-                      <option value="-1">직접 입력 (아래 날짜로 지정)</option>
+                      <option value="-1">매핑안함</option>
+                      <option value="-2">직접 입력 (고정값 지정)</option>
                       {excelData.columns.map((col, idx) => (
                         <option key={idx} value={idx}>{col}</option>
                       ))}
                     </select>
-                    {mapping.inbound_date === "-1" && (
+                    {mapping.inbound_date === "-2" && (
                       <input
                         type="date"
-                        value={directDate}
-                        onChange={(e) => setDirectDate(e.target.value)}
-                        className="w-full text-xs p-2.5 bg-white border border-slate-200 rounded-xl outline-none focus:border-indigo-400 mt-1.5"
+                        value={directInputs.inbound_date}
+                        onChange={(e) => handleDirectInputChange("inbound_date", e.target.value)}
+                        className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
                       />
                     )}
                   </div>
@@ -471,10 +550,68 @@ export default function InboundExcelModal({
                       className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
                     >
                       <option value="-1">매핑안함</option>
+                      <option value="-2">직접 입력 (고정값 지정)</option>
                       {excelData.columns.map((col, idx) => (
                         <option key={idx} value={idx}>{col}</option>
                       ))}
                     </select>
+                    {mapping.spec === "-2" && (
+                      <input
+                        type="text"
+                        value={directInputs.spec}
+                        onChange={(e) => handleDirectInputChange("spec", e.target.value)}
+                        placeholder="규격 직접 입력"
+                        className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
+                      />
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-slate-400 font-bold block mb-1">단위 열(선택)</label>
+                    <select
+                      value={mapping.unit_type}
+                      onChange={(e) => setMapping(prev => ({ ...prev, unit_type: e.target.value }))}
+                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
+                    >
+                      <option value="-1">매핑안함</option>
+                      <option value="-2">직접 입력 (고정값 지정)</option>
+                      {excelData.columns.map((col, idx) => (
+                        <option key={idx} value={idx}>{col}</option>
+                      ))}
+                    </select>
+                    {mapping.unit_type === "-2" && (
+                      <input
+                        type="text"
+                        value={directInputs.unit_type}
+                        onChange={(e) => handleDirectInputChange("unit_type", e.target.value)}
+                        placeholder="단위 직접 입력 (예: 개, 박스)"
+                        className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
+                      />
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] text-slate-400 font-bold block mb-1">박스당 입수량 열(선택)</label>
+                    <select
+                      value={mapping.box_contains}
+                      onChange={(e) => setMapping(prev => ({ ...prev, box_contains: e.target.value }))}
+                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
+                    >
+                      <option value="-1">매핑안함</option>
+                      <option value="-2">직접 입력 (고정값 지정)</option>
+                      {excelData.columns.map((col, idx) => (
+                        <option key={idx} value={idx}>{col}</option>
+                      ))}
+                    </select>
+                    {mapping.box_contains === "-2" && (
+                      <input
+                        type="number"
+                        value={directInputs.box_contains}
+                        onChange={(e) => handleDirectInputChange("box_contains", e.target.value)}
+                        placeholder="박스당 입수량 고정값 지정"
+                        className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
+                      />
+                    )}
                   </div>
 
                   <div>
@@ -485,10 +622,20 @@ export default function InboundExcelModal({
                       className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
                     >
                       <option value="-1">매핑안함</option>
+                      <option value="-2">직접 입력 (고정값 지정)</option>
                       {excelData.columns.map((col, idx) => (
                         <option key={idx} value={idx}>{col}</option>
                       ))}
                     </select>
+                    {mapping.note === "-2" && (
+                      <input
+                        type="text"
+                        value={directInputs.note}
+                        onChange={(e) => handleDirectInputChange("note", e.target.value)}
+                        placeholder="비고 직접 입력"
+                        className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -531,6 +678,8 @@ export default function InboundExcelModal({
                       <th className="p-3">품목코드</th>
                       <th className="p-3">바코드</th>
                       <th className="p-3">규격</th>
+                      <th className="p-3">단위</th>
+                      <th className="p-3 text-right">박스입수량</th>
                       <th className="p-3">수집비고 및 메모</th>
                       <th className="p-3 text-right">수량</th>
                       <th className="p-3 text-right">단가</th>
@@ -544,8 +693,10 @@ export default function InboundExcelModal({
                         <td className="p-3 text-slate-450 truncate font-mono max-w-[80px]">{item.item_code || "-"}</td>
                         <td className="p-3 text-slate-450 truncate font-mono max-w-[80px]">{item.barcode || "-"}</td>
                         <td className="p-3 text-slate-400 truncate max-w-[80px]">{item.spec || "-"}</td>
+                        <td className="p-3 text-slate-500 font-bold">{item.unit_type || "개"}</td>
+                        <td className="p-3 text-right font-mono text-slate-500">{item.box_contains || 1}</td>
                         <td className="p-3 text-slate-400/90 italic truncate max-w-[140px]" title={item.note}>{item.note || "-"}</td>
-                        <td className="p-3 text-right text-indigo-650 font-bold">{item.quantity.toLocaleString()} 개</td>
+                        <td className="p-3 text-right text-indigo-650 font-bold">{item.quantity.toLocaleString()} {item.unit_type || "개"}</td>
                         <td className="p-3 text-right text-slate-700">{item.unit_price.toLocaleString()} 원</td>
                         <td className="p-3 text-right text-slate-900 font-black">{(item.quantity * item.unit_price).toLocaleString()} 원</td>
                       </tr>
@@ -555,7 +706,7 @@ export default function InboundExcelModal({
               </div>
 
               <div className="text-right text-xs font-black text-slate-700 bg-slate-50/50 p-3.5 rounded-xl flex justify-between items-center">
-                <span>총 입고 수량: <strong className="text-indigo-600">{parsedResult.items.reduce((acc, it) => acc + it.quantity, 0).toLocaleString()}</strong> 개</span>
+                <span>총 입고 수량: <strong className="text-indigo-600">{parsedResult.items.reduce((acc, it) => acc + it.quantity, 0).toLocaleString()}</strong> 품목단위 합산</span>
                 <span>총 자산 가치액: <strong className="text-emerald-600">{parsedResult.items.reduce((acc, it) => acc + (it.quantity * it.unit_price), 0).toLocaleString()}</strong> 원</span>
               </div>
             </div>

@@ -7,6 +7,8 @@ export interface InboundExcelParsedItem {
   spec: string;           // 규격
   quantity: number;       // 수량
   unit_price: number;     // 단가
+  unit_type: string;      // 단위
+  box_contains: number;   // 박스당 입수량
   note: string;           // 비고 (매핑안된 데이터 병합 수집)
 }
 
@@ -64,7 +66,7 @@ export const getExcelColumnsAndRawData = async (
     const row = rawRows[r];
     if (!row) continue;
 
-    // 핵심 컬럼 추정 일반 단어로 첫 헤더 행 지능형 감출
+    // 핵심 컬럼 추정 일반 단어로 첫 헤더 행 지능형 검출
     const rowText = row.map(v => String(v || "").trim());
     const hasCoreColumn = rowText.some(v => 
       v.includes("품명") || v.includes("상품명") || v.includes("품목명") || 
@@ -107,9 +109,24 @@ export const parseInboundExcelWithMapping = (
     spec: number;
     quantity: number;
     unit_price: number;
+    unit_type?: number;
+    box_contains?: number;
     note?: number;
     partner_name?: number;
     inbound_date?: number;
+    direct_values?: {
+      item_name?: string;
+      item_code?: string;
+      barcode?: string;
+      spec?: string;
+      quantity?: string;
+      unit_price?: string;
+      unit_type?: string;
+      box_contains?: string;
+      note?: string;
+      partner_name?: string;
+      inbound_date?: string;
+    };
   },
   filename: string
 ): InboundExcelParsedResult => {
@@ -122,7 +139,10 @@ export const parseInboundExcelWithMapping = (
   const headerCols = headerRow.map(v => String(v || "").trim()).filter(Boolean);
   const header_signature = headerCols.join('|');
 
-  // 매핑에 사용된 실제 인덱스 목록 (Unmapped 열 데이터 필터링용)
+  // 직접입력 고정값 데이터 바인딩
+  const direct = mapping.direct_values || {};
+
+  // 매핑에 사용된 실제 '엑셀 내 인덱스' 목록 (0 이상인 유효 열만 수집)
   const usedIndices = [
     mapping.item_name,
     mapping.item_code,
@@ -130,55 +150,92 @@ export const parseInboundExcelWithMapping = (
     mapping.spec,
     mapping.quantity,
     mapping.unit_price,
+    mapping.unit_type,
+    mapping.box_contains,
     mapping.note,
     mapping.partner_name,
     mapping.inbound_date
-  ].filter(idx => idx !== undefined && idx !== -1);
+  ].filter((idx): idx is number => idx !== undefined && idx >= 0);
 
   // 2. 헤더 행 다음 라인부터 데이터를 매핑하여 읽어옴
   for (let r = headerRowIndex + 1; r < rawRows.length; r++) {
     const row = rawRows[r];
     if (!row || row.length === 0) continue;
 
-    // 품목명은 필수값
+    // A. 품목명 (필수)
     const nameIdx = mapping.item_name;
-    const item_name = nameIdx !== undefined && nameIdx !== -1 && row[nameIdx]
-      ? String(row[nameIdx]).trim()
-      : "";
+    let item_name = "";
+    if (nameIdx === -2) {
+      item_name = String(direct.item_name || "").trim();
+    } else if (nameIdx !== undefined && nameIdx >= 0 && row[nameIdx] !== undefined) {
+      item_name = String(row[nameIdx]).trim();
+    }
+    if (!item_name) continue; // 품목명이 없으면 행 스킵
 
-    if (!item_name) continue;
-
-    // 품목코드 (선택)
+    // B. 품목코드 (선택)
     const codeIdx = mapping.item_code;
-    const item_code = codeIdx !== undefined && codeIdx !== -1 && row[codeIdx]
-      ? String(row[codeIdx]).trim()
-      : "";
+    let item_code = "";
+    if (codeIdx === -2) {
+      item_code = String(direct.item_code || "").trim();
+    } else if (codeIdx !== undefined && codeIdx >= 0 && row[codeIdx] !== undefined) {
+      item_code = String(row[codeIdx]).trim();
+    }
 
-    // 바코드 (선택)
+    // C. 바코드 (선택)
     const barcodeIdx = mapping.barcode;
-    const barcode = barcodeIdx !== undefined && barcodeIdx !== -1 && row[barcodeIdx]
-      ? String(row[barcodeIdx]).trim()
-      : "";
+    let barcode = "";
+    if (barcodeIdx === -2) {
+      barcode = String(direct.barcode || "").trim();
+    } else if (barcodeIdx !== undefined && barcodeIdx >= 0 && row[barcodeIdx] !== undefined) {
+      barcode = String(row[barcodeIdx]).trim();
+    }
 
-    // 규격
+    // D. 규격 (선택)
     const specIdx = mapping.spec;
-    const spec = specIdx !== undefined && specIdx !== -1 && row[specIdx]
-      ? String(row[specIdx]).trim()
-      : "";
+    let spec = "";
+    if (specIdx === -2) {
+      spec = String(direct.spec || "").trim();
+    } else if (specIdx !== undefined && specIdx >= 0 && row[specIdx] !== undefined) {
+      spec = String(row[specIdx]).trim();
+    }
 
-    // 수량
+    // E. 수량 (필수)
     const qtyIdx = mapping.quantity;
-    const quantity = qtyIdx !== undefined && qtyIdx !== -1 && row[qtyIdx]
-      ? Number(row[qtyIdx]) || 1
-      : 1;
+    let quantity = 1;
+    if (qtyIdx === -2) {
+      quantity = Number(direct.quantity) || 1;
+    } else if (qtyIdx !== undefined && qtyIdx >= 0 && row[qtyIdx] !== undefined) {
+      quantity = Number(row[qtyIdx]) || 1;
+    }
 
-    // 단가
+    // F. 단가 (선택)
     const priceIdx = mapping.unit_price;
-    const unit_price = priceIdx !== undefined && priceIdx !== -1 && row[priceIdx]
-      ? Number(row[priceIdx]) || 0
-      : 0;
+    let unit_price = 0;
+    if (priceIdx === -2) {
+      unit_price = Number(direct.unit_price) || 0;
+    } else if (priceIdx !== undefined && priceIdx >= 0 && row[priceIdx] !== undefined) {
+      unit_price = Number(row[priceIdx]) || 0;
+    }
 
-    // 매핑안된 나머지 컬럼 데이터를 자동으로 수집하여 문자열로 병합
+    // G. 단위 (선택)
+    const unitIdx = mapping.unit_type;
+    let unit_type = "개";
+    if (unitIdx === -2) {
+      unit_type = String(direct.unit_type || "개").trim();
+    } else if (unitIdx !== undefined && unitIdx >= 0 && row[unitIdx] !== undefined) {
+      unit_type = String(row[unitIdx]).trim();
+    }
+
+    // H. 박스당 입수량 (선택)
+    const boxIdx = mapping.box_contains;
+    let box_contains = 1;
+    if (boxIdx === -2) {
+      box_contains = Number(direct.box_contains) || 1;
+    } else if (boxIdx !== undefined && boxIdx >= 0 && row[boxIdx] !== undefined) {
+      box_contains = Number(row[boxIdx]) || 1;
+    }
+
+    // I. 매핑안된 나머지 컬럼 데이터 수집
     const unmappedData = row
       .map((val, idx) => {
         if (usedIndices.includes(idx)) return null;
@@ -189,24 +246,30 @@ export const parseInboundExcelWithMapping = (
       .filter(Boolean)
       .join(', ');
 
-    // 지정된 비고 컬럼 데이터 파싱
+    // J. 비고 데이터 처리
     const noteIdx = mapping.note;
-    const explicitNote = noteIdx !== undefined && noteIdx !== -1 && row[noteIdx]
-      ? String(row[noteIdx]).trim()
-      : "";
+    let explicitNote = "";
+    if (noteIdx === -2) {
+      explicitNote = String(direct.note || "").trim();
+    } else if (noteIdx !== undefined && noteIdx >= 0 && row[noteIdx] !== undefined) {
+      explicitNote = String(row[noteIdx]).trim();
+    }
 
-    // 지정된 비고 정보와 매핑되지 않은 기타 정보를 최종 결합
     const note = [explicitNote, unmappedData ? `[기타정보] ${unmappedData}` : ''].filter(Boolean).join(' | ');
 
-    // 행마다 공급처가 적혀있는지 수집 (첫 번째 유효한 값을 공급처로 사용)
+    // K. 공급처 정보 수집 (첫 번째 유효 행의 값을 사용)
     const partnerIdx = mapping.partner_name;
-    if (partnerIdx !== undefined && partnerIdx !== -1 && row[partnerIdx] && !partner_name) {
+    if (partnerIdx === -2 && !partner_name) {
+      partner_name = String(direct.partner_name || "").trim();
+    } else if (partnerIdx !== undefined && partnerIdx >= 0 && row[partnerIdx] && !partner_name) {
       partner_name = String(row[partnerIdx]).trim();
     }
 
-    // 행마다 입고일이 적혀있는지 수집 (첫 번째 유효한 값을 입고일로 사용)
+    // L. 입고일 정보 수집 (첫 번째 유효 행의 값을 사용)
     const dateIdx = mapping.inbound_date;
-    if (dateIdx !== undefined && dateIdx !== -1 && row[dateIdx] && !inbound_date) {
+    if (dateIdx === -2 && !inbound_date) {
+      inbound_date = String(direct.inbound_date || "").trim();
+    } else if (dateIdx !== undefined && dateIdx >= 0 && row[dateIdx] && !inbound_date) {
       inbound_date = String(row[dateIdx]).trim();
     }
 
@@ -217,17 +280,19 @@ export const parseInboundExcelWithMapping = (
       spec,
       quantity,
       unit_price,
+      unit_type,
+      box_contains,
       note
     });
   }
 
-  // 공급처명이 없으면 파일명에서 유추하거나 기본값 대입
+  // 공급처명이 끝내 비어있을 시 자동 포맷팅
   if (!partner_name) {
     const cleanName = filename.replace(/\.[^/.]+$/, ""); // 확장자 제거
     partner_name = cleanName.includes("입고") ? cleanName.split("입고")[0].trim() : "일반공급처";
   }
 
-  // 입고일이 없으면 오늘 날짜로 대체
+  // 입고일이 없을 시 오늘 날짜로 보정
   if (!inbound_date) {
     inbound_date = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
   }
