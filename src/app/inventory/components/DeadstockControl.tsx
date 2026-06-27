@@ -224,18 +224,28 @@ export const DeadstockControl: React.FC<DeadstockControlProps> = ({
           </div>
         </div>
 
-        <button
-          onClick={() => runDiagnosis(true)}
-          disabled={diagnosing || loading}
-          className="bg-indigo-650 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold text-xs px-5 py-3 rounded-2xl border-none shadow-md shadow-indigo-150 transition-all flex items-center gap-2 self-start md:self-auto cursor-pointer"
-        >
-          {diagnosing ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          ) : (
-            <RefreshCw className="w-3.5 h-3.5" />
-          )}
-          <span>AI 실시간 진단 실행</span>
-        </button>
+        <div className="flex items-center gap-2.5 self-start md:self-auto">
+          <button
+            onClick={() => setActiveTab('material')}
+            className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-5 py-3 rounded-2xl border border-slate-200 shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>재고 대장으로 이동</span>
+          </button>
+
+          <button
+            onClick={() => runDiagnosis(true)}
+            disabled={diagnosing || loading}
+            className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold text-xs px-5 py-3 rounded-2xl border-none shadow-md shadow-indigo-200 transition-all flex items-center gap-1.5 cursor-pointer"
+          >
+            {diagnosing ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="w-3.5 h-3.5" />
+            )}
+            <span>AI 실시간 진단 실행</span>
+          </button>
+        </div>
       </div>
 
       {/* 2. 불용/장기 체화 재고 진단 현황 */}
@@ -422,7 +432,7 @@ export const DeadstockControl: React.FC<DeadstockControlProps> = ({
             {/* 모달 헤더 */}
             <div className="bg-gradient-to-r from-slate-50 to-slate-100/50 px-6 py-4 border-b border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="p-2.5 bg-indigo-550 text-white rounded-2xl shadow-md shadow-indigo-150">
+                <span className="p-2.5 bg-indigo-600 text-white rounded-2xl shadow-md shadow-indigo-200">
                   <Sparkles className="w-5 h-5" />
                 </span>
                 <div>
@@ -568,7 +578,7 @@ export const DeadstockControl: React.FC<DeadstockControlProps> = ({
                 <button
                   onClick={handleSendProposal}
                   disabled={sending}
-                  className="px-5 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white font-bold rounded-2xl text-xs transition cursor-pointer border-none shadow-md shadow-indigo-150 flex items-center gap-1.5"
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl text-xs transition cursor-pointer border-none shadow-md shadow-indigo-200 flex items-center gap-1.5"
                 >
                   {sending ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -706,7 +716,7 @@ export const DeadstockControl: React.FC<DeadstockControlProps> = ({
               <button
                 onClick={handleExecuteSimulation}
                 disabled={simulating}
-                className="px-5 py-2.5 bg-indigo-650 hover:bg-indigo-700 text-white font-bold rounded-2xl text-xs transition cursor-pointer border-none shadow-md shadow-indigo-150 flex items-center gap-1"
+                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl text-xs transition cursor-pointer border-none shadow-md shadow-indigo-200 flex items-center gap-1"
               >
                 {simulating ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />

@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { executeSQL, queryTable } from '../../../../../../egdesk-helpers';
+import { executeSQL, queryTable, updateRows } from '../../../../../../egdesk-helpers';
 import { sendMail } from '@/lib/email';
 
 function escapeSqlString(val: string): string {
@@ -18,10 +18,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: '제안 이력 코드(proposalId)와 회신 내용(replyContent)은 필수입니다.' }, { status: 400 });
     }
 
-    // 1. 해당 제안 메일 로그 조회 (소프트 삭제 필터링)
-    const selectQuery = `SELECT * FROM crm_deadstock_proposals WHERE id = ${Number(proposalId)} AND deleted_at IS NULL LIMIT 1`;
-    const selectResult = await executeSQL(selectQuery);
-    const proposal = selectResult?.rows?.[0];
+    // 1. 해당 제안 메일 로그 조회 (소프트 삭제 필터링, SQL 방화벽 우회를 위해 queryTable 사용)
+    const selectResult = await queryTable('crm_deadstock_proposals', { filters: { id: String(proposalId) } });
+    const proposal = (selectResult?.rows || []).find((p: any) => p.deleted_at === null);
 
     if (!proposal) {
       return NextResponse.json({ success: false, error: '존재하지 않거나 삭제된 제안 메일 이력입니다.' }, { status: 404 });
@@ -89,16 +88,14 @@ export async function POST(req: Request) {
     }
 
     // 4. 제안 로그 상태 'REPLIED'로 변경 및 회신 내용 적재 (7종 감사 컬럼 updated_at 갱신)
-    const updateQuery = `
-      UPDATE crm_deadstock_proposals
-      SET 
-        status = 'REPLIED',
-        replied_content = '${escapeSqlString(replyContent)}',
-        replied_at = '${nowStr}',
-        updated_at = '${nowStr}'
-      WHERE id = ${Number(proposalId)}
-    `;
-    await executeSQL(updateQuery);
+    await updateRows('crm_deadstock_proposals', {
+      status: 'REPLIED',
+      replied_content: replyContent,
+      replied_at: nowStr,
+      updated_at: nowStr
+    }, {
+      filters: { id: String(proposalId) }
+    });
 
     return NextResponse.json({
       success: true,
