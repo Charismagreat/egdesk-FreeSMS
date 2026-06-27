@@ -20,13 +20,31 @@ export async function POST(req: Request) {
 
     // 0. 파일 해시 기반 1단계 중복 등록 원천 차단
     const fileHash = crypto.createHash('sha256').update(Buffer.from(buffer)).digest('hex');
-    const duplicateRes = await queryTable('crm_inventory_inbounds', { filters: { file_hash: fileHash } });
-    if (duplicateRes.rows && duplicateRes.rows.length > 0) {
-      return NextResponse.json({
-        success: false,
-        error: 'DUPLICATE_FILE',
-        message: '이미 입고 완료 처리된 동일한 명세서 파일입니다.'
-      });
+    console.log(`[DEBUG OCR] file.name: "${file.name}", size: ${file.size}, type: "${file.type}"`);
+    console.log(`[DEBUG OCR] calculated fileHash: "${fileHash}", buffer length: ${buffer.byteLength}`);
+
+    // SHA-256 해시 규격 검증 가드 (64자리 16진수)
+    const isSha256 = /^[a-fA-F0-9]{64}$/.test(fileHash);
+    
+    if (isSha256) {
+      const duplicateRes = await queryTable('crm_inventory_inbounds', { filters: { file_hash: fileHash } });
+      console.log(`[DEBUG OCR] duplicateRes:`, JSON.stringify(duplicateRes));
+
+      let duplicateRows = duplicateRes.rows || [];
+      // 드라이버 필터 누락 가능성을 차단하기 위해 메모리 상에서 해시값 일치 및 소프트 삭제 여부 2차 교차 필터링
+      duplicateRows = duplicateRows.filter((r: any) => 
+        r.file_hash && 
+        r.file_hash.toLowerCase() === fileHash.toLowerCase() && 
+        !r.deleted_at
+      );
+
+      if (duplicateRows.length > 0) {
+        return NextResponse.json({
+          success: false,
+          error: 'DUPLICATE_FILE',
+          message: '이미 입고 완료 처리된 동일한 명세서 파일입니다.'
+        });
+      }
     }
 
     // 1. DB에서 구글 AI 설정 정보 로드
