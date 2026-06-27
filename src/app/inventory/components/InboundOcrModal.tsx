@@ -45,11 +45,13 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
   const [ocrForm, setOcrForm] = useState<{
     partnerName: string;
     inboundDate: string;
+    originalTotalAmount: number;
     items: InboundOcrItem[];
     fileUrl: string;
   }>({
     partnerName: '',
     inboundDate: '',
+    originalTotalAmount: 0,
     items: [],
     fileUrl: ''
   });
@@ -102,6 +104,7 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
           setOcrForm({
             partnerName: data.partnerName || '',
             inboundDate: data.inboundDate || new Date().toISOString().slice(0, 10),
+            originalTotalAmount: Number(data.originalTotalAmount) || 0,
             items: enrichedItems,
             fileUrl: base64Data
           });
@@ -212,6 +215,14 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
       return;
     }
 
+    // 금액 불일치에 대한 이중 가드 컨펌 작동
+    if (ocrForm.originalTotalAmount > 0 && calculatedTotal !== ocrForm.originalTotalAmount) {
+      const confirmForce = window.confirm(
+        `[금액 불일치 경고]\n\n원본 명세서 금액(${ocrForm.originalTotalAmount.toLocaleString()}원)과 입력된 품목 합계금액(${calculatedTotal.toLocaleString()}원)이 일치하지 않습니다.\n\n이대로 강제 입고를 진행하시겠습니까?`
+      );
+      if (!confirmForce) return;
+    }
+
     try {
       setIsProcessing(true);
 
@@ -257,6 +268,9 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
       setIsProcessing(false);
     }
   };
+
+  const calculatedTotal = ocrForm.items.reduce((sum, item) => sum + ((item.quantity || 0) * (item.price || 0)), 0);
+  const isAmountMatching = ocrForm.originalTotalAmount > 0 && calculatedTotal === ocrForm.originalTotalAmount;
 
   const modalWidthClass = ocrSuccess ? 'w-[98vw] max-w-[98vw]' : 'w-full max-w-2xl';
 
@@ -319,6 +333,46 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
 
                   {/* 버튼 그룹 (상단으로 이동) */}
                   <div className="flex items-center space-x-2 pr-12">
+                    {/* 실시간 금액 대조 지시 배지 바 */}
+                    <div className="flex items-center bg-slate-50 border border-slate-200 rounded-lg p-1 mr-2 text-[10px] space-x-2 shrink-0">
+                      <div className="flex items-center space-x-1">
+                        <span className="font-bold text-slate-500">실물총액:</span>
+                        <input
+                          type="number"
+                          value={ocrForm.originalTotalAmount || ''}
+                          onChange={(e) => setOcrForm({ ...ocrForm, originalTotalAmount: Number(e.target.value) || 0 })}
+                          className="w-20 px-1 py-0.5 border border-slate-200 rounded text-slate-800 font-mono font-bold text-right focus:outline-none focus:border-indigo-500 bg-white"
+                          placeholder="수동 입력"
+                          title="명세서에 적힌 원본 최종 합계금액"
+                        />
+                        <span className="font-bold text-slate-500">원</span>
+                      </div>
+                      
+                      <div className="h-3 w-px bg-slate-200"></div>
+
+                      <div className="flex items-center space-x-1">
+                        <span className="font-bold text-slate-500">계산액:</span>
+                        <span className="font-mono font-black text-slate-800">{calculatedTotal.toLocaleString()}원</span>
+                      </div>
+
+                      {ocrForm.originalTotalAmount > 0 && (
+                        <>
+                          <div className="h-3 w-px bg-slate-200"></div>
+                          {isAmountMatching ? (
+                            <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded text-[9px] font-black flex items-center gap-0.5">
+                              <CheckCircle2 className="w-2.5 h-2.5" />
+                              일치
+                            </span>
+                          ) : (
+                            <span className="px-1.5 py-0.5 bg-rose-50 text-rose-600 border border-rose-200 rounded text-[9px] font-black flex items-center gap-0.5 animate-pulse">
+                              <AlertCircle className="w-2.5 h-2.5" />
+                              불일치
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </div>
+
                     {/* 일괄 구분 제어 토글 바 */}
                     <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 mr-2 space-x-0.5 shrink-0">
                       <button

@@ -52,7 +52,8 @@ ${itemReferenceText}
 ### 📌 추출 대상 및 JSON 구조 지침:
 1. **partnerName**: 공급자(매출처, 납품자)의 상호명/업체명입니다. (문서 내에 기재가 없는 경우 빈 문자열 ""을 주입하십시오.)
 2. **inboundDate**: 입고일자(거래일자)를 표준 "YYYY-MM-DD" 형태로 출력하십시오. (문서 내에 기재가 없으면 오늘 날짜를 지정하십시오.)
-3. **items**: 입고된 품목들의 배열입니다.
+3. **originalTotalAmount**: 명세서상에 인쇄/기재된 최종 총 합계금액(공급가액 + 부가세 또는 최종 영수합계액)을 정수 숫자로 추출해 주십시오. (기재가 없거나 파싱 불능 시 0을 주입하십시오.)
+4. **items**: 입고된 품목들의 배열입니다.
    - **itemName**: 품목의 이름
    - **spec**: 규격
    - **barcode**: 바코드 (있을 시 추출, 없으면 "")
@@ -66,6 +67,7 @@ ${itemReferenceText}
 {
   "partnerName": "공급사 상호명",
   "inboundDate": "YYYY-MM-DD",
+  "originalTotalAmount": 4207880,
   "items": [
     {
       "itemName": "품목명",
@@ -120,6 +122,7 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
         success: true,
         partnerName: parsedOcr.partnerName || '',
         inboundDate: parsedOcr.inboundDate || new Date(Date.now() + 9*60*60*1000).toISOString().slice(0, 10),
+        originalTotalAmount: Number(parsedOcr.originalTotalAmount) || 0,
         items: parsedOcr.items || []
       });
     } catch (parseError) {
