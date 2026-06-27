@@ -303,7 +303,7 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
 
 
                 {/* 14개 전체 컬럼 컴팩트 테이블 (세로 공간 꽉 채우기 위해 66vh 고정) */}
-                <div className="h-[66vh] lg:h-[66vh] border border-slate-100 rounded-2xl overflow-y-auto bg-white shadow-sm">
+                <div className="h-[70vh] lg:h-[70vh] border border-slate-100 rounded-2xl overflow-y-auto bg-white shadow-sm">
                   <table className="w-full border-collapse text-left text-[10px] table-fixed">
                     <thead>
                       <tr className="bg-slate-50/80 border-b border-slate-100 font-black text-slate-500 text-[9px] sticky top-0 z-10 backdrop-blur-sm">
