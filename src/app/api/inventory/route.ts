@@ -13,6 +13,16 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type'); // 'material' 또는 'product'
+
+    // In-app migration: 기존의 자재/제품/material/product 명칭을 표준 명칭으로 보정
+    try {
+      await executeSQL("UPDATE inventory_items SET type = '원부자재' WHERE type IN ('자재', 'material', '원자재')");
+      await executeSQL("UPDATE inventory_items SET type = '완제품' WHERE type IN ('제품', 'product')");
+      await executeSQL("UPDATE inventory_logs SET itemType = '원부자재' WHERE itemType IN ('자재', 'material', '원자재')");
+      await executeSQL("UPDATE inventory_logs SET itemType = '완제품' WHERE itemType IN ('제품', 'product')");
+    } catch (migErr) {
+      console.warn('[Migration Warning] Failed to run type normalization:', migErr);
+    }
     
     // SQL 금지어 DELETE 회피를 위해 queryTable 사용 후 JS 레벨에서 소프트 삭제 데이터 필터링
     const queryRes = await queryTable('inventory_items', {
@@ -27,7 +37,8 @@ export async function GET(request: Request) {
 
     // 품목 구분 필터링
     if (type) {
-      rows = rows.filter((r: any) => r.type === type);
+      const targetType = (type === 'material' || type === '자재' || type === '원부자재') ? '원부자재' : '완제품';
+      rows = rows.filter((r: any) => r.type === targetType);
     }
 
     // 100건으로 슬라이싱 제한
@@ -57,9 +68,23 @@ export async function POST(request: Request) {
     }
 
     const createdAt = new Date().toISOString();
+    const normType = (type === 'material' || type === '자재' || type === '원자재' || type === '원부자재') ? '원부자재' : '완제품';
     
+    // 동일 품목명 중복 검사 및 타입 일치성 검증
+    const sameNameCheck = await queryTable('inventory_items', { filters: { name: name } });
+    const sameNameRows = (sameNameCheck.rows || []).filter((r: any) => !r.deleted_at);
+    if (sameNameRows.length > 0) {
+      const existingItem = sameNameRows[0];
+      if (existingItem.type !== normType) {
+        return NextResponse.json(
+          { success: false, error: `이미 '${existingItem.type}'으로 등록된 동일 품목명('${name}')이 존재하므로, 다른 구분인 '${normType}'으로의 등록이 불가합니다.` },
+          { status: 400 }
+        );
+      }
+    }
+
     const insertData = {
-      type,
+      type: normType,
       name,
       category,
       price: Number(price),
@@ -88,7 +113,7 @@ export async function POST(request: Request) {
       const logData = {
         itemId: insertedId,
         itemName: name,
-        itemType: type,
+        itemType: normType,
         changeType: 'in',
         quantity: Number(stock),
         price: Number(price),

@@ -89,23 +89,28 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
           setSuccessMessage(`공급처 및 ${data.items?.length || 0}개 품목의 단가/수량 파싱 완료`);
           
           // 받은 발주서 OCR 연동 로직 수준으로 품목 초기화 매핑 진행
-          const enrichedItems = (data.items || []).map((it: any) => ({
-            itemType: it.itemType || '자재',
-            category: it.category || '기타',
-            itemName: it.itemName || '',
-            itemCode: it.itemCode || (it.matchedItemId && it.matchedItemId !== 'NEW' ? `ITEM-${it.matchedItemId}` : 'NEW'),
-            barcode: it.barcode || '',
-            spec: it.spec || '',
-            unitType: it.unitType || '개',
-            boxContains: Number(it.boxContains) || 1,
-            quantity: Number(it.quantity) || 1,
-            price: Number(it.price) || 0,
-            location: it.location || '자율입고창고',
-            note: it.note || '',
-            matchedItemId: it.matchedItemId || 'NEW',
-            partnerName: data.partnerName || '',
-            inboundDate: data.inboundDate || new Date().toISOString().slice(0, 10)
-          }));
+          const enrichedItems = (data.items || []).map((it: any) => {
+            const rawType = it.itemType || '자재';
+            const normType = (rawType === 'material' || rawType === '자재' || rawType === '원자재' || rawType === '원부자재') ? '원부자재' : '완제품';
+            
+            return {
+              itemType: normType,
+              category: it.category || '기타',
+              itemName: it.itemName || '',
+              itemCode: it.itemCode || (it.matchedItemId && it.matchedItemId !== 'NEW' ? `ITEM-${it.matchedItemId}` : 'NEW'),
+              barcode: it.barcode || '',
+              spec: it.spec || '',
+              unitType: it.unitType || '개',
+              boxContains: Number(it.boxContains) || 1,
+              quantity: Number(it.quantity) || 1,
+              price: Number(it.price) || 0,
+              location: it.location || '자율입고창고',
+              note: it.note || '',
+              matchedItemId: it.matchedItemId || 'NEW',
+              partnerName: data.partnerName || '',
+              inboundDate: data.inboundDate || new Date().toISOString().slice(0, 10)
+            };
+          });
 
           setOcrForm({
             partnerName: data.partnerName || '',
@@ -183,7 +188,7 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
   };
 
   // 전체 구분을 일괄 변경하는 헬퍼
-  const handleBulkItemTypeChange = (type: '자재' | '제품') => {
+  const handleBulkItemTypeChange = (type: '원부자재' | '완제품') => {
     if (!ocrForm.items.length) return;
     const newItems = ocrForm.items.map(it => ({ ...it, itemType: type }));
     setOcrForm({ ...ocrForm, items: newItems });
@@ -264,7 +269,7 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
         barcode: it.barcode || '',
         matchedItemId: it.matchedItemId,
         location: it.location || '자율입고창고',
-        itemType: it.itemType || '자재',
+        itemType: it.itemType || '원부자재',
         category: it.category || '기타',
         unitType: it.unitType || '개',
         boxContains: Number(it.boxContains) || 1,
@@ -450,20 +455,20 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
                     {/* 일괄 구분 제어 토글 바 */}
                     <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 mr-2 space-x-0.5 shrink-0">
                       <button
-                        onClick={() => handleBulkItemTypeChange('자재')}
+                        onClick={() => handleBulkItemTypeChange('원부자재')}
                         type="button"
                         className="px-2 py-1 bg-white hover:bg-slate-50 text-[9px] font-black text-indigo-600 rounded-md shadow-sm border border-slate-150 transition active:scale-95 cursor-pointer"
-                        title="모든 품목의 구분을 '자재'로 일괄 변경"
+                        title="모든 품목의 구분을 '원부자재'로 일괄 변경"
                       >
-                        전체 자재로
+                        전체 원부자재로
                       </button>
                       <button
-                        onClick={() => handleBulkItemTypeChange('제품')}
+                        onClick={() => handleBulkItemTypeChange('완제품')}
                         type="button"
                         className="px-2 py-1 bg-white hover:bg-slate-50 text-[9px] font-black text-emerald-600 rounded-md shadow-sm border border-slate-150 transition active:scale-95 cursor-pointer"
-                        title="모든 품목의 구분을 '제품'로 일괄 변경"
+                        title="모든 품목의 구분을 '완제품'으로 일괄 변경"
                       >
-                        전체 제품으로
+                        전체 완제품으로
                       </button>
                     </div>
 
@@ -535,16 +540,20 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
                           {/* 1. 구분 */}
                           <td className="py-2 px-1 text-center">
                             <select
-                              value={item.itemType || '자재'}
+                              value={item.itemType || '원부자재'}
                               onChange={(e) => {
                                 const newItems = [...ocrForm.items];
                                 newItems[idx].itemType = e.target.value;
                                 setOcrForm({ ...ocrForm, items: newItems });
                               }}
-                              className="bg-transparent text-[9px] font-black text-slate-800 border-none focus:outline-none focus:ring-0 cursor-pointer"
+                              className={`text-[9px] font-black border rounded-md px-1.5 py-0.5 focus:outline-none focus:ring-0 cursor-pointer transition-colors ${
+                                item.itemType === '완제품'
+                                  ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                                  : 'bg-blue-50 text-blue-600 border-blue-200'
+                              }`}
                             >
-                              <option value="자재">자재</option>
-                              <option value="제품">제품</option>
+                              <option value="원부자재">원부자재</option>
+                              <option value="완제품">완제품</option>
                             </select>
                           </td>
                           {/* 2. 카테고리 */}

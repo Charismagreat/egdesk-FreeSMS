@@ -797,12 +797,12 @@ export default function InventoryPage() {
     }
   };
 
-  // 통계 연산
-  const materials = items.filter(it => it.type === 'material');
-  const products = items.filter(it => it.type === 'product');
+  // 통계 연산 (한글 표준 명칭인 '원부자재' 및 '완제품' 호환 필터링 적용)
+  const materials = items.filter(it => it.type === '원부자재' || it.type === 'material' || it.type === '자재' || it.type === '원자재');
+  const products = items.filter(it => it.type === '완제품' || it.type === 'product' || it.type === '제품');
   
-  const totalMaterialStock = materials.reduce((acc, cur) => acc + cur.stock, 0);
-  const totalProductStock = products.reduce((acc, cur) => acc + cur.stock, 0);
+  const totalMaterialStock = materials.reduce((acc, cur) => acc + (Number(cur.stock) || 0), 0);
+  const totalProductStock = products.reduce((acc, cur) => acc + (Number(cur.stock) || 0), 0);
 
   const totalMaterialValue = materials.reduce((acc, cur) => acc + calculateValuation(cur, logs, valuationMethod).totalValue, 0);
   const totalProductValue = products.reduce((acc, cur) => acc + calculateValuation(cur, logs, valuationMethod).totalValue, 0);

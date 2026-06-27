@@ -5,6 +5,19 @@ import { useSearchParams } from "next/navigation";
 import { Sun, Moon, Eye, RefreshCw, X, Download, ArrowUp, ArrowDown } from "lucide-react";
 import { createPortal } from "react-dom";
 
+// 품목 구분 한글화 헬퍼 함수
+const formatItemType = (type: string) => {
+  if (!type) return "-";
+  const clean = type.trim().toLowerCase();
+  if (clean === 'material' || clean === '자재' || clean === '원자재' || clean === '원부자재') {
+    return '원부자재';
+  }
+  if (clean === 'product' || clean === '제품' || clean === '완제품') {
+    return '완제품';
+  }
+  return type;
+};
+
 // B2B 대장 정보 타입 설정 및 디폴트 노출 컬럼 정의
 const typeConfig = {
   inbound_est: {
@@ -425,7 +438,7 @@ function WebViewContent() {
                 rows.push([
                   dateStr,                                           // 등록일시
                   typeStr,                                           // 변동종류
-                  det.type || log.itemType || "-",                   // 품목구분
+                  formatItemType(log.itemType || det.type),          // 품목구분
                   det.category || "기타",                            // 카테고리
                   det.item_name || "-",                              // 품목명
                   det.item_code || det.id || "-",                   // 품목코드
@@ -440,7 +453,7 @@ function WebViewContent() {
                   det.location || "-",                               // 보관위치
                   det.note || cleanNote || "-",                      // 상세비고
                   log.operator || "-",                               // 담당자
-                  log.note || ""                                     // 증빙조회
+                  det.pdf_file_path || log.note || ""                 // 증빙조회
                 ]);
               });
             } else {
@@ -460,10 +473,10 @@ function WebViewContent() {
               rows.push([
                 dateStr,                                           // 등록일시
                 typeStr,                                           // 변동종류
-                log.itemType || "-",                               // 품목구분
+                formatItemType(log.itemType),                      // 품목구분
                 "일반재고",                                         // 카테고리
                 log.itemName || "-",                               // 품목명
-                log.itemId !== -1 ? String(log.itemId) : "-",     // 품목코드
+                log.itemId !== -1 ? `ITEM-${log.itemId}` : "-",     // 품목코드
                 "-",                                               // 바코드
                 "-",                                               // 규격
                 "개",                                              // 단위
@@ -1015,6 +1028,21 @@ function WebViewContent() {
                           }
                         }
                         
+                        if (headerName === "품목구분") {
+                          const isMaterial = strVal === "원부자재" || strVal === "자재" || strVal === "원자재";
+                          return (
+                            <td key={headerName} className="py-3 px-3.5 whitespace-nowrap">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                isMaterial
+                                  ? 'bg-blue-50 text-blue-600 border border-blue-100'
+                                  : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                              }`}>
+                                {isMaterial ? "원부자재" : "완제품"}
+                              </span>
+                            </td>
+                          );
+                        }
+
                         const isNumericCol = ["수량", "단가", "금액", "총 수주액", "총 발주액", "총 견적액"].includes(headerName.replace(/\s+/g, ""));
                         return (
                           <td key={headerName} className={`py-3 px-3.5 ${

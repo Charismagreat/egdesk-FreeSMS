@@ -61,12 +61,20 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
   inbounds,
   onOpenInboundDetail
 }) => {
-  const materials = items.filter(it => it.type === 'material');
-  const products = items.filter(it => it.type === 'product');
+  const materials = items.filter(it => it.type === '원부자재' || it.type === 'material' || it.type === '자재' || it.type === '원자재');
+  const products = items.filter(it => it.type === '완제품' || it.type === 'product' || it.type === '제품');
 
   // 현재 탭 및 검색 쿼리에 따른 필터링된 아이템 리스트
   const filteredItems = items
-    .filter(item => item.type === activeTab)
+    .filter(item => {
+      if (activeTab === 'material') {
+        return item.type === '원부자재' || item.type === 'material' || item.type === '자재' || item.type === '원자재';
+      }
+      if (activeTab === 'product') {
+        return item.type === '완제품' || item.type === 'product' || item.type === '제품';
+      }
+      return item.type === activeTab;
+    })
     .filter(item => {
       const query = searchQuery.toLowerCase();
       return (
@@ -119,7 +127,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
               }`}
             >
               <Package className="w-3.5 h-3.5 text-blue-500" />
-              <span>원자재({materials.length})</span>
+              <span>원부자재({materials.length})</span>
             </button>
             <button
               onClick={() => {

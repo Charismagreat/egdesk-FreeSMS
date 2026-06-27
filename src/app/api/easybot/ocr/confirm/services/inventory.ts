@@ -63,9 +63,16 @@ export async function handleInventoryInbound(reqBody: any, nowStr: string) {
       if (matchCheck.rows && matchCheck.rows.length > 0) {
         const currentItem = matchCheck.rows[0];
         const newStock = (Number(currentItem.stock) || 0) + qty;
+        const rawType = item.itemType || currentItem.type || '자재';
+        const normType = (rawType === 'material' || rawType === '자재' || rawType === '원자재' || rawType === '원부자재') ? '원부자재' : '완제품';
         
+        // 기존 품목 구분과 입고 승인하려는 구분 간의 일치성 검증
+        if (currentItem.type && currentItem.type !== normType) {
+          throw new Error(`이미 '${currentItem.type}'으로 등록된 기존 품목('${itemName}', 코드: ITEM-${finalMatchedItemId})에 대해, 다른 구분인 '${normType}'으로의 입고 등록은 불가합니다.`);
+        }
+
         await updateRows('inventory_items', {
-          type: item.itemType || currentItem.type || '자재',
+          type: normType,
           category: item.category || currentItem.category || '기타',
           stock: newStock,
           price: price > 0 ? price : currentItem.price,
@@ -79,10 +86,22 @@ export async function handleInventoryInbound(reqBody: any, nowStr: string) {
       // 2-B. 신규 품목 등록 처리
       maxItemId++;
       finalMatchedItemId = maxItemId;
+      const rawType = item.itemType || '자재';
+      const normType = (rawType === 'material' || rawType === '자재' || rawType === '원자재' || rawType === '원부자재') ? '원부자재' : '완제품';
+
+      // 동일 품목명 중복 검사 및 타입 일치성 검증
+      const sameNameCheck = await queryTable('inventory_items', { filters: { name: itemName } });
+      const sameNameRows = (sameNameCheck.rows || []).filter((r: any) => !r.deleted_at);
+      if (sameNameRows.length > 0) {
+        const existingItem = sameNameRows[0];
+        if (existingItem.type !== normType) {
+          throw new Error(`이미 '${existingItem.type}'으로 등록된 동일 품목명('${itemName}')이 존재하므로, 다른 구분인 '${normType}'으로의 등록이 불가합니다.`);
+        }
+      }
 
       await insertRows('inventory_items', [{
         id: finalMatchedItemId,
-        type: item.itemType || '자재',
+        type: normType,
         name: itemName,
         category: item.category || '기타',
         price: price,
@@ -114,30 +133,26 @@ export async function handleInventoryInbound(reqBody: any, nowStr: string) {
       matched_item_id: finalMatchedItemId,
       created_at: nowStr
     }]);
-  }
 
-  // 3) inventory_logs에 입고 등록 절차 건별 단 1행의 요약 로그만 적재
-  if (items.length > 0) {
-    const totalQty = items.reduce((sum: number, it: any) => sum + (Number(it.quantity) || 0), 0);
-    const representativeName = items[0].itemName || "";
-    const representativeType = items[0].itemType || "자재";
-    const logItemName = items.length > 1 ? `${representativeName} 외 ${items.length - 1}건` : representativeName;
-    const logNote = `${partnerName || '미지정 공급처'} | 총 ${items.length}개 품목 입고 완료 (inboundId: ${inboundId})` + (pdfFilePath ? ` (증빙: ${pdfFilePath})` : '');
-
+    const rawType = item.itemType || '자재';
+    const normType = (rawType === 'material' || rawType === '자재' || rawType === '원자재' || rawType === '원부자재') ? '원부자재' : '완제품';
     maxLogId++;
+    const logNote = `${partnerName || '미지정 공급처'} | 품목 입고 완료 (inboundId: ${inboundId})` + (pdfFilePath ? ` (증빙: ${pdfFilePath})` : '');
     await insertRows('inventory_logs', [{
       id: maxLogId,
-      itemId: -1,
-      itemName: logItemName,
-      itemType: representativeType,
+      itemId: finalMatchedItemId,
+      itemName: itemName,
+      itemType: normType,
       changeType: 'in',
-      quantity: totalQty,
-      price: 0,
+      quantity: qty,
+      price: price,
       operator: operator || '최고관리자',
       note: logNote,
       createdAt: nowStr
     }]);
   }
+
+  // 요약 로그 적재는 생략 (루프 내부에서 개별 낱개 로그 적재 완료)
 
   return {
     action: 'inbound_completed',

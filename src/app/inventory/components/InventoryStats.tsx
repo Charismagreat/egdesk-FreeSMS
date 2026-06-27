@@ -24,7 +24,7 @@ export const InventoryStats: React.FC<InventoryStatsProps> = ({
       {/* 카드 1: 총 자재 현황 */}
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex items-center justify-between relative overflow-hidden group hover:shadow-md transition-shadow">
         <div className="space-y-1 z-10">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">총 보유 자재</span>
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">총 보유 원부자재</span>
           <h3 className="text-2xl font-bold text-slate-800">{totalMaterialStock.toLocaleString()} 개</h3>
           <p className="text-xs text-indigo-650 font-bold bg-indigo-50/50 px-2 py-0.5 rounded-md inline-block">
             자산가치: ₩ {totalMaterialValue.toLocaleString()}

@@ -144,11 +144,11 @@ export const InboundDetailModal: React.FC<InboundDetailModalProps> = ({ inboundI
                         {/* 1. 구분 */}
                         <td className="py-2 px-1 text-center">
                           <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-black ${
-                            item.type === 'material' || item.type === '자재'
+                            item.type === '원부자재' || item.type === 'material' || item.type === '자재' || item.type === '원자재'
                               ? 'bg-blue-50 text-blue-600 border border-blue-100' 
                               : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
                           }`}>
-                            {item.type === 'material' || item.type === '자재' ? '자재' : '제품'}
+                            {item.type === '원부자재' || item.type === 'material' || item.type === '자재' || item.type === '원자재' ? '원부자재' : '완제품'}
                           </span>
                         </td>
                         {/* 2. 카테고리 */}
