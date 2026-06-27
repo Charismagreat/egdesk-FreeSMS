@@ -11,7 +11,7 @@ import { calculateValuation } from './utils/valuation';
 
 // 하위 서브 컴포넌트 임포트
 import { InventoryStats } from './components/InventoryStats';
-import { AiVisionTerminal, visionPresets } from './components/AiVisionTerminal';
+import { AiVisionTerminal } from './components/AiVisionTerminal';
 import { AiVoiceTerminal, voicePresets } from './components/AiVoiceTerminal';
 import { InventoryTable } from './components/InventoryTable';
 import { InventoryLogTable } from './components/InventoryLogTable';
@@ -109,7 +109,6 @@ export default function InventoryPage() {
   // AI 비전 입고 분석 상태
   const [aiVisionLoading, setAiVisionLoading] = useState(false);
   const [aiVisionSuccess, setAiVisionSuccess] = useState(false);
-  const [selectedVisionPreset, setSelectedVisionPreset] = useState<number | null>(null);
   const [scanningLine, setScanningLine] = useState(false);
 
   // AI 음성/자연어 출고 분석 상태
@@ -712,81 +711,6 @@ export default function InventoryPage() {
       });
     }
     setIsTxModalOpen(true);
-  };
-
-  // 🔥 [AI 기능 1] AI 비전 영수증/명세서 입고 자동화 실행 시뮬레이터
-  const triggerAiVisionScan = (presetId: number) => {
-    if (aiVisionLoading) return;
-    
-    // 타이핑 진행 중인 기존 인터벌 정리
-    if (typingIntervalRef.current) {
-      clearInterval(typingIntervalRef.current);
-    }
-
-    const preset = visionPresets.find(p => p.id === presetId);
-    if (!preset) return;
-
-    setSelectedVisionPreset(presetId);
-    setAiVisionLoading(true);
-    setAiVisionSuccess(false);
-    setScanningLine(true);
-
-    // 1.5초 스캔 CSS 레이저 효과 가동 후 파싱 시작
-    setTimeout(() => {
-      setScanningLine(false);
-      setAiVisionLoading(false);
-      setAiVisionSuccess(true);
-
-      const targetData = preset.data;
-      
-      // 폼을 알맞게 변환하고 초기화
-      setItemForm({
-        type: preset.id === 2 ? 'product' : 'material', // 텀블러는 제품, 나머지는 자재
-        name: '',
-        category: '',
-        price: '',
-        partner: '',
-        stock: '',
-        safeStock: '',
-        location: '',
-        barcode: '',
-        description: '',
-        spec: '',
-        unitType: 'count',
-        unitValue: '개',
-        boxContains: ''
-      });
-
-      let currentStep = 0;
-      const keysToType = ['name', 'category', 'price', 'partner', 'stock', 'safeStock', 'location', 'description'] as const;
-      
-      const typeNextField = () => {
-        if (currentStep >= keysToType.length) {
-          if (typingIntervalRef.current) clearInterval(typingIntervalRef.current);
-          return;
-        }
-
-        const key = keysToType[currentStep];
-        const value = targetData[key];
-        let charIndex = 0;
-
-        const charInterval = setInterval(() => {
-          setItemForm(prev => ({
-            ...prev,
-            [key]: value.substring(0, charIndex + 1)
-          }));
-          charIndex++;
-
-          if (charIndex >= value.length) {
-            clearInterval(charInterval);
-            currentStep++;
-            setTimeout(typeNextField, 150);
-          }
-        }, 30);
-      };
-
-      typeNextField();
-    }, 1500);
   };
 
   // 🔥 [AI 기능 2] AI 음성 및 자연어 출고 명령 분석기
