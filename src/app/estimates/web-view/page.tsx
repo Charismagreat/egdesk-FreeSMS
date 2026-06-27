@@ -119,6 +119,9 @@ function WebViewContent() {
     if (url.startsWith("http://") || url.startsWith("https://")) return url;
     
     const apiHost = process.env.NEXT_PUBLIC_EGDESK_API_URL || "http://localhost:8080";
+    if (!url.startsWith("/") && (url.endsWith(".pdf") || /\.(png|jpg|jpeg|gif)$/i.test(url))) {
+      return `${apiHost}/uploads/financials/${url}`;
+    }
     const normalizedUrl = url.startsWith("/") ? url : `/${url}`;
     return `${apiHost}${normalizedUrl}`;
   };

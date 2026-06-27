@@ -280,7 +280,7 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
           partnerName: ocrForm.items[0]?.partnerName || ocrForm.partnerName,
           inboundDate: ocrForm.items[0]?.inboundDate || ocrForm.inboundDate,
           items: requestItems,
-          pdfFilePath: file?.name || 'AI 비전 OCR 입고',
+          pdfFilePath: ocrForm.fileUrl || file?.name || 'AI 비전 OCR 입고',
           operator: '최고 관리자',
           fileHash: ocrForm.fileHash || ''
         })
