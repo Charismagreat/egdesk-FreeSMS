@@ -107,31 +107,31 @@ export const InboundDetailModal: React.FC<InboundDetailModalProps> = ({ inboundI
           ) : (
             <div className="space-y-4">
               <div className="border border-slate-100 rounded-2xl overflow-x-auto w-full">
-                <table className="w-full border-collapse text-left text-[11px] min-w-[2140px] table-fixed">
+                <table className="w-full border-collapse text-left text-[10px] min-w-[1410px] table-fixed">
                   <thead>
-                    <tr className="bg-slate-50 border-b border-slate-100 font-black text-slate-500">
-                      <th className="p-3 w-[80px]">구분</th>
-                      <th className="p-3 w-[120px]">카테고리</th>
-                      <th className="p-3 w-[260px]">품목명</th>
-                      <th className="p-3 w-[150px]">품목코드</th>
-                      <th className="p-3 w-[150px]">바코드</th>
-                      <th className="p-3 w-[160px]">규격</th>
-                      <th className="p-3 w-[80px]">단위</th>
-                      <th className="p-3 w-[110px] text-right">박스당 입수량</th>
-                      <th className="p-3 w-[110px] text-right">입고 수량</th>
-                      <th className="p-3 w-[130px] text-right">입고 단가</th>
-                      <th className="p-3 w-[150px] text-right">총액</th>
-                      <th className="p-3 w-[180px]">공급처명(거래처)</th>
-                      <th className="p-3 w-[140px]">입고일자</th>
-                      <th className="p-3 w-[120px]">적재위치</th>
-                      <th className="p-3 w-[200px]">비고</th>
+                    <tr className="bg-slate-50 border-b border-slate-100 font-black text-slate-500 text-[9px]">
+                      <th className="py-2 px-1.5 w-[50px]">구분</th>
+                      <th className="py-2 px-1.5 w-[80px]">카테고리</th>
+                      <th className="py-2 px-1.5 w-[170px]">품목명</th>
+                      <th className="py-2 px-1.5 w-[110px]">품목코드</th>
+                      <th className="py-2 px-1.5 w-[110px]">바코드</th>
+                      <th className="py-2 px-1.5 w-[100px]">규격</th>
+                      <th className="py-2 px-1.5 w-[50px]">단위</th>
+                      <th className="py-2 px-1.5 w-[80px] text-right">박스당 입수량</th>
+                      <th className="py-2 px-1.5 w-[80px] text-right">입고 수량</th>
+                      <th className="py-2 px-1.5 w-[90px] text-right">입고 단가</th>
+                      <th className="py-2 px-1.5 w-[100px] text-right">총액</th>
+                      <th className="py-2 px-1.5 w-[110px]">공급처명(거래처)</th>
+                      <th className="py-2 px-1.5 w-[90px]">입고일자</th>
+                      <th className="py-2 px-1.5 w-[80px]">적재위치</th>
+                      <th className="py-2 px-1.5 w-[110px]">비고</th>
                     </tr>
                   </thead>
                   <tbody>
                     {items.map((item) => (
                       <tr key={item.id} className="border-b border-slate-50 hover:bg-slate-50/50">
-                        <td className="p-3">
-                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                        <td className="py-2 px-1.5">
+                          <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-bold ${
                             item.type === 'material' || item.type === '자재'
                               ? 'bg-blue-50 text-blue-600 border border-blue-100' 
                               : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
@@ -139,22 +139,22 @@ export const InboundDetailModal: React.FC<InboundDetailModalProps> = ({ inboundI
                             {item.type === 'material' || item.type === '자재' ? '자재' : '제품'}
                           </span>
                         </td>
-                        <td className="p-3 text-slate-500 font-semibold">{item.category}</td>
-                        <td className="p-3 font-semibold text-slate-800">{item.item_name}</td>
-                        <td className="p-3 text-slate-450 font-mono">{item.item_code}</td>
-                        <td className="p-3 text-slate-450 font-mono">{item.barcode}</td>
-                        <td className="p-3 text-slate-400 font-medium">{item.spec}</td>
-                        <td className="p-3 text-slate-500">{item.unit}</td>
-                        <td className="p-3 text-right text-slate-600 font-mono">{(item.box_qty || 1).toLocaleString()}</td>
-                        <td className="p-3 text-right font-black text-indigo-600 font-mono">{item.quantity.toLocaleString()} 개</td>
-                        <td className="p-3 text-right text-slate-650 font-mono">{item.price.toLocaleString()} 원</td>
-                        <td className="p-3 text-right text-slate-900 font-bold font-mono">
+                        <td className="py-2 px-1.5 text-slate-500 font-semibold">{item.category}</td>
+                        <td className="py-2 px-1.5 font-semibold text-slate-800 truncate" title={item.item_name}>{item.item_name}</td>
+                        <td className="py-2 px-1.5 text-slate-450 font-mono">{item.item_code}</td>
+                        <td className="py-2 px-1.5 text-slate-450 font-mono">{item.barcode}</td>
+                        <td className="py-2 px-1.5 text-slate-400 font-medium truncate" title={item.spec}>{item.spec}</td>
+                        <td className="py-2 px-1.5 text-slate-500">{item.unit}</td>
+                        <td className="py-2 px-1.5 text-right text-slate-600 font-mono">{(item.box_qty || 1).toLocaleString()}</td>
+                        <td className="py-2 px-1.5 text-right font-black text-indigo-600 font-mono">{item.quantity.toLocaleString()} 개</td>
+                        <td className="py-2 px-1.5 text-right text-slate-650 font-mono">{item.price.toLocaleString()} 원</td>
+                        <td className="py-2 px-1.5 text-right text-slate-900 font-bold font-mono">
                           {((item.quantity || 0) * (item.price || 0)).toLocaleString()} 원
                         </td>
-                        <td className="p-3 text-slate-600 font-semibold">{item.partner_name}</td>
-                        <td className="p-3 text-slate-450 font-mono">{item.inbound_date}</td>
-                        <td className="p-3 text-slate-500">{item.location}</td>
-                        <td className="p-3 text-slate-400 truncate max-w-[150px]" title={item.note}>{item.note}</td>
+                        <td className="py-2 px-1.5 text-slate-600 font-semibold truncate" title={item.partner_name}>{item.partner_name}</td>
+                        <td className="py-2 px-1.5 text-slate-450 font-mono">{item.inbound_date}</td>
+                        <td className="py-2 px-1.5 text-slate-500">{item.location}</td>
+                        <td className="py-2 px-1.5 text-slate-400 truncate" title={item.note}>{item.note}</td>
                       </tr>
                     ))}
                   </tbody>
