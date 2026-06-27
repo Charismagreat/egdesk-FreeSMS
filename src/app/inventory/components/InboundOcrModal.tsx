@@ -267,24 +267,26 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
                   <span>명세서 실물 분석 입고 (14대 전체 항목 매핑 검증)</span>
                 </h3>
 
-                <div className="grid grid-cols-2 gap-4 shrink-0">
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-455 block mb-1">공급처명(거래처)*</label>
+                <div className="grid grid-cols-2 gap-4 shrink-0 bg-slate-50/50 p-2 rounded-xl border border-slate-100/80">
+                  {/* 공급처명 */}
+                  <div className="flex items-center space-x-2">
+                    <label className="text-[10px] font-black text-slate-500 shrink-0 w-24">공급처명(거래처)*</label>
                     <input
                       type="text"
                       value={ocrForm.partnerName}
                       onChange={(e) => setOcrForm({ ...ocrForm, partnerName: e.target.value })}
-                      className="w-full px-3.5 py-1.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
+                      className="flex-1 px-3 py-1 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 bg-white focus:outline-none focus:border-indigo-500"
                       placeholder="공급처(상호명) 입력"
                     />
                   </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-455 block mb-1">입고일자</label>
+                  {/* 입고일자 */}
+                  <div className="flex items-center space-x-2">
+                    <label className="text-[10px] font-black text-slate-500 shrink-0 w-16">입고일자</label>
                     <input
                       type="date"
                       value={ocrForm.inboundDate}
                       onChange={(e) => setOcrForm({ ...ocrForm, inboundDate: e.target.value })}
-                      className="w-full px-3.5 py-1.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
+                      className="flex-1 px-3 py-1 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 bg-white focus:outline-none focus:border-indigo-500"
                     />
                   </div>
                 </div>
