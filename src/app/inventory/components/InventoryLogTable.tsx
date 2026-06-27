@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRightLeft, Printer, X } from 'lucide-react';
+import { ArrowRightLeft, Printer } from 'lucide-react';
 import { InventoryLog } from '../types';
 import { InboundDetailModal } from './InboundDetailModal';
 
@@ -9,84 +9,39 @@ interface InventoryLogTableProps {
 
 export const InventoryLogTable: React.FC<InventoryLogTableProps> = ({ logs }) => {
   const [selectedInboundId, setSelectedInboundId] = useState<string | null>(null);
-  const [activeFileUrl, setActiveFileUrl] = useState<string | null>(null);
   const safeLogs = Array.isArray(logs) ? logs : [];
 
   const getFileUrl = (url: string | null) => {
     if (!url) return "";
-    if (url.startsWith("/uploads/")) {
+    if (url.startsWith("/uploads/") || url.startsWith("/api/")) {
       const apiHost = process.env.NEXT_PUBLIC_EGDESK_API_URL || "http://localhost:8080";
       return `${apiHost}${url}`;
     }
     return url;
   };
 
-  // 🖨️ 인쇄 기능 구현
-  const handlePrint = () => {
-    if (!activeFileUrl) return;
-    const realUrl = getFileUrl(activeFileUrl);
-    const isPdf = activeFileUrl.startsWith("data:application/pdf") || activeFileUrl.toLowerCase().endsWith(".pdf");
-    
-    if (isPdf) {
-      const iframe = document.getElementById("print-iframe-logs") as HTMLIFrameElement;
-      if (iframe && iframe.contentWindow) {
-        try {
-          iframe.contentWindow.focus();
-          iframe.contentWindow.print();
-          return;
-        } catch (e) {
-          console.error("iframe direct print failed", e);
-        }
+  const openBase64InNewTab = (fileUrl: string) => {
+    if (!fileUrl) return;
+    try {
+      const realUrl = getFileUrl(fileUrl);
+      if (!realUrl.startsWith('data:')) {
+        window.open(realUrl, '_blank');
+        return;
       }
-    }
-
-    const printWindow = window.open("", "_blank");
-    if (printWindow) {
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>인쇄하기 - EGDesk</title>
-            <style>
-              body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: white; }
-              img { max-width: 100%; max-height: 100vh; object-fit: contain; }
-              iframe { width: 100vw; height: 100vh; border: none; }
-            </style>
-          </head>
-          <body>
-            ${isPdf 
-              ? `<iframe src="${realUrl}"></iframe>` 
-              : `<img src="${realUrl}" onload="window.print();window.close();" />`
-            }
-            ${isPdf ? `<script>window.onload = function() { window.print(); window.close(); }</script>` : ""}
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
-    }
-  };
-
-  // 🔗 새 탭에서 열기 (Base64 data url 브라우저 차단 우회)
-  const handleOpenNewTab = () => {
-    if (!activeFileUrl) return;
-    if (activeFileUrl.startsWith("data:")) {
-      try {
-        const parts = activeFileUrl.split(",");
-        const mime = parts[0].match(/:(.*?);/)?.[1] || "";
-        const bstr = atob(parts[1]);
-        let n = bstr.length;
-        const u8arr = new Uint8Array(n);
-        while (n--) {
-          u8arr[n] = bstr.charCodeAt(n);
-        }
-        const blob = new Blob([u8arr], { type: mime });
-        const blobUrl = URL.createObjectURL(blob);
-        window.open(blobUrl, "_blank");
-      } catch (err) {
-        console.error("Base64 새 탭 열기 실패:", err);
-        window.open(getFileUrl(activeFileUrl), "_blank");
+      const parts = realUrl.split(';base64,');
+      const contentType = parts[0].split(':')[1];
+      const raw = window.atob(parts[1]);
+      const rawLength = raw.length;
+      const uInt8Array = new Uint8Array(rawLength);
+      for (let i = 0; i < rawLength; ++i) {
+        uInt8Array[i] = raw.charCodeAt(i);
       }
-    } else {
-      window.open(getFileUrl(activeFileUrl), "_blank");
+      const blob = new Blob([uInt8Array], { type: contentType });
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+    } catch (e) {
+      console.error(e);
+      window.open(fileUrl, '_blank');
     }
   };
 
@@ -224,7 +179,7 @@ export const InventoryLogTable: React.FC<InventoryLogTableProps> = ({ logs }) =>
 
                                 return isDocOrImg ? (
                                   <button
-                                    onClick={() => setActiveFileUrl(proofPath)}
+                                    onClick={() => openBase64InNewTab(proofPath)}
                                     className="inline-flex items-center gap-0.5 px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-650 hover:text-indigo-800 rounded-md text-[9px] font-extrabold border border-indigo-100 transition-colors cursor-pointer"
                                     title="자율입고 증빙 파일 조회"
                                   >
@@ -266,69 +221,6 @@ export const InventoryLogTable: React.FC<InventoryLogTableProps> = ({ logs }) =>
         />
       )}
 
-      {/* 📄 원본 증빙문서 전체화면 오버레이 모달 */}
-      {activeFileUrl && (() => {
-        const isPdf = activeFileUrl.startsWith("data:application/pdf") || activeFileUrl.toLowerCase().endsWith(".pdf");
-        return (
-          <div className="fixed inset-0 bg-slate-950/95 z-[999] flex flex-col backdrop-blur-sm animate-fade-in">
-            {/* 상단 컨트롤 바 */}
-            <div className="bg-slate-900/95 border-b border-white/10 px-6 py-4 flex items-center justify-between text-white shadow-2xl">
-              <div className="flex items-center gap-2">
-                <span className="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[9px] font-black tracking-widest px-2.5 py-0.5 rounded-full uppercase">
-                  Document Viewer
-                </span>
-                <h3 className="text-xs font-black tracking-wide">📄 입출고 증빙 원본문서 뷰어</h3>
-              </div>
-              <div className="flex items-center gap-2">
-                {/* 🖨️ 인쇄하기 */}
-                <button
-                  onClick={handlePrint}
-                  className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[10px] font-black cursor-pointer transition-all flex items-center gap-1 shadow-md border-none"
-                  title="문서 인쇄하기"
-                >
-                  <span>🖨️ 인쇄하기</span>
-                </button>
-
-                {/* 🌐 새 탭에서 열기 */}
-                <button
-                  onClick={handleOpenNewTab}
-                  className="px-3.5 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-slate-200 rounded-xl text-[10px] font-black cursor-pointer transition-all flex items-center gap-1 shadow-md"
-                  title="브라우저 새 탭에서 열기 (차단 우회 적용)"
-                >
-                  <span>🌐 새 탭에서 열기</span>
-                </button>
-
-                {/* ❌ 닫기 */}
-                <button
-                  onClick={() => setActiveFileUrl(null)}
-                  className="w-9 h-9 flex items-center justify-center bg-slate-800 border border-white/5 hover:bg-slate-700 text-slate-300 rounded-full cursor-pointer transition-all hover:scale-105"
-                  title="뷰어 닫기"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            </div>
-
-            {/* 원본 파일 렌더링 구역 */}
-            <div className="flex-1 flex justify-center items-center p-6 overflow-auto bg-slate-950">
-              {isPdf ? (
-                <iframe
-                  id="print-iframe-logs"
-                  src={getFileUrl(activeFileUrl)}
-                  className="w-full h-full max-w-5xl max-h-[82vh] rounded-2xl border border-white/10 bg-white shadow-2xl"
-                  title="PDF 원본 뷰어"
-                />
-              ) : (
-                <img
-                  src={getFileUrl(activeFileUrl)}
-                  alt="원본 증빙 이미지"
-                  className="max-h-[82vh] max-w-full object-contain rounded-2xl border border-white/10 shadow-2xl bg-slate-900/50"
-                />
-              )}
-            </div>
-          </div>
-        );
-      })()}
     </div>
   );
 };

@@ -90,12 +90,32 @@ function WebViewContent() {
 
   const openFileInNewTab = (fileUrl: string) => {
     if (!fileUrl) return;
-    setActiveFileUrl(fileUrl);
+    try {
+      const realUrl = getFileUrl(fileUrl);
+      if (!realUrl.startsWith('data:')) {
+        window.open(realUrl, '_blank');
+        return;
+      }
+      const parts = realUrl.split(';base64,');
+      const contentType = parts[0].split(':')[1];
+      const raw = window.atob(parts[1]);
+      const rawLength = raw.length;
+      const uInt8Array = new Uint8Array(rawLength);
+      for (let i = 0; i < rawLength; ++i) {
+        uInt8Array[i] = raw.charCodeAt(i);
+      }
+      const blob = new Blob([uInt8Array], { type: contentType });
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+    } catch (e) {
+      console.error(e);
+      window.open(fileUrl, '_blank');
+    }
   };
 
   const getFileUrl = (url: string | null) => {
     if (!url) return "";
-    if (url.startsWith("/uploads/")) {
+    if (url.startsWith("/uploads/") || url.startsWith("/api/")) {
       const apiHost = process.env.NEXT_PUBLIC_EGDESK_API_URL || "http://localhost:8080";
       return `${apiHost}${url}`;
     }
