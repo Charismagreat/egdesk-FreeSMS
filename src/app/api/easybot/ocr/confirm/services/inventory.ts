@@ -73,10 +73,10 @@ export async function handleInventoryInbound(reqBody: any, nowStr: string) {
           itemId: finalMatchedItemId,
           itemName: itemName,
           itemType: currentItem.type || '자재',
-          changeType: 'INBOUND',
+          changeType: 'in',
           quantity: qty,
           price: price,
-          operator: 'AI 이지봇',
+          operator: '시스템 (자율 입고)',
           note: `[자율 입고] ${partnerName || ''} 거래명세서 스캔 확정 반영` + (pdfFilePath ? ` (증빙: ${pdfFilePath})` : '') + (item.note ? ` | ${item.note}` : ''),
           createdAt: nowStr
         }]);
@@ -112,10 +112,10 @@ export async function handleInventoryInbound(reqBody: any, nowStr: string) {
         itemId: finalMatchedItemId,
         itemName: itemName,
         itemType: '자재',
-        changeType: 'INBOUND',
+        changeType: 'in',
         quantity: qty,
         price: price,
-        operator: 'AI 이지봇',
+        operator: '시스템 (자율 입고)',
         note: `[자율 신규 등록] ${partnerName || ''} 거래명세서 스캔 최초 입고` + (pdfFilePath ? ` (증빙: ${pdfFilePath})` : '') + (item.note ? ` | ${item.note}` : ''),
         createdAt: nowStr
       }]);
