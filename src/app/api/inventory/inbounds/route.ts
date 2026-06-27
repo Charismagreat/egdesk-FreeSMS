@@ -20,7 +20,7 @@ export async function GET(request: Request) {
       // 2. 전체 마스터 품목 데이터 조회 (메모리 조인용)
       const masterRes = await queryTable('inventory_items', {});
       const masterItems = masterRes.rows || [];
-      const masterMap = new Map(masterItems.map((item: any) => [item.id, item]));
+      const masterMap = new Map(masterItems.map((item: any) => [String(item.id), item]));
 
       // 3. 입고 마스터(거래처, 입고일자 등) 조회
       const inboundRes = await queryTable('crm_inventory_inbounds', { filters: { id: inboundId } });
@@ -28,7 +28,7 @@ export async function GET(request: Request) {
 
       // 4. 14대 필수 필드로 결합한 풀 매핑 데이터 생성
       const enrichedData = inboundItems.map((item: any) => {
-        const master = masterMap.get(item.matched_item_id) || {};
+        const master = item.matched_item_id ? (masterMap.get(String(item.matched_item_id)) || {}) : {};
         return {
           id: item.id,
           inbound_id: item.inbound_id,
