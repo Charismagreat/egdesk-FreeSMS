@@ -244,59 +244,53 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
 
         {/* 메인 스크롤 영역 */}
         <div className="space-y-6 flex-1 overflow-y-auto pr-1 min-h-0 flex flex-col">
-          {/* 이미지 가상 드롭존 */}
-          <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center bg-slate-50 relative min-h-[140px] overflow-hidden shrink-0">
-            {ocrScanning && (
-              <div className="absolute inset-x-0 h-1 bg-indigo-500 animate-bounce z-20"></div>
-            )}
+          {/* 이미지 가상 드롭존 (분석 성공 전 혹은 로딩 중에만 표시) */}
+          {!ocrSuccess && (
+            <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center bg-slate-50 relative min-h-[140px] overflow-hidden shrink-0">
+              {ocrScanning && (
+                <div className="absolute inset-x-0 h-1 bg-indigo-500 animate-bounce z-20"></div>
+              )}
 
-            {ocrScanning ? (
-              <div className="flex flex-col items-center space-y-2 text-center">
-                <RefreshCw className="w-8 h-8 text-indigo-500 animate-spin" />
-                <span className="text-xs text-indigo-600 font-extrabold animate-pulse">
-                  Gemini Vision AI로 명세서(영수증/PDF) 이미지 고해상도 OCR 분석 중...
-                </span>
-              </div>
-            ) : ocrSuccess ? (
-              <div className="text-center space-y-2">
-                <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto animate-scale-up" />
-                <div>
-                  <span className="text-xs font-bold text-slate-700 block">{ocrFilename} 분석 성공!</span>
-                  <span className="text-[10px] text-slate-400 block mt-0.5">{successMessage}</span>
+              {ocrScanning ? (
+                <div className="flex flex-col items-center space-y-2 text-center">
+                  <RefreshCw className="w-8 h-8 text-indigo-500 animate-spin" />
+                  <span className="text-xs text-indigo-600 font-extrabold animate-pulse">
+                    Gemini Vision AI로 명세서(영수증/PDF) 이미지 고해상도 OCR 분석 중...
+                  </span>
                 </div>
-              </div>
-            ) : (
-              <div className="text-center space-y-3">
-                <FileTextIcon className="w-8 h-8 text-slate-400 mx-auto" />
-                <div className="text-xs text-slate-500">명세서 실물 사진/PDF 이미지 등록 시 AI가 입고 대장 자동 적재</div>
-                <label 
-                  className="inline-block px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-black text-[11px] rounded-xl border border-indigo-100 cursor-pointer shadow-sm active:scale-95 transition-transform"
-                >
-                  명세서 파일 선택 (이미지 / PDF)
-                  <input 
-                    type="file" 
-                    accept="image/*,application/pdf"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                </label>
-              </div>
-            )}
-          </div>
+              ) : (
+                <div className="text-center space-y-3">
+                  <FileTextIcon className="w-8 h-8 text-slate-400 mx-auto" />
+                  <div className="text-xs text-slate-500">명세서 실물 사진/PDF 이미지 등록 시 AI가 입고 대장 자동 적재</div>
+                  <label 
+                    className="inline-block px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-black text-[11px] rounded-xl border border-indigo-100 cursor-pointer shadow-sm active:scale-95 transition-transform"
+                  >
+                    명세서 파일 선택 (이미지 / PDF)
+                    <input 
+                      type="file" 
+                      accept="image/*,application/pdf"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* 파싱된 폼 검증/수정 영역 */}
           {ocrSuccess && (
             <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-10 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
               
-              {/* 좌측: 업로드된 원본 문서 뷰어 (30% 점유) */}
-              <div className="lg:col-span-3 border border-slate-100 rounded-2xl bg-slate-50 p-2 flex flex-col items-center justify-center min-h-[300px] lg:min-h-0 relative overflow-hidden">
+              {/* 좌측: 업로드된 원본 문서 뷰어 (30% 점유, 높이 68vh 극대화) */}
+              <div className="lg:col-span-3 border border-slate-100 rounded-2xl bg-slate-50 p-2 flex flex-col items-center justify-center min-h-[400px] lg:min-h-[68vh] h-[68vh] relative overflow-hidden">
                 <span className="text-[9px] font-black text-slate-400 absolute top-2 left-2 bg-white/80 px-2 py-0.5 rounded border border-slate-100 z-10 shadow-sm">📄 명세서 원본 문서</span>
                 {ocrForm.fileUrl ? (
                   ocrForm.fileUrl.startsWith('data:application/pdf') ? (
                     <embed src={ocrForm.fileUrl} type="application/pdf" className="w-full h-full rounded-xl" />
                   ) : (
                     <div className="w-full h-full overflow-auto flex items-center justify-center p-2">
-                      <img src={ocrForm.fileUrl} className="max-w-full max-h-[55vh] object-contain rounded-xl shadow-sm animate-fade-in" alt="명세서 원본" />
+                      <img src={ocrForm.fileUrl} className="max-w-full max-h-[64vh] object-contain rounded-xl shadow-sm animate-fade-in" alt="명세서 원본" />
                     </div>
                   )
                 ) : (
@@ -304,8 +298,8 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
                 )}
               </div>
 
-              {/* 우측: AI 보정 폼 테이블 (70% 점유) */}
-              <div className="lg:col-span-7 flex flex-col min-h-0 space-y-4">
+              {/* 우측: AI 보정 폼 테이블 (70% 점유, 대칭 높이 68vh 설정) */}
+              <div className="lg:col-span-7 flex flex-col min-h-0 space-y-4 lg:h-[68vh] h-[68vh]">
                 <h4 className="text-xs font-black text-indigo-500 uppercase tracking-wider shrink-0">📋 AI 판독 데이터 검증 및 보정 (14개 전체 컬럼 매핑)</h4>
                 
                 <div className="grid grid-cols-2 gap-4 shrink-0">
