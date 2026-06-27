@@ -118,6 +118,12 @@ function WebViewContent() {
     if (url.startsWith("data:")) return url;
     if (url.startsWith("http://") || url.startsWith("https://")) return url;
     
+    if (url.includes("/api/estimates/ocr") || url.includes("/api/estimates/process")) {
+      const feHost = "http://localhost:4000";
+      const normalizedUrl = url.startsWith("/") ? url : `/${url}`;
+      return `${feHost}${normalizedUrl}`;
+    }
+    
     const apiHost = process.env.NEXT_PUBLIC_EGDESK_API_URL || "http://localhost:8080";
     if (!url.startsWith("/") && (url.endsWith(".pdf") || /\.(png|jpg|jpeg|gif)$/i.test(url))) {
       return `${apiHost}/uploads/financials/${url}`;
