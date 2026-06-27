@@ -166,6 +166,14 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
     }
   };
 
+  // 전체 구분을 일괄 변경하는 헬퍼
+  const handleBulkItemTypeChange = (type: '자재' | '제품') => {
+    if (!ocrForm.items.length) return;
+    const newItems = ocrForm.items.map(it => ({ ...it, itemType: type }));
+    setOcrForm({ ...ocrForm, items: newItems });
+  };
+
+
   // 최종 입고 승인 실행 (confirm/route.ts 혹은 handleInventoryInbound 호출)
   const handleConfirmInbound = async () => {
     if (ocrForm.items.length === 0) {
@@ -274,6 +282,26 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
 
                   {/* 버튼 그룹 (상단으로 이동) */}
                   <div className="flex items-center space-x-2 pr-12">
+                    {/* 일괄 구분 제어 토글 바 */}
+                    <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 mr-2 space-x-0.5 shrink-0">
+                      <button
+                        onClick={() => handleBulkItemTypeChange('자재')}
+                        type="button"
+                        className="px-2 py-1 bg-white hover:bg-slate-50 text-[9px] font-black text-indigo-600 rounded-md shadow-sm border border-slate-150 transition active:scale-95 cursor-pointer"
+                        title="모든 품목의 구분을 '자재'로 일괄 변경"
+                      >
+                        전체 자재로
+                      </button>
+                      <button
+                        onClick={() => handleBulkItemTypeChange('제품')}
+                        type="button"
+                        className="px-2 py-1 bg-white hover:bg-slate-50 text-[9px] font-black text-emerald-600 rounded-md shadow-sm border border-slate-150 transition active:scale-95 cursor-pointer"
+                        title="모든 품목의 구분을 '제품'로 일괄 변경"
+                      >
+                        전체 제품으로
+                      </button>
+                    </div>
+
                     <button
                       onClick={handleClose}
                       disabled={isProcessing}

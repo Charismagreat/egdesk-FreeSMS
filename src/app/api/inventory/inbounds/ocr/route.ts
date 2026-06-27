@@ -33,11 +33,11 @@ export async function POST(req: Request) {
       ? modelRes.rows[0].value
       : 'gemini-3.5-flash';
 
-    // 2. 사내 품목 대장 사전 정보를 로딩하여 Fuzzy 매칭 정확도 향상 유도
+    // 2. 사내 품목 대장 사전 정보를 로딩하여 Fuzzy 매칭 정확도 향상 유도 (type 컬럼도 함께 전송)
     const itemsRes = await queryTable('inventory_items', {});
     const masterItems = (itemsRes && itemsRes.rows) ? itemsRes.rows : [];
     const itemReferenceText = masterItems.map((it: any) => 
-      `- ID: ${it.id}, 품목명: ${it.name}, 규격: ${it.spec || ''}, 바코드: ${it.barcode || ''}`
+      `- ID: ${it.id}, 품목명: ${it.name}, 규격: ${it.spec || ''}, 바코드: ${it.barcode || ''}, 구분: ${it.type || '자재'}`
     ).join('\n');
 
     // 3. Gemini Vision OCR 프롬프트 작성
@@ -59,6 +59,7 @@ ${itemReferenceText}
    - **quantity**: 입고 수량 (숫자 정수)
    - **price**: 입고 단가 (숫자 정수)
    - **matchedItemId**: 위 '사내 등록 품목 대장 레퍼런스' 중 가장 일치하는 품목의 ID(숫자)를 적어주십시오. 신규 등록 품목인 경우 "NEW"를 기입하십시오.
+   - **itemType**: 품목의 구분입니다. 반드시 "자재" 또는 "제품" 중 하나여야 합니다. 만약 'matchedItemId'가 기존 품목과 매핑되었다면 해당 레퍼런스 품목의 '구분' 값을 그대로 채워주십시오. 만약 신규 품목("NEW")인 경우, 품목명과 가격의 성격(예: 부품, 원단, 칩, 메모리 등은 "자재" / 완성된 기기, 세트 상품 등은 "제품")을 지능적으로 추론하여 지정하십시오.
    - **note**: 매핑에 사용되지 않은 다른 열들의 이름과 셀 데이터 전체를 기재해 주십시오. (예: "포장단위: 10개입, 제조사: 삼성")
 
 최종 반환 JSON 형식:
@@ -73,6 +74,7 @@ ${itemReferenceText}
       "quantity": 10,
       "price": 25000,
       "matchedItemId": 12,
+      "itemType": "자재",
       "note": "비고 및 미매핑 필드 정보"
     }
   ]
