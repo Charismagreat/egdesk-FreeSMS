@@ -287,7 +287,7 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
                 <span className="text-[9px] font-black text-slate-400 absolute top-2 left-2 bg-white/80 px-2 py-0.5 rounded border border-slate-100 z-10 shadow-sm">📄 명세서 원본 문서</span>
                 {ocrForm.fileUrl ? (
                   ocrForm.fileUrl.startsWith('data:application/pdf') ? (
-                    <embed src={ocrForm.fileUrl} type="application/pdf" className="w-full h-full rounded-xl" />
+                    <embed src={`${ocrForm.fileUrl}#toolbar=0&navpanes=0`} type="application/pdf" className="w-full h-full rounded-xl" />
                   ) : (
                     <div className="w-full h-full overflow-auto flex items-center justify-center p-2">
                       <img src={ocrForm.fileUrl} className="max-w-full max-h-[60vh] object-contain rounded-xl shadow-sm animate-fade-in" alt="명세서 원본" />
