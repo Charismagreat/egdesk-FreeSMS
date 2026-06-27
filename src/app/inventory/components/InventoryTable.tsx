@@ -6,8 +6,8 @@ import { calculateValuation } from '../utils/valuation';
 interface InventoryTableProps {
   items: InventoryItem[];
   logs: InventoryLog[];
-  activeTab: 'material' | 'product' | 'inbound' | 'deadstock';
-  setActiveTab: (tab: 'material' | 'product' | 'inbound' | 'deadstock') => void;
+  activeTab: 'material' | 'product' | 'deadstock';
+  setActiveTab: (tab: 'material' | 'product' | 'deadstock') => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   loading: boolean;
@@ -66,7 +66,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
 
   // 현재 탭 및 검색 쿼리에 따른 필터링된 아이템 리스트
   const filteredItems = items
-    .filter(item => activeTab === 'inbound' ? false : item.type === activeTab)
+    .filter(item => item.type === activeTab)
     .filter(item => {
       const query = searchQuery.toLowerCase();
       return (
@@ -78,12 +78,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
     });
 
   // 페이지네이션 슬라이싱 로직
-  const totalItemsCount = activeTab === 'inbound'
-    ? (inbounds || []).filter(inb => {
-        if (!searchQuery) return true;
-        return (inb.partner_name || '').toLowerCase().includes(searchQuery.toLowerCase());
-      }).length
-    : filteredItems.length;
+  const totalItemsCount = filteredItems.length;
 
   const totalPages = Math.ceil(totalItemsCount / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -140,20 +135,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
               <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />
               <span>완제품({products.length})</span>
             </button>
-            <button
-              onClick={() => {
-                setActiveTab('inbound');
-                setSearchQuery('');
-              }}
-              className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 min-w-[110px] flex-shrink-0 cursor-pointer ${
-                activeTab === 'inbound'
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              <FileText className="w-3.5 h-3.5 text-indigo-500" />
-              <span>자율입고({inbounds ? inbounds.length : 0})</span>
-            </button>
+
             <button
               onClick={() => {
                 setActiveTab('deadstock');
@@ -192,68 +174,7 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
             <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
             <span className="text-xs text-slate-500 font-semibold">SQLite 안전 테이블 조회 중...</span>
           </div>
-        ) : activeTab === 'inbound' ? (
-          (inbounds || []).length === 0 ? (
-            <div className="py-20 text-center text-slate-400 space-y-2">
-              <FileText className="w-12 h-12 text-slate-300 mx-auto" />
-              <p className="text-sm font-semibold">자율 입고 내역이 존재하지 않습니다.</p>
-              <p className="text-xs">이지봇 대화방에서 거래명세서/라벨 이미지를 업로드해 보세요.</p>
-            </div>
-          ) : (
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50">
-                  <th className="py-4 px-4">입고 번호</th>
-                  <th className="py-4 px-4">공급처 (거래처)</th>
-                  <th className="py-4 px-4">입고 일자</th>
-                  <th className="py-4 px-4 text-right">총 입고 금액</th>
-                  <th className="py-4 px-4">증빙 서류</th>
-                  <th className="py-4 px-4 text-center">동작</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-xs">
-                {(inbounds || [])
-                  .filter(inb => {
-                    if (!searchQuery) return true;
-                    return (inb.partner_name || '').toLowerCase().includes(searchQuery.toLowerCase());
-                  })
-                  .slice(startIndex, endIndex)
-                  .map((inb) => (
-                    <tr key={inb.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="py-4 px-4 font-bold text-slate-700">{inb.id}</td>
-                      <td className="py-4 px-4 text-slate-800 font-semibold">{inb.partner_name || '미지정'}</td>
-                      <td className="py-4 px-4 text-slate-500">{inb.inbound_date}</td>
-                      <td className="py-4 px-4 text-right text-slate-900 font-bold">
-                        ₩{(inb.total_amount || 0).toLocaleString()}
-                      </td>
-                      <td className="py-4 px-4">
-                        {inb.pdf_file_path ? (
-                          <a
-                            href={inb.pdf_file_path}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline inline-flex items-center gap-1 font-bold"
-                          >
-                            <FileText size={12} />
-                            증빙 보기
-                          </a>
-                        ) : (
-                          <span className="text-slate-400">-</span>
-                        )}
-                      </td>
-                      <td className="py-4 px-4 text-center">
-                        <button
-                          onClick={() => onOpenInboundDetail(inb.id)}
-                          className="px-3 py-1.5 bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-600 text-[10px] font-bold rounded-xl transition cursor-pointer border-none"
-                        >
-                          상세 보기
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-          )
+
         ) : filteredItems.length === 0 ? (
           <div className="py-20 text-center text-slate-400 space-y-2">
             <Package className="w-12 h-12 text-slate-300 mx-auto" />
