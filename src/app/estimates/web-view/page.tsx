@@ -989,7 +989,13 @@ function WebViewContent() {
                                 if (!proofPath || proofPath === "-" || proofPath === "undefined") {
                                   return <span className={isDarkMode ? "text-slate-700" : "text-slate-400"}>-</span>;
                                 }
-                                return proofPath.startsWith('data:') ? (
+                                const isDocOrImg = 
+                                  proofPath.startsWith('data:') || 
+                                  proofPath.startsWith('http') || 
+                                  proofPath.includes('/uploads/') || 
+                                  /\.(pdf|png|jpg|jpeg|gif)$/i.test(proofPath);
+
+                                return isDocOrImg ? (
                                   <button
                                     onClick={() => openFileInNewTab(proofPath)}
                                     className="px-2.5 py-1 bg-indigo-500/10 text-indigo-650 hover:bg-indigo-500/20 rounded-lg text-[10px] font-black border border-indigo-500/20 transition-all inline-flex items-center gap-1 cursor-pointer"
