@@ -1,25 +1,16 @@
 import React, { useRef } from 'react';
-import { Sparkles, FileText, Loader2, CheckCircle, UploadCloud } from 'lucide-react';
+import { Sparkles, FileText, Loader2, UploadCloud } from 'lucide-react';
 
 interface AiVisionTerminalProps {
   aiVisionLoading: boolean;
-  selectedVisionPreset: number | null;
   scanningLine: boolean;
-  onPresetClick: (presetId: number) => void;
   onOpenItemModal: () => void;
   onFileSelect?: (file: File) => void; // 실제 파일 OCR 분석 트리거용
 }
 
-export const visionPresets = [
-  { id: 1, title: "일반 자재 거래명세서 샘플", filename: "material_invoice_sample.png", data: {} },
-  { id: 2, title: "완제품 납품영수증 샘플", filename: "product_receipt_sample.png", data: {} }
-];
-
 export const AiVisionTerminal: React.FC<AiVisionTerminalProps> = ({
   aiVisionLoading,
-  selectedVisionPreset,
   scanningLine,
-  onPresetClick,
   onOpenItemModal,
   onFileSelect
 }) => {
@@ -70,28 +61,6 @@ export const AiVisionTerminal: React.FC<AiVisionTerminalProps> = ({
         </p>
       </div>
 
-      {/* 명세서 샘플 프리셋 시뮬레이터 */}
-      <div className="mb-4">
-        <span className="text-xs font-bold text-slate-500 block mb-2">데모용 명세서 이미지 시뮬레이터 프리셋:</span>
-        <div className="flex flex-col space-y-1.5">
-          {visionPresets.map((preset) => (
-            <button
-              key={preset.id}
-              onClick={() => onPresetClick(preset.id)}
-              disabled={aiVisionLoading}
-              className={`p-2 rounded-lg border text-left text-xs transition-all flex items-center justify-between cursor-pointer ${
-                selectedVisionPreset === preset.id
-                  ? 'border-indigo-500 bg-indigo-50 text-indigo-950 font-medium'
-                  : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50 text-slate-600'
-              }`}
-            >
-              <span className="truncate">{preset.title}</span>
-              <span className="text-[10px] text-slate-400 font-mono">{preset.filename}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* 숨겨진 파일 인풋 */}
       <input 
         type="file" 
@@ -115,18 +84,6 @@ export const AiVisionTerminal: React.FC<AiVisionTerminalProps> = ({
           <div className="flex flex-col items-center space-y-2 z-10">
             <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
             <span className="text-xs text-indigo-600 font-semibold animate-pulse">명세서 이미지 픽셀 스캔 및 분석 중...</span>
-          </div>
-        ) : selectedVisionPreset ? (
-          <div className="flex flex-col items-center text-center space-y-2 z-10">
-            <FileText className="w-10 h-10 text-indigo-400 group-hover:scale-110 transition-transform" />
-            <div>
-              <span className="text-xs font-bold text-slate-700 block">
-                {visionPresets.find(p => p.id === selectedVisionPreset)?.filename}
-              </span>
-              <span className="text-[10px] text-emerald-600 font-semibold flex items-center justify-center gap-1 mt-0.5">
-                <CheckCircle className="w-3.5 h-3.5" /> 스캔 완료! 품목 등록 창에 정보 주입 중...
-              </span>
-            </div>
           </div>
         ) : (
           <div className="flex flex-col items-center text-center space-y-2">

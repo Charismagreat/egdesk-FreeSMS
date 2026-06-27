@@ -1034,9 +1034,7 @@ export default function InventoryPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <AiVisionTerminal
             aiVisionLoading={aiVisionLoading}
-            selectedVisionPreset={selectedVisionPreset}
             scanningLine={scanningLine}
-            onPresetClick={triggerAiVisionScan}
             onOpenItemModal={() => setIsItemModalOpen(true)}
             onFileSelect={handleOcrFileSelect}
           />
