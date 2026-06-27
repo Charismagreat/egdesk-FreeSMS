@@ -173,6 +173,32 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
     setOcrForm({ ...ocrForm, items: newItems });
   };
 
+  // Base64 데이터를 안전하게 브라우저 새 창에서 볼 수 있도록 Blob URL로 변환하여 오픈하는 헬퍼
+  const openBase64InNewTab = (base64Data: string) => {
+    if (!base64Data) return;
+    try {
+      if (!base64Data.startsWith('data:')) {
+        window.open(base64Data, '_blank');
+        return;
+      }
+      const parts = base64Data.split(';base64,');
+      const contentType = parts[0].split(':')[1];
+      const raw = window.atob(parts[1]);
+      const rawLength = raw.length;
+      const uInt8Array = new Uint8Array(rawLength);
+      for (let i = 0; i < rawLength; ++i) {
+        uInt8Array[i] = raw.charCodeAt(i);
+      }
+      const blob = new Blob([uInt8Array], { type: contentType });
+      const blobUrl = URL.createObjectURL(blob);
+      window.open(blobUrl, '_blank');
+    } catch (e) {
+      console.error(e);
+      window.open(base64Data, '_blank');
+    }
+  };
+
+
 
   // 최종 입고 승인 실행 (confirm/route.ts 혹은 handleInventoryInbound 호출)
   const handleConfirmInbound = async () => {
@@ -257,7 +283,7 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
               {ocrForm.fileUrl && (
                 <button
                   type="button"
-                  onClick={() => window.open(ocrForm.fileUrl, '_blank')}
+                  onClick={() => openBase64InNewTab(ocrForm.fileUrl)}
                   className="absolute top-3 right-6 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[10px] py-1.5 px-3.5 rounded-xl flex items-center gap-1.5 transition-all shadow-md shrink-0 z-20 cursor-pointer"
                   title="새 창에서 원본 파일 열람 및 인쇄"
                 >
