@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ArrowRightLeft } from 'lucide-react';
 import { InventoryLog } from '../types';
+import { InboundDetailModal } from './InboundDetailModal';
 
 interface InventoryLogTableProps {
   logs: InventoryLog[];
 }
 
 export const InventoryLogTable: React.FC<InventoryLogTableProps> = ({ logs }) => {
+  const [selectedInboundId, setSelectedInboundId] = useState<string | null>(null);
   const safeLogs = Array.isArray(logs) ? logs : [];
 
   return (
@@ -99,31 +101,50 @@ export const InventoryLogTable: React.FC<InventoryLogTableProps> = ({ logs }) =>
                       const noteText = log.note || '';
                       const proofMatch = noteText.match(/\(증빙:\s*([^\)]+)\)/);
                       const proofPath = proofMatch ? proofMatch[1] : null;
-                      const cleanNote = proofMatch ? noteText.replace(proofMatch[0], '').trim() : noteText;
+                      
+                      const inboundMatch = noteText.match(/inboundId:\s*(INB-\w+)/);
+                      const inboundId = inboundMatch ? inboundMatch[1] : null;
+
+                      let cleanNote = proofMatch ? noteText.replace(proofMatch[0], '').trim() : noteText;
+                      if (inboundMatch) {
+                        cleanNote = cleanNote.replace(inboundMatch[0], '').replace(/\(\s*\)/, '').trim();
+                        cleanNote = cleanNote.replace(/\s*\|\s*$/, '').trim();
+                      }
 
                       return (
                         <div className="flex items-center justify-between gap-1.5">
-                          <span className="truncate flex-1">{cleanNote || '-'}</span>
-                          {proofPath && (
-                            <a
-                              href={proofPath.startsWith('data:') ? '#' : proofPath}
-                              onClick={(e) => {
-                                if (proofPath.startsWith('data:')) {
-                                  e.preventDefault();
-                                  const win = window.open();
-                                  if (win) {
-                                    win.document.write(`<iframe src="${proofPath}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                          <span className="truncate flex-1" title={cleanNote}>{cleanNote || '-'}</span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {inboundId && (
+                              <button
+                                onClick={() => setSelectedInboundId(inboundId)}
+                                className="inline-flex items-center gap-0.5 px-2 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 hover:text-emerald-900 rounded-md text-[9px] font-extrabold border border-emerald-150 transition-colors cursor-pointer"
+                                title="일괄 입고 상세 품목 조회"
+                              >
+                                🔍 상세 조회
+                              </button>
+                            )}
+                            {proofPath && (
+                              <a
+                                href={proofPath.startsWith('data:') ? '#' : proofPath}
+                                onClick={(e) => {
+                                  if (proofPath.startsWith('data:')) {
+                                    e.preventDefault();
+                                    const win = window.open();
+                                    if (win) {
+                                      win.document.write(`<iframe src="${proofPath}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                                    }
                                   }
-                                }
-                              }}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-0.5 px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-650 hover:text-indigo-800 rounded-md text-[9px] font-extrabold border border-indigo-100 transition-colors shrink-0 cursor-pointer"
-                              title="자율입고 증빙 파일 조회"
-                            >
-                              📄 증빙 조회
-                            </a>
-                          )}
+                                }}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-0.5 px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-650 hover:text-indigo-800 rounded-md text-[9px] font-extrabold border border-indigo-100 transition-colors cursor-pointer"
+                                title="자율입고 증빙 파일 조회"
+                              >
+                                📄 증빙 조회
+                              </a>
+                            )}
+                          </div>
                         </div>
                       );
                     })()}
@@ -135,6 +156,12 @@ export const InventoryLogTable: React.FC<InventoryLogTableProps> = ({ logs }) =>
         )}
       </div>
 
+      {selectedInboundId && (
+        <InboundDetailModal 
+          inboundId={selectedInboundId} 
+          onClose={() => setSelectedInboundId(null)} 
+        />
+      )}
     </div>
   );
 };

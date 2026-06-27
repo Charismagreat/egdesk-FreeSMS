@@ -68,19 +68,7 @@ export async function handleInventoryInbound(reqBody: any, nowStr: string) {
           updated_at: nowStr
         }, { filters: { id: String(finalMatchedItemId) } });
 
-        maxLogId++;
-        await insertRows('inventory_logs', [{
-          id: maxLogId,
-          itemId: finalMatchedItemId,
-          itemName: itemName,
-          itemType: currentItem.type || '자재',
-          changeType: 'in',
-          quantity: qty,
-          price: price,
-          operator: operator || '최고관리자',
-          note: `[자율 입고] ${partnerName || ''} 거래명세서 스캔 확정 반영` + (pdfFilePath ? ` (증빙: ${pdfFilePath})` : '') + (item.note ? ` | ${item.note}` : ''),
-          createdAt: nowStr
-        }]);
+
       }
     } else {
       // 2-B. 신규 품목 등록 처리
@@ -107,19 +95,7 @@ export async function handleInventoryInbound(reqBody: any, nowStr: string) {
         uuid: `ITEM-${Date.now()}-${i}`
       }]);
 
-      maxLogId++;
-      await insertRows('inventory_logs', [{
-        id: maxLogId,
-        itemId: finalMatchedItemId,
-        itemName: itemName,
-        itemType: '자재',
-        changeType: 'in',
-        quantity: qty,
-        price: price,
-        operator: operator || '최고관리자',
-        note: `[자율 신규 등록] ${partnerName || ''} 거래명세서 스캔 최초 입고` + (pdfFilePath ? ` (증빙: ${pdfFilePath})` : '') + (item.note ? ` | ${item.note}` : ''),
-        createdAt: nowStr
-      }]);
+
     }
 
     await insertRows('crm_inventory_inbound_items', [{
@@ -132,6 +108,29 @@ export async function handleInventoryInbound(reqBody: any, nowStr: string) {
       barcode: barcode,
       matched_item_id: finalMatchedItemId,
       created_at: nowStr
+    }]);
+  }
+
+  // 3) inventory_logs에 입고 등록 절차 건별 단 1행의 요약 로그만 적재
+  if (items.length > 0) {
+    const totalQty = items.reduce((sum: number, it: any) => sum + (Number(it.quantity) || 0), 0);
+    const representativeName = items[0].itemName || "";
+    const representativeType = items[0].itemType || "자재";
+    const logItemName = items.length > 1 ? `${representativeName} 외 ${items.length - 1}건` : representativeName;
+    const logNote = `[자율 입고 요약] ${partnerName || ''} | 총 ${items.length}개 품목 입고 완료 (inboundId: ${inboundId})` + (pdfFilePath ? ` (증빙: ${pdfFilePath})` : '');
+
+    maxLogId++;
+    await insertRows('inventory_logs', [{
+      id: maxLogId,
+      itemId: -1,
+      itemName: logItemName,
+      itemType: representativeType,
+      changeType: 'in',
+      quantity: totalQty,
+      price: 0,
+      operator: operator || '최고관리자',
+      note: logNote,
+      createdAt: nowStr
     }]);
   }
 
