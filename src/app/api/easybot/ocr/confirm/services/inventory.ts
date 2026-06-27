@@ -90,7 +90,7 @@ export async function handleInventoryInbound(reqBody: any, nowStr: string) {
         id: finalMatchedItemId,
         type: item.itemType || '자재',
         name: itemName,
-        category: '기타',
+        category: item.category || '기타',
         price: price,
         partner: partnerName || '',
         stock: qty,

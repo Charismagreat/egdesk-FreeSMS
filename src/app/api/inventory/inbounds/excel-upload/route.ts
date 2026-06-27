@@ -40,6 +40,7 @@ export async function POST(req: Request) {
       const unitType = String(item.unit_type || "개").trim();
       const boxContains = Number(item.box_contains) || 1;
       const itemType = String(item.item_type || "자재").trim();
+      const category = String(item.category || "기타").trim();
       const location = String(item.location || "자율입고창고").trim();
       const note = String(item.note || "").trim();
 
@@ -67,6 +68,7 @@ export async function POST(req: Request) {
         unitType,
         boxContains,
         itemType,
+        category,
         location,
         matchedItemId: matched ? String(matched.id) : "NEW",
         note: note // 비고 데이터도 파이프라인으로 전달

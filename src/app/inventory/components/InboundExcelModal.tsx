@@ -43,6 +43,7 @@ export default function InboundExcelModal({
     unit_type: "",
     box_contains: "",
     item_type: "",
+    category: "",
     location: "",
     note: "",
     partner_name: "",
@@ -60,6 +61,7 @@ export default function InboundExcelModal({
     unit_type: "개",
     box_contains: "1",
     item_type: "자재",
+    category: "기타",
     location: "자율입고창고",
     note: "",
     partner_name: "일반공급처",
@@ -164,6 +166,7 @@ export default function InboundExcelModal({
           unit_type: String(excelMeta.headers.findIndex(h => h.includes("단위") || h.includes("구분") || h.includes("unit") || h.includes("Unit"))),
           box_contains: String(excelMeta.headers.findIndex(h => h.includes("입수") || h.includes("입수량") || h.includes("박스입수") || h.includes("pack") || h.includes("Pack"))),
           item_type: String(excelMeta.headers.findIndex(h => h.includes("자재구분") || h.includes("구분") || h.includes("타입") || h.includes("type") || h.includes("Type"))),
+          category: String(excelMeta.headers.findIndex(h => h.includes("카테고리") || h.includes("분류") || h.includes("유형") || h.includes("category") || h.includes("Category"))),
           location: String(excelMeta.headers.findIndex(h => h.includes("위치") || h.includes("창고위치") || h.includes("적재위치") || h.includes("location") || h.includes("Location"))),
           note: String(excelMeta.headers.findIndex(h => h.includes("비고") || h.includes("메모") || h.includes("설명") || h.includes("note") || h.includes("Note"))),
           partner_name: String(excelMeta.headers.findIndex(h => h.includes("공급처") || h.includes("거래처") || h.includes("제조사") || h.includes("상호"))),
@@ -207,6 +210,7 @@ export default function InboundExcelModal({
         unit_type: Number(mapping.unit_type),
         box_contains: Number(mapping.box_contains),
         item_type: Number(mapping.item_type),
+        category: Number(mapping.category),
         location: Number(mapping.location),
         note: Number(mapping.note),
         partner_name: Number(mapping.partner_name),
@@ -258,6 +262,7 @@ export default function InboundExcelModal({
           unit_type: Number(mapping.unit_type),
           box_contains: Number(mapping.box_contains),
           item_type: Number(mapping.item_type),
+          category: Number(mapping.category),
           location: Number(mapping.location),
           note: Number(mapping.note),
           partner_name: Number(mapping.partner_name),
@@ -375,327 +380,332 @@ export default function InboundExcelModal({
                 <p className="text-slate-500 font-medium">자율 입고 파싱을 완료하기 위해 엑셀 각 열(컬럼)이 시스템 데이터 필드와 일치하도록 설정해 주세요. 다음 업로드부터는 자동으로 입고가 완료됩니다.</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                {/* 폼 필수값 매핑 */}
-                <div className="space-y-3.5">
-                  <h4 className="text-xs font-black text-slate-700 border-l-3 border-indigo-500 pl-2">핵심 항목 매핑 (필수)</h4>
-                  
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-bold block mb-1">품목명 열</label>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                {/* 1. 구분 열 */}
+                <div>
+                  <label className="text-[10px] text-slate-400 font-bold block mb-1">구분 열(선택)</label>
+                  <select
+                    value={mapping.item_type}
+                    onChange={(e) => setMapping(prev => ({ ...prev, item_type: e.target.value }))}
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
+                  >
+                    <option value="-1">매핑안함</option>
+                    <option value="-2">직접 입력 (고정값 지정)</option>
+                    {excelData.columns.map((col, idx) => (
+                      <option key={idx} value={idx}>{col}</option>
+                    ))}
+                  </select>
+                  {mapping.item_type === "-2" && (
                     <select
-                      value={mapping.item_name}
-                      onChange={(e) => setMapping(prev => ({ ...prev, item_name: e.target.value }))}
-                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
+                      value={directInputs.item_type}
+                      onChange={(e) => handleDirectInputChange("item_type", e.target.value)}
+                      className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
                     >
-                      <option value="-1">매핑안함</option>
-                      <option value="-2">직접 입력 (고정값 지정)</option>
-                      {excelData.columns.map((col, idx) => (
-                        <option key={idx} value={idx}>{col}</option>
-                      ))}
+                      <option value="자재">자재</option>
+                      <option value="제품">제품</option>
                     </select>
-                    {mapping.item_name === "-2" && (
-                      <input
-                        type="text"
-                        value={directInputs.item_name}
-                        onChange={(e) => handleDirectInputChange("item_name", e.target.value)}
-                        placeholder="품목명 직접 입력"
-                        className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
-                      />
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-bold block mb-1">품목코드 열(선택)</label>
-                    <select
-                      value={mapping.item_code}
-                      onChange={(e) => setMapping(prev => ({ ...prev, item_code: e.target.value }))}
-                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
-                    >
-                      <option value="-1">매핑안함</option>
-                      <option value="-2">직접 입력 (고정값 지정)</option>
-                      {excelData.columns.map((col, idx) => (
-                        <option key={idx} value={idx}>{col}</option>
-                      ))}
-                    </select>
-                    {mapping.item_code === "-2" && (
-                      <input
-                        type="text"
-                        value={directInputs.item_code}
-                        onChange={(e) => handleDirectInputChange("item_code", e.target.value)}
-                        placeholder="품목코드 직접 입력"
-                        className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
-                      />
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-bold block mb-1">바코드 열(선택)</label>
-                    <select
-                      value={mapping.barcode}
-                      onChange={(e) => setMapping(prev => ({ ...prev, barcode: e.target.value }))}
-                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
-                    >
-                      <option value="-1">매핑안함</option>
-                      <option value="-2">직접 입력 (고정값 지정)</option>
-                      {excelData.columns.map((col, idx) => (
-                        <option key={idx} value={idx}>{col}</option>
-                      ))}
-                    </select>
-                    {mapping.barcode === "-2" && (
-                      <input
-                        type="text"
-                        value={directInputs.barcode}
-                        onChange={(e) => handleDirectInputChange("barcode", e.target.value)}
-                        placeholder="바코드 직접 입력"
-                        className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
-                      />
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-bold block mb-1">입고 수량 열</label>
-                    <select
-                      value={mapping.quantity}
-                      onChange={(e) => setMapping(prev => ({ ...prev, quantity: e.target.value }))}
-                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
-                    >
-                      <option value="-1">매핑안함</option>
-                      <option value="-2">직접 입력 (고정값 지정)</option>
-                      {excelData.columns.map((col, idx) => (
-                        <option key={idx} value={idx}>{col}</option>
-                      ))}
-                    </select>
-                    {mapping.quantity === "-2" && (
-                      <input
-                        type="number"
-                        value={directInputs.quantity}
-                        onChange={(e) => handleDirectInputChange("quantity", e.target.value)}
-                        placeholder="수량 고정값 지정"
-                        className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
-                      />
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-bold block mb-1">입고 단가 열</label>
-                    <select
-                      value={mapping.unit_price}
-                      onChange={(e) => setMapping(prev => ({ ...prev, unit_price: e.target.value }))}
-                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
-                    >
-                      <option value="-1">매핑안함</option>
-                      <option value="-2">직접 입력 (고정값 지정)</option>
-                      {excelData.columns.map((col, idx) => (
-                        <option key={idx} value={idx}>{col}</option>
-                      ))}
-                    </select>
-                    {mapping.unit_price === "-2" && (
-                      <input
-                        type="number"
-                        value={directInputs.unit_price}
-                        onChange={(e) => handleDirectInputChange("unit_price", e.target.value)}
-                        placeholder="단가 고정값 지정"
-                        className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
-                      />
-                    )}
-                  </div>
+                  )}
                 </div>
 
-                {/* 메타값 매핑 */}
-                <div className="space-y-3.5">
-                  <h4 className="text-xs font-black text-slate-700 border-l-3 border-emerald-500 pl-2">공급처 및 스펙 정보 지정</h4>
 
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-bold block mb-1">공급처명(거래처) 열</label>
-                    <select
-                      value={mapping.partner_name}
-                      onChange={(e) => setMapping(prev => ({ ...prev, partner_name: e.target.value }))}
-                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
-                    >
-                      <option value="-1">매핑안함</option>
-                      <option value="-2">직접 입력 (고정값 지정)</option>
-                      {excelData.columns.map((col, idx) => (
-                        <option key={idx} value={idx}>{col}</option>
-                      ))}
-                    </select>
-                    {mapping.partner_name === "-2" && (
-                      <input
-                        type="text"
-                        value={directInputs.partner_name}
-                        onChange={(e) => handleDirectInputChange("partner_name", e.target.value)}
-                        placeholder="공급처 직접 입력"
-                        className="w-full text-xs p-2 py-1.5 bg-white border border-slate-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
-                      />
-                    )}
-                  </div>
 
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-bold block mb-1">입고일자 열</label>
-                    <select
-                      value={mapping.inbound_date}
-                      onChange={(e) => setMapping(prev => ({ ...prev, inbound_date: e.target.value }))}
-                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
-                    >
-                      <option value="-1">매핑안함</option>
-                      <option value="-2">직접 입력 (고정값 지정)</option>
-                      {excelData.columns.map((col, idx) => (
-                        <option key={idx} value={idx}>{col}</option>
-                      ))}
-                    </select>
-                    {mapping.inbound_date === "-2" && (
-                      <input
-                        type="date"
-                        value={directInputs.inbound_date}
-                        onChange={(e) => handleDirectInputChange("inbound_date", e.target.value)}
-                        className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
-                      />
-                    )}
-                  </div>
+                {/* 3. 품목명 열 */}
+                <div>
+                  <label className="text-[10px] text-slate-400 font-bold block mb-1">품목명 열</label>
+                  <select
+                    value={mapping.item_name}
+                    onChange={(e) => setMapping(prev => ({ ...prev, item_name: e.target.value }))}
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
+                  >
+                    <option value="-1">매핑안함</option>
+                    <option value="-2">직접 입력 (고정값 지정)</option>
+                    {excelData.columns.map((col, idx) => (
+                      <option key={idx} value={idx}>{col}</option>
+                    ))}
+                  </select>
+                  {mapping.item_name === "-2" && (
+                    <input
+                      type="text"
+                      value={directInputs.item_name}
+                      onChange={(e) => handleDirectInputChange("item_name", e.target.value)}
+                      placeholder="품목명 직접 입력"
+                      className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
+                    />
+                  )}
+                </div>
 
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-bold block mb-1">규격 열(선택)</label>
-                    <select
-                      value={mapping.spec}
-                      onChange={(e) => setMapping(prev => ({ ...prev, spec: e.target.value }))}
-                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
-                    >
-                      <option value="-1">매핑안함</option>
-                      <option value="-2">직접 입력 (고정값 지정)</option>
-                      {excelData.columns.map((col, idx) => (
-                        <option key={idx} value={idx}>{col}</option>
-                      ))}
-                    </select>
-                    {mapping.spec === "-2" && (
-                      <input
-                        type="text"
-                        value={directInputs.spec}
-                        onChange={(e) => handleDirectInputChange("spec", e.target.value)}
-                        placeholder="규격 직접 입력"
-                        className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
-                      />
-                    )}
-                  </div>
+                {/* 4. 품목코드 열 */}
+                <div>
+                  <label className="text-[10px] text-slate-400 font-bold block mb-1">품목코드 열(선택)</label>
+                  <select
+                    value={mapping.item_code}
+                    onChange={(e) => setMapping(prev => ({ ...prev, item_code: e.target.value }))}
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
+                  >
+                    <option value="-1">매핑안함</option>
+                    <option value="-2">직접 입력 (고정값 지정)</option>
+                    {excelData.columns.map((col, idx) => (
+                      <option key={idx} value={idx}>{col}</option>
+                    ))}
+                  </select>
+                  {mapping.item_code === "-2" && (
+                    <input
+                      type="text"
+                      value={directInputs.item_code}
+                      onChange={(e) => handleDirectInputChange("item_code", e.target.value)}
+                      placeholder="품목코드 직접 입력"
+                      className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
+                    />
+                  )}
+                </div>
 
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-bold block mb-1">단위 열(선택)</label>
-                    <select
-                      value={mapping.unit_type}
-                      onChange={(e) => setMapping(prev => ({ ...prev, unit_type: e.target.value }))}
-                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
-                    >
-                      <option value="-1">매핑안함</option>
-                      <option value="-2">직접 입력 (고정값 지정)</option>
-                      {excelData.columns.map((col, idx) => (
-                        <option key={idx} value={idx}>{col}</option>
-                      ))}
-                    </select>
-                    {mapping.unit_type === "-2" && (
-                      <input
-                        type="text"
-                        value={directInputs.unit_type}
-                        onChange={(e) => handleDirectInputChange("unit_type", e.target.value)}
-                        placeholder="단위 직접 입력 (예: 개, 박스)"
-                        className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
-                      />
-                    )}
-                  </div>
+                {/* 5. 바코드 열 */}
+                <div>
+                  <label className="text-[10px] text-slate-400 font-bold block mb-1">바코드 열(선택)</label>
+                  <select
+                    value={mapping.barcode}
+                    onChange={(e) => setMapping(prev => ({ ...prev, barcode: e.target.value }))}
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
+                  >
+                    <option value="-1">매핑안함</option>
+                    <option value="-2">직접 입력 (고정값 지정)</option>
+                    {excelData.columns.map((col, idx) => (
+                      <option key={idx} value={idx}>{col}</option>
+                    ))}
+                  </select>
+                  {mapping.barcode === "-2" && (
+                    <input
+                      type="text"
+                      value={directInputs.barcode}
+                      onChange={(e) => handleDirectInputChange("barcode", e.target.value)}
+                      placeholder="바코드 직접 입력"
+                      className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
+                    />
+                  )}
+                </div>
 
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-bold block mb-1">박스당 입수량 열(선택)</label>
-                    <select
-                      value={mapping.box_contains}
-                      onChange={(e) => setMapping(prev => ({ ...prev, box_contains: e.target.value }))}
-                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
-                    >
-                      <option value="-1">매핑안함</option>
-                      <option value="-2">직접 입력 (고정값 지정)</option>
-                      {excelData.columns.map((col, idx) => (
-                        <option key={idx} value={idx}>{col}</option>
-                      ))}
-                    </select>
-                    {mapping.box_contains === "-2" && (
-                      <input
-                        type="number"
-                        value={directInputs.box_contains}
-                        onChange={(e) => handleDirectInputChange("box_contains", e.target.value)}
-                        placeholder="박스당 입수량 고정값 지정"
-                        className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
-                      />
-                    )}
-                  </div>
+                {/* 6. 규격 열 */}
+                <div>
+                  <label className="text-[10px] text-slate-400 font-bold block mb-1">규격 열(선택)</label>
+                  <select
+                    value={mapping.spec}
+                    onChange={(e) => setMapping(prev => ({ ...prev, spec: e.target.value }))}
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
+                  >
+                    <option value="-1">매핑안함</option>
+                    <option value="-2">직접 입력 (고정값 지정)</option>
+                    {excelData.columns.map((col, idx) => (
+                      <option key={idx} value={idx}>{col}</option>
+                    ))}
+                  </select>
+                  {mapping.spec === "-2" && (
+                    <input
+                      type="text"
+                      value={directInputs.spec}
+                      onChange={(e) => handleDirectInputChange("spec", e.target.value)}
+                      placeholder="규격 직접 입력"
+                      className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
+                    />
+                  )}
+                </div>
 
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-bold block mb-1">구분 열(선택)</label>
-                    <select
-                      value={mapping.item_type}
-                      onChange={(e) => setMapping(prev => ({ ...prev, item_type: e.target.value }))}
-                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
-                    >
-                      <option value="-1">매핑안함</option>
-                      <option value="-2">직접 입력 (고정값 지정)</option>
-                      {excelData.columns.map((col, idx) => (
-                        <option key={idx} value={idx}>{col}</option>
-                      ))}
-                    </select>
-                    {mapping.item_type === "-2" && (
-                      <select
-                        value={directInputs.item_type}
-                        onChange={(e) => handleDirectInputChange("item_type", e.target.value)}
-                        className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
-                      >
-                        <option value="자재">자재</option>
-                        <option value="제품">제품</option>
-                      </select>
-                    )}
-                  </div>
+                {/* 7. 단위 열 */}
+                <div>
+                  <label className="text-[10px] text-slate-400 font-bold block mb-1">단위 열(선택)</label>
+                  <select
+                    value={mapping.unit_type}
+                    onChange={(e) => setMapping(prev => ({ ...prev, unit_type: e.target.value }))}
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
+                  >
+                    <option value="-1">매핑안함</option>
+                    <option value="-2">직접 입력 (고정값 지정)</option>
+                    {excelData.columns.map((col, idx) => (
+                      <option key={idx} value={idx}>{col}</option>
+                    ))}
+                  </select>
+                  {mapping.unit_type === "-2" && (
+                    <input
+                      type="text"
+                      value={directInputs.unit_type}
+                      onChange={(e) => handleDirectInputChange("unit_type", e.target.value)}
+                      placeholder="단위 직접 입력 (예: 개, 박스)"
+                      className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
+                    />
+                  )}
+                </div>
 
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-bold block mb-1">적재위치 열(선택)</label>
-                    <select
-                      value={mapping.location}
-                      onChange={(e) => setMapping(prev => ({ ...prev, location: e.target.value }))}
-                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
-                    >
-                      <option value="-1">매핑안함</option>
-                      <option value="-2">직접 입력 (고정값 지정)</option>
-                      {excelData.columns.map((col, idx) => (
-                        <option key={idx} value={idx}>{col}</option>
-                      ))}
-                    </select>
-                    {mapping.location === "-2" && (
-                      <input
-                        type="text"
-                        value={directInputs.location}
-                        onChange={(e) => handleDirectInputChange("location", e.target.value)}
-                        placeholder="적재위치 직접 입력"
-                        className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
-                      />
-                    )}
-                  </div>
+                {/* 8. 박스당 입수량 열 */}
+                <div>
+                  <label className="text-[10px] text-slate-400 font-bold block mb-1">박스당 입수량 열(선택)</label>
+                  <select
+                    value={mapping.box_contains}
+                    onChange={(e) => setMapping(prev => ({ ...prev, box_contains: e.target.value }))}
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
+                  >
+                    <option value="-1">매핑안함</option>
+                    <option value="-2">직접 입력 (고정값 지정)</option>
+                    {excelData.columns.map((col, idx) => (
+                      <option key={idx} value={idx}>{col}</option>
+                    ))}
+                  </select>
+                  {mapping.box_contains === "-2" && (
+                    <input
+                      type="number"
+                      value={directInputs.box_contains}
+                      onChange={(e) => handleDirectInputChange("box_contains", e.target.value)}
+                      placeholder="박스당 입수량 고정값 지정"
+                      className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
+                    />
+                  )}
+                </div>
 
-                  <div>
-                    <label className="text-[10px] text-slate-400 font-bold block mb-1">비고 열(선택)</label>
-                    <select
-                      value={mapping.note}
-                      onChange={(e) => setMapping(prev => ({ ...prev, note: e.target.value }))}
-                      className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
-                    >
-                      <option value="-1">매핑안함</option>
-                      <option value="-2">직접 입력 (고정값 지정)</option>
-                      {excelData.columns.map((col, idx) => (
-                        <option key={idx} value={idx}>{col}</option>
-                      ))}
-                    </select>
-                    {mapping.note === "-2" && (
-                      <input
-                        type="text"
-                        value={directInputs.note}
-                        onChange={(e) => handleDirectInputChange("note", e.target.value)}
-                        placeholder="비고 직접 입력"
-                        className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
-                      />
-                    )}
-                  </div>
+                {/* 9. 입고 수량 열 */}
+                <div>
+                  <label className="text-[10px] text-slate-400 font-bold block mb-1">입고 수량 열</label>
+                  <select
+                    value={mapping.quantity}
+                    onChange={(e) => setMapping(prev => ({ ...prev, quantity: e.target.value }))}
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
+                  >
+                    <option value="-1">매핑안함</option>
+                    <option value="-2">직접 입력 (고정값 지정)</option>
+                    {excelData.columns.map((col, idx) => (
+                      <option key={idx} value={idx}>{col}</option>
+                    ))}
+                  </select>
+                  {mapping.quantity === "-2" && (
+                    <input
+                      type="number"
+                      value={directInputs.quantity}
+                      onChange={(e) => handleDirectInputChange("quantity", e.target.value)}
+                      placeholder="수량 고정값 지정"
+                      className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
+                    />
+                  )}
+                </div>
+
+                {/* 10. 입고 단가 열 */}
+                <div>
+                  <label className="text-[10px] text-slate-400 font-bold block mb-1">입고 단가 열</label>
+                  <select
+                    value={mapping.unit_price}
+                    onChange={(e) => setMapping(prev => ({ ...prev, unit_price: e.target.value }))}
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
+                  >
+                    <option value="-1">매핑안함</option>
+                    <option value="-2">직접 입력 (고정값 지정)</option>
+                    {excelData.columns.map((col, idx) => (
+                      <option key={idx} value={idx}>{col}</option>
+                    ))}
+                  </select>
+                  {mapping.unit_price === "-2" && (
+                    <input
+                      type="number"
+                      value={directInputs.unit_price}
+                      onChange={(e) => handleDirectInputChange("unit_price", e.target.value)}
+                      placeholder="단가 고정값 지정"
+                      className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
+                    />
+                  )}
+                </div>
+
+                {/* 11. 공급처명(거래처) 열 */}
+                <div>
+                  <label className="text-[10px] text-slate-400 font-bold block mb-1">공급처명(거래처) 열</label>
+                  <select
+                    value={mapping.partner_name}
+                    onChange={(e) => setMapping(prev => ({ ...prev, partner_name: e.target.value }))}
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
+                  >
+                    <option value="-1">매핑안함</option>
+                    <option value="-2">직접 입력 (고정값 지정)</option>
+                    {excelData.columns.map((col, idx) => (
+                      <option key={idx} value={idx}>{col}</option>
+                    ))}
+                  </select>
+                  {mapping.partner_name === "-2" && (
+                    <input
+                      type="text"
+                      value={directInputs.partner_name}
+                      onChange={(e) => handleDirectInputChange("partner_name", e.target.value)}
+                      placeholder="공급처 직접 입력"
+                      className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
+                    />
+                  )}
+                </div>
+
+                {/* 12. 입고일자 열 */}
+                <div>
+                  <label className="text-[10px] text-slate-400 font-bold block mb-1">입고일자 열</label>
+                  <select
+                    value={mapping.inbound_date}
+                    onChange={(e) => setMapping(prev => ({ ...prev, inbound_date: e.target.value }))}
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
+                  >
+                    <option value="-1">매핑안함</option>
+                    <option value="-2">직접 입력 (고정값 지정)</option>
+                    {excelData.columns.map((col, idx) => (
+                      <option key={idx} value={idx}>{col}</option>
+                    ))}
+                  </select>
+                  {mapping.inbound_date === "-2" && (
+                    <input
+                      type="date"
+                      value={directInputs.inbound_date}
+                      onChange={(e) => handleDirectInputChange("inbound_date", e.target.value)}
+                      className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
+                    />
+                  )}
+                </div>
+
+                {/* 13. 적재위치 열 */}
+                <div>
+                  <label className="text-[10px] text-slate-400 font-bold block mb-1">적재위치 열(선택)</label>
+                  <select
+                    value={mapping.location}
+                    onChange={(e) => setMapping(prev => ({ ...prev, location: e.target.value }))}
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
+                  >
+                    <option value="-1">매핑안함</option>
+                    <option value="-2">직접 입력 (고정값 지정)</option>
+                    {excelData.columns.map((col, idx) => (
+                      <option key={idx} value={idx}>{col}</option>
+                    ))}
+                  </select>
+                  {mapping.location === "-2" && (
+                    <input
+                      type="text"
+                      value={directInputs.location}
+                      onChange={(e) => handleDirectInputChange("location", e.target.value)}
+                      placeholder="적재위치 직접 입력"
+                      className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
+                    />
+                  )}
+                </div>
+
+                {/* 14. 비고 열 */}
+                <div>
+                  <label className="text-[10px] text-slate-400 font-bold block mb-1">비고 열(선택)</label>
+                  <select
+                    value={mapping.note}
+                    onChange={(e) => setMapping(prev => ({ ...prev, note: e.target.value }))}
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:border-indigo-400"
+                  >
+                    <option value="-1">매핑안함</option>
+                    <option value="-2">직접 입력 (고정값 지정)</option>
+                    {excelData.columns.map((col, idx) => (
+                      <option key={idx} value={idx}>{col}</option>
+                    ))}
+                  </select>
+                  {mapping.note === "-2" && (
+                    <input
+                      type="text"
+                      value={directInputs.note}
+                      onChange={(e) => handleDirectInputChange("note", e.target.value)}
+                      placeholder="비고 직접 입력"
+                      className="w-full text-xs p-2 py-1.5 bg-white border border-indigo-200 rounded-lg outline-none focus:border-indigo-400 mt-1.5"
+                    />
+                  )}
                 </div>
               </div>
 
@@ -737,6 +747,7 @@ export default function InboundExcelModal({
                       <th className="p-3">품목코드</th>
                       <th className="p-3">바코드</th>
                       <th className="p-3">규격</th>
+                      <th className="p-3">카테고리</th>
                       <th className="p-3">단위</th>
                       <th className="p-3 text-right">박스입수량</th>
                       <th className="p-3">구분</th>
@@ -754,6 +765,7 @@ export default function InboundExcelModal({
                         <td className="p-3 text-slate-450 truncate font-mono max-w-[80px]">{item.item_code || "-"}</td>
                         <td className="p-3 text-slate-450 truncate font-mono max-w-[80px]">{item.barcode || "-"}</td>
                         <td className="p-3 text-slate-400 truncate max-w-[80px]">{item.spec || "-"}</td>
+                        <td className="p-3 text-slate-500 font-bold">{item.category || "기타"}</td>
                         <td className="p-3 text-slate-500 font-bold">{item.unit_type || "개"}</td>
                         <td className="p-3 text-right font-mono text-slate-500">{item.box_contains || 1}</td>
                         <td className="p-3 text-slate-600 font-bold">{item.item_type || "자재"}</td>

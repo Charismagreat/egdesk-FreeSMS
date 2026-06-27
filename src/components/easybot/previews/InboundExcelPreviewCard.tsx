@@ -139,6 +139,7 @@ export default function InboundExcelPreviewCard({
         unit_type: it.unit_type || "개",
         box_contains: Number(it.box_contains) || 1,
         item_type: it.item_type || "자재",
+        category: it.category || "기타",
         location: it.location || "자율입고창고",
         note: it.note || ""
       }));
@@ -278,12 +279,12 @@ export default function InboundExcelPreviewCard({
                   </div>
                 </div>
 
-                {/* 구분/적재위치 입력부 */}
-                <div className="grid grid-cols-2 gap-1.5">
+                {/* 구분/카테고리/적재위치 입력부 */}
+                <div className="grid grid-cols-3 gap-1">
                   <div>
                     <label className="text-[8px] text-slate-440 block mb-0.5">구분</label>
                     <select
-                      className="w-full bg-slate-50 border border-slate-200 rounded px-1 py-0.5 text-slate-700 text-[10px]"
+                      className="w-full bg-slate-50 border border-slate-200 rounded px-1 py-0.5 text-slate-750 text-[9.5px]"
                       value={item.item_type || "자재"}
                       onChange={(e) => handleItemFieldChange(idx, 'item_type', e.target.value)}
                       disabled={saved || saving}
@@ -293,10 +294,21 @@ export default function InboundExcelPreviewCard({
                     </select>
                   </div>
                   <div>
+                    <label className="text-[8px] text-slate-440 block mb-0.5">카테고리</label>
+                    <input
+                      type="text"
+                      className="w-full bg-slate-50 border border-slate-200 rounded px-1 py-0.5 text-slate-800 text-[9.5px]"
+                      value={item.category || "기타"}
+                      onChange={(e) => handleItemFieldChange(idx, 'category', e.target.value)}
+                      disabled={saved || saving}
+                      placeholder="카테고리"
+                    />
+                  </div>
+                  <div>
                     <label className="text-[8px] text-slate-440 block mb-0.5">적재위치</label>
                     <input
                       type="text"
-                      className="w-full bg-slate-50 border border-slate-200 rounded px-1 py-0.5 text-slate-800 text-[10px]"
+                      className="w-full bg-slate-50 border border-slate-200 rounded px-1 py-0.5 text-slate-800 text-[9.5px]"
                       value={item.location || "자율입고창고"}
                       onChange={(e) => handleItemFieldChange(idx, 'location', e.target.value)}
                       disabled={saved || saving}
@@ -316,7 +328,7 @@ export default function InboundExcelPreviewCard({
                     <option value="NEW">➕ 신규 품목으로 자동 등록</option>
                     {inventoryList.map((inv) => (
                       <option key={inv.id} value={inv.id}>
-                        {inv.name} ({inv.spec || '스펙없음'}) [{inv.type || '자재'} / {inv.location || '창고'}] [재고: {inv.stock}개]
+                        {inv.name} ({inv.spec || '스펙없음'}) [{inv.type || '자재'} / {inv.category || '기타'} / {inv.location || '창고'}] [재고: {inv.stock}개]
                       </option>
                     ))}
                   </select>

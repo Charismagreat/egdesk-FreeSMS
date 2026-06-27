@@ -10,6 +10,7 @@ export interface InboundExcelParsedItem {
   unit_type: string;      // 단위
   box_contains: number;   // 박스당 입수량
   item_type: string;      // 구분 (자재/제품)
+  category: string;       // 카테고리
   location: string;       // 적재위치
   note: string;           // 비고 (매핑안된 데이터 병합 수집)
 }
@@ -114,6 +115,7 @@ export const parseInboundExcelWithMapping = (
     unit_type?: number;
     box_contains?: number;
     item_type?: number;
+    category?: number;
     location?: number;
     note?: number;
     partner_name?: number;
@@ -128,6 +130,7 @@ export const parseInboundExcelWithMapping = (
       unit_type?: string;
       box_contains?: string;
       item_type?: string;
+      category?: string;
       location?: string;
       note?: string;
       partner_name?: string;
@@ -159,6 +162,7 @@ export const parseInboundExcelWithMapping = (
     mapping.unit_type,
     mapping.box_contains,
     mapping.item_type,
+    mapping.category,
     mapping.location,
     mapping.note,
     mapping.partner_name,
@@ -252,7 +256,16 @@ export const parseInboundExcelWithMapping = (
       item_type = String(row[typeIdx]).trim();
     }
 
-    // J. 적재위치 (선택)
+    // J. 카테고리 (선택)
+    const catIdx = mapping.category;
+    let category = "기타";
+    if (catIdx === -2) {
+      category = String(direct.category || "기타").trim();
+    } else if (catIdx !== undefined && catIdx >= 0 && row[catIdx] !== undefined) {
+      category = String(row[catIdx]).trim();
+    }
+
+    // K. 적재위치 (선택)
     const locIdx = mapping.location;
     let location = "자율입고창고";
     if (locIdx === -2) {
@@ -261,7 +274,7 @@ export const parseInboundExcelWithMapping = (
       location = String(row[locIdx]).trim();
     }
 
-    // K. 매핑안된 나머지 컬럼 데이터 수집
+    // L. 매핑안된 나머지 컬럼 데이터 수집
     const unmappedData = row
       .map((val, idx) => {
         if (usedIndices.includes(idx)) return null;
@@ -272,7 +285,7 @@ export const parseInboundExcelWithMapping = (
       .filter(Boolean)
       .join(', ');
 
-    // L. 비고 데이터 처리
+    // M. 비고 데이터 처리
     const noteIdx = mapping.note;
     let explicitNote = "";
     if (noteIdx === -2) {
@@ -283,7 +296,7 @@ export const parseInboundExcelWithMapping = (
 
     const note = [explicitNote, unmappedData ? `[기타정보] ${unmappedData}` : ''].filter(Boolean).join(' | ');
 
-    // M. 공급처 정보 수집 (첫 번째 유효 행의 값을 사용)
+    // N. 공급처 정보 수집 (첫 번째 유효 행의 값을 사용)
     const partnerIdx = mapping.partner_name;
     if (partnerIdx === -2 && !partner_name) {
       partner_name = String(direct.partner_name || "").trim();
@@ -291,7 +304,7 @@ export const parseInboundExcelWithMapping = (
       partner_name = String(row[partnerIdx]).trim();
     }
 
-    // N. 입고일 정보 수집 (첫 번째 유효 행의 값을 사용)
+    // O. 입고일 정보 수집 (첫 번째 유효 행의 값을 사용)
     const dateIdx = mapping.inbound_date;
     if (dateIdx === -2 && !inbound_date) {
       inbound_date = String(direct.inbound_date || "").trim();
@@ -309,6 +322,7 @@ export const parseInboundExcelWithMapping = (
       unit_type,
       box_contains,
       item_type,
+      category,
       location,
       note
     });
