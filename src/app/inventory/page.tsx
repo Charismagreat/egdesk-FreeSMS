@@ -897,7 +897,7 @@ export default function InventoryPage() {
         <div className="flex gap-3 flex-wrap relative z-10">
           <button 
             onClick={() => setIsScanModalOpen(true)}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-5 py-3 rounded-xl border border-indigo-500 active:scale-95 transition-all flex items-center space-x-2 shadow-lg shadow-indigo-950/20 cursor-pointer"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-5 py-3 rounded-xl border border-indigo-500 active:scale-95 transition-all flex items-center space-x-2 shadow-lg shadow-indigo-950/10 cursor-pointer"
           >
             <Sliders className="w-4.5 h-4.5 text-indigo-200 animate-pulse" />
             <span>바코드스캔 입출고</span>
@@ -905,21 +905,21 @@ export default function InventoryPage() {
 
           <button
             onClick={() => setIsInboundExcelModalOpen(true)}
-            className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-semibold text-sm px-5 py-3 rounded-xl shadow-lg shadow-purple-950/20 active:scale-95 transition-all flex items-center space-x-2 border border-purple-400/20 cursor-pointer"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-5 py-3 rounded-xl border border-indigo-500 active:scale-95 transition-all flex items-center space-x-2 shadow-lg shadow-indigo-950/10 cursor-pointer"
           >
-            <FileText className="w-4.5 h-4.5 text-purple-200" />
+            <FileText className="w-4.5 h-4.5 text-indigo-200" />
             <span>입고등록(엑셀)</span>
           </button>
 
           <button 
             onClick={openNewItemModal}
-            className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold text-sm px-5 py-3 rounded-xl shadow-lg shadow-emerald-950/20 active:scale-95 transition-all flex items-center space-x-2 border border-emerald-400/20 cursor-pointer"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-5 py-3 rounded-xl border border-indigo-500 active:scale-95 transition-all flex items-center space-x-2 shadow-lg shadow-indigo-950/10 cursor-pointer"
           >
-            <Plus className="w-4.5 h-4.5" />
+            <Plus className="w-4.5 h-4.5 text-indigo-200" />
             <span>품목등록(건별)</span>
           </button>
 
-          <label className={`bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-semibold text-sm px-5 py-3 rounded-xl shadow-lg shadow-indigo-950/20 active:scale-95 transition-all flex items-center space-x-2 border border-indigo-400/20 ${isUploadingExcel ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}>
+          <label className={`bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-5 py-3 rounded-xl border border-indigo-500 active:scale-95 transition-all flex items-center space-x-2 shadow-lg shadow-indigo-950/10 ${isUploadingExcel ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}>
             {isUploadingExcel ? (
               <>
                 <Loader2 className="w-4.5 h-4.5 animate-spin" />
@@ -942,18 +942,18 @@ export default function InventoryPage() {
 
           <button 
             onClick={downloadExcelTemplate}
-            className="bg-slate-800/40 hover:bg-slate-800/60 text-emerald-400 font-semibold text-sm px-5 py-3 rounded-xl border border-emerald-500/20 active:scale-95 transition-all flex items-center space-x-2 shadow-lg cursor-pointer"
+            className="bg-white hover:bg-slate-50 text-slate-700 font-semibold text-sm px-5 py-3 rounded-xl border border-slate-250 active:scale-95 transition-all flex items-center space-x-2 shadow-sm cursor-pointer"
             title="표준 엑셀 샘플 서식 (.xlsx) 다운로드"
           >
-            <Download className="w-4.5 h-4.5 text-emerald-300" />
+            <Download className="w-4.5 h-4.5 text-slate-500" />
             <span>품목등록용 엑셀</span>
           </button>
 
           <button 
             onClick={() => openTxModal('in')}
-            className="bg-slate-800 hover:bg-slate-705 text-white font-semibold text-sm px-5 py-3 rounded-xl border border-slate-700 active:scale-95 transition-all flex items-center space-x-2 cursor-pointer"
+            className="bg-white hover:bg-slate-50 text-slate-700 font-semibold text-sm px-5 py-3 rounded-xl border border-slate-250 active:scale-95 transition-all flex items-center space-x-2 shadow-sm cursor-pointer"
           >
-            <ArrowRightLeft className="w-4.5 h-4.5 text-indigo-400" />
+            <ArrowRightLeft className="w-4.5 h-4.5 text-slate-500" />
             <span>실사조정</span>
           </button>
         </div>
