@@ -214,9 +214,11 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
     }
   };
 
+  const modalWidthClass = ocrSuccess ? 'w-[98vw] max-w-[98vw]' : 'w-full max-w-2xl';
+
   return typeof window !== 'undefined' ? createPortal(
     <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-2">
-      <div className="bg-white rounded-[32px] border border-slate-100 w-[98vw] max-w-[98vw] p-6 md:p-8 shadow-2xl relative overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-200">
+      <div className={`bg-white rounded-[32px] border border-slate-100 p-6 md:p-8 shadow-2xl relative overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-300 transition-all ${modalWidthClass}`}>
         
         {/* 우상단 닫기 버튼 */}
         <button 
