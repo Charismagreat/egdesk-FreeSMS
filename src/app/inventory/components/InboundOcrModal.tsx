@@ -322,7 +322,7 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
                       ) : (
                         <>
                           <Play className="w-3.5 h-3.5 fill-current" />
-                          <span>최종 입고 승인 및 적재</span>
+                          <span>입고 승인</span>
                         </>
                       )}
                     </button>
