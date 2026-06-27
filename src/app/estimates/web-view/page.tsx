@@ -328,48 +328,102 @@ function WebViewContent() {
           });
         }
       } else if (type === "inventory_inout") {
-         const res = await fetch("/api/inventory/logs");
-         const json = await res.json();
-         if (json.success && json.data) {
-           const logsList = Array.isArray(json.data) ? json.data : [];
-           logsList.forEach((log: any) => {
-             const dateStr = log.createdAt || log.created_at || "-";
-             const qtyStr = `${log.changeType === 'in' ? '+' : log.changeType === 'out' ? '-' : ''}${Math.abs(log.quantity).toLocaleString()} 개`;
-             const typeStr = log.changeType === 'in' ? '입고' : log.changeType === 'out' ? '출고' : '실사조정';
-             
-             // note에서 [자율 입고 요약] 접두사 정돈
-             let cleanNote = log.note || "-";
-             cleanNote = cleanNote.replace(/^\[자율 입고 요약\]\s*/, '').trim();
+        const res = await fetch("/api/inventory/logs");
+        const json = await res.json();
+        if (json.success && json.data) {
+          const logsList = Array.isArray(json.data) ? json.data : [];
+          
+          // 1. 요약 입고 건들의 inbound_id 수집
+          const inboundIds: string[] = [];
+          logsList.forEach((log: any) => {
+            if (log.itemId === -1 && log.note) {
+              const inboundMatch = log.note.match(/inboundId:\s*(INB-\w+)/);
+              if (inboundMatch) {
+                inboundIds.push(inboundMatch[1]);
+              }
+            }
+          });
 
-             // 증빙 정보 파싱
-             const proofMatch = cleanNote.match(/\(증빙:\s*([^\)]+)\)/);
-             const proofPath = proofMatch ? proofMatch[1] : "-";
-             
-             // inboundId 및 증빙 괄호 텍스트 본문에서 제거
-             const inboundMatch = cleanNote.match(/inboundId:\s*(INB-\w+)/);
-             if (proofMatch) {
-               cleanNote = cleanNote.replace(proofMatch[0], '').trim();
-             }
-             if (inboundMatch) {
-               cleanNote = cleanNote.replace(inboundMatch[0], '').replace(/\(\s*\)/, '').trim();
-               cleanNote = cleanNote.replace(/\s*\|\s*$/, '').trim();
-             }
+          // 2. 수집된 inbound_id들의 상세 내역을 병렬 fetch하여 맵핑
+          const inboundDetailsMap = new Map<string, any[]>();
+          if (inboundIds.length > 0) {
+            const uniqueIds = Array.from(new Set(inboundIds));
+            await Promise.all(
+              uniqueIds.map(async (id) => {
+                try {
+                  const detailRes = await fetch(`/api/inventory/inbounds?inbound_id=${id}`);
+                  const detailJson = await detailRes.json();
+                  if (detailJson.success && detailJson.data) {
+                    inboundDetailsMap.set(id, detailJson.data);
+                  }
+                } catch (e) {
+                  console.error(`Failed to fetch inbound details for ${id}:`, e);
+                }
+              })
+            );
+          }
 
-             rows.push([
-               dateStr,                                           // 등록일시
-               log.itemId !== -1 ? String(log.itemId) : "-",     // 품목ID
-               log.itemName || "-",                               // 품목명
-               log.itemType || "-",                               // 품목구분
-               typeStr,                                           // 변동종류
-               qtyStr,                                            // 수량
-               log.price !== undefined ? `₩ ${log.price.toLocaleString()}` : "₩ 0", // 단가
-               log.operator || "-",                               // 담당자
-               cleanNote || "-",                                  // 변동 메모 및 AI 분석 사유
-               proofPath                                          // 증빙조회
-             ]);
-           });
-         }
-       }
+          // 3. 로그 리스트를 순회하며 개별 품목 단위로 rows 생성
+          logsList.forEach((log: any) => {
+            const dateStr = log.createdAt || log.created_at || "-";
+            const typeStr = log.changeType === 'in' ? '입고' : log.changeType === 'out' ? '출고' : '실사조정';
+            
+            let cleanNote = log.note || "-";
+            cleanNote = cleanNote.replace(/^\[자율 입고 요약\]\s*/, '').trim();
+
+            const inboundMatch = log.note ? log.note.match(/inboundId:\s*(INB-\w+)/) : null;
+            const inboundId = inboundMatch ? inboundMatch[1] : null;
+
+            // 만약 요약 입고 건이고 상세 맵에 정보가 있다면 낱낱이 풀어서 푸시
+            if (log.itemId === -1 && inboundId && inboundDetailsMap.has(inboundId)) {
+              const details = inboundDetailsMap.get(inboundId) || [];
+              details.forEach((det: any, idx: number) => {
+                const detQtyStr = `+${Number(det.quantity).toLocaleString()} 개`;
+                const detPriceStr = det.price !== undefined ? `₩ ${Number(det.price).toLocaleString()}` : "₩ 0";
+                
+                rows.push([
+                  dateStr,                                           // 등록일시
+                  det.item_code || det.id || "-",                   // 품목ID
+                  det.item_name || "-",                              // 품목명
+                  det.type || log.itemType || "-",                   // 품목구분
+                  typeStr,                                           // 변동종류
+                  detQtyStr,                                         // 수량
+                  detPriceStr,                                       // 단가
+                  log.operator || "-",                               // 담당자
+                  `${det.partner_name || '공급처'} 개별 입고 등록 건`,   // 변동 메모 및 AI 분석 사유
+                  log.note || ""                                     // 증빙조회
+                ]);
+              });
+            } else {
+              // 일반 단일 건은 그대로 푸시
+              const qtyStr = `${log.changeType === 'in' ? '+' : log.changeType === 'out' ? '-' : ''}${Math.abs(log.quantity).toLocaleString()} 개`;
+              const proofMatch = cleanNote.match(/\(증빙:\s*([^\)]+)\)/);
+              const proofPath = proofMatch ? proofMatch[1] : "-";
+              
+              if (proofMatch) {
+                cleanNote = cleanNote.replace(proofMatch[0], '').trim();
+              }
+              if (inboundMatch) {
+                cleanNote = cleanNote.replace(inboundMatch[0], '').replace(/\(\s*\)/, '').trim();
+                cleanNote = cleanNote.replace(/\s*\|\s*$/, '').trim();
+              }
+
+              rows.push([
+                dateStr,                                           // 등록일시
+                log.itemId !== -1 ? String(log.itemId) : "-",     // 품목ID
+                log.itemName || "-",                               // 품목명
+                log.itemType || "-",                               // 품목구분
+                typeStr,                                           // 변동종류
+                qtyStr,                                            // 수량
+                log.price !== undefined ? `₩ ${log.price.toLocaleString()}` : "₩ 0", // 단가
+                log.operator || "-",                               // 담당자
+                cleanNote || "-",                                  // 변동 메모 및 AI 분석 사유
+                proofPath                                          // 증빙조회
+              ]);
+            }
+          });
+        }
+      }
 
       setData({ title, headers, rows });
       
