@@ -128,8 +128,8 @@ export default function EstimateOcrModal({
             document_number: data.document_number || "",
             document_date: data.document_date || "",
             document_memo: data.document_memo || "",
-            originalTotalAmount: 0,
-            originalTotalQuantity: 0
+            originalTotalAmount: data.originalTotalAmount || 0,
+            originalTotalQuantity: data.originalTotalQuantity || 0
           });
           setReceiverMatched(data.receiver_matched !== false);
           setMyCompanyName(data.my_company_name || "주식회사 쿠스");

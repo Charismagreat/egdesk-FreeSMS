@@ -256,11 +256,12 @@ export async function POST(req: Request) {
 17. 공급처 회사 담당자명
 18. 공급처회사 담당자 연락처
 19. 총 수주액
-20. 전체납기일
-21. 품목 리스트 (각 품목별 순번, 품목코드, 품목명, 규격, 수량, 단가, 금액, 품목별납기일을 테이블 또는 목록 형태로 명확히 기술)
-22. 납품장소
-23. 상세비고 (위 사항 이외의 모든 주의사항, 특기사항, 지불조건 등 텍스트 전체를 원본 문구와 줄바꿈 그대로 빠짐없이 전사)
-24. 결재선 (작성/검토/승인 등 서명 또는 도장 칸에 기재된 성명 목록)
+20. 총 수량 (문서 전체 품목의 합계 수량, 만약 문서에 명시되어 있지 않다면 품목 수량을 모두 합산한 값을 기재)
+21. 전체납기일
+22. 품목 리스트 (각 품목별 순번, 품목코드, 품목명, 규격, 수량, 단가, 금액, 품목별납기일을 테이블 또는 목록 형태로 명확히 기술)
+23. 납품장소
+24. 상세비고 (위 사항 이외의 모든 주의사항, 특기사항, 지불조건 등 텍스트 전체를 원본 문구와 줄바꿈 그대로 빠짐없이 전사)
+25. 결재선 (작성/검토/승인 등 서명 또는 도장 칸에 기재된 성명 목록)
 `;
 
     
@@ -376,6 +377,8 @@ ${rlsRulesText}
   "deliveryDate": "납기일 (YYYY-MM-DD 형식)",
   "memo": "발주서 비고 및 특이사항 (주의사항, 지불조건 등 포함 줄바꿈 전사)",
   "approvers": ["결재선 성명 목록"],
+  "originalTotalAmount": 문서상에 적힌 총 금액 (숫자만, 없으면 0),
+  "originalTotalQuantity": 문서상에 적힌 총 수량 (숫자만, 없으면 0),
   "items": [
     {
       "itemCode": "품목코드",
@@ -617,6 +620,8 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
       delivery_date: deliveryDate || '',
       document_memo: parsedData.memo || '',
       approvers: parsedData.approvers || [],
+      originalTotalAmount: Number(parsedData.originalTotalAmount) || total_amount || 0,
+      originalTotalQuantity: Number(parsedData.originalTotalQuantity) || itemRows.reduce((sum, it) => sum + it.quantity, 0),
       items: itemRows,
       file_url: fileDataUri
     });

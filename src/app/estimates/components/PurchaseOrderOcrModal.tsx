@@ -216,8 +216,8 @@ export default function PurchaseOrderOcrModal({
             document_date: data.document_date || "",
             document_memo: memo,
             transaction_type: recommendedType,
-            originalTotalAmount: 0,
-            originalTotalQuantity: 0,
+            originalTotalAmount: data.originalTotalAmount || 0,
+            originalTotalQuantity: data.originalTotalQuantity || 0,
             items: parsedItems
           });
 

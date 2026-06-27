@@ -139,8 +139,8 @@ export default function SalesOrderOcrModal({
             delivery_date: data.delivery_date || "",
             document_memo: data.document_memo || "",
             approvers: data.approvers || [],
-            originalTotalAmount: 0,
-            originalTotalQuantity: 0
+            originalTotalAmount: data.originalTotalAmount || 0,
+            originalTotalQuantity: data.originalTotalQuantity || 0
           });
           setReceiverMatched(data.receiver_matched !== false);
           setMyCompanyName(data.my_company_name || "주식회사 쿠스");

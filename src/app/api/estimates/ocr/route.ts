@@ -278,8 +278,9 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
 13. 공급처회사 전화번호
 14. 공급처 회사 담당자명
 15. 총 금액 (총 수주액/총 견적가액)
-16. 품목 리스트 (각 품목별 순번, 품목코드/도번, 품명, 규격, 수량, 단위, 단가, 금액을 테이블 또는 목록 형태로 명확히 기술)
-17. 상세비고 (유효기간, 결제조건, 인도조건, 특기사항 등 상세 설명 및 줄바꿈 전체 전사)
+16. 총 수량 (문서 전체 품목의 합계 수량, 만약 문서에 명시되어 있지 않다면 품목 수량을 모두 합산한 값을 기재)
+17. 품목 리스트 (각 품목별 순번, 품목코드/도번, 품명, 규격, 수량, 단위, 단가, 금액을 테이블 또는 목록 형태로 명확히 기술)
+18. 상세비고 (유효기간, 결제조건, 인도조건, 특기사항 등 상세 설명 및 줄바꿈 전체 전사)
 `;
 
           const geminiUrlPass1 = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
@@ -381,6 +382,8 @@ ${rlsRulesText}
   "document_number": "견적서 또는 문서 고유 번호",
   "document_date": "발행일 (YYYY-MM-DD 형식)",
   "document_memo": "견적서 비고 및 특이사항 (주의사항, 지불조건 등 포함 줄바꿈 전사)",
+  "originalTotalAmount": 문서상에 적힌 총 금액 (숫자만, 없으면 0),
+  "originalTotalQuantity": 문서상에 적힌 총 수량 (숫자만, 없으면 0),
   "items": [
     {
       "item_code": "품목코드/도번",
@@ -558,6 +561,8 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
               document_number: ocrJson.document_number || '',
               document_date: ocrJson.document_date || '',
               document_memo: ocrJson.document_memo || '',
+              originalTotalAmount: Number(ocrJson.originalTotalAmount) || 0,
+              originalTotalQuantity: Number(ocrJson.originalTotalQuantity) || 0,
               items: ocrJson.items || [],
               receiver_matched: receiverMatched,
               my_company_name: myCompanyProfile.companyName,
@@ -725,6 +730,8 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
         document_number: 'EST-2026-MOCK-99',
         document_date: '2026-06-23',
         document_memo: '유효기간: 발행일로부터 15일\n납기: 수주 후 10일 이내',
+        originalTotalAmount: mockItems.reduce((sum, it) => sum + (it.quantity * it.unit_price), 0),
+        originalTotalQuantity: mockItems.reduce((sum, it) => sum + it.quantity, 0),
         items: mockItems,
         receiver_matched: receiverMatched,
         my_company_name: myCompanyProfile.companyName,
