@@ -362,9 +362,11 @@ function WebViewContent() {
   };
 
   useEffect(() => {
-    if (type === "outbound_so") {
-      setSortKey(1); // 고객발주번호 (index: 1)
-      setSortDir("asc");
+    const headers = typeConfig[type].headers;
+    const regDateIdx = headers.indexOf("등록일시");
+    if (regDateIdx !== -1) {
+      setSortKey(regDateIdx);
+      setSortDir("desc");
     } else {
       setSortKey(null);
       setSortDir("desc");
@@ -507,9 +509,10 @@ function WebViewContent() {
     saveColumnSettings(defaultHeaders, defaultVisible);
     
     // 정렬 상태도 기본값으로 복구
-    if (type === "outbound_so") {
-      setSortKey(1); // 고객발주번호 (index: 1)
-      setSortDir("asc");
+    const regDateIdx = defaultHeaders.indexOf("등록일시");
+    if (regDateIdx !== -1) {
+      setSortKey(regDateIdx);
+      setSortDir("desc");
     } else {
       setSortKey(null);
       setSortDir("desc");
@@ -788,15 +791,18 @@ function WebViewContent() {
                     if (!visibleColumns.includes(header)) return null;
                     const origIdx = data.headers.indexOf(header);
                     if (origIdx === -1) return null;
+                    const isHeaderNumeric = ["수량", "단가", "금액", "총 수주액", "총 발주액", "총 견적액"].includes(header.replace(/\s+/g, ""));
                     return (
                       <th
                         key={header}
                         onClick={() => handleSort(origIdx)}
                         className={`py-3.5 px-3.5 cursor-pointer ${
                           isDarkMode ? "hover:text-white" : "hover:text-slate-900"
-                        } select-none transition-colors group whitespace-nowrap`}
+                        } select-none transition-colors group whitespace-nowrap ${
+                          isHeaderNumeric ? "text-right" : ""
+                        }`}
                       >
-                        <div className="flex items-center gap-1">
+                        <div className={`flex items-center gap-1 ${isHeaderNumeric ? "justify-end" : ""}`}>
                           {header}
                           <span className="text-indigo-500 font-bold group-hover:scale-110 transition-transform">
                             {sortKey === origIdx ? (sortDir === "asc" ? " ▲" : " ▼") : " ↕"}
@@ -847,18 +853,36 @@ function WebViewContent() {
                           }
                         }
                         
+                        const isNumericCol = ["수량", "단가", "금액", "총 수주액", "총 발주액", "총 견적액"].includes(headerName.replace(/\s+/g, ""));
                         return (
                           <td key={headerName} className={`py-3 px-3.5 ${
-                            isDarkMode ? "text-slate-350" : "text-slate-700"
-                          } font-medium whitespace-normal break-all max-w-[240px]`}>
+                            isDarkMode ? "text-slate-355" : "text-slate-700"
+                          } font-medium ${
+                            isNumericCol 
+                              ? "whitespace-nowrap font-mono text-right" 
+                              : "whitespace-normal break-all max-w-[240px]"
+                          }`}>
                             {isAttachedFile ? (
-                              <button
-                                onClick={() => openFileInNewTab(strVal)}
-                                className="px-2.5 py-1 bg-indigo-500/10 text-indigo-650 hover:bg-indigo-500/20 rounded-lg text-[10px] font-black border border-indigo-500/20 transition-all inline-flex items-center gap-1 cursor-pointer"
-                                title="새 탭에서 원본 파일 열기"
-                              >
-                                🔗 원본보기
-                              </button>
+                              (() => {
+                                const isExcel = strVal.toLowerCase().includes(".xlsx") || strVal.toLowerCase().includes(".xls");
+                                return isExcel ? (
+                                  <button
+                                    onClick={() => openFileInNewTab(strVal)}
+                                    className="px-2.5 py-1 bg-emerald-500/10 text-emerald-650 hover:bg-emerald-500/20 rounded-lg text-[10px] font-black border border-emerald-500/20 transition-all inline-flex items-center gap-1 cursor-pointer"
+                                    title="새 탭에서 엑셀 파일 열기"
+                                  >
+                                    🟢 EXCEL
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => openFileInNewTab(strVal)}
+                                    className="px-2.5 py-1 bg-indigo-500/10 text-indigo-650 hover:bg-indigo-500/20 rounded-lg text-[10px] font-black border border-indigo-500/20 transition-all inline-flex items-center gap-1 cursor-pointer"
+                                    title="새 탭에서 원본 파일 열기"
+                                  >
+                                    🔗 원본보기
+                                  </button>
+                                );
+                              })()
                             ) : strVal === "-" ? (
                               <span className={isDarkMode ? "text-slate-700" : "text-slate-400"}>-</span>
                             ) : headerName === "상세비고" ? (
@@ -875,6 +899,19 @@ function WebViewContent() {
                                   </button>
                                 ) : null}
                               </div>
+                            ) : headerName.endsWith("일시") || headerName === "등록일시" ? (
+                              (() => {
+                                const parts = strVal.split(" ");
+                                if (parts.length >= 2) {
+                                  return (
+                                    <div className="flex flex-col text-left">
+                                      <span>{parts[0]}</span>
+                                      <span className="text-[10px] text-slate-400 mt-0.5">{parts.slice(1).join(" ")}</span>
+                                    </div>
+                                  );
+                                }
+                                return strVal;
+                              })()
                             ) : (
                               strVal
                             )}

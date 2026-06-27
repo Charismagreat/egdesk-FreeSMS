@@ -33,6 +33,18 @@ interface Contract {
 }
 
 export default function MobileContractSignPage() {
+  return (
+    <React.Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+      </div>
+    }>
+      <MobileContractSignContent />
+    </React.Suspense>
+  );
+}
+
+function MobileContractSignContent() {
   const searchParams = useSearchParams();
   const operatorId = searchParams.get("id");
 

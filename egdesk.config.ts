@@ -1,6 +1,6 @@
 /**
  * EGDesk User Data Configuration
- * Generated at: 2026-06-26T06:51:47.441Z
+ * Generated at: 2026-06-26T23:57:57.514Z
  *
  * This file contains type-safe definitions for your EGDesk tables.
  */
@@ -437,7 +437,7 @@ export const TABLES = {
   table60: {
     name: 'crm_sales_orders',
     displayName: '수주서 관리',
-    rowCount: 4,
+    rowCount: 6,
     columnCount: 18,
     columns: ['id', 'estimate_id', 'client_order_no', 'customer_name', 'customer_phone', 'customer_manager', 'status', 'total_amount', 'delivery_date', 'order_date', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
@@ -549,14 +549,14 @@ export const TABLES = {
   table76: {
     name: 'crm_estimate_items',
     displayName: '견적서 품목 상세',
-    rowCount: 14,
+    rowCount: 53,
     columnCount: 18,
     columns: ['id', 'estimate_id', 'product_id', 'item_code', 'product_name', 'spec', 'quantity', 'unit_price', 'amount', 'delivery_date', 'valid_item_code', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table77: {
     name: 'crm_estimates',
     displayName: '견적서 관리',
-    rowCount: 5,
+    rowCount: 7,
     columnCount: 21,
     columns: ['id', 'type', 'direction_status', 'partner_name', 'partner_phone', 'partner_manager', 'total_amount', 'file_url', 'business_license_url', 'ai_parsed', 'tags', 'created_at', 'uuid', 'sales_order_number', 'purchase_order_number', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,

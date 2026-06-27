@@ -3008,5 +3008,16 @@ export async function setupDatabase() {
     { name: 'restored_by', type: 'TEXT' }
   ], { tableName: 'crm_interpretation_logs', uniqueKeyColumns: ['id'] });
 
+  // 49. 엑셀 헤더 자동 승인 설정 테이블 (7종 감사 컬럼은 safeCreateTable이 자동 주입)
+  await safeCreateTable('엑셀 헤더 자동 승인', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'header_signature', type: 'TEXT', notNull: true },
+    { name: 'partner_name', type: 'TEXT' },
+    { name: 'transaction_type', type: 'TEXT' },
+    { name: 'is_auto_approve', type: 'INTEGER', defaultValue: 1 },
+    { name: 'mapping_info', type: 'TEXT' },
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'crm_excel_signatures', uniqueKeyColumns: ['id'] });
+
   console.log('Database setup complete.');
 }

@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plus, Eye, CheckCircle2, ChevronRight, Trash2, Clock, Printer } from "lucide-react";
+import { Plus, Eye, CheckCircle2, ChevronRight, Trash2, Clock, Printer, Upload } from "lucide-react";
 import { Estimate, SalesOrder, Partner } from "../types";
-import { parseEstimateMetadata } from "../utils";
+import { parseEstimateMetadata, parsePurchaseOrderExcel, ExcelParsedPurchaseOrder, getExcelColumnsAndRawData, parseExcelWithMapping } from "../utils";
+import SalesOrderExcelModal from "./SalesOrderExcelModal";
 import { usePersistedState } from "../../../hooks/usePersistedState";
 
 interface OutboundHubProps {
@@ -45,9 +46,128 @@ export default function OutboundHub({
 }: OutboundHubProps) {
   // 서브 탭 및 필터 로컬 상태
   const [outboundSubTab, setOutboundSubTab] = usePersistedState<"estimates" | "sos">("egdesk_outbound_subTab", "estimates");
+  const [isSoExcelOpen, setIsSoExcelOpen] = useState(false);
+  const [preParsedExcelData, setPreParsedExcelData] = useState<ExcelParsedPurchaseOrder | null>(null);
+  const [uploadedExcelFile, setUploadedExcelFile] = useState<File | null>(null);
+  const [isExcelUploading, setIsExcelUploading] = useState(false);
+  const excelInputRef = React.useRef<HTMLInputElement>(null);
   const [outboundSearch, setOutboundSearch] = usePersistedState<string>("egdesk_outbound_search", "");
   const [outboundStatusFilter, setOutboundStatusFilter] = usePersistedState<string>("egdesk_outbound_statusFilter", "ALL");
   const [outboundSortKey, setOutboundSortKey] = usePersistedState<string>("egdesk_outbound_sortKey", "created_at");
+
+  // 엑셀 업로드 직접 처리 (백그라운드 다이렉트 자동 수주 등록)
+  const handleExcelUploadDirect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsExcelUploading(true);
+    try {
+      let parsed = await parsePurchaseOrderExcel(file);
+      
+      let isAutoApprove = false;
+      let matchedConfig: any = null;
+      try {
+        const sigRes = await fetch("/api/estimates/excel-signatures");
+        const sigData = await sigRes.json();
+        if (sigData.success) {
+          matchedConfig = sigData.configs?.find(
+            (c: any) => c.header_signature === parsed.header_signature
+          );
+          isAutoApprove = !!matchedConfig;
+        }
+      } catch (sigErr) {
+        console.error("엑셀 자동 승인 시그니처 조회 실패:", sigErr);
+      }
+
+      if (isAutoApprove) {
+        // 만약 매칭된 설정의 매핑 규칙이 있다면, 직접 입력값을 포함하여 정밀 파싱 수행
+        if (matchedConfig && matchedConfig.mapping_info) {
+          try {
+            const mapping = JSON.parse(matchedConfig.mapping_info);
+            const excelRaw = await getExcelColumnsAndRawData(file);
+            parsed = parseExcelWithMapping(
+              excelRaw.rawRows,
+              excelRaw.headerRowIndex,
+              mapping,
+              file.name
+            );
+          } catch (parseErr) {
+            console.error("저장된 매핑 정보 기반 엑셀 재파싱 실패:", parseErr);
+          }
+        }
+
+        const finalItems = parsed.items.map(it => ({
+          item_code: it.item_code || "",
+          product_name: it.product_name,
+          spec: it.spec || "",
+          quantity: Number(it.quantity) || 0,
+          unit_price: Number(it.unit_price) || 0,
+          delivery_date: it.delivery_date || ""
+        }));
+
+        const future = new Date();
+        future.setDate(future.getDate() + 7);
+        const yyyy = future.getFullYear();
+        const mm = String(future.getMonth() + 1).padStart(2, "0");
+        const dd = String(future.getDate()).padStart(2, "0");
+        const defaultDeliveryDate = `${yyyy}-${mm}-${dd}`;
+
+        // 파일 객체를 Base64 데이터 URL로 인코딩하여 저장
+        let fileUrl = "";
+        try {
+          fileUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = (e) => reject(e);
+          });
+        } catch (fileErr) {
+          console.error("자동등록 엑셀 파일 Base64 변환 실패:", fileErr);
+          fileUrl = file.name || "excel_import.xlsx";
+        }
+
+        const payload = {
+          partner_name: parsed.partner_name,
+          partner_phone: parsed.partner_phone,
+          partner_manager: parsed.partner_manager || "",
+          items: finalItems,
+          file_url: fileUrl,
+          business_number: parsed.business_number || "",
+          representative: parsed.representative,
+          address: parsed.address,
+          document_number: parsed.document_number || `SO-${Date.now()}`,
+          document_date: parsed.document_date || new Date().toISOString().substring(0, 10),
+          delivery_date: defaultDeliveryDate,
+          document_memo: `[엑셀 자동등록] ${parsed.document_memo || ""}`,
+          approvers: []
+        };
+
+        const res = await fetch("/api/estimates/ocr-sales-order?action=save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const resData = await res.json();
+        
+        if (resData.success) {
+          alert(`⚡ 동일한 양식 감지: 바이어 발주서가 자동으로 수주 대장에 즉시 등록되었습니다!\n(바이어: ${parsed.partner_name}, 품목수: ${parsed.items.length}개)`);
+          window.location.reload();
+        } else {
+          console.warn("자동등록 API 에러로 수동 모달 폴백:", resData.error);
+          setUploadedExcelFile(file);
+          setIsSoExcelOpen(true);
+        }
+      } else {
+        setUploadedExcelFile(file);
+        setIsSoExcelOpen(true);
+      }
+    } catch (err) {
+      alert("엑셀 파일 로드 및 분석 실패. 포맷을 확인하세요.");
+    } finally {
+      setIsExcelUploading(false);
+      e.target.value = "";
+    }
+  };
   const [outboundSortDir, setOutboundSortDir] = usePersistedState<"asc" | "desc">("egdesk_outbound_sortDir", "desc");
 
   // 다중 선택 로컬 상태
@@ -294,8 +414,25 @@ export default function OutboundHub({
                 웹뷰 대장 내역
               </button>
               <button
+                onClick={() => excelInputRef.current?.click()}
+                disabled={isExcelUploading}
+                className={`px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer ${
+                  isExcelUploading ? "opacity-50 cursor-not-allowed animate-pulse" : ""
+                }`}
+              >
+                <Upload className="w-4 h-4 text-emerald-400" />
+                {isExcelUploading ? "엑셀 자동 분석 중..." : "엑셀 파일로 등록 (다이렉트)"}
+              </button>
+              <input
+                type="file"
+                ref={excelInputRef}
+                accept=".xlsx,.xls"
+                onChange={handleExcelUploadDirect}
+                className="hidden"
+              />
+              <button
                 onClick={onOpenOcrModal}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-lg flex items-center gap-1.5"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-lg flex items-center gap-1.5 cursor-pointer"
               >
                 📥 바이어 발주서 스캔 (다이렉트 수주)
               </button>
@@ -694,6 +831,20 @@ export default function OutboundHub({
           </div>
         </div>
       )}
+      {/* 바이어 발주서 엑셀 검토 등록 모달 */}
+      <SalesOrderExcelModal
+        isOpen={isSoExcelOpen}
+        onClose={() => {
+          setIsSoExcelOpen(false);
+          setPreParsedExcelData(null);
+          setUploadedExcelFile(null);
+        }}
+        onSuccess={() => {
+          window.location.reload();
+        }}
+        preParsedData={preParsedExcelData}
+        uploadedFile={uploadedExcelFile}
+      />
     </div>
   );
 }
