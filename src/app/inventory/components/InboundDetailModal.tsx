@@ -6,12 +6,20 @@ import { X, ClipboardList, Loader2, Sparkles } from 'lucide-react';
 interface InboundDetailItem {
   id: string;
   inbound_id: string;
+  type: string;
+  category: string;
   item_name: string;
+  item_code: string;
+  barcode: string;
   spec: string;
+  unit: string;
+  box_qty: number;
   quantity: number;
   price: number;
-  barcode: string;
-  created_at: string;
+  partner_name: string;
+  inbound_date: string;
+  location: string;
+  note: string;
 }
 
 interface InboundDetailModalProps {
@@ -53,7 +61,7 @@ export const InboundDetailModal: React.FC<InboundDetailModalProps> = ({ inboundI
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-3xl overflow-hidden flex flex-col max-h-[80vh] animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-[95vw] lg:max-w-7xl overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200">
         
         {/* 모달 헤더 */}
         <div className="p-6 border-b border-slate-50 flex items-center justify-between bg-gradient-to-r from-indigo-50/50 to-indigo-100/30">
@@ -63,13 +71,13 @@ export const InboundDetailModal: React.FC<InboundDetailModalProps> = ({ inboundI
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-                <span>일괄 입고 등록 상세 내역</span>
+                <span>일괄 입고 등록 상세 내역 (14대 전체 항목 매핑 조회)</span>
                 <span className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-mono">
                   {inboundId}
                 </span>
               </h3>
               <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-                자율입고 및 일괄 업로드 시 적용된 세부 품목 이력입니다.
+                해당 일괄 입고 등록 절차를 통해 마스터 품목 대장에 연동 적재된 전체 상세 속성 목록입니다.
               </p>
             </div>
           </div>
@@ -99,28 +107,54 @@ export const InboundDetailModal: React.FC<InboundDetailModalProps> = ({ inboundI
           ) : (
             <div className="space-y-4">
               <div className="border border-slate-100 rounded-2xl overflow-hidden overflow-x-auto">
-                <table className="w-full border-collapse text-left text-[11px]">
+                <table className="w-full border-collapse text-left text-[11px] min-w-[1500px]">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-100 font-black text-slate-500">
-                      <th className="p-3">품목명</th>
-                      <th className="p-3">규격</th>
-                      <th className="p-3">바코드</th>
-                      <th className="p-3 text-right">입고 수량</th>
-                      <th className="p-3 text-right">입고 단가</th>
-                      <th className="p-3 text-right">총액</th>
+                      <th className="p-3 w-[70px]">구분</th>
+                      <th className="p-3 w-[100px]">카테고리</th>
+                      <th className="p-3 w-[200px]">품목명</th>
+                      <th className="p-3 w-[130px]">품목코드</th>
+                      <th className="p-3 w-[120px]">바코드</th>
+                      <th className="p-3 w-[120px]">규격</th>
+                      <th className="p-3 w-[70px]">단위</th>
+                      <th className="p-3 w-[90px] text-right">박스당 입수량</th>
+                      <th className="p-3 w-[90px] text-right">입고 수량</th>
+                      <th className="p-3 w-[110px] text-right">입고 단가</th>
+                      <th className="p-3 w-[120px] text-right">총액</th>
+                      <th className="p-3 w-[150px]">공급처명(거래처)</th>
+                      <th className="p-3 w-[110px]">입고일자</th>
+                      <th className="p-3 w-[100px]">적재위치</th>
+                      <th className="p-3 w-[150px]">비고</th>
                     </tr>
                   </thead>
                   <tbody>
                     {items.map((item) => (
                       <tr key={item.id} className="border-b border-slate-50 hover:bg-slate-50/50">
+                        <td className="p-3">
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                            item.type === 'material' || item.type === '자재'
+                              ? 'bg-blue-50 text-blue-600 border border-blue-100' 
+                              : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                          }`}>
+                            {item.type === 'material' || item.type === '자재' ? '자재' : '제품'}
+                          </span>
+                        </td>
+                        <td className="p-3 text-slate-500 font-semibold">{item.category}</td>
                         <td className="p-3 font-semibold text-slate-800">{item.item_name}</td>
-                        <td className="p-3 text-slate-400 font-medium">{item.spec || '-'}</td>
-                        <td className="p-3 text-slate-450 font-mono">{item.barcode || '-'}</td>
-                        <td className="p-3 text-right font-black text-indigo-600">{item.quantity.toLocaleString()} 개</td>
-                        <td className="p-3 text-right text-slate-600">{item.price.toLocaleString()} 원</td>
-                        <td className="p-3 text-right text-slate-900 font-bold">
+                        <td className="p-3 text-slate-450 font-mono">{item.item_code}</td>
+                        <td className="p-3 text-slate-450 font-mono">{item.barcode}</td>
+                        <td className="p-3 text-slate-400 font-medium">{item.spec}</td>
+                        <td className="p-3 text-slate-500">{item.unit}</td>
+                        <td className="p-3 text-right text-slate-600 font-mono">{(item.box_qty || 1).toLocaleString()}</td>
+                        <td className="p-3 text-right font-black text-indigo-600 font-mono">{item.quantity.toLocaleString()} 개</td>
+                        <td className="p-3 text-right text-slate-650 font-mono">{item.price.toLocaleString()} 원</td>
+                        <td className="p-3 text-right text-slate-900 font-bold font-mono">
                           {((item.quantity || 0) * (item.price || 0)).toLocaleString()} 원
                         </td>
+                        <td className="p-3 text-slate-600 font-semibold">{item.partner_name}</td>
+                        <td className="p-3 text-slate-450 font-mono">{item.inbound_date}</td>
+                        <td className="p-3 text-slate-500">{item.location}</td>
+                        <td className="p-3 text-slate-400 truncate max-w-[150px]" title={item.note}>{item.note}</td>
                       </tr>
                     ))}
                   </tbody>
