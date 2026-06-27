@@ -110,6 +110,8 @@ export const InventoryLogTable: React.FC<InventoryLogTableProps> = ({ logs }) =>
                         cleanNote = cleanNote.replace(inboundMatch[0], '').replace(/\(\s*\)/, '').trim();
                         cleanNote = cleanNote.replace(/\s*\|\s*$/, '').trim();
                       }
+                      // 과거 데이터 소급 적용: [자율 입고 요약] 접두사 공백 치환 제거
+                      cleanNote = cleanNote.replace(/^\[자율 입고 요약\]\s*/, '').trim();
 
                       return (
                         <div className="flex items-center justify-between gap-1.5">

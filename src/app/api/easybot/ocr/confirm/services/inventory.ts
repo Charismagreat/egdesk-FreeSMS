@@ -120,7 +120,7 @@ export async function handleInventoryInbound(reqBody: any, nowStr: string) {
     const representativeName = items[0].itemName || "";
     const representativeType = items[0].itemType || "자재";
     const logItemName = items.length > 1 ? `${representativeName} 외 ${items.length - 1}건` : representativeName;
-    const logNote = `[자율 입고 요약] ${partnerName || ''} | 총 ${items.length}개 품목 입고 완료 (inboundId: ${inboundId})` + (pdfFilePath ? ` (증빙: ${pdfFilePath})` : '');
+    const logNote = `${partnerName || '미지정 공급처'} | 총 ${items.length}개 품목 입고 완료 (inboundId: ${inboundId})` + (pdfFilePath ? ` (증빙: ${pdfFilePath})` : '');
 
     maxLogId++;
     await insertRows('inventory_logs', [{
