@@ -265,7 +265,7 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
               {/* 타이틀 및 메인 폼 */}
               <div className="flex flex-col min-h-0 flex-1 space-y-2">
                 {/* 모달 제목 */}
-                <h3 className="text-base font-black text-slate-800 flex items-center justify-center gap-2 pt-2 mb-4 shrink-0">
+                <h3 className="text-base font-black text-slate-800 flex items-center gap-2 pt-2 mb-4 shrink-0">
                   <Upload className="w-4 h-4 text-indigo-500" />
                   <span>명세서 실물 분석 입고 (14대 전체 항목 매핑 검증)</span>
                 </h3>
