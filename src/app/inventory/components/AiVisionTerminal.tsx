@@ -37,6 +37,8 @@ export const AiVisionTerminal: React.FC<AiVisionTerminalProps> = ({
     if (file && onFileSelect) {
       onFileSelect(file);
     }
+    // 동일 파일 연속 업로드 시에도 이벤트가 항상 발생하도록 파일 인풋 값 리셋
+    e.target.value = '';
   };
 
   const handleDragOver = (e: React.DragEvent) => {

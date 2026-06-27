@@ -39,6 +39,7 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
   const [ocrFilename, setOcrFilename] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [mounted, setMounted] = useState<boolean>(false);
 
   // 입고 OCR 폼 상태
   const [ocrForm, setOcrForm] = useState<{
@@ -121,6 +122,11 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
     reader.readAsDataURL(selectedFile);
   };
 
+  // 마운트 하이드레이션 가드용 이펙트
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // 모달이 열리고 initialFile이 들어오면 자동으로 OCR 분석 기동
   React.useEffect(() => {
     if (isOpen && initialFile) {
@@ -128,6 +134,7 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
     }
   }, [isOpen, initialFile]);
 
+  if (!mounted) return null;
   if (!isOpen) return null;
 
   const resetOcrState = () => {
@@ -216,7 +223,7 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
 
   const modalWidthClass = ocrSuccess ? 'w-[98vw] max-w-[98vw]' : 'w-full max-w-2xl';
 
-  return typeof window !== 'undefined' ? createPortal(
+  return createPortal(
     <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-2">
       <div className={`bg-white rounded-[32px] border border-slate-100 p-6 md:p-8 shadow-2xl relative overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-300 transition-all ${modalWidthClass}`}>
         
@@ -535,7 +542,7 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
       </div>
     </div>,
     document.body
-  ) : null;
+  );
 };
 
 // 미니 컴포넌트용 헬퍼 아이콘
