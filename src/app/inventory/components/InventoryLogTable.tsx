@@ -12,9 +12,19 @@ export const InventoryLogTable: React.FC<InventoryLogTableProps> = ({ logs }) =>
   const [activeFileUrl, setActiveFileUrl] = useState<string | null>(null);
   const safeLogs = Array.isArray(logs) ? logs : [];
 
+  const getFileUrl = (url: string | null) => {
+    if (!url) return "";
+    if (url.startsWith("/uploads/")) {
+      const apiHost = process.env.NEXT_PUBLIC_EGDESK_API_URL || "http://localhost:8080";
+      return `${apiHost}${url}`;
+    }
+    return url;
+  };
+
   // 🖨️ 인쇄 기능 구현
   const handlePrint = () => {
     if (!activeFileUrl) return;
+    const realUrl = getFileUrl(activeFileUrl);
     const isPdf = activeFileUrl.startsWith("data:application/pdf") || activeFileUrl.toLowerCase().endsWith(".pdf");
     
     if (isPdf) {
@@ -44,8 +54,8 @@ export const InventoryLogTable: React.FC<InventoryLogTableProps> = ({ logs }) =>
           </head>
           <body>
             ${isPdf 
-              ? `<iframe src="${activeFileUrl}"></iframe>` 
-              : `<img src="${activeFileUrl}" onload="window.print();window.close();" />`
+              ? `<iframe src="${realUrl}"></iframe>` 
+              : `<img src="${realUrl}" onload="window.print();window.close();" />`
             }
             ${isPdf ? `<script>window.onload = function() { window.print(); window.close(); }</script>` : ""}
           </body>
@@ -73,10 +83,10 @@ export const InventoryLogTable: React.FC<InventoryLogTableProps> = ({ logs }) =>
         window.open(blobUrl, "_blank");
       } catch (err) {
         console.error("Base64 새 탭 열기 실패:", err);
-        window.open(activeFileUrl, "_blank");
+        window.open(getFileUrl(activeFileUrl), "_blank");
       }
     } else {
-      window.open(activeFileUrl, "_blank");
+      window.open(getFileUrl(activeFileUrl), "_blank");
     }
   };
 
@@ -304,13 +314,13 @@ export const InventoryLogTable: React.FC<InventoryLogTableProps> = ({ logs }) =>
               {isPdf ? (
                 <iframe
                   id="print-iframe-logs"
-                  src={activeFileUrl}
+                  src={getFileUrl(activeFileUrl)}
                   className="w-full h-full max-w-5xl max-h-[82vh] rounded-2xl border border-white/10 bg-white shadow-2xl"
                   title="PDF 원본 뷰어"
                 />
               ) : (
                 <img
-                  src={activeFileUrl}
+                  src={getFileUrl(activeFileUrl)}
                   alt="원본 증빙 이미지"
                   className="max-h-[82vh] max-w-full object-contain rounded-2xl border border-white/10 shadow-2xl bg-slate-900/50"
                 />

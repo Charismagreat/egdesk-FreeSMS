@@ -93,9 +93,19 @@ function WebViewContent() {
     setActiveFileUrl(fileUrl);
   };
 
+  const getFileUrl = (url: string | null) => {
+    if (!url) return "";
+    if (url.startsWith("/uploads/")) {
+      const apiHost = process.env.NEXT_PUBLIC_EGDESK_API_URL || "http://localhost:8080";
+      return `${apiHost}${url}`;
+    }
+    return url;
+  };
+
   // 🖨️ 인쇄 기능 구현 (이미지/PDF 대응)
   const handlePrint = () => {
     if (!activeFileUrl) return;
+    const realUrl = getFileUrl(activeFileUrl);
     const isPdf = activeFileUrl.startsWith("data:application/pdf") || activeFileUrl.toLowerCase().endsWith(".pdf");
     
     if (isPdf) {
@@ -126,8 +136,8 @@ function WebViewContent() {
           </head>
           <body>
             ${isPdf 
-              ? `<iframe src="${activeFileUrl}"></iframe>` 
-              : `<img src="${activeFileUrl}" onload="window.print();window.close();" />`
+              ? `<iframe src="${realUrl}"></iframe>` 
+              : `<img src="${realUrl}" onload="window.print();window.close();" />`
             }
             ${isPdf ? `<script>window.onload = function() { window.print(); window.close(); }</script>` : ""}
           </body>
@@ -155,10 +165,10 @@ function WebViewContent() {
         window.open(blobUrl, "_blank");
       } catch (e) {
         console.error("Blob url creation failed, falling back to default open", e);
-        window.open(activeFileUrl, "_blank");
+        window.open(getFileUrl(activeFileUrl), "_blank");
       }
     } else {
-      window.open(activeFileUrl, "_blank");
+      window.open(getFileUrl(activeFileUrl), "_blank");
     }
   };
 
@@ -1250,13 +1260,13 @@ function WebViewContent() {
               {isPdf ? (
                 <iframe
                   id="print-iframe"
-                  src={activeFileUrl}
+                  src={getFileUrl(activeFileUrl)}
                   className="w-full h-full max-w-5xl max-h-[82vh] rounded-2xl border border-white/10 bg-white shadow-2xl"
                   title="PDF 원본 뷰어"
                 />
               ) : (
                 <img
-                  src={activeFileUrl}
+                  src={getFileUrl(activeFileUrl)}
                   alt="원본 증빙 이미지"
                   className="max-h-[82vh] max-w-full object-contain rounded-2xl border border-white/10 shadow-2xl bg-slate-900/50"
                 />
