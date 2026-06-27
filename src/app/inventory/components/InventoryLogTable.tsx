@@ -37,15 +37,15 @@ export const InventoryLogTable: React.FC<InventoryLogTableProps> = ({ logs }) =>
         ) : (
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50/50 sticky top-0">
-                <th className="py-3 px-4">일시</th>
-                <th className="py-3 px-4">품목명</th>
-                <th className="py-3 px-4">품목 구분</th>
-                <th className="py-3 px-4 text-center">변동 종류</th>
-                <th className="py-3 px-4 text-right">수량</th>
-                <th className="py-3 px-4 text-right">단가</th>
-                <th className="py-3 px-4">담당자</th>
-                <th className="py-3 px-4">변동 메모 및 AI 분석 사유</th>
+              <tr className="border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-50 sticky top-0 z-10">
+                <th className="py-3 px-4 bg-slate-50">일시</th>
+                <th className="py-3 px-4 bg-slate-50">품목명</th>
+                <th className="py-3 px-4 bg-slate-50">품목 구분</th>
+                <th className="py-3 px-4 text-center bg-slate-50">변동 종류</th>
+                <th className="py-3 px-4 text-right bg-slate-50">수량</th>
+                <th className="py-3 px-4 text-right bg-slate-50">단가</th>
+                <th className="py-3 px-4 bg-slate-50">담당자</th>
+                <th className="py-3 px-4 bg-slate-50">변동 메모 및 AI 분석 사유</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50 text-xs">
