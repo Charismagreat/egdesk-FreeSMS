@@ -107,24 +107,24 @@ export const InboundDetailModal: React.FC<InboundDetailModalProps> = ({ inboundI
           ) : (
             <div className="space-y-4">
               <div className="border border-slate-100 rounded-2xl overflow-x-auto w-full">
-                <table className="w-full border-collapse text-left text-[10px] min-w-[1410px] table-fixed">
+                <table className="w-full border-collapse text-left text-[10px] min-w-[1700px] table-fixed">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-100 font-black text-slate-500 text-[9px]">
-                      <th className="py-2 px-1.5 w-[50px]">구분</th>
-                      <th className="py-2 px-1.5 w-[80px]">카테고리</th>
-                      <th className="py-2 px-1.5 w-[170px]">품목명</th>
-                      <th className="py-2 px-1.5 w-[110px]">품목코드</th>
-                      <th className="py-2 px-1.5 w-[110px]">바코드</th>
-                      <th className="py-2 px-1.5 w-[100px]">규격</th>
-                      <th className="py-2 px-1.5 w-[50px]">단위</th>
-                      <th className="py-2 px-1.5 w-[80px] text-right">박스당 입수량</th>
-                      <th className="py-2 px-1.5 w-[80px] text-right">입고 수량</th>
-                      <th className="py-2 px-1.5 w-[90px] text-right">입고 단가</th>
-                      <th className="py-2 px-1.5 w-[100px] text-right">총액</th>
-                      <th className="py-2 px-1.5 w-[110px]">공급처명(거래처)</th>
-                      <th className="py-2 px-1.5 w-[90px]">입고일자</th>
-                      <th className="py-2 px-1.5 w-[80px]">적재위치</th>
-                      <th className="py-2 px-1.5 w-[110px]">비고</th>
+                      <th className="py-2 px-1.5 w-[60px]">구분</th>
+                      <th className="py-2 px-1.5 w-[90px]">카테고리</th>
+                      <th className="py-2 px-1.5 w-[200px]">품목명</th>
+                      <th className="py-2 px-1.5 w-[140px]">품목코드</th>
+                      <th className="py-2 px-1.5 w-[120px]">바코드</th>
+                      <th className="py-2 px-1.5 w-[120px]">규격</th>
+                      <th className="py-2 px-1.5 w-[60px]">단위</th>
+                      <th className="py-2 px-1.5 w-[90px] text-right">박스당 입수량</th>
+                      <th className="py-2 px-1.5 w-[90px] text-right">입고 수량</th>
+                      <th className="py-2 px-1.5 w-[100px] text-right">입고 단가</th>
+                      <th className="py-2 px-1.5 w-[120px] text-right">총액</th>
+                      <th className="py-2 px-1.5 w-[140px]">공급처명(거래처)</th>
+                      <th className="py-2 px-1.5 w-[110px]">입고일자</th>
+                      <th className="py-2 px-1.5 w-[110px]">적재위치</th>
+                      <th className="py-2 px-1.5 w-[150px]">비고</th>
                     </tr>
                   </thead>
                   <tbody>
