@@ -225,7 +225,7 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
 
   return createPortal(
     <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-2">
-      <div className={`bg-white rounded-[32px] border border-slate-100 p-6 md:p-8 shadow-2xl relative overflow-hidden flex flex-col h-[78vh] max-h-[78vh] animate-in fade-in zoom-in-95 duration-300 transition-all ${modalWidthClass}`}>
+      <div className={`bg-white rounded-[32px] border border-slate-100 pt-9 pb-5 px-6 md:pt-11 md:pb-6 md:px-8 shadow-2xl relative overflow-hidden flex flex-col h-[78vh] max-h-[78vh] animate-in fade-in zoom-in-95 duration-300 transition-all ${modalWidthClass}`}>
         
         {/* 우상단 닫기 버튼 */}
         <button 
@@ -241,14 +241,14 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
           <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-10 gap-6 h-full">
             
             {/* 좌측: 업로드된 원본 문서 뷰어 (30% 점유, 천장부터 바닥까지 꽉 채우는 h-[70vh] 및 여백 최소화) */}
-            <div className="lg:col-span-3 border border-slate-150 rounded-2xl bg-slate-50 p-1 flex flex-col items-center justify-center h-[70vh] lg:h-[70vh] relative overflow-hidden shadow-inner">
+            <div className="lg:col-span-3 border border-slate-150 rounded-2xl bg-slate-50 p-1 flex flex-col items-center justify-center h-[62vh] lg:h-[62vh] relative overflow-hidden shadow-inner">
               <span className="text-[9px] font-black text-slate-400 absolute top-2 left-2 bg-white/80 px-2 py-0.5 rounded border border-slate-100 z-10 shadow-sm">📄 명세서 원본 문서</span>
               {ocrForm.fileUrl ? (
                 ocrForm.fileUrl.startsWith('data:application/pdf') ? (
                   <embed src={`${ocrForm.fileUrl}#toolbar=0&navpanes=0`} type="application/pdf" className="w-full h-full rounded-xl" />
                 ) : (
                   <div className="w-full h-full overflow-auto flex items-center justify-center p-1">
-                    <img src={ocrForm.fileUrl} className="max-w-full max-h-[68vh] object-contain rounded-xl shadow-sm animate-fade-in" alt="명세서 원본" />
+                    <img src={ocrForm.fileUrl} className="max-w-full max-h-[60vh] object-contain rounded-xl shadow-sm animate-fade-in" alt="명세서 원본" />
                   </div>
                 )
               ) : (
@@ -257,7 +257,7 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
             </div>
 
             {/* 우측: 70% 점유, 타이틀 + 입고정보 + 15컬럼 테이블 + 하단 버튼들 */}
-            <div className="lg:col-span-7 flex flex-col h-[70vh] lg:h-[70vh] min-h-0 justify-between">
+            <div className="lg:col-span-7 flex flex-col h-[62vh] lg:h-[62vh] min-h-0 justify-between">
               
               {/* 타이틀 및 메인 폼 */}
               <div className="flex flex-col min-h-0 flex-1 space-y-2">
@@ -489,7 +489,7 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
               </div>
 
               {/* 우측 하단 푸터 (취소/승인 버튼) */}
-              <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end space-x-2 shrink-0">
+              <div className="mt-1.5 pt-1.5 border-t border-slate-100 flex justify-end space-x-2 shrink-0">
                 <button
                   onClick={handleClose}
                   disabled={isProcessing}
