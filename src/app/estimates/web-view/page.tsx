@@ -48,14 +48,23 @@ const typeConfig = {
       "등록일시", "고객발주번호", "바이어명", "바이어담당자", "총 수주액", "상태", "수주일시", "마스터납기일",
       "원본 파일", "품목코드", "유효품목코드", "품목명", "규격", "수량", "단가", "금액", "품목납기일", "상세비고"
     ]
+  },
+  inventory_inout: {
+    title: "재고 입출고 및 변동 대장 내역",
+    headers: [
+      "등록일시", "품목ID", "품목명", "품목구분", "변동종류", "수량", "단가", "담당자", "변동 메모 및 AI 분석 사유", "증빙조회"
+    ],
+    defaultVisible: [
+      "등록일시", "품목ID", "품목명", "품목구분", "변동종류", "수량", "단가", "담당자", "변동 메모 및 AI 분석 사유", "증빙조회"
+    ]
   }
 };
 
 function WebViewContent() {
   const searchParams = useSearchParams();
   const typeParam = searchParams.get("type") || "inbound_est";
-  const type: "inbound_est" | "inbound_po" | "outbound_est" | "outbound_so" = 
-    ["inbound_est", "inbound_po", "outbound_est", "outbound_so"].includes(typeParam) 
+  const type: "inbound_est" | "inbound_po" | "outbound_est" | "outbound_so" | "inventory_inout" = 
+    ["inbound_est", "inbound_po", "outbound_est", "outbound_so", "inventory_inout"].includes(typeParam) 
       ? (typeParam as any) 
       : "inbound_est";
 
@@ -318,7 +327,49 @@ function WebViewContent() {
             });
           });
         }
-      }
+      } else if (type === "inventory_inout") {
+         const res = await fetch("/api/inventory/logs");
+         const json = await res.json();
+         if (json.success && json.data) {
+           const logsList = Array.isArray(json.data) ? json.data : [];
+           logsList.forEach((log: any) => {
+             const dateStr = log.createdAt || log.created_at || "-";
+             const qtyStr = `${log.changeType === 'in' ? '+' : log.changeType === 'out' ? '-' : ''}${Math.abs(log.quantity).toLocaleString()} 개`;
+             const typeStr = log.changeType === 'in' ? '입고' : log.changeType === 'out' ? '출고' : '실사조정';
+             
+             // note에서 [자율 입고 요약] 접두사 정돈
+             let cleanNote = log.note || "-";
+             cleanNote = cleanNote.replace(/^\[자율 입고 요약\]\s*/, '').trim();
+
+             // 증빙 정보 파싱
+             const proofMatch = cleanNote.match(/\(증빙:\s*([^\)]+)\)/);
+             const proofPath = proofMatch ? proofMatch[1] : "-";
+             
+             // inboundId 및 증빙 괄호 텍스트 본문에서 제거
+             const inboundMatch = cleanNote.match(/inboundId:\s*(INB-\w+)/);
+             if (proofMatch) {
+               cleanNote = cleanNote.replace(proofMatch[0], '').trim();
+             }
+             if (inboundMatch) {
+               cleanNote = cleanNote.replace(inboundMatch[0], '').replace(/\(\s*\)/, '').trim();
+               cleanNote = cleanNote.replace(/\s*\|\s*$/, '').trim();
+             }
+
+             rows.push([
+               dateStr,                                           // 등록일시
+               log.itemId !== -1 ? String(log.itemId) : "-",     // 품목ID
+               log.itemName || "-",                               // 품목명
+               log.itemType || "-",                               // 품목구분
+               typeStr,                                           // 변동종류
+               qtyStr,                                            // 수량
+               log.price !== undefined ? `₩ ${log.price.toLocaleString()}` : "₩ 0", // 단가
+               log.operator || "-",                               // 담당자
+               cleanNote || "-",                                  // 변동 메모 및 AI 분석 사유
+               proofPath                                          // 증빙조회
+             ]);
+           });
+         }
+       }
 
       setData({ title, headers, rows });
       
@@ -862,7 +913,37 @@ function WebViewContent() {
                               ? "whitespace-nowrap font-mono text-right" 
                               : "whitespace-normal break-all max-w-[240px]"
                           }`}>
-                            {isAttachedFile ? (
+                            {headerName === "증빙조회" ? (
+                              (() => {
+                                const proofPath = strVal;
+                                if (!proofPath || proofPath === "-" || proofPath === "undefined") {
+                                  return <span className={isDarkMode ? "text-slate-700" : "text-slate-400"}>-</span>;
+                                }
+                                return proofPath.startsWith('data:') ? (
+                                  <button
+                                    onClick={() => openFileInNewTab(proofPath)}
+                                    className="px-2.5 py-1 bg-indigo-500/10 text-indigo-650 hover:bg-indigo-500/20 rounded-lg text-[10px] font-black border border-indigo-500/20 transition-all inline-flex items-center gap-1 cursor-pointer"
+                                    title="새 탭에서 원본 증빙 파일 보기"
+                                  >
+                                    📄 증빙 조회
+                                  </button>
+                                ) : (proofPath.endsWith('.xlsx') || proofPath.endsWith('.xls') || proofPath.includes('excel')) ? (
+                                  <span 
+                                    className="inline-flex items-center px-2 py-0.5 bg-emerald-500/10 text-emerald-650 rounded-lg text-[9px] font-extrabold border border-emerald-500/20"
+                                    title={`엑셀 파일 업로드 건: ${proofPath}`}
+                                  >
+                                    EXCEL
+                                  </span>
+                                ) : (
+                                  <span 
+                                    className="inline-flex items-center px-2 py-0.5 bg-slate-500/10 text-slate-500 rounded-lg text-[9px] font-extrabold border border-slate-500/15"
+                                    title={`수동/일반 기록: ${proofPath}`}
+                                  >
+                                    일반
+                                  </span>
+                                );
+                              })()
+                            ) : isAttachedFile ? (
                               (() => {
                                 const isExcel = strVal.toLowerCase().includes(".xlsx") || strVal.toLowerCase().includes(".xls");
                                 return isExcel ? (

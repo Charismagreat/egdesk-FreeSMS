@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRightLeft } from 'lucide-react';
+import { ArrowRightLeft, Printer } from 'lucide-react';
 import { InventoryLog } from '../types';
 import { InboundDetailModal } from './InboundDetailModal';
 
@@ -24,9 +24,18 @@ export const InventoryLogTable: React.FC<InventoryLogTableProps> = ({ logs }) =>
             재고 수량 보정, 구매 입고, 주문 출고 등 모든 재고의 흐름이 영구 기록된 데이터 피드입니다.
           </p>
         </div>
-        <span className="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full border border-slate-200">
-          총 {safeLogs.length}개 로그 기록됨
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => window.open("/estimates/web-view?type=inventory_inout", "_blank")}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold rounded-xl shadow-md transition active:scale-95 cursor-pointer"
+          >
+            <Printer className="w-3.5 h-3.5 text-indigo-400" />
+            웹뷰 대장 내역
+          </button>
+          <span className="text-xs bg-slate-100 text-slate-600 px-3 py-1.5 rounded-full border border-slate-200">
+            총 {safeLogs.length}개 로그 기록됨
+          </span>
+        </div>
       </div>
 
       <div className="overflow-x-auto max-h-[350px] overflow-y-auto">
