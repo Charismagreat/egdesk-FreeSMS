@@ -286,226 +286,247 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
 
           {/* 파싱된 폼 검증/수정 영역 */}
           {ocrSuccess && (
-            <div className="flex-1 min-h-0 flex flex-col space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-              <h4 className="text-xs font-black text-indigo-500 uppercase tracking-wider shrink-0">📋 AI 판독 데이터 검증 및 보정 (14개 전체 컬럼 매핑)</h4>
+            <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-10 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
               
-              <div className="grid grid-cols-2 gap-4 shrink-0">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-455 block mb-1">공급처명(거래처)*</label>
-                  <input
-                    type="text"
-                    value={ocrForm.partnerName}
-                    onChange={(e) => setOcrForm({ ...ocrForm, partnerName: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
-                    placeholder="공급처(상호명) 입력"
-                  />
+              {/* 좌측: 업로드된 원본 문서 뷰어 (30% 점유) */}
+              <div className="lg:col-span-3 border border-slate-100 rounded-2xl bg-slate-50 p-2 flex flex-col items-center justify-center min-h-[300px] lg:min-h-0 relative overflow-hidden">
+                <span className="text-[9px] font-black text-slate-400 absolute top-2 left-2 bg-white/80 px-2 py-0.5 rounded border border-slate-100 z-10 shadow-sm">📄 명세서 원본 문서</span>
+                {ocrForm.fileUrl ? (
+                  ocrForm.fileUrl.startsWith('data:application/pdf') ? (
+                    <embed src={ocrForm.fileUrl} type="application/pdf" className="w-full h-full rounded-xl" />
+                  ) : (
+                    <div className="w-full h-full overflow-auto flex items-center justify-center p-2">
+                      <img src={ocrForm.fileUrl} className="max-w-full max-h-[55vh] object-contain rounded-xl shadow-sm animate-fade-in" alt="명세서 원본" />
+                    </div>
+                  )
+                ) : (
+                  <div className="text-slate-400 text-xs font-bold">원본 문서 이미지가 없습니다.</div>
+                )}
+              </div>
+
+              {/* 우측: AI 보정 폼 테이블 (70% 점유) */}
+              <div className="lg:col-span-7 flex flex-col min-h-0 space-y-4">
+                <h4 className="text-xs font-black text-indigo-500 uppercase tracking-wider shrink-0">📋 AI 판독 데이터 검증 및 보정 (14개 전체 컬럼 매핑)</h4>
+                
+                <div className="grid grid-cols-2 gap-4 shrink-0">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-455 block mb-1">공급처명(거래처)*</label>
+                    <input
+                      type="text"
+                      value={ocrForm.partnerName}
+                      onChange={(e) => setOcrForm({ ...ocrForm, partnerName: e.target.value })}
+                      className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
+                      placeholder="공급처(상호명) 입력"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-455 block mb-1">입고일자</label>
+                    <input
+                      type="date"
+                      value={ocrForm.inboundDate}
+                      onChange={(e) => setOcrForm({ ...ocrForm, inboundDate: e.target.value })}
+                      className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-455 block mb-1">입고일자</label>
-                  <input
-                    type="date"
-                    value={ocrForm.inboundDate}
-                    onChange={(e) => setOcrForm({ ...ocrForm, inboundDate: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
-                  />
+
+                {/* 14개 전체 컬럼을 가로 스크롤 없이 보여주는 컴팩트 테이블 */}
+                <div className="flex-1 min-h-0 border border-slate-100 rounded-2xl overflow-y-auto bg-white shadow-sm">
+                  <table className="w-full border-collapse text-left text-[10px] table-fixed">
+                    <thead>
+                      <tr className="bg-slate-50/80 border-b border-slate-100 font-black text-slate-500 text-[9px] sticky top-0 z-10 backdrop-blur-sm">
+                        <th className="py-2 px-1 w-[3%] text-center">No.</th>
+                        <th className="py-2 px-1 w-[4%] text-center">구분</th>
+                        <th className="py-2 px-1 w-[6%]">카테고리</th>
+                        <th className="py-2 px-1 w-[15%]">품목명</th>
+                        <th className="py-2 px-1 w-[8%]">품목코드</th>
+                        <th className="py-2 px-1 w-[7%]">바코드</th>
+                        <th className="py-2 px-1 w-[7%]">규격</th>
+                        <th className="py-2 px-1 w-[3%] text-center">단위</th>
+                        <th className="py-2 px-1 w-[4%] text-right">입수량</th>
+                        <th className="py-2 px-1 w-[5%] text-right">입고수량</th>
+                        <th className="py-2 px-1 w-[6%] text-right">입고단가</th>
+                        <th className="py-2 px-1 w-[7%] text-right">총액</th>
+                        <th className="py-2 px-1 w-[9%]">공급처명</th>
+                        <th className="py-2 px-1 w-[7%] text-center">입고일자</th>
+                        <th className="py-2 px-1 w-[5%] text-center">적재위치</th>
+                        <th className="py-2 px-1 w-[9%]">비고</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {ocrForm.items.map((item, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50/50 transition-colors odd:bg-white even:bg-slate-50/10">
+                          {/* 0. No. */}
+                          <td className="py-2 px-1 text-center text-slate-400 font-mono font-bold">{idx + 1}</td>
+                          {/* 1. 구분 */}
+                          <td className="py-2 px-1 text-center">
+                            <select
+                              value={item.itemType || '자재'}
+                              onChange={(e) => {
+                                const newItems = [...ocrForm.items];
+                                newItems[idx].itemType = e.target.value;
+                                setOcrForm({ ...ocrForm, items: newItems });
+                              }}
+                              className="bg-transparent text-[9px] font-black text-slate-800 border-none focus:outline-none focus:ring-0 cursor-pointer"
+                            >
+                              <option value="자재">자재</option>
+                              <option value="제품">제품</option>
+                            </select>
+                          </td>
+                          {/* 2. 카테고리 */}
+                          <td className="py-2 px-1">
+                            <input
+                              type="text"
+                              value={item.category || ''}
+                              onChange={(e) => {
+                                const newItems = [...ocrForm.items];
+                                newItems[idx].category = e.target.value;
+                                setOcrForm({ ...ocrForm, items: newItems });
+                              }}
+                              className="w-full px-0.5 py-0.5 border border-transparent hover:border-slate-200 rounded text-[10px] font-semibold text-slate-700 focus:outline-none focus:border-indigo-500"
+                            />
+                          </td>
+                          {/* 3. 품목명 */}
+                          <td className="py-2 px-1">
+                            <input
+                              type="text"
+                              value={item.itemName}
+                              onChange={(e) => {
+                                const newItems = [...ocrForm.items];
+                                newItems[idx].itemName = e.target.value;
+                                setOcrForm({ ...ocrForm, items: newItems });
+                              }}
+                              className="w-full px-0.5 py-0.5 border border-transparent hover:border-slate-200 rounded text-[10px] font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
+                            />
+                          </td>
+                          {/* 4. 품목코드 */}
+                          <td className="py-2 px-1 text-slate-400 font-mono truncate" title={item.itemCode || 'NEW'}>
+                            {item.itemCode || 'NEW'}
+                          </td>
+                          {/* 5. 바코드 */}
+                          <td className="py-2 px-1">
+                            <input
+                              type="text"
+                              value={item.barcode}
+                              onChange={(e) => {
+                                const newItems = [...ocrForm.items];
+                                newItems[idx].barcode = e.target.value;
+                                setOcrForm({ ...ocrForm, items: newItems });
+                              }}
+                              className="w-full px-0.5 py-0.5 border border-transparent hover:border-slate-200 rounded text-[10px] text-slate-500 font-mono focus:outline-none focus:border-indigo-500"
+                            />
+                          </td>
+                          {/* 6. 규격 */}
+                          <td className="py-2 px-1">
+                            <input
+                              type="text"
+                              value={item.spec}
+                              onChange={(e) => {
+                                const newItems = [...ocrForm.items];
+                                newItems[idx].spec = e.target.value;
+                                setOcrForm({ ...ocrForm, items: newItems });
+                              }}
+                              className="w-full px-0.5 py-0.5 border border-transparent hover:border-slate-200 rounded text-[10px] text-slate-600 focus:outline-none focus:border-indigo-500"
+                            />
+                          </td>
+                          {/* 7. 단위 */}
+                          <td className="py-2 px-1 text-center">
+                            <input
+                              type="text"
+                              value={item.unitType || '개'}
+                              onChange={(e) => {
+                                const newItems = [...ocrForm.items];
+                                newItems[idx].unitType = e.target.value;
+                                setOcrForm({ ...ocrForm, items: newItems });
+                              }}
+                              className="w-full px-0.5 py-0.5 border border-transparent hover:border-slate-200 rounded text-[10px] text-center text-slate-600 focus:outline-none focus:border-indigo-500"
+                            />
+                          </td>
+                          {/* 8. 입수량 */}
+                          <td className="py-2 px-1 text-right">
+                            <input
+                              type="number"
+                              value={item.boxContains || 1}
+                              onChange={(e) => {
+                                const newItems = [...ocrForm.items];
+                                newItems[idx].boxContains = Number(e.target.value) || 1;
+                                setOcrForm({ ...ocrForm, items: newItems });
+                              }}
+                              className="w-full px-0.5 py-0.5 border border-transparent hover:border-slate-200 rounded text-[10px] text-right text-slate-600 font-mono focus:outline-none focus:border-indigo-500"
+                            />
+                          </td>
+                          {/* 9. 입고수량 */}
+                          <td className="py-2 px-1 text-right">
+                            <input
+                              type="number"
+                              value={item.quantity}
+                              onChange={(e) => {
+                                const newItems = [...ocrForm.items];
+                                newItems[idx].quantity = Number(e.target.value) || 0;
+                                setOcrForm({ ...ocrForm, items: newItems });
+                              }}
+                              className="w-full px-0.5 py-0.5 border border-transparent hover:border-slate-200 rounded text-[10px] font-black text-indigo-650 text-right font-mono focus:outline-none focus:border-indigo-500"
+                            />
+                          </td>
+                          {/* 10. 입고단가 */}
+                          <td className="py-2 px-1 text-right">
+                            <input
+                              type="number"
+                              value={item.price}
+                              onChange={(e) => {
+                                const newItems = [...ocrForm.items];
+                                newItems[idx].price = Number(e.target.value) || 0;
+                                setOcrForm({ ...ocrForm, items: newItems });
+                              }}
+                              className="w-full px-0.5 py-0.5 border border-transparent hover:border-slate-200 rounded text-[10px] text-slate-700 text-right font-mono focus:outline-none focus:border-indigo-500"
+                            />
+                          </td>
+                          {/* 11. 총액 (실시간 계산) */}
+                          <td className="py-2 px-1 text-right text-slate-900 font-black font-mono">
+                            {((item.quantity || 0) * (item.price || 0)).toLocaleString()} 원
+                          </td>
+                          {/* 12. 공급처명 (부모 값 바인딩) */}
+                          <td className="py-2 px-1 text-slate-500 truncate" title={ocrForm.partnerName}>
+                            {ocrForm.partnerName || '-'}
+                          </td>
+                          {/* 13. 입고일자 (부모 값 바인딩) */}
+                          <td className="py-2 px-1 text-center text-slate-500 font-mono">
+                            {ocrForm.inboundDate || '-'}
+                          </td>
+                          {/* 14. 적재위치 */}
+                          <td className="py-2 px-1 text-center">
+                            <input
+                              type="text"
+                              value={item.location || '자율입고창고'}
+                              onChange={(e) => {
+                                const newItems = [...ocrForm.items];
+                                newItems[idx].location = e.target.value;
+                                setOcrForm({ ...ocrForm, items: newItems });
+                              }}
+                              className="w-full px-0.5 py-0.5 border border-transparent hover:border-slate-200 rounded text-[10px] text-center text-slate-600 focus:outline-none focus:border-indigo-500"
+                            />
+                          </td>
+                          {/* 15. 비고 (미매핑 메타) */}
+                          <td className="py-2 px-1">
+                            <input
+                              type="text"
+                              value={item.note}
+                              onChange={(e) => {
+                                const newItems = [...ocrForm.items];
+                                newItems[idx].note = e.target.value;
+                                setOcrForm({ ...ocrForm, items: newItems });
+                              }}
+                              className="w-full px-0.5 py-0.5 border border-transparent hover:border-slate-200 rounded text-[10px] text-slate-400 truncate focus:outline-none focus:border-indigo-500"
+                              title={item.note}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
 
-              {/* 14개 전체 컬럼을 가로 스크롤 없이 보여주는 컴팩트 테이블 */}
-              <div className="flex-1 min-h-0 border border-slate-100 rounded-2xl overflow-y-auto bg-white shadow-sm">
-                <table className="w-full border-collapse text-left text-[10px] table-fixed">
-                  <thead>
-                    <tr className="bg-slate-50/80 border-b border-slate-100 font-black text-slate-500 text-[9px] sticky top-0 z-10 backdrop-blur-sm">
-                      <th className="py-2 px-1 w-[3%] text-center">No.</th>
-                      <th className="py-2 px-1 w-[4%] text-center">구분</th>
-                      <th className="py-2 px-1 w-[6%]">카테고리</th>
-                      <th className="py-2 px-1 w-[15%]">품목명</th>
-                      <th className="py-2 px-1 w-[8%]">품목코드</th>
-                      <th className="py-2 px-1 w-[7%]">바코드</th>
-                      <th className="py-2 px-1 w-[7%]">규격</th>
-                      <th className="py-2 px-1 w-[3%] text-center">단위</th>
-                      <th className="py-2 px-1 w-[4%] text-right">입수량</th>
-                      <th className="py-2 px-1 w-[5%] text-right">입고수량</th>
-                      <th className="py-2 px-1 w-[6%] text-right">입고단가</th>
-                      <th className="py-2 px-1 w-[7%] text-right">총액</th>
-                      <th className="py-2 px-1 w-[9%]">공급처명</th>
-                      <th className="py-2 px-1 w-[7%] text-center">입고일자</th>
-                      <th className="py-2 px-1 w-[5%] text-center">적재위치</th>
-                      <th className="py-2 px-1 w-[9%]">비고</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-50">
-                    {ocrForm.items.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/50 transition-colors odd:bg-white even:bg-slate-50/10">
-                        {/* 0. No. */}
-                        <td className="py-2 px-1 text-center text-slate-400 font-mono font-bold">{idx + 1}</td>
-                        {/* 1. 구분 */}
-                        <td className="py-2 px-1 text-center">
-                          <select
-                            value={item.itemType || '자재'}
-                            onChange={(e) => {
-                              const newItems = [...ocrForm.items];
-                              newItems[idx].itemType = e.target.value;
-                              setOcrForm({ ...ocrForm, items: newItems });
-                            }}
-                            className="bg-transparent text-[9px] font-black text-slate-800 border-none focus:outline-none focus:ring-0 cursor-pointer"
-                          >
-                            <option value="자재">자재</option>
-                            <option value="제품">제품</option>
-                          </select>
-                        </td>
-                        {/* 2. 카테고리 */}
-                        <td className="py-2 px-1">
-                          <input
-                            type="text"
-                            value={item.category || ''}
-                            onChange={(e) => {
-                              const newItems = [...ocrForm.items];
-                              newItems[idx].category = e.target.value;
-                              setOcrForm({ ...ocrForm, items: newItems });
-                            }}
-                            className="w-full px-0.5 py-0.5 border border-transparent hover:border-slate-200 rounded text-[10px] font-semibold text-slate-700 focus:outline-none focus:border-indigo-500"
-                          />
-                        </td>
-                        {/* 3. 품목명 */}
-                        <td className="py-2 px-1">
-                          <input
-                            type="text"
-                            value={item.itemName}
-                            onChange={(e) => {
-                              const newItems = [...ocrForm.items];
-                              newItems[idx].itemName = e.target.value;
-                              setOcrForm({ ...ocrForm, items: newItems });
-                            }}
-                            className="w-full px-0.5 py-0.5 border border-transparent hover:border-slate-200 rounded text-[10px] font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
-                          />
-                        </td>
-                        {/* 4. 품목코드 */}
-                        <td className="py-2 px-1 text-slate-400 font-mono truncate" title={item.itemCode || 'NEW'}>
-                          {item.itemCode || 'NEW'}
-                        </td>
-                        {/* 5. 바코드 */}
-                        <td className="py-2 px-1">
-                          <input
-                            type="text"
-                            value={item.barcode}
-                            onChange={(e) => {
-                              const newItems = [...ocrForm.items];
-                              newItems[idx].barcode = e.target.value;
-                              setOcrForm({ ...ocrForm, items: newItems });
-                            }}
-                            className="w-full px-0.5 py-0.5 border border-transparent hover:border-slate-200 rounded text-[10px] text-slate-500 font-mono focus:outline-none focus:border-indigo-500"
-                          />
-                        </td>
-                        {/* 6. 규격 */}
-                        <td className="py-2 px-1">
-                          <input
-                            type="text"
-                            value={item.spec}
-                            onChange={(e) => {
-                              const newItems = [...ocrForm.items];
-                              newItems[idx].spec = e.target.value;
-                              setOcrForm({ ...ocrForm, items: newItems });
-                            }}
-                            className="w-full px-0.5 py-0.5 border border-transparent hover:border-slate-200 rounded text-[10px] text-slate-600 focus:outline-none focus:border-indigo-500"
-                          />
-                        </td>
-                        {/* 7. 단위 */}
-                        <td className="py-2 px-1 text-center">
-                          <input
-                            type="text"
-                            value={item.unitType || '개'}
-                            onChange={(e) => {
-                              const newItems = [...ocrForm.items];
-                              newItems[idx].unitType = e.target.value;
-                              setOcrForm({ ...ocrForm, items: newItems });
-                            }}
-                            className="w-full px-0.5 py-0.5 border border-transparent hover:border-slate-200 rounded text-[10px] text-center text-slate-600 focus:outline-none focus:border-indigo-500"
-                          />
-                        </td>
-                        {/* 8. 입수량 */}
-                        <td className="py-2 px-1 text-right">
-                          <input
-                            type="number"
-                            value={item.boxContains || 1}
-                            onChange={(e) => {
-                              const newItems = [...ocrForm.items];
-                              newItems[idx].boxContains = Number(e.target.value) || 1;
-                              setOcrForm({ ...ocrForm, items: newItems });
-                            }}
-                            className="w-full px-0.5 py-0.5 border border-transparent hover:border-slate-200 rounded text-[10px] text-right text-slate-600 font-mono focus:outline-none focus:border-indigo-500"
-                          />
-                        </td>
-                        {/* 9. 입고수량 */}
-                        <td className="py-2 px-1 text-right">
-                          <input
-                            type="number"
-                            value={item.quantity}
-                            onChange={(e) => {
-                              const newItems = [...ocrForm.items];
-                              newItems[idx].quantity = Number(e.target.value) || 0;
-                              setOcrForm({ ...ocrForm, items: newItems });
-                            }}
-                            className="w-full px-0.5 py-0.5 border border-transparent hover:border-slate-200 rounded text-[10px] font-black text-indigo-650 text-right font-mono focus:outline-none focus:border-indigo-500"
-                          />
-                        </td>
-                        {/* 10. 입고단가 */}
-                        <td className="py-2 px-1 text-right">
-                          <input
-                            type="number"
-                            value={item.price}
-                            onChange={(e) => {
-                              const newItems = [...ocrForm.items];
-                              newItems[idx].price = Number(e.target.value) || 0;
-                              setOcrForm({ ...ocrForm, items: newItems });
-                            }}
-                            className="w-full px-0.5 py-0.5 border border-transparent hover:border-slate-200 rounded text-[10px] text-slate-700 text-right font-mono focus:outline-none focus:border-indigo-500"
-                          />
-                        </td>
-                        {/* 11. 총액 (실시간 계산) */}
-                        <td className="py-2 px-1 text-right text-slate-900 font-black font-mono">
-                          {((item.quantity || 0) * (item.price || 0)).toLocaleString()} 원
-                        </td>
-                        {/* 12. 공급처명 (부모 값 바인딩) */}
-                        <td className="py-2 px-1 text-slate-500 truncate" title={ocrForm.partnerName}>
-                          {ocrForm.partnerName || '-'}
-                        </td>
-                        {/* 13. 입고일자 (부모 값 바인딩) */}
-                        <td className="py-2 px-1 text-center text-slate-500 font-mono">
-                          {ocrForm.inboundDate || '-'}
-                        </td>
-                        {/* 14. 적재위치 */}
-                        <td className="py-2 px-1 text-center">
-                          <input
-                            type="text"
-                            value={item.location || '자율입고창고'}
-                            onChange={(e) => {
-                              const newItems = [...ocrForm.items];
-                              newItems[idx].location = e.target.value;
-                              setOcrForm({ ...ocrForm, items: newItems });
-                            }}
-                            className="w-full px-0.5 py-0.5 border border-transparent hover:border-slate-200 rounded text-[10px] text-center text-slate-600 focus:outline-none focus:border-indigo-500"
-                          />
-                        </td>
-                        {/* 15. 비고 (미매핑 메타) */}
-                        <td className="py-2 px-1">
-                          <input
-                            type="text"
-                            value={item.note}
-                            onChange={(e) => {
-                              const newItems = [...ocrForm.items];
-                              newItems[idx].note = e.target.value;
-                              setOcrForm({ ...ocrForm, items: newItems });
-                            }}
-                            className="w-full px-0.5 py-0.5 border border-transparent hover:border-slate-200 rounded text-[10px] text-slate-400 truncate focus:outline-none focus:border-indigo-500"
-                            title={item.note}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
             </div>
           )}
         </div>
