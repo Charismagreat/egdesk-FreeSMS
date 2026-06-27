@@ -1,5 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { 
+  parseInboundExcelHeader, 
+  getExcelColumnsAndRawData, 
+  parseInboundExcelWithMapping 
+} from '@/app/inventory/utils/inbound-excel';
 
 interface Message {
   role: 'user' | 'bot';
@@ -98,11 +103,110 @@ export function useEasyBotChat({
     stopSpeaking();
 
     const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    const isExcel = file.name.toLowerCase().endsWith('.xlsx') || 
+                    file.name.toLowerCase().endsWith('.xls') || 
+                    file.name.toLowerCase().endsWith('.csv');
+
+    const timeStr = formatTimestamp();
+
+    if (isExcel) {
+      // 1. 유저 메시지 노출 (엑셀 파일 업로드 상태 지표)
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'user',
+          content: `📊 자율입고 엑셀 파일을 업로드합니다. (${file.name})`,
+          timestamp: timeStr,
+          isCardPhoto: false,
+          isPdfFile: false
+        }
+      ]);
+
+      // 2. 봇 분석 대기 메시지 노출
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'bot',
+          content: '🔄 엑셀 파일의 시그니처 및 매핑 정보를 검증하고 있습니다. 잠시만 기다려 주세요... ⚡',
+          timestamp: timeStr
+        }
+      ]);
+
+      try {
+        // A. 엑셀 시그니처 추출
+        const sig = await parseInboundExcelHeader(file);
+        
+        // B. 저장된 엑셀 시그니처 목록 조회
+        const sigRes = await fetch("/api/inventory/inbounds/excel-signatures");
+        const sigData = await sigRes.json();
+        
+        let matchedConfig: any = null;
+        if (sigData.success) {
+          matchedConfig = sigData.configs?.find((c: any) => c.header_signature === sig);
+        }
+
+        if (matchedConfig) {
+          // 저장된 시그니처가 매칭된다면 즉시 파싱 및 보라색 자율입고 프리뷰 출력
+          const configMapping = JSON.parse(matchedConfig.mapping_info);
+          const excelMeta = await getExcelColumnsAndRawData(file);
+          const result = parseInboundExcelWithMapping(
+            excelMeta.rawRows,
+            excelMeta.headerRowIndex,
+            configMapping,
+            file.name
+          );
+
+          // 이지봇 프리뷰 카드 페이로드 빌드
+          const payload = {
+            partner_name: result.partner_name,
+            inbound_date: result.inbound_date,
+            file_url: file.name,
+            items: result.items
+          };
+
+          setMessages(prev => {
+            const updated = [...prev];
+            updated.pop(); // 대기 메시지 제거
+            updated.push({
+              role: 'bot',
+              content: `[INBOUND_EXCEL_PREVIEW:${JSON.stringify(payload)}]`,
+              timestamp: formatTimestamp()
+            });
+            return updated;
+          });
+        } else {
+          // 처음 본 양식인 경우 안내 메시지 출력
+          setMessages(prev => {
+            const updated = [...prev];
+            updated.pop(); // 대기 메시지 제거
+            updated.push({
+              role: 'bot',
+              content: `⚠️ 처음 인식된 입고 엑셀/CSV 양식입니다. 정확한 자율 입고 처리를 위해, **[재고 관리 AI]** 페이지의 **'엑셀 자율입고'** 메뉴에서 최초 1회 매핑 규칙을 등록해 주세요.`,
+              timestamp: formatTimestamp()
+            });
+            return updated;
+          });
+        }
+      } catch (err: any) {
+        setMessages(prev => {
+          const updated = [...prev];
+          updated.pop();
+          updated.push({
+            role: 'bot',
+            content: `❌ 엑셀 분석 중 오류가 발생했습니다: ${err.message}`,
+            timestamp: formatTimestamp()
+          });
+          return updated;
+        });
+      } finally {
+        setIsLoading(false);
+      }
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = async () => {
       const base64Str = reader.result as string;
-      const timeStr = formatTimestamp();
 
       if (isPdf) {
         setMessages(prev => [

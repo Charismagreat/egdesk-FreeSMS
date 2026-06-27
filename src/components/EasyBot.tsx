@@ -22,6 +22,7 @@ import InboundEstimatePreviewMessage from './easybot/previews/InboundEstimatePre
 import FacilityPlatePreviewMessage from './easybot/previews/FacilityPlatePreviewMessage';
 import FacilityChecklistPreviewMessage from './easybot/previews/FacilityChecklistPreviewMessage';
 import CompetitorPricePreviewMessage from './easybot/previews/CompetitorPricePreviewMessage';
+import InboundExcelPreviewCard from './easybot/previews/InboundExcelPreviewCard';
 
 // ⚓ 커스텀 훅 임포트
 import { useEasyBotVoice } from './easybot/hooks/useEasyBotVoice';
@@ -562,7 +563,8 @@ export default function EasyBot() {
                 const isLegalPreview = msg.role === 'bot' && hasContent && msg.content.startsWith('[LEGAL_PREVIEW:');
                 const isRndSpacePreview = msg.role === 'bot' && hasContent && msg.content.startsWith('[RND_SPACE_PREVIEW:');
                 const isRndLogPreview = msg.role === 'bot' && hasContent && msg.content.startsWith('[RND_LOG_PREVIEW:');
-                const isInboundEstimatePreview = msg.role === 'bot' && hasContent && msg.content.startsWith('[INBOUND_ESTIMATE_PREVIEW:');
+                                const isInboundEstimatePreview = msg.role === 'bot' && hasContent && msg.content.startsWith('[INBOUND_ESTIMATE_PREVIEW:');
+                const isInboundExcelPreview = msg.role === 'bot' && hasContent && msg.content.startsWith('[INBOUND_EXCEL_PREVIEW:');
                 
                 const tagContent = isCardPreview && hasContent
                   ? msg.content.substring(14, msg.content.length - 1) 
@@ -594,8 +596,10 @@ export default function EasyBot() {
                   ? msg.content.substring(17, msg.content.length - 1)
                   : isInboundEstimatePreview && hasContent
                   ? msg.content.substring(26, msg.content.length - 1)
+                  : isInboundExcelPreview && hasContent
+                  ? msg.content.substring(24, msg.content.length - 1)
                   : '';
-                const isCustomPreview = isCardPreview || isLicensePreview || isReceiptPreview || isFinancialPreview || isInboundPreview || isResumePreview || isMedicalPreview || isPurchaseInvoicePreview || isCompetitorPricePreview || isFacilityPlatePreview || isFacilityChecklistPreview || isLegalPreview || isRndSpacePreview || isRndLogPreview || isInboundEstimatePreview;
+                const isCustomPreview = isCardPreview || isLicensePreview || isReceiptPreview || isFinancialPreview || isInboundPreview || isResumePreview || isMedicalPreview || isPurchaseInvoicePreview || isCompetitorPricePreview || isFacilityPlatePreview || isFacilityChecklistPreview || isLegalPreview || isRndSpacePreview || isRndLogPreview || isInboundEstimatePreview || isInboundExcelPreview;
 
                 return (
                   <div key={index} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -653,6 +657,8 @@ export default function EasyBot() {
                           <InboundPreviewMessage tagContent={tagContent} onConfirmSuccess={chat.handleCardConfirmSuccess} />
                         ) : isInboundEstimatePreview ? (
                           <InboundEstimatePreviewMessage tagContent={tagContent} onConfirmSuccess={chat.handleCardConfirmSuccess} />
+                        ) : isInboundExcelPreview ? (
+                          <InboundExcelPreviewCard tagContent={tagContent} onConfirmSuccess={chat.handleCardConfirmSuccess} />
                         ) : isPurchaseInvoicePreview ? (
                           <PurchaseInvoicePreviewMessage tagContent={tagContent} onConfirmSuccess={chat.handleCardConfirmSuccess} />
                         ) : isCompetitorPricePreview ? (
@@ -735,7 +741,7 @@ export default function EasyBot() {
                 type="file" 
                 ref={chat.fileInputRef} 
                 onChange={chat.handleCardPhotoUpload} 
-                accept="image/*,application/pdf" 
+                accept="image/*,application/pdf,.xlsx,.xls,.csv" 
                 className="hidden" 
               />
 

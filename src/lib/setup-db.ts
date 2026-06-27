@@ -1,4 +1,4 @@
-import { createTable, queryTable, insertRows, updateRows, deleteRows, deleteTable, executeSQL, getTableSchema } from '../../egdesk-helpers';
+import { createTable, queryTable, insertRows, updateRows, deleteRows, deleteTable, executeSQL, getTableSchema, listTables } from '../../egdesk-helpers';
 
 export async function setupDatabase() {
   const SHOULD_SEED_DEMO = process.env.SEED_DEMO_DATA === 'true';
@@ -26,8 +26,9 @@ export async function setupDatabase() {
       // 2. 물리 SQLite DB에 테이블이 이미 존재하는지 검증하여 무분별한 드롭 방지
       let exists = false;
       try {
-        const checkRes = await executeSQL(`SELECT name FROM sqlite_master WHERE type='table' AND name='${tableName}'`);
-        exists = checkRes && checkRes.rows && checkRes.rows.length > 0;
+        const checkRes = await listTables();
+        const tables = checkRes.tables || [];
+        exists = tables.some((t: any) => t.tableName === tableName);
       } catch (err) {
         exists = false;
       }
@@ -3018,6 +3019,16 @@ export async function setupDatabase() {
     { name: 'mapping_info', type: 'TEXT' },
     { name: 'created_at', type: 'TEXT', notNull: true }
   ], { tableName: 'crm_excel_signatures', uniqueKeyColumns: ['id'] });
+
+  // 50. 엑셀 입고 자동 매핑 설정 테이블 (7종 감사 컬럼은 safeCreateTable이 자동 주입)
+  await safeCreateTable('엑셀 입고 자동 매핑', [
+    { name: 'id', type: 'INTEGER', notNull: true },
+    { name: 'header_signature', type: 'TEXT', notNull: true },
+    { name: 'partner_name', type: 'TEXT' },
+    { name: 'is_auto_approve', type: 'INTEGER', defaultValue: 1 },
+    { name: 'mapping_info', type: 'TEXT' },
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'crm_inbound_excel_signatures', uniqueKeyColumns: ['id'] });
 
   console.log('Database setup complete.');
 }

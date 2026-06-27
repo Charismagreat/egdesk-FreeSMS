@@ -21,6 +21,7 @@ import { BarcodeScanModal } from './components/BarcodeScanModal';
 import { ExcelGuideModal } from './components/ExcelGuideModal';
 import { BarcodePrintModal } from './components/BarcodePrintModal';
 import { DeadstockControl } from './components/DeadstockControl';
+import InboundExcelModal from './components/InboundExcelModal';
 
 export default function InventoryPage() {
   // 상태 정의
@@ -66,6 +67,7 @@ export default function InventoryPage() {
   // 모달 상태
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
+  const [isInboundExcelModalOpen, setIsInboundExcelModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   
   // 신규 품목 폼 상태
@@ -923,6 +925,14 @@ export default function InventoryPage() {
             />
           </label>
 
+          <button
+            onClick={() => setIsInboundExcelModalOpen(true)}
+            className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-semibold text-sm px-5 py-3 rounded-xl shadow-lg shadow-purple-950/20 active:scale-95 transition-all flex items-center space-x-2 border border-purple-400/20 cursor-pointer"
+          >
+            <FileText className="w-4.5 h-4.5 text-purple-200" />
+            <span>엑셀 자율입고</span>
+          </button>
+
           <button 
             onClick={openNewItemModal}
             className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold text-sm px-5 py-3 rounded-xl shadow-lg shadow-emerald-950/20 active:scale-95 transition-all flex items-center space-x-2 border border-emerald-400/20 cursor-pointer"
@@ -1229,6 +1239,14 @@ export default function InventoryPage() {
         </div>
       )}
 
+      <InboundExcelModal
+        isOpen={isInboundExcelModalOpen}
+        onClose={() => setIsInboundExcelModalOpen(false)}
+        onSuccess={(msg) => {
+          alert(msg);
+          fetchData();
+        }}
+      />
     </div>
   );
 }
