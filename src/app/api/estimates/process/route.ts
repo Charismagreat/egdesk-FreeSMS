@@ -240,9 +240,9 @@ export async function POST(req: Request) {
           const newItemId = Date.now() + Math.floor(Math.random() * 100);
           await insertRows('inventory_items', [{
             id: newItemId,
-            type: 'material',
+            type: '자재',
             name: item.product_name,
-            category: '원부자재',
+            category: '기타',
             price: item.unit_price || 10000,
             partner: partner_name || '신규 공급처',
             stock: checkedQty,

@@ -65,6 +65,8 @@ export async function handleInventoryInbound(reqBody: any, nowStr: string) {
         const newStock = (Number(currentItem.stock) || 0) + qty;
         
         await updateRows('inventory_items', {
+          type: item.itemType || currentItem.type || '자재',
+          category: item.category || currentItem.category || '기타',
           stock: newStock,
           price: price > 0 ? price : currentItem.price,
           description: [currentItem.description, item.note].filter(Boolean).join(' | '),
