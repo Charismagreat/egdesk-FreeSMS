@@ -106,25 +106,25 @@ export const InboundDetailModal: React.FC<InboundDetailModalProps> = ({ inboundI
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="border border-slate-100 rounded-2xl overflow-hidden overflow-x-auto">
-                <table className="w-full border-collapse text-left text-[11px] min-w-[1500px]">
+              <div className="border border-slate-100 rounded-2xl overflow-x-auto w-full">
+                <table className="w-full border-collapse text-left text-[11px] min-w-[2140px] table-fixed">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-100 font-black text-slate-500">
-                      <th className="p-3 w-[70px]">구분</th>
-                      <th className="p-3 w-[100px]">카테고리</th>
-                      <th className="p-3 w-[200px]">품목명</th>
-                      <th className="p-3 w-[130px]">품목코드</th>
-                      <th className="p-3 w-[120px]">바코드</th>
-                      <th className="p-3 w-[120px]">규격</th>
-                      <th className="p-3 w-[70px]">단위</th>
-                      <th className="p-3 w-[90px] text-right">박스당 입수량</th>
-                      <th className="p-3 w-[90px] text-right">입고 수량</th>
-                      <th className="p-3 w-[110px] text-right">입고 단가</th>
-                      <th className="p-3 w-[120px] text-right">총액</th>
-                      <th className="p-3 w-[150px]">공급처명(거래처)</th>
-                      <th className="p-3 w-[110px]">입고일자</th>
-                      <th className="p-3 w-[100px]">적재위치</th>
-                      <th className="p-3 w-[150px]">비고</th>
+                      <th className="p-3 w-[80px]">구분</th>
+                      <th className="p-3 w-[120px]">카테고리</th>
+                      <th className="p-3 w-[260px]">품목명</th>
+                      <th className="p-3 w-[150px]">품목코드</th>
+                      <th className="p-3 w-[150px]">바코드</th>
+                      <th className="p-3 w-[160px]">규격</th>
+                      <th className="p-3 w-[80px]">단위</th>
+                      <th className="p-3 w-[110px] text-right">박스당 입수량</th>
+                      <th className="p-3 w-[110px] text-right">입고 수량</th>
+                      <th className="p-3 w-[130px] text-right">입고 단가</th>
+                      <th className="p-3 w-[150px] text-right">총액</th>
+                      <th className="p-3 w-[180px]">공급처명(거래처)</th>
+                      <th className="p-3 w-[140px]">입고일자</th>
+                      <th className="p-3 w-[120px]">적재위치</th>
+                      <th className="p-3 w-[200px]">비고</th>
                     </tr>
                   </thead>
                   <tbody>
