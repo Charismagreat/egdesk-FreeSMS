@@ -911,7 +911,7 @@ export default function InventoryPage() {
             ) : (
               <>
                 <FileText className="w-4.5 h-4.5 text-indigo-200" />
-                <span>엑셀등록</span>
+                <span>엑셀등록(품목)</span>
               </>
             )}
             <input 
