@@ -65,6 +65,7 @@ export async function handleInventoryInbound(reqBody: any, nowStr: string) {
         await updateRows('inventory_items', {
           stock: newStock,
           price: price > 0 ? price : currentItem.price,
+          description: [currentItem.description, item.note].filter(Boolean).join(' | '),
           updated_at: nowStr
         }, { filters: { id: String(finalMatchedItemId) } });
 
@@ -89,7 +90,7 @@ export async function handleInventoryInbound(reqBody: any, nowStr: string) {
         unitType: item.unitType || '개',
         unitValue: '1',
         boxContains: Number(item.boxContains) || 1,
-        description: 'AI 이지봇 자율 입고 OCR 등록 품목',
+        description: item.note || 'AI 이지봇 자율 입고 OCR 등록 품목',
         barcode: barcode,
         createdAt: nowStr,
         uuid: `ITEM-${Date.now()}-${i}`
