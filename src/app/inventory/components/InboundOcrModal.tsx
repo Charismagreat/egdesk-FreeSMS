@@ -258,7 +258,7 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
                 <button
                   type="button"
                   onClick={() => window.open(ocrForm.fileUrl, '_blank')}
-                  className="absolute top-3 right-4 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[10px] py-1.5 px-3.5 rounded-xl flex items-center gap-1.5 transition-all shadow-md shrink-0 z-20 cursor-pointer"
+                  className="absolute top-3 right-6 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[10px] py-1.5 px-3.5 rounded-xl flex items-center gap-1.5 transition-all shadow-md shrink-0 z-20 cursor-pointer"
                   title="새 창에서 원본 파일 열람 및 인쇄"
                 >
                   <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
