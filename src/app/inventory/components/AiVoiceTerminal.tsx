@@ -14,38 +14,7 @@ interface AiVoiceTerminalProps {
   onResetSuccess: () => void;
 }
 
-export const voicePresets = [
-  {
-    id: 1,
-    text: '써모글로우 텀블러 15개 출고하고 VIP 고객 사은품 발송용이라고 메모해줘',
-    parsed: {
-      itemName: '써모글로우 텀블러',
-      quantity: '15',
-      price: '8700', // 기존 단가 매핑 예정
-      note: 'VIP 고객 사은품 발송용'
-    }
-  },
-  {
-    id: 2,
-    text: '초경량 모터 5개 출고. 2공장 조립 생산 라인 투입용',
-    parsed: {
-      itemName: '초경량 모터',
-      quantity: '5',
-      price: '12500',
-      note: '2공장 조립 생산 라인 투입용'
-    }
-  },
-  {
-    id: 3,
-    text: '에어제트 모터 30개 출고 부탁해요. 긴급 오더건!',
-    parsed: {
-      itemName: '에어제트 모터',
-      quantity: '30',
-      price: '4800',
-      note: '긴급 오더건!'
-    }
-  }
-];
+export const voicePresets: any[] = [];
 
 export const AiVoiceTerminal: React.FC<AiVoiceTerminalProps> = ({
   voiceText,
@@ -76,29 +45,31 @@ export const AiVoiceTerminal: React.FC<AiVoiceTerminalProps> = ({
       </div>
 
       {/* 음성 프리셋 패널 */}
-      <div className="mb-4">
-        <span className="text-xs font-bold text-slate-500 block mb-2">실시간 음성/자연어 분석용 프리셋:</span>
-        <div className="flex flex-col space-y-1.5">
-          {voicePresets.map((preset) => (
-            <button
-              key={preset.id}
-              onClick={() => {
-                setVoiceText(preset.text);
-                setSelectedVoicePreset(preset.id);
-                onResetSuccess();
-              }}
-              className={`p-2 rounded-lg border text-left text-xs transition-all flex items-center space-x-2 ${
-                selectedVoicePreset === preset.id
-                  ? 'border-red-500 bg-red-50 text-red-950 font-medium'
-                  : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50 text-slate-600'
-              }`}
-            >
-              <Volume2 className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
-              <span className="truncate">{preset.text}</span>
-            </button>
-          ))}
+      {voicePresets.length > 0 && (
+        <div className="mb-4">
+          <span className="text-xs font-bold text-slate-500 block mb-2">실시간 음성/자연어 분석용 프리셋:</span>
+          <div className="flex flex-col space-y-1.5">
+            {voicePresets.map((preset) => (
+              <button
+                key={preset.id}
+                onClick={() => {
+                  setVoiceText(preset.text);
+                  setSelectedVoicePreset(preset.id);
+                  onResetSuccess();
+                }}
+                className={`p-2 rounded-lg border text-left text-xs transition-all flex items-center space-x-2 ${
+                  selectedVoicePreset === preset.id
+                    ? 'border-red-500 bg-red-50 text-red-950 font-medium'
+                    : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50 text-slate-600'
+                }`}
+              >
+                <Volume2 className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />
+                <span className="truncate">{preset.text}</span>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 자연어 텍스트 및 음성 마이크 UI */}
       <div className="flex gap-2 mb-4">

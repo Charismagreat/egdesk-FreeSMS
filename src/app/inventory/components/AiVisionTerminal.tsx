@@ -9,53 +9,7 @@ interface AiVisionTerminalProps {
   onOpenItemModal: () => void;
 }
 
-export const visionPresets = [
-  {
-    id: 1,
-    title: '한성정밀 자재 매입 명세서',
-    filename: 'invoice_hansung_2026.png',
-    data: {
-      name: '초경량 모터',
-      category: '전동부품',
-      price: '12500',
-      partner: '한성정밀(주)',
-      stock: '50',
-      safeStock: '15',
-      location: 'A홀 3번 선반',
-      description: '고효율 초경량 BLDC 모터'
-    }
-  },
-  {
-    id: 2,
-    title: '글로벌 트레이딩 완제품 인보이스',
-    filename: 'invoice_global_trading.jpg',
-    data: {
-      name: '써모글로우 텀블러',
-      category: '리빙웨어',
-      price: '8700',
-      partner: '글로벌 트레이딩',
-      stock: '120',
-      safeStock: '30',
-      location: 'B홀 12번 적재함',
-      description: '보온보냉 고진공 텀블러 500ml'
-    }
-  },
-  {
-    id: 3,
-    title: '대성부자재 매입 영수증',
-    filename: 'receipt_daesung.png',
-    data: {
-      name: '에어제트 모터',
-      category: '전동부품',
-      price: '4800',
-      partner: '대성부자재상사',
-      stock: '80',
-      safeStock: '20',
-      location: 'A홀 5번 선반',
-      description: '소형 고압 에어분사식 모터 세트'
-    }
-  }
-];
+export const visionPresets: any[] = [];
 
 export const AiVisionTerminal: React.FC<AiVisionTerminalProps> = ({
   aiVisionLoading,
@@ -81,26 +35,28 @@ export const AiVisionTerminal: React.FC<AiVisionTerminalProps> = ({
       </div>
 
       {/* 명세서 샘플 프리셋 선택 */}
-      <div className="mb-4">
-        <span className="text-xs font-bold text-slate-500 block mb-2">실시간 분석용 명세서 이미지 프리셋:</span>
-        <div className="flex flex-col space-y-1.5">
-          {visionPresets.map((preset) => (
-            <button
-              key={preset.id}
-              onClick={() => onPresetClick(preset.id)}
-              disabled={aiVisionLoading}
-              className={`p-2 rounded-lg border text-left text-xs transition-all flex items-center justify-between ${
-                selectedVisionPreset === preset.id
-                  ? 'border-indigo-500 bg-indigo-50 text-indigo-950 font-medium'
-                  : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50 text-slate-600'
-              }`}
-            >
-              <span className="truncate">{preset.title}</span>
-              <span className="text-[10px] text-slate-400 font-mono">{preset.filename}</span>
-            </button>
-          ))}
+      {visionPresets.length > 0 && (
+        <div className="mb-4">
+          <span className="text-xs font-bold text-slate-500 block mb-2">실시간 분석용 명세서 이미지 프리셋:</span>
+          <div className="flex flex-col space-y-1.5">
+            {visionPresets.map((preset) => (
+              <button
+                key={preset.id}
+                onClick={() => onPresetClick(preset.id)}
+                disabled={aiVisionLoading}
+                className={`p-2 rounded-lg border text-left text-xs transition-all flex items-center justify-between ${
+                  selectedVisionPreset === preset.id
+                    ? 'border-indigo-500 bg-indigo-50 text-indigo-950 font-medium'
+                    : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50 text-slate-600'
+                }`}
+              >
+                <span className="truncate">{preset.title}</span>
+                <span className="text-[10px] text-slate-400 font-mono">{preset.filename}</span>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 영수증/인보이스 드롭존 & 스캔 비주얼 효과 레이어 */}
       <div 
