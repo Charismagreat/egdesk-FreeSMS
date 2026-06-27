@@ -276,6 +276,7 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           actionName: 'ocr_confirm_inventory_inbound',
+          fileType: 'INVENTORY_INBOUND',
           partnerName: ocrForm.items[0]?.partnerName || ocrForm.partnerName,
           inboundDate: ocrForm.items[0]?.inboundDate || ocrForm.inboundDate,
           items: requestItems,

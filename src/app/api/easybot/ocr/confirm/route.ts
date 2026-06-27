@@ -115,7 +115,7 @@ export async function POST(req: Request) {
     }
 
     const reqBody = await req.json();
-    const { fileType } = reqBody;
+    const fileType = reqBody.fileType || (reqBody.actionName === 'ocr_confirm_inventory_inbound' ? 'INVENTORY_INBOUND' : '');
     const nowStr = getNowTimestamp();
     reqBody.operator = operator;
 
