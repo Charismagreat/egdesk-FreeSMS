@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 import { NextResponse } from 'next/server';
 import { queryTable, insertRows, updateRows, executeSQL } from '../../../../../egdesk-helpers';
 import { checkRagApproval } from '../../../../lib/rag-approval';

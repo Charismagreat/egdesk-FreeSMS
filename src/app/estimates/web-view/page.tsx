@@ -243,7 +243,7 @@ function WebViewContent() {
       const title = typeConfig[type].title;
 
       if (type === "inbound_est" || type === "outbound_est") {
-        const res = await fetch("/api/estimates?action=list");
+        const res = await fetch(`/api/estimates?action=list&_t=${Date.now()}`);
         const json = await res.json();
         if (json.success && json.estimates) {
           const estimatesList = json.estimates;
@@ -304,7 +304,7 @@ function WebViewContent() {
           });
         }
       } else if (type === "inbound_po") {
-        const res = await fetch("/api/estimates/process?action=po_list");
+        const res = await fetch(`/api/estimates/process?action=po_list&_t=${Date.now()}`);
         const json = await res.json();
         if (json.success && json.purchaseOrders) {
           const purchaseOrders = json.purchaseOrders;
@@ -335,7 +335,7 @@ function WebViewContent() {
           });
         }
       } else if (type === "outbound_so") {
-        const res = await fetch("/api/estimates/process?action=so_list");
+        const res = await fetch(`/api/estimates/process?action=so_list&_t=${Date.now()}`);
         const json = await res.json();
         if (json.success && json.salesOrders) {
           const salesOrders = json.salesOrders;
@@ -369,7 +369,7 @@ function WebViewContent() {
           });
         }
       } else if (type === "inventory_inout") {
-        const res = await fetch("/api/inventory/logs");
+        const res = await fetch(`/api/inventory/logs?_t=${Date.now()}`);
         const json = await res.json();
         if (json.success && json.data) {
           const logsList = Array.isArray(json.data) ? json.data : [];
@@ -392,7 +392,7 @@ function WebViewContent() {
             await Promise.all(
               uniqueIds.map(async (id) => {
                 try {
-                  const detailRes = await fetch(`/api/inventory/inbounds?inbound_id=${id}`);
+                  const detailRes = await fetch(`/api/inventory/inbounds?inbound_id=${id}&_t=${Date.now()}`);
                   const detailJson = await detailRes.json();
                   if (detailJson.success && detailJson.data) {
                     inboundDetailsMap.set(id, detailJson.data);
