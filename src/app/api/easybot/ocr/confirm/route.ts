@@ -117,6 +117,7 @@ export async function POST(req: Request) {
     const reqBody = await req.json();
     const { fileType } = reqBody;
     const nowStr = getNowTimestamp();
+    reqBody.operator = operator;
 
     let serviceResult: any = null;
     let actionName = '';

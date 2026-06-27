@@ -1,5 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { decodeJwt } from 'jose';
 import { queryTable } from '../../../../../../egdesk-helpers';
 import { handleInventoryInbound } from '../../../easybot/ocr/confirm/services/inventory';
 
@@ -8,11 +10,32 @@ function getKoreanTimestamp() {
   return date.toISOString().replace('T', ' ').substring(0, 19);
 }
 
+async function verifyUserSession(): Promise<string> {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth_token')?.value;
+
+    if (!token) {
+      const allOps = await queryTable('crm_operators', { filters: { role: 'SUPER_ADMIN' } });
+      if (allOps.rows && allOps.rows.length > 0) {
+        return allOps.rows[0].name || allOps.rows[0].username || '최고관리자';
+      }
+      return '최고관리자';
+    }
+
+    const payload = decodeJwt(token);
+    return (payload.name || payload.username || '최고관리자') as string;
+  } catch (err) {
+    return '최고관리자';
+  }
+}
+
 /**
  * POST: 파싱 가공된 엑셀 입고 데이터를 받아 자율 입고 및 재고 반영 실행
  */
 export async function POST(req: Request) {
   try {
+    const operator = await verifyUserSession();
     const body = await req.json();
     const { partner_name, inbound_date, items = [], file_url } = body;
 
@@ -80,7 +103,8 @@ export async function POST(req: Request) {
       partnerName: partner_name,
       inboundDate: inbound_date,
       pdfFilePath: file_url,
-      items: mappedItems
+      items: mappedItems,
+      operator: operator
     }, timestamp);
 
     return NextResponse.json({

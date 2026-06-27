@@ -5,7 +5,8 @@ export async function handleInventoryInbound(reqBody: any, nowStr: string) {
     partnerName,
     inboundDate,
     items = [],
-    pdfFilePath
+    pdfFilePath,
+    operator
   } = reqBody;
 
   if (!inboundDate) {
@@ -76,7 +77,7 @@ export async function handleInventoryInbound(reqBody: any, nowStr: string) {
           changeType: 'in',
           quantity: qty,
           price: price,
-          operator: '시스템 (자율 입고)',
+          operator: operator || '최고관리자',
           note: `[자율 입고] ${partnerName || ''} 거래명세서 스캔 확정 반영` + (pdfFilePath ? ` (증빙: ${pdfFilePath})` : '') + (item.note ? ` | ${item.note}` : ''),
           createdAt: nowStr
         }]);
@@ -115,7 +116,7 @@ export async function handleInventoryInbound(reqBody: any, nowStr: string) {
         changeType: 'in',
         quantity: qty,
         price: price,
-        operator: '시스템 (자율 입고)',
+        operator: operator || '최고관리자',
         note: `[자율 신규 등록] ${partnerName || ''} 거래명세서 스캔 최초 입고` + (pdfFilePath ? ` (증빙: ${pdfFilePath})` : '') + (item.note ? ` | ${item.note}` : ''),
         createdAt: nowStr
       }]);
