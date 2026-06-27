@@ -115,11 +115,12 @@ function WebViewContent() {
 
   const getFileUrl = (url: string | null) => {
     if (!url) return "";
-    if (url.startsWith("/uploads/") || url.startsWith("/api/")) {
-      const apiHost = process.env.NEXT_PUBLIC_EGDESK_API_URL || "http://localhost:8080";
-      return `${apiHost}${url}`;
-    }
-    return url;
+    if (url.startsWith("data:")) return url;
+    if (url.startsWith("http://") || url.startsWith("https://")) return url;
+    
+    const apiHost = process.env.NEXT_PUBLIC_EGDESK_API_URL || "http://localhost:8080";
+    const normalizedUrl = url.startsWith("/") ? url : `/${url}`;
+    return `${apiHost}${normalizedUrl}`;
   };
 
   // 🖨️ 인쇄 기능 구현 (이미지/PDF 대응)
