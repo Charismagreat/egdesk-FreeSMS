@@ -1,5 +1,5 @@
-import React from 'react';
-import { Sparkles, FileText, Loader2, CheckCircle } from 'lucide-react';
+import React, { useRef } from 'react';
+import { Sparkles, FileText, Loader2, CheckCircle, UploadCloud } from 'lucide-react';
 
 interface AiVisionTerminalProps {
   aiVisionLoading: boolean;
@@ -7,17 +7,51 @@ interface AiVisionTerminalProps {
   scanningLine: boolean;
   onPresetClick: (presetId: number) => void;
   onOpenItemModal: () => void;
+  onFileSelect?: (file: File) => void; // 실제 파일 OCR 분석 트리거용
 }
 
-export const visionPresets: any[] = [];
+export const visionPresets = [
+  { id: 1, title: "일반 자재 거래명세서 샘플", filename: "material_invoice_sample.png", data: {} },
+  { id: 2, title: "완제품 납품영수증 샘플", filename: "product_receipt_sample.png", data: {} }
+];
 
 export const AiVisionTerminal: React.FC<AiVisionTerminalProps> = ({
   aiVisionLoading,
   selectedVisionPreset,
   scanningLine,
   onPresetClick,
-  onOpenItemModal
+  onOpenItemModal,
+  onFileSelect
 }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleBoxClick = () => {
+    if (aiVisionLoading) return;
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && onFileSelect) {
+      onFileSelect(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (aiVisionLoading) return;
+    const file = e.dataTransfer.files?.[0];
+    if (file && onFileSelect) {
+      onFileSelect(file);
+    }
+  };
+
   return (
     <div className="bg-white rounded-2xl p-6 shadow-md border border-slate-100 flex flex-col relative overflow-hidden">
       <div className="absolute top-0 right-0 p-3 bg-indigo-50 text-indigo-600 rounded-bl-2xl font-bold text-[10px] uppercase flex items-center gap-1">
@@ -34,37 +68,42 @@ export const AiVisionTerminal: React.FC<AiVisionTerminalProps> = ({
         </p>
       </div>
 
-      {/* 명세서 샘플 프리셋 선택 */}
-      {visionPresets.length > 0 && (
-        <div className="mb-4">
-          <span className="text-xs font-bold text-slate-500 block mb-2">실시간 분석용 명세서 이미지 프리셋:</span>
-          <div className="flex flex-col space-y-1.5">
-            {visionPresets.map((preset) => (
-              <button
-                key={preset.id}
-                onClick={() => onPresetClick(preset.id)}
-                disabled={aiVisionLoading}
-                className={`p-2 rounded-lg border text-left text-xs transition-all flex items-center justify-between ${
-                  selectedVisionPreset === preset.id
-                    ? 'border-indigo-500 bg-indigo-50 text-indigo-950 font-medium'
-                    : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50 text-slate-600'
-                }`}
-              >
-                <span className="truncate">{preset.title}</span>
-                <span className="text-[10px] text-slate-400 font-mono">{preset.filename}</span>
-              </button>
-            ))}
-          </div>
+      {/* 명세서 샘플 프리셋 시뮬레이터 */}
+      <div className="mb-4">
+        <span className="text-xs font-bold text-slate-500 block mb-2">데모용 명세서 이미지 시뮬레이터 프리셋:</span>
+        <div className="flex flex-col space-y-1.5">
+          {visionPresets.map((preset) => (
+            <button
+              key={preset.id}
+              onClick={() => onPresetClick(preset.id)}
+              disabled={aiVisionLoading}
+              className={`p-2 rounded-lg border text-left text-xs transition-all flex items-center justify-between cursor-pointer ${
+                selectedVisionPreset === preset.id
+                  ? 'border-indigo-500 bg-indigo-50 text-indigo-950 font-medium'
+                  : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50 text-slate-600'
+              }`}
+            >
+              <span className="truncate">{preset.title}</span>
+              <span className="text-[10px] text-slate-400 font-mono">{preset.filename}</span>
+            </button>
+          ))}
         </div>
-      )}
+      </div>
 
-      {/* 영수증/인보이스 드롭존 & 스캔 비주얼 효과 레이어 */}
+      {/* 숨겨진 파일 인풋 */}
+      <input 
+        type="file" 
+        ref={fileInputRef}
+        accept="image/*,application/pdf"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+
+      {/* 영수증/인보이스 드롭존 & 실제 스캔 가능 구역 */}
       <div 
-        onClick={() => {
-          if (!aiVisionLoading) {
-            onPresetClick(1);
-          }
-        }}
+        onClick={handleBoxClick}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
         className="relative border-2 border-dashed border-slate-200 rounded-xl p-6 flex flex-col items-center justify-center bg-slate-50 min-h-[140px] overflow-hidden group cursor-pointer hover:bg-indigo-50/20 hover:border-indigo-300/60 transition-all"
       >
         {scanningLine && (
@@ -89,11 +128,11 @@ export const AiVisionTerminal: React.FC<AiVisionTerminalProps> = ({
           </div>
         ) : (
           <div className="flex flex-col items-center text-center space-y-2">
-            <FileText className="w-8 h-8 text-slate-400" />
+            <UploadCloud className="w-8 h-8 text-slate-400 group-hover:scale-110 transition-transform" />
             <div className="text-xs text-slate-500">
-              <span className="text-indigo-500 font-bold hover:underline cursor-pointer">이미지 파일 찾아보기</span> 또는 드래그 앤 드롭
+              <span className="text-indigo-500 font-bold hover:underline cursor-pointer">실제 이미지/PDF 파일 찾아보기</span> 또는 드래그 앤 드롭
             </div>
-            <div className="text-[10px] text-slate-400">PNG, JPG, PDF (가상 시뮬레이터 지원)</div>
+            <div className="text-[10px] text-slate-400">PNG, JPG, PDF (Gemini 실시간 연동 지원)</div>
           </div>
         )}
       </div>
@@ -101,17 +140,17 @@ export const AiVisionTerminal: React.FC<AiVisionTerminalProps> = ({
       {/* 신규 품목 등록으로 바로 연동하는 원클릭 액션 */}
       <div className="mt-4 flex items-center justify-between">
         <span className="text-[11px] text-slate-400">
-          * 실제 명세서 사진 파싱 후 정보가 등록 폼에 <strong className="text-indigo-500">타이핑 효과</strong>로 자동 매핑됩니다.
+          * 실제 파일 업로드 시 <strong className="text-indigo-600">실시간 AI OCR 모달</strong>이 팝업되어 입고를 일괄 승인합니다.
         </span>
         <button
           onClick={() => {
-            if (!selectedVisionPreset) {
+            if (!selectedVisionPreset && !onFileSelect) {
               alert('먼저 명세서 샘플을 선택하여 AI 스캔을 수행해 주세요.');
               return;
             }
             onOpenItemModal();
           }}
-          className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold text-xs px-4 py-2.5 rounded-xl border border-indigo-100 transition-colors"
+          className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 font-bold text-xs px-4 py-2.5 rounded-xl border border-indigo-100 transition-colors cursor-pointer"
         >
           품목 폼에서 확인하기 &rarr;
         </button>

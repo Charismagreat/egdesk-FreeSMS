@@ -22,6 +22,7 @@ import { ExcelGuideModal } from './components/ExcelGuideModal';
 import { BarcodePrintModal } from './components/BarcodePrintModal';
 import { DeadstockControl } from './components/DeadstockControl';
 import InboundExcelModal from './components/InboundExcelModal';
+import { InboundOcrModal } from './components/InboundOcrModal';
 
 export default function InventoryPage() {
   // 상태 정의
@@ -68,7 +69,12 @@ export default function InventoryPage() {
   const [isItemModalOpen, setIsItemModalOpen] = useState(false);
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
   const [isInboundExcelModalOpen, setIsInboundExcelModalOpen] = useState(false);
+  const [isInboundOcrModalOpen, setIsInboundOcrModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+
+  const handleOcrFileSelect = (file: File) => {
+    setIsInboundOcrModalOpen(true);
+  };
   
   // 신규 품목 폼 상태
   const [itemForm, setItemForm] = useState<ItemFormState>({
@@ -1030,6 +1036,7 @@ export default function InventoryPage() {
             scanningLine={scanningLine}
             onPresetClick={triggerAiVisionScan}
             onOpenItemModal={() => setIsItemModalOpen(true)}
+            onFileSelect={handleOcrFileSelect}
           />
 
           <AiVoiceTerminal
@@ -1145,6 +1152,12 @@ export default function InventoryPage() {
           alert(msg);
           fetchData();
         }}
+      />
+
+      <InboundOcrModal
+        isOpen={isInboundOcrModalOpen}
+        onClose={() => setIsInboundOcrModalOpen(false)}
+        onSuccess={fetchData}
       />
     </div>
   );
