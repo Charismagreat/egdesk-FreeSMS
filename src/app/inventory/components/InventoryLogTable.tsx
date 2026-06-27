@@ -126,18 +126,32 @@ export const InventoryLogTable: React.FC<InventoryLogTableProps> = ({ logs }) =>
                             )}
                             {proofPath && (
                               <a
-                                href={proofPath.startsWith('data:') ? '#' : proofPath}
+                                href="#"
                                 onClick={(e) => {
+                                  e.preventDefault();
                                   if (proofPath.startsWith('data:')) {
-                                    e.preventDefault();
-                                    const win = window.open();
-                                    if (win) {
-                                      win.document.write(`<iframe src="${proofPath}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                                    try {
+                                      const parts = proofPath.split(';base64,');
+                                      const contentType = parts[0].split(':')[1];
+                                      const raw = window.atob(parts[1]);
+                                      const rawLength = raw.length;
+                                      const uInt8Array = new Uint8Array(rawLength);
+                                      for (let i = 0; i < rawLength; ++i) {
+                                        uInt8Array[i] = raw.charCodeAt(i);
+                                      }
+                                      const blob = new Blob([uInt8Array], { type: contentType });
+                                      const blobUrl = URL.createObjectURL(blob);
+                                      window.open(blobUrl, '_blank');
+                                    } catch (err) {
+                                      console.error('Base64 디코딩 에러:', err);
+                                      window.open(proofPath, '_blank');
                                     }
+                                  } else {
+                                    alert(
+                                      `[안내] 해당 항목은 원본 파일 데이터(Base64)가 포함되지 않고 파일명만 기록된 일반 전표 문서입니다.\n\n- 파일명: ${proofPath}`
+                                    );
                                   }
                                 }}
-                                target="_blank"
-                                rel="noopener noreferrer"
                                 className="inline-flex items-center gap-0.5 px-2 py-0.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-650 hover:text-indigo-800 rounded-md text-[9px] font-extrabold border border-indigo-100 transition-colors cursor-pointer"
                                 title="자율입고 증빙 파일 조회"
                               >
