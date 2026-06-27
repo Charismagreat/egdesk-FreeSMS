@@ -71,11 +71,11 @@ export const InventoryLogTable: React.FC<InventoryLogTableProps> = ({ logs }) =>
                   <td className="py-3 px-4 font-semibold text-slate-700">{log.itemName}</td>
                   <td className="py-3 px-4">
                     <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                      log.itemType === 'material' 
+                      (log.itemType === '자재' || log.itemType === 'material')
                         ? 'bg-blue-50 text-blue-600 border border-blue-100' 
                         : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
                     }`}>
-                      {log.itemType === 'material' ? '자재' : '제품'}
+                      {(log.itemType === '자재' || log.itemType === 'material') ? '자재' : '제품'}
                     </span>
                   </td>
                   <td className="py-3 px-4 text-center">
