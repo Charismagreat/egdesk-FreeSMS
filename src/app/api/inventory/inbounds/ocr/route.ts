@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { fetchGeminiWithFallback } from '../../../../../lib/gemini-fallback';
 import { queryTable } from '@/../egdesk-helpers';
+import crypto from 'crypto';
 
 export const maxDuration = 60; // 60초 타임아웃
 export const dynamic = 'force-dynamic';
@@ -16,6 +17,17 @@ export async function POST(req: Request) {
     const buffer = await file.arrayBuffer();
     const base64Image = Buffer.from(buffer).toString('base64');
     const mimeType = file.type || 'image/jpeg';
+
+    // 0. 파일 해시 기반 1단계 중복 등록 원천 차단
+    const fileHash = crypto.createHash('sha256').update(Buffer.from(buffer)).digest('hex');
+    const duplicateRes = await queryTable('crm_inventory_inbounds', { filters: { file_hash: fileHash } });
+    if (duplicateRes.rows && duplicateRes.rows.length > 0) {
+      return NextResponse.json({
+        success: false,
+        error: 'DUPLICATE_FILE',
+        message: '이미 입고 완료 처리된 동일한 명세서 파일입니다.'
+      });
+    }
 
     // 1. DB에서 구글 AI 설정 정보 로드
     const settingsRes = await queryTable('system_settings', { filters: { key: 'google_ai_api_key' } });
@@ -120,12 +132,30 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
 
     try {
       const parsedOcr = JSON.parse(responseText);
+
+      // 2차 거래 메타데이터 조합 중복 검사
+      let isMetaDuplicate = false;
+      if (parsedOcr.partnerName && parsedOcr.inboundDate) {
+        const metaMatchRes = await queryTable('crm_inventory_inbounds', {
+          filters: {
+            partner_name: parsedOcr.partnerName,
+            inbound_date: parsedOcr.inboundDate,
+            total_amount: String(Number(parsedOcr.originalTotalAmount) || 0)
+          }
+        });
+        if (metaMatchRes.rows && metaMatchRes.rows.length > 0) {
+          isMetaDuplicate = true;
+        }
+      }
+
       return NextResponse.json({
         success: true,
         partnerName: parsedOcr.partnerName || '',
         inboundDate: parsedOcr.inboundDate || new Date(Date.now() + 9*60*60*1000).toISOString().slice(0, 10),
         originalTotalAmount: Number(parsedOcr.originalTotalAmount) || 0,
         originalTotalQuantity: Number(parsedOcr.originalTotalQuantity) || 0,
+        isMetaDuplicate,
+        fileHash,
         items: parsedOcr.items || []
       });
     } catch (parseError) {

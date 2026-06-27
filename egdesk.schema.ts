@@ -444,8 +444,8 @@ export const TABLES = {
   crm_inventory_inbounds: {
     name: 'crm_inventory_inbounds',
     displayName: '자율 입고 대장',
-    columns: ['partner_name', 'inbound_date', 'total_amount', 'pdf_file_path', 'created_at', 'updated_at', 'uuid', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by'],
-    columnCount: 12,
+    columns: ['partner_name', 'inbound_date', 'total_amount', 'pdf_file_path', 'file_hash', 'created_at', 'updated_at', 'uuid', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by'],
+    columnCount: 13,
     rowCount: 0,
   },
   inventory_items: {

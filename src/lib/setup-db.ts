@@ -565,6 +565,7 @@ export async function setupDatabase() {
     { name: 'inbound_date', type: 'TEXT', notNull: true },
     { name: 'total_amount', type: 'INTEGER', defaultValue: 0 },
     { name: 'pdf_file_path', type: 'TEXT' },
+    { name: 'file_hash', type: 'TEXT' },
     { name: 'created_at', type: 'TEXT', notNull: true },
     { name: 'updated_at', type: 'TEXT', notNull: true }
   ], { tableName: 'crm_inventory_inbounds', uniqueKeyColumns: ['id'] });

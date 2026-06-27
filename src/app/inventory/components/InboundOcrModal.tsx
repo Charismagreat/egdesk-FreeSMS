@@ -49,13 +49,17 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
     originalTotalQuantity: number;
     items: InboundOcrItem[];
     fileUrl: string;
+    fileHash?: string;
+    isMetaDuplicate?: boolean;
   }>({
     partnerName: '',
     inboundDate: '',
     originalTotalAmount: 0,
     originalTotalQuantity: 0,
     items: [],
-    fileUrl: ''
+    fileUrl: '',
+    fileHash: '',
+    isMetaDuplicate: false
   });
 
   // 파일 분석 공통 처리 로직
@@ -108,12 +112,18 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
             inboundDate: data.inboundDate || new Date().toISOString().slice(0, 10),
             originalTotalAmount: Number(data.originalTotalAmount) || 0,
             originalTotalQuantity: Number(data.originalTotalQuantity) || 0,
+            fileHash: data.fileHash || '',
+            isMetaDuplicate: !!data.isMetaDuplicate,
             items: enrichedItems,
             fileUrl: base64Data
           });
         } else {
           setOcrScanning(false);
-          alert('OCR 분석 실패: ' + (data.error || '알 수 없는 오류'));
+          if (data.error === 'DUPLICATE_FILE') {
+            alert(`[이중 입고 차단]\n\n${data.message}`);
+          } else {
+            alert('OCR 분석 실패: ' + (data.error || '알 수 없는 오류'));
+          }
           resetOcrState();
         }
       } catch (error: any) {
@@ -235,6 +245,14 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
       if (!confirmForce) return;
     }
 
+    // 2단계 메타데이터 중복 가드 컨펌 작동
+    if (ocrForm.isMetaDuplicate) {
+      const confirmMeta = window.confirm(
+        `[이중 등록 경보]\n\n동일한 날짜, 공급처, 금액으로 이미 등록된 입고 전표 기록이 데이터베이스에 존재합니다.\n\n이것이 중복 등록이 아닌 새로운 추가 입고 건이 확실한가요?\n\n(확실할 경우 '확인'을 누르고, 중복일 경우 '취소'를 누르십시오.)`
+      );
+      if (!confirmMeta) return;
+    }
+
     try {
       setIsProcessing(true);
 
@@ -262,7 +280,8 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
           inboundDate: ocrForm.items[0]?.inboundDate || ocrForm.inboundDate,
           items: requestItems,
           pdfFilePath: file?.name || 'AI 비전 OCR 입고',
-          operator: '최고 관리자'
+          operator: '최고 관리자',
+          fileHash: ocrForm.fileHash || ''
         })
       });
 
@@ -474,6 +493,15 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
                   </div>
                 </div>
 
+                {/* 중복 경고 바 */}
+                {ocrForm.isMetaDuplicate && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 mb-3 flex items-center gap-2 animate-pulse shrink-0">
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <div className="text-[10px] text-amber-800 font-bold leading-tight">
+                      [이중 등록 경보] 동일한 날짜, 공급처, 최종 금액의 입고 대장이 이미 데이터베이스에 등록되어 있습니다. 이중 전표 처리가 되지 않도록 승인 시 각별히 확인해 주십시오.
+                    </div>
+                  </div>
+                )}
 
                 {/* 14개 전체 컬럼 컴팩트 테이블 (세로 공간 꽉 채우기 위해 66vh 고정) */}
                 <div className="h-[70vh] lg:h-[70vh] border border-slate-100 rounded-2xl overflow-y-auto bg-white shadow-sm">

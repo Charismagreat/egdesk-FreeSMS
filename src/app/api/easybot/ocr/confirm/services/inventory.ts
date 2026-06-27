@@ -6,7 +6,8 @@ export async function handleInventoryInbound(reqBody: any, nowStr: string) {
     inboundDate,
     items = [],
     pdfFilePath,
-    operator
+    operator,
+    fileHash
   } = reqBody;
 
   if (!inboundDate) {
@@ -29,6 +30,7 @@ export async function handleInventoryInbound(reqBody: any, nowStr: string) {
     inbound_date: inboundDate,
     total_amount: totalAmount,
     pdf_file_path: pdfFilePath || '',
+    file_hash: fileHash || '',
     created_at: nowStr,
     updated_at: nowStr
   }]);
