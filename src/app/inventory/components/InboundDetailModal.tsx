@@ -116,26 +116,31 @@ export const InboundDetailModal: React.FC<InboundDetailModalProps> = ({ inboundI
                 <table className="w-full border-collapse text-left text-[10px] table-fixed">
                   <thead>
                     <tr className="bg-slate-50/80 border-b border-slate-100 font-black text-slate-500 text-[9px] sticky top-0 z-10 backdrop-blur-sm">
-                      <th className="py-2.5 px-1 w-[4%] text-center">구분</th>
-                      <th className="py-2.5 px-1 w-[6%]">카테고리</th>
+                      <th className="py-2.5 px-1 w-[3%] text-center">No.</th>
+                      <th className="py-2.5 px-1 w-[3%] text-center">구분</th>
+                      <th className="py-2.5 px-1 w-[5%]">카테고리</th>
                       <th className="py-2.5 px-1 w-[15%]">품목명</th>
-                      <th className="py-2.5 px-1 w-[7%]">품목코드</th>
+                      <th className="py-2.5 px-1 w-[8%]">품목코드</th>
                       <th className="py-2.5 px-1 w-[7%]">바코드</th>
                       <th className="py-2.5 px-1 w-[7%]">규격</th>
                       <th className="py-2.5 px-1 w-[3%] text-center">단위</th>
-                      <th className="py-2.5 px-1 w-[5%] text-right">입수량</th>
-                      <th className="py-2.5 px-1 w-[6%] text-right">입고수량</th>
+                      <th className="py-2.5 px-1 w-[4%] text-right">입수량</th>
+                      <th className="py-2.5 px-1 w-[5%] text-right">입고수량</th>
                       <th className="py-2.5 px-1 w-[6%] text-right">입고단가</th>
                       <th className="py-2.5 px-1 w-[7%] text-right">총액</th>
                       <th className="py-2.5 px-1 w-[9%]">공급처명</th>
                       <th className="py-2.5 px-1 w-[7%] text-center">입고일자</th>
                       <th className="py-2.5 px-1 w-[5%] text-center">적재위치</th>
-                      <th className="py-2.5 px-1 w-[8%]">비고</th>
+                      <th className="py-2.5 px-1 w-[9%]">비고</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {items.map((item) => (
+                    {items.map((item, index) => (
                       <tr key={item.id} className="hover:bg-indigo-50/20 transition-colors odd:bg-white even:bg-slate-50/10">
+                        {/* 0. No. */}
+                        <td className="py-2 px-1 text-center text-slate-450 font-bold font-mono">
+                          {index + 1}
+                        </td>
                         {/* 1. 구분 */}
                         <td className="py-2 px-1 text-center">
                           <span className={`px-1.5 py-0.5 rounded-md text-[8px] font-black ${
