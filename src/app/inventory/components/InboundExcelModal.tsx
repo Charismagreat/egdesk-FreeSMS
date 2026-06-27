@@ -739,40 +739,44 @@ export default function InboundExcelModal({
                 </div>
               </div>
 
-              <div className="border border-slate-100 rounded-2xl overflow-hidden max-h-[250px] overflow-y-auto">
-                <table className="w-full border-collapse text-left text-[10px]">
+              <div className="border border-slate-100 rounded-2xl overflow-hidden max-h-[280px] overflow-y-auto overflow-x-auto">
+                <table className="w-full border-collapse text-left text-[10px] min-w-[1300px]">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-100 font-black text-slate-500">
+                      <th className="p-3">구분</th>
+                      <th className="p-3">카테고리</th>
                       <th className="p-3">품목명</th>
                       <th className="p-3">품목코드</th>
                       <th className="p-3">바코드</th>
                       <th className="p-3">규격</th>
-                      <th className="p-3">카테고리</th>
                       <th className="p-3">단위</th>
                       <th className="p-3 text-right">박스입수량</th>
-                      <th className="p-3">구분</th>
+                      <th className="p-3 text-right">입고 수량</th>
+                      <th className="p-3 text-right">입고 단가</th>
+                      <th className="p-3">공급처명(거래처)</th>
+                      <th className="p-3">입고일자</th>
                       <th className="p-3">적재위치</th>
-                      <th className="p-3">수집비고 및 메모</th>
-                      <th className="p-3 text-right">수량</th>
-                      <th className="p-3 text-right">단가</th>
+                      <th className="p-3">비고(수집 정보)</th>
                       <th className="p-3 text-right">총액</th>
                     </tr>
                   </thead>
                   <tbody>
                     {parsedResult.items.map((item, idx) => (
                       <tr key={idx} className="border-b border-slate-50 hover:bg-slate-50/50">
+                        <td className="p-3 text-slate-600 font-bold">{item.item_type || "자재"}</td>
+                        <td className="p-3 text-slate-500 font-bold">{item.category || "기타"}</td>
                         <td className="p-3 font-semibold text-slate-800 truncate max-w-[120px]" title={item.item_name}>{item.item_name}</td>
                         <td className="p-3 text-slate-450 truncate font-mono max-w-[80px]">{item.item_code || "-"}</td>
                         <td className="p-3 text-slate-450 truncate font-mono max-w-[80px]">{item.barcode || "-"}</td>
                         <td className="p-3 text-slate-400 truncate max-w-[80px]">{item.spec || "-"}</td>
-                        <td className="p-3 text-slate-500 font-bold">{item.category || "기타"}</td>
                         <td className="p-3 text-slate-500 font-bold">{item.unit_type || "개"}</td>
                         <td className="p-3 text-right font-mono text-slate-500">{item.box_contains || 1}</td>
-                        <td className="p-3 text-slate-600 font-bold">{item.item_type || "자재"}</td>
-                        <td className="p-3 text-slate-600 font-bold">{item.location || "자율입고창고"}</td>
-                        <td className="p-3 text-slate-400/90 italic truncate max-w-[140px]" title={item.note}>{item.note || "-"}</td>
                         <td className="p-3 text-right text-indigo-650 font-bold">{item.quantity.toLocaleString()} {item.unit_type || "개"}</td>
                         <td className="p-3 text-right text-slate-700">{item.unit_price.toLocaleString()} 원</td>
+                        <td className="p-3 text-slate-700 truncate max-w-[110px]" title={parsedResult.partner_name}>{parsedResult.partner_name}</td>
+                        <td className="p-3 text-slate-600 font-mono">{parsedResult.inbound_date}</td>
+                        <td className="p-3 text-slate-600 font-bold">{item.location || "자율입고창고"}</td>
+                        <td className="p-3 text-slate-400/90 italic truncate max-w-[140px]" title={item.note}>{item.note || "-"}</td>
                         <td className="p-3 text-right text-slate-900 font-black">{(item.quantity * item.unit_price).toLocaleString()} 원</td>
                       </tr>
                     ))}
