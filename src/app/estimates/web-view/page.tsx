@@ -115,14 +115,19 @@ function WebViewContent() {
 
   const getFileUrl = (url: string | null) => {
     if (!url) return "";
-    if (url.startsWith("data:")) return url;
-    if (url.startsWith("http://") || url.startsWith("https://")) return url;
     
     if (url.includes("/api/estimates/ocr") || url.includes("/api/estimates/process")) {
+      const cleanUrl = url.replace("http://localhost:8080", "http://localhost:4000");
+      if (cleanUrl.startsWith("http://") || cleanUrl.startsWith("https://")) {
+        return cleanUrl;
+      }
       const feHost = "http://localhost:4000";
-      const normalizedUrl = url.startsWith("/") ? url : `/${url}`;
+      const normalizedUrl = cleanUrl.startsWith("/") ? cleanUrl : `/${cleanUrl}`;
       return `${feHost}${normalizedUrl}`;
     }
+    
+    if (url.startsWith("data:")) return url;
+    if (url.startsWith("http://") || url.startsWith("https://")) return url;
     
     const apiHost = process.env.NEXT_PUBLIC_EGDESK_API_URL || "http://localhost:8080";
     if (!url.startsWith("/") && (url.endsWith(".pdf") || /\.(png|jpg|jpeg|gif)$/i.test(url))) {
