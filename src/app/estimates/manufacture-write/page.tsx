@@ -208,6 +208,22 @@ export default function ManufactureEstimateWritePage() {
   const handleItemCodeLookup = (index: number, codeValue: string, isBlur = false) => {
     const code = String(codeValue).trim().toUpperCase();
 
+    // 품목코드를 싹 비운 경우, 해당 행의 모든 상세 정보(품명, 규격, 수량, 단가)도 깨끗이 초기화합니다.
+    if (!code) {
+      setMaterials(prev => {
+        const latest = [...prev];
+        if (latest[index]) {
+          latest[index].itemCode = "";
+          latest[index].productName = "";
+          latest[index].spec = "";
+          latest[index].quantity = 0;
+          latest[index].unitPrice = 0;
+        }
+        return latest;
+      });
+      return;
+    }
+
     // 1. itemCode 입력값은 실시간으로 materials 상태에 반영해 줍니다. (blur 시점에는 아래의 매칭 성공 시점에만 정규화)
     if (!isBlur) {
       setMaterials(prev => {
@@ -218,8 +234,6 @@ export default function ManufactureEstimateWritePage() {
         return latest;
       });
     }
-
-    if (!code) return;
 
     // 공통 상태 적용 헬퍼
     const applyMatched = (matched: any) => {
