@@ -207,6 +207,16 @@ export default function ManufactureEstimateWritePage() {
 
   const handleItemCodeLookup = (index: number, codeValue: string) => {
     const code = String(codeValue).trim().toUpperCase();
+
+    // 1. 매칭 여부와 관계없이 사용자가 타이핑한 itemCode 값은 실시간으로 materials 상태에 반영되어야 인풋 글자가 갱신됩니다.
+    setMaterials(prev => {
+      const latest = [...prev];
+      if (latest[index]) {
+        latest[index].itemCode = codeValue;
+      }
+      return latest;
+    });
+
     if (!code) return;
 
     // 1차로 로컬 캐시에서 신속 매핑 시도
@@ -222,8 +232,6 @@ export default function ManufactureEstimateWritePage() {
       setMaterials(prev => {
         const latest = [...prev];
         if (latest[index]) {
-          // 중요: onChange 쿼리 중 itemCode 값을 덮어쓰면 포커스가 끊겨 한 글자밖에 안 적히므로,
-          // itemCode는 덮어쓰지 않고 오직 품명, 규격, 단가만 채웁니다!
           latest[index].productName = matchedLocal.name || "";
           latest[index].spec = matchedLocal.spec || "";
           latest[index].unitPrice = Number(matchedLocal.price) || 0;
@@ -243,7 +251,6 @@ export default function ManufactureEstimateWritePage() {
             setMaterials(prev => {
               const latest = [...prev];
               if (latest[index]) {
-                // 중요: 마찬가지로 itemCode는 덮어쓰지 않음
                 latest[index].productName = matchedServer.name || "";
                 latest[index].spec = matchedServer.spec || "";
                 latest[index].unitPrice = Number(matchedServer.price) || 0;
@@ -260,19 +267,17 @@ export default function ManufactureEstimateWritePage() {
   };
 
   const handleMaterialChange = (index: number, field: keyof MaterialItem, value: any) => {
+    if (field === "itemCode") {
+      // 품목코드 입력인 경우, 덮어쓰기 오작동을 방지하기 위해 handleItemCodeLookup 함수에서 itemCode 값과 조회를 일괄 담당합니다.
+      handleItemCodeLookup(index, value);
+      return;
+    }
+
     const updated = [...materials];
     if (field === "quantity" || field === "unitPrice") {
       updated[index][field] = Number(value) || 0;
     } else {
       updated[index][field] = value;
-    }
-
-    // 품목코드 타이핑 즉시 실시간으로 자동완성 쿼리 실행 (itemCode 자체는 덮어쓰지 않아 키보드 버벅임 없음)
-    if (field === "itemCode") {
-      const code = String(value).trim().toUpperCase();
-      if (code) {
-        handleItemCodeLookup(index, code);
-      }
     }
     setMaterials(updated);
   };
