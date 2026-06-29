@@ -1089,13 +1089,11 @@ export default function ManufactureEstimateWritePage() {
                       <td className="py-1 text-right font-mono pr-1 text-indigo-700 font-black">{materialsTotal.toLocaleString()}원</td>
                     </tr>
 
-                    {/* 재료비 내역 전체 출력 (카테고리 접두어 및 └ 계층형 노출) */}
+                    {/* 재료비 내역 전체 출력 (구분 컬럼에 └ 카테고리 노출) */}
                     {materials.filter(m => m.productName).map((m, idx) => (
                       <tr key={`m-${idx}`} className="text-slate-755">
-                        <td className="py-1 pl-2 text-slate-450 font-bold">└ 재료비</td>
-                        <td className="py-1 truncate max-w-[120px]">
-                          [{m.category || "기타자재"}] {m.productName}
-                        </td>
+                        <td className="py-1 pl-2 text-slate-450 font-bold">└ {m.category || "기타자재"}</td>
+                        <td className="py-1 truncate max-w-[120px]">{m.productName}</td>
                         <td className="py-1 truncate max-w-[60px]">{m.spec || "-"}</td>
                         <td className="py-1 text-center font-mono">{m.quantity}</td>
                         <td className="py-1 text-right font-mono pr-1">{m.unitPrice ? m.unitPrice.toLocaleString() : "0"}</td>
