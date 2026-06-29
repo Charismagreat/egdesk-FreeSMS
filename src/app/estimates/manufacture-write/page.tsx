@@ -430,30 +430,6 @@ export default function ManufactureEstimateWritePage() {
     }
   };
 
-  // 프리셋 예시 데이터 자동 적재 (송배전 제조업 체험)
-  const handleLoadPreset = () => {
-    setMaterials([
-      { itemCode: "INV-001", productName: "수배전반 외함 프레임 (3.2t 분체도장)", spec: "2300*1400*1200", quantity: 1, unitPrice: 1200000, remark: "도장포함 외함" },
-      { itemCode: "INV-002", productName: "진공 차단기 (VCB) 24KV 630A", spec: "AH-24V-06", quantity: 1, unitPrice: 2450000, remark: "LS 일렉트릭 정품" },
-      { itemCode: "INV-003", productName: "고압 한류형 퓨즈 (LBS 연동)", spec: "24KV 40A", quantity: 3, unitPrice: 150000, remark: "LBS 보호용" },
-      { itemCode: "INV-004", productName: "구리 부스바 (은도금 가공재)", spec: "10T * 100mm * 2m", quantity: 6, unitPrice: 180000, remark: "전도체 배선" }
-    ]);
-    setDirectProcess([
-      { processName: "배전반 프레임 수동 조립 및 단말 가공", quantity: 18, unitPrice: 45000, remark: "숙련공 조립공수" },
-      { processName: "도금 부스바 프레스 벤딩 및 실장 작업", quantity: 12, unitPrice: 40000, remark: "부스바 벤딩 가공" }
-    ]);
-    setOutsourceProcess([
-      { processName: "외함 분체 도장 및 열처리 외주", quantity: 1, unitPrice: 280000, remark: "외주 도장" },
-      { processName: "전류계/전압계 디지털 계전기 결선 검사", quantity: 1, unitPrice: 350000, remark: "외주 정밀 계측 검수" }
-    ]);
-    setBuyer({
-      companyName: "우주건설산업 주식회사",
-      departmentName: "플랜트 설비구매부",
-      managerName: "이강민 부장",
-      phone: "010-4567-9012"
-    });
-    setMemo("1. 본 견적서의 유효기간은 발행일로부터 30일입니다.\n2. 납품 조건: 지정 장소 상차도 인도.\n3. 결제 조건: 계약 시 30%, 납품 검수 완료 후 70% 현금 지불.");
-  };
 
   // 6. 발송 핸들러 시뮬레이션
   const handleOpenSend = () => {
@@ -531,13 +507,6 @@ export default function ManufactureEstimateWritePage() {
             >
               <RefreshCw className="w-3.5 h-3.5" />
               내용 비우기
-            </button>
-            <button
-              onClick={handleLoadPreset}
-              className="px-4 py-3 bg-indigo-50 hover:bg-indigo-100/80 text-indigo-600 border border-indigo-200 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-              배전반 샘플 데이터 채우기
             </button>
             <button
               onClick={() => window.print()}
