@@ -65,6 +65,20 @@ export default function ManufactureEstimateWritePage() {
 
   const [memo, setMemo, isMemoRestored] = usePersistedState("egdesk_mfr_est_memo_v2", "");
 
+  // 특기사항 템플릿 상태 보존 (초기 기본 2종 장착)
+  const [memoTemplates, setMemoTemplates] = usePersistedState<{ id: string; title: string; content: string }[]>("egdesk_mfr_est_memo_templates_v2", [
+    {
+      id: "tpl-default-1",
+      title: "기본 조건 템플릿",
+      content: `1. 본 견적서의 유효기간은 발행일로부터 30일입니다.\n2. 납품 조건: 지정 장소 상차도 인도.\n3. 결제 조건: 계약 시 30%, 납품 검수 완료 후 70% 현금 지불`
+    },
+    {
+      id: "tpl-default-2",
+      title: "납기 및 하자 템플릿",
+      content: `1. 외함 규격 변경 시 재료비 및 도장 비용이 추가 정산됩니다.\n2. 납기일: 발주 후 3주일 이내 (상호 협의 가능).\n3. 하자보증기간: 검수 완료 및 납품 후 1년.`
+    }
+  ]);
+
   // 모든 세션 로드 완료 여부
   const isRestored = isSupplierRestored && isBuyerRestored && isMetaRestored && isMaterialsRestored && isDirectProcessRestored && isOutsourceProcessRestored && isMemoRestored;
 
@@ -280,6 +294,30 @@ export default function ManufactureEstimateWritePage() {
             } catch(e) {}
           }
         });
+    }
+  };
+
+  // 특기사항 템플릿 제어 핸들러
+  const handleSaveAsTemplate = () => {
+    if (!memo.trim()) {
+      alert("먼저 특기사항 란에 내용을 작성해 주세요.");
+      return;
+    }
+    const title = window.prompt("저장할 특기사항 템플릿의 이름을 입력해 주세요:");
+    if (!title || !title.trim()) return;
+    
+    const newTpl = {
+      id: `tpl-${Date.now()}`,
+      title: title.trim(),
+      content: memo
+    };
+    setMemoTemplates([...memoTemplates, newTpl]);
+    alert(`"${title.trim()}" 템플릿이 저장되었습니다!`);
+  };
+
+  const handleDeleteTemplate = (id: string, title: string) => {
+    if (window.confirm(`"${title}" 템플릿을 삭제하시겠습니까?`)) {
+      setMemoTemplates(memoTemplates.filter(t => t.id !== id));
     }
   };
 
@@ -885,11 +923,66 @@ export default function ManufactureEstimateWritePage() {
                   <span className="text-xs font-extrabold text-indigo-950 font-mono">{outsourceProcessTotal.toLocaleString()}원</span>
                 </div>
               </div>
-
               {/* 가공비 통합 요약 바 */}
               <div className="flex justify-between items-center bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/30">
                 <span className="text-xs font-black text-indigo-950">가공비 합계액 (직접 + 외주):</span>
                 <span className="text-sm font-black text-indigo-700 font-mono">{processTotal.toLocaleString()}원</span>
+              </div>
+
+              {/* 세션 6: 특기사항 */}
+              <div className="bg-white border border-slate-200/80 rounded-3xl p-6 space-y-4 text-left shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4.5 h-4.5 text-indigo-650" />
+                    <h3 className="text-sm font-black text-slate-850">특기사항</h3>
+                  </div>
+                  
+                  {/* 템플릿 액션 영역 */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={handleSaveAsTemplate}
+                      className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100/80 text-indigo-600 rounded-xl font-bold text-[10px] transition-all cursor-pointer shadow-sm active:scale-95 flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3 text-indigo-500" />
+                      현재 내용 템플릿 저장
+                    </button>
+                    
+                    {memoTemplates.length > 0 && (
+                      <div className="flex items-center gap-1.5 overflow-x-auto max-w-xs sm:max-w-md py-0.5 no-scrollbar">
+                        {memoTemplates.map(tpl => (
+                          <div
+                            key={tpl.id}
+                            className="flex items-center bg-slate-100 hover:bg-slate-200/60 border border-slate-200/60 rounded-xl pl-2.5 pr-1.5 py-1 text-[10px] font-bold text-slate-600 gap-1 shrink-0"
+                          >
+                            <button
+                              onClick={() => {
+                                if (memo.trim() && !window.confirm("현재 작성된 특기사항 내용을 덮어쓰시겠습니까?")) return;
+                                setMemo(tpl.content);
+                              }}
+                              className="hover:text-indigo-600 transition-colors"
+                            >
+                              {tpl.title}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteTemplate(tpl.id, tpl.title)}
+                              className="p-0.5 text-slate-400 hover:text-rose-500 rounded transition-all active:scale-90"
+                            >
+                              <X className="w-2.5 h-2.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <textarea 
+                  value={memo}
+                  onChange={e => setMemo(e.target.value)}
+                  placeholder="특기사항을 기입해주세요 (예: 견적 유효기간, 납품 및 결제 조건 등)..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs font-semibold leading-relaxed text-slate-800 outline-none focus:border-indigo-500 resize-none"
+                  rows={4}
+                />
               </div>
             </div>
 
@@ -940,21 +1033,7 @@ export default function ManufactureEstimateWritePage() {
               </div>
             </div>
 
-            {/* 세션 6: 특기사항 */}
-            <div className="bg-white border border-slate-200/80 rounded-3xl p-6 space-y-4 text-left shadow-sm">
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                <FileText className="w-4.5 h-4.5 text-indigo-650" />
-                <h3 className="text-sm font-black text-slate-850">특기사항</h3>
-              </div>
-              
-              <textarea 
-                value={memo}
-                onChange={e => setMemo(e.target.value)}
-                placeholder="특기사항을 기입해주세요 (예: 견적 유효기간, 납품 및 결제 조건 등)..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs font-semibold leading-relaxed text-slate-800 outline-none focus:border-indigo-500 resize-none"
-                rows={4}
-              />
-            </div>
+
           </div>
 
           {/* 우측 실시간 A4 스타일 미리보기 및 원가 명세 (4단) */}
