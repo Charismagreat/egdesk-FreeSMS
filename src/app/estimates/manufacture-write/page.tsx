@@ -233,7 +233,7 @@ export default function ManufactureEstimateWritePage() {
     >
       <div className="w-full space-y-8 relative px-4 py-6 md:px-8 md:py-8">
         {/* 상단 액션바 */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6 print:hidden">
           <div>
             <div className="flex items-center gap-3">
               <Link 
@@ -282,10 +282,10 @@ export default function ManufactureEstimateWritePage() {
         </div>
 
         {/* 폼 및 미리보기 2단 레이아웃 */}
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start print:block print:p-0 print:gap-0">
           
           {/* 좌측 입력 폼 (7단) */}
-          <div className="xl:col-span-8 space-y-6">
+          <div className="xl:col-span-8 space-y-6 print:hidden">
             
             {/* 세션 1: 기본 정보 및 수발신자 메타 */}
             <div className="bg-white border border-slate-200/80 rounded-3xl p-6 space-y-6 shadow-sm">
@@ -693,10 +693,10 @@ export default function ManufactureEstimateWritePage() {
           </div>
 
           {/* 우측 실시간 A4 스타일 미리보기 및 원가 명세 (5단) */}
-          <div className="xl:col-span-4 space-y-6">
+          <div className="xl:col-span-4 space-y-6 print:block print:w-full print:p-0 print:m-0">
             
             {/* 실시간 제조업 원가 명세 요약 */}
-            <div className="bg-white border border-slate-200/80 rounded-3xl p-6 space-y-6 text-left shadow-sm">
+            <div className="bg-white border border-slate-200/80 rounded-3xl p-6 space-y-6 text-left shadow-sm print:hidden">
               <h3 className="text-sm font-black text-slate-800 flex items-center gap-2 uppercase tracking-wider">
                 <Coins className="w-4 h-4 text-indigo-500" />
                 <span>제조원가 종합 연산 명세</span>
@@ -755,9 +755,9 @@ export default function ManufactureEstimateWritePage() {
             </div>
 
             {/* A4 프린트 인쇄 레이아웃 미리보기 모듈 */}
-            <div className="bg-white text-slate-800 border border-slate-200 rounded-3xl p-5 space-y-4 shadow-md block text-left text-[9px] font-medium leading-normal relative overflow-hidden hidden md:block">
+            <div className="bg-white text-slate-800 border border-slate-200 rounded-3xl p-5 space-y-4 shadow-md block text-left text-[9px] font-medium leading-normal relative overflow-hidden hidden md:block print:block print:w-full print:border-none print:shadow-none print:p-0 print:m-0">
               {/* 상단 인쇄용 워터마크 안내 */}
-              <div className="absolute top-2 right-2 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded text-[8px] font-bold text-slate-400 flex items-center gap-0.5 pointer-events-none">
+              <div className="absolute top-2 right-2 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded text-[8px] font-bold text-slate-400 flex items-center gap-0.5 pointer-events-none print:hidden">
                 <Printer className="w-2.5 h-2.5" />
                 인쇄 전용 A4 프리뷰
               </div>

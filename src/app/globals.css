@@ -124,3 +124,39 @@ body {
     border-radius: 0;
   }
 }
+
+/* 📠 프리미엄 인쇄 및 PDF 저장 대응 미디어 쿼리 */
+@media print {
+  /* 인쇄 시 방해가 되는 모든 글로벌 레이아웃 및 플로팅 요소 숨김 */
+  aside,
+  header,
+  footer,
+  nav,
+  .print-hidden,
+  .print\:hidden,
+  [class*="Sidebar"],
+  [class*="easybot"],
+  [class*="AIHelpManager"],
+  #easybot-widget,
+  .easybot-widget {
+    display: none !important;
+  }
+
+  /* 인쇄 배경색 및 폰트 컬러 최적화 (흑백 정밀 인쇄 대응) */
+  body, html {
+    background: #ffffff !important;
+    color: #000000 !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* 메인 콘텐츠 영역 여백 제거 및 전체 가로폭 확보 */
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+}

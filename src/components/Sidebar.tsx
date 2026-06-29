@@ -44,7 +44,7 @@ export default async function Sidebar() {
   }
 
   return (
-    <div className="w-64 bg-slate-900 text-white h-full min-h-0 flex flex-col shadow-2xl">
+    <div className="w-64 bg-slate-900 text-white h-full min-h-0 flex flex-col shadow-2xl print:hidden">
       <style dangerouslySetInnerHTML={{__html: `
         .no-scrollbar::-webkit-scrollbar {
           display: none !important;
