@@ -234,20 +234,26 @@ export default function ManufactureEstimateWritePage() {
       <div className="w-full space-y-8 relative px-4 py-6 md:px-8 md:py-8">
         {/* 상단 액션바 */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6">
-          <div className="flex items-center gap-3">
-            <Link 
-              href="/estimates" 
-              className="p-2.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-2xl text-slate-500 hover:text-slate-800 transition-all active:scale-95 shadow-sm"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div>
-              <div className="flex items-center gap-2">
+          <div>
+            <div className="flex items-center gap-3">
+              <Link 
+                href="/estimates" 
+                className="p-2 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-indigo-600 transition-all active:scale-95 shadow-sm"
+              >
+                <ArrowLeft className="w-6 h-6" />
+              </Link>
+              <h1 className="text-3xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+                <FileText className="w-8 h-8 text-indigo-600" />
+                <span>제조업 특화 견적서 작성 ⚡</span>
+              </h1>
+              <div className="hidden sm:flex items-center gap-1.5 ml-2">
                 <span className="text-[10px] bg-indigo-50 text-indigo-650 border border-indigo-200/50 px-2 py-0.5 rounded font-black tracking-wider uppercase">송전/배전 기기 제조</span>
-                <span className="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded font-bold">임시저장 오토세이브 가동</span>
+                <span className="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded font-bold">오토세이브 가동</span>
               </div>
-              <h2 className="text-2xl font-black tracking-tight text-slate-900 mt-1">제조업 특화 발송용 견적서 작성</h2>
             </div>
+            <p className="text-slate-500 mt-2 text-sm pl-13">
+              송전 및 배전 기기 제조업에 특화된 재료비, 가공비, 간접제조원가(일반관리비/기업이윤) 연산과 옴니채널 발송을 수행합니다.
+            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
