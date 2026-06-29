@@ -9,7 +9,7 @@ import {
 import Link from "next/link";
 
 interface MaterialItem {
-  category?: string;
+  itemCode: string;
   productName: string;
   spec: string;
   quantity: number;
@@ -50,7 +50,7 @@ export default function ManufactureEstimateWritePage() {
   
   // 초기 샘플 제거 및 빈 폼 시작
   const [materials, setMaterials, isMaterialsRestored] = usePersistedState<MaterialItem[]>("egdesk_mfr_est_materials_v2", [
-    { category: "기타자재", productName: "", spec: "", quantity: 0, unitPrice: 0, remark: "" }
+    { itemCode: "", productName: "", spec: "", quantity: 0, unitPrice: 0, remark: "" }
   ]);
   
   // 직접 가공비 상태
@@ -83,7 +83,7 @@ export default function ManufactureEstimateWritePage() {
       it.unitPrice === 850000
     );
     if (hasDummy) {
-      setMaterials([{ category: "기타자재", productName: "", spec: "", quantity: 0, unitPrice: 0, remark: "" }]);
+      setMaterials([{ itemCode: "", productName: "", spec: "", quantity: 0, unitPrice: 0, remark: "" }]);
       setDirectProcess([{ processName: "", quantity: 0, unitPrice: 0, remark: "" }]);
       setOutsourceProcess([{ processName: "", quantity: 0, unitPrice: 0, remark: "" }]);
     }
@@ -169,7 +169,7 @@ export default function ManufactureEstimateWritePage() {
 
   // 5. 폼 제어 핸들러
   const handleAddMaterial = () => {
-    setMaterials([...materials, { category: "기타자재", productName: "", spec: "", quantity: 0, unitPrice: 0, remark: "" }]);
+    setMaterials([...materials, { itemCode: "", productName: "", spec: "", quantity: 0, unitPrice: 0, remark: "" }]);
   };
 
   const handleRemoveMaterial = (index: number) => {
@@ -256,7 +256,7 @@ export default function ManufactureEstimateWritePage() {
         writerName: "",
         writerPhone: ""
       });
-      setMaterials([{ category: "기타자재", productName: "", spec: "", quantity: 0, unitPrice: 0, remark: "" }]);
+      setMaterials([{ itemCode: "", productName: "", spec: "", quantity: 0, unitPrice: 0, remark: "" }]);
       setDirectProcess([{ processName: "", quantity: 0, unitPrice: 0, remark: "" }]);
       setOutsourceProcess([{ processName: "", quantity: 0, unitPrice: 0, remark: "" }]);
       setMemo("");
@@ -286,10 +286,10 @@ export default function ManufactureEstimateWritePage() {
   // 프리셋 예시 데이터 자동 적재 (송배전 제조업 체험)
   const handleLoadPreset = () => {
     setMaterials([
-      { category: "외함/구조", productName: "수배전반 외함 프레임 (3.2t 분체도장)", spec: "2300*1400*1200", quantity: 1, unitPrice: 1200000, remark: "도장포함 외함" },
-      { category: "기기/차단기", productName: "진공 차단기 (VCB) 24KV 630A", spec: "AH-24V-06", quantity: 1, unitPrice: 2450000, remark: "LS 일렉트릭 정품" },
-      { category: "기기/차단기", productName: "고압 한류형 퓨즈 (LBS 연동)", spec: "24KV 40A", quantity: 3, unitPrice: 150000, remark: "LBS 보호용" },
-      { category: "도체/부스바", productName: "구리 부스바 (은도금 가공재)", spec: "10T * 100mm * 2m", quantity: 6, unitPrice: 180000, remark: "전도체 배선" }
+      { itemCode: "INV-001", productName: "수배전반 외함 프레임 (3.2t 분체도장)", spec: "2300*1400*1200", quantity: 1, unitPrice: 1200000, remark: "도장포함 외함" },
+      { itemCode: "INV-002", productName: "진공 차단기 (VCB) 24KV 630A", spec: "AH-24V-06", quantity: 1, unitPrice: 2450000, remark: "LS 일렉트릭 정품" },
+      { itemCode: "INV-003", productName: "고압 한류형 퓨즈 (LBS 연동)", spec: "24KV 40A", quantity: 3, unitPrice: 150000, remark: "LBS 보호용" },
+      { itemCode: "INV-004", productName: "구리 부스바 (은도금 가공재)", spec: "10T * 100mm * 2m", quantity: 6, unitPrice: 180000, remark: "전도체 배선" }
     ]);
     setDirectProcess([
       { processName: "배전반 프레임 수동 조립 및 단말 가공", quantity: 18, unitPrice: 45000, remark: "숙련공 조립공수" },
@@ -624,17 +624,13 @@ export default function ManufactureEstimateWritePage() {
                       <tr key={idx} className="group hover:bg-slate-50/50">
                         <td className="py-2.5 pr-2 pl-1">
                           <div className="flex gap-1.5 items-center">
-                            <select
-                              value={it.category || "기타자재"}
-                              onChange={e => handleMaterialChange(idx, "category", e.target.value)}
-                              className="bg-slate-50 border border-slate-200 rounded px-1.5 py-1 text-[11px] font-bold text-slate-650 outline-none focus:border-indigo-500 shrink-0"
-                            >
-                              <option value="기타자재">기타</option>
-                              <option value="외함/구조">외함</option>
-                              <option value="기기/차단기">기기</option>
-                              <option value="도체/부스바">도체</option>
-                              <option value="계기/제어">계기</option>
-                            </select>
+                            <input 
+                              type="text" 
+                              value={it.itemCode}
+                              onChange={e => handleMaterialChange(idx, "itemCode", e.target.value)}
+                              placeholder="품목코드 (INV-)"
+                              className="w-24 bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-800 outline-none focus:border-indigo-500 shrink-0 font-mono font-bold"
+                            />
                             <input 
                               type="text" 
                               value={it.productName}
@@ -1089,10 +1085,10 @@ export default function ManufactureEstimateWritePage() {
                       <td className="py-1 text-right font-mono pr-1 text-indigo-700 font-black">{materialsTotal.toLocaleString()}원</td>
                     </tr>
 
-                    {/* 재료비 내역 전체 출력 (구분 컬럼에 └ 카테고리 노출) */}
+                    {/* 재료비 내역 전체 출력 (구분 컬럼에 └ 품목코드 노출) */}
                     {materials.filter(m => m.productName).map((m, idx) => (
                       <tr key={`m-${idx}`} className="text-slate-755">
-                        <td className="py-1 pl-2 text-slate-450 font-bold">└ {m.category || "기타자재"}</td>
+                        <td className="py-1 pl-2 text-slate-450 font-bold">└ {m.itemCode || `INV-${idx + 1}`}</td>
                         <td className="py-1 truncate max-w-[120px]">{m.productName}</td>
                         <td className="py-1 truncate max-w-[60px]">{m.spec || "-"}</td>
                         <td className="py-1 text-center font-mono">{m.quantity}</td>
