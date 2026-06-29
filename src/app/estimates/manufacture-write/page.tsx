@@ -516,7 +516,6 @@ export default function ManufactureEstimateWritePage() {
                 <span>견적서 작성 AI</span>
               </h1>
               <div className="hidden sm:flex items-center gap-1.5 ml-2">
-                <span className="text-[10px] bg-indigo-50 text-indigo-650 border border-indigo-200/50 px-2 py-0.5 rounded font-black tracking-wider uppercase">송전/배전 기기 제조</span>
                 <span className="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded font-bold">오토세이브 가동</span>
               </div>
             </div>

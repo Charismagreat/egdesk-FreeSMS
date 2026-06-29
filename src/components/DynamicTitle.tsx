@@ -28,7 +28,7 @@ function DynamicTitleHandler() {
       "/deliveries": "배송 관리 AI",
       "/products": "상품 관리 AI",
       "/estimates": "견적/발주/수주 AI",
-      "/estimates/manufacture-write": "제조업 견적 작성 AI",
+      "/estimates/manufacture-write": "견적서 작성 AI",
       "/snaptasks": "AI 스냅태스크",
       "/inventory": "재고 관리 AI",
       "/expenses": "지출 관리 AI",
