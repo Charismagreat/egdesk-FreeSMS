@@ -205,6 +205,59 @@ export default function ManufactureEstimateWritePage() {
     setMaterials(materials.filter((_, idx) => idx !== index));
   };
 
+  const handleItemCodeLookup = (index: number, codeValue: string) => {
+    const code = String(codeValue).trim().toUpperCase();
+    if (!code) return;
+
+    // 1차로 로컬 캐시에서 신속 매핑 시도
+    const matchedLocal = inventoryItems.find(item => {
+      const itemBarcode = String(item.barcode || "").trim().toUpperCase();
+      const invId = `INV-${item.id}`;
+      const isPureNumber = /^\d+$/.test(code);
+      const isIdMatch = isPureNumber && Number(item.id) === Number(code);
+      return itemBarcode === code || invId === code || isIdMatch;
+    });
+
+    if (matchedLocal) {
+      setMaterials(prev => {
+        const latest = [...prev];
+        if (latest[index]) {
+          latest[index].itemCode = matchedLocal.barcode || `INV-${matchedLocal.id}`;
+          latest[index].productName = matchedLocal.name || "";
+          latest[index].spec = matchedLocal.spec || "";
+          latest[index].unitPrice = Number(matchedLocal.price) || 0;
+          if (!latest[index].quantity || latest[index].quantity === 0) {
+            latest[index].quantity = 1;
+          }
+        }
+        return latest;
+      });
+    } else {
+      // 2차로 캐시에 없는 경우 백엔드 데이터베이스 전체를 대상으로 비동기 개별 쿼리 검색 요청
+      fetch(`/api/inventory?code=${encodeURIComponent(code)}`)
+        .then(res => res.json())
+        .then(resData => {
+          if (resData.success && resData.data && resData.data.length > 0) {
+            const matchedServer = resData.data[0];
+            setMaterials(prev => {
+              const latest = [...prev];
+              if (latest[index]) {
+                latest[index].itemCode = matchedServer.barcode || `INV-${matchedServer.id}`;
+                latest[index].productName = matchedServer.name || "";
+                latest[index].spec = matchedServer.spec || "";
+                latest[index].unitPrice = Number(matchedServer.price) || 0;
+                if (!latest[index].quantity || latest[index].quantity === 0) {
+                  latest[index].quantity = 1;
+                }
+              }
+              return latest;
+            });
+          }
+        })
+        .catch(err => console.error("품목 비동기 조회 실패:", err));
+    }
+  };
+
   const handleMaterialChange = (index: number, field: keyof MaterialItem, value: any) => {
     const updated = [...materials];
     if (field === "quantity" || field === "unitPrice") {
@@ -212,54 +265,6 @@ export default function ManufactureEstimateWritePage() {
     } else {
       updated[index][field] = value;
     }
-
-    // 품목코드 입력 시 재고관리 AI 품목 연동 (자동완성)
-    if (field === "itemCode") {
-      const code = String(value).trim().toUpperCase();
-      if (code) {
-        // 1차로 로컬 캐시에서 신속 매핑 시도
-        const matchedLocal = inventoryItems.find(item => {
-          const itemBarcode = String(item.barcode || "").trim().toUpperCase();
-          const invId = `INV-${item.id}`;
-          const isPureNumber = /^\d+$/.test(code);
-          const isIdMatch = isPureNumber && Number(item.id) === Number(code);
-          return itemBarcode === code || invId === code || isIdMatch;
-        });
-
-        if (matchedLocal) {
-          updated[index].productName = matchedLocal.name || "";
-          updated[index].spec = matchedLocal.spec || "";
-          updated[index].unitPrice = Number(matchedLocal.price) || 0;
-          if (!updated[index].quantity || updated[index].quantity === 0) {
-            updated[index].quantity = 1;
-          }
-          setMaterials(updated);
-        } else {
-          // 2차로 캐시에 없는 경우 백엔드 데이터베이스 전체를 대상으로 비동기 개별 쿼리 검색 요청
-          fetch(`/api/inventory?code=${encodeURIComponent(code)}`)
-            .then(res => res.json())
-            .then(resData => {
-              if (resData.success && resData.data && resData.data.length > 0) {
-                const matchedServer = resData.data[0];
-                setMaterials(prev => {
-                  const latest = [...prev];
-                  if (latest[index]) {
-                    latest[index].productName = matchedServer.name || "";
-                    latest[index].spec = matchedServer.spec || "";
-                    latest[index].unitPrice = Number(matchedServer.price) || 0;
-                    if (!latest[index].quantity || latest[index].quantity === 0) {
-                      latest[index].quantity = 1;
-                    }
-                  }
-                  return latest;
-                });
-              }
-            })
-            .catch(err => console.error("품목 비동기 조회 실패:", err));
-        }
-      }
-    }
-
     setMaterials(updated);
   };
 
@@ -728,13 +733,7 @@ export default function ManufactureEstimateWritePage() {
                               type="text" 
                               value={it.itemCode || ""}
                               onChange={e => handleMaterialChange(idx, "itemCode", e.target.value)}
-                              onBlur={e => {
-                                // 포커스 아웃(입력 종료) 시 숫자만 기입되어 있다면 INV- 포맷으로 정규화 보정해줍니다.
-                                const val = e.target.value.trim();
-                                if (/^\d+$/.test(val)) {
-                                  handleMaterialChange(idx, "itemCode", `INV-${val}`);
-                                }
-                              }}
+                              onBlur={e => handleItemCodeLookup(idx, e.target.value)}
                               placeholder="품목코드 (INV-)"
                               className="w-24 bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-800 outline-none focus:border-indigo-500 shrink-0 font-mono font-bold"
                             />
