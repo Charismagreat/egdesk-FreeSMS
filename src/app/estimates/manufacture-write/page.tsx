@@ -928,6 +928,54 @@ export default function ManufactureEstimateWritePage() {
                 <span className="text-xs font-black text-indigo-950">가공비 합계액 (직접 + 외주):</span>
                 <span className="text-sm font-black text-indigo-700 font-mono">{processTotal.toLocaleString()}원</span>
               </div>
+            </div>
+
+              {/* 세션 3: 간접 제조 원가 */}
+              <div className="bg-white border border-slate-200/80 rounded-3xl p-6 space-y-4 shadow-sm text-left">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <Settings className="w-4 h-4 text-indigo-500" />
+                  <h3 className="text-sm font-extrabold text-slate-800">3. 간접 제조 원가</h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-1">
+                    <span className="text-[10px] text-slate-500 font-bold">일반 관리비 (가공비의 10%)</span>
+                    <div className="text-base font-black text-slate-800 font-mono">
+                      {generalAdminCost.toLocaleString()}원
+                    </div>
+                    <span className="text-[9px] text-slate-400 font-semibold block">계산식: 가공비({processTotal.toLocaleString()}원) × 10%</span>
+                  </div>
+
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-1">
+                    <span className="text-[10px] text-slate-500 font-bold">기업 이윤 (가공비+관리비의 10%)</span>
+                    <div className="text-base font-black text-slate-800 font-mono">
+                      {businessProfit.toLocaleString()}원
+                    </div>
+                    <span className="text-[9px] text-slate-400 font-semibold block">계산식: (가공비+관리비) × 10%</span>
+                  </div>
+
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-1">
+                    <span className="text-[10px] text-slate-500 font-bold">기타 비용 (재료관리비의 5%)</span>
+                    <div className="text-base font-black text-slate-800 font-mono">
+                      {materialManageCost.toLocaleString()}원
+                    </div>
+                    <span className="text-[9px] text-slate-400 font-semibold block">계산식: 재료비({materialsTotal.toLocaleString()}원) × 5%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 세션 4: 최종 견적 금액 */}
+              <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm text-left">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-indigo-50 border border-indigo-100 rounded-2xl p-5 shadow-inner gap-4">
+                  <div>
+                    <span className="text-xs md:text-sm font-black text-indigo-650 uppercase tracking-wide block">최종 견적 금액 (부가세 별도)</span>
+                    <span className="text-[10px] md:text-xs text-slate-500 font-medium block mt-1">재료비 + 가공비(직접/외주) + 일반관리비 + 기업이윤 + 재료관리비</span>
+                  </div>
+                  <div className="text-3xl font-black text-indigo-750 font-mono shrink-0">
+                    {grandTotal.toLocaleString()}원
+                  </div>
+                </div>
+              </div>
 
               {/* 세션 6: 특기사항 */}
               <div className="bg-white border border-slate-200/80 rounded-3xl p-6 space-y-4 text-left shadow-sm">
@@ -984,54 +1032,6 @@ export default function ManufactureEstimateWritePage() {
                   rows={4}
                 />
               </div>
-            </div>
-
-            {/* 세션 3: 간접 제조 원가 */}
-            <div className="bg-white border border-slate-200/80 rounded-3xl p-6 space-y-4 shadow-sm text-left">
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                <Settings className="w-4 h-4 text-indigo-500" />
-                <h3 className="text-sm font-extrabold text-slate-800">3. 간접 제조 원가</h3>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-1">
-                  <span className="text-[10px] text-slate-500 font-bold">일반 관리비 (가공비의 10%)</span>
-                  <div className="text-base font-black text-slate-800 font-mono">
-                    {generalAdminCost.toLocaleString()}원
-                  </div>
-                  <span className="text-[9px] text-slate-400 font-semibold block">계산식: 가공비({processTotal.toLocaleString()}원) × 10%</span>
-                </div>
-
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-1">
-                  <span className="text-[10px] text-slate-500 font-bold">기업 이윤 (가공비+관리비의 10%)</span>
-                  <div className="text-base font-black text-slate-800 font-mono">
-                    {businessProfit.toLocaleString()}원
-                  </div>
-                  <span className="text-[9px] text-slate-400 font-semibold block">계산식: (가공비+관리비) × 10%</span>
-                </div>
-
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-1">
-                  <span className="text-[10px] text-slate-500 font-bold">기타 비용 (재료관리비의 5%)</span>
-                  <div className="text-base font-black text-slate-800 font-mono">
-                    {materialManageCost.toLocaleString()}원
-                  </div>
-                  <span className="text-[9px] text-slate-400 font-semibold block">계산식: 재료비({materialsTotal.toLocaleString()}원) × 5%</span>
-                </div>
-              </div>
-            </div>
-
-            {/* 세션 4: 최종 견적 금액 */}
-            <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm text-left">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-indigo-50 border border-indigo-100 rounded-2xl p-5 shadow-inner gap-4">
-                <div>
-                  <span className="text-xs md:text-sm font-black text-indigo-650 uppercase tracking-wide block">최종 견적 금액 (부가세 별도)</span>
-                  <span className="text-[10px] md:text-xs text-slate-500 font-medium block mt-1">재료비 + 가공비(직접/외주) + 일반관리비 + 기업이윤 + 재료관리비</span>
-                </div>
-                <div className="text-3xl font-black text-indigo-750 font-mono shrink-0">
-                  {grandTotal.toLocaleString()}원
-                </div>
-              </div>
-            </div>
 
 
           </div>
