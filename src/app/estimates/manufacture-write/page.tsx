@@ -485,6 +485,16 @@ export default function ManufactureEstimateWritePage() {
       className="min-h-screen bg-slate-50 text-slate-800 p-0 font-sans selection:bg-indigo-500 selection:text-white"
       data-easybot-hint="제조업 전용 견적 작성 AI: 송전 및 배전 기기 제조업에 특화된 재료비, 가공비, 일반관리비, 기업이윤 연산 및 옴니채널 발송을 담당합니다."
     >
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media print {
+          @page {
+            margin: 0;
+          }
+          body {
+            margin: 1.6cm;
+          }
+        }
+      ` }} />
       <div className="w-full space-y-8 relative px-4 py-6 md:px-8 md:py-8">
         {/* 상단 액션바 */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6 print:hidden">
@@ -1222,7 +1232,7 @@ export default function ManufactureEstimateWritePage() {
 
               <div className="text-center space-y-1 border-b border-slate-300 pb-3">
                 <h2 className="text-sm font-black tracking-widest text-slate-900">견  적  서</h2>
-                <p className="text-[7px] text-slate-450">송배전반 및 전력기기 정밀 제조 명세</p>
+                <p className="text-[7px] text-slate-450 print:hidden">송배전반 및 전력기기 정밀 제조 명세</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4 border-b border-slate-200 pb-3">
