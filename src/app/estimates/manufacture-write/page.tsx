@@ -488,10 +488,15 @@ export default function ManufactureEstimateWritePage() {
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           @page {
-            margin: 0;
+            size: A4 portrait;
+            margin: 10mm;
           }
-          body {
-            margin: 1.6cm;
+          html, body {
+            height: 100%;
+            overflow: hidden;
+            background: #fff;
+            margin: 0 !important;
+            padding: 0 !important;
           }
         }
       ` }} />
