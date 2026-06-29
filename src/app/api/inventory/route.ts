@@ -38,13 +38,13 @@ export async function GET(request: Request) {
       else if (pureNumberMatch) itemId = Number(cleanCode);
 
       if (itemId) {
-        const idQuery = await queryTable('inventory_items', { filters: { id: itemId } });
+        const idQuery = await queryTable('inventory_items', { filters: { id: String(itemId) } });
         const found = (idQuery.rows || []).find((r: any) => !r.deleted_at);
         if (found) matchedRow = found;
       }
 
       if (!matchedRow) {
-        const barcodeQuery = await queryTable('inventory_items', { filters: { barcode: cleanCode } });
+        const barcodeQuery = await queryTable('inventory_items', { filters: { barcode: String(cleanCode) } });
         const found = (barcodeQuery.rows || []).find((r: any) => !r.deleted_at);
         if (found) matchedRow = found;
       }

@@ -205,19 +205,39 @@ export default function ManufactureEstimateWritePage() {
     setMaterials(materials.filter((_, idx) => idx !== index));
   };
 
-  const handleItemCodeLookup = (index: number, codeValue: string) => {
+  const handleItemCodeLookup = (index: number, codeValue: string, isBlur = false) => {
     const code = String(codeValue).trim().toUpperCase();
 
-    // 1. 매칭 여부와 관계없이 사용자가 타이핑한 itemCode 값은 실시간으로 materials 상태에 반영되어야 인풋 글자가 갱신됩니다.
-    setMaterials(prev => {
-      const latest = [...prev];
-      if (latest[index]) {
-        latest[index].itemCode = codeValue;
-      }
-      return latest;
-    });
+    // 1. itemCode 입력값은 실시간으로 materials 상태에 반영해 줍니다. (blur 시점에는 아래의 매칭 성공 시점에만 정규화)
+    if (!isBlur) {
+      setMaterials(prev => {
+        const latest = [...prev];
+        if (latest[index]) {
+          latest[index].itemCode = codeValue;
+        }
+        return latest;
+      });
+    }
 
     if (!code) return;
+
+    // 공통 상태 적용 헬퍼
+    const applyMatched = (matched: any) => {
+      setMaterials(prev => {
+        const latest = [...prev];
+        if (latest[index]) {
+          // 중요: 진짜 매칭이 성공한 경우에만 itemCode를 바코드 또는 INV- ID 형태로 깔끔하게 교정합니다.
+          latest[index].itemCode = matched.barcode || `INV-${matched.id}`;
+          latest[index].productName = matched.name || "";
+          latest[index].spec = matched.spec || "";
+          latest[index].unitPrice = Number(matched.price) || 0;
+          if (!latest[index].quantity || latest[index].quantity === 0) {
+            latest[index].quantity = 1;
+          }
+        }
+        return latest;
+      });
+    };
 
     // 1차로 로컬 캐시에서 신속 매핑 시도
     const matchedLocal = inventoryItems.find(item => {
@@ -229,18 +249,7 @@ export default function ManufactureEstimateWritePage() {
     });
 
     if (matchedLocal) {
-      setMaterials(prev => {
-        const latest = [...prev];
-        if (latest[index]) {
-          latest[index].productName = matchedLocal.name || "";
-          latest[index].spec = matchedLocal.spec || "";
-          latest[index].unitPrice = Number(matchedLocal.price) || 0;
-          if (!latest[index].quantity || latest[index].quantity === 0) {
-            latest[index].quantity = 1;
-          }
-        }
-        return latest;
-      });
+      applyMatched(matchedLocal);
     } else {
       // 2차로 캐시에 없는 경우 백엔드 데이터베이스 전체를 대상으로 비동기 개별 쿼리 검색 요청
       fetch(`/api/inventory?code=${encodeURIComponent(code)}`)
@@ -248,18 +257,18 @@ export default function ManufactureEstimateWritePage() {
         .then(resData => {
           if (resData.success && resData.data && resData.data.length > 0) {
             const matchedServer = resData.data[0];
-            setMaterials(prev => {
-              const latest = [...prev];
-              if (latest[index]) {
-                latest[index].productName = matchedServer.name || "";
-                latest[index].spec = matchedServer.spec || "";
-                latest[index].unitPrice = Number(matchedServer.price) || 0;
-                if (!latest[index].quantity || latest[index].quantity === 0) {
-                  latest[index].quantity = 1;
+            applyMatched(matchedServer);
+          } else {
+            // 조회에 완전히 실패했고 포커스아웃(onBlur) 시점이라면 억지 보정하지 않고 입력한 날 값을 정돈해줍니다.
+            if (isBlur) {
+              setMaterials(prev => {
+                const latest = [...prev];
+                if (latest[index]) {
+                  latest[index].itemCode = codeValue;
                 }
-              }
-              return latest;
-            });
+                return latest;
+              });
+            }
           }
         })
         .catch(err => console.error("품목 비동기 조회 실패:", err));
@@ -269,7 +278,7 @@ export default function ManufactureEstimateWritePage() {
   const handleMaterialChange = (index: number, field: keyof MaterialItem, value: any) => {
     if (field === "itemCode") {
       // 품목코드 입력인 경우, 덮어쓰기 오작동을 방지하기 위해 handleItemCodeLookup 함수에서 itemCode 값과 조회를 일괄 담당합니다.
-      handleItemCodeLookup(index, value);
+      handleItemCodeLookup(index, value, false);
       return;
     }
 
@@ -747,13 +756,7 @@ export default function ManufactureEstimateWritePage() {
                               type="text" 
                               value={it.itemCode || ""}
                               onChange={e => handleMaterialChange(idx, "itemCode", e.target.value)}
-                              onBlur={e => {
-                                // 포커스 아웃(입력 종료) 시 숫자만 기입되어 있다면 INV- 포맷으로 정규화 보정해줍니다.
-                                const val = e.target.value.trim();
-                                if (/^\d+$/.test(val)) {
-                                  handleMaterialChange(idx, "itemCode", `INV-${val}`);
-                                }
-                              }}
+                              onBlur={e => handleItemCodeLookup(idx, e.target.value, true)}
                               placeholder="품목코드 (INV-)"
                               className="w-24 bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-800 outline-none focus:border-indigo-500 shrink-0 font-mono font-bold"
                             />
