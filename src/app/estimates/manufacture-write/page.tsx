@@ -7,6 +7,12 @@ import {
   ArrowLeft, FileText, Settings, Coins, Sparkles, X 
 } from "lucide-react";
 import Link from "next/link";
+const formatBusinessNumber = (numStr: string) => {
+  const clean = String(numStr || "").replace(/[^0-9]/g, "");
+  if (clean.length <= 3) return clean;
+  if (clean.length <= 5) return `${clean.slice(0, 3)}-${clean.slice(3)}`;
+  return `${clean.slice(0, 3)}-${clean.slice(3, 5)}-${clean.slice(5)}`;
+};
 
 interface MaterialItem {
   itemCode: string;
@@ -588,7 +594,7 @@ export default function ManufactureEstimateWritePage() {
                         <label className="block text-[10px] text-slate-500 font-bold mb-1">사업자등록번호</label>
                         <input 
                           type="text" 
-                          value={supplier.businessNumber}
+                          value={formatBusinessNumber(supplier.businessNumber)}
                           onChange={e => setSupplier({ ...supplier, businessNumber: e.target.value })}
                           className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-mono font-bold text-slate-800 outline-none focus:border-indigo-500"
                         />
@@ -1259,7 +1265,7 @@ export default function ManufactureEstimateWritePage() {
 
                 {/* 공급자 */}
                 <div className="border-l border-slate-200 pl-4 space-y-1">
-                  <div className="flex gap-1"><span className="text-slate-400 w-12 shrink-0 font-bold">등록번호:</span><span className="font-mono text-slate-800 font-bold">{supplier.businessNumber}</span></div>
+                  <div className="flex gap-1"><span className="text-slate-400 w-12 shrink-0 font-bold">등록번호:</span><span className="font-mono text-slate-800 font-bold">{formatBusinessNumber(supplier.businessNumber)}</span></div>
                   <div className="flex gap-1"><span className="text-slate-400 w-12 shrink-0 font-bold">공급자명:</span><span className="text-slate-900 font-bold">{supplier.companyName}</span></div>
                   <div className="flex gap-1"><span className="text-slate-400 w-12 shrink-0 font-bold">대표자:</span><span className="text-slate-850">{supplier.representative} (인)</span></div>
                   <div className="flex gap-1"><span className="text-slate-400 w-12 shrink-0 font-bold">소재지:</span><span className="text-slate-700 leading-tight">{supplier.address}</span></div>
