@@ -1352,7 +1352,7 @@ export default function ManufactureEstimateWritePage() {
               {/* 특기사항 영역 */}
               {memo && memo.trim() && (
                 <div className="border-t border-slate-200 pt-2.5 space-y-1 text-left">
-                  <span className="font-bold text-slate-400 text-[7px] uppercase tracking-wider block">특기사항 및 아웃라인</span>
+                  <span className="font-bold text-slate-400 text-[7px] uppercase tracking-wider block">특기 사항</span>
                   <div className="bg-slate-50 border border-slate-150 rounded-xl p-2 text-[8px] text-slate-600 leading-relaxed whitespace-pre-wrap font-medium">
                     {memo}
                   </div>
