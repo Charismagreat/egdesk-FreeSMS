@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { queryTable, insertRows, executeSQL } from '../../../../../egdesk-helpers';
+import { queryTable, insertRows, executeSQL, listTables } from '../../../../../egdesk-helpers';
 import fs from 'fs';
 import { fetchGeminiWithFallback } from '@/lib/gemini-fallback';
 
@@ -48,22 +48,24 @@ export async function GET(req: Request) {
     const htmlContent = template.html_content || '';
     const targetFields = extractMustacheFields(htmlContent);
 
-    // 2. DB 내 모든 테이블 및 컬럼 구조 스캔
-    const tablesRes = await executeSQL(`
-      SELECT name FROM sqlite_master 
-      WHERE type='table' 
-        AND name NOT LIKE 'sqlite_%' 
-        AND name NOT LIKE 'import_%' 
-        AND name NOT LIKE 'sync_%' 
-        AND name NOT LIKE 'user_data_%' 
-        AND name NOT LIKE 'user_tables'
-        AND name NOT LIKE '%_logs'
-        AND name NOT LIKE '%_log'
-        AND name NOT LIKE '%_histories'
-        AND name NOT LIKE '%_history'
-      ORDER BY name ASC;
-    `);
-    const tablesList = tablesRes.rows || [];
+    // 2. DB 내 모든 테이블 및 컬럼 구조 스캔 (listTables 이용)
+    const tablesRes = await listTables();
+    const tablesList = (tablesRes.tables || [])
+      .filter((t: any) => {
+        const name = t.tableName;
+        return (
+          !name.startsWith('sqlite_') &&
+          !name.startsWith('import_') &&
+          !name.startsWith('sync_') &&
+          !name.startsWith('user_data_') &&
+          name !== 'user_tables' &&
+          !name.endsWith('_logs') &&
+          !name.endsWith('_log') &&
+          !name.endsWith('_histories') &&
+          !name.endsWith('_history')
+        );
+      })
+      .map((t: any) => ({ name: t.tableName }));
 
     const dbSchemas: Record<string, string[]> = {};
     for (const t of tablesList as any[]) {

@@ -104,8 +104,15 @@ export async function GET(request: Request) {
       }
 
       const schemaInfo = await getTableSchema(tableName);
-      const ddlRes = await executeSQL(`SELECT sql FROM sqlite_master WHERE type='table' AND name='${tableName}'`);
-      const ddl = ddlRes.rows?.[0]?.sql || '';
+      const columnsDdl = (schemaInfo.schema || []).map((col: any) => {
+        let typeStr = col.type || 'TEXT';
+        if (col.notNull) typeStr += ' NOT NULL';
+        if (col.defaultValue !== undefined && col.defaultValue !== null) {
+          typeStr += ` DEFAULT ${typeof col.defaultValue === 'string' ? `'${col.defaultValue}'` : col.defaultValue}`;
+        }
+        return `  ${col.name} ${typeStr}`;
+      });
+      const ddl = `CREATE TABLE ${tableName} (\n${columnsDdl.join(',\n')}\n);`;
 
       const mappedSchema = (schemaInfo.schema || []).map((col: any, idx: number) => ({
         cid: idx,

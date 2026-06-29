@@ -180,7 +180,9 @@ export async function POST(request: Request) {
             console.log(`[Expense Alert] Threshold reached (${totalMonthAmount} / ${thresholdAmount}). Sending SMS to ${setting.alert_phone}...`);
 
             // 비동기로 문자 발송 API 호출 (Fire & Forget)
-            fetch('http://localhost:3000/api/sms/send', {
+            const appPort = process.env.PORT || '4000';
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${appPort}`;
+            fetch(`${appUrl}/api/sms/send`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({

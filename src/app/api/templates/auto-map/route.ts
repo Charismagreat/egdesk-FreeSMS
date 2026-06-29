@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { fetchGeminiWithFallback } from '../../../../lib/gemini-fallback';
 import { NextResponse } from 'next/server';
-import { queryTable, executeSQL, getTableSchema, insertRows } from '../../../../../egdesk-helpers';
+import { queryTable, executeSQL, getTableSchema, insertRows, listTables } from '../../../../../egdesk-helpers';
 
 // 테이블별 바인딩 필드 컬럼 정의 및 RAG 설명 정보
 const SCHEMA_DESCRIPTIONS: Record<string, string> = {
@@ -183,18 +183,20 @@ export async function POST(req: Request) {
     // 2. 분석할 타겟 테이블 정의 수집 (물리 DB의 실제 테이블 및 스키마 구조 실시간 동적 스캔)
     let schemaRAGContext = '';
     try {
-      // 1) 실제 테이블 목록 조회 (sqlite_master)
-      const tablesListRes = await executeSQL(`
-        SELECT name FROM sqlite_master 
-        WHERE type='table' 
-          AND name NOT LIKE 'sqlite_%' 
-          AND name NOT LIKE 'import_%' 
-          AND name NOT LIKE 'sync_%' 
-          AND name NOT LIKE 'user_data_%' 
-          AND name NOT LIKE 'user_tables'
-        ORDER BY name ASC;
-      `);
-      const tablesList = tablesListRes.rows || [];
+      // 1) 실제 테이블 목록 조회 (listTables 이용)
+      const tablesListRes = await listTables();
+      const tablesList = (tablesListRes.tables || [])
+        .filter((t: any) => {
+          const name = t.tableName;
+          return (
+            !name.startsWith('sqlite_') &&
+            !name.startsWith('import_') &&
+            !name.startsWith('sync_') &&
+            !name.startsWith('user_data_') &&
+            name !== 'user_tables'
+          );
+        })
+        .map((t: any) => ({ name: t.tableName }));
 
       const tablesToScan = selectedTables.length > 0 ? selectedTables : tablesList.map((t: any) => t.name);
 

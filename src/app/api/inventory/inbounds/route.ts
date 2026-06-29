@@ -46,7 +46,8 @@ export async function GET(request: Request) {
           partner_name: inboundMaster.partner_name || '-',
           inbound_date: inboundMaster.inbound_date || '-',
           location: master.location || '-',
-          note: master.description || '-'
+          note: master.description || '-',
+          pdf_file_path: inboundMaster.pdf_file_path || null
         };
       });
 

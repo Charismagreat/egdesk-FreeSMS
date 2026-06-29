@@ -58,7 +58,9 @@ export async function triggerAutomation(eventId: string, payload: { name: string
     // 5. Fire and forget to SMS API to avoid blocking the current request
     // We assume the Next.js server is running on localhost:3000
     // Using absolute URL for server-side fetch
-    fetch('http://localhost:3000/api/sms/send', {
+    const appPort = process.env.PORT || '4000';
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${appPort}`;
+    fetch(`${appUrl}/api/sms/send`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

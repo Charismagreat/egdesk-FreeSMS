@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
-import { queryTable, insertRows, deleteRows, getTableSchema, executeSQL } from '../../../../egdesk-helpers';
+import { queryTable, insertRows, deleteRows, getTableSchema, executeSQL, listTables } from '../../../../egdesk-helpers';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
@@ -228,10 +228,9 @@ export async function POST(request: Request) {
     }
 
     // 원본 테이블 실제 존재 여부 검사
-    const tableCheckRes = await executeSQL(`
-      SELECT name FROM sqlite_master WHERE type='table' AND name = '${sourceTable}'
-    `);
-    const tableCheck = tableCheckRes.rows && tableCheckRes.rows.length > 0 ? tableCheckRes.rows[0] : null;
+    const tableCheckRes = await listTables();
+    const tables = tableCheckRes.tables || [];
+    const tableCheck = tables.some((t: any) => t.tableName === sourceTable);
 
     if (!tableCheck) {
       return NextResponse.json({ success: false, error: `물리 테이블 '${sourceTable}'이 존재하지 않습니다.` }, { status: 400 });

@@ -54,6 +54,8 @@ const nextConfig = {
       allowedOrigins: [
         'localhost:3000',
         '127.0.0.1:3000',
+        'localhost:4000',
+        '127.0.0.1:4000',
         '*.loca.lt',
         '*.ngrok.io',
         '*.ngrok-free.app',

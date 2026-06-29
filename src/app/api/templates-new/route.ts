@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 // HMR trigger timestamp: 2026-06-20 09:50:00
 
 import { NextResponse } from 'next/server';
-import { queryTable, insertRows, updateRows, executeSQL } from '../../../../egdesk-helpers';
+import { queryTable, insertRows, updateRows, executeSQL, listTables } from '../../../../egdesk-helpers';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
 import crypto from 'crypto';
@@ -515,8 +515,9 @@ Based on the guidelines, choose the most appropriate tables for this document pu
       }
 
       // SQLite 시스템 내에 실제로 실존하는 테이블인지 동적으로 존재 검증 수행
-      const existsRes = await executeSQL(`SELECT name FROM sqlite_master WHERE type='table' AND name = '${tableName}'`);
-      const exists = existsRes.rows?.[0];
+      const existsRes = await listTables();
+      const tables = existsRes.tables || [];
+      const exists = tables.some((t: any) => t.tableName === tableName);
       if (!exists) {
         return NextResponse.json({ success: false, error: '존재하지 않거나 조회할 수 없는 테이블입니다.' }, { status: 400 });
       }
