@@ -88,6 +88,20 @@ export default function ManufactureEstimateWritePage() {
   const [sendAddress, setSendAddress] = useState("");
   const [isSending, setIsSending] = useState(false);
 
+  // 재고 관리 AI 데이터 연동용 품목 마스터 상태
+  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch("/api/inventory")
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data) {
+          setInventoryItems(data.data);
+        }
+      })
+      .catch(err => console.error("재고 마스터 정보 로드 실패:", err));
+  }, []);
+
   // 🛡️ 구버전 캐시 및 더미 데이터(고압 차단기 등) 강제 감지 후 자동 소거 방어막
   useEffect(() => {
     if (!isRestored) return;
@@ -198,6 +212,24 @@ export default function ManufactureEstimateWritePage() {
     } else {
       updated[index][field] = value;
     }
+
+    // 품목코드 입력 시 재고관리 AI 품목 연동 (자동완성)
+    if (field === "itemCode") {
+      const code = String(value).trim().toUpperCase();
+      if (code) {
+        const matched = inventoryItems.find(item => {
+          const itemBarcode = String(item.barcode || "").trim().toUpperCase();
+          const invId = `INV-${item.id}`;
+          return itemBarcode === code || invId === code;
+        });
+        if (matched) {
+          updated[index].productName = matched.name || "";
+          updated[index].spec = matched.spec || "";
+          updated[index].unitPrice = Number(matched.price) || 0;
+        }
+      }
+    }
+
     setMaterials(updated);
   };
 
