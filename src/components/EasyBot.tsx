@@ -437,7 +437,7 @@ export default function EasyBot() {
           setIsOpen(!isOpen);
           voice.stopSpeaking();
         }}
-        className="ignore-capture fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg transition-transform hover:scale-105 active:scale-95 cursor-pointer focus:outline-none"
+        className="ignore-capture fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg transition-transform hover:scale-105 active:scale-95 cursor-pointer focus:outline-none print:hidden"
         style={{
           background: 'linear-gradient(135deg, #7000ff 0%, #bc2a8d 50%, #f91f7f 100%)',
           boxShadow: '0 8px 24px rgba(112, 0, 255, 0.25)'
@@ -455,7 +455,7 @@ export default function EasyBot() {
             animate={{ opacity: widgetOpacity, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 45, scale: 0.95 }}
             transition={{ duration: 0.24, ease: 'easeOut' }}
-            className={`ignore-capture fixed right-6 z-40 flex flex-col overflow-hidden border border-slate-100 bg-white/95 shadow-2xl backdrop-blur-md transition-all duration-200 ${
+            className={`ignore-capture fixed right-6 z-40 flex flex-col overflow-hidden border border-slate-100 bg-white/95 shadow-2xl backdrop-blur-md transition-all duration-200 print:hidden ${
               isMaximized 
                 ? 'bottom-24 left-6 top-6 rounded-3xl' 
                 : 'bottom-24 h-[640px] max-h-[82vh] w-[390px] rounded-3xl'
@@ -1015,7 +1015,7 @@ export default function EasyBot() {
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 50, scale: 0.9 }}
-            className="ignore-capture fixed bottom-6 left-6 z-[999] bg-slate-900/95 text-white px-4 py-3 rounded-2xl shadow-2xl border border-slate-800 flex items-center gap-3.5 backdrop-blur-md"
+            className="ignore-capture fixed bottom-6 left-6 z-[999] bg-slate-900/95 text-white px-4 py-3 rounded-2xl shadow-2xl border border-slate-800 flex items-center gap-3.5 backdrop-blur-md print:hidden"
           >
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
@@ -1040,7 +1040,7 @@ export default function EasyBot() {
       {/* 📸 스크린샷 캔버스 편집 모달 */}
       <AnimatePresence>
         {screenshot.isEditingScreenshot && (
-          <div className="ignore-capture fixed inset-0 bg-black/60 backdrop-blur-2xs flex items-center justify-center z-[110] p-4 text-slate-800 select-none">
+          <div className="ignore-capture fixed inset-0 bg-black/60 backdrop-blur-2xs flex items-center justify-center z-[110] p-4 text-slate-800 select-none print:hidden">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}

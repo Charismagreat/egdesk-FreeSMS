@@ -379,7 +379,7 @@ export default function AIHelpManager() {
       {/* 💡 AI 마우스 커서 도움말 인디케이터 (즉시 반응 툴팁 배지) - React Portal 사용으로 쌓임 맥락(Stacking Context) 해결 */}
       {cursorIndicator.visible && !helpInfo.isOpen && mounted && createPortal(
         <div
-          className="fixed pointer-events-none z-[10000] flex items-center justify-center bg-gradient-to-tr from-rose-500 to-amber-500 text-white rounded-full w-8 h-8 shadow-2xl animate-pulse"
+          className="fixed pointer-events-none z-[10000] flex items-center justify-center bg-gradient-to-tr from-rose-500 to-amber-500 text-white rounded-full w-8 h-8 shadow-2xl animate-pulse print:hidden"
           style={{
             left: `${cursorIndicator.x + 12}px`,
             top: `${cursorIndicator.y + 12}px`,
@@ -397,7 +397,7 @@ export default function AIHelpManager() {
           id="ai-contextual-help-popup"
           onMouseEnter={handlePopupMouseEnter}
           onMouseLeave={handlePopupMouseLeave}
-          className="fixed bottom-24 right-6 w-96 bg-slate-900/90 hover:bg-slate-900/95 border border-slate-700/80 rounded-2xl p-5 shadow-2xl backdrop-blur-md z-[9999] text-left animate-fade-in text-white transition-all"
+          className="fixed bottom-24 right-6 w-96 bg-slate-900/90 hover:bg-slate-900/95 border border-slate-700/80 rounded-2xl p-5 shadow-2xl backdrop-blur-md z-[9999] text-left animate-fade-in text-white transition-all print:hidden"
         >
           <div className="flex items-center justify-between border-b border-slate-700/50 pb-2.5 mb-3">
             <div className="flex items-center space-x-2">
@@ -454,7 +454,7 @@ export default function AIHelpManager() {
 
       {/* 💡 AI 도움말 끄고 켜기 플로팅 버튼 (이지봇 위젯 왼쪽 옆 배치) */}
       {mounted && createPortal(
-        <div className="fixed bottom-[32px] right-[88px] z-50 flex items-center justify-center ignore-capture">
+        <div className="fixed bottom-[32px] right-[88px] z-50 flex items-center justify-center ignore-capture print:hidden">
           <div className="relative group">
             <button
               onClick={toggleHelp}
