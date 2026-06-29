@@ -697,7 +697,7 @@ function WebViewContent() {
   // 이미지/문서 원본 뷰어 뱃지 감지 헬퍼
   const detectFile = (str: string) => {
     const isUrl = str.startsWith("http://") || str.startsWith("https://") || str.includes("/uploads/");
-    const isBase64 = str.startsWith("data:image/") || str.startsWith("data:application/pdf");
+    const isBase64 = str.startsWith("data:") && str.includes(";base64,");
     return isUrl || isBase64;
   };
 
@@ -1090,7 +1090,11 @@ function WebViewContent() {
                               })()
                             ) : isAttachedFile ? (
                               (() => {
-                                const isExcel = strVal.toLowerCase().includes(".xlsx") || strVal.toLowerCase().includes(".xls");
+                                const isExcel = 
+                                  strVal.toLowerCase().includes(".xlsx") || 
+                                  strVal.toLowerCase().includes(".xls") || 
+                                  strVal.toLowerCase().includes("spreadsheetml") || 
+                                  strVal.toLowerCase().includes("excel");
                                 return isExcel ? (
                                   <button
                                     onClick={() => openFileInNewTab(strVal)}
