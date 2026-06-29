@@ -225,10 +225,16 @@ export default function ManufactureEstimateWritePage() {
           return itemBarcode === code || invId === code || isIdMatch;
         });
         if (matched) {
-          updated[index].itemCode = matched.barcode || `INV-${matched.id}`;
+          // 중요: onChange 입력 루프 중 itemCode를 강제로 INV-로 덮어쓰면 포커스가 끊기고 타이핑이 막히므로,
+          // 입력창의 itemCode 값은 그대로 놔두고 품명, 규격, 단가만 자동완성합니다.
           updated[index].productName = matched.name || "";
           updated[index].spec = matched.spec || "";
           updated[index].unitPrice = Number(matched.price) || 0;
+          
+          // 수량이 0이거나 없을 때 자동으로 1로 채워주어 실시간 금액 변동 반응을 선사합니다.
+          if (!updated[index].quantity || updated[index].quantity === 0) {
+            updated[index].quantity = 1;
+          }
         }
       }
     }
@@ -701,6 +707,13 @@ export default function ManufactureEstimateWritePage() {
                               type="text" 
                               value={it.itemCode || ""}
                               onChange={e => handleMaterialChange(idx, "itemCode", e.target.value)}
+                              onBlur={e => {
+                                // 포커스 아웃(입력 종료) 시 숫자만 기입되어 있다면 INV- 포맷으로 정규화 보정해줍니다.
+                                const val = e.target.value.trim();
+                                if (/^\d+$/.test(val)) {
+                                  handleMaterialChange(idx, "itemCode", `INV-${val}`);
+                                }
+                              }}
                               placeholder="품목코드 (INV-)"
                               className="w-24 bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-800 outline-none focus:border-indigo-500 shrink-0 font-mono font-bold"
                             />
