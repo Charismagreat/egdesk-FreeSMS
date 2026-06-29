@@ -513,7 +513,7 @@ export default function ManufactureEstimateWritePage() {
               </Link>
               <h1 className="text-3xl font-black text-slate-800 tracking-tight flex items-center gap-2">
                 <FileText className="w-8 h-8 text-indigo-600" />
-                <span>제조업 특화 견적서 작성 ⚡</span>
+                <span>견적서 작성 AI</span>
               </h1>
               <div className="hidden sm:flex items-center gap-1.5 ml-2">
                 <span className="text-[10px] bg-indigo-50 text-indigo-650 border border-indigo-200/50 px-2 py-0.5 rounded font-black tracking-wider uppercase">송전/배전 기기 제조</span>
