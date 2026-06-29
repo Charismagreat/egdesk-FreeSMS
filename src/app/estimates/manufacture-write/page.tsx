@@ -1066,8 +1066,8 @@ export default function ManufactureEstimateWritePage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {/* 재료비 대표 2개 */}
-                    {materials.filter(m => m.productName).slice(0, 2).map((m, idx) => (
+                    {/* 재료비 내역 전체 출력 */}
+                    {materials.filter(m => m.productName).map((m, idx) => (
                       <tr key={`m-${idx}`} className="text-slate-755">
                         <td className="py-1 pl-1 text-slate-400 font-bold">재료비</td>
                         <td className="py-1 truncate max-w-[120px]">{m.productName}</td>
@@ -1077,21 +1077,16 @@ export default function ManufactureEstimateWritePage() {
                         <td className="py-1 text-right font-mono pr-1">{((m.quantity || 0) * (m.unitPrice || 0)).toLocaleString()}</td>
                       </tr>
                     ))}
-                    {materials.filter(m => m.productName).length > 2 && (
-                      <tr className="text-slate-400 italic">
-                        <td className="py-1 pl-1">재료비</td>
-                        <td className="py-1">외 {materials.filter(m => m.productName).length - 2}건 재료 내역</td>
-                        <td className="py-1">-</td>
-                        <td className="py-1 text-center font-mono">-</td>
-                        <td className="py-1 text-right font-mono pr-1">-</td>
-                        <td className="py-1 text-right font-mono pr-1">{(materialsTotal - materials.filter(m => m.productName).slice(0, 2).reduce((s, it) => s + (it.quantity * it.unitPrice), 0)).toLocaleString()}</td>
-                      </tr>
-                    )}
 
-                    {/* 직접가공비 대표 2개 */}
-                    {directProcess.filter(p => p.processName).slice(0, 2).map((p, idx) => (
+                    {/* 가공비 대분류 헤더 행 */}
+                    <tr className="bg-slate-50/50 text-slate-800 font-extrabold text-[8px]">
+                      <td className="py-1 pl-1 text-slate-700" colSpan={6}>가공비 (공정 및 가공비 명세)</td>
+                    </tr>
+
+                    {/* 직접가공비 상세 내역 */}
+                    {directProcess.filter(p => p.processName).map((p, idx) => (
                       <tr key={`dp-${idx}`} className="text-slate-755">
-                        <td className="py-1 pl-1 text-indigo-500 font-bold">직접가공</td>
+                        <td className="py-1 pl-2 text-indigo-500 font-bold">└ 직접가공</td>
                         <td className="py-1 truncate max-w-[120px]">{p.processName}</td>
                         <td className="py-1">-</td>
                         <td className="py-1 text-center font-mono">{p.quantity}</td>
@@ -1099,21 +1094,11 @@ export default function ManufactureEstimateWritePage() {
                         <td className="py-1 text-right font-mono pr-1">{((p.quantity || 0) * (p.unitPrice || 0)).toLocaleString()}</td>
                       </tr>
                     ))}
-                    {directProcess.filter(p => p.processName).length > 2 && (
-                      <tr className="text-slate-400 italic">
-                        <td className="py-1 pl-1">직접가공</td>
-                        <td className="py-1">외 {directProcess.filter(p => p.processName).length - 2}건 가공 공정</td>
-                        <td className="py-1">-</td>
-                        <td className="py-1 text-center font-mono">-</td>
-                        <td className="py-1 text-right font-mono pr-1">-</td>
-                        <td className="py-1 text-right font-mono pr-1">{(directProcessTotal - directProcess.filter(p => p.processName).slice(0, 2).reduce((s, it) => s + (it.quantity * it.unitPrice), 0)).toLocaleString()}</td>
-                      </tr>
-                    )}
 
-                    {/* 외주가공비 대표 2개 */}
-                    {outsourceProcess.filter(p => p.processName).slice(0, 2).map((p, idx) => (
+                    {/* 외주가공비 상세 내역 */}
+                    {outsourceProcess.filter(p => p.processName).map((p, idx) => (
                       <tr key={`op-${idx}`} className="text-slate-755">
-                        <td className="py-1 pl-1 text-amber-500 font-bold">외주가공</td>
+                        <td className="py-1 pl-2 text-pink-500 font-bold">└ 외주가공</td>
                         <td className="py-1 truncate max-w-[120px]">{p.processName}</td>
                         <td className="py-1">-</td>
                         <td className="py-1 text-center font-mono">{p.quantity}</td>
@@ -1121,38 +1106,34 @@ export default function ManufactureEstimateWritePage() {
                         <td className="py-1 text-right font-mono pr-1">{((p.quantity || 0) * (p.unitPrice || 0)).toLocaleString()}</td>
                       </tr>
                     ))}
-                    {outsourceProcess.filter(p => p.processName).length > 2 && (
-                      <tr className="text-slate-400 italic">
-                        <td className="py-1 pl-1">외주가공</td>
-                        <td className="py-1">외 {outsourceProcess.filter(p => p.processName).length - 2}건 외주 공정</td>
-                        <td className="py-1">-</td>
-                        <td className="py-1 text-center font-mono">-</td>
-                        <td className="py-1 text-right font-mono pr-1">-</td>
-                        <td className="py-1 text-right font-mono pr-1">{(outsourceProcessTotal - outsourceProcess.filter(p => p.processName).slice(0, 2).reduce((s, it) => s + (it.quantity * it.unitPrice), 0)).toLocaleString()}</td>
-                      </tr>
-                    )}
+
+                    {/* 가공비 합계 행 */}
+                    <tr className="bg-slate-50/30 text-slate-700 font-bold text-[8px] border-b border-slate-100">
+                      <td className="py-1 pl-1 text-indigo-700">가공비 합계</td>
+                      <td className="py-1 text-slate-500" colSpan={2}>직접 ({directProcessTotal.toLocaleString()}원) + 외주 ({outsourceProcessTotal.toLocaleString()}원)</td>
+                      <td className="py-1 text-center font-mono">-</td>
+                      <td className="py-1 text-right font-mono pr-1">-</td>
+                      <td className="py-1 text-right font-mono pr-1">{processTotal.toLocaleString()}</td>
+                    </tr>
 
                     {/* 간접원가 행들 */}
-                    <tr className="bg-slate-50/30 text-slate-500">
+                    <tr className="bg-slate-50/20 text-slate-500">
                       <td className="py-1 pl-1 font-bold">간접원가</td>
-                      <td className="py-1">일반관리비 (가공비의 10%)</td>
-                      <td className="py-1">-</td>
+                      <td className="py-1" colSpan={2}>일반관리비 (가공비의 10%)</td>
                       <td className="py-1 text-center">-</td>
                       <td className="py-1 text-right font-mono pr-1">-</td>
                       <td className="py-1 text-right font-mono pr-1">{generalAdminCost.toLocaleString()}</td>
                     </tr>
-                    <tr className="bg-slate-50/30 text-slate-500">
+                    <tr className="bg-slate-50/20 text-slate-500">
                       <td className="py-1 pl-1 font-bold">기업이윤</td>
-                      <td className="py-1">기업이윤 (가공비+관리비의 10%)</td>
-                      <td className="py-1">-</td>
+                      <td className="py-1" colSpan={2}>기업이윤 (가공비+관리비의 10%)</td>
                       <td className="py-1 text-center">-</td>
                       <td className="py-1 text-right font-mono pr-1">-</td>
                       <td className="py-1 text-right font-mono pr-1">{businessProfit.toLocaleString()}</td>
                     </tr>
-                    <tr className="bg-slate-50/30 text-slate-500">
+                    <tr className="bg-slate-50/20 text-slate-500">
                       <td className="py-1 pl-1 font-bold">기타비용</td>
-                      <td className="py-1">재료관리비 (재료비의 5%)</td>
-                      <td className="py-1">-</td>
+                      <td className="py-1" colSpan={2}>재료관리비 (재료비의 5%)</td>
                       <td className="py-1 text-center">-</td>
                       <td className="py-1 text-right font-mono pr-1">-</td>
                       <td className="py-1 text-right font-mono pr-1">{materialManageCost.toLocaleString()}</td>
