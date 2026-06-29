@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { ArrowRightLeft, ShoppingCart, Send } from "lucide-react";
+import { ArrowRightLeft, ShoppingCart, Send, Sparkles } from "lucide-react";
+import Link from "next/link";
 
 interface EstimatesHeaderProps {
   activeTab: "inbound" | "outbound";
@@ -13,7 +14,7 @@ export default function EstimatesHeader({
   setActiveTab,
 }: EstimatesHeaderProps) {
   return (
-    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
       <div>
         <h1 className="text-3xl font-black text-slate-800 tracking-tight flex items-center gap-2.5">
           <ArrowRightLeft className="w-8 h-8 text-indigo-600" />
@@ -24,31 +25,43 @@ export default function EstimatesHeader({
         </p>
       </div>
 
-      {/* 허브 전환 탭 버튼 */}
-      <div className="flex bg-slate-200/60 p-1.5 rounded-2xl border border-slate-100 max-w-md shadow-inner">
-        <button
-          onClick={() => setActiveTab("inbound")}
-          className={`flex-1 py-3 px-6 rounded-xl text-xs md:text-sm font-black flex items-center justify-center transition-all ${
-            activeTab === "inbound"
-              ? "bg-slate-900 text-white shadow-md"
-              : "text-slate-500 hover:text-slate-800"
-          }`}
+      <div className="flex flex-wrap items-center gap-3">
+        {/* 제조업 특화 견적서 작성 신설 페이지 링크 */}
+        <Link
+          href="/estimates/manufacture-write"
+          className="py-3 px-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs md:text-sm font-black flex items-center justify-center transition-all shadow-lg shadow-indigo-600/10 active:scale-95 whitespace-nowrap cursor-pointer"
         >
-          <ShoppingCart className="w-4 h-4 mr-2" />
-          받은 견적/발주
-        </button>
-        <button
-          onClick={() => setActiveTab("outbound")}
-          className={`flex-1 py-3 px-6 rounded-xl text-xs md:text-sm font-black flex items-center justify-center transition-all ${
-            activeTab === "outbound"
-              ? "bg-slate-900 text-white shadow-md"
-              : "text-slate-500 hover:text-slate-800"
-          }`}
-        >
-          <Send className="w-4 h-4 mr-2" />
-          보낸 견적/수주
-        </button>
+          <Sparkles className="w-4 h-4 mr-2 text-amber-300 animate-pulse" />
+          제조업 견적서 작성 ⚡
+        </Link>
+
+        {/* 허브 전환 탭 버튼 */}
+        <div className="flex bg-slate-200/60 p-1.5 rounded-2xl border border-slate-100 max-w-md shadow-inner">
+          <button
+            onClick={() => setActiveTab("inbound")}
+            className={`flex-1 py-3 px-6 rounded-xl text-xs md:text-sm font-black flex items-center justify-center transition-all cursor-pointer ${
+              activeTab === "inbound"
+                ? "bg-slate-900 text-white shadow-md"
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <ShoppingCart className="w-4 h-4 mr-2" />
+            받은 견적/발주
+          </button>
+          <button
+            onClick={() => setActiveTab("outbound")}
+            className={`flex-1 py-3 px-6 rounded-xl text-xs md:text-sm font-black flex items-center justify-center transition-all cursor-pointer ${
+              activeTab === "outbound"
+                ? "bg-slate-900 text-white shadow-md"
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <Send className="w-4 h-4 mr-2" />
+            보낸 견적/수주
+          </button>
+        </div>
       </div>
     </div>
   );
 }
+
