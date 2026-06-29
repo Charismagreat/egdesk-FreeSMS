@@ -687,7 +687,7 @@ export default function ManufactureEstimateWritePage() {
                   </div>
 
                   <div className="bg-slate-50 p-4.5 rounded-2xl border border-slate-200/60 space-y-4">
-                    <span className="text-[10px] font-black text-slate-500 border-b border-slate-200 pb-2 block uppercase tracking-widest">문서 번호 및 작성자 메타</span>
+                    <span className="text-[10px] font-black text-slate-500 border-b border-slate-200 pb-2 block uppercase tracking-widest">견적 번호 및 작성자 정보</span>
                     
                     <div className="grid grid-cols-2 gap-2">
                       <div>
