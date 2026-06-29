@@ -73,6 +73,21 @@ export default function ManufactureEstimateWritePage() {
   const [sendAddress, setSendAddress] = useState("");
   const [isSending, setIsSending] = useState(false);
 
+  // 🛡️ 구버전 캐시 및 더미 데이터(고압 차단기 등) 강제 감지 후 자동 소거 방어막
+  useEffect(() => {
+    if (!isRestored) return;
+    const hasDummy = materials.some(it => 
+      it.productName.includes("고압 차단기") || 
+      it.productName.includes("SUS304") ||
+      it.unitPrice === 850000
+    );
+    if (hasDummy) {
+      setMaterials([{ productName: "", spec: "", quantity: 0, unitPrice: 0, remark: "" }]);
+      setDirectProcess([{ processName: "", quantity: 0, unitPrice: 0, remark: "" }]);
+      setOutsourceProcess([{ processName: "", quantity: 0, unitPrice: 0, remark: "" }]);
+    }
+  }, [isRestored, materials, setMaterials, setDirectProcess, setOutsourceProcess]);
+
   // 2. 공급자 초기 프로필 연동 (Early Return Guard 준수)
   useEffect(() => {
     if (!isRestored) return;
