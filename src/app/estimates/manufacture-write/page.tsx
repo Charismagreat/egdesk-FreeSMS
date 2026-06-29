@@ -626,14 +626,14 @@ export default function ManufactureEstimateWritePage() {
                           <div className="flex gap-1.5 items-center">
                             <input 
                               type="text" 
-                              value={it.itemCode}
+                              value={it.itemCode || ""}
                               onChange={e => handleMaterialChange(idx, "itemCode", e.target.value)}
                               placeholder="품목코드 (INV-)"
                               className="w-24 bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-800 outline-none focus:border-indigo-500 shrink-0 font-mono font-bold"
                             />
                             <input 
                               type="text" 
-                              value={it.productName}
+                              value={it.productName || ""}
                               onChange={e => handleMaterialChange(idx, "productName", e.target.value)}
                               placeholder="재료 품명 입력"
                               className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-800 outline-none focus:border-indigo-500"
@@ -643,7 +643,7 @@ export default function ManufactureEstimateWritePage() {
                         <td className="py-2.5 pr-2">
                           <input 
                             type="text" 
-                            value={it.spec}
+                            value={it.spec || ""}
                             onChange={e => handleMaterialChange(idx, "spec", e.target.value)}
                             placeholder="규격"
                             className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-800 outline-none focus:border-indigo-500"
@@ -671,7 +671,7 @@ export default function ManufactureEstimateWritePage() {
                         <td className="py-2.5 pr-2">
                           <input 
                             type="text" 
-                            value={it.remark}
+                            value={it.remark || ""}
                             onChange={e => handleMaterialChange(idx, "remark", e.target.value)}
                             placeholder="비고"
                             className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-800 outline-none focus:border-indigo-500"
