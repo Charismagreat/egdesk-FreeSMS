@@ -1116,24 +1116,29 @@ export default function ManufactureEstimateWritePage() {
                       <td className="py-1 text-right font-mono pr-1">{processTotal.toLocaleString()}</td>
                     </tr>
 
+                    {/* 간접 제조 원가 대분류 헤더 행 */}
+                    <tr className="bg-slate-50/50 text-slate-800 font-extrabold text-[8px]">
+                      <td className="py-1 pl-1 text-slate-700" colSpan={6}>간접 제조 원가</td>
+                    </tr>
+
                     {/* 간접원가 행들 */}
-                    <tr className="bg-slate-50/20 text-slate-500">
-                      <td className="py-1 pl-1 font-bold">간접원가</td>
+                    <tr className="text-slate-755">
+                      <td className="py-1 pl-2 text-indigo-500 font-bold">└ 일반관리비</td>
                       <td className="py-1" colSpan={2}>일반관리비 (가공비의 10%)</td>
                       <td className="py-1 text-center">-</td>
                       <td className="py-1 text-right font-mono pr-1">-</td>
                       <td className="py-1 text-right font-mono pr-1">{generalAdminCost.toLocaleString()}</td>
                     </tr>
-                    <tr className="bg-slate-50/20 text-slate-500">
-                      <td className="py-1 pl-1 font-bold">기업이윤</td>
+                    <tr className="text-slate-755">
+                      <td className="py-1 pl-2 text-indigo-500 font-bold">└ 기업이윤</td>
                       <td className="py-1" colSpan={2}>기업이윤 (가공비+관리비의 10%)</td>
                       <td className="py-1 text-center">-</td>
                       <td className="py-1 text-right font-mono pr-1">-</td>
                       <td className="py-1 text-right font-mono pr-1">{businessProfit.toLocaleString()}</td>
                     </tr>
-                    <tr className="bg-slate-50/20 text-slate-500">
-                      <td className="py-1 pl-1 font-bold">기타비용</td>
-                      <td className="py-1" colSpan={2}>재료관리비 (재료비의 5%)</td>
+                    <tr className="text-slate-755">
+                      <td className="py-1 pl-2 text-indigo-500 font-bold">└ 기타비용</td>
+                      <td className="py-1" colSpan={2}>기타비용 (재료관리비의 5%)</td>
                       <td className="py-1 text-center">-</td>
                       <td className="py-1 text-right font-mono pr-1">-</td>
                       <td className="py-1 text-right font-mono pr-1">{materialManageCost.toLocaleString()}</td>
