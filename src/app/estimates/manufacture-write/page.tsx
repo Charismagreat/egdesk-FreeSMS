@@ -1080,7 +1080,11 @@ export default function ManufactureEstimateWritePage() {
 
                     {/* 가공비 대분류 헤더 행 */}
                     <tr className="bg-slate-50/50 text-slate-800 font-extrabold text-[8px]">
-                      <td className="py-1 pl-1 text-slate-700" colSpan={6}>가공비 (공정 및 가공비 명세)</td>
+                      <td className="py-1 pl-1 text-slate-700" colSpan={2}>가공비 (공정 및 가공비 명세)</td>
+                      <td className="py-1">-</td>
+                      <td className="py-1 text-center">-</td>
+                      <td className="py-1 text-right font-mono pr-1">-</td>
+                      <td className="py-1 text-right font-mono pr-1 text-indigo-700 font-black">{processTotal.toLocaleString()}원</td>
                     </tr>
 
                     {/* 직접가공비 상세 내역 */}
@@ -1107,18 +1111,13 @@ export default function ManufactureEstimateWritePage() {
                       </tr>
                     ))}
 
-                    {/* 가공비 합계 행 */}
-                    <tr className="bg-slate-50/30 text-slate-700 font-bold text-[8px] border-b border-slate-100">
-                      <td className="py-1 pl-1 text-indigo-700">가공비 합계</td>
-                      <td className="py-1 text-slate-500" colSpan={2}>직접 ({directProcessTotal.toLocaleString()}원) + 외주 ({outsourceProcessTotal.toLocaleString()}원)</td>
-                      <td className="py-1 text-center font-mono">-</td>
-                      <td className="py-1 text-right font-mono pr-1">-</td>
-                      <td className="py-1 text-right font-mono pr-1">{processTotal.toLocaleString()}</td>
-                    </tr>
-
                     {/* 간접 제조 원가 대분류 헤더 행 */}
                     <tr className="bg-slate-50/50 text-slate-800 font-extrabold text-[8px]">
-                      <td className="py-1 pl-1 text-slate-700" colSpan={6}>간접 제조 원가</td>
+                      <td className="py-1 pl-1 text-slate-700" colSpan={2}>간접 제조 원가</td>
+                      <td className="py-1">-</td>
+                      <td className="py-1 text-center">-</td>
+                      <td className="py-1 text-right font-mono pr-1">-</td>
+                      <td className="py-1 text-right font-mono pr-1 text-indigo-700 font-black">{(generalAdminCost + businessProfit + materialManageCost).toLocaleString()}원</td>
                     </tr>
 
                     {/* 간접원가 행들 */}
