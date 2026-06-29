@@ -917,7 +917,32 @@ export default function EstimateDetailModal({
                   return targetFileUrl ? (
                     <button
                       type="button"
-                      onClick={() => window.open(pdfBlobUrl || targetFileUrl, '_blank')}
+                      onClick={() => {
+                        const fileUrl = pdfBlobUrl || targetFileUrl;
+                        if (!fileUrl) return;
+                        if (fileUrl.startsWith("data:image/")) {
+                          const newWindow = window.open();
+                          if (newWindow) {
+                            newWindow.document.write(`
+                              <html>
+                                <head>
+                                  <title>원본 이미지 열람</title>
+                                  <style>
+                                    body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #0f172a; }
+                                    img { max-width: 100%; max-height: 100vh; object-fit: contain; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); }
+                                  </style>
+                                </head>
+                                <body>
+                                  <img src="${fileUrl}" alt="원본 이미지" />
+                                </body>
+                              </html>
+                            `);
+                            newWindow.document.close();
+                          }
+                        } else {
+                          window.open(fileUrl, '_blank');
+                        }
+                      }}
                       className="py-1.5 px-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-[10px] rounded-lg flex items-center gap-1 transition-all shadow-sm shrink-0"
                       title="새 창에서 원본 파일 열람 및 인쇄"
                     >
