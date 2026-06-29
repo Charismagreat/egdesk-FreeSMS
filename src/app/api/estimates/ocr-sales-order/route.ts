@@ -283,7 +283,12 @@ const geminiUrlPass1 = `https://generativelanguage.googleapis.com/v1beta/models/
               }
             ]
           }
-        ]
+        ],
+        generationConfig: {
+          thinkingConfig: {
+            thinkingLevel: "HIGH"
+          }
+        }
       })
     });
 
@@ -313,10 +318,8 @@ ${responseTextPass1}
    - 자사가 공급사(수주처)일 경우, 상대 거래처인 바이어(buyer) 정보를 최종 'buyer' 객체에 담으십시오.
    - 자사가 구매사(바이어)일 경우, 상대 거래처인 공급사(supplier) 정보를 최종 'buyer' 객체에 담으십시오. (본 API는 수주등록용이므로 상대방 정보를 최종 'buyer' 객체에 매핑합니다)
    - 둘 다 매치되지 않으면, 발주처(buyer_raw)를 'buyer' 객체에 매핑하고, 공급처(supplier_raw)를 'supplier' 객체에 매핑하십시오.
-   - **[거래처 상호명 강제 교정 지침]**:
-     * 본 발주서의 실 상호명은 바이어가 **'㈜원컨덕터'** (또는 '(주)원컨덕터'), 공급처가 **'원헨더트레이딩'** 입니다.
-     * 한글 인쇄 뭉침 등으로 인해 1차 판독에서 '원앤닥터', '원젠덕터', '원헨덕터' 등으로 오독된 명칭들이 식별된다면, 최종 'buyer.company_name' 및 관련 상호명은 반드시 **'㈜원컨덕터'**로 강제 교정하여 출력하십시오.
-     * 또한 1차 판독의 'supplier_raw.company_name'이 '원앤닥터트레이딩'이나 '원헨더트레이딩' 등으로 읽혔다면 이는 자사(공급자)에 해당하므로 최종 'supplier' 객체에 담으십시오.
+    - **[거래처 상호명 강제 교정 지침]**:
+      * 한글 인쇄 뭉침 등으로 인해 1차 판독에서 자사 혹은 파트너의 회사명이 오독되었다면, 실제 프로필에 준해 올바른 상호명으로 강제 교정하여 출력하십시오.
    - **[담당자 교차 오인 방지]**: 각 업체의 '담당자' 정보를 서로 덮어쓰거나 오인 대입해서는 안 됩니다. 각 소속에 맞게 분리 매핑하십시오. 연락처 없이 이름만 기재되어 있더라도 절대 누락하지 마십시오.
    - **[일반 전화번호와 팩스 번호 분리]**: 전화번호 필드에 팩스(FAX) 번호는 절대 추출하지 마십시오. 접두사에 "FAX", "팩스", "F"가 붙은 번호는 철저히 배제하고, 대표번호나 핸드폰 번호만 선택하여 매핑하십시오.
     - **[설명조 괄호 문구 필터링]**: 1차 판독 리포트 텍스트 내에 위치나 상태를 설명하는 구문(예: "(지상현 정보 아래)", "(체크됨)", "(체크 안됨)", "미식별" 등)이 포함되어 있다면, 최종 JSON에 배정할 때(특히 대표자명, 비고/memo 필드 등) 이를 깨끗이 필터링하여 순수 데이터(예: "금강컨트롤", "지상현")만 추출하십시오. 설명용 안내 문구를 데이터에 그대로 끼워 넣지 마십시오.
@@ -409,7 +412,10 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
           }
         ],
         generationConfig: {
-          responseMimeType: "application/json"
+          responseMimeType: "application/json",
+          thinkingConfig: {
+            thinkingLevel: "HIGH"
+          }
         }
       })
     });

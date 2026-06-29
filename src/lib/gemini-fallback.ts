@@ -10,7 +10,47 @@ export async function fetchGeminiWithFallback(url: string, init?: RequestInit): 
     let attempt = 0;
     while (attempt < maxRetries) {
       try {
-        const res = await fetch(targetUrl, init);
+        let currentInit = init;
+
+        // 모델 버전에 따른 thinkingConfig 동적 조정
+        if (init && init.body && typeof init.body === 'string') {
+          try {
+            const bodyObj = JSON.parse(init.body);
+            const modelMatch = targetUrl.match(/\/models\/([^:]+):/);
+            const modelName = modelMatch ? modelMatch[1] : '';
+
+            const isGemini3 = modelName.includes('gemini-3');
+            const isGemini2_5 = modelName.includes('gemini-2.5');
+
+            if (bodyObj.generationConfig && bodyObj.generationConfig.thinkingConfig) {
+              const tc = { ...bodyObj.generationConfig.thinkingConfig };
+
+              if (isGemini3) {
+                // Gemini 3.5+ 에서는 thinkingLevel 사용
+                if ('thinkingBudget' in tc) delete tc.thinkingBudget;
+                if (!tc.thinkingLevel) tc.thinkingLevel = 'HIGH';
+                bodyObj.generationConfig.thinkingConfig = tc;
+              } else if (isGemini2_5) {
+                // Gemini 2.5 에서는 thinkingBudget 사용
+                if ('thinkingLevel' in tc) delete tc.thinkingLevel;
+                tc.thinkingBudget = -1; // 동적 생각 토큰 설정
+                bodyObj.generationConfig.thinkingConfig = tc;
+              } else {
+                // 생각 모드를 지원하지 않는 하위 모델의 경우 설정 제거
+                delete bodyObj.generationConfig.thinkingConfig;
+              }
+
+              currentInit = {
+                ...init,
+                body: JSON.stringify(bodyObj)
+              };
+            }
+          } catch (jsonErr) {
+            console.error('[AI Warning] Request body parsing failed for thinkingConfig adjustment:', jsonErr);
+          }
+        }
+
+        const res = await fetch(targetUrl, currentInit);
         
         if (res.ok) {
           return res;

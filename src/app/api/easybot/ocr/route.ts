@@ -355,7 +355,10 @@ ${JSON.stringify(facilitiesListForRag)}
           }
         ],
         generationConfig: {
-          responseMimeType: "application/json"
+          responseMimeType: "application/json",
+          thinkingConfig: {
+            thinkingLevel: "HIGH"
+          }
         }
       })
     });

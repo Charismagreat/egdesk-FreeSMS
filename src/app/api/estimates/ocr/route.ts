@@ -300,7 +300,12 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
                     }
                   ]
                 }
-              ]
+              ],
+              generationConfig: {
+                thinkingConfig: {
+                  thinkingLevel: "HIGH"
+                }
+              }
             })
           });
 
@@ -411,7 +416,10 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
                 }
               ],
               generationConfig: {
-                responseMimeType: "application/json"
+                responseMimeType: "application/json",
+                thinkingConfig: {
+                  thinkingLevel: "HIGH"
+                }
               }
             })
           });
