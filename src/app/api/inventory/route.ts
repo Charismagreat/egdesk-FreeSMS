@@ -13,6 +13,7 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type'); // 'material' 또는 'product'
+    const code = searchParams.get('code'); // 품목코드/ID 검색
 
     // In-app migration: 기존의 자재/제품/material/product 명칭을 표준 명칭으로 보정
     try {
@@ -22,6 +23,33 @@ export async function GET(request: Request) {
       await executeSQL("UPDATE inventory_logs SET itemType = '완제품' WHERE itemType IN ('제품', 'product')");
     } catch (migErr) {
       console.warn('[Migration Warning] Failed to run type normalization:', migErr);
+    }
+
+    // code 파라미터가 넘어왔을 때 1건 개별 조회 (INV- 접두어 또는 숫자 ID 또는 바코드 매칭)
+    if (code) {
+      const cleanCode = code.trim().toUpperCase();
+      let matchedRow = null;
+
+      const invMatch = cleanCode.match(/^INV-(\d+)$/);
+      const pureNumberMatch = cleanCode.match(/^\d+$/);
+
+      let itemId = null;
+      if (invMatch) itemId = Number(invMatch[1]);
+      else if (pureNumberMatch) itemId = Number(cleanCode);
+
+      if (itemId) {
+        const idQuery = await queryTable('inventory_items', { filters: { id: itemId } });
+        const found = (idQuery.rows || []).find((r: any) => !r.deleted_at);
+        if (found) matchedRow = found;
+      }
+
+      if (!matchedRow) {
+        const barcodeQuery = await queryTable('inventory_items', { filters: { barcode: cleanCode } });
+        const found = (barcodeQuery.rows || []).find((r: any) => !r.deleted_at);
+        if (found) matchedRow = found;
+      }
+
+      return NextResponse.json({ success: true, data: matchedRow ? [matchedRow] : [] });
     }
     
     // SQL 금지어 DELETE 회피를 위해 queryTable 사용 후 JS 레벨에서 소프트 삭제 데이터 필터링

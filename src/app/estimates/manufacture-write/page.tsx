@@ -217,24 +217,45 @@ export default function ManufactureEstimateWritePage() {
     if (field === "itemCode") {
       const code = String(value).trim().toUpperCase();
       if (code) {
-        const matched = inventoryItems.find(item => {
+        // 1차로 로컬 캐시에서 신속 매핑 시도
+        const matchedLocal = inventoryItems.find(item => {
           const itemBarcode = String(item.barcode || "").trim().toUpperCase();
           const invId = `INV-${item.id}`;
           const isPureNumber = /^\d+$/.test(code);
           const isIdMatch = isPureNumber && Number(item.id) === Number(code);
           return itemBarcode === code || invId === code || isIdMatch;
         });
-        if (matched) {
-          // 중요: onChange 입력 루프 중 itemCode를 강제로 INV-로 덮어쓰면 포커스가 끊기고 타이핑이 막히므로,
-          // 입력창의 itemCode 값은 그대로 놔두고 품명, 규격, 단가만 자동완성합니다.
-          updated[index].productName = matched.name || "";
-          updated[index].spec = matched.spec || "";
-          updated[index].unitPrice = Number(matched.price) || 0;
-          
-          // 수량이 0이거나 없을 때 자동으로 1로 채워주어 실시간 금액 변동 반응을 선사합니다.
+
+        if (matchedLocal) {
+          updated[index].productName = matchedLocal.name || "";
+          updated[index].spec = matchedLocal.spec || "";
+          updated[index].unitPrice = Number(matchedLocal.price) || 0;
           if (!updated[index].quantity || updated[index].quantity === 0) {
             updated[index].quantity = 1;
           }
+          setMaterials(updated);
+        } else {
+          // 2차로 캐시에 없는 경우 백엔드 데이터베이스 전체를 대상으로 비동기 개별 쿼리 검색 요청
+          fetch(`/api/inventory?code=${encodeURIComponent(code)}`)
+            .then(res => res.json())
+            .then(resData => {
+              if (resData.success && resData.data && resData.data.length > 0) {
+                const matchedServer = resData.data[0];
+                setMaterials(prev => {
+                  const latest = [...prev];
+                  if (latest[index]) {
+                    latest[index].productName = matchedServer.name || "";
+                    latest[index].spec = matchedServer.spec || "";
+                    latest[index].unitPrice = Number(matchedServer.price) || 0;
+                    if (!latest[index].quantity || latest[index].quantity === 0) {
+                      latest[index].quantity = 1;
+                    }
+                  }
+                  return latest;
+                });
+              }
+            })
+            .catch(err => console.error("품목 비동기 조회 실패:", err));
         }
       }
     }
