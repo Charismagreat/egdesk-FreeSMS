@@ -520,7 +520,7 @@ export default function ManufactureEstimateWritePage() {
               </div>
             </div>
             <p className="text-slate-500 mt-2 text-sm pl-13">
-              송전 및 배전 기기 제조업에 특화된 재료비, 가공비, 간접제조원가(일반관리비/기업이윤) 연산과 옴니채널 발송을 수행합니다.
+              제조업에 특화된 재료비, 가공비, 간접제조원가(일반관리비/기업이윤) 항목을 포함한 견적서 양식입니다.
             </p>
           </div>
 
