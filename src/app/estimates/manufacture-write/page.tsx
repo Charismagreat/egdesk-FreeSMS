@@ -814,7 +814,7 @@ export default function ManufactureEstimateWritePage() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-1">
-                  <span className="text-[10px] text-slate-500 font-bold">2. 일반 관리비 (가공비의 10%)</span>
+                  <span className="text-[10px] text-slate-500 font-bold">일반 관리비 (가공비의 10%)</span>
                   <div className="text-base font-black text-slate-800 font-mono">
                     {generalAdminCost.toLocaleString()}원
                   </div>
@@ -822,7 +822,7 @@ export default function ManufactureEstimateWritePage() {
                 </div>
 
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-1">
-                  <span className="text-[10px] text-slate-500 font-bold">3. 기업 이윤 (가공비+관리비의 10%)</span>
+                  <span className="text-[10px] text-slate-500 font-bold">기업 이윤 (가공비+관리비의 10%)</span>
                   <div className="text-base font-black text-slate-800 font-mono">
                     {businessProfit.toLocaleString()}원
                   </div>
@@ -830,7 +830,7 @@ export default function ManufactureEstimateWritePage() {
                 </div>
 
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-1">
-                  <span className="text-[10px] text-slate-500 font-bold">4. 기타 비용 (재료관리비의 5%)</span>
+                  <span className="text-[10px] text-slate-500 font-bold">기타 비용 (재료관리비의 5%)</span>
                   <div className="text-base font-black text-slate-800 font-mono">
                     {materialManageCost.toLocaleString()}원
                   </div>
