@@ -222,7 +222,8 @@ export default function ManufactureEstimateWritePage() {
       setMaterials(prev => {
         const latest = [...prev];
         if (latest[index]) {
-          latest[index].itemCode = matchedLocal.barcode || `INV-${matchedLocal.id}`;
+          // 중요: onChange 쿼리 중 itemCode 값을 덮어쓰면 포커스가 끊겨 한 글자밖에 안 적히므로,
+          // itemCode는 덮어쓰지 않고 오직 품명, 규격, 단가만 채웁니다!
           latest[index].productName = matchedLocal.name || "";
           latest[index].spec = matchedLocal.spec || "";
           latest[index].unitPrice = Number(matchedLocal.price) || 0;
@@ -242,7 +243,7 @@ export default function ManufactureEstimateWritePage() {
             setMaterials(prev => {
               const latest = [...prev];
               if (latest[index]) {
-                latest[index].itemCode = matchedServer.barcode || `INV-${matchedServer.id}`;
+                // 중요: 마찬가지로 itemCode는 덮어쓰지 않음
                 latest[index].productName = matchedServer.name || "";
                 latest[index].spec = matchedServer.spec || "";
                 latest[index].unitPrice = Number(matchedServer.price) || 0;
@@ -264,6 +265,14 @@ export default function ManufactureEstimateWritePage() {
       updated[index][field] = Number(value) || 0;
     } else {
       updated[index][field] = value;
+    }
+
+    // 품목코드 타이핑 즉시 실시간으로 자동완성 쿼리 실행 (itemCode 자체는 덮어쓰지 않아 키보드 버벅임 없음)
+    if (field === "itemCode") {
+      const code = String(value).trim().toUpperCase();
+      if (code) {
+        handleItemCodeLookup(index, code);
+      }
     }
     setMaterials(updated);
   };
@@ -733,7 +742,13 @@ export default function ManufactureEstimateWritePage() {
                               type="text" 
                               value={it.itemCode || ""}
                               onChange={e => handleMaterialChange(idx, "itemCode", e.target.value)}
-                              onBlur={e => handleItemCodeLookup(idx, e.target.value)}
+                              onBlur={e => {
+                                // 포커스 아웃(입력 종료) 시 숫자만 기입되어 있다면 INV- 포맷으로 정규화 보정해줍니다.
+                                const val = e.target.value.trim();
+                                if (/^\d+$/.test(val)) {
+                                  handleMaterialChange(idx, "itemCode", `INV-${val}`);
+                                }
+                              }}
                               placeholder="품목코드 (INV-)"
                               className="w-24 bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-800 outline-none focus:border-indigo-500 shrink-0 font-mono font-bold"
                             />
