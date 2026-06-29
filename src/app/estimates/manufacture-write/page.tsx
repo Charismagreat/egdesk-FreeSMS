@@ -65,61 +65,62 @@ export default function ManufactureEstimateWritePage() {
   const [sendAddress, setSendAddress] = useState("");
   const [isSending, setIsSending] = useState(false);
 
-  // 2. 공급자 초기 프로필 연동
+  // 2. 공급자 초기 프로필 연동 (Early Return Guard 준수)
   useEffect(() => {
-    if (isRestored && !supplier.companyName) {
-      fetch("/api/settings?key=my_company_profile")
-        .then(res => res.json())
-        .then(data => {
-          if (data.success && data.value) {
-            try {
-              const profile = JSON.parse(data.value);
-              setSupplier({
-                businessNumber: profile.businessNumber || "306-81-93458",
-                companyName: profile.companyName || "주식회사 쿠스",
-                representative: profile.representative || "김진수",
-                address: profile.address || "서울특별시 금천구 가산디지털2로 274",
-                phone: profile.phone || "1599-6277",
-                fax: profile.fax || "02-715-9989",
-                email: profile.email || "sales@koos.co.kr"
-              });
-            } catch(e) {}
-          }
-        })
-        .catch(() => {
-          // 디폴트값 보존 (송배전기기 제조 성격용)
-          setSupplier({
-            businessNumber: "306-81-93458",
-            companyName: "주식회사 쿠스 (송배전기기 전문)",
-            representative: "김진수",
-            address: "서울특별시 금천구 가산디지털2로 274",
-            phone: "1599-6277",
-            fax: "02-715-9989",
-            email: "sales@koos.co.kr"
-          });
-        });
-    }
-  }, [isRestored]);
+    if (!isRestored) return;
+    if (supplier.companyName) return; // 값이 이미 차 있으면 생략
 
-  // 3. 견적번호 및 오늘 날짜 자동 생성
+    fetch("/api/settings?key=my_company_profile")
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.value) {
+          try {
+            const profile = JSON.parse(data.value);
+            setSupplier({
+              businessNumber: profile.businessNumber || "306-81-93458",
+              companyName: profile.companyName || "주식회사 쿠스",
+              representative: profile.representative || "김진수",
+              address: profile.address || "서울특별시 금천구 가산디지털2로 274",
+              phone: profile.phone || "1599-6277",
+              fax: profile.fax || "02-715-9989",
+              email: profile.email || "sales@koos.co.kr"
+            });
+          } catch(e) {}
+        }
+      })
+      .catch(() => {
+        setSupplier({
+          businessNumber: "306-81-93458",
+          companyName: "주식회사 쿠스 (송배전기기 전문)",
+          representative: "김진수",
+          address: "서울특별시 금천구 가산디지털2로 274",
+          phone: "1599-6277",
+          fax: "02-715-9989",
+          email: "sales@koos.co.kr"
+        });
+      });
+  }, [isRestored, supplier.companyName]);
+
+  // 3. 견적번호 및 오늘 날짜 자동 생성 (Early Return Guard 준수)
   useEffect(() => {
-    if (isRestored && !meta.estimateNumber) {
-      const today = new Date();
-      const yyyy = today.getFullYear();
-      const mm = String(today.getMonth() + 1).padStart(2, "0");
-      const dd = String(today.getDate()).padStart(2, "0");
-      const random = Math.floor(1000 + Math.random() * 9000);
-      setMeta(prev => ({
-        ...prev,
-        estimateNumber: `EST-${yyyy}${mm}${dd}-${random}`,
-        estimateDate: `${yyyy}-${mm}-${dd}`
-      }));
-    }
-  }, [isRestored]);
+    if (!isRestored) return;
+    if (meta.estimateNumber) return; // 값이 이미 세팅되어 있으면 생략
+
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, "0");
+    const dd = String(today.getDate()).padStart(2, "0");
+    const random = Math.floor(1000 + Math.random() * 9000);
+    setMeta(prev => ({
+      ...prev,
+      estimateNumber: `EST-${yyyy}${mm}${dd}-${random}`,
+      estimateDate: `${yyyy}-${mm}-${dd}`
+    }));
+  }, [isRestored, meta.estimateNumber]);
 
   if (!isRestored) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center text-indigo-400">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center text-indigo-650">
         <RefreshCw className="w-10 h-10 animate-spin mr-3" />
         <span className="text-sm font-extrabold tracking-widest uppercase">견적 시스템 환경 복원 중...</span>
       </div>
@@ -206,7 +207,6 @@ export default function ManufactureEstimateWritePage() {
       alert("공급받는자 상호명을 먼저 입력해 주세요.");
       return;
     }
-    // 기본 수신처 매핑
     if (sendChannel === "EMAIL") setSendAddress(buyer.phone ? `${buyer.phone.replace(/-/g, "")}@naver.com` : "buyer@naver.com");
     if (sendChannel === "SMS") setSendAddress(buyer.phone || "");
     if (sendChannel === "FAX") setSendAddress("02-1234-5678");
@@ -227,41 +227,40 @@ export default function ManufactureEstimateWritePage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 font-sans selection:bg-indigo-500 selection:text-white">
-      {/* 백그라운드 빔 데코레이션 */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-10 right-1/4 w-96 h-96 bg-pink-500/5 rounded-full blur-[120px] pointer-events-none"></div>
-
+    <div 
+      className="min-h-screen bg-slate-50 text-slate-800 p-4 md:p-8 font-sans selection:bg-indigo-500 selection:text-white"
+      data-easybot-hint="제조업 전용 견적 작성 AI: 송전 및 배전 기기 제조업에 특화된 재료비, 가공비, 일반관리비, 기업이윤 연산 및 옴니채널 발송을 담당합니다."
+    >
       <div className="max-w-7xl mx-auto space-y-8 relative">
         {/* 상단 액션바 */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6">
           <div className="flex items-center gap-3">
             <Link 
               href="/estimates" 
-              className="p-2.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-2xl text-slate-400 hover:text-slate-200 transition-all active:scale-95"
+              className="p-2.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-2xl text-slate-500 hover:text-slate-800 transition-all active:scale-95 shadow-sm"
             >
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] bg-pink-500/20 text-pink-400 border border-pink-500/30 px-2 py-0.5 rounded font-black tracking-wider uppercase">송전/배전 기기 제조</span>
-                <span className="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-bold">임시저장 오토세이브 가동</span>
+                <span className="text-[10px] bg-indigo-50 text-indigo-650 border border-indigo-200/50 px-2 py-0.5 rounded font-black tracking-wider uppercase">송전/배전 기기 제조</span>
+                <span className="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded font-bold">임시저장 오토세이브 가동</span>
               </div>
-              <h2 className="text-2xl font-black tracking-tight text-white mt-1">제조업 특화 발송용 견적서 작성</h2>
+              <h2 className="text-2xl font-black tracking-tight text-slate-900 mt-1">제조업 특화 발송용 견적서 작성</h2>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={handleLoadPreset}
-              className="px-4 py-3 bg-indigo-950/40 hover:bg-indigo-900/40 text-indigo-400 border border-indigo-500/20 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+              className="px-4 py-3 bg-indigo-50 hover:bg-indigo-100/80 text-indigo-600 border border-indigo-200 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
             >
-              <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+              <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
               배전반 샘플 데이터 채우기
             </button>
             <button
               onClick={() => window.print()}
-              className="px-4 py-3 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+              className="px-4 py-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
             >
               <Printer className="w-3.5 h-3.5" />
               견적서 인쇄 / PDF
@@ -283,18 +282,18 @@ export default function ManufactureEstimateWritePage() {
           <div className="xl:col-span-8 space-y-6">
             
             {/* 세션 1: 기본 정보 및 수발신자 메타 */}
-            <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800/80 rounded-3xl p-6 space-y-6">
-              <div className="flex items-center gap-2 border-b border-slate-800/50 pb-3">
-                <FileText className="w-4 h-4 text-indigo-400" />
-                <h3 className="text-sm font-extrabold text-white">0. 기본 정보 및 수발신처 입력</h3>
+            <div className="bg-white border border-slate-200/80 rounded-3xl p-6 space-y-6 shadow-sm">
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                <FileText className="w-4 h-4 text-indigo-500" />
+                <h3 className="text-sm font-extrabold text-slate-800">0. 기본 정보 및 수발신처 입력</h3>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* 공급자 정보 */}
-                <div className="bg-slate-950/50 p-4.5 rounded-2xl border border-slate-800/50 space-y-4 text-left">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">공급자 정보 (자사)</span>
-                    <Settings className="w-3.5 h-3.5 text-slate-500" />
+                <div className="bg-slate-50 p-4.5 rounded-2xl border border-slate-200/60 space-y-4 text-left">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">공급자 정보 (자사)</span>
+                    <Settings className="w-3.5 h-3.5 text-slate-400" />
                   </div>
                   
                   <div className="space-y-3">
@@ -304,7 +303,7 @@ export default function ManufactureEstimateWritePage() {
                         type="text" 
                         value={supplier.companyName}
                         onChange={e => setSupplier({ ...supplier, companyName: e.target.value })}
-                        className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs font-bold text-slate-200 outline-none focus:border-indigo-500"
+                        className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
@@ -314,7 +313,7 @@ export default function ManufactureEstimateWritePage() {
                           type="text" 
                           value={supplier.representative}
                           onChange={e => setSupplier({ ...supplier, representative: e.target.value })}
-                          className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs font-bold text-slate-200 outline-none"
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
                         />
                       </div>
                       <div>
@@ -323,7 +322,7 @@ export default function ManufactureEstimateWritePage() {
                           type="text" 
                           value={supplier.businessNumber}
                           onChange={e => setSupplier({ ...supplier, businessNumber: e.target.value })}
-                          className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs font-mono font-bold text-slate-200 outline-none"
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-mono font-bold text-slate-800 outline-none focus:border-indigo-500"
                         />
                       </div>
                     </div>
@@ -333,7 +332,7 @@ export default function ManufactureEstimateWritePage() {
                         type="text" 
                         value={supplier.address}
                         onChange={e => setSupplier({ ...supplier, address: e.target.value })}
-                        className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs font-bold text-slate-200 outline-none"
+                        className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
@@ -343,7 +342,7 @@ export default function ManufactureEstimateWritePage() {
                           type="text" 
                           value={supplier.phone}
                           onChange={e => setSupplier({ ...supplier, phone: e.target.value })}
-                          className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs font-bold text-slate-200 outline-none"
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
                         />
                       </div>
                       <div>
@@ -352,7 +351,7 @@ export default function ManufactureEstimateWritePage() {
                           type="text" 
                           value={supplier.fax}
                           onChange={e => setSupplier({ ...supplier, fax: e.target.value })}
-                          className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs font-bold text-slate-200 outline-none"
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
                         />
                       </div>
                     </div>
@@ -362,7 +361,7 @@ export default function ManufactureEstimateWritePage() {
                         type="email" 
                         value={supplier.email}
                         onChange={e => setSupplier({ ...supplier, email: e.target.value })}
-                        className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs font-bold text-slate-200 outline-none"
+                        className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
                       />
                     </div>
                   </div>
@@ -370,8 +369,8 @@ export default function ManufactureEstimateWritePage() {
 
                 {/* 공급받는자 정보 및 작성 정보 */}
                 <div className="space-y-4 text-left">
-                  <div className="bg-slate-950/50 p-4.5 rounded-2xl border border-slate-800/50 space-y-4">
-                    <span className="text-[10px] font-black text-slate-400 border-b border-slate-800 pb-2 block uppercase tracking-widest">공급받는자 정보 (바이어)</span>
+                  <div className="bg-slate-50 p-4.5 rounded-2xl border border-slate-200/60 space-y-4">
+                    <span className="text-[10px] font-black text-slate-500 border-b border-slate-200 pb-2 block uppercase tracking-widest">공급받는자 정보 (바이어)</span>
                     
                     <div className="grid grid-cols-2 gap-2">
                       <div>
@@ -381,7 +380,7 @@ export default function ManufactureEstimateWritePage() {
                           value={buyer.companyName}
                           onChange={e => setBuyer({ ...buyer, companyName: e.target.value })}
                           placeholder="상호명 입력"
-                          className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs font-bold text-slate-200 outline-none focus:border-indigo-500"
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
                         />
                       </div>
                       <div>
@@ -391,7 +390,7 @@ export default function ManufactureEstimateWritePage() {
                           value={buyer.departmentName}
                           onChange={e => setBuyer({ ...buyer, departmentName: e.target.value })}
                           placeholder="부서명 입력"
-                          className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs font-bold text-slate-200 outline-none"
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
                         />
                       </div>
                     </div>
@@ -404,7 +403,7 @@ export default function ManufactureEstimateWritePage() {
                           value={buyer.managerName}
                           onChange={e => setBuyer({ ...buyer, managerName: e.target.value })}
                           placeholder="담당자 입력"
-                          className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs font-bold text-slate-200 outline-none"
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
                         />
                       </div>
                       <div>
@@ -414,14 +413,14 @@ export default function ManufactureEstimateWritePage() {
                           value={buyer.phone}
                           onChange={e => setBuyer({ ...buyer, phone: e.target.value })}
                           placeholder="연락처 입력"
-                          className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs font-bold text-slate-200 outline-none"
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
                         />
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-slate-950/50 p-4.5 rounded-2xl border border-slate-800/50 space-y-4">
-                    <span className="text-[10px] font-black text-slate-400 border-b border-slate-800 pb-2 block uppercase tracking-widest">문서 번호 및 작성자 메타</span>
+                  <div className="bg-slate-50 p-4.5 rounded-2xl border border-slate-200/60 space-y-4">
+                    <span className="text-[10px] font-black text-slate-500 border-b border-slate-200 pb-2 block uppercase tracking-widest">문서 번호 및 작성자 메타</span>
                     
                     <div className="grid grid-cols-2 gap-2">
                       <div>
@@ -429,8 +428,7 @@ export default function ManufactureEstimateWritePage() {
                         <input 
                           type="text" 
                           value={meta.estimateNumber}
-                          onChange={e => setMeta({ ...meta, estimateNumber: e.target.value })}
-                          className="w-full bg-slate-900 border border-slate-850 rounded-lg p-2 text-xs font-mono font-bold text-slate-400 outline-none"
+                          className="w-full bg-slate-100 border border-slate-200 rounded-lg p-2 text-xs font-mono font-bold text-slate-500 outline-none cursor-not-allowed"
                           readOnly
                         />
                       </div>
@@ -440,7 +438,7 @@ export default function ManufactureEstimateWritePage() {
                           type="date" 
                           value={meta.estimateDate}
                           onChange={e => setMeta({ ...meta, estimateDate: e.target.value })}
-                          className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs font-bold text-slate-200 outline-none cursor-pointer"
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-800 outline-none cursor-pointer focus:border-indigo-500"
                         />
                       </div>
                     </div>
@@ -453,7 +451,7 @@ export default function ManufactureEstimateWritePage() {
                           value={meta.writerName}
                           onChange={e => setMeta({ ...meta, writerName: e.target.value })}
                           placeholder="작성자 성명"
-                          className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs font-bold text-slate-200 outline-none"
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
                         />
                       </div>
                       <div>
@@ -463,7 +461,7 @@ export default function ManufactureEstimateWritePage() {
                           value={meta.writerPhone}
                           onChange={e => setMeta({ ...meta, writerPhone: e.target.value })}
                           placeholder="작성자 연락처"
-                          className="w-full bg-slate-900 border border-slate-800 rounded-lg p-2 text-xs font-bold text-slate-200 outline-none"
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
                         />
                       </div>
                     </div>
@@ -473,15 +471,15 @@ export default function ManufactureEstimateWritePage() {
             </div>
 
             {/* 세션 2: 재료비 (1. 제조원가 - 1) */}
-            <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800/80 rounded-3xl p-6 space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-800/50 pb-3">
+            <div className="bg-white border border-slate-200/80 rounded-3xl p-6 space-y-4 shadow-sm">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
-                  <Coins className="w-4 h-4 text-indigo-400" />
-                  <h3 className="text-sm font-extrabold text-white">1. 재료비 (제조원가 - 재료 품목 내역)</h3>
+                  <Coins className="w-4 h-4 text-indigo-500" />
+                  <h3 className="text-sm font-extrabold text-slate-800">1. 재료비 (제조원가 - 재료 품목 내역)</h3>
                 </div>
                 <button
                   onClick={handleAddMaterial}
-                  className="px-3 py-1.5 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 rounded-lg font-bold text-[10px] border border-indigo-500/20 transition-all flex items-center gap-1 cursor-pointer"
+                  className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-650 rounded-lg font-bold text-[10px] border border-indigo-200/40 transition-all flex items-center gap-1 cursor-pointer"
                 >
                   <Plus className="w-3 h-3" />
                   재료 행 추가
@@ -491,7 +489,7 @@ export default function ManufactureEstimateWritePage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="border-b border-slate-800 text-slate-500">
+                    <tr className="border-b border-slate-100 text-slate-400 font-bold">
                       <th className="py-2.5 pl-1">품명 *</th>
                       <th className="py-2.5">규격</th>
                       <th className="py-2.5 w-16 text-center">수량</th>
@@ -501,16 +499,16 @@ export default function ManufactureEstimateWritePage() {
                       <th className="py-2.5 w-10 text-center"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/40">
+                  <tbody className="divide-y divide-slate-100">
                     {materials.map((it, idx) => (
-                      <tr key={idx} className="group hover:bg-slate-900/40">
+                      <tr key={idx} className="group hover:bg-slate-50/50">
                         <td className="py-2.5 pr-2 pl-1">
                           <input 
                             type="text" 
                             value={it.productName}
                             onChange={e => handleMaterialChange(idx, "productName", e.target.value)}
                             placeholder="재료 품명 입력"
-                            className="w-full bg-slate-950 border border-slate-850 rounded px-2 py-1 text-xs text-slate-200 outline-none"
+                            className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-800 outline-none focus:border-indigo-500"
                           />
                         </td>
                         <td className="py-2.5 pr-2">
@@ -519,7 +517,7 @@ export default function ManufactureEstimateWritePage() {
                             value={it.spec}
                             onChange={e => handleMaterialChange(idx, "spec", e.target.value)}
                             placeholder="규격"
-                            className="w-full bg-slate-950 border border-slate-850 rounded px-2 py-1 text-xs text-slate-200 outline-none"
+                            className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-800 outline-none focus:border-indigo-500"
                           />
                         </td>
                         <td className="py-2.5 pr-2">
@@ -527,7 +525,7 @@ export default function ManufactureEstimateWritePage() {
                             type="number" 
                             value={it.quantity || ""}
                             onChange={e => handleMaterialChange(idx, "quantity", e.target.value)}
-                            className="w-full bg-slate-950 border border-slate-850 rounded px-1.5 py-1 text-xs font-mono font-bold text-center text-slate-200 outline-none"
+                            className="w-full bg-slate-50 border border-slate-200 rounded px-1.5 py-1 text-xs font-mono font-bold text-center text-slate-850 outline-none focus:border-indigo-500"
                           />
                         </td>
                         <td className="py-2.5 pr-2">
@@ -535,10 +533,10 @@ export default function ManufactureEstimateWritePage() {
                             type="number" 
                             value={it.unitPrice || ""}
                             onChange={e => handleMaterialChange(idx, "unitPrice", e.target.value)}
-                            className="w-full bg-slate-950 border border-slate-850 rounded px-2 py-1 text-xs font-mono font-bold text-right text-slate-200 outline-none"
+                            className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs font-mono font-bold text-right text-slate-850 outline-none focus:border-indigo-500"
                           />
                         </td>
-                        <td className="py-2.5 pr-3 text-right font-mono font-black text-slate-300">
+                        <td className="py-2.5 pr-3 text-right font-mono font-black text-slate-700">
                           {((it.quantity || 0) * (it.unitPrice || 0)).toLocaleString()}원
                         </td>
                         <td className="py-2.5 pr-2">
@@ -547,14 +545,14 @@ export default function ManufactureEstimateWritePage() {
                             value={it.remark}
                             onChange={e => handleMaterialChange(idx, "remark", e.target.value)}
                             placeholder="비고"
-                            className="w-full bg-slate-950 border border-slate-850 rounded px-2 py-1 text-xs text-slate-200 outline-none"
+                            className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-800 outline-none focus:border-indigo-500"
                           />
                         </td>
                         <td className="py-2.5 text-center">
                           <button
                             onClick={() => handleRemoveMaterial(idx)}
                             disabled={materials.length === 1}
-                            className="p-1.5 text-slate-500 hover:text-rose-500 disabled:opacity-30 rounded-lg hover:bg-rose-500/10 transition-all cursor-pointer"
+                            className="p-1.5 text-slate-450 hover:text-rose-500 disabled:opacity-30 rounded-lg hover:bg-rose-500/10 transition-all cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -565,22 +563,22 @@ export default function ManufactureEstimateWritePage() {
                 </table>
               </div>
 
-              <div className="flex justify-between items-center bg-slate-950/30 p-4 rounded-2xl border border-slate-900">
+              <div className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
                 <span className="text-xs font-bold text-slate-500">순수 재료비 합계액:</span>
-                <span className="text-sm font-black text-indigo-400 font-mono">{materialsTotal.toLocaleString()}원</span>
+                <span className="text-sm font-black text-indigo-650 font-mono">{materialsTotal.toLocaleString()}원</span>
               </div>
             </div>
 
             {/* 세션 3: 가공비 (1. 제조원가 - 2) */}
-            <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800/80 rounded-3xl p-6 space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-800/50 pb-3">
+            <div className="bg-white border border-slate-200/80 rounded-3xl p-6 space-y-4 shadow-sm">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
-                  <Coins className="w-4 h-4 text-indigo-400" />
-                  <h3 className="text-sm font-extrabold text-white">2. 가공비 (제조원가 - 직접/외주 가공 내역)</h3>
+                  <Coins className="w-4 h-4 text-indigo-500" />
+                  <h3 className="text-sm font-extrabold text-slate-800">2. 가공비 (제조원가 - 직접/외주 가공 내역)</h3>
                 </div>
                 <button
                   onClick={handleAddProcess}
-                  className="px-3 py-1.5 bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 rounded-lg font-bold text-[10px] border border-indigo-500/20 transition-all flex items-center gap-1 cursor-pointer"
+                  className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-650 rounded-lg font-bold text-[10px] border border-indigo-200/40 transition-all flex items-center gap-1 cursor-pointer"
                 >
                   <Plus className="w-3 h-3" />
                   가공 공정 추가
@@ -590,7 +588,7 @@ export default function ManufactureEstimateWritePage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="border-b border-slate-800 text-slate-500">
+                    <tr className="border-b border-slate-100 text-slate-400 font-bold">
                       <th className="py-2.5 pl-1">공정명 / 임가공 내용 *</th>
                       <th className="py-2.5 w-28">구분</th>
                       <th className="py-2.5 w-16 text-center">수량/공수</th>
@@ -600,23 +598,23 @@ export default function ManufactureEstimateWritePage() {
                       <th className="py-2.5 w-10 text-center"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-800/40">
+                  <tbody className="divide-y divide-slate-100">
                     {processCosts.map((it, idx) => (
-                      <tr key={idx} className="group hover:bg-slate-900/40">
+                      <tr key={idx} className="group hover:bg-slate-50/50">
                         <td className="py-2.5 pr-2 pl-1">
                           <input 
                             type="text" 
                             value={it.processName}
                             onChange={e => handleProcessChange(idx, "processName", e.target.value)}
                             placeholder="공정명 입력 (예: 절곡, 도장)"
-                            className="w-full bg-slate-950 border border-slate-850 rounded px-2 py-1 text-xs text-slate-200 outline-none"
+                            className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-800 outline-none focus:border-indigo-500"
                           />
                         </td>
                         <td className="py-2.5 pr-2">
                           <select
                             value={it.type}
                             onChange={e => handleProcessChange(idx, "type", e.target.value)}
-                            className="w-full bg-slate-950 border border-slate-850 rounded px-2 py-1.5 text-xs text-slate-200 font-bold outline-none cursor-pointer"
+                            className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1.5 text-xs text-slate-800 font-bold outline-none cursor-pointer focus:border-indigo-500"
                           >
                             <option value="DIRECT">직접가공비</option>
                             <option value="OUTSOURCE">외주가공비</option>
@@ -627,7 +625,7 @@ export default function ManufactureEstimateWritePage() {
                             type="number" 
                             value={it.quantity || ""}
                             onChange={e => handleProcessChange(idx, "quantity", e.target.value)}
-                            className="w-full bg-slate-950 border border-slate-850 rounded px-1.5 py-1 text-xs font-mono font-bold text-center text-slate-200 outline-none"
+                            className="w-full bg-slate-50 border border-slate-200 rounded px-1.5 py-1 text-xs font-mono font-bold text-center text-slate-850 outline-none focus:border-indigo-500"
                           />
                         </td>
                         <td className="py-2.5 pr-2">
@@ -635,10 +633,10 @@ export default function ManufactureEstimateWritePage() {
                             type="number" 
                             value={it.unitPrice || ""}
                             onChange={e => handleProcessChange(idx, "unitPrice", e.target.value)}
-                            className="w-full bg-slate-950 border border-slate-850 rounded px-2 py-1 text-xs font-mono font-bold text-right text-slate-200 outline-none"
+                            className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs font-mono font-bold text-right text-slate-850 outline-none focus:border-indigo-500"
                           />
                         </td>
-                        <td className="py-2.5 pr-3 text-right font-mono font-black text-slate-300">
+                        <td className="py-2.5 pr-3 text-right font-mono font-black text-slate-700">
                           {((it.quantity || 0) * (it.unitPrice || 0)).toLocaleString()}원
                         </td>
                         <td className="py-2.5 pr-2">
@@ -647,14 +645,14 @@ export default function ManufactureEstimateWritePage() {
                             value={it.remark}
                             onChange={e => handleProcessChange(idx, "remark", e.target.value)}
                             placeholder="비고"
-                            className="w-full bg-slate-950 border border-slate-850 rounded px-2 py-1 text-xs text-slate-200 outline-none"
+                            className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-800 outline-none focus:border-indigo-500"
                           />
                         </td>
                         <td className="py-2.5 text-center">
                           <button
                             onClick={() => handleRemoveProcess(idx)}
                             disabled={processCosts.length === 1}
-                            className="p-1.5 text-slate-500 hover:text-rose-500 disabled:opacity-30 rounded-lg hover:bg-rose-500/10 transition-all cursor-pointer"
+                            className="p-1.5 text-slate-450 hover:text-rose-500 disabled:opacity-30 rounded-lg hover:bg-rose-500/10 transition-all cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -665,24 +663,24 @@ export default function ManufactureEstimateWritePage() {
                 </table>
               </div>
 
-              <div className="flex justify-between items-center bg-slate-950/30 p-4 rounded-2xl border border-slate-900">
+              <div className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
                 <span className="text-xs font-bold text-slate-500">순수 가공비 합계액:</span>
-                <span className="text-sm font-black text-indigo-400 font-mono">{processTotal.toLocaleString()}원</span>
+                <span className="text-sm font-black text-indigo-650 font-mono">{processTotal.toLocaleString()}원</span>
               </div>
             </div>
 
             {/* 세션 4: 특기사항 */}
-            <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800/80 rounded-3xl p-6 space-y-4 text-left">
-              <div className="flex items-center gap-2 border-b border-slate-800/50 pb-3">
-                <FileText className="w-4 h-4 text-indigo-400" />
-                <h3 className="text-sm font-extrabold text-white">6. 견적서 특기사항 기재</h3>
+            <div className="bg-white border border-slate-200/80 rounded-3xl p-6 space-y-4 text-left shadow-sm">
+              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                <FileText className="w-4 h-4 text-indigo-500" />
+                <h3 className="text-sm font-extrabold text-slate-800">6. 견적서 특기사항 기재</h3>
               </div>
               
               <textarea 
                 value={memo}
                 onChange={e => setMemo(e.target.value)}
                 placeholder="특기사항을 기입해주세요..."
-                className="w-full bg-slate-950 border border-slate-850 rounded-2xl p-4 text-xs font-semibold leading-relaxed text-slate-200 outline-none focus:border-indigo-500 resize-none"
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs font-semibold leading-relaxed text-slate-800 outline-none focus:border-indigo-500 resize-none"
                 rows={4}
               />
             </div>
@@ -692,43 +690,43 @@ export default function ManufactureEstimateWritePage() {
           <div className="xl:col-span-4 space-y-6">
             
             {/* 실시간 제조업 원가 명세 요약 */}
-            <div className="bg-gradient-to-br from-indigo-950/40 to-slate-900/60 backdrop-blur-xl border border-indigo-500/20 rounded-3xl p-6 space-y-6 text-left shadow-2xl shadow-indigo-950/10">
-              <h3 className="text-sm font-black text-white flex items-center gap-2 uppercase tracking-wider">
-                <Coins className="w-4 h-4 text-indigo-400" />
+            <div className="bg-white border border-slate-200/80 rounded-3xl p-6 space-y-6 text-left shadow-sm">
+              <h3 className="text-sm font-black text-slate-800 flex items-center gap-2 uppercase tracking-wider">
+                <Coins className="w-4 h-4 text-indigo-500" />
                 <span>제조원가 종합 연산 명세</span>
               </h3>
 
               <div className="space-y-4">
-                <div className="bg-slate-950/40 p-4 rounded-2xl border border-slate-850 space-y-3.5 text-xs font-semibold">
-                  <div className="flex justify-between items-center text-slate-400">
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3.5 text-xs font-semibold">
+                  <div className="flex justify-between items-center text-slate-500">
                     <span>1. 재료비 합계액</span>
-                    <span className="font-mono font-bold text-slate-200">{materialsTotal.toLocaleString()}원</span>
+                    <span className="font-mono font-bold text-slate-850">{materialsTotal.toLocaleString()}원</span>
                   </div>
-                  <div className="flex justify-between items-center text-slate-400">
+                  <div className="flex justify-between items-center text-slate-500">
                     <span>2. 가공비 합계액</span>
-                    <span className="font-mono font-bold text-slate-200">{processTotal.toLocaleString()}원</span>
+                    <span className="font-mono font-bold text-slate-855">{processTotal.toLocaleString()}원</span>
                   </div>
-                  <div className="flex justify-between items-center text-slate-400">
-                    <span>3. 일반관리비 <b className="text-[10px] text-indigo-400">(가공비의 10%)</b></span>
-                    <span className="font-mono font-bold text-indigo-300">{generalAdminCost.toLocaleString()}원</span>
+                  <div className="flex justify-between items-center text-slate-500">
+                    <span>3. 일반관리비 <b className="text-[10px] text-indigo-500">(가공비의 10%)</b></span>
+                    <span className="font-mono font-bold text-indigo-600">{generalAdminCost.toLocaleString()}원</span>
                   </div>
-                  <div className="flex justify-between items-center text-slate-400">
-                    <span>4. 기업이윤 <b className="text-[10px] text-pink-400">(가공비+관리비의 10%)</b></span>
-                    <span className="font-mono font-bold text-pink-300">{businessProfit.toLocaleString()}원</span>
+                  <div className="flex justify-between items-center text-slate-500">
+                    <span>4. 기업이윤 <b className="text-[10px] text-pink-500">(가공비+관리비의 10%)</b></span>
+                    <span className="font-mono font-bold text-pink-600">{businessProfit.toLocaleString()}원</span>
                   </div>
-                  <div className="flex justify-between items-center text-slate-400">
-                    <span>5. 재료관리비 <b className="text-[10px] text-amber-400">(재료비의 5%)</b></span>
-                    <span className="font-mono font-bold text-amber-300">{materialManageCost.toLocaleString()}원</span>
+                  <div className="flex justify-between items-center text-slate-500">
+                    <span>5. 재료관리비 <b className="text-[10px] text-amber-600">(재료비의 5%)</b></span>
+                    <span className="font-mono font-bold text-amber-600">{materialManageCost.toLocaleString()}원</span>
                   </div>
                 </div>
 
-                {/* 원가 비율 인디케이터 바 */}
+                {/* 원가 구성비 인디케이터 바 */}
                 <div className="space-y-1.5">
-                  <div className="flex justify-between text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                  <div className="flex justify-between text-[9px] font-bold text-slate-400 uppercase tracking-widest">
                     <span>원가 구성비</span>
                     <span>재료비 {grandTotal > 0 ? Math.round(((materialsTotal + materialManageCost) / grandTotal) * 100) : 0}% | 가공비 등 {grandTotal > 0 ? Math.round(((processTotal + generalAdminCost + businessProfit) / grandTotal) * 100) : 0}%</span>
                   </div>
-                  <div className="h-2 w-full bg-slate-900 rounded-full overflow-hidden flex">
+                  <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden flex">
                     <div 
                       className="bg-indigo-500 h-full transition-all duration-500" 
                       style={{ width: `${grandTotal > 0 ? ((materialsTotal + materialManageCost) / grandTotal) * 100 : 0}%` }}
@@ -741,9 +739,9 @@ export default function ManufactureEstimateWritePage() {
                 </div>
 
                 {/* 최종 견적금액 디스플레이 */}
-                <div className="p-5 bg-indigo-600/10 border border-indigo-500/30 rounded-2xl text-center space-y-1.5 shadow-inner">
-                  <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest block">제조원가 기반 최종 견적합계액 (부가세 별도)</span>
-                  <span className="text-2xl font-black text-white font-mono block">
+                <div className="p-5 bg-indigo-50 border border-indigo-100 rounded-2xl text-center space-y-1.5 shadow-inner">
+                  <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest block">제조원가 기반 최종 견적합계액 (부가세 별도)</span>
+                  <span className="text-2xl font-black text-indigo-750 font-mono block">
                     {grandTotal.toLocaleString()}원
                   </span>
                 </div>
@@ -751,16 +749,16 @@ export default function ManufactureEstimateWritePage() {
             </div>
 
             {/* A4 프린트 인쇄 레이아웃 미리보기 모듈 */}
-            <div className="bg-white text-slate-800 border border-slate-200 rounded-3xl p-5 space-y-4 shadow-2xl block text-left text-[9px] font-medium leading-normal relative overflow-hidden hidden md:block">
+            <div className="bg-white text-slate-800 border border-slate-200 rounded-3xl p-5 space-y-4 shadow-md block text-left text-[9px] font-medium leading-normal relative overflow-hidden hidden md:block">
               {/* 상단 인쇄용 워터마크 안내 */}
-              <div className="absolute top-2 right-2 bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded text-[8px] font-bold text-slate-400 flex items-center gap-0.5 pointer-events-none">
+              <div className="absolute top-2 right-2 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded text-[8px] font-bold text-slate-400 flex items-center gap-0.5 pointer-events-none">
                 <Printer className="w-2.5 h-2.5" />
                 인쇄 전용 A4 프리뷰
               </div>
 
               <div className="text-center space-y-1 border-b border-slate-300 pb-3">
                 <h2 className="text-sm font-black tracking-widest text-slate-900">견  적  서</h2>
-                <p className="text-[7px] text-slate-400">송배전반 및 전력기기 정밀 제조 명세</p>
+                <p className="text-[7px] text-slate-450">송배전반 및 전력기기 정밀 제조 명세</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4 border-b border-slate-200 pb-3">
@@ -776,7 +774,7 @@ export default function ManufactureEstimateWritePage() {
                 <div className="border-l border-slate-200 pl-4 space-y-1">
                   <div className="flex gap-1"><span className="text-slate-400 w-12 shrink-0 font-bold">등록번호:</span><span className="font-mono text-slate-800 font-bold">{supplier.businessNumber}</span></div>
                   <div className="flex gap-1"><span className="text-slate-400 w-12 shrink-0 font-bold">공급자명:</span><span className="text-slate-900 font-bold">{supplier.companyName}</span></div>
-                  <div className="flex gap-1"><span className="text-slate-400 w-12 shrink-0 font-bold">대표자:</span><span className="text-slate-800">{supplier.representative} (인)</span></div>
+                  <div className="flex gap-1"><span className="text-slate-400 w-12 shrink-0 font-bold">대표자:</span><span className="text-slate-850">{supplier.representative} (인)</span></div>
                   <div className="flex gap-1"><span className="text-slate-400 w-12 shrink-0 font-bold">소재지:</span><span className="text-slate-700 leading-tight">{supplier.address}</span></div>
                   <div className="flex gap-1"><span className="text-slate-400 w-12 shrink-0 font-bold">연락처/이메일:</span><span className="text-slate-700">{supplier.phone} / {supplier.email}</span></div>
                 </div>
@@ -803,7 +801,7 @@ export default function ManufactureEstimateWritePage() {
                   <tbody className="divide-y divide-slate-100">
                     {/* 재료비 대표 2개 */}
                     {materials.filter(m => m.productName).slice(0, 2).map((m, idx) => (
-                      <tr key={`m-${idx}`} className="text-slate-700">
+                      <tr key={`m-${idx}`} className="text-slate-755">
                         <td className="py-1 pl-1 text-slate-400 font-bold">재료비</td>
                         <td className="py-1 truncate max-w-[120px]">{m.productName}</td>
                         <td className="py-1 text-center font-mono">{m.quantity}</td>
@@ -821,7 +819,7 @@ export default function ManufactureEstimateWritePage() {
 
                     {/* 가공비 대표 2개 */}
                     {processCosts.filter(p => p.processName).slice(0, 2).map((p, idx) => (
-                      <tr key={`p-${idx}`} className="text-slate-700">
+                      <tr key={`p-${idx}`} className="text-slate-755">
                         <td className="py-1 pl-1 text-indigo-500 font-bold">{p.type === "DIRECT" ? "직접가공" : "외주가공"}</td>
                         <td className="py-1 truncate max-w-[120px]">{p.processName}</td>
                         <td className="py-1 text-center font-mono">{p.quantity}</td>
@@ -876,17 +874,17 @@ export default function ManufactureEstimateWritePage() {
       {/* 7. 다중 채널 발송 시뮬레이터 모달 */}
       {isSendModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-[32px] max-w-md w-full p-6 md:p-8 shadow-2xl relative text-left space-y-6 animate-scale-up">
+          <div className="bg-white border border-slate-200 rounded-[32px] max-w-md w-full p-6 md:p-8 shadow-2xl relative text-left space-y-6 animate-scale-up">
             
             <button 
               onClick={() => setIsSendModalOpen(false)}
-              className="absolute top-5 right-5 p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 transition-colors animate-pulse"
+              className="absolute top-5 right-5 p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-400 transition-colors"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4 text-slate-500" />
             </button>
 
             <div className="space-y-1">
-              <h3 className="text-base font-black text-white flex items-center gap-2">
+              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
                 <Send className="w-5 h-5 text-indigo-500" />
                 <span>견적서 옴니채널 발송하기</span>
               </h3>
@@ -896,7 +894,7 @@ export default function ManufactureEstimateWritePage() {
             </div>
 
             {/* 발송 채널 탭 */}
-            <div className="grid grid-cols-3 gap-2 bg-slate-950 p-1 rounded-xl border border-slate-850">
+            <div className="grid grid-cols-3 gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200">
               {(["EMAIL", "SMS", "FAX"] as const).map(ch => (
                 <button
                   key={ch}
@@ -908,8 +906,8 @@ export default function ManufactureEstimateWritePage() {
                   }}
                   className={`py-2 text-center text-xs font-black rounded-lg transition cursor-pointer select-none ${
                     sendChannel === ch
-                      ? "bg-indigo-600 text-white shadow"
-                      : "text-slate-400 hover:text-slate-200"
+                      ? "bg-indigo-650 text-white shadow"
+                      : "text-slate-400 hover:text-slate-800"
                   }`}
                 >
                   {ch === "EMAIL" && "📧 이메일"}
@@ -930,12 +928,12 @@ export default function ManufactureEstimateWritePage() {
                     sendChannel === "EMAIL" ? "이메일 주소 입력" :
                     sendChannel === "SMS" ? "휴대폰 번호 입력" : "FAX 번호 입력"
                   }
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs font-bold text-slate-200 outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
                 />
               </div>
 
-              <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-850/50 space-y-2 text-xs text-slate-400 leading-relaxed font-semibold">
-                <div className="flex justify-between items-center text-[10px] font-black text-indigo-400 uppercase tracking-wider border-b border-slate-800 pb-1.5 mb-1">
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2 text-xs text-slate-500 leading-relaxed font-semibold">
+                <div className="flex justify-between items-center text-[10px] font-black text-indigo-500 uppercase tracking-wider border-b border-slate-200/50 pb-1.5 mb-1">
                   <span>실시간 발송 요약</span>
                   <span>FreeSMS 크레딧 무료</span>
                 </div>
@@ -948,14 +946,14 @@ export default function ManufactureEstimateWritePage() {
             <div className="flex gap-3">
               <button 
                 onClick={() => setIsSendModalOpen(false)}
-                className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold text-xs transition cursor-pointer"
+                className="flex-1 py-3 bg-slate-100 hover:bg-slate-250 text-slate-700 rounded-xl font-bold text-xs transition cursor-pointer"
               >
                 취소
               </button>
               <button 
                 onClick={handleSendExecute}
                 disabled={isSending}
-                className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-550 text-white rounded-xl font-black text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-600/10"
+                className="flex-1 py-3 bg-indigo-650 hover:bg-indigo-600 text-white rounded-xl font-black text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-600/10"
               >
                 {isSending ? (
                   <>
