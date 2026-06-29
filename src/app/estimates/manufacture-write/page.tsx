@@ -855,8 +855,8 @@ export default function ManufactureEstimateWritePage() {
             {/* 세션 6: 특기사항 */}
             <div className="bg-white border border-slate-200/80 rounded-3xl p-6 space-y-4 text-left shadow-sm">
               <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                <FileText className="w-4 h-4 text-indigo-500" />
-                <h3 className="text-sm font-extrabold text-slate-800">6. 특기사항</h3>
+                <FileText className="w-4.5 h-4.5 text-indigo-650" />
+                <h3 className="text-sm font-black text-slate-850">특기사항</h3>
               </div>
               
               <textarea 
