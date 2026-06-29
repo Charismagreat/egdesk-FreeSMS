@@ -24,8 +24,8 @@ interface ProcessItem {
 }
 
 export default function ManufactureEstimateWritePage() {
-  // 1. 상태 보존용 Persisted States (샘플 데이터 삭제하여 빈 값으로 시작)
-  const [supplier, setSupplier, isSupplierRestored] = usePersistedState("egdesk_mfr_est_supplier", {
+  // 1. 상태 보존용 Persisted States (v2 키 변경으로 이전 캐시 원천 초기화)
+  const [supplier, setSupplier, isSupplierRestored] = usePersistedState("egdesk_mfr_est_supplier_v2", {
     businessNumber: "",
     companyName: "",
     representative: "",
@@ -34,35 +34,35 @@ export default function ManufactureEstimateWritePage() {
     fax: "",
     email: ""
   });
-  const [buyer, setBuyer, isBuyerRestored] = usePersistedState("egdesk_mfr_est_buyer", {
+  const [buyer, setBuyer, isBuyerRestored] = usePersistedState("egdesk_mfr_est_buyer_v2", {
     companyName: "",
     departmentName: "",
     managerName: "",
     phone: ""
   });
-  const [meta, setMeta, isMetaRestored] = usePersistedState("egdesk_mfr_est_meta", {
+  const [meta, setMeta, isMetaRestored] = usePersistedState("egdesk_mfr_est_meta_v2", {
     estimateNumber: "",
     estimateDate: "",
     writerName: "",
     writerPhone: ""
   });
   
-  // 초기 샘플 제거
-  const [materials, setMaterials, isMaterialsRestored] = usePersistedState<MaterialItem[]>("egdesk_mfr_est_materials", [
+  // 초기 샘플 제거 및 빈 폼 시작
+  const [materials, setMaterials, isMaterialsRestored] = usePersistedState<MaterialItem[]>("egdesk_mfr_est_materials_v2", [
     { productName: "", spec: "", quantity: 0, unitPrice: 0, remark: "" }
   ]);
   
   // 직접 가공비 상태
-  const [directProcess, setDirectProcess, isDirectProcessRestored] = usePersistedState<ProcessItem[]>("egdesk_mfr_est_direct_process", [
+  const [directProcess, setDirectProcess, isDirectProcessRestored] = usePersistedState<ProcessItem[]>("egdesk_mfr_est_direct_process_v2", [
     { processName: "", quantity: 0, unitPrice: 0, remark: "" }
   ]);
 
   // 외주 가공비 상태
-  const [outsourceProcess, setOutsourceProcess, isOutsourceProcessRestored] = usePersistedState<ProcessItem[]>("egdesk_mfr_est_outsource_process", [
+  const [outsourceProcess, setOutsourceProcess, isOutsourceProcessRestored] = usePersistedState<ProcessItem[]>("egdesk_mfr_est_outsource_process_v2", [
     { processName: "", quantity: 0, unitPrice: 0, remark: "" }
   ]);
 
-  const [memo, setMemo, isMemoRestored] = usePersistedState("egdesk_mfr_est_memo", "");
+  const [memo, setMemo, isMemoRestored] = usePersistedState("egdesk_mfr_est_memo_v2", "");
 
   // 모든 세션 로드 완료 여부
   const isRestored = isSupplierRestored && isBuyerRestored && isMetaRestored && isMaterialsRestored && isDirectProcessRestored && isOutsourceProcessRestored && isMemoRestored;
@@ -211,6 +211,62 @@ export default function ManufactureEstimateWritePage() {
     setOutsourceProcess(updated);
   };
 
+  // 작성 내용 완전히 초기화
+  const handleResetForm = () => {
+    if (window.confirm("작성 중인 모든 견적서 내용을 초기화하고 빈 양식으로 시작하시겠습니까?")) {
+      setSupplier({
+        businessNumber: "",
+        companyName: "",
+        representative: "",
+        address: "",
+        phone: "",
+        fax: "",
+        email: ""
+      });
+      setBuyer({
+        companyName: "",
+        departmentName: "",
+        managerName: "",
+        phone: ""
+      });
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, "0");
+      const dd = String(today.getDate()).padStart(2, "0");
+      const random = Math.floor(1000 + Math.random() * 9000);
+      setMeta({
+        estimateNumber: `EST-${yyyy}${mm}${dd}-${random}`,
+        estimateDate: `${yyyy}-${mm}-${dd}`,
+        writerName: "",
+        writerPhone: ""
+      });
+      setMaterials([{ productName: "", spec: "", quantity: 0, unitPrice: 0, remark: "" }]);
+      setDirectProcess([{ processName: "", quantity: 0, unitPrice: 0, remark: "" }]);
+      setOutsourceProcess([{ processName: "", quantity: 0, unitPrice: 0, remark: "" }]);
+      setMemo("");
+
+      // 회사 정보 설정 다시 로드
+      fetch("/api/settings?key=my_company_profile")
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.value) {
+            try {
+              const profile = JSON.parse(data.value);
+              setSupplier({
+                businessNumber: profile.businessNumber || "",
+                companyName: profile.companyName || "",
+                representative: profile.representative || "",
+                address: profile.address || "",
+                phone: profile.phone || "",
+                fax: profile.fax || "",
+                email: profile.email || ""
+              });
+            } catch(e) {}
+          }
+        });
+    }
+  };
+
   // 프리셋 예시 데이터 자동 적재 (송배전 제조업 체험)
   const handleLoadPreset = () => {
     setMaterials([
@@ -292,6 +348,13 @@ export default function ManufactureEstimateWritePage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={handleResetForm}
+              className="px-4 py-3 bg-white hover:bg-slate-50 border border-slate-200 text-rose-600 hover:text-rose-700 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              내용 비우기
+            </button>
             <button
               onClick={handleLoadPreset}
               className="px-4 py-3 bg-indigo-50 hover:bg-indigo-100/80 text-indigo-600 border border-indigo-200 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
