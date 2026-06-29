@@ -805,11 +805,11 @@ export default function ManufactureEstimateWritePage() {
               </div>
             </div>
 
-            {/* 세션 4: 일반관리비 / 기업이윤 / 기타비용 기본 노출 */}
+            {/* 세션 3: 간접 제조 원가 */}
             <div className="bg-white border border-slate-200/80 rounded-3xl p-6 space-y-4 shadow-sm text-left">
               <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
                 <Settings className="w-4 h-4 text-indigo-500" />
-                <h3 className="text-sm font-extrabold text-slate-800">4. 간접 제조 원가 요약 (기본 노출)</h3>
+                <h3 className="text-sm font-extrabold text-slate-800">3. 간접 제조 원가</h3>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -839,11 +839,11 @@ export default function ManufactureEstimateWritePage() {
               </div>
             </div>
 
-            {/* 세션 5: 견적 금액 */}
+            {/* 세션 4: 최종 견적 금액 */}
             <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm text-left">
               <div className="flex justify-between items-center bg-indigo-50 border border-indigo-100 rounded-2xl p-5 shadow-inner">
                 <div>
-                  <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest block">5. 최종 견적 합계 금액 (부가세 별도)</span>
+                  <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest block">4. 최종 견적 금액 (부가세 별도)</span>
                   <span className="text-[9px] text-slate-400 font-semibold block mt-0.5">재료비 + 가공비(직접/외주) + 일반관리비 + 기업이윤 + 재료관리비</span>
                 </div>
                 <div className="text-2xl font-black text-indigo-750 font-mono">
@@ -856,7 +856,7 @@ export default function ManufactureEstimateWritePage() {
             <div className="bg-white border border-slate-200/80 rounded-3xl p-6 space-y-4 text-left shadow-sm">
               <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
                 <FileText className="w-4 h-4 text-indigo-500" />
-                <h3 className="text-sm font-extrabold text-slate-800">6. 견적서 특기사항 기재</h3>
+                <h3 className="text-sm font-extrabold text-slate-800">6. 특기사항</h3>
               </div>
               
               <textarea 
