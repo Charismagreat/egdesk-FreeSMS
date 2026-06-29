@@ -220,9 +220,12 @@ export default function ManufactureEstimateWritePage() {
         const matched = inventoryItems.find(item => {
           const itemBarcode = String(item.barcode || "").trim().toUpperCase();
           const invId = `INV-${item.id}`;
-          return itemBarcode === code || invId === code;
+          const isPureNumber = /^\d+$/.test(code);
+          const isIdMatch = isPureNumber && Number(item.id) === Number(code);
+          return itemBarcode === code || invId === code || isIdMatch;
         });
         if (matched) {
+          updated[index].itemCode = matched.barcode || `INV-${matched.id}`;
           updated[index].productName = matched.name || "";
           updated[index].spec = matched.spec || "";
           updated[index].unitPrice = Number(matched.price) || 0;
