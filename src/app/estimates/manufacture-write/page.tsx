@@ -33,7 +33,9 @@ export default function ManufactureEstimateWritePage() {
     address: "",
     phone: "",
     fax: "",
-    email: ""
+    email: "",
+    managerName: "",
+    managerPhone: ""
   });
   const [buyer, setBuyer, isBuyerRestored] = usePersistedState("egdesk_mfr_est_buyer_v2", {
     companyName: "",
@@ -135,7 +137,9 @@ export default function ManufactureEstimateWritePage() {
               address: profile.address || "서울특별시 금천구 가산디지털2로 274",
               phone: profile.phone || "1599-6277",
               fax: profile.fax || "02-715-9989",
-              email: profile.email || "sales@koos.co.kr"
+              email: profile.email || "sales@koos.co.kr",
+              managerName: profile.managerName || "",
+              managerPhone: profile.managerPhone || ""
             });
           } catch(e) {}
         }
@@ -148,7 +152,9 @@ export default function ManufactureEstimateWritePage() {
           address: "서울특별시 금천구 가산디지털2로 274",
           phone: "1599-6277",
           fax: "02-715-9989",
-          email: "sales@koos.co.kr"
+          email: "sales@koos.co.kr",
+          managerName: "",
+          managerPhone: ""
         });
       });
   }, [isRestored, supplier.companyName]);
@@ -625,6 +631,28 @@ export default function ManufactureEstimateWritePage() {
                         onChange={e => setSupplier({ ...supplier, email: e.target.value })}
                         className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
                       />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] text-slate-500 font-bold mb-1">담당자명</label>
+                        <input 
+                          type="text" 
+                          value={supplier.managerName || ""}
+                          onChange={e => setSupplier({ ...supplier, managerName: e.target.value })}
+                          placeholder="담당자 이름 입력"
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-slate-500 font-bold mb-1">담당자 연락처</label>
+                        <input 
+                          type="text" 
+                          value={supplier.managerPhone || ""}
+                          onChange={e => setSupplier({ ...supplier, managerPhone: e.target.value })}
+                          placeholder="담당자 연락처 입력"
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1236,6 +1264,9 @@ export default function ManufactureEstimateWritePage() {
                   <div className="flex gap-1"><span className="text-slate-400 w-12 shrink-0 font-bold">대표자:</span><span className="text-slate-850">{supplier.representative} (인)</span></div>
                   <div className="flex gap-1"><span className="text-slate-400 w-12 shrink-0 font-bold">소재지:</span><span className="text-slate-700 leading-tight">{supplier.address}</span></div>
                   <div className="flex gap-1"><span className="text-slate-400 w-12 shrink-0 font-bold">연락처/이메일:</span><span className="text-slate-700">{supplier.phone} / {supplier.email}</span></div>
+                  {(supplier.managerName || supplier.managerPhone) && (
+                    <div className="flex gap-1"><span className="text-slate-400 w-12 shrink-0 font-bold">담당자/연락처:</span><span className="text-slate-700 font-bold">{supplier.managerName || "-"} / {supplier.managerPhone || "-"}</span></div>
+                  )}
                 </div>
               </div>
 
