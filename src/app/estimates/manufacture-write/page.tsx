@@ -841,12 +841,12 @@ export default function ManufactureEstimateWritePage() {
 
             {/* 세션 4: 최종 견적 금액 */}
             <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm text-left">
-              <div className="flex justify-between items-center bg-indigo-50 border border-indigo-100 rounded-2xl p-5 shadow-inner">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-indigo-50 border border-indigo-100 rounded-2xl p-5 shadow-inner gap-4">
                 <div>
-                  <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest block">4. 최종 견적 금액 (부가세 별도)</span>
-                  <span className="text-[9px] text-slate-400 font-semibold block mt-0.5">재료비 + 가공비(직접/외주) + 일반관리비 + 기업이윤 + 재료관리비</span>
+                  <span className="text-xs md:text-sm font-black text-indigo-650 uppercase tracking-wide block">최종 견적 금액 (부가세 별도)</span>
+                  <span className="text-[10px] md:text-xs text-slate-500 font-medium block mt-1">재료비 + 가공비(직접/외주) + 일반관리비 + 기업이윤 + 재료관리비</span>
                 </div>
-                <div className="text-2xl font-black text-indigo-750 font-mono">
+                <div className="text-3xl font-black text-indigo-750 font-mono shrink-0">
                   {grandTotal.toLocaleString()}원
                 </div>
               </div>
