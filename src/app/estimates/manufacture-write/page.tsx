@@ -138,6 +138,24 @@ export default function ManufactureEstimateWritePage() {
     }
   }, [isRestored, materials, setMaterials, setDirectProcess, setOutsourceProcess]);
 
+  // 로그인 사용자(작성자) 프로필 정보 자동 로드 및 세팅 (crm_operators 연동)
+  useEffect(() => {
+    if (isMetaRestored) {
+      fetch("/api/employee/me")
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.user) {
+            setMeta(prev => ({
+              ...prev,
+              writerName: prev.writerName || data.user.name || "",
+              writerPhone: prev.writerPhone || data.user.phone || ""
+            }));
+          }
+        })
+        .catch(err => console.error("현재 로그인 사용자 정보 로드 실패:", err));
+    }
+  }, [isMetaRestored, setMeta]);
+
   useEffect(() => {
     if (!isRestored) return;
     if (supplier.companyName) return;

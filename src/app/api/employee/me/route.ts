@@ -26,6 +26,7 @@ export async function GET() {
               id: user.id,
               name: user.name,
               email: user.username,
+              phone: user.phone || '',
               myCardImageUrl: user.my_card_image_url || ''
             }
           });
@@ -46,6 +47,7 @@ export async function GET() {
           id: user.id,
           name: user.name,
           email: user.username,
+          phone: user.phone || '',
           myCardImageUrl: user.my_card_image_url || ''
         }
       });
