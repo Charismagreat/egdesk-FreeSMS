@@ -1675,7 +1675,6 @@ export default function ManufactureEstimateWritePage() {
                   />
                 </div>
               )}
-            </div>
 
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2 text-xs text-slate-500 leading-relaxed font-semibold">
                 <div className="flex justify-between items-center text-[10px] font-black text-indigo-500 uppercase tracking-wider border-b border-slate-200/50 pb-1.5 mb-1">
