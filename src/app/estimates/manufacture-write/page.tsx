@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { 
   Plus, Trash2, Printer, Mail, Send, Check, RefreshCw, 
-  ArrowLeft, FileText, Settings, Coins, Sparkles, X 
+  ArrowLeft, FileText, Settings, Coins, Sparkles, X, Contact
 } from "lucide-react";
 import Link from "next/link";
 const formatBusinessNumber = (numStr: string) => {
@@ -98,9 +98,24 @@ export default function ManufactureEstimateWritePage() {
   // 재고 관리 AI 데이터 연동용 품목 마스터 상태
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
 
+  // B2B 거래처 소속 담당자 리스트 상태 및 드롭다운 제어 상태
+  const [partnerContacts, setPartnerContacts] = useState<any[]>([]);
+  const [isContactDropdownOpen, setIsContactDropdownOpen] = useState(false);
+
   // 거래처 파트너 자동완성용 상태
   const [partners, setPartners] = useState<any[]>([]);
   const [showPartnerDropdown, setShowPartnerDropdown] = useState(false);
+
+  // 📇 거래처 세션 복원 시 소속 담당자 명단 백필 복구
+  useEffect(() => {
+    if (!isRestored || partners.length === 0 || !buyer.companyName) return;
+    const currentPartner = partners.find(p => p.company_name === buyer.companyName);
+    if (currentPartner && Array.isArray(currentPartner.contacts)) {
+      setPartnerContacts(currentPartner.contacts);
+    } else {
+      setPartnerContacts([]);
+    }
+  }, [isRestored, partners, buyer.companyName]);
 
   useEffect(() => {
     fetch("/api/partners")
@@ -721,6 +736,8 @@ export default function ManufactureEstimateWritePage() {
                                         phone: p.manager_phone || p.phone || "",
                                         email: p.manager_email || p.email || ""
                                       });
+                                      setPartnerContacts(p.contacts || []);
+                                      setIsContactDropdownOpen(false);
                                       setShowPartnerDropdown(false);
                                     }}
                                     className="w-full text-left px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all flex justify-between items-center"
@@ -750,7 +767,48 @@ export default function ManufactureEstimateWritePage() {
 
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-[10px] text-slate-500 font-bold mb-1">담당자 성함</label>
+                        <div className="flex justify-between items-center mb-1">
+                          <label className="block text-[10px] text-slate-500 font-bold">담당자 성함</label>
+                          {partnerContacts.length > 0 && (
+                            <div className="relative" onMouseLeave={() => setIsContactDropdownOpen(false)}>
+                              <button
+                                type="button"
+                                onClick={() => setIsContactDropdownOpen(!isContactDropdownOpen)}
+                                className="text-[10px] text-indigo-600 hover:text-indigo-800 font-black flex items-center gap-0.5 transition-all"
+                              >
+                                <Contact className="w-3.5 h-3.5" />
+                                담당자 선택
+                              </button>
+                              {isContactDropdownOpen && (
+                                <div className="absolute right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl w-60 max-h-48 overflow-y-auto z-50 divide-y divide-slate-100">
+                                  {partnerContacts.map((c: any) => (
+                                    <button
+                                      key={c.id}
+                                      type="button"
+                                      onClick={() => {
+                                        setBuyer({
+                                          ...buyer,
+                                          managerName: c.name,
+                                          phone: c.phone || "",
+                                          departmentName: c.position || "",
+                                          email: c.email || ""
+                                        });
+                                        setIsContactDropdownOpen(false);
+                                      }}
+                                      className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 transition-all font-bold text-slate-700 flex justify-between items-center"
+                                    >
+                                      <div className="flex flex-col">
+                                        <span className="text-slate-800">{c.name} {c.position ? `[${c.position}]` : ""}</span>
+                                        <span className="text-[10px] text-slate-400 font-normal mt-0.5">{c.email || "이메일 미기입"}</span>
+                                      </div>
+                                      <span className="text-[10px] text-slate-500 font-normal shrink-0 pl-2">{c.phone || "연락처 없음"}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                         <input 
                           type="text" 
                           value={buyer.managerName}

@@ -152,18 +152,23 @@ export async function GET(req: Request) {
       console.error('SCM 집계용 베이스 마이닝 지연:', e);
     }
 
-    // 실시간 직급 및 정보 융합을 위해 전체 대표 담당자 리스트 마이닝 (타입 Affinity 극복을 위해 문자/숫자 둘 다 매칭 호환)
+    // 실시간 직급 및 모든 담당자 리스트 마이닝
+    let allContacts: any[] = [];
     let primaryContacts: any[] = [];
     try {
       const contactsRes = await queryTable('crm_partner_contacts', {});
-      primaryContacts = (contactsRes.rows || []).filter((c: any) => !c.deleted_at && Number(c.is_primary) === 1);
+      allContacts = (contactsRes.rows || []).filter((c: any) => !c.deleted_at);
+      primaryContacts = allContacts.filter((c: any) => Number(c.is_primary) === 1);
     } catch (e) {
-      console.error('대표 담당자 마이닝 지연:', e);
+      console.error('담당자 마이닝 지연:', e);
     }
 
     // 실시간 분석 지표 융합
     const enrichedPartners = partners.map((pt: any) => {
       const companyName = pt.company_name;
+
+      // 소속된 전체 담당자 리스트 필터링
+      const partnerContacts = allContacts.filter(c => String(c.partner_id) === String(pt.id));
 
       // 대표 담당자 정보 실시간 바인딩 (id 매칭)
       const primaryContact = primaryContacts.find(c => String(c.partner_id) === String(pt.id));
@@ -182,6 +187,7 @@ export async function GET(req: Request) {
         
         return {
           ...pt,
+          contacts: partnerContacts,
           manager_name,
           manager_phone,
           manager_position,
@@ -197,6 +203,7 @@ export async function GET(req: Request) {
  
         return {
           ...pt,
+          contacts: partnerContacts,
           manager_name,
           manager_phone,
           manager_position,
