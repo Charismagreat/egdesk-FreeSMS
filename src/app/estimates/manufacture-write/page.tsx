@@ -251,8 +251,12 @@ export default function ManufactureEstimateWritePage() {
         const latestManagerName = match.manager_name || "";
         const latestPosition = match.manager_position || "";
         
-        // 현재 캐싱된 정보와 다를 때만 업데이트 (무한 루프 방지)
-        if (buyer.email !== latestEmail || buyer.phone !== latestPhone || buyer.managerName !== latestManagerName || (latestPosition && buyer.departmentName !== latestPosition)) {
+        // 사용자가 드롭다운에서 선택한 소속 담당자 정보와 현재 폼 성함이 일치하는 상태라면 자동 동기화를 차단하여 롤백 현상을 방지합니다.
+        const hasContactMatch = match.contacts?.some((c: any) => c.name === buyer.managerName);
+        if (hasContactMatch) return;
+
+        // 폼이 완전히 비어있거나, 성함 조회가 불가한 경우 최초 1회만 대표자로 세팅합니다.
+        if (!buyer.managerName && (buyer.email !== latestEmail || buyer.phone !== latestPhone || (latestPosition && buyer.departmentName !== latestPosition))) {
           setBuyer(prev => ({
             ...prev,
             email: latestEmail,
@@ -263,7 +267,7 @@ export default function ManufactureEstimateWritePage() {
         }
       }
     }
-  }, [isRestored, partners, buyer.companyName, buyer.email, buyer.phone, buyer.managerName, buyer.departmentName]);
+  }, [isRestored, partners, buyer.companyName]);
 
   if (!isRestored) {
     return (
