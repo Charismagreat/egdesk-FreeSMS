@@ -89,10 +89,12 @@ export default function ManufactureEstimateWritePage() {
   // 모든 세션 로드 완료 여부
   const isRestored = isSupplierRestored && isBuyerRestored && isMetaRestored && isMaterialsRestored && isDirectProcessRestored && isOutsourceProcessRestored && isMemoRestored;
 
-  // 발송 모달 제어 상태
+  // 발송 모달 제어 상태 (옴니채널 다중 선택 지원)
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
-  const [sendChannel, setSendChannel] = useState<"EMAIL" | "SMS" | "FAX">("EMAIL");
-  const [sendAddress, setSendAddress] = useState("");
+  const [selectedChannels, setSelectedChannels] = useState<("EMAIL" | "SMS" | "FAX")[]>(["EMAIL"]);
+  const [sendEmailAddress, setSendEmailAddress] = useState("");
+  const [sendSmsPhone, setSendSmsPhone] = useState("");
+  const [sendFaxNumber, setSendFaxNumber] = useState("");
   const [isSending, setIsSending] = useState(false);
 
   // 재고 관리 AI 데이터 연동용 품목 마스터 상태
@@ -537,28 +539,49 @@ export default function ManufactureEstimateWritePage() {
     const partnerFax = matchedPartner?.fax || "";
     const primaryContact = matchedPartner?.contacts?.find((c: any) => c.is_primary === 1 || c.is_primary === "1");
 
-    if (sendChannel === "EMAIL") {
-      setSendAddress(buyer.email || primaryContact?.email || matchedPartner?.manager_email || matchedPartner?.email || "");
-    }
-    if (sendChannel === "SMS") {
-      setSendAddress(buyer.phone || primaryContact?.phone || matchedPartner?.manager_phone || matchedPartner?.phone || "");
-    }
-    if (sendChannel === "FAX") {
-      setSendAddress(partnerFax);
-    }
+    // 각 발송 채널별 개별 상태 채우기
+    setSendEmailAddress(buyer.email || primaryContact?.email || matchedPartner?.manager_email || matchedPartner?.email || "");
+    setSendSmsPhone(buyer.phone || primaryContact?.phone || matchedPartner?.manager_phone || matchedPartner?.phone || "");
+    setSendFaxNumber(partnerFax);
+
+    // 기본적으로 이메일 발송을 체크한 상태로 시작
+    setSelectedChannels(["EMAIL"]);
     setIsSendModalOpen(true);
   };
 
   const handleSendExecute = () => {
-    if (!sendAddress.trim()) {
-      alert("발송 수신처를 입력해 주세요.");
+    // 선택된 채널이 최소 하나 이상인지 검증
+    if (selectedChannels.length === 0) {
+      alert("발송할 채널을 최소 하나 이상 선택해 주세요.");
       return;
     }
+
+    // 각 선택된 채널별로 인풋 기입 유무 검증
+    if (selectedChannels.includes("EMAIL") && !sendEmailAddress.trim()) {
+      alert("이메일 수신 주소를 입력해 주세요.");
+      return;
+    }
+    if (selectedChannels.includes("SMS") && !sendSmsPhone.trim()) {
+      alert("문자 수신 휴대폰 번호를 입력해 주세요.");
+      return;
+    }
+    if (selectedChannels.includes("FAX") && !sendFaxNumber.trim()) {
+      alert("팩스 수신 번호를 입력해 주세요.");
+      return;
+    }
+
     setIsSending(true);
     setTimeout(() => {
       setIsSending(false);
       setIsSendModalOpen(false);
-      alert(`[발송 성공]\n\n수신처: ${sendAddress}\n채널: ${sendChannel}\n\n제조업 특약 견적서(${meta.estimateNumber})가 성공적으로 전송 완료되었습니다!`);
+
+      const reports = selectedChannels.map(ch => {
+        if (ch === "EMAIL") return `- 이메일: ${sendEmailAddress}`;
+        if (ch === "SMS") return `- 문자: ${sendSmsPhone}`;
+        return `- 팩스: ${sendFaxNumber}`;
+      }).join("\n");
+
+      alert(`[다중 채널 발송 성공]\n\n제조업 특약 견적서(${meta.estimateNumber})가\n선택하신 아래 채널들로 모두 동시 발송 완료되었습니다!\n\n${reports}`);
     }, 1500);
   };
 
@@ -1579,54 +1602,80 @@ export default function ManufactureEstimateWritePage() {
               </p>
             </div>
 
-            {/* 발송 채널 탭 */}
-            <div className="grid grid-cols-3 gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200">
-              {(["EMAIL", "SMS", "FAX"] as const).map(ch => (
-                <button
-                  key={ch}
-                  onClick={() => {
-                    setSendChannel(ch);
-                    const matchedPartner = partners.find(p => p.company_name === buyer.companyName);
-                    const partnerFax = matchedPartner?.fax || "";
-                    const primaryContact = matchedPartner?.contacts?.find((c: any) => c.is_primary === 1 || c.is_primary === "1");
-
-                    if (ch === "EMAIL") {
-                      setSendAddress(buyer.email || primaryContact?.email || matchedPartner?.manager_email || matchedPartner?.email || "");
-                    }
-                    if (ch === "SMS") {
-                      setSendAddress(buyer.phone || primaryContact?.phone || matchedPartner?.manager_phone || matchedPartner?.phone || "");
-                    }
-                    if (ch === "FAX") {
-                      setSendAddress(partnerFax);
-                    }
-                  }}
-                  className={`py-2 text-center text-xs font-black rounded-lg transition cursor-pointer select-none ${
-                    sendChannel === ch
-                      ? "bg-indigo-600 text-white shadow"
-                      : "text-slate-400 hover:text-slate-800"
-                  }`}
-                >
-                  {ch === "EMAIL" && "📧 이메일"}
-                  {ch === "SMS" && "💬 문자"}
-                  {ch === "FAX" && "📠 팩스"}
-                </button>
-              ))}
+            {/* 발송 채널 선택 (다중 선택 지원) */}
+            <div className="space-y-2">
+              <label className="block text-[10px] text-slate-500 font-bold">발송 채널 선택 (복수 선택 가능) *</label>
+              <div className="grid grid-cols-3 gap-2">
+                {(["EMAIL", "SMS", "FAX"] as const).map(ch => {
+                  const isSelected = selectedChannels.includes(ch);
+                  return (
+                    <button
+                      key={ch}
+                      type="button"
+                      onClick={() => {
+                        if (isSelected) {
+                          if (selectedChannels.length > 1) {
+                            setSelectedChannels(selectedChannels.filter(c => c !== ch));
+                          }
+                        } else {
+                          setSelectedChannels([...selectedChannels, ch]);
+                        }
+                      }}
+                      className={`py-2 text-center text-xs font-black rounded-lg transition cursor-pointer select-none border ${
+                        isSelected
+                          ? "bg-indigo-600 border-indigo-600 text-white shadow"
+                          : "bg-slate-50 border-slate-200 text-slate-400 hover:text-slate-850"
+                      }`}
+                    >
+                      {ch === "EMAIL" && (isSelected ? "✓ 이메일" : "📧 이메일")}
+                      {ch === "SMS" && (isSelected ? "✓ 문자" : "💬 문자")}
+                      {ch === "FAX" && (isSelected ? "✓ 팩스" : "📠 팩스")}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="space-y-4">
-              <div>
-                <label className="block text-[10px] text-slate-500 font-bold mb-1.5">발송 수신처 정보 *</label>
-                <input 
-                  type="text" 
-                  value={sendAddress}
-                  onChange={e => setSendAddress(e.target.value)}
-                  placeholder={
-                    sendChannel === "EMAIL" ? "이메일 주소 입력" :
-                    sendChannel === "SMS" ? "휴대폰 번호 입력" : "FAX 번호 입력"
-                  }
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
-                />
-              </div>
+              {selectedChannels.includes("EMAIL") && (
+                <div>
+                  <label className="block text-[10px] text-slate-500 font-bold mb-1.5">이메일 수신 주소 *</label>
+                  <input 
+                    type="text" 
+                    value={sendEmailAddress}
+                    onChange={e => setSendEmailAddress(e.target.value)}
+                    placeholder="이메일 주소 입력"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
+                  />
+                </div>
+              )}
+
+              {selectedChannels.includes("SMS") && (
+                <div>
+                  <label className="block text-[10px] text-slate-500 font-bold mb-1.5">문자 수신 휴대폰 번호 *</label>
+                  <input 
+                    type="text" 
+                    value={sendSmsPhone}
+                    onChange={e => setSendSmsPhone(e.target.value)}
+                    placeholder="휴대폰 번호 입력"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
+                  />
+                </div>
+              )}
+
+              {selectedChannels.includes("FAX") && (
+                <div>
+                  <label className="block text-[10px] text-slate-500 font-bold mb-1.5">팩스 수신 번호 *</label>
+                  <input 
+                    type="text" 
+                    value={sendFaxNumber}
+                    onChange={e => setSendFaxNumber(e.target.value)}
+                    placeholder="FAX 번호 입력"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
+                  />
+                </div>
+              )}
+            </div>
 
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2 text-xs text-slate-500 leading-relaxed font-semibold">
                 <div className="flex justify-between items-center text-[10px] font-black text-indigo-500 uppercase tracking-wider border-b border-slate-200/50 pb-1.5 mb-1">
