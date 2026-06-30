@@ -19,6 +19,7 @@ export async function handleBusinessLicense(reqBody: any, nowStr: string) {
       business_number: cleanBizNo,
       representative: data.representative || '',
       phone: data.phone || '',
+      fax: data.fax || '',
       manager_name: data.managerName || '',
       address: data.address || '',
       vip_level: 'NORMAL',
@@ -45,6 +46,7 @@ export async function handleBusinessLicense(reqBody: any, nowStr: string) {
       representative: data.representative || '',
       address: data.address || '',
       phone: data.phone || '',
+      fax: data.fax || '',
       manager_name: data.managerName || '',
       memo: data.memo || ''
     }, { filters: { id: existingId } });

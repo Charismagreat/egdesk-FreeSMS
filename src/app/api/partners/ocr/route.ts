@@ -4,7 +4,7 @@ import { fetchGeminiWithFallback } from '../../../../lib/gemini-fallback';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
-import { queryTable, insertRows } from '../../../../../egdesk-helpers';
+import { queryTable, insertRows, executeSQL } from '../../../../../egdesk-helpers';
 
 /**
  * 최고관리자(SUPER_ADMIN) 권한 검증 공통 헬퍼
@@ -120,6 +120,7 @@ export async function POST(req: Request) {
 - 성명 (name)
 - 직책/직급 (position): 예: "과장", "팀장", "대표" 등, 없으면 빈칸
 - 휴대전화번호/연락처 (phone): "010-0000-0000" 또는 "02-000-0000" 형식으로 정제해서 반환, 없으면 빈칸
+- 팩스번호 (fax): 명함에 명시된 팩스번호가 있을 시 "02-000-0000" 형식으로 정제해서 반환, 없으면 빈칸
 - 이메일 주소 (email): 이메일 형식으로 반환, 없으면 빈칸
 - 회사명 (companyName): 명함의 소속 회사/상호명
 
@@ -130,6 +131,7 @@ export async function POST(req: Request) {
   "name": "홍길동",
   "position": "팀장",
   "phone": "010-1234-5678",
+  "fax": "02-1234-5679",
   "email": "gildong@partner.com",
   "companyName": "주식회사 이지텍"
 }`;
@@ -202,6 +204,7 @@ export async function POST(req: Request) {
       }
 
       const cleanedPhone = normalizePhone(parsedCard.phone || '');
+      const cleanedFax = normalizePhone(parsedCard.fax || '');
 
       return NextResponse.json({
         success: true,
@@ -209,6 +212,7 @@ export async function POST(req: Request) {
           name: parsedCard.name ? parsedCard.name.trim() : '',
           position: parsedCard.position ? parsedCard.position.trim() : '',
           phone: cleanedPhone,
+          fax: cleanedFax,
           email: parsedCard.email ? parsedCard.email.trim() : '',
           companyName: parsedCard.companyName ? parsedCard.companyName.trim() : ''
         }
@@ -221,7 +225,8 @@ export async function POST(req: Request) {
 - 상호/회사명 (companyName)
 - 대표자 성명 (representative)
 - 사업장 주소/소재지 (address)
-- 대표 연락처/전화번호 (phone): 등록증에 명시된 연락처나 팩스번호 중 전화번호를 정제해서 "010-0000-0000" 또는 "02-000-0000" 형식으로 반환, 없으면 빈칸
+- 대표 연락처/전화번호 (phone): 등록증에 명시된 연락처 중 전화번호를 정제해서 "010-0000-0000" 또는 "02-000-0000" 형식으로 반환, 없으면 빈칸
+- 팩스번호 (fax): 등록증에 명시된 팩스번호가 있을 시 "02-000-0000" 형식으로 정제해서 반환, 없으면 빈칸
 - 실무 이메일 주소 (email): 등록증에 명시된 국세청 신고 및 세금계산서 통보용 전자우편 주소를 추출해 이메일 형식으로 반환, 없으면 빈칸
 - 실무 담당자명 (managerName): 공동대표나 인쇄된 유의미한 이름이 있을 시 기재, 없으면 빈칸
 - 개업연월일 (openingDate): "YYYY-MM-DD" 형식으로 정제해서 반환, 없으면 빈칸
@@ -237,6 +242,7 @@ export async function POST(req: Request) {
   "representative": "홍길동",
   "address": "서울특별시 영등포구 양평로 123",
   "phone": "02-1234-5678",
+  "fax": "02-1234-5679",
   "email": "contact@easytech.com",
   "managerName": "",
   "openingDate": "2020-05-15",
@@ -315,6 +321,7 @@ export async function POST(req: Request) {
     // 4. 데이터 정형화/정밀화 처리
     const cleanedNumber = normalizeBusinessNumber(parsedData.businessNumber || '');
     const cleanedPhone = normalizePhone(parsedData.phone || '');
+    const cleanedFax = normalizePhone(parsedData.fax || '');
 
     const ocrInfo = {
       businessNumber: cleanedNumber,
@@ -322,6 +329,7 @@ export async function POST(req: Request) {
       representative: parsedData.representative ? parsedData.representative.trim() : '',
       address: parsedData.address ? parsedData.address.trim() : '',
       phone: cleanedPhone,
+      fax: cleanedFax,
       email: parsedData.email ? parsedData.email.trim() : '',
       managerName: parsedData.managerName ? parsedData.managerName.trim() : '',
       openingDate: parsedData.openingDate || '',
@@ -396,12 +404,19 @@ export async function POST(req: Request) {
       }
     }
 
-    // 5. DB 중복 대조 및 변경 변동 감지 스마트 매칭 로직
-    const existingPartnersRes = await queryTable('crm_partners', {
-      filters: { business_number: ocrInfo.businessNumber }
-    });
-
-    const rows = existingPartnersRes.rows || [];
+    // 5. DB 중복 대조 및 변경 변동 감지 스마트 매칭 로직 (대시 유무 상관 없이 replace 처리 대조, DELETE 키워드 SQL 차단 회피를 위한 메모리 필터링)
+    const cleanBizNoForMatch = ocrInfo.businessNumber.replace(/\D/g, '');
+    let rows: any[] = [];
+    try {
+      const allPartnersRes = await queryTable('crm_partners', {});
+      const allPartners = allPartnersRes.rows || [];
+      rows = allPartners.filter((p: any) => 
+        !p.deleted_at && 
+        (p.business_number || '').replace(/\D/g, '') === cleanBizNoForMatch
+      );
+    } catch (dbErr) {
+      console.error('DB 중복 조회 실패:', dbErr);
+    }
 
     const checksumResult = {
       isValid: isChecksumValid,

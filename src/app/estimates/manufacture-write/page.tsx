@@ -605,7 +605,7 @@ export default function ManufactureEstimateWritePage() {
     setIsSendModalOpen(true);
   };
 
-  const handleSendExecute = () => {
+  const handleSendExecute = async () => {
     // 선택된 채널이 최소 하나 이상인지 검증
     if (selectedChannels.length === 0) {
       alert("발송할 채널을 최소 하나 이상 선택해 주세요.");
@@ -627,19 +627,126 @@ export default function ManufactureEstimateWritePage() {
     }
 
     setIsSending(true);
-    setTimeout(() => {
+    try {
+      // 💡 3종의 제조업 품목 목록(원자재, 직접가공, 외주가공)을 단일 API 전송 스키마로 취합
+      const payloadItems: any[] = [];
+      
+      materials.forEach((m) => {
+        if (m.productName && m.productName.trim()) {
+          payloadItems.push({
+            product_id: "",
+            item_code: m.itemCode || "",
+            product_name: m.productName,
+            quantity: m.quantity || 0,
+            unit_price: m.unitPrice || 0,
+            amount: (m.quantity || 0) * (m.unitPrice || 0),
+            delivery_date: "",
+            spec: JSON.stringify({
+              type: "MATERIAL",
+              spec: m.spec || "",
+              remark: m.remark || ""
+            })
+          });
+        }
+      });
+
+      directProcess.forEach((p) => {
+        if (p.processName && p.processName.trim()) {
+          payloadItems.push({
+            product_id: "",
+            item_code: "PROC-DIR",
+            product_name: p.processName,
+            quantity: p.quantity || 0,
+            unit_price: p.unitPrice || 0,
+            amount: (p.quantity || 0) * (p.unitPrice || 0),
+            delivery_date: "",
+            spec: JSON.stringify({
+              type: "DIRECT_PROCESS",
+              remark: p.remark || ""
+            })
+          });
+        }
+      });
+
+      outsourceProcess.forEach((p) => {
+        if (p.processName && p.processName.trim()) {
+          payloadItems.push({
+            product_id: "",
+            item_code: "PROC-OUT",
+            product_name: p.processName,
+            quantity: p.quantity || 0,
+            unit_price: p.unitPrice || 0,
+            amount: (p.quantity || 0) * (p.unitPrice || 0),
+            delivery_date: "",
+            spec: JSON.stringify({
+              type: "OUTSOURCE_PROCESS",
+              remark: p.remark || ""
+            })
+          });
+        }
+      });
+
+      if (payloadItems.length === 0) {
+        alert("최소 1개 이상의 유효한 견적 품목(원부자재 또는 가공비)을 입력해 주세요.");
+        setIsSending(false);
+        return;
+      }
+
+      // 💡 실제 데이터베이스에 제조업 특약 견적서 적재 API 호출
+      const payload = {
+        type: "OUTBOUND",
+        direction_status: "SENT",
+        partner_name: buyer.companyName,
+        partner_phone: buyer.phone || sendSmsPhone,
+        partner_manager: buyer.managerName || "-",
+        items: payloadItems,
+        tags: JSON.stringify({ 
+          is_manufacture: true,
+          materialsTotal,
+          directProcessTotal,
+          outsourceProcessTotal,
+          generalAdminCost,
+          businessProfit,
+          materialManageCost,
+          grandTotal
+        }),
+        send_method: selectedChannels.join(","),
+        send_target: selectedChannels.map(ch => {
+          if (ch === "EMAIL") return sendEmailAddress;
+          if (ch === "SMS") return sendSmsPhone;
+          if (ch === "FAX") return sendFaxNumber;
+          return sendDirectMemo.trim() || "직접 전달";
+        }).join(",")
+      };
+
+      const res = await fetch("/api/estimates", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+      const resJson = await res.json();
+
+      if (resJson.success) {
+        setIsSendModalOpen(false);
+        const reports = selectedChannels.map(ch => {
+          if (ch === "EMAIL") return `- 이메일: ${sendEmailAddress}`;
+          if (ch === "SMS") return `- 문자: ${sendSmsPhone}`;
+          if (ch === "FAX") return `- 팩스: ${sendFaxNumber}`;
+          return `- 직접 전달: ${sendDirectMemo.trim() || "메모 없음"}`;
+        }).join("\n");
+
+        alert(`[발송 성공]\n\n제조업 특약 견적서가 성공적으로 적재 및 발송 확정되었습니다!\n\n${reports}`);
+      } else {
+        alert(`발송 실패: ${resJson.error || "알 수 없는 오류"}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("발송 및 저장 중 네트워크 오류가 발생했습니다.");
+    } finally {
       setIsSending(false);
-      setIsSendModalOpen(false);
-
-      const reports = selectedChannels.map(ch => {
-        if (ch === "EMAIL") return `- 이메일: ${sendEmailAddress}`;
-        if (ch === "SMS") return `- 문자: ${sendSmsPhone}`;
-        if (ch === "FAX") return `- 팩스: ${sendFaxNumber}`;
-        return `- 직접 전달: ${sendDirectMemo.trim() || "메모 없음"}`;
-      }).join("\n");
-
-      alert(`[발송 성공]\n\n제조업 특약 견적서(${meta.estimateNumber})가\n선택하신 아래 수단으로 기록 확정되었습니다!\n\n${reports}`);
-    }, 1500);
+    }
   };
 
   return (
@@ -647,21 +754,7 @@ export default function ManufactureEstimateWritePage() {
       className="min-h-screen bg-slate-50 text-slate-800 p-0 font-sans selection:bg-indigo-500 selection:text-white"
       data-easybot-hint="제조업 전용 견적 작성 AI: 송전 및 배전 기기 제조업에 특화된 재료비, 가공비, 일반관리비, 기업이윤 연산 및 옴니채널 발송을 담당합니다."
     >
-      <style dangerouslySetInnerHTML={{ __html: `
-        @media print {
-          @page {
-            size: A4 portrait;
-            margin: 10mm;
-          }
-          html, body {
-            height: 100%;
-            overflow: hidden;
-            background: #fff;
-            margin: 0 !important;
-            padding: 0 !important;
-          }
-        }
-      ` }} />
+      <style dangerouslySetInnerHTML={{ __html: "@media print { @page { size: A4 portrait; margin: 10mm; } html, body { height: 100%; overflow: hidden; background: #fff; margin: 0 !important; padding: 0 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } }" }} />
       <div className="w-full space-y-8 relative px-4 py-6 md:px-8 md:py-8">
         {/* 상단 액션바 */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-6 print:hidden">

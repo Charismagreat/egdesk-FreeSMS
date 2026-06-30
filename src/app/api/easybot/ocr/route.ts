@@ -4,7 +4,7 @@ import { fetchGeminiWithFallback } from '../../../../lib/gemini-fallback';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
-import { queryTable, insertRows } from '../../../../../egdesk-helpers';
+import { queryTable, insertRows, executeSQL } from '../../../../../egdesk-helpers';
 import fs from 'fs';
 import path from 'path';
 
@@ -230,9 +230,9 @@ export async function POST(req: Request) {
 
 각 아이템은 다음 13가지 타입 중 하나여야 합니다:
 1. 명함 ("BUSINESS_CARD"):
-   - data 객체에 name (성명), position (직급/직책), phone (전화번호), email (이메일), companyName (회사명/소속) 추출.
+   - data 객체에 name (성명), position (직급/직책), phone (전화번호), fax (팩스번호), email (이메일), companyName (회사명/소속) 추출.
 2. 사업자등록증 ("BUSINESS_LICENSE"):
-   - data 객체에 businessNumber ("000-00-00000" 형태), companyName (상호명), representative (대표자명), address (주소), phone (전화번호), managerName (담당자명), openingDate (개업일 "YYYY-MM-DD"), businessType (업태), businessItem (종목) 추출.
+   - data 객체에 businessNumber ("000-00-00000" 형태), companyName (상호명), representative (대표자명), address (주소), phone (전화번호), fax (팩스번호), managerName (담당자명), openingDate (개업일 "YYYY-MM-DD"), businessType (업태), businessItem (종목) 추출.
 3. 영수증 ("RECEIPT"):
    - data 객체에 title (상호명과 구매품 요약, 예: "CU - 음료 구매"), category (아래 7대 비목 중 가장 잘 어울리는 중분류 하나만 선택: "복리후생비", "여비교통비", "소모품비", "접대비", "임차료", "세금공과금", "기타"), amount (최종 결제 금액, 숫자로만), expense_date (결제일 "YYYY-MM-DD"), payment_method (결제 수단, 예: "법인카드", "개인카드", "현금", "계좌이체" 등), memo (세부 사항 메모), payee (가맹점명 또는 상호명), card_approval_no (신용카드 결제일 경우 영수증 상에 기재된 승인번호 8자리 내외의 숫자 문자열, 현금이나 계좌이체 등 승인번호가 없을 때는 null로 설정) 추출.
 4. 재무제표 ("FINANCIAL_STATEMENT"):
@@ -462,11 +462,13 @@ ${JSON.stringify(facilitiesListForRag)}
       if (item.itemType === 'BUSINESS_CARD') {
         const cardData = item.data || {};
         const cleanedPhone = normalizePhone(cardData.phone || '');
+        const cleanedFax = normalizePhone(cardData.fax || '');
 
         const parsedCard = {
           name: cardData.name ? cardData.name.trim() : '',
           position: cardData.position ? cardData.position.trim() : '',
           phone: cleanedPhone,
+          fax: cleanedFax,
           email: cardData.email ? cardData.email.trim() : '',
           companyName: cardData.companyName ? cardData.companyName.trim() : ''
         };
@@ -516,6 +518,7 @@ ${JSON.stringify(facilitiesListForRag)}
         const licenseData = item.data || {};
         const cleanedBizNumber = normalizeBusinessNumber(licenseData.businessNumber || '');
         const cleanedLicensePhone = normalizePhone(licenseData.phone || '');
+        const cleanedLicenseFax = normalizePhone(licenseData.fax || '');
 
         const ocrInfo = {
           businessNumber: cleanedBizNumber,
@@ -523,6 +526,7 @@ ${JSON.stringify(facilitiesListForRag)}
           representative: licenseData.representative ? licenseData.representative.trim() : '',
           address: licenseData.address ? licenseData.address.trim() : '',
           phone: cleanedLicensePhone,
+          fax: cleanedLicenseFax,
           managerName: licenseData.managerName ? licenseData.managerName.trim() : '',
           openingDate: licenseData.openingDate || '',
           businessType: licenseData.businessType || '',
@@ -585,10 +589,18 @@ ${JSON.stringify(facilitiesListForRag)}
           }
         }
 
-        const existingPartnersRes = await queryTable('crm_partners', {
-          filters: { business_number: ocrInfo.businessNumber }
-        });
-        const rows = existingPartnersRes.rows || [];
+        const cleanBizNoForMatch = ocrInfo.businessNumber.replace(/\D/g, '');
+        let rows: any[] = [];
+        try {
+          const allPartnersRes = await queryTable('crm_partners', {});
+          const allPartners = allPartnersRes.rows || [];
+          rows = allPartners.filter((p: any) => 
+            !p.deleted_at && 
+            (p.business_number || '').replace(/\D/g, '') === cleanBizNoForMatch
+          );
+        } catch (dbErr) {
+          console.error('DB 중복 조회 실패:', dbErr);
+        }
 
         const checksumResult = {
           isValid: isChecksumValid,

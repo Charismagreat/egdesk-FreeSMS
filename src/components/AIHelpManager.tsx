@@ -354,7 +354,9 @@ export default function AIHelpManager() {
     pathname.startsWith('/m/') || 
     pathname.startsWith('/expenses/mobile-approve') ||
     pathname.startsWith('/employee') ||
-    pathname.startsWith('/estimates/web-view')
+    pathname.startsWith('/estimates/web-view') ||
+    pathname.startsWith('/estimates/print-pdf') ||
+    pathname.startsWith('/estimates/manufacture-webview')
   ) {
     return null;
   }

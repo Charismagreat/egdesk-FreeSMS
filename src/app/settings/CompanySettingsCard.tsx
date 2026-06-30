@@ -820,7 +820,7 @@ export default function CompanySettingsCard() {
             <div className="text-center py-6 text-slate-400 font-semibold text-xs animate-pulse">
               재무 제표 이력을 동기화하는 중...
             </div>
-          ) : financials.length === 0 ? (
+          ) : (!Array.isArray(financials) || financials.length === 0) ? (
             <div className="border border-slate-150 border-dashed rounded-xl p-8 text-center text-slate-400 font-semibold text-xs bg-slate-50/30">
               등록된 본사 재무제표가 없습니다. 위 PDF 업로더를 통해 국세청 문서를 업로드해 주세요.
             </div>

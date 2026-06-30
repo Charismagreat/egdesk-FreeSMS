@@ -37,10 +37,14 @@ async function sendEstimateEmail(
 
     // 1. 공급자 정보(우리 회사 프로필) 로드
     let providerHtml = '';
+    let supplierName = '공급사';
     try {
       const companySetting = await queryTable('system_settings', { filters: { key: 'my_company_profile' } });
       if (companySetting.rows?.[0]?.value) {
         const p = JSON.parse(companySetting.rows[0].value);
+        if (p.companyName) {
+          supplierName = p.companyName;
+        }
         providerHtml = `
           <div style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px; font-size: 11px; line-height: 1.6; color: #475569; background-color: #fafafa; margin-bottom: 20px;">
             <p style="margin: 0; font-weight: bold; color: #1e293b; margin-bottom: 6px; font-size: 12px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px;">공급자 (Supplier)</p>
@@ -181,7 +185,11 @@ async function sendEstimateEmail(
         to: emailAddress,
         subject: `[견적서] ${partner_name} 귀하 - 견적서가 도착했습니다. (번호: ${estimateId})`,
         html: emailBodyHtml,
-        fromName: '이지데스크 견적시스템'
+        fromName: '이지데스크 견적시스템',
+        attachments: fs.existsSync(filePath) ? [{
+          filename: `${supplierName}-${partner_name}견적서_${estimateId}.pdf`,
+          path: filePath
+        }] : []
       });
     }
 
