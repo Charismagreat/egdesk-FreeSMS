@@ -532,9 +532,20 @@ export default function ManufactureEstimateWritePage() {
       alert("공급받는자 상호명을 먼저 입력해 주세요.");
       return;
     }
-    if (sendChannel === "EMAIL") setSendAddress(buyer.phone ? `${buyer.phone.replace(/-/g, "")}@naver.com` : "buyer@naver.com");
-    if (sendChannel === "SMS") setSendAddress(buyer.phone || "");
-    if (sendChannel === "FAX") setSendAddress("02-1234-5678");
+
+    const matchedPartner = partners.find(p => p.company_name === buyer.companyName);
+    const partnerFax = matchedPartner?.fax || "";
+    const primaryContact = matchedPartner?.contacts?.find((c: any) => c.is_primary === 1 || c.is_primary === "1");
+
+    if (sendChannel === "EMAIL") {
+      setSendAddress(buyer.email || primaryContact?.email || matchedPartner?.manager_email || matchedPartner?.email || "");
+    }
+    if (sendChannel === "SMS") {
+      setSendAddress(buyer.phone || primaryContact?.phone || matchedPartner?.manager_phone || matchedPartner?.phone || "");
+    }
+    if (sendChannel === "FAX") {
+      setSendAddress(partnerFax);
+    }
     setIsSendModalOpen(true);
   };
 
@@ -1575,9 +1586,19 @@ export default function ManufactureEstimateWritePage() {
                   key={ch}
                   onClick={() => {
                     setSendChannel(ch);
-                    if (ch === "EMAIL") setSendAddress(buyer.email || "buyer@naver.com");
-                    if (ch === "SMS") setSendAddress(buyer.phone || "");
-                    if (ch === "FAX") setSendAddress("02-1234-5678");
+                    const matchedPartner = partners.find(p => p.company_name === buyer.companyName);
+                    const partnerFax = matchedPartner?.fax || "";
+                    const primaryContact = matchedPartner?.contacts?.find((c: any) => c.is_primary === 1 || c.is_primary === "1");
+
+                    if (ch === "EMAIL") {
+                      setSendAddress(buyer.email || primaryContact?.email || matchedPartner?.manager_email || matchedPartner?.email || "");
+                    }
+                    if (ch === "SMS") {
+                      setSendAddress(buyer.phone || primaryContact?.phone || matchedPartner?.manager_phone || matchedPartner?.phone || "");
+                    }
+                    if (ch === "FAX") {
+                      setSendAddress(partnerFax);
+                    }
                   }}
                   className={`py-2 text-center text-xs font-black rounded-lg transition cursor-pointer select-none ${
                     sendChannel === ch
