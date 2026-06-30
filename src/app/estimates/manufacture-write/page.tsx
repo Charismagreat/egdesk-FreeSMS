@@ -91,11 +91,16 @@ export default function ManufactureEstimateWritePage() {
 
   // 발송 모달 제어 상태 (옴니채널 다중 선택 지원)
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
-  const [selectedChannels, setSelectedChannels] = useState<("EMAIL" | "SMS" | "FAX")[]>(["EMAIL"]);
+  const [selectedChannels, setSelectedChannels] = useState<("EMAIL" | "SMS" | "FAX")[]>([]);
   const [sendEmailAddress, setSendEmailAddress] = useState("");
   const [sendSmsPhone, setSendSmsPhone] = useState("");
   const [sendFaxNumber, setSendFaxNumber] = useState("");
   const [isSending, setIsSending] = useState(false);
+
+  // 시스템 설정의 발송 채널별 활성화 가능 여부 상태
+  const [isEmailConfigured, setIsEmailConfigured] = useState(false);
+  const [isSmsConfigured, setIsSmsConfigured] = useState(false);
+  const [isFaxConfigured, setIsFaxConfigured] = useState(false);
 
   // 재고 관리 AI 데이터 연동용 품목 마스터 상태
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
@@ -134,6 +139,49 @@ export default function ManufactureEstimateWritePage() {
       setPartnerContacts([]);
     }
   }, [isRestored, partners, buyer.companyName]);
+
+  // 📇 시스템 설정의 발송 채널별 활성/연동 자격 증명 확인
+  useEffect(() => {
+    const checkChannelsConfig = async () => {
+      try {
+        const fetchVal = async (key: string) => {
+          const res = await fetch(`/api/settings?key=${key}`);
+          const data = await res.json();
+          return data.success && data.value ? data.value : "";
+        };
+
+        // 1. 이메일 SMTP 체크
+        const smtpHost = await fetchVal("email_smtp_host");
+        const smtpUser = await fetchVal("email_smtp_user");
+        const smtpPass = await fetchVal("email_smtp_pass");
+        setIsEmailConfigured(!!(smtpHost && smtpUser && smtpPass));
+
+        // 2. 문자 기기 체크 (연결된 기기가 하나라도 있는지)
+        const smsDevicesStr = await fetchVal("sms_devices");
+        let smsOk = false;
+        if (smsDevicesStr) {
+          try {
+            const devices = JSON.parse(smsDevicesStr);
+            if (Array.isArray(devices)) {
+              smsOk = devices.some((d: any) => d.isConnected === true);
+            }
+          } catch (e) {}
+        }
+        setIsSmsConfigured(smsOk);
+
+        // 3. 팩스 API 체크
+        const faxEnable = await fetchVal("fax_enable");
+        const faxLinkId = await fetchVal("fax_link_id");
+        const faxApiKey = await fetchVal("fax_api_key");
+        const faxSender = await fetchVal("fax_sender_number");
+        setIsFaxConfigured(faxEnable === "1" && !!(faxLinkId && faxApiKey && faxSender));
+      } catch (err) {
+        console.error("발송 설정 상태 확인 실패:", err);
+      }
+    };
+
+    checkChannelsConfig();
+  }, []);
 
   useEffect(() => {
     fetch("/api/partners")
@@ -544,8 +592,13 @@ export default function ManufactureEstimateWritePage() {
     setSendSmsPhone(buyer.phone || primaryContact?.phone || matchedPartner?.manager_phone || matchedPartner?.phone || "");
     setSendFaxNumber(partnerFax);
 
-    // 기본적으로 이메일 발송을 체크한 상태로 시작
-    setSelectedChannels(["EMAIL"]);
+    // 설정이 활성화된 사용 가능한 채널 중 최우선 채널로 초기 탑재
+    const initialChannels: ("EMAIL" | "SMS" | "FAX")[] = [];
+    if (isEmailConfigured) initialChannels.push("EMAIL");
+    else if (isSmsConfigured) initialChannels.push("SMS");
+    else if (isFaxConfigured) initialChannels.push("FAX");
+    
+    setSelectedChannels(initialChannels);
     setIsSendModalOpen(true);
   };
 
@@ -1608,11 +1661,17 @@ export default function ManufactureEstimateWritePage() {
               <div className="grid grid-cols-3 gap-2">
                 {(["EMAIL", "SMS", "FAX"] as const).map(ch => {
                   const isSelected = selectedChannels.includes(ch);
+                  const isConfigured = 
+                    ch === "EMAIL" ? isEmailConfigured :
+                    ch === "SMS" ? isSmsConfigured : isFaxConfigured;
+
                   return (
                     <button
                       key={ch}
                       type="button"
+                      disabled={!isConfigured}
                       onClick={() => {
+                        if (!isConfigured) return;
                         if (isSelected) {
                           if (selectedChannels.length > 1) {
                             setSelectedChannels(selectedChannels.filter(c => c !== ch));
@@ -1621,15 +1680,22 @@ export default function ManufactureEstimateWritePage() {
                           setSelectedChannels([...selectedChannels, ch]);
                         }
                       }}
-                      className={`py-2 text-center text-xs font-black rounded-lg transition cursor-pointer select-none border ${
-                        isSelected
-                          ? "bg-indigo-600 border-indigo-600 text-white shadow"
-                          : "bg-slate-50 border-slate-200 text-slate-400 hover:text-slate-850"
+                      className={`py-2 text-center text-xs font-black rounded-lg transition select-none border flex flex-col items-center justify-center gap-0.5 ${
+                        !isConfigured
+                          ? "bg-slate-100 border-slate-200 text-slate-300 opacity-55 cursor-not-allowed"
+                          : isSelected
+                            ? "bg-indigo-600 border-indigo-600 text-white shadow cursor-pointer"
+                            : "bg-slate-50 border-slate-200 text-slate-400 hover:text-slate-850 cursor-pointer"
                       }`}
                     >
-                      {ch === "EMAIL" && (isSelected ? "✓ 이메일" : "📧 이메일")}
-                      {ch === "SMS" && (isSelected ? "✓ 문자" : "💬 문자")}
-                      {ch === "FAX" && (isSelected ? "✓ 팩스" : "📠 팩스")}
+                      <span>
+                        {ch === "EMAIL" && (isSelected ? "✓ 이메일" : "📧 이메일")}
+                        {ch === "SMS" && (isSelected ? "✓ 문자" : "💬 문자")}
+                        {ch === "FAX" && (isSelected ? "✓ 팩스" : "📠 팩스")}
+                      </span>
+                      {!isConfigured && (
+                        <span className="text-[7px] text-rose-500 font-bold tracking-tight">설정 필요</span>
+                      )}
                     </button>
                   );
                 })}
