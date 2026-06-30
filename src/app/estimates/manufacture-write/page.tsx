@@ -737,12 +737,12 @@ export default function ManufactureEstimateWritePage() {
                         )}
                       </div>
                       <div>
-                        <label className="block text-[10px] text-slate-500 font-bold mb-1">수신 부서명</label>
+                        <label className="block text-[10px] text-slate-500 font-bold mb-1">직급/부서</label>
                         <input 
                           type="text" 
                           value={buyer.departmentName}
                           onChange={e => setBuyer({ ...buyer, departmentName: e.target.value })}
-                          placeholder="부서명 입력"
+                          placeholder="직급/부서 입력"
                           className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
                         />
                       </div>
