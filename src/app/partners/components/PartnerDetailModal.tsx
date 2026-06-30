@@ -432,7 +432,7 @@ export function PartnerDetailModal({
               <span className="text-slate-700 block truncate">{selectedPartner.email || '미기입'}</span>
             </div>
             <div className="border-t border-slate-200/50 pt-2 mt-1">
-              <span className="text-[10px] text-slate-400 block mb-0.5">실무 담당자</span>
+              <span className="text-[10px] text-slate-400 block mb-0.5">대표 담당자</span>
               <span className="text-slate-700 font-bold block">
                 {dispManagerName} {dispManagerPosition && dispManagerPosition !== '미기입' ? `[${dispManagerPosition}]` : ''} ({dispManagerPhone})
               </span>

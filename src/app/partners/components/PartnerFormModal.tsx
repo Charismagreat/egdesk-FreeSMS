@@ -369,7 +369,7 @@ export function PartnerFormModal({
           {/* B2B 담당자 정보 */}
           <div className="bg-slate-50/50 p-4.5 rounded-2xl border border-slate-100 space-y-3">
             <div className="flex justify-between items-center pb-1.5 border-b border-slate-100/50">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">실무 담당자 명세</span>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">대표 담당자 명세</span>
               
               {/* 📷 명함 사진 업로드 AI 스캔 */}
               {modalMode === 'create' && (
