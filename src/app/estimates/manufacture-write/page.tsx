@@ -1386,7 +1386,6 @@ export default function ManufactureEstimateWritePage() {
 
               <div className="text-center space-y-1 border-b border-slate-300 pb-3">
                 <h2 className="text-sm font-black tracking-widest text-slate-900">견  적  서</h2>
-                <p className="text-[7px] text-slate-450 print:hidden">송배전반 및 전력기기 정밀 제조 명세</p>
               </div>
 
               <div className="flex gap-4 border-b border-slate-200 pb-3">
