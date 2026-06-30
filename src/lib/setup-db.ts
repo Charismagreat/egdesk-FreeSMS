@@ -2179,8 +2179,39 @@ export async function setupDatabase() {
         await executeSQL("ALTER TABLE crm_partners ADD COLUMN fax TEXT;");
         console.log('✓ In-app migration: added fax to crm_partners');
       }
+      if (!ptCols.includes('manager_email')) {
+        await executeSQL("ALTER TABLE crm_partners ADD COLUMN manager_email TEXT;");
+        console.log('✓ In-app migration: added manager_email to crm_partners');
+      }
+      if (!ptCols.includes('manager_position')) {
+        await executeSQL("ALTER TABLE crm_partners ADD COLUMN manager_position TEXT;");
+        console.log('✓ In-app migration: added manager_position to crm_partners');
+      }
+
+      // 8-4) 기존 대표 담당자 정보를 crm_partners 마스터 테이블로 소급 동기화 백필
+      try {
+        const contactsRes = await queryTable('crm_partner_contacts', { filters: { is_primary: '1' } });
+        const primaryContacts = contactsRes.rows || [];
+        for (const contact of primaryContacts) {
+          if (contact.deleted_at || !contact.partner_id) continue;
+          const partnerRes = await queryTable('crm_partners', { filters: { id: String(contact.partner_id) } });
+          const partner = partnerRes.rows?.[0];
+          if (partner && partner.company_name) {
+            await updateRows('crm_partners', {
+              manager_name: contact.name,
+              manager_phone: contact.phone || '',
+              manager_position: contact.position || '',
+              manager_email: contact.email || ''
+            }, { filters: { company_name: partner.company_name } });
+            console.log(`✓ Data Backfill: synced manager details for ${partner.company_name}`);
+          }
+        }
+      } catch (backfillErr: any) {
+        console.warn('⚠️ manager details data backfill warning:', backfillErr.message);
+      }
+
     } catch (e: any) {
-      console.warn('⚠️ crm_partners fax migration check warning:', e.message);
+      console.warn('⚠️ crm_partners columns migration check warning:', e.message);
     }
   } catch (err: any) {
     console.error('⚠️ In-app migration error:', err.message);
