@@ -210,7 +210,7 @@ export default function ManufactureEstimateWritePage() {
 
   if (!isRestored) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center text-indigo-650">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center text-indigo-600">
         <RefreshCw className="w-10 h-10 animate-spin mr-3" />
         <span className="text-sm font-extrabold tracking-widest uppercase">견적 시스템 환경 복원 중...</span>
       </div>
@@ -803,7 +803,7 @@ export default function ManufactureEstimateWritePage() {
                 </div>
                 <button
                   onClick={handleAddMaterial}
-                  className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-650 rounded-lg font-bold text-[10px] border border-indigo-200/40 transition-all flex items-center gap-1 cursor-pointer"
+                  className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg font-bold text-[10px] border border-indigo-200/40 transition-all flex items-center gap-1 cursor-pointer"
                 >
                   <Plus className="w-3 h-3" />
                   재료 행 추가
@@ -899,7 +899,7 @@ export default function ManufactureEstimateWritePage() {
 
               <div className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
                 <span className="text-xs font-bold text-slate-500">순수 재료비 합계액:</span>
-                <span className="text-sm font-black text-indigo-650 font-mono">{materialsTotal.toLocaleString()}원</span>
+                <span className="text-sm font-black text-indigo-600 font-mono">{materialsTotal.toLocaleString()}원</span>
               </div>
             </div>
 
@@ -919,7 +919,7 @@ export default function ManufactureEstimateWritePage() {
                   </span>
                   <button
                     onClick={handleAddDirectProcess}
-                    className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-650 rounded-lg font-bold text-[10px] border border-indigo-200/40 transition-all flex items-center gap-1 cursor-pointer"
+                    className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg font-bold text-[10px] border border-indigo-200/40 transition-all flex items-center gap-1 cursor-pointer"
                   >
                     <Plus className="w-3 h-3" />
                     직접 공정 추가
@@ -1011,7 +1011,7 @@ export default function ManufactureEstimateWritePage() {
                   </span>
                   <button
                     onClick={handleAddOutsourceProcess}
-                    className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-650 rounded-lg font-bold text-[10px] border border-indigo-200/40 transition-all flex items-center gap-1 cursor-pointer"
+                    className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg font-bold text-[10px] border border-indigo-200/40 transition-all flex items-center gap-1 cursor-pointer"
                   >
                     <Plus className="w-3 h-3" />
                     외주 공정 추가
@@ -1135,7 +1135,7 @@ export default function ManufactureEstimateWritePage() {
               <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm text-left">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-indigo-50 border border-indigo-100 rounded-2xl p-5 shadow-inner gap-4">
                   <div>
-                    <span className="text-xs md:text-sm font-black text-indigo-650 uppercase tracking-wide block">최종 견적 금액 (부가세 별도)</span>
+                    <span className="text-xs md:text-sm font-black text-indigo-600 uppercase tracking-wide block">최종 견적 금액 (부가세 별도)</span>
                     <span className="text-[10px] md:text-xs text-slate-500 font-medium block mt-1">재료비 + 가공비(직접/외주) + 일반관리비 + 기업이윤 + 재료관리비</span>
                   </div>
                   <div className="text-3xl font-black text-indigo-750 font-mono shrink-0">
@@ -1148,7 +1148,7 @@ export default function ManufactureEstimateWritePage() {
               <div className="bg-white border border-slate-200/80 rounded-3xl p-6 space-y-4 text-left shadow-sm">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2">
-                    <FileText className="w-4.5 h-4.5 text-indigo-650" />
+                    <FileText className="w-4.5 h-4.5 text-indigo-600" />
                     <h3 className="text-sm font-black text-slate-850">특기사항</h3>
                   </div>
                   
@@ -1472,7 +1472,7 @@ export default function ManufactureEstimateWritePage() {
                   }}
                   className={`py-2 text-center text-xs font-black rounded-lg transition cursor-pointer select-none ${
                     sendChannel === ch
-                      ? "bg-indigo-650 text-white shadow"
+                      ? "bg-indigo-600 text-white shadow"
                       : "text-slate-400 hover:text-slate-800"
                   }`}
                 >
@@ -1519,7 +1519,7 @@ export default function ManufactureEstimateWritePage() {
               <button 
                 onClick={handleSendExecute}
                 disabled={isSending}
-                className="flex-1 py-3 bg-indigo-650 hover:bg-indigo-600 text-white rounded-xl font-black text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-600/10"
+                className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-lg shadow-indigo-600/10"
               >
                 {isSending ? (
                   <>
