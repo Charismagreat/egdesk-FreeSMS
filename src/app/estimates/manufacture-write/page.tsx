@@ -91,10 +91,11 @@ export default function ManufactureEstimateWritePage() {
 
   // 발송 모달 제어 상태 (옴니채널 다중 선택 지원)
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
-  const [selectedChannels, setSelectedChannels] = useState<("EMAIL" | "SMS" | "FAX")[]>([]);
+  const [selectedChannels, setSelectedChannels] = useState<("EMAIL" | "SMS" | "FAX" | "DIRECT")[]>([]);
   const [sendEmailAddress, setSendEmailAddress] = useState("");
   const [sendSmsPhone, setSendSmsPhone] = useState("");
   const [sendFaxNumber, setSendFaxNumber] = useState("");
+  const [sendDirectMemo, setSendDirectMemo] = useState("");
   const [isSending, setIsSending] = useState(false);
 
   // 시스템 설정의 발송 채널별 활성화 가능 여부 상태
@@ -591,12 +592,14 @@ export default function ManufactureEstimateWritePage() {
     setSendEmailAddress(buyer.email || primaryContact?.email || matchedPartner?.manager_email || matchedPartner?.email || "");
     setSendSmsPhone(buyer.phone || primaryContact?.phone || matchedPartner?.manager_phone || matchedPartner?.phone || "");
     setSendFaxNumber(partnerFax);
+    setSendDirectMemo("");
 
-    // 설정이 활성화된 사용 가능한 채널 중 최우선 채널로 초기 탑재
-    const initialChannels: ("EMAIL" | "SMS" | "FAX")[] = [];
+    // 설정이 활성화된 사용 가능한 채널 중 최우선 채널로 초기 탑재, 전부 불가능할 시 직접 전달 기본 체크
+    const initialChannels: ("EMAIL" | "SMS" | "FAX" | "DIRECT")[] = [];
     if (isEmailConfigured) initialChannels.push("EMAIL");
     else if (isSmsConfigured) initialChannels.push("SMS");
     else if (isFaxConfigured) initialChannels.push("FAX");
+    else initialChannels.push("DIRECT");
     
     setSelectedChannels(initialChannels);
     setIsSendModalOpen(true);
@@ -631,10 +634,11 @@ export default function ManufactureEstimateWritePage() {
       const reports = selectedChannels.map(ch => {
         if (ch === "EMAIL") return `- 이메일: ${sendEmailAddress}`;
         if (ch === "SMS") return `- 문자: ${sendSmsPhone}`;
-        return `- 팩스: ${sendFaxNumber}`;
+        if (ch === "FAX") return `- 팩스: ${sendFaxNumber}`;
+        return `- 직접 전달: ${sendDirectMemo.trim() || "메모 없음"}`;
       }).join("\n");
 
-      alert(`[다중 채널 발송 성공]\n\n제조업 특약 견적서(${meta.estimateNumber})가\n선택하신 아래 채널들로 모두 동시 발송 완료되었습니다!\n\n${reports}`);
+      alert(`[발송 성공]\n\n제조업 특약 견적서(${meta.estimateNumber})가\n선택하신 아래 수단으로 기록 확정되었습니다!\n\n${reports}`);
     }, 1500);
   };
 
@@ -1658,12 +1662,13 @@ export default function ManufactureEstimateWritePage() {
             {/* 발송 채널 선택 (다중 선택 지원) */}
             <div className="space-y-2">
               <label className="block text-[10px] text-slate-500 font-bold">발송 채널 선택 (복수 선택 가능) *</label>
-              <div className="grid grid-cols-3 gap-2">
-                {(["EMAIL", "SMS", "FAX"] as const).map(ch => {
+              <div className="grid grid-cols-4 gap-1.5">
+                {(["EMAIL", "SMS", "FAX", "DIRECT"] as const).map(ch => {
                   const isSelected = selectedChannels.includes(ch);
                   const isConfigured = 
                     ch === "EMAIL" ? isEmailConfigured :
-                    ch === "SMS" ? isSmsConfigured : isFaxConfigured;
+                    ch === "SMS" ? isSmsConfigured :
+                    ch === "FAX" ? isFaxConfigured : true;
 
                   return (
                     <button
@@ -1680,7 +1685,7 @@ export default function ManufactureEstimateWritePage() {
                           setSelectedChannels([...selectedChannels, ch]);
                         }
                       }}
-                      className={`py-2 text-center text-xs font-black rounded-lg transition select-none border flex flex-col items-center justify-center gap-0.5 ${
+                      className={`py-2 px-1 text-center text-[10px] font-black rounded-lg transition select-none border flex flex-col items-center justify-center gap-0.5 ${
                         !isConfigured
                           ? "bg-slate-100 border-slate-200 text-slate-300 opacity-55 cursor-not-allowed"
                           : isSelected
@@ -1688,10 +1693,11 @@ export default function ManufactureEstimateWritePage() {
                             : "bg-slate-50 border-slate-200 text-slate-400 hover:text-slate-850 cursor-pointer"
                       }`}
                     >
-                      <span>
+                      <span className="truncate">
                         {ch === "EMAIL" && (isSelected ? "✓ 이메일" : "📧 이메일")}
                         {ch === "SMS" && (isSelected ? "✓ 문자" : "💬 문자")}
                         {ch === "FAX" && (isSelected ? "✓ 팩스" : "📠 팩스")}
+                        {ch === "DIRECT" && (isSelected ? "✓ 직접" : "🤝 직접")}
                       </span>
                       {!isConfigured && (
                         <span className="text-[7px] text-rose-500 font-bold tracking-tight">설정 필요</span>
@@ -1737,6 +1743,19 @@ export default function ManufactureEstimateWritePage() {
                     value={sendFaxNumber}
                     onChange={e => setSendFaxNumber(e.target.value)}
                     placeholder="FAX 번호 입력"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
+                  />
+                </div>
+              )}
+
+              {selectedChannels.includes("DIRECT") && (
+                <div>
+                  <label className="block text-[10px] text-slate-500 font-bold mb-1.5">직접 전달 상세 메모</label>
+                  <input 
+                    type="text" 
+                    value={sendDirectMemo}
+                    onChange={e => setSendDirectMemo(e.target.value)}
+                    placeholder="예: 지상현 대표 대면 전달, 퀵 발송, 종이 출력 등"
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
                   />
                 </div>
