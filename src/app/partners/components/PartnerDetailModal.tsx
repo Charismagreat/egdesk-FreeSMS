@@ -35,6 +35,10 @@ export function PartnerDetailModal({
     ? (primaryContact.email || '미기입') 
     : (hasContactList ? '미기입' : (selectedPartner?.manager_email || '미기입'));
 
+  const dispManagerPosition = primaryContact 
+    ? (primaryContact.position || '미기입') 
+    : (hasContactList ? '미기입' : (selectedPartner?.manager_position || '미기입'));
+
   // 재무 분석 관리를 위한 탭 및 데이터 상태 선언
   const [activeSubTab, setActiveSubTab] = useState<"info" | "financial" | "contacts">("info");
   const [financials, setFinancials] = useState<any[]>([]);
@@ -344,9 +348,20 @@ export function PartnerDetailModal({
         </button>
 
         <div className="space-y-1 mb-4">
-          <span className="text-[9px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded font-black tracking-wider uppercase inline-block">
-            Partner Profile
-          </span>
+          <div className="flex gap-1 items-center flex-wrap">
+            <span className="text-[9px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded font-black tracking-wider uppercase inline-block">
+              Partner Profile
+            </span>
+            {selectedPartner.type && selectedPartner.type.split(',').map((t: string) => {
+              const label = t === 'VENDOR' ? '공급처' : t === 'BUYER' ? '바이어' : '관계사';
+              const color = t === 'VENDOR' ? 'bg-indigo-55 text-indigo-600' : t === 'BUYER' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600';
+              return (
+                <span key={t} className={`text-[8px] ${color} px-1.5 py-0.5 rounded font-black tracking-wide inline-block`}>
+                  {label}
+                </span>
+              );
+            })}
+          </div>
           <h3 className="text-xl font-black text-slate-800 flex items-center gap-1.5">
             <span>{selectedPartner.company_name}</span>
             <span className="text-xs font-bold text-slate-400">({selectedPartner.representative || '대표자 미기입'} 대표)</span>
@@ -418,7 +433,9 @@ export function PartnerDetailModal({
             </div>
             <div className="border-t border-slate-200/50 pt-2 mt-1">
               <span className="text-[10px] text-slate-400 block mb-0.5">실무 담당자</span>
-              <span className="text-slate-700 font-bold block">{dispManagerName} ({dispManagerPhone})</span>
+              <span className="text-slate-700 font-bold block">
+                {dispManagerName} {dispManagerPosition && dispManagerPosition !== '미기입' ? `[${dispManagerPosition}]` : ''} ({dispManagerPhone})
+              </span>
             </div>
             <div className="col-span-2 border-t border-slate-200/50 pt-2 mt-1">
               <span className="text-[10px] text-slate-400 block mb-0.5">담당자 이메일</span>
@@ -441,47 +458,48 @@ export function PartnerDetailModal({
               <p className="text-center py-8 text-xs text-slate-400">거래 이력 마이닝 중...</p>
             ) : (
               <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
-                {selectedPartner.type === 'VENDOR' ? (
-                  // 공급사 발주 목록
-                  detailHistory.purchaseOrders.length === 0 ? (
-                    <p className="text-center py-6 text-slate-400 text-xs font-semibold">발주 거래 이력이 존재하지 않습니다.</p>
-                  ) : (
-                    detailHistory.purchaseOrders.map((po: any) => (
-                      <div key={po.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-xs font-semibold">
-                        <div>
-                          <span className="font-mono text-slate-400 text-[10px] block">{po.id}</span>
-                          <span className="text-slate-800 mt-0.5 block">발주일: {po.created_at.substring(0, 10)}</span>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-indigo-600 block">{parseInt(po.total_amount).toLocaleString()}원</span>
-                          <span className={`inline-block px-1.5 py-0.2 rounded text-[8px] font-black uppercase mt-1 ${po.status === 'PENDING_INBOUND' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                            {po.status === 'PENDING_INBOUND' ? '발주완료' : '입고완료'}
-                          </span>
-                        </div>
+                {(() => {
+                  const hasVendor = selectedPartner.type?.split(',').includes('VENDOR');
+                  const hasBuyer = selectedPartner.type?.split(',').includes('BUYER');
+                  
+                  const pos = hasVendor ? (detailHistory.purchaseOrders || []).map((po: any) => ({ ...po, _historyType: 'PO' })) : [];
+                  const sos = hasBuyer ? (detailHistory.salesOrders || []).map((so: any) => ({ ...so, _historyType: 'SO' })) : [];
+                  
+                  const combined = [...pos, ...sos].sort((a, b) => {
+                    const dateA = a.created_at || '';
+                    const dateB = b.created_at || '';
+                    return dateB.localeCompare(dateA);
+                  });
+                  
+                  if (combined.length === 0) {
+                    return <p className="text-center py-6 text-slate-400 text-xs font-semibold">거래 이력이 존재하지 않습니다.</p>;
+                  }
+                  
+                  return combined.map((item: any) => (
+                    <div key={item.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-xs font-semibold">
+                      <div>
+                        <span className="font-mono text-slate-400 text-[10px] block">{item.id}</span>
+                        <span className="text-slate-800 mt-0.5 block">
+                          {item._historyType === 'PO' ? '발주일' : '수주일'}: {(item.created_at || '').substring(0, 10)}
+                        </span>
                       </div>
-                    ))
-                  )
-                ) : (
-                  // 바이어 수주 목록
-                  detailHistory.salesOrders.length === 0 ? (
-                    <p className="text-center py-6 text-slate-400 text-xs font-semibold">수주 거래 이력이 존재하지 않습니다.</p>
-                  ) : (
-                    detailHistory.salesOrders.map((so: any) => (
-                      <div key={so.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-xs font-semibold">
-                        <div>
-                          <span className="font-mono text-slate-400 text-[10px] block">{so.id}</span>
-                          <span className="text-slate-800 mt-0.5 block">수주일: {so.created_at.substring(0, 10)}</span>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-emerald-600 block">{parseInt(so.total_amount).toLocaleString()}원</span>
-                          <span className={`inline-block px-1.5 py-0.2 rounded text-[8px] font-black uppercase mt-1 ${so.status === 'REGISTERED' ? 'bg-amber-150 text-amber-655' : 'bg-emerald-600 text-white'}`}>
-                            {so.status === 'REGISTERED' ? '수주대기' : '확정완료'}
-                          </span>
-                        </div>
+                      <div className="text-right">
+                        <span className={item._historyType === 'PO' ? 'text-indigo-600 block' : 'text-emerald-600 block'}>
+                          {item._historyType === 'PO' ? '발주: ' : '수주: '}{parseInt(item.total_amount || '0').toLocaleString()}원
+                        </span>
+                        <span className={`inline-block px-1.5 py-0.2 rounded text-[8px] font-black uppercase mt-1 ${
+                          item._historyType === 'PO' 
+                            ? (item.status === 'PENDING_INBOUND' ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-600')
+                            : (item.status === 'REGISTERED' ? 'bg-amber-150 text-amber-655' : 'bg-emerald-600 text-white')
+                        }`}>
+                          {item._historyType === 'PO'
+                            ? (item.status === 'PENDING_INBOUND' ? '발주완료' : '입고완료')
+                            : (item.status === 'REGISTERED' ? '수주대기' : '확정완료')}
+                        </span>
                       </div>
-                    ))
-                  )
-                )}
+                    </div>
+                  ));
+                })()}
               </div>
             )}
           </div>

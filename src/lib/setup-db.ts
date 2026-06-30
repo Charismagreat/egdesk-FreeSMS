@@ -474,6 +474,7 @@ export async function setupDatabase() {
     { name: 'fax', type: 'TEXT' },
     { name: 'manager_name', type: 'TEXT' },
     { name: 'manager_phone', type: 'TEXT' },
+    { name: 'manager_position', type: 'TEXT' },
     { name: 'manager_email', type: 'TEXT' },
     { name: 'email', type: 'TEXT' },
     { name: 'address', type: 'TEXT' },

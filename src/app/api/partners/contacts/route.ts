@@ -35,10 +35,11 @@ async function syncPrimaryContactToPartner(partnerId: string) {
     // 4. PK 타입 매칭 우회를 위해 상호명(company_name)을 필터로 삼아 업데이트 실행
     if (partner && partner.company_name) {
       if (primaryContact) {
-        // 대표자가 있는 경우 거래처 정보 동기화 업데이트 (manager_name, manager_phone, manager_email)
+        // 대표자가 있는 경우 거래처 정보 동기화 업데이트 (manager_name, manager_phone, manager_position, manager_email)
         await updateRows('crm_partners', {
           manager_name: primaryContact.name,
           manager_phone: primaryContact.phone || '',
+          manager_position: primaryContact.position || '',
           manager_email: primaryContact.email || ''
         }, { filters: { company_name: partner.company_name } });
       } else {
@@ -46,6 +47,7 @@ async function syncPrimaryContactToPartner(partnerId: string) {
         await updateRows('crm_partners', {
           manager_name: '',
           manager_phone: '',
+          manager_position: '',
           manager_email: ''
         }, { filters: { company_name: partner.company_name } });
       }

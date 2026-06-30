@@ -262,20 +262,36 @@ export function PartnerFormModal({
 
           {/* 구분 필드 */}
           <div>
-            <label className="text-[10px] text-slate-400 font-bold block mb-1">거래처 구분</label>
+            <label className="text-[10px] text-slate-400 font-bold block mb-1">거래처 구분 (중복 선택 가능)</label>
             <div className="flex gap-2">
-              {(['VENDOR', 'BUYER', 'AFFILIATE'] as const).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setForm(p => ({ ...p, type: m }))}
-                  className={`flex-1 py-2 rounded-xl text-xs font-black transition-all border-none cursor-pointer ${
-                    form.type === m ? 'bg-slate-950 text-white' : 'bg-slate-50 border border-slate-200 text-slate-500'
-                  }`}
-                >
-                  {m === 'VENDOR' ? '공급처 (Vendor)' : m === 'BUYER' ? '바이어 (Buyer)' : '🤝 관계사'}
-                </button>
-              ))}
+              {(['VENDOR', 'BUYER', 'AFFILIATE'] as const).map((m) => {
+                const isSelected = form.type ? form.type.split(',').includes(m) : false;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => {
+                      const currentTypes = form.type ? form.type.split(',').filter(Boolean) : [];
+                      let nextTypes: string[];
+                      if (currentTypes.includes(m)) {
+                        if (currentTypes.length === 1) {
+                          alert("최소 하나의 거래처 구분은 지정해 주셔야 합니다.");
+                          return;
+                        }
+                        nextTypes = currentTypes.filter(t => t !== m);
+                      } else {
+                        nextTypes = [...currentTypes, m];
+                      }
+                      setForm(p => ({ ...p, type: nextTypes.join(',') }));
+                    }}
+                    className={`flex-1 py-2 rounded-xl text-xs font-black transition-all border border-slate-200 cursor-pointer ${
+                      isSelected ? 'bg-slate-950 border-slate-950 text-white shadow-sm' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                    }`}
+                  >
+                    {m === 'VENDOR' ? '공급처 (Vendor)' : m === 'BUYER' ? '바이어 (Buyer)' : '🤝 관계사'}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -382,7 +398,7 @@ export function PartnerFormModal({
               )}
             </div>
             
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-4 gap-2">
               <div className="relative">
                 <label className="text-[10px] text-slate-400 font-bold block mb-1">담당자 성함</label>
                 <input 
@@ -390,17 +406,27 @@ export function PartnerFormModal({
                   value={form.manager_name}
                   onChange={e => setForm(p => ({ ...p, manager_name: e.target.value }))}
                   placeholder="실무자 이름"
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
+                  className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
                 />
               </div>
               <div>
-                <label className="text-[10px] text-slate-400 font-bold block mb-1">담당자 연락처 (휴대폰)</label>
+                <label className="text-[10px] text-slate-400 font-bold block mb-1">담당자 연락처</label>
                 <input 
                   type="text" 
                   value={form.manager_phone}
                   onChange={e => setForm(p => ({ ...p, manager_phone: e.target.value }))}
                   placeholder="010-0000-0000"
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
+                  className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-400 font-bold block mb-1">담당자 직급</label>
+                <input 
+                  type="text" 
+                  value={form.manager_position}
+                  onChange={e => setForm(p => ({ ...p, manager_position: e.target.value }))}
+                  placeholder="과장/부장"
+                  className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
                 />
               </div>
               <div>
@@ -410,7 +436,7 @@ export function PartnerFormModal({
                   value={form.manager_email}
                   onChange={e => setForm(p => ({ ...p, manager_email: e.target.value }))}
                   placeholder="manager@partner.com"
-                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
+                  className="w-full p-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
                 />
               </div>
             </div>

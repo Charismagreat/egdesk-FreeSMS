@@ -1,6 +1,6 @@
 export interface Partner {
   id: string;
-  type: 'VENDOR' | 'BUYER' | 'AFFILIATE';
+  type: string;
   company_name: string;
   business_number: string;
   representative: string;
@@ -8,6 +8,7 @@ export interface Partner {
   fax?: string;
   manager_name: string;
   manager_phone: string;
+  manager_position?: string;
   manager_email?: string;
   email: string;
   address: string;
@@ -20,7 +21,7 @@ export interface Partner {
 }
 
 export interface PartnerForm {
-  type: 'VENDOR' | 'BUYER' | 'AFFILIATE';
+  type: string;
   company_name: string;
   business_number: string;
   representative: string;
@@ -28,6 +29,7 @@ export interface PartnerForm {
   fax: string;
   manager_name: string;
   manager_phone: string;
+  manager_position: string;
   manager_email: string;
   email: string;
   address: string;

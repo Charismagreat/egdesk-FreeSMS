@@ -216,7 +216,9 @@ export async function POST(req: Request) {
       memo = '' 
     } = body;
 
-    if (!type || !company_name) {
+    const finalType = Array.isArray(type) ? type.join(',') : (type || '');
+
+    if (!finalType || !company_name) {
       return NextResponse.json({ success: false, error: '거래처 구분과 상호명은 필수 입력 항목입니다.' }, { status: 400 });
     }
 
@@ -225,7 +227,7 @@ export async function POST(req: Request) {
 
     await insertRows('crm_partners', [{
       id: partnerId,
-      type,
+      type: finalType,
       company_name,
       business_number,
       representative,
@@ -263,6 +265,7 @@ export async function PUT(req: Request) {
     const body = await req.json();
     const { 
       id,
+      type,
       company_name, 
       business_number, 
       representative, 
@@ -284,6 +287,9 @@ export async function PUT(req: Request) {
     }
 
     const updates: Record<string, any> = {};
+    if (type !== undefined) {
+      updates.type = Array.isArray(type) ? type.join(',') : type;
+    }
     if (company_name !== undefined) updates.company_name = company_name;
     if (business_number !== undefined) updates.business_number = business_number;
     if (representative !== undefined) updates.representative = representative;

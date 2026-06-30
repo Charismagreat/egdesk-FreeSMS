@@ -218,19 +218,21 @@ export default function ManufactureEstimateWritePage() {
         const latestEmail = match.manager_email || match.email || "";
         const latestPhone = match.manager_phone || match.phone || "";
         const latestManagerName = match.manager_name || "";
+        const latestPosition = match.manager_position || "";
         
         // 현재 캐싱된 정보와 다를 때만 업데이트 (무한 루프 방지)
-        if (buyer.email !== latestEmail || buyer.phone !== latestPhone || buyer.managerName !== latestManagerName) {
+        if (buyer.email !== latestEmail || buyer.phone !== latestPhone || buyer.managerName !== latestManagerName || (latestPosition && buyer.departmentName !== latestPosition)) {
           setBuyer(prev => ({
             ...prev,
             email: latestEmail,
             phone: latestPhone,
-            managerName: latestManagerName
+            managerName: latestManagerName,
+            departmentName: latestPosition || prev.departmentName
           }));
         }
       }
     }
-  }, [isRestored, partners, buyer.companyName, buyer.email, buyer.phone, buyer.managerName]);
+  }, [isRestored, partners, buyer.companyName, buyer.email, buyer.phone, buyer.managerName, buyer.departmentName]);
 
   if (!isRestored) {
     return (
@@ -698,7 +700,7 @@ export default function ManufactureEstimateWritePage() {
                         {showPartnerDropdown && buyer.companyName.trim().length > 0 && (
                           (() => {
                             const filtered = partners.filter(p => 
-                              p.type === 'BUYER' &&
+                              p.type && p.type.split(',').includes('BUYER') &&
                               p.company_name.toLowerCase().includes(buyer.companyName.toLowerCase())
                             );
                             if (filtered.length === 0) return null;
@@ -714,7 +716,7 @@ export default function ManufactureEstimateWritePage() {
                                     onClick={() => {
                                       setBuyer({
                                         companyName: p.company_name,
-                                        departmentName: p.department_name || "",
+                                        departmentName: p.manager_position || p.department_name || "",
                                         managerName: p.manager_name || "",
                                         phone: p.manager_phone || p.phone || "",
                                         email: p.manager_email || p.email || ""

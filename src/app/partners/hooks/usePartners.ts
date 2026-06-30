@@ -23,6 +23,7 @@ export function usePartners() {
     fax: "",
     manager_name: "",
     manager_phone: "",
+    manager_position: "",
     manager_email: "",
     email: "",
     address: "",
@@ -181,6 +182,7 @@ export function usePartners() {
           ...prev,
           manager_name: cardData.name || prev.manager_name,
           manager_phone: cardData.phone || prev.manager_phone,
+          manager_position: cardData.position || prev.manager_position,
           manager_email: cardData.email || prev.manager_email,
           email: cardData.email || prev.email
         }));
@@ -402,6 +404,7 @@ export function usePartners() {
       fax: pt.fax || "",
       manager_name: pt.manager_name || "",
       manager_phone: pt.manager_phone || "",
+      manager_position: pt.manager_position || "",
       manager_email: pt.manager_email || "",
       email: pt.email || "",
       address: pt.address || "",
@@ -426,6 +429,7 @@ export function usePartners() {
       fax: "",
       manager_name: "",
       manager_phone: "",
+      manager_position: "",
       manager_email: "",
       email: "",
       address: "",
@@ -455,7 +459,7 @@ export function usePartners() {
 
   // 검색 필터링
   const filteredPartners = partners.filter(pt => {
-    if (pt.type !== activeTab) return false;
+    if (!pt.type || !pt.type.split(',').includes(activeTab)) return false;
     if (!searchQuery.trim()) return true;
 
     const query = searchQuery.toLowerCase().trim();
@@ -469,11 +473,11 @@ export function usePartners() {
   });
 
   // 집계 수치 산출
-  const totalVendors = partners.filter(p => p.type === 'VENDOR').length;
-  const totalBuyers = partners.filter(p => p.type === 'BUYER').length;
-  const totalAffiliates = partners.filter(p => p.type === 'AFFILIATE').length;
-  const totalPurchases = partners.filter(p => p.type === 'VENDOR').reduce((sum, p) => sum + (p.total_performance || 0), 0);
-  const totalSales = partners.filter(p => p.type === 'BUYER').reduce((sum, p) => sum + (p.total_performance || 0), 0);
+  const totalVendors = partners.filter(p => p.type && p.type.split(',').includes('VENDOR')).length;
+  const totalBuyers = partners.filter(p => p.type && p.type.split(',').includes('BUYER')).length;
+  const totalAffiliates = partners.filter(p => p.type && p.type.split(',').includes('AFFILIATE')).length;
+  const totalPurchases = partners.filter(p => p.type && p.type.split(',').includes('VENDOR')).reduce((sum, p) => sum + (p.total_performance || 0), 0);
+  const totalSales = partners.filter(p => p.type && p.type.split(',').includes('BUYER')).reduce((sum, p) => sum + (p.total_performance || 0), 0);
 
   return {
     partners,
