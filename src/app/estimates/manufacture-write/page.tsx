@@ -1389,9 +1389,9 @@ export default function ManufactureEstimateWritePage() {
                 <p className="text-[7px] text-slate-450 print:hidden">송배전반 및 전력기기 정밀 제조 명세</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 border-b border-slate-200 pb-3">
+              <div className="grid grid-cols-12 gap-4 border-b border-slate-200 pb-3">
                 {/* 공급받는자 */}
-                <div className="space-y-1.5">
+                <div className="col-span-6 space-y-1.5">
                   <div className="flex gap-1"><span className="text-slate-400 w-12 shrink-0 font-bold">견적번호:</span><span className="font-mono text-slate-700 font-bold">{meta.estimateNumber || "자동 생성대기"}</span></div>
                   <div className="flex gap-1"><span className="text-slate-400 w-12 shrink-0 font-bold">견적일자:</span><span className="text-slate-700 font-bold">{meta.estimateDate || "발행 당일"}</span></div>
                   <div className="flex gap-1"><span className="text-slate-400 w-12 shrink-0 font-bold">수신처:</span><span className="text-slate-900 font-bold underline decoration-slate-300 decoration-2 underline-offset-2">{buyer.companyName || "미확인 바이어"} 귀하</span></div>
@@ -1401,7 +1401,7 @@ export default function ManufactureEstimateWritePage() {
                 </div>
 
                 {/* 공급자 */}
-                <div className="border-l border-slate-200 pl-4 space-y-1">
+                <div className="col-span-6 border-l border-slate-200 pl-4 space-y-1">
                   <div className="flex gap-1"><span className="text-slate-400 w-20 shrink-0 font-bold">등록번호:</span><span className="font-mono text-slate-800 font-bold">{formatBusinessNumber(supplier.businessNumber)}</span></div>
                   <div className="flex gap-1"><span className="text-slate-400 w-20 shrink-0 font-bold">공급자명:</span><span className="text-slate-900 font-bold">{supplier.companyName}</span></div>
                   <div className="flex gap-1"><span className="text-slate-400 w-20 shrink-0 font-bold">대표자:</span><span className="text-slate-850">{supplier.representative} (인)</span></div>
