@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { 
   Plus, Trash2, Printer, Mail, Send, Check, RefreshCw, 
@@ -101,6 +101,22 @@ export default function ManufactureEstimateWritePage() {
   // B2B 거래처 소속 담당자 리스트 상태 및 드롭다운 제어 상태
   const [partnerContacts, setPartnerContacts] = useState<any[]>([]);
   const [isContactDropdownOpen, setIsContactDropdownOpen] = useState(false);
+  const contactDropdownRef = useRef<HTMLDivElement>(null);
+
+  // 📇 외부 클릭 시 담당자 선택 팝오버 자동 닫기
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (contactDropdownRef.current && !contactDropdownRef.current.contains(event.target as Node)) {
+        setIsContactDropdownOpen(false);
+      }
+    }
+    if (isContactDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isContactDropdownOpen]);
 
   // 거래처 파트너 자동완성용 상태
   const [partners, setPartners] = useState<any[]>([]);
@@ -770,7 +786,7 @@ export default function ManufactureEstimateWritePage() {
                         <div className="flex justify-between items-center mb-1">
                           <label className="block text-[10px] text-slate-500 font-bold">담당자 성함</label>
                           {partnerContacts.length > 0 && (
-                            <div className="relative" onMouseLeave={() => setIsContactDropdownOpen(false)}>
+                            <div className="relative" ref={contactDropdownRef}>
                               <button
                                 type="button"
                                 onClick={() => setIsContactDropdownOpen(!isContactDropdownOpen)}
