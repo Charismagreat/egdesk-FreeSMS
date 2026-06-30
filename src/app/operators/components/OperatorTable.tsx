@@ -90,7 +90,6 @@ export function OperatorTable({
                   <button
                     type="button"
                     onClick={() => onEdit(op)}
-                    disabled={op.username === 'admin'}
                     className="p-2 text-slate-400 hover:text-indigo-500 transition-colors disabled:opacity-20 border-0 bg-transparent cursor-pointer mr-1"
                     title="정보 수정"
                   >
