@@ -1406,7 +1406,8 @@ export default function ManufactureEstimateWritePage() {
                   <div className="flex gap-1"><span className="text-slate-400 w-20 shrink-0 font-bold">공급자명:</span><span className="text-slate-900 font-bold">{supplier.companyName}</span></div>
                   <div className="flex gap-1"><span className="text-slate-400 w-20 shrink-0 font-bold">대표자:</span><span className="text-slate-850">{supplier.representative} (인)</span></div>
                   <div className="flex gap-1"><span className="text-slate-400 w-20 shrink-0 font-bold">소재지:</span><span className="text-slate-700 leading-tight">{supplier.address}</span></div>
-                  <div className="flex gap-1"><span className="text-slate-400 w-20 shrink-0 font-bold">연락처/이메일:</span><span className="text-slate-700">{supplier.phone} / {supplier.email}</span></div>
+                  <div className="flex gap-1"><span className="text-slate-400 w-20 shrink-0 font-bold">연락처:</span><span className="text-slate-700">{supplier.phone}</span></div>
+                  <div className="flex gap-1"><span className="text-slate-400 w-20 shrink-0 font-bold">이메일:</span><span className="text-slate-700">{supplier.email}</span></div>
                   {(meta.writerName || meta.writerPhone) && (
                     <div className="flex gap-1"><span className="text-slate-400 w-20 shrink-0 font-bold">작성자/연락처:</span><span className="text-slate-700 font-bold">{meta.writerName || "-"} / {meta.writerPhone || "-"}</span></div>
                   )}
