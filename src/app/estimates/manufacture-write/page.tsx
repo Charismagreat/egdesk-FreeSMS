@@ -97,6 +97,21 @@ export default function ManufactureEstimateWritePage() {
   // 재고 관리 AI 데이터 연동용 품목 마스터 상태
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
 
+  // 거래처 파트너 자동완성용 상태
+  const [partners, setPartners] = useState<any[]>([]);
+  const [showPartnerDropdown, setShowPartnerDropdown] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/partners")
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.partners)) {
+          setPartners(data.partners);
+        }
+      })
+      .catch(err => console.error("거래처 목록 로드 실패:", err));
+  }, []);
+
   useEffect(() => {
     fetch("/api/inventory")
       .then(res => res.json())
@@ -623,15 +638,56 @@ export default function ManufactureEstimateWritePage() {
                     <span className="text-[10px] font-black text-slate-500 border-b border-slate-200 pb-2 block uppercase tracking-widest">공급받는자 정보 (바이어)</span>
                     
                     <div className="grid grid-cols-2 gap-2">
-                      <div>
+                      <div className="relative">
                         <label className="block text-[10px] text-slate-500 font-bold mb-1">바이어 회사명 *</label>
                         <input 
                           type="text" 
                           value={buyer.companyName}
-                          onChange={e => setBuyer({ ...buyer, companyName: e.target.value })}
+                          onChange={e => {
+                            setBuyer({ ...buyer, companyName: e.target.value });
+                            setShowPartnerDropdown(true);
+                          }}
+                          onFocus={() => setShowPartnerDropdown(true)}
+                          onBlur={() => setTimeout(() => setShowPartnerDropdown(false), 200)}
                           placeholder="상호명 입력"
                           className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
                         />
+                        {showPartnerDropdown && buyer.companyName.trim().length > 0 && (
+                          (() => {
+                            const filtered = partners.filter(p => 
+                              p.company_name.toLowerCase().includes(buyer.companyName.toLowerCase())
+                            );
+                            if (filtered.length === 0) return null;
+                            return (
+                              <div className="absolute left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto z-50 divide-y divide-slate-100">
+                                {filtered.map(p => (
+                                  <button
+                                    key={p.id}
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                      e.preventDefault();
+                                    }}
+                                    onClick={() => {
+                                      setBuyer({
+                                        companyName: p.company_name,
+                                        departmentName: p.department_name || "",
+                                        managerName: p.manager_name || "",
+                                        phone: p.phone || ""
+                                      });
+                                      setShowPartnerDropdown(false);
+                                    }}
+                                    className="w-full text-left px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all flex justify-between items-center"
+                                  >
+                                    <span>{p.company_name}</span>
+                                    {p.manager_name && (
+                                      <span className="text-[10px] text-slate-400 font-normal">{p.manager_name} ({p.phone || ""})</span>
+                                    )}
+                                  </button>
+                                ))}
+                              </div>
+                            );
+                          })()
+                        )}
                       </div>
                       <div>
                         <label className="block text-[10px] text-slate-500 font-bold mb-1">수신 부서명</label>
