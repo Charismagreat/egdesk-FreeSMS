@@ -53,7 +53,8 @@ export default function PartnersDashboard() {
     partnerReports,
     isAnalyzing,
     openAnalysisPopup,
-    handleRunAiAnalysis
+    handleRunAiAnalysis,
+    refetchDetail
   } = usePartners();
 
   // 외상 거래 경고 거래처 집계
@@ -118,6 +119,7 @@ export default function PartnersDashboard() {
         selectedPartner={selectedPartner}
         detailHistory={detailHistory}
         detailLoading={detailLoading}
+        refetchDetail={refetchDetail}
       />
 
       <PartnerAnalysisModal

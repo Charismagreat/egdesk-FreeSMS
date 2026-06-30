@@ -20,8 +20,10 @@ export function usePartners() {
     business_number: "",
     representative: "",
     phone: "",
+    fax: "",
     manager_name: "",
     manager_phone: "",
+    manager_email: "",
     email: "",
     address: "",
     vip_level: 'NORMAL',
@@ -49,7 +51,8 @@ export function usePartners() {
   const [selectedPartner, setSelectedPartner, isSelectedPartnerRestored] = usePersistedState<Partner | null>("egdesk_partners_selectedPartner", null);
   const [detailHistory, setDetailHistory] = useState<DetailHistory>({ 
     purchaseOrders: [], 
-    salesOrders: [] 
+    salesOrders: [],
+    contacts: []
   });
   const [detailLoading, setDetailLoading] = useState(false);
 
@@ -178,6 +181,7 @@ export function usePartners() {
           ...prev,
           manager_name: cardData.name || prev.manager_name,
           manager_phone: cardData.phone || prev.manager_phone,
+          manager_email: cardData.email || prev.manager_email,
           email: cardData.email || prev.email
         }));
 
@@ -260,7 +264,8 @@ export function usePartners() {
           if (data.success) {
             setDetailHistory({
               purchaseOrders: data.purchaseOrders || [],
-              salesOrders: data.salesOrders || []
+              salesOrders: data.salesOrders || [],
+              contacts: data.contacts || []
             });
           }
         } catch (e) {
@@ -309,15 +314,39 @@ export function usePartners() {
       const res = await fetch(`/api/partners?action=detail&id=${pt.id}`);
       const data = await res.json();
       if (data.success) {
+        if (data.partner) {
+          setSelectedPartner(data.partner);
+        }
         setDetailHistory({
           purchaseOrders: data.purchaseOrders || [],
-          salesOrders: data.salesOrders || []
+          salesOrders: data.salesOrders || [],
+          contacts: data.contacts || []
         });
       }
     } catch (e) {
       console.error("이력 마이닝 에러:", e);
     } finally {
       setDetailLoading(false);
+    }
+  };
+
+  // 상세 데이터 강제 갱신 헬퍼
+  const refetchDetail = async (partnerId: string) => {
+    try {
+      const res = await fetch(`/api/partners?action=detail&id=${partnerId}`);
+      const data = await res.json();
+      if (data.success) {
+        if (data.partner) {
+          setSelectedPartner(data.partner);
+        }
+        setDetailHistory({
+          purchaseOrders: data.purchaseOrders || [],
+          salesOrders: data.salesOrders || [],
+          contacts: data.contacts || []
+        });
+      }
+    } catch (e) {
+      console.error("이력 재로드 에러:", e);
     }
   };
 
@@ -370,8 +399,10 @@ export function usePartners() {
       business_number: pt.business_number || "",
       representative: pt.representative || "",
       phone: pt.phone || "",
+      fax: pt.fax || "",
       manager_name: pt.manager_name || "",
       manager_phone: pt.manager_phone || "",
+      manager_email: pt.manager_email || "",
       email: pt.email || "",
       address: pt.address || "",
       vip_level: pt.vip_level || 'NORMAL',
@@ -392,8 +423,10 @@ export function usePartners() {
       business_number: "",
       representative: "",
       phone: "",
+      fax: "",
       manager_name: "",
       manager_phone: "",
+      manager_email: "",
       email: "",
       address: "",
       vip_level: 'NORMAL',
@@ -471,6 +504,7 @@ export function usePartners() {
     detailLoading,
     handleFileUpload,
     openDetailPopup,
+    refetchDetail,
     handleSavePartner,
     handleEditClick,
     handleCreateClick,

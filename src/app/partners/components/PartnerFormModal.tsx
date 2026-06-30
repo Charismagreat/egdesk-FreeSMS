@@ -204,8 +204,8 @@ export function PartnerFormModal({
                     <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-start gap-2.5 text-xs text-blue-800 font-semibold leading-relaxed">
                       <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                       <div>
-                        <span className="font-extrabold block">완벽 기등록 일치</span>
-                        <span className="text-[10px] text-blue-600 block mt-0.5">이미 데이터베이스에 100% 완전히 동일한 정보로 가입되어 가동 중인 거래처입니다. 중복 가입이 차단됩니다.</span>
+                        <span className="font-extrabold block">기등록 거래처 정보와 일치</span>
+                        <span className="text-[10px] text-blue-600 block mt-0.5">이미 등록된 거래처로서 중복 등록이 차단됩니다.</span>
                       </div>
                     </div>
                   )}
@@ -327,6 +327,29 @@ export function PartnerFormModal({
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] text-slate-400 font-bold block mb-1">팩스 번호</label>
+              <input 
+                type="text" 
+                value={form.fax}
+                onChange={e => setForm(p => ({ ...p, fax: e.target.value }))}
+                placeholder="02-123-4568"
+                className="w-full p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold bg-white text-slate-800"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] text-slate-400 font-bold block mb-1">계산서 수령 이메일</label>
+              <input 
+                type="email" 
+                value={form.email}
+                onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+                placeholder="tax@partner.com"
+                className="w-full p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold bg-white text-slate-800"
+              />
+            </div>
+          </div>
+
           {/* B2B 담당자 정보 */}
           <div className="bg-slate-50/50 p-4.5 rounded-2xl border border-slate-100 space-y-3">
             <div className="flex justify-between items-center pb-1.5 border-b border-slate-100/50">
@@ -359,7 +382,7 @@ export function PartnerFormModal({
               )}
             </div>
             
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div className="relative">
                 <label className="text-[10px] text-slate-400 font-bold block mb-1">담당자 성함</label>
                 <input 
@@ -369,48 +392,6 @@ export function PartnerFormModal({
                   placeholder="실무자 이름"
                   className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
                 />
-
-                {/* 💡 기존 명함 대장 AI 추천 자동완성 드롭다운 */}
-                {form.manager_name && contacts && contacts.length > 0 && (
-                  (() => {
-                    const query = form.manager_name.toLowerCase();
-                    const matched = contacts.filter((c: any) => 
-                      (c.name && c.name.toLowerCase().includes(query)) ||
-                      (form.company_name && c.company_name && c.company_name.toLowerCase().includes(form.company_name.toLowerCase()))
-                    ).slice(0, 3); // 최대 3개 추천
-
-                    if (matched.length === 0) return null;
-
-                    return (
-                      <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-150 rounded-xl shadow-lg z-20 max-h-40 overflow-y-auto divide-y divide-slate-50 text-[11px] font-bold">
-                        <div className="p-2 bg-slate-50 text-[9px] text-slate-400 tracking-wider">💡 명함대장 AI 추천 연락처</div>
-                        {matched.map((c: any) => (
-                          <div 
-                            key={c.id}
-                            onClick={() => {
-                              setForm(prev => ({
-                                ...prev,
-                                manager_name: c.name || prev.manager_name,
-                                manager_phone: c.phone || prev.manager_phone,
-                                email: c.email || prev.email
-                              }));
-                            }}
-                            className="p-2.5 hover:bg-emerald-50/50 cursor-pointer flex justify-between items-center text-slate-700 transition-colors"
-                          >
-                            <div>
-                              <span className="text-slate-850 font-black">{c.name}</span>
-                              {c.position && <span className="text-slate-400 ml-1">({c.position})</span>}
-                            </div>
-                            <div className="text-right text-[10px] text-slate-400">
-                              <div>{c.phone}</div>
-                              {c.email && <div className="text-[9px]">{c.email}</div>}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })()
-                )}
               </div>
               <div>
                 <label className="text-[10px] text-slate-400 font-bold block mb-1">담당자 연락처 (휴대폰)</label>
@@ -422,17 +403,16 @@ export function PartnerFormModal({
                   className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
                 />
               </div>
-            </div>
-
-            <div>
-              <label className="text-[10px] text-slate-400 font-bold block mb-1">계산서 수령 이메일</label>
-              <input 
-                type="email" 
-                value={form.email}
-                onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
-                placeholder="tax@partner.com"
-                className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
-              />
+              <div>
+                <label className="text-[10px] text-slate-400 font-bold block mb-1">담당자 이메일</label>
+                <input 
+                  type="email" 
+                  value={form.manager_email}
+                  onChange={e => setForm(p => ({ ...p, manager_email: e.target.value }))}
+                  placeholder="manager@partner.com"
+                  className="w-full p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800"
+                />
+              </div>
             </div>
           </div>
 

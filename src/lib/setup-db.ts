@@ -465,14 +465,16 @@ export async function setupDatabase() {
 
   // 24. CRM Partners Table (B2B 거래처 관리)
   await safeCreateTable('거래처 관리', [
-    { name: 'id', type: 'TEXT', notNull: true },
+    { name: 'id', type: 'INTEGER', notNull: true },
     { name: 'type', type: 'TEXT', notNull: true },               // 'VENDOR' or 'BUYER'
     { name: 'company_name', type: 'TEXT', notNull: true },
     { name: 'business_number', type: 'TEXT' },
     { name: 'representative', type: 'TEXT' },
     { name: 'phone', type: 'TEXT' },
+    { name: 'fax', type: 'TEXT' },
     { name: 'manager_name', type: 'TEXT' },
     { name: 'manager_phone', type: 'TEXT' },
+    { name: 'manager_email', type: 'TEXT' },
     { name: 'email', type: 'TEXT' },
     { name: 'address', type: 'TEXT' },
     { name: 'vip_level', type: 'TEXT', defaultValue: 'NORMAL' }, // 'NORMAL', 'VIP'
@@ -2166,6 +2168,18 @@ export async function setupDatabase() {
       }
     } catch (e: any) {
       console.warn('⚠️ crm_operators phone migration check warning:', e.message);
+    }
+
+    // 8-3) crm_partners 테이블 팩스번호(fax) 컬럼 보정
+    try {
+      const schemaInfo = await getTableSchema('crm_partners');
+      const ptCols = (schemaInfo?.schema || []).map((c: any) => c.name);
+      if (!ptCols.includes('fax')) {
+        await executeSQL("ALTER TABLE crm_partners ADD COLUMN fax TEXT;");
+        console.log('✓ In-app migration: added fax to crm_partners');
+      }
+    } catch (e: any) {
+      console.warn('⚠️ crm_partners fax migration check warning:', e.message);
     }
   } catch (err: any) {
     console.error('⚠️ In-app migration error:', err.message);

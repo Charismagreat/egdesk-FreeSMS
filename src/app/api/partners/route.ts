@@ -48,9 +48,17 @@ export async function GET(req: Request) {
         });
       }
 
-      const bizQuery = `SELECT * FROM crm_partners WHERE business_number = '${business_number}' AND deleted_at IS NULL LIMIT 1`;
-      const result = await executeSQL(bizQuery) || [];
-      const partners = (result && (result as any).rows) ? (result as any).rows : (Array.isArray(result) ? result : []);
+      let partners: any[] = [];
+      try {
+        const allPartnersRes = await queryTable('crm_partners', {});
+        const allPartners = allPartnersRes.rows || [];
+        partners = allPartners.filter((p: any) => 
+          !p.deleted_at && 
+          (p.business_number || '').replace(/\D/g, '') === cleanBizNo
+        );
+      } catch (dbErr) {
+        console.error('DB check-biz 조회 실패:', dbErr);
+      }
       
       if (partners.length > 0) {
         return NextResponse.json({ success: true, exists: true, partner: partners[0] });
@@ -93,11 +101,35 @@ export async function GET(req: Request) {
         console.error('SO 마이닝 실패:', err);
       }
 
+      // 해당 거래처에 등록된 담당자(명함첩) 목록 조회 (SQLite 타입 Affinity로 인한 문자/숫자 분리 조회 병합)
+      let contacts = [];
+      try {
+        const resStr = await queryTable('crm_partner_contacts', { filters: { partner_id: String(partner.id) } });
+        const listStr = (resStr.rows || []).filter((c: any) => !c.deleted_at);
+
+        let listNum: any[] = [];
+        if (!isNaN(Number(partner.id))) {
+          const resNum = await queryTable('crm_partner_contacts', { filters: { partner_id: Number(partner.id) as any } });
+          listNum = (resNum.rows || []).filter((c: any) => !c.deleted_at);
+        }
+
+        const ids = new Set(listStr.map((c: any) => c.id));
+        contacts = [...listStr];
+        for (const c of listNum) {
+          if (!ids.has(c.id)) {
+            contacts.push(c);
+          }
+        }
+      } catch (err) {
+        console.error('담당자 목록 로드 실패:', err);
+      }
+
       return NextResponse.json({
         success: true,
         partner,
         purchaseOrders,
-        salesOrders
+        salesOrders,
+        contacts
       });
     }
 
@@ -172,8 +204,10 @@ export async function POST(req: Request) {
       business_number = '', 
       representative = '', 
       phone = '', 
+      fax = '',
       manager_name = '', 
       manager_phone = '', 
+      manager_email = '',
       email = '', 
       address = '', 
       vip_level = 'NORMAL', 
@@ -196,8 +230,10 @@ export async function POST(req: Request) {
       business_number,
       representative,
       phone,
+      fax,
       manager_name,
       manager_phone,
+      manager_email,
       email,
       address,
       vip_level,
@@ -231,11 +267,14 @@ export async function PUT(req: Request) {
       business_number, 
       representative, 
       phone, 
+      fax,
       manager_name, 
       manager_phone, 
+      manager_email,
       email, 
       address, 
       vip_level, 
+      custom_vip_rate,
       credit_limit, 
       memo 
     } = body;
@@ -249,8 +288,10 @@ export async function PUT(req: Request) {
     if (business_number !== undefined) updates.business_number = business_number;
     if (representative !== undefined) updates.representative = representative;
     if (phone !== undefined) updates.phone = phone;
+    if (fax !== undefined) updates.fax = fax;
     if (manager_name !== undefined) updates.manager_name = manager_name;
     if (manager_phone !== undefined) updates.manager_phone = manager_phone;
+    if (manager_email !== undefined) updates.manager_email = manager_email;
     if (email !== undefined) updates.email = email;
     if (address !== undefined) updates.address = address;
     if (vip_level !== undefined) updates.vip_level = vip_level;

@@ -14,9 +14,67 @@ export async function GET() {
       }
     }
 
+    // 🪓 crm_partners 와 crm_partner_contacts 를 강제 DROP하여 새 INTEGER PK 구조를 완전히 물리 적용시킵니다.
+    try {
+      const { executeSQL } = require('../../../../egdesk-helpers');
+      await executeSQL("DROP TABLE IF EXISTS crm_partner_contacts");
+      await executeSQL("DROP TABLE IF EXISTS crm_partners");
+      console.log("✓ crm_partners & contacts 테이블 물리 DROP 완료");
+    } catch (dropErr) {
+      console.warn("테이블 DROP 실패:", dropErr);
+    }
+
     // 2. 스키마 재생성
     console.log('Recreating tables via setupDatabase...');
     await setupDatabase();
+
+    let guardErrorMessage = "";
+    // 🪓 Next.js 빌드/메모리 캐시 등으로 인한 setupDatabase의 TEXT PK 재생성 방지용 물리 DDL 보정 가드
+    try {
+      const { executeSQL } = require('../../../../egdesk-helpers');
+      
+      // crm_partners 테이블의 DDL을 명시적으로 체크하여 INTEGER PK로 강제 재구축
+      const checkDdl = await executeSQL("SELECT sql FROM sqlite_master WHERE type='table' AND name='crm_partners'");
+      const ddlSql = checkDdl.rows?.[0]?.sql || checkDdl[0]?.sql || "";
+      
+      if (ddlSql && !ddlSql.toLowerCase().includes('id" integer') && !ddlSql.toLowerCase().includes('id integer')) {
+        console.log("⚠️ 캐시 핫리로드 지연으로 crm_partners가 TEXT id로 재작성되었습니다. 강제 보정 DDL을 태웁니다.");
+        await executeSQL("DROP TABLE IF EXISTS crm_partners");
+        
+        await executeSQL(`
+          CREATE TABLE "crm_partners" (
+            "id" INTEGER PRIMARY KEY NOT NULL,
+            "type" TEXT NOT NULL,
+            "company_name" TEXT NOT NULL,
+            "business_number" TEXT,
+            "representative" TEXT,
+            "phone" TEXT,
+            "fax" TEXT,
+            "manager_name" TEXT,
+            "manager_phone" TEXT,
+            "manager_email" TEXT,
+            "email" TEXT,
+            "address" TEXT,
+            "vip_level" TEXT DEFAULT 'NORMAL',
+            "credit_limit" INTEGER DEFAULT 0,
+            "business_license_url" TEXT,
+            "memo" TEXT,
+            "created_at" TEXT NOT NULL,
+            "uuid" TEXT,
+            "updated_at" TEXT,
+            "updated_by" TEXT,
+            "deleted_at" TEXT,
+            "deleted_by" TEXT,
+            "restored_at" TEXT,
+            "restored_by" TEXT
+          )
+        `);
+        console.log("✓ crm_partners 테이블 INTEGER id 물리 DDL 직접 구축 완료");
+      }
+    } catch (guardErr: any) {
+      console.error("물리 DDL 가드 기동 실패:", guardErr.message);
+      guardErrorMessage = guardErr.message;
+    }
 
     // 3. 더미 데이터 생성 및 삽입
     console.log('Inserting dummy data...');
@@ -117,7 +175,7 @@ export async function GET() {
     await insertRows('message_logs', logs);
     await insertRows('products', products);
 
-    return NextResponse.json({ success: true, message: 'DB reset and dummy data inserted completely.' });
+    return NextResponse.json({ success: true, message: 'DB reset and dummy data inserted completely.', debugMessage: 'guard_v1', guardError: guardErrorMessage });
   } catch (error: any) {
     console.error('Reset error:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

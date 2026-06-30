@@ -45,7 +45,8 @@ export default function ManufactureEstimateWritePage() {
     companyName: "",
     departmentName: "",
     managerName: "",
-    phone: ""
+    phone: "",
+    email: ""
   });
   const [meta, setMeta, isMetaRestored] = usePersistedState("egdesk_mfr_est_meta_v2", {
     estimateNumber: "",
@@ -207,6 +208,29 @@ export default function ManufactureEstimateWritePage() {
       estimateDate: `${yyyy}-${mm}-${dd}`
     }));
   }, [isRestored, meta.estimateNumber]);
+
+  // 📇 바이어 정보가 존재할 때 최신 거래처 정보를 동기화하는 백필 이펙트
+  useEffect(() => {
+    if (!isRestored) return;
+    if (partners && partners.length > 0 && buyer.companyName) {
+      const match = partners.find(p => p.company_name === buyer.companyName);
+      if (match) {
+        const latestEmail = match.manager_email || match.email || "";
+        const latestPhone = match.manager_phone || match.phone || "";
+        const latestManagerName = match.manager_name || "";
+        
+        // 현재 캐싱된 정보와 다를 때만 업데이트 (무한 루프 방지)
+        if (buyer.email !== latestEmail || buyer.phone !== latestPhone || buyer.managerName !== latestManagerName) {
+          setBuyer(prev => ({
+            ...prev,
+            email: latestEmail,
+            phone: latestPhone,
+            managerName: latestManagerName
+          }));
+        }
+      }
+    }
+  }, [isRestored, partners, buyer.companyName, buyer.email, buyer.phone, buyer.managerName]);
 
   if (!isRestored) {
     return (
@@ -399,7 +423,8 @@ export default function ManufactureEstimateWritePage() {
         companyName: "",
         departmentName: "",
         managerName: "",
-        phone: ""
+        phone: "",
+        email: ""
       });
       const today = new Date();
       const yyyy = today.getFullYear();
@@ -673,6 +698,7 @@ export default function ManufactureEstimateWritePage() {
                         {showPartnerDropdown && buyer.companyName.trim().length > 0 && (
                           (() => {
                             const filtered = partners.filter(p => 
+                              p.type === 'BUYER' &&
                               p.company_name.toLowerCase().includes(buyer.companyName.toLowerCase())
                             );
                             if (filtered.length === 0) return null;
@@ -690,7 +716,8 @@ export default function ManufactureEstimateWritePage() {
                                         companyName: p.company_name,
                                         departmentName: p.department_name || "",
                                         managerName: p.manager_name || "",
-                                        phone: p.phone || ""
+                                        phone: p.manager_phone || p.phone || "",
+                                        email: p.manager_email || p.email || ""
                                       });
                                       setShowPartnerDropdown(false);
                                     }}
@@ -698,7 +725,7 @@ export default function ManufactureEstimateWritePage() {
                                   >
                                     <span>{p.company_name}</span>
                                     {p.manager_name && (
-                                      <span className="text-[10px] text-slate-400 font-normal">{p.manager_name} ({p.phone || ""})</span>
+                                      <span className="text-[10px] text-slate-400 font-normal">{p.manager_name} ({p.manager_phone || p.phone || ""})</span>
                                     )}
                                   </button>
                                 ))}
@@ -1466,7 +1493,7 @@ export default function ManufactureEstimateWritePage() {
                   key={ch}
                   onClick={() => {
                     setSendChannel(ch);
-                    if (ch === "EMAIL") setSendAddress(buyer.phone ? `${buyer.phone.replace(/-/g, "")}@naver.com` : "buyer@naver.com");
+                    if (ch === "EMAIL") setSendAddress(buyer.email || "buyer@naver.com");
                     if (ch === "SMS") setSendAddress(buyer.phone || "");
                     if (ch === "FAX") setSendAddress("02-1234-5678");
                   }}

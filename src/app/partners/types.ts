@@ -5,8 +5,10 @@ export interface Partner {
   business_number: string;
   representative: string;
   phone: string;
+  fax?: string;
   manager_name: string;
   manager_phone: string;
+  manager_email?: string;
   email: string;
   address: string;
   vip_level: 'NORMAL' | 'VIP';
@@ -23,8 +25,10 @@ export interface PartnerForm {
   business_number: string;
   representative: string;
   phone: string;
+  fax: string;
   manager_name: string;
   manager_phone: string;
+  manager_email: string;
   email: string;
   address: string;
   vip_level: 'NORMAL' | 'VIP';
@@ -42,6 +46,7 @@ export interface OcrResult {
     representative?: string;
     address?: string;
     phone?: string;
+    fax?: string;
     managerName?: string;
   };
   checksum: {
@@ -63,4 +68,5 @@ export interface OcrResult {
 export interface DetailHistory {
   purchaseOrders: any[];
   salesOrders: any[];
+  contacts?: any[];
 }

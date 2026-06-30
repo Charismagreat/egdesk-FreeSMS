@@ -486,8 +486,8 @@ export const TABLES = {
   crm_partners: {
     name: 'crm_partners',
     displayName: '거래처 관리',
-    columns: ['type', 'company_name', 'business_number', 'representative', 'phone', 'manager_name', 'manager_phone', 'email', 'address', 'vip_level', 'credit_limit', 'business_license_url', 'memo', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by'],
-    columnCount: 21,
+    columns: ['type', 'company_name', 'business_number', 'representative', 'phone', 'fax', 'manager_name', 'manager_phone', 'manager_email', 'email', 'address', 'vip_level', 'credit_limit', 'business_license_url', 'memo', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by'],
+    columnCount: 23,
     rowCount: 0,
   },
   crm_sales_orders: {

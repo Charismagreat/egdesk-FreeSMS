@@ -8,6 +8,7 @@ interface PartnerDetailModalProps {
   selectedPartner: Partner | null;
   detailHistory: DetailHistory;
   detailLoading: boolean;
+  refetchDetail: (partnerId: string) => Promise<void>;
 }
 
 export function PartnerDetailModal({
@@ -15,10 +16,27 @@ export function PartnerDetailModal({
   setIsDetailOpen,
   selectedPartner,
   detailHistory,
-  detailLoading
+  detailLoading,
+  refetchDetail
 }: PartnerDetailModalProps) {
+  // 📇 대표 담당자(is_primary === 1) 찾기 및 기본 정보 탭 폴백 매핑
+  const primaryContact = (detailHistory.contacts || []).find((c: any) => Number(c.is_primary) === 1);
+  const hasContactList = (detailHistory.contacts || []).length > 0;
+
+  const dispManagerName = primaryContact 
+    ? primaryContact.name 
+    : (hasContactList ? '미지정' : (selectedPartner?.manager_name || '미지정'));
+
+  const dispManagerPhone = primaryContact 
+    ? (primaryContact.phone || '연락처 없음') 
+    : (hasContactList ? '연락처 없음' : (selectedPartner?.manager_phone || '연락처 없음'));
+
+  const dispManagerEmail = primaryContact 
+    ? (primaryContact.email || '미기입') 
+    : (hasContactList ? '미기입' : (selectedPartner?.manager_email || '미기입'));
+
   // 재무 분석 관리를 위한 탭 및 데이터 상태 선언
-  const [activeSubTab, setActiveSubTab] = useState<"info" | "financial">("info");
+  const [activeSubTab, setActiveSubTab] = useState<"info" | "financial" | "contacts">("info");
   const [financials, setFinancials] = useState<any[]>([]);
   const [loadingFin, setLoadingFin] = useState<boolean>(false);
   const [isFinParsing, setIsFinParsing] = useState<boolean>(false);
@@ -26,13 +44,172 @@ export function PartnerDetailModal({
   const [tempFinData, setTempFinData] = useState<any | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // 📇 담당자 개별 추가/수정용 팝업 폼 상태
+  const [isContactFormOpen, setIsContactFormOpen] = useState(false);
+  const [contactEditId, setContactEditId] = useState<number | null>(null);
+  const [contactForm, setContactForm] = useState({
+    name: '',
+    position: '',
+    phone: '',
+    email: '',
+    is_primary: 0,
+    card_image_url: ''
+  });
+  const [isContactScanning, setIsContactScanning] = useState(false);
+
+  // 📇 대표 담당자 변경 핸들러
+  const handleSetPrimaryContact = async (contactId: number) => {
+    if (!selectedPartner) return;
+    try {
+      const res = await fetch('/api/partners/contacts', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: contactId,
+          partner_id: selectedPartner.id,
+          is_primary: 1
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        await refetchDetail(selectedPartner.id);
+      } else {
+        alert(data.error || '대표 지정에 실패했습니다.');
+      }
+    } catch (err) {
+      console.error('대표 지정 에러:', err);
+    }
+  };
+
+  // 📇 담당자 삭제 핸들러
+  const handleDeleteContact = async (contactId: number) => {
+    if (!selectedPartner) return;
+    if (!window.confirm('이 담당자를 명단에서 삭제하시겠습니까?')) return;
+
+    try {
+      const res = await fetch(`/api/partners/contacts?id=${contactId}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (data.success) {
+        await refetchDetail(selectedPartner.id);
+      } else {
+        alert(data.error || '담당자 삭제에 실패했습니다.');
+      }
+    } catch (err) {
+      console.error('담당자 삭제 에러:', err);
+    }
+  };
+
+  // 📇 담당자 수정 모드 진입 핸들러
+  const openEditContact = (c: any) => {
+    setContactEditId(c.id);
+    setContactForm({
+      name: c.name || '',
+      position: c.position || '',
+      phone: c.phone || '',
+      email: c.email || '',
+      is_primary: c.is_primary || 0,
+      card_image_url: c.card_image_url || ''
+    });
+    setIsContactFormOpen(true);
+  };
+
+  // 📇 담당자 추가 모드 진입 핸들러
+  const openCreateContact = () => {
+    setContactEditId(null);
+    setContactForm({
+      name: '',
+      position: '',
+      phone: '',
+      email: '',
+      is_primary: 0,
+      card_image_url: ''
+    });
+    setIsContactFormOpen(true);
+  };
+
+  // 📇 담당자 저장 (추가/수정) 핸들러
+  const handleSaveContact = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedPartner) return;
+    if (!contactForm.name.trim()) {
+      alert('담당자 성함은 필수 항목입니다.');
+      return;
+    }
+
+    const method = contactEditId ? 'PUT' : 'POST';
+    const payload = contactEditId
+      ? { id: contactEditId, partner_id: selectedPartner.id, ...contactForm }
+      : { partner_id: selectedPartner.id, ...contactForm };
+
+    try {
+      const res = await fetch('/api/partners/contacts', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsContactFormOpen(false);
+        await refetchDetail(selectedPartner.id);
+      } else {
+        alert(data.error || '담당자 저장에 실패했습니다.');
+      }
+    } catch (err) {
+      console.error('담당자 저장 에러:', err);
+    }
+  };
+
+  // 📇 명함 업로드 OCR 핸들러
+  const handleContactCardScan = async (fileObj: File) => {
+    if (!fileObj) return;
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+    if (!allowedTypes.includes(fileObj.type)) {
+      alert('⚠️ 명함 이미지(JPG, PNG) 또는 PDF만 지원됩니다.');
+      return;
+    }
+
+    setIsContactScanning(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64Data = e.target?.result as string;
+        const res = await fetch('/api/partners/ocr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ file: base64Data, mimeType: fileObj.type, action: 'card' })
+        });
+        const resData = await res.json();
+        if (resData.success && resData.parsedCard) {
+          const card = resData.parsedCard;
+          setContactForm(prev => ({
+            ...prev,
+            name: card.name || prev.name,
+            position: card.position || prev.position,
+            phone: card.phone || prev.phone,
+            email: card.email || prev.email
+          }));
+          alert('🔮 AI가 명함 정보를 스캔하여 양식에 자동으로 입력했습니다!');
+        } else {
+          alert('명함 정보 추출에 실패했습니다. 수동으로 입력해 주세요.');
+        }
+      };
+      reader.readAsDataURL(fileObj);
+    } catch (err) {
+      console.error('명함 스캔 에러:', err);
+    } finally {
+      setIsContactScanning(false);
+    }
+  };
+
   const fetchFinancials = async (partnerId: string) => {
     setLoadingFin(true);
     try {
       const res = await fetch(`/api/financials?company_id=${partnerId}`);
       const data = await res.json();
       if (data.success) {
-        setFinancials(data.list);
+        setFinancials(data.list || []);
       }
     } catch (err) {
       console.error('거래처 재무정보 로드 실패:', err);
@@ -200,11 +377,22 @@ export function PartnerDetailModal({
           >
             재무 / 신용 분석 AI 📊
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveSubTab("contacts")}
+            className={`pb-2.5 px-4 border-b-2 transition-all cursor-pointer ${
+              activeSubTab === "contacts"
+                ? "border-indigo-600 text-indigo-650"
+                : "border-transparent text-slate-400 hover:text-slate-600"
+            }`}
+          >
+            담당자 명단 📇
+          </button>
         </div>
 
         <div className="space-y-6 flex-1 overflow-y-auto pr-1">
           
-          {activeSubTab === "info" ? (
+          {activeSubTab === "info" && (
             <>
               {/* 상세 스펙 명세 */}
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 bg-slate-50 p-4.5 rounded-2xl border border-slate-100 text-xs font-semibold">
@@ -221,12 +409,20 @@ export function PartnerDetailModal({
               <span className="text-indigo-600 font-black block">{selectedPartner.vip_level} Grade</span>
             </div>
             <div>
-              <span className="text-[10px] text-slate-400 block mb-0.5">실무 담당자</span>
-              <span className="text-slate-700 font-bold block">{selectedPartner.manager_name || '미지정'} ({selectedPartner.manager_phone || '연락처 없음'})</span>
+              <span className="text-[10px] text-slate-400 block mb-0.5">팩스 번호</span>
+              <span className="text-slate-700 font-bold block">{selectedPartner.fax || '미기입'}</span>
             </div>
             <div className="col-span-2">
               <span className="text-[10px] text-slate-400 block mb-0.5">계산서 이메일</span>
               <span className="text-slate-700 block truncate">{selectedPartner.email || '미기입'}</span>
+            </div>
+            <div className="border-t border-slate-200/50 pt-2 mt-1">
+              <span className="text-[10px] text-slate-400 block mb-0.5">실무 담당자</span>
+              <span className="text-slate-700 font-bold block">{dispManagerName} ({dispManagerPhone})</span>
+            </div>
+            <div className="col-span-2 border-t border-slate-200/50 pt-2 mt-1">
+              <span className="text-[10px] text-slate-400 block mb-0.5">담당자 이메일</span>
+              <span className="text-slate-700 block truncate">{dispManagerEmail}</span>
             </div>
             <div className="col-span-3 border-t border-slate-200/50 pt-2 mt-1">
               <span className="text-[10px] text-slate-400 block mb-0.5">사업장 주소</span>
@@ -290,7 +486,9 @@ export function PartnerDetailModal({
             )}
           </div>
             </>
-          ) : (
+          )}
+
+          {activeSubTab === "financial" && (
             // 📊 재무 / 신용 분석 AI 탭
             <div className="space-y-5">
               
@@ -445,7 +643,7 @@ export function PartnerDetailModal({
               )}
 
               {/* 📊 미니 실적 트렌드 차트 */}
-              {financials.length > 0 && (
+              {Array.isArray(financials) && financials.length > 0 && (
                 <div className="bg-purple-50/10 border border-purple-100/30 p-4 rounded-2xl space-y-3 shrink-0">
                   <span className="text-[10px] font-black text-slate-450 tracking-wider block">📊 AI 재무 실적 트렌드 (최근 3개년 매출 및 영업이익)</span>
                   <div className="h-28 w-full flex items-end justify-around pt-4 pb-2 border-b border-slate-100 bg-white/50 rounded-xl px-2">
@@ -490,7 +688,7 @@ export function PartnerDetailModal({
                 <span className="text-[10px] font-extrabold text-slate-400 tracking-wider block">연도별 재무 내역 리스트</span>
                 {loadingFin ? (
                   <p className="text-center py-6 text-xs text-slate-400">데이터 로드 중...</p>
-                ) : financials.length === 0 ? (
+                ) : (!Array.isArray(financials) || financials.length === 0) ? (
                   <p className="text-center py-8 text-xs text-slate-400 border border-slate-100 border-dashed rounded-xl bg-slate-50/30">
                     등록된 재무제표 정보가 없습니다. 국세청 결산 보고서를 업로드해 주세요.
                   </p>
@@ -562,7 +760,221 @@ export function PartnerDetailModal({
             </div>
           )}
 
+          {activeSubTab === "contacts" && selectedPartner && (
+            <div className="space-y-4 flex-1 flex flex-col min-h-0">
+              {/* 담당자 목록 헤더 및 추가 버튼 */}
+              <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100 shrink-0">
+                <div>
+                  <span className="text-[10px] font-black text-slate-450 tracking-wider block">B2B 거래처 담당자 명맥</span>
+                  <span className="text-[9px] text-slate-400 mt-0.5 block">총 {detailHistory.contacts?.length || 0}명의 담당자가 등록되어 있습니다.</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={openCreateContact}
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-bold cursor-pointer transition-colors shadow-sm"
+                >
+                  + 담당자 추가
+                </button>
+              </div>
+
+              {/* 담당자 리스트 그리드 */}
+              {(!detailHistory.contacts || detailHistory.contacts.length === 0) ? (
+                <div className="border border-slate-150 border-dashed rounded-2xl p-12 text-center text-slate-400 font-semibold text-xs bg-slate-50/10 flex-1 flex flex-col justify-center items-center gap-2">
+                  <span>📇 등록된 담당자가 없습니다.</span>
+                  <span className="text-[10px] text-slate-400 font-normal">우측 상단 버튼을 클릭해 담당자를 새로 등록해 주세요.</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 overflow-y-auto max-h-[360px] pr-0.5 pb-2 min-h-0 flex-1">
+                  {detailHistory.contacts.map((c: any) => (
+                    <div 
+                      key={c.id} 
+                      className={`p-4 rounded-2xl border transition-all relative flex flex-col justify-between gap-3 shadow-sm hover:shadow-md ${
+                        c.is_primary === 1 
+                          ? 'bg-indigo-50/10 border-indigo-200/60 shadow-indigo-100/10' 
+                          : 'bg-white border-slate-150'
+                      }`}
+                    >
+                      {/* 대표 담당자 뱃지 */}
+                      {c.is_primary === 1 && (
+                        <span className="absolute top-3.5 right-3.5 bg-indigo-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">
+                          대표 담당자 👑
+                        </span>
+                      )}
+
+                      <div className="space-y-2">
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="font-extrabold text-slate-800 text-sm">{c.name}</span>
+                          {c.position && <span className="text-[10px] text-slate-400 font-bold">{c.position}</span>}
+                        </div>
+
+                        <div className="space-y-1 text-slate-650 text-[11px] font-semibold">
+                          <div className="flex items-center gap-1.5">
+                             <span className="text-[10px] text-slate-400 w-11">연락처</span>
+                             <span>{c.phone || '연락처 미등록'}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                             <span className="text-[10px] text-slate-400 w-11">이메일</span>
+                             <span className="truncate max-w-[180px]" title={c.email}>{c.email || '이메일 미등록'}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 액션 버튼 그룹 */}
+                      <div className="flex items-center justify-end gap-1.5 pt-2.5 border-t border-slate-100 mt-1">
+                        {c.is_primary !== 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleSetPrimaryContact(c.id)}
+                            className="px-2 py-1 bg-white hover:bg-slate-50 border border-slate-200 rounded-md text-[9px] font-extrabold text-slate-650 cursor-pointer transition-all"
+                          >
+                            대표 지정
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => openEditContact(c)}
+                          className="px-2 py-1 bg-white hover:bg-slate-50 border border-slate-200 rounded-md text-[9px] font-extrabold text-slate-650 cursor-pointer transition-all"
+                        >
+                          수정
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteContact(c.id)}
+                          className="px-2 py-1 bg-rose-50 hover:bg-rose-100 border border-rose-100 rounded-md text-[9px] font-extrabold text-rose-600 cursor-pointer transition-all"
+                        >
+                          삭제
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
         </div>
+
+        {/* 📇 담당자 개별 추가/수정용 미니 모달 */}
+        {isContactFormOpen && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
+            <div className="bg-white border border-slate-200 rounded-3xl shadow-xl max-w-sm w-full p-6 space-y-4 animate-in fade-in zoom-in duration-150 text-slate-800">
+              <div className="flex justify-between items-center pb-2.5 border-b border-slate-100">
+                <h4 className="font-extrabold text-slate-800 text-sm">
+                  {contactEditId ? '📇 담당자 정보 수정' : '📇 신규 담당자 등록'}
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => setIsContactFormOpen(false)}
+                  className="text-slate-400 hover:text-slate-650 cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveContact} className="space-y-3.5 text-xs">
+                {/* 명함 자동 스캔 버튼 (추가 시에만 지원) */}
+                {!contactEditId && (
+                  <div className="relative">
+                    <button
+                      type="button"
+                      disabled={isContactScanning}
+                      onClick={() => document.getElementById('contact-card-uploader')?.click()}
+                      className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 rounded-xl text-[10px] font-black border border-emerald-200 cursor-pointer transition-colors disabled:opacity-50"
+                    >
+                      <Sparkles className={`w-3.5 h-3.5 ${isContactScanning ? 'animate-spin' : ''}`} />
+                      <span>{isContactScanning ? '명함 스캔 중...' : '📷 명함 사진 업로드 (자동 스캔 입력)'}</span>
+                    </button>
+                    <input
+                      type="file"
+                      id="contact-card-uploader"
+                      accept="image/*,application/pdf"
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0]) {
+                          handleContactCardScan(e.target.files[0]);
+                        }
+                      }}
+                      className="hidden"
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-1">
+                  <label className="text-[10px] text-slate-400 font-bold block">담당자 성함 *</label>
+                  <input
+                    type="text"
+                    required
+                    value={contactForm.name}
+                    onChange={e => setContactForm(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="홍길동"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:bg-white"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] text-slate-400 font-bold block">직급 / 부서</label>
+                  <input
+                    type="text"
+                    value={contactForm.position}
+                    onChange={e => setContactForm(prev => ({ ...prev, position: e.target.value }))}
+                    placeholder="대리 / 영업부"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:bg-white"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] text-slate-400 font-bold block">연락처 (휴대폰)</label>
+                  <input
+                    type="text"
+                    value={contactForm.phone}
+                    onChange={e => setContactForm(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="010-1234-5678"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:bg-white"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] text-slate-400 font-bold block">담당자 이메일</label>
+                  <input
+                    type="email"
+                    value={contactForm.email}
+                    onChange={e => setContactForm(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="manager@partner.com"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:bg-white"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <input
+                    type="checkbox"
+                    id="contact-is-primary"
+                    checked={contactForm.is_primary === 1}
+                    onChange={e => setContactForm(prev => ({ ...prev, is_primary: e.target.checked ? 1 : 0 }))}
+                    className="w-4 h-4 text-indigo-600 border-slate-200 rounded focus:ring-indigo-500"
+                  />
+                  <label htmlFor="contact-is-primary" className="text-[10px] text-slate-500 font-bold cursor-pointer">
+                    이 담당자를 거래처의 대표 담당자로 지정합니다.
+                  </label>
+                </div>
+
+                <div className="flex justify-end gap-1.5 pt-3 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setIsContactFormOpen(false)}
+                    className="px-4 py-2 border border-slate-200 rounded-lg text-slate-550 hover:bg-slate-100 cursor-pointer font-bold"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg cursor-pointer font-bold"
+                  >
+                    저장
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         <div className="mt-6 border-t border-slate-100 pt-4 flex">
           <button 
