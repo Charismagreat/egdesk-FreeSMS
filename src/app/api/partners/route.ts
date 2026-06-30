@@ -152,11 +152,29 @@ export async function GET(req: Request) {
       console.error('SCM 집계용 베이스 마이닝 지연:', e);
     }
 
+    // 실시간 직급 및 정보 융합을 위해 전체 대표 담당자 리스트 마이닝 (타입 Affinity 극복을 위해 문자/숫자 둘 다 매칭 호환)
+    let primaryContacts: any[] = [];
+    try {
+      const contactsRes = await queryTable('crm_partner_contacts', {});
+      primaryContacts = (contactsRes.rows || []).filter((c: any) => !c.deleted_at && Number(c.is_primary) === 1);
+    } catch (e) {
+      console.error('대표 담당자 마이닝 지연:', e);
+    }
+
     // 실시간 분석 지표 융합
     const enrichedPartners = partners.map((pt: any) => {
       const companyName = pt.company_name;
 
-      if (pt.type === 'VENDOR') {
+      // 대표 담당자 정보 실시간 바인딩 (id 매칭)
+      const primaryContact = primaryContacts.find(c => String(c.partner_id) === String(pt.id));
+      const manager_name = primaryContact ? primaryContact.name : (pt.manager_name || "");
+      const manager_phone = primaryContact ? (primaryContact.phone || "") : (pt.manager_phone || "");
+      const manager_position = primaryContact ? (primaryContact.position || "") : (pt.manager_position || "");
+      const manager_email = primaryContact ? (primaryContact.email || "") : (pt.manager_email || "");
+
+      const isVendor = pt.type && pt.type.split(',').includes('VENDOR');
+
+      if (isVendor) {
         // 공급사: 총 발주(매입) 실적 연산
         const filteredPos = allPos.filter(po => po.vendor_name === companyName);
         const totalPurchased = filteredPos.reduce((sum, po) => sum + (parseInt(po.total_amount) || 0), 0);
@@ -164,6 +182,10 @@ export async function GET(req: Request) {
         
         return {
           ...pt,
+          manager_name,
+          manager_phone,
+          manager_position,
+          manager_email,
           total_performance: totalPurchased,
           pending_count: pendingInboundCount
         };
@@ -172,9 +194,13 @@ export async function GET(req: Request) {
         const filteredSos = allSos.filter(so => so.customer_name === companyName);
         const totalSales = filteredSos.reduce((sum, so) => sum + (parseInt(so.total_amount) || 0), 0);
         const registeredCount = filteredSos.filter(so => so.status === 'REGISTERED').length;
-
+ 
         return {
           ...pt,
+          manager_name,
+          manager_phone,
+          manager_position,
+          manager_email,
           total_performance: totalSales,
           pending_count: registeredCount
         };
