@@ -626,7 +626,7 @@ export default function ManufactureEstimateWritePage() {
               className="px-5 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black text-xs flex items-center gap-1.5 shadow-lg shadow-indigo-600/10 transition-all cursor-pointer active:scale-95"
             >
               <Mail className="w-3.5 h-3.5" />
-              수신처 즉시 발송하기
+              견적서 발송
             </button>
           </div>
         </div>
