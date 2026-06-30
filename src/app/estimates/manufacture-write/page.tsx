@@ -1572,7 +1572,7 @@ export default function ManufactureEstimateWritePage() {
             <div className="space-y-1">
               <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
                 <Send className="w-5 h-5 text-indigo-500" />
-                <span>견적서 옴니채널 발송하기</span>
+                <span>채널별 견적서 발송</span>
               </h3>
               <p className="text-xs text-slate-500 font-semibold leading-relaxed">
                 작성 완료된 제조업 전용 견적서를 원하는 채널로 즉시 발송합니다.
