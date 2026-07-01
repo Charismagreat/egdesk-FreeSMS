@@ -105,19 +105,25 @@ export default function ManufactureWebView() {
           
           // A. 일반 품목들 (원부자재, 직접가공, 외주가공) 푸시
           estItems.forEach((item: any) => {
-            let itemSpecObj: any = {};
+            let itemSpecObj: any = null;
             if (item.spec) {
               try {
-                itemSpecObj = JSON.parse(item.spec);
+                if (String(item.spec).trim().startsWith("{")) {
+                  itemSpecObj = JSON.parse(item.spec);
+                }
               } catch {}
             }
-            const itemType = itemSpecObj.type || (item.item_code === 'PROC-DIR' ? 'DIRECT_PROCESS' : item.item_code === 'PROC-OUT' ? 'OUTSOURCE_PROCESS' : 'MATERIAL');
+            const itemType = itemSpecObj?.type || (item.item_code === 'PROC-DIR' ? 'DIRECT_PROCESS' : item.item_code === 'PROC-OUT' ? 'OUTSOURCE_PROCESS' : 'MATERIAL');
             const itemAmount = Number(item.amount) || (Number(item.quantity) || 0) * (Number(item.unit_price) || 0);
 
             // 구분 값 맵핑
             let division = "재료비";
             if (itemType === "DIRECT_PROCESS") division = "직접가공비";
             else if (itemType === "OUTSOURCE_PROCESS") division = "외주가공비";
+
+            const displaySpec = itemSpecObj 
+              ? (itemSpecObj.spec !== undefined && itemSpecObj.spec !== null ? itemSpecObj.spec : "-")
+              : (item.spec || "-");
 
             tempRows.push([
               e.id,                                                 // 0: 견적번호
@@ -132,7 +138,7 @@ export default function ManufactureWebView() {
               division,                                             // 9: 구분 (품목명 바로 앞)
               item.item_code || "-",                                // 10: 품목코드
               item.product_name || "-",                              // 11: 품목명
-              itemSpecObj.spec || item.spec || "-",                 // 12: 규격
+              displaySpec || "-",                                   // 12: 규격
               item.quantity !== undefined ? item.quantity : "",        // 13: 수량
               item.unit_price !== undefined ? item.unit_price : "",    // 14: 단가
               itemAmount,                                           // 15: 금액
