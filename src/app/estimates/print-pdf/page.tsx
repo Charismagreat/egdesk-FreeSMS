@@ -325,21 +325,21 @@ export default async function PrintPdfPage({ searchParams }: PrintPdfPageProps) 
           )}
 
           {/* 하단 서명 명의 */}
-          <div className="pt-3 text-right text-slate-500 font-bold text-[8.5px] relative">
-            위와 같이 견적서를 제출합니다.
-            <span className="inline-block mt-2 text-slate-900 font-extrabold text-[9.5px] relative">
+          <div className="pt-3 text-right text-slate-500 font-bold text-[8.5px] relative space-y-1">
+            <div>위와 같이 견적서를 제출합니다.</div>
+            <div className="inline-block text-slate-900 font-extrabold text-[9.5px] relative pr-6">
               {supplier.companyName} 대표 {supplier.representative}
               {supplier.sealImages && supplier.sealImages[0] ? (
                 <img
                   src={supplier.sealImages[0]}
                   alt="회사직인"
-                  className="absolute -right-4 -top-2 w-7 h-7 object-contain pointer-events-none"
+                  className="absolute -right-2 -top-1 w-6 h-6 object-contain pointer-events-none z-10"
                   style={{ mixBlendMode: "multiply" }}
                 />
               ) : (
                 <span className="text-slate-400 font-medium ml-1">(인)</span>
               )}
-            </span>
+            </div>
           </div>
         </div>
 
