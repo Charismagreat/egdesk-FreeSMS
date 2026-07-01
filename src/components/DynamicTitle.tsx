@@ -29,7 +29,7 @@ function DynamicTitleHandler() {
       "/products": "상품 관리 AI",
       "/estimates": "견적/발주/수주 AI",
       "/estimates/manufacture-write": "견적서 작성 AI",
-      "/estimates/manufacture-webview": "제조업 견적서 발송 대장 내역",
+      "/estimates/manufacture-webview": "(제조)보낸 견적서 상세 내역",
       "/snaptasks": "AI 스냅태스크",
       "/inventory": "재고 관리 AI",
       "/expenses": "지출 관리 AI",
@@ -74,10 +74,10 @@ function DynamicTitleHandler() {
     if (pathname === "/estimates/web-view") {
       const typeParam = searchParams.get("type") || "inbound_est";
       const typeConfig: Record<string, string> = {
-        inbound_est: "받은 B2B 견적 및 요청 대장 내역",
-        inbound_po: "발주 및 실물 검수 대장 내역",
-        outbound_est: "보낸 견적서 관리 대장 내역",
-        outbound_so: "수주 및 바이어 계약 대장 내역",
+        inbound_est: "받은 견적서 상세 내역",
+        inbound_po: "보낸 발주서 상세 내역",
+        outbound_est: "(일반)보낸 견적서 상세 내역",
+        outbound_so: "받은 발주서 상세 내역",
       };
       title = typeConfig[typeParam] || "B2B 대장 내역";
     } else if (pathname.startsWith("/form-management-new/print")) {

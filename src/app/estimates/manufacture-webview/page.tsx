@@ -4,17 +4,16 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { FileText, Search, RefreshCw, X, Download, ArrowUp, ArrowDown, Eye, Printer, Sun, Moon } from "lucide-react";
 
-// 제조업 견적 대장 헤더 명세 (재료비, 가공비, 간접제조원가 포함)
+// 제조업 견적 대장 헤더 명세 (비용 열들을 단일 '구분' 컬럼으로 압축)
 const HEADERS = [
   "견적번호", "수신바이어", "연락처", "담당자명", "총 견적액", "상태", "작성일", "등록일시",
-  "연계수주번호", "품목코드", "품목명", "규격", "수량", "단가", "금액",
-  "재료비", "직접가공비", "외주가공비", "일반관리비", "기업이윤", "기타비용",
+  "연계수주번호", "구분", "품목코드", "품목명", "규격", "수량", "단가", "금액",
   "품목납기일", "상세비고"
 ];
 
 const DEFAULT_VISIBLE = [
-  "견적번호", "수신바이어", "총 견적액", "상태", "작성일", "품목명", "수량",
-  "재료비", "직접가공비", "외주가공비", "일반관리비", "기업이윤", "기타비용",
+  "견적번호", "수신바이어", "총 견적액", "상태", "작성일", 
+  "구분", "품목명", "수량", "단가", "금액",
   "상세비고"
 ];
 
@@ -98,13 +97,14 @@ export default function ManufactureWebView() {
               masterTagsObj = typeof e.tags === "string" ? JSON.parse(e.tags) : e.tags;
             } catch {}
           }
-          const generalCost = masterTagsObj.generalAdminCost || 0;
-          const profitCost = masterTagsObj.businessProfit || 0;
-          const etcCost = masterTagsObj.materialManageCost || 0;
+          const generalCost = Number(masterTagsObj.generalAdminCost) || 0;
+          const profitCost = Number(masterTagsObj.businessProfit) || 0;
+          const etcCost = Number(masterTagsObj.materialManageCost) || 0;
 
-          const estItems = e.items && e.items.length > 0 ? e.items : [{}];
+          const estItems = e.items && e.items.length > 0 ? e.items : [];
+          
+          // A. 일반 품목들 (원부자재, 직접가공, 외주가공) 푸시
           estItems.forEach((item: any) => {
-            // 품목별 비용 성격 구별
             let itemSpecObj: any = {};
             if (item.spec) {
               try {
@@ -114,9 +114,10 @@ export default function ManufactureWebView() {
             const itemType = itemSpecObj.type || (item.item_code === 'PROC-DIR' ? 'DIRECT_PROCESS' : item.item_code === 'PROC-OUT' ? 'OUTSOURCE_PROCESS' : 'MATERIAL');
             const itemAmount = Number(item.amount) || (Number(item.quantity) || 0) * (Number(item.unit_price) || 0);
 
-            const materialCost = itemType === 'MATERIAL' ? itemAmount : 0;
-            const directCost = itemType === 'DIRECT_PROCESS' ? itemAmount : 0;
-            const outsourceCost = itemType === 'OUTSOURCE_PROCESS' ? itemAmount : 0;
+            // 구분 값 맵핑
+            let division = "재료비";
+            if (itemType === "DIRECT_PROCESS") division = "직접가공비";
+            else if (itemType === "OUTSOURCE_PROCESS") division = "외주가공비";
 
             tempRows.push([
               e.id,                                                 // 0: 견적번호
@@ -128,34 +129,101 @@ export default function ManufactureWebView() {
               e.created_at ? e.created_at.substring(0, 10) : "-",    // 6: 작성일
               e.created_at || "-",                                  // 7: 등록일시
               e.sales_order_number || "-",                          // 8: 연계수주번호
-              item.item_code || "-",                                // 9: 품목코드
-              item.product_name || "-",                              // 10: 품목명
-              itemSpecObj.spec || item.spec || "-",                 // 11: 규격
-              item.quantity !== undefined ? item.quantity : "",        // 12: 수량
-              item.unit_price !== undefined ? item.unit_price : "",    // 13: 단가
-              itemAmount,                                           // 14: 금액
-              materialCost,                                         // 15: 재료비
-              directCost,                                           // 16: 직접가공비
-              outsourceCost,                                        // 17: 외주가공비
-              generalCost,                                          // 18: 일반관리비
-              profitCost,                                           // 19: 기업이윤
-              etcCost,                                              // 20: 기타비용
-              item.delivery_date || "-",                            // 21: 품목납기일
-              e.document_memo_search || "-"                         // 22: 상세비고
+              division,                                             // 9: 구분 (품목명 바로 앞)
+              item.item_code || "-",                                // 10: 품목코드
+              item.product_name || "-",                              // 11: 품목명
+              itemSpecObj.spec || item.spec || "-",                 // 12: 규격
+              item.quantity !== undefined ? item.quantity : "",        // 13: 수량
+              item.unit_price !== undefined ? item.unit_price : "",    // 14: 단가
+              itemAmount,                                           // 15: 금액
+              item.delivery_date || "-",                            // 16: 품목납기일
+              e.document_memo_search || "-"                         // 17: 상세비고
             ]);
           });
+
+          // B. 일반관리비 행 추가 (존재 시)
+          if (generalCost > 0) {
+            tempRows.push([
+              e.id,
+              e.partner_name,
+              e.partner_phone || "-",
+              e.partner_manager || "-",
+              e.total_amount,
+              e.direction_status === "SENT" ? "견적발송" : "수주수락",
+              e.created_at ? e.created_at.substring(0, 10) : "-",
+              e.created_at || "-",
+              e.sales_order_number || "-",
+              "일반관리비",                                            // 9: 구분
+              "-",                                                  // 10: 품목코드
+              "일반관리비 (가공비의 10%)",                             // 11: 품목명
+              "-",                                                  // 12: 규격
+              1,                                                    // 13: 수량
+              generalCost,                                          // 14: 단가
+              generalCost,                                          // 15: 금액
+              "-",                                                  // 16: 품목납기일
+              e.document_memo_search || "-"                         // 17: 상세비고
+            ]);
+          }
+
+          // C. 기업이윤 행 추가 (존재 시)
+          if (profitCost > 0) {
+            tempRows.push([
+              e.id,
+              e.partner_name,
+              e.partner_phone || "-",
+              e.partner_manager || "-",
+              e.total_amount,
+              e.direction_status === "SENT" ? "견적발송" : "수주수락",
+              e.created_at ? e.created_at.substring(0, 10) : "-",
+              e.created_at || "-",
+              e.sales_order_number || "-",
+              "기업이윤",                                              // 9: 구분
+              "-",                                                  // 10: 품목코드
+              "기업이윤 (가공비+관리비의 10%)",                         // 11: 품목명
+              "-",                                                  // 12: 규격
+              1,                                                    // 13: 수량
+              profitCost,                                           // 14: 단가
+              profitCost,                                           // 15: 금액
+              "-",                                                  // 16: 품목납기일
+              e.document_memo_search || "-"                         // 17: 상세비고
+            ]);
+          }
+
+          // D. 기타비용(재료관리비) 행 추가 (존재 시)
+          if (etcCost > 0) {
+            tempRows.push([
+              e.id,
+              e.partner_name,
+              e.partner_phone || "-",
+              e.partner_manager || "-",
+              e.total_amount,
+              e.direction_status === "SENT" ? "견적발송" : "수주수락",
+              e.created_at ? e.created_at.substring(0, 10) : "-",
+              e.created_at || "-",
+              e.sales_order_number || "-",
+              "기타비용",                                              // 9: 구분
+              "-",                                                  // 10: 품목코드
+              "기타비용 (재료관리비의 5%)",                             // 11: 품목명
+              "-",                                                  // 12: 규격
+              1,                                                    // 13: 수량
+              etcCost,                                              // 14: 단가
+              etcCost,                                              // 15: 금액
+              "-",                                                  // 16: 품목납기일
+              e.document_memo_search || "-"                         // 17: 상세비고
+            ]);
+          }
         });
 
         setData({
-          title: "제조업 견적서 발송 대장 내역",
+          title: "(제조)보낸 견적서 상세 내역",
           headers: HEADERS,
           rows: tempRows
         });
 
-        // 로컬스토리지 설정 불러오기
+        // 로컬스토리지 설정 불러오기 (캐시 초기화용 v4 스키마 명명)
         if (typeof window !== "undefined") {
-          const savedColumns = localStorage.getItem("egdesk_est_webview_cols_v3_manufacture_outbound");
-          const savedVisible = localStorage.getItem("egdesk_est_webview_visible_v3_manufacture_outbound");
+          const savedColumns = localStorage.getItem("egdesk_est_webview_cols_v4_manufacture_outbound");
+          const savedVisible = localStorage.getItem("egdesk_est_webview_visible_v4_manufacture_outbound");
           
           if (savedColumns && savedVisible) {
             try {
@@ -266,7 +334,7 @@ export default function ManufactureWebView() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `제조업_견적서_발송대장_${new Date().toISOString().substring(0, 10)}.csv`);
+    link.setAttribute("download", `제조_견적서_상세대장_${new Date().toISOString().substring(0, 10)}.csv`);
     link.style.visibility = "hidden";
     document.body.appendChild(link);
     link.click();
@@ -278,8 +346,8 @@ export default function ManufactureWebView() {
     setColumns(newCols);
     setVisibleColumns(newVisible);
     if (typeof window !== "undefined") {
-      localStorage.setItem("egdesk_est_webview_cols_v3_manufacture_outbound", JSON.stringify(newCols));
-      localStorage.setItem("egdesk_est_webview_visible_v3_manufacture_outbound", JSON.stringify(newVisible));
+      localStorage.setItem("egdesk_est_webview_cols_v4_manufacture_outbound", JSON.stringify(newCols));
+      localStorage.setItem("egdesk_est_webview_visible_v4_manufacture_outbound", JSON.stringify(newVisible));
     }
   };
 
@@ -591,7 +659,7 @@ export default function ManufactureWebView() {
                     if (!visibleColumns.includes(header)) return null;
                     const origIdx = HEADERS.indexOf(header);
                     if (origIdx === -1) return null;
-                    const isHeaderNumeric = ["수량", "단가", "금액", "총 견적액", "재료비", "직접가공비", "외주가공비", "일반관리비", "기업이윤", "기타비용"].includes(header.replace(/\s+/g, ""));
+                    const isHeaderNumeric = ["수량", "단가", "금액", "총 견적액"].includes(header.replace(/\s+/g, ""));
                     return (
                       <th
                         key={header}
@@ -666,7 +734,7 @@ export default function ManufactureWebView() {
                           let strVal = String(val);
 
                           if (strVal !== "-") {
-                            const isMoney = ["단가", "금액", "총 견적액", "재료비", "직접가공비", "외주가공비", "일반관리비", "기업이윤", "기타비용"].includes(headerName);
+                            const isMoney = ["단가", "금액", "총 견적액"].includes(headerName);
                             const isQty = ["수량"].includes(headerName);
                             if (isMoney || isQty) {
                               const cleanNum = Number(strVal.replace(/[^0-9.-]/g, ""));
@@ -705,7 +773,27 @@ export default function ManufactureWebView() {
                             );
                           }
 
-                          const isNumericCol = ["수량", "단가", "금액", "총 견적액", "재료비", "직접가공비", "외주가공비", "일반관리비", "기업이윤", "기타비용"].includes(headerName.replace(/\s+/g, ""));
+                          if (headerName === "구분") {
+                            let divBadgeClass = "bg-slate-500/10 text-slate-400 border border-slate-500/20";
+                            if (strVal === "재료비") {
+                              divBadgeClass = "bg-indigo-500/10 text-indigo-400 border border-indigo-500/20";
+                            } else if (strVal === "직접가공비") {
+                              divBadgeClass = "bg-pink-500/10 text-pink-400 border border-pink-500/20";
+                            } else if (strVal === "외주가공비") {
+                              divBadgeClass = "bg-purple-500/10 text-purple-400 border border-purple-500/20";
+                            } else if (strVal === "일반관리비" || strVal === "기업이윤" || strVal === "기타비용") {
+                              divBadgeClass = "bg-amber-500/10 text-amber-400 border border-amber-500/20";
+                            }
+                            return (
+                              <td key={headerName} className="py-3 px-3.5 whitespace-nowrap">
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${divBadgeClass}`}>
+                                  {strVal}
+                                </span>
+                              </td>
+                            );
+                          }
+
+                          const isNumericCol = ["수량", "단가", "금액", "총 견적액"].includes(headerName.replace(/\s+/g, ""));
                           return (
                             <td key={headerName} className={`py-3 px-3.5 ${
                               isDarkMode ? "text-slate-300" : "text-slate-700"
