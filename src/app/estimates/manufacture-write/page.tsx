@@ -768,7 +768,7 @@ export default function ManufactureEstimateWritePage() {
               </Link>
               <h1 className="text-3xl font-black text-slate-800 tracking-tight flex items-center gap-2">
                 <FileText className="w-8 h-8 text-indigo-600" />
-                <span>견적서 작성 AI</span>
+                <span>보낼 견적서 작성 AI</span>
               </h1>
               <div className="hidden sm:flex items-center gap-1.5 ml-2">
                 <span className="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded font-bold">오토세이브 가동</span>
