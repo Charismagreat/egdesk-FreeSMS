@@ -1,11 +1,32 @@
 import React from "react";
 import { queryTable } from "../../../../egdesk-helpers";
+import { Metadata } from "next";
 
 interface PrintPdfPageProps {
   searchParams: Promise<{ id?: string }>;
 }
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ searchParams }: PrintPdfPageProps): Promise<Metadata> {
+  const params = await searchParams;
+  const estimateId = params.id;
+  if (!estimateId) return { title: "Estimate" };
+
+  try {
+    const checkRes = await queryTable("crm_estimates", { filters: { id: estimateId }, limit: 1 });
+    let activeEst = checkRes.rows?.[0];
+    if (!activeEst) {
+      const fallbackCheck = await queryTable("crm_estimates", { filters: { uuid: estimateId }, limit: 1 });
+      activeEst = fallbackCheck.rows?.[0];
+    }
+    if (activeEst) {
+      return { title: `Estimate_${activeEst.id}` };
+    }
+  } catch (e) {}
+
+  return { title: `Estimate` };
+}
 
 export default async function PrintPdfPage({ searchParams }: PrintPdfPageProps) {
   const params = await searchParams;
@@ -409,6 +430,7 @@ export default async function PrintPdfPage({ searchParams }: PrintPdfPageProps) 
 
         <script dangerouslySetInnerHTML={{ __html: `
           setTimeout(function() {
+            document.title = "Estimate_" + "${realDbId}";
             var btn = document.getElementById('print-action-btn');
             if (btn) {
               btn.addEventListener('click', function() {
