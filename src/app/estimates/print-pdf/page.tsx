@@ -51,7 +51,8 @@ export default async function PrintPdfPage({ searchParams }: PrintPdfPageProps) 
     address: "회사 주소지",
     phone: "대표 전화번호",
     email: "대표 이메일",
-    fax: ""
+    fax: "",
+    sealImages: [] as string[]
   };
   try {
     const compProfile = await queryTable("system_settings", { filters: { key: "my_company_profile" } });
@@ -324,10 +325,20 @@ export default async function PrintPdfPage({ searchParams }: PrintPdfPageProps) 
           )}
 
           {/* 하단 서명 명의 */}
-          <div className="pt-3 text-right text-slate-500 font-bold text-[8.5px]">
+          <div className="pt-3 text-right text-slate-500 font-bold text-[8.5px] relative">
             위와 같이 견적서를 제출합니다.
-            <span className="block mt-2 text-slate-900 font-extrabold text-[9.5px]">
-              {supplier.companyName} 대표 {supplier.representative} (인)
+            <span className="inline-block mt-2 text-slate-900 font-extrabold text-[9.5px] relative">
+              {supplier.companyName} 대표 {supplier.representative}
+              {supplier.sealImages && supplier.sealImages[0] ? (
+                <img
+                  src={supplier.sealImages[0]}
+                  alt="회사직인"
+                  className="absolute -right-4 -top-2 w-7 h-7 object-contain pointer-events-none"
+                  style={{ mixBlendMode: "multiply" }}
+                />
+              ) : (
+                <span className="text-slate-400 font-medium ml-1">(인)</span>
+              )}
             </span>
           </div>
         </div>

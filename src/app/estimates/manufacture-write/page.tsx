@@ -98,6 +98,9 @@ export default function ManufactureEstimateWritePage() {
   const [sendDirectMemo, setSendDirectMemo] = useState("");
   const [isSending, setIsSending] = useState(false);
 
+  // 💡 자사 직인 도장 이미지 상태 (로컬스토리지가 아닌 메모리 상태로 관리하여 용량 초과 방어)
+  const [sealImage, setSealImage] = useState<string | null>(null);
+
   // 시스템 설정의 발송 채널별 활성화 가능 여부 상태
   const [isEmailConfigured, setIsEmailConfigured] = useState(false);
   const [isSmsConfigured, setIsSmsConfigured] = useState(false);
@@ -238,6 +241,23 @@ export default function ManufactureEstimateWritePage() {
         .catch(err => console.error("현재 로그인 사용자 정보 로드 실패:", err));
     }
   }, [isMetaRestored, setMeta]);
+
+  // 💡 마운트 시 시스템설정에서 등록한 최신 직인 도장 이미지 로드
+  useEffect(() => {
+    fetch("/api/settings?key=my_company_profile")
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.value) {
+          try {
+            const profile = JSON.parse(data.value);
+            if (profile.sealImages && profile.sealImages.length > 0) {
+              setSealImage(profile.sealImages[0]);
+            }
+          } catch(e) {}
+        }
+      })
+      .catch(err => console.error("직인 로드 실패:", err));
+  }, []);
 
   useEffect(() => {
     if (!isRestored) return;
@@ -1718,9 +1738,21 @@ export default function ManufactureEstimateWritePage() {
               )}
 
               {/* 하단 서명 명의 */}
-              <div className="pt-2 text-right text-slate-500 font-bold text-[8px]">
+              <div className="pt-2 text-right text-slate-500 font-bold text-[8px] relative">
                 위와 같이 견적서를 제출합니다.
-                <span className="block mt-1.5 text-slate-900 font-extrabold text-[9px]">{supplier.companyName} 대표 {supplier.representative} (인)</span>
+                <span className="inline-block mt-1.5 text-slate-900 font-extrabold text-[9px] relative">
+                  {supplier.companyName} 대표 {supplier.representative}
+                  {sealImage ? (
+                    <img
+                      src={sealImage}
+                      alt="회사직인"
+                      className="absolute -right-4 -top-2 w-7 h-7 object-contain pointer-events-none"
+                      style={{ mixBlendMode: "multiply" }}
+                    />
+                  ) : (
+                    <span className="text-slate-400 font-medium ml-1">(인)</span>
+                  )}
+                </span>
               </div>
             </div>
 
