@@ -250,13 +250,13 @@ export default async function PrintPdfPage({ searchParams }: PrintPdfPageProps) 
                   return (
                     <tr key={`m-${idx}`} className="text-slate-600">
                       <td className="py-1.5 pl-2 text-slate-450 font-bold">└ {m.item_code || `INV-${idx + 1}`}</td>
-                      <td className="py-1.5 truncate max-w-[140px]" title={m.product_name}>
+                      <td className="py-1.5 break-all whitespace-normal" title={m.product_name}>
                         {m.product_name}
                         {parsedRemark && (
                           <span className="text-[7.5px] text-slate-400 ml-1 font-medium">({parsedRemark})</span>
                         )}
                       </td>
-                      <td className="py-1.5 truncate max-w-[70px]">
+                      <td className="py-1.5 break-all whitespace-normal">
                         {parsedSpec}
                       </td>
                       <td className="py-1.5 text-center font-mono">{m.quantity}</td>
@@ -289,7 +289,7 @@ export default async function PrintPdfPage({ searchParams }: PrintPdfPageProps) 
                   return (
                     <tr key={`dp-${idx}`} className="text-slate-600">
                       <td className="py-1.5 pl-2 text-indigo-500 font-bold">└ 직접가공</td>
-                      <td className="py-1.5 truncate max-w-[140px]">
+                      <td className="py-1.5 break-all whitespace-normal">
                         {p.product_name.replace("직접가공 - ", "")}
                         {parsedRemark && (
                           <span className="text-[7.5px] text-slate-400 ml-1 font-medium">({parsedRemark})</span>
@@ -317,7 +317,7 @@ export default async function PrintPdfPage({ searchParams }: PrintPdfPageProps) 
                   return (
                     <tr key={`op-${idx}`} className="text-slate-600">
                       <td className="py-1.5 pl-2 text-pink-500 font-bold">└ 외주가공</td>
-                      <td className="py-1.5 truncate max-w-[140px]">
+                      <td className="py-1.5 break-all whitespace-normal">
                         {p.product_name.replace("외주가공 - ", "")}
                         {parsedRemark && (
                           <span className="text-[7.5px] text-slate-400 ml-1 font-medium">({parsedRemark})</span>
