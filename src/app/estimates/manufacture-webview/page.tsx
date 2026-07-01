@@ -7,13 +7,13 @@ import { FileText, Search, RefreshCw, X, Download, ArrowUp, ArrowDown, Eye, Prin
 // 제조업 견적 대장 헤더 명세 (비용 열들을 단일 '구분' 컬럼으로 압축)
 const HEADERS = [
   "견적번호", "수신바이어", "연락처", "담당자명", "총 견적액", "상태", "작성일", "등록일시",
-  "연계수주번호", "구분", "품목코드", "품목명", "규격", "수량", "단가", "금액",
+  "연계수주번호", "구분", "품목코드", "품목명", "품목비고", "규격", "수량", "단가", "금액",
   "품목납기일", "상세비고"
 ];
 
 const DEFAULT_VISIBLE = [
   "견적번호", "수신바이어", "총 견적액", "상태", "작성일", 
-  "구분", "품목명", "수량", "단가", "금액",
+  "구분", "품목명", "품목비고", "수량", "단가", "금액",
   "상세비고"
 ];
 
@@ -138,12 +138,13 @@ export default function ManufactureWebView() {
               division,                                             // 9: 구분 (품목명 바로 앞)
               item.item_code || "-",                                // 10: 품목코드
               item.product_name || "-",                              // 11: 품목명
-              displaySpec || "-",                                   // 12: 규격
-              item.quantity !== undefined ? item.quantity : "",        // 13: 수량
-              item.unit_price !== undefined ? item.unit_price : "",    // 14: 단가
-              itemAmount,                                           // 15: 금액
-              item.delivery_date || "-",                            // 16: 품목납기일
-              e.document_memo_search || "-"                         // 17: 상세비고
+              itemSpecObj?.remark || "-",                           // 12: 품목비고
+              displaySpec || "-",                                   // 13: 규격
+              item.quantity !== undefined ? item.quantity : "",        // 14: 수량
+              item.unit_price !== undefined ? item.unit_price : "",    // 15: 단가
+              itemAmount,                                           // 16: 금액
+              item.delivery_date || "-",                            // 17: 품목납기일
+              e.document_memo_search || "-"                         // 18: 상세비고
             ]);
           });
 
@@ -162,12 +163,13 @@ export default function ManufactureWebView() {
               "일반관리비",                                            // 9: 구분
               "-",                                                  // 10: 품목코드
               "일반관리비 (가공비의 10%)",                             // 11: 품목명
-              "-",                                                  // 12: 규격
-              1,                                                    // 13: 수량
-              generalCost,                                          // 14: 단가
-              generalCost,                                          // 15: 금액
-              "-",                                                  // 16: 품목납기일
-              e.document_memo_search || "-"                         // 17: 상세비고
+              "-",                                                  // 12: 품목비고
+              "-",                                                  // 13: 규격
+              1,                                                    // 14: 수량
+              generalCost,                                          // 15: 단가
+              generalCost,                                          // 16: 금액
+              "-",                                                  // 17: 품목납기일
+              e.document_memo_search || "-"                         // 18: 상세비고
             ]);
           }
 
@@ -186,12 +188,13 @@ export default function ManufactureWebView() {
               "기업이윤",                                              // 9: 구분
               "-",                                                  // 10: 품목코드
               "기업이윤 (가공비+관리비의 10%)",                         // 11: 품목명
-              "-",                                                  // 12: 규격
-              1,                                                    // 13: 수량
-              profitCost,                                           // 14: 단가
-              profitCost,                                           // 15: 금액
-              "-",                                                  // 16: 품목납기일
-              e.document_memo_search || "-"                         // 17: 상세비고
+              "-",                                                  // 12: 품목비고
+              "-",                                                  // 13: 규격
+              1,                                                    // 14: 수량
+              profitCost,                                           // 15: 단가
+              profitCost,                                           // 16: 금액
+              "-",                                                  // 17: 품목납기일
+              e.document_memo_search || "-"                         // 18: 상세비고
             ]);
           }
 
@@ -210,12 +213,13 @@ export default function ManufactureWebView() {
               "기타비용",                                              // 9: 구분
               "-",                                                  // 10: 품목코드
               "기타비용 (재료관리비의 5%)",                             // 11: 품목명
-              "-",                                                  // 12: 규격
-              1,                                                    // 13: 수량
-              etcCost,                                              // 14: 단가
-              etcCost,                                              // 15: 금액
-              "-",                                                  // 16: 품목납기일
-              e.document_memo_search || "-"                         // 17: 상세비고
+              "-",                                                  // 12: 품목비고
+              "-",                                                  // 13: 규격
+              1,                                                    // 14: 수량
+              etcCost,                                              // 15: 단가
+              etcCost,                                              // 16: 금액
+              "-",                                                  // 17: 품목납기일
+              e.document_memo_search || "-"                         // 18: 상세비고
             ]);
           }
         });
@@ -226,10 +230,10 @@ export default function ManufactureWebView() {
           rows: tempRows
         });
 
-        // 로컬스토리지 설정 불러오기 (캐시 초기화용 v4 스키마 명명)
+        // 로컬스토리지 설정 불러오기 (캐시 초기화용 v5 스키마 명명)
         if (typeof window !== "undefined") {
-          const savedColumns = localStorage.getItem("egdesk_est_webview_cols_v4_manufacture_outbound");
-          const savedVisible = localStorage.getItem("egdesk_est_webview_visible_v4_manufacture_outbound");
+          const savedColumns = localStorage.getItem("egdesk_est_webview_cols_v5_manufacture_outbound");
+          const savedVisible = localStorage.getItem("egdesk_est_webview_visible_v5_manufacture_outbound");
           
           if (savedColumns && savedVisible) {
             try {
@@ -352,8 +356,8 @@ export default function ManufactureWebView() {
     setColumns(newCols);
     setVisibleColumns(newVisible);
     if (typeof window !== "undefined") {
-      localStorage.setItem("egdesk_est_webview_cols_v4_manufacture_outbound", JSON.stringify(newCols));
-      localStorage.setItem("egdesk_est_webview_visible_v4_manufacture_outbound", JSON.stringify(newVisible));
+      localStorage.setItem("egdesk_est_webview_cols_v5_manufacture_outbound", JSON.stringify(newCols));
+      localStorage.setItem("egdesk_est_webview_visible_v5_manufacture_outbound", JSON.stringify(newVisible));
     }
   };
 

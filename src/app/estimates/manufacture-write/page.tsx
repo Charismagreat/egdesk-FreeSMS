@@ -1652,7 +1652,12 @@ export default function ManufactureEstimateWritePage() {
                     {materials.filter(m => m.productName).map((m, idx) => (
                       <tr key={`m-${idx}`} className="text-slate-755">
                         <td className="py-1 pl-2 text-slate-450 font-bold">└ {m.itemCode || `INV-${idx + 1}`}</td>
-                        <td className="py-1 truncate max-w-[120px]">{m.productName}</td>
+                        <td className="py-1 truncate max-w-[120px]" title={m.productName}>
+                          {m.productName}
+                          {m.remark && (
+                            <span className="text-[7.5px] text-slate-400 ml-1 font-medium">({m.remark})</span>
+                          )}
+                        </td>
                         <td className="py-1 truncate max-w-[60px]">{m.spec || "-"}</td>
                         <td className="py-1 text-center font-mono">{m.quantity}</td>
                         <td className="py-1 text-right font-mono pr-1">{m.unitPrice ? m.unitPrice.toLocaleString() : "0"}</td>
@@ -1673,7 +1678,12 @@ export default function ManufactureEstimateWritePage() {
                     {directProcess.filter(p => p.processName).map((p, idx) => (
                       <tr key={`dp-${idx}`} className="text-slate-755">
                         <td className="py-1 pl-2 text-indigo-500 font-bold">└ 직접가공</td>
-                        <td className="py-1 truncate max-w-[120px]">{p.processName}</td>
+                        <td className="py-1 truncate max-w-[120px]" title={p.processName}>
+                          {p.processName}
+                          {p.remark && (
+                            <span className="text-[7.5px] text-slate-400 ml-1 font-medium">({p.remark})</span>
+                          )}
+                        </td>
                         <td className="py-1">-</td>
                         <td className="py-1 text-center font-mono">{p.quantity}</td>
                         <td className="py-1 text-right font-mono pr-1">{p.unitPrice ? p.unitPrice.toLocaleString() : "0"}</td>
@@ -1685,7 +1695,12 @@ export default function ManufactureEstimateWritePage() {
                     {outsourceProcess.filter(p => p.processName).map((p, idx) => (
                       <tr key={`op-${idx}`} className="text-slate-755">
                         <td className="py-1 pl-2 text-pink-500 font-bold">└ 외주가공</td>
-                        <td className="py-1 truncate max-w-[120px]">{p.processName}</td>
+                        <td className="py-1 truncate max-w-[120px]" title={p.processName}>
+                          {p.processName}
+                          {p.remark && (
+                            <span className="text-[7.5px] text-slate-400 ml-1 font-medium">({p.remark})</span>
+                          )}
+                        </td>
                         <td className="py-1">-</td>
                         <td className="py-1 text-center font-mono">{p.quantity}</td>
                         <td className="py-1 text-right font-mono pr-1">{p.unitPrice ? p.unitPrice.toLocaleString() : "0"}</td>
