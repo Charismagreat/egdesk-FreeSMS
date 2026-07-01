@@ -36,9 +36,36 @@ export async function GET(request: Request) {
 
     const filePath = path.join(uploadDir, `${realId}.pdf`);
 
-    // 2. 캐시된 PDF 파일이 존재하지 않는 경우 Playwright로 실시간 인쇄 빌드
-    if (!fs.existsSync(filePath)) {
-      console.log(`[PDF Generator] Generating new PDF cache for Estimate ID: ${realId}`);
+    // 2. 캐시 유효성 판단 (DB 수정시간 및 소스코드 패치 시간과 캐시 파일 수정시간 비교)
+    const TEMPLATE_PATCH_TIME = new Date("2026-07-01T03:00:00.000Z").getTime(); // 2026-07-01 KST 패치 시점
+    let shouldRegenerate = !fs.existsSync(filePath);
+    if (!shouldRegenerate) {
+      try {
+        const fileStat = fs.statSync(filePath);
+        const fileMtime = fileStat.mtime.getTime();
+        
+        // A. 템플릿 소스 코드나 도장/줄바꿈 패치일보다 캐시 파일이 오래된 경우
+        if (fileMtime < TEMPLATE_PATCH_TIME) {
+          console.log(`[PDF Generator] PDF cache file is older than template patch time. Invalidating and regenerating.`);
+          shouldRegenerate = true;
+        }
+        
+        // B. DB 상의 데이터 수정 시간이 캐시 파일 생성 시간보다 최신인 경우
+        if (!shouldRegenerate && activeEst.updated_at) {
+          const dbUpdateTime = new Date(activeEst.updated_at).getTime();
+          if (dbUpdateTime > fileMtime) {
+            console.log(`[PDF Generator] DB updated_at (${activeEst.updated_at}) is newer than PDF cache file. Regenerating.`);
+            shouldRegenerate = true;
+          }
+        }
+      } catch (err) {
+        shouldRegenerate = true;
+      }
+    }
+
+    // 3. 캐시가 없거나 유효기간이 만료된 경우 Playwright로 실시간 인쇄 빌드
+    if (shouldRegenerate) {
+      console.log(`[PDF Generator] Generating/Updating PDF cache for Estimate ID: ${realId}`);
       let browser = null;
       try {
         browser = await chromium.launch({
