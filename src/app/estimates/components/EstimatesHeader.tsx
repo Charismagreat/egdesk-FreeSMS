@@ -32,7 +32,7 @@ export default function EstimatesHeader({
           className="py-3 px-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs md:text-sm font-black flex items-center justify-center transition-all shadow-lg shadow-indigo-600/10 active:scale-95 whitespace-nowrap cursor-pointer"
         >
           <Sparkles className="w-4 h-4 mr-2 text-amber-300 animate-pulse" />
-          (제조)견적서 작성
+          (제조)보낼 견적서 작성
         </Link>
 
         {/* 허브 전환 탭 버튼 */}
