@@ -728,7 +728,8 @@ export default function ManufactureEstimateWritePage() {
           generalAdminCost,
           businessProfit,
           materialManageCost,
-          grandTotal
+          grandTotal,
+          document_memo: memo // 💡 대장의 상세비고 컬럼과 연계 표시
         }),
         send_method: selectedChannels.join(","),
         send_target: selectedChannels.map(ch => {
