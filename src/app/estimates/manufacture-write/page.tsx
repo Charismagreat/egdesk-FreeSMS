@@ -1740,13 +1740,13 @@ export default function ManufactureEstimateWritePage() {
               {/* 하단 서명 명의 */}
               <div className="pt-2 text-right text-slate-500 font-bold text-[8px] relative space-y-1">
                 <div>위와 같이 견적서를 제출합니다.</div>
-                <div className="inline-block text-slate-900 font-extrabold text-[9px] relative pr-6">
+                <div className="inline-block text-slate-900 font-extrabold text-[9px] relative">
                   {supplier.companyName} 대표 {supplier.representative}
                   {sealImage ? (
                     <img
                       src={sealImage}
                       alt="회사직인"
-                      className="absolute -right-2 -top-1 w-6 h-6 object-contain pointer-events-none z-10"
+                      className="absolute right-0 -top-1 w-6 h-6 object-contain pointer-events-none z-10"
                       style={{ mixBlendMode: "multiply" }}
                     />
                   ) : (
