@@ -430,7 +430,7 @@ export default async function PrintPdfPage({ searchParams }: PrintPdfPageProps) 
 
         <script dangerouslySetInnerHTML={{ __html: `
           setTimeout(function() {
-            document.title = "Estimate_" + "${realDbId}";
+            document.title = "Estimate_" + "${estimateId}";
             var btn = document.getElementById('print-action-btn');
             if (btn) {
               btn.addEventListener('click', function() {

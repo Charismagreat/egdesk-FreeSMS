@@ -8,6 +8,9 @@ function DynamicTitleHandler() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
+    if (pathname === "/estimates/print-pdf") {
+      return;
+    }
     let title = "EGDESK SMS"; // 기본값
 
     // 정적 경로와 메뉴명 매핑
