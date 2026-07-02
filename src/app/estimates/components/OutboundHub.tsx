@@ -355,7 +355,7 @@ export default function OutboundHub({
               : "border-transparent text-slate-400 hover:text-slate-700"
           }`}
         >
-          💼 수주 및 바이어 계약 대장
+          💼 받은 발주서 관리 대장
         </button>
       </div>
 
