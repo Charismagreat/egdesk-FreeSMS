@@ -29,6 +29,8 @@ export default function EstimatesHeader({
         {/* 제조업 특화 견적서 작성 신설 페이지 링크 */}
         <Link
           href="/estimates/manufacture-write"
+          target="_blank"
+          rel="noopener noreferrer"
           className="py-3 px-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs md:text-sm font-black flex items-center justify-center transition-all shadow-lg shadow-indigo-600/10 active:scale-95 whitespace-nowrap cursor-pointer"
         >
           <Sparkles className="w-4 h-4 mr-2 text-amber-300 animate-pulse" />
@@ -38,6 +40,8 @@ export default function EstimatesHeader({
         {/* 제조업 특화 보낸 견적서 상세 대장 링크 */}
         <Link
           href="/estimates/manufacture-webview"
+          target="_blank"
+          rel="noopener noreferrer"
           className="py-3 px-5 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl text-xs md:text-sm font-black flex items-center justify-center transition-all shadow-lg shadow-slate-800/10 active:scale-95 whitespace-nowrap cursor-pointer"
         >
           <ArrowRightLeft className="w-4 h-4 mr-2 text-indigo-400" />
