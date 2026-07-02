@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { Plus, Eye, CheckCircle2, ChevronRight, Trash2, Clock, Printer, Upload } from "lucide-react";
+import { Plus, Eye, CheckCircle2, ChevronRight, Trash2, Clock, Printer, Upload, Sparkles, ArrowRightLeft } from "lucide-react";
+import Link from "next/link";
 import { Estimate, SalesOrder, Partner } from "../types";
 import { parseEstimateMetadata, parsePurchaseOrderExcel, ExcelParsedPurchaseOrder, getExcelColumnsAndRawData, parseExcelWithMapping } from "../utils";
 import SalesOrderExcelModal from "./SalesOrderExcelModal";
@@ -483,6 +484,37 @@ export default function OutboundHub({
                 <Printer className="w-4 h-4 text-indigo-400" />
                 웹뷰 대장 내역
               </button>
+              
+              <Link
+                href="/estimates/manufacture-webview"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+              >
+                <ArrowRightLeft className="w-4 h-4 text-indigo-400" />
+                (제조)보낸 견적 대장
+              </Link>
+
+              <Link
+                href="/estimates/general-write"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+              >
+                <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+                (일반)견적서 작성
+              </Link>
+
+              <Link
+                href="/estimates/manufacture-write"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+              >
+                <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+                (제조)견적서 작성
+              </Link>
+
               <button
                 onClick={onOpenWriteModal}
                 className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-lg flex items-center gap-1.5"
