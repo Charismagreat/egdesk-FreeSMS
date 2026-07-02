@@ -529,10 +529,10 @@ export default function OutboundHub({
             <>
               <button
                 onClick={() => window.open("/estimates/web-view?type=outbound_est", "_blank")}
-                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
               >
                 <Printer className="w-4 h-4 text-indigo-400" />
-                웹뷰 대장 내역
+                보낸 거래명세서 대장
               </button>
               <button
                 onClick={() => window.open("/estimates/statement-write", "_blank")}
@@ -548,10 +548,10 @@ export default function OutboundHub({
             <>
               <button
                 onClick={() => window.open("/estimates/web-view?type=outbound_so", "_blank")}
-                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
               >
                 <Printer className="w-4 h-4 text-indigo-400" />
-                웹뷰 대장 내역
+                받은 발주 대장
               </button>
               <button
                 onClick={() => excelInputRef.current?.click()}
