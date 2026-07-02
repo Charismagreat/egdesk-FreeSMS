@@ -556,12 +556,12 @@ export default function OutboundHub({
               <button
                 onClick={() => excelInputRef.current?.click()}
                 disabled={isExcelUploading}
-                className={`px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer ${
+                className={`px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
                   isExcelUploading ? "opacity-50 cursor-not-allowed animate-pulse" : ""
                 }`}
               >
                 <Upload className="w-4 h-4 text-emerald-400" />
-                {isExcelUploading ? "엑셀 자동 분석 중..." : "엑셀 파일로 등록 (다이렉트)"}
+                {isExcelUploading ? "엑셀 자동 분석 중..." : "받은 발주서 엑셀 등록"}
               </button>
               <input
                 type="file"
