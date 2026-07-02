@@ -18,6 +18,32 @@ const formatItemType = (type: string) => {
   return type;
 };
 
+// 규격 포맷팅 헬퍼 함수 (JSON 파싱 및 가공비 처리 지원)
+const formatSpec = (specStr: string): string => {
+  if (!specStr) return "-";
+  const trimmed = String(specStr).trim();
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed.spec && String(parsed.spec).trim()) return parsed.spec;
+      if (parsed.remark && String(parsed.remark).trim()) return parsed.remark;
+      if (parsed.type) {
+        const typeLabels: Record<string, string> = {
+          "DIRECT_PROCESS": "직접가공비",
+          "OUTSOURCE_PROCESS": "외주가공비",
+          "EXTRA_COST": "기타부대비용",
+          "MATERIAL": "원자재/상품"
+        };
+        return typeLabels[parsed.type] || parsed.type;
+      }
+      return "-";
+    } catch {
+      return specStr;
+    }
+  }
+  return specStr;
+};
+
 // B2B 대장 정보 타입 설정 및 디폴트 노출 컬럼 정의
 const typeConfig = {
   inbound_est: {
@@ -283,7 +309,7 @@ function WebViewContent() {
                   item.item_code || "-",                  // 품목코드
                   item.valid_item_code || item.validItemCode || "-", // 유효품목코드
                   item.product_name || "-",              // 품목명
-                  item.spec || "-",                      // 규격
+                  formatSpec(item.spec),                      // 규격
                   item.quantity !== undefined ? item.quantity : "", // 수량
                   item.unit_price !== undefined ? item.unit_price : "", // 단가
                   item.amount !== undefined ? item.amount : "", // 금액
@@ -368,7 +394,7 @@ function WebViewContent() {
                 item.item_code || "-", // 품목코드
                 item.valid_item_code || "-", // 유효품목코드
                 item.product_name || "-", // 품목명
-                item.spec || "-",      // 규격
+                formatSpec(item.spec),      // 규격
                 item.quantity !== undefined ? item.quantity : "", // 수량
                 item.unit_price !== undefined ? item.unit_price : "", // 단가
                 item.amount !== undefined ? item.amount : "", // 금액
@@ -443,7 +469,7 @@ function WebViewContent() {
                   det.item_name || "-",                              // 품목명
                   det.item_code || det.id || "-",                   // 품목코드
                   det.barcode || "-",                                // 바코드
-                  det.spec || "-",                                   // 규격
+                  formatSpec(det.spec),                                   // 규격
                   det.unit || "개",                                  // 단위
                   det.box_qty !== undefined ? `${det.box_qty} 개` : "1 개", // 박스입수량
                   detQtyStr,                                         // 수량
