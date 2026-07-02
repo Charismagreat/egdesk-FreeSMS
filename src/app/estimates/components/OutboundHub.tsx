@@ -45,7 +45,7 @@ export default function OutboundHub({
   onDeleteEstimate,
 }: OutboundHubProps) {
   // 서브 탭 및 필터 로컬 상태
-  const [outboundSubTab, setOutboundSubTab] = usePersistedState<"estimates" | "sos">("egdesk_outbound_subTab", "estimates");
+  const [outboundSubTab, setOutboundSubTab] = usePersistedState<"estimates" | "statements" | "sos">("egdesk_outbound_subTab", "estimates");
   const [isSoExcelOpen, setIsSoExcelOpen] = useState(false);
   const [preParsedExcelData, setPreParsedExcelData] = useState<ExcelParsedPurchaseOrder | null>(null);
   const [uploadedExcelFile, setUploadedExcelFile] = useState<File | null>(null);
@@ -173,9 +173,67 @@ export default function OutboundHub({
   // 다중 선택 로컬 상태
   const [selectedOutboundIds, setSelectedOutboundIds] = useState<Set<string>>(new Set());
 
+  // 거래명세서 식별 도우미
+  const isStatementEstimate = (tagsStr: string) => {
+    if (!tagsStr) return false;
+    try {
+      const parsed = JSON.parse(tagsStr);
+      return parsed && parsed.is_statement === true;
+    } catch {
+      return false;
+    }
+  };
+
   // 필터링 및 정렬 파이프라인
   const filteredOutboundEstimates = estimates
     .filter((e) => e.type === "OUTBOUND")
+    .filter((e) => !isStatementEstimate(e.tags || ""))
+    .filter((e) => {
+      if (!outboundSearch.trim()) return true;
+      const term = outboundSearch.toLowerCase();
+      return (
+        e.partner_name.toLowerCase().includes(term) ||
+        e.id.toLowerCase().includes(term) ||
+        (e.partner_phone && e.partner_phone.toLowerCase().includes(term)) ||
+        (e.partner_manager && e.partner_manager.toLowerCase().includes(term)) ||
+        (e.first_item_name && e.first_item_name.toLowerCase().includes(term)) ||
+        (e.tags && e.tags.toLowerCase().includes(term)) ||
+        (e.sales_order_number && e.sales_order_number.toLowerCase().includes(term)) ||
+        ((e as any).item_search_text && (e as any).item_search_text.toLowerCase().includes(term)) ||
+        ((e as any).document_memo_search && (e as any).document_memo_search.toLowerCase().includes(term))
+      );
+    })
+    .filter((e) => {
+      if (outboundStatusFilter === "ALL") return true;
+      const so = salesOrders.find((s) => s.id === e.sales_order_number || s.estimate_id === e.id);
+      
+      if (outboundStatusFilter === "SENT") {
+        return !so;
+      }
+      if (outboundStatusFilter === "RECEIVED") {
+        return so && so.status === "REGISTERED";
+      }
+      if (outboundStatusFilter === "CONFIRMED") {
+        return so && so.status === "CONFIRMED";
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      const valA = a[outboundSortKey as keyof Estimate] ?? "";
+      const valB = b[outboundSortKey as keyof Estimate] ?? "";
+      if (typeof valA === "string" && typeof valB === "string") {
+        return outboundSortDir === "asc"
+          ? valA.localeCompare(valB)
+          : valB.localeCompare(valA);
+      }
+      return outboundSortDir === "asc"
+        ? (valA as number) - (valB as number)
+        : (valB as number) - (valA as number);
+    });
+
+  const filteredOutboundStatements = estimates
+    .filter((e) => e.type === "OUTBOUND")
+    .filter((e) => isStatementEstimate(e.tags || ""))
     .filter((e) => {
       if (!outboundSearch.trim()) return true;
       const term = outboundSearch.toLowerCase();
@@ -357,6 +415,19 @@ export default function OutboundHub({
         >
           💼 받은 발주서 관리 대장
         </button>
+        <button
+          onClick={() => {
+            setOutboundSubTab("statements");
+            setSelectedOutboundIds(new Set());
+          }}
+          className={`pb-3 font-extrabold text-sm border-b-2 transition-all ${
+            outboundSubTab === "statements"
+              ? "border-indigo-600 text-indigo-600"
+              : "border-transparent text-slate-400 hover:text-slate-700"
+          }`}
+        >
+          📑 보낸 거래명세서 관리 대장
+        </button>
       </div>
 
       {/* 상단 컨트롤 바 */}
@@ -367,6 +438,8 @@ export default function OutboundHub({
             placeholder={
               outboundSubTab === "estimates"
                 ? "바이어명 또는 견적 번호 검색..."
+                : outboundSubTab === "statements"
+                ? "바이어명 또는 명세서 번호 검색..."
                 : "바이어명 또는 수주 번호 검색..."
             }
             value={outboundSearch}
@@ -384,6 +457,12 @@ export default function OutboundHub({
             {outboundSubTab === "estimates" ? (
               <>
                 <option value="SENT">견적발송</option>
+                <option value="RECEIVED">수주등록</option>
+                <option value="CONFIRMED">납품완료</option>
+              </>
+            ) : outboundSubTab === "statements" ? (
+              <>
+                <option value="SENT">발송완료</option>
                 <option value="RECEIVED">수주등록</option>
                 <option value="CONFIRMED">납품완료</option>
               </>
@@ -410,6 +489,25 @@ export default function OutboundHub({
               >
                 <Plus className="w-4 h-4 text-amber-450" />
                 AI 최적 가격 견적서 작성
+              </button>
+            </>
+          )}
+
+          {outboundSubTab === "statements" && (
+            <>
+              <button
+                onClick={() => window.open("/estimates/web-view?type=outbound_est", "_blank")}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer"
+              >
+                <Printer className="w-4 h-4 text-indigo-400" />
+                웹뷰 대장 내역
+              </button>
+              <button
+                onClick={() => window.open("/estimates/statement-write", "_blank")}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl shadow-lg flex items-center gap-1.5 cursor-pointer"
+              >
+                <Plus className="w-4 h-4 text-amber-300 animate-pulse" />
+                (일반)거래명세서 작성
               </button>
             </>
           )}
@@ -452,7 +550,7 @@ export default function OutboundHub({
       </div>
 
       {/* 대장 테이블 영역 */}
-      {outboundSubTab === "estimates" ? (
+      {outboundSubTab === "estimates" && (
         <div className="overflow-x-auto bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
           <table className="w-full text-left text-xs font-semibold">
             <thead>
@@ -637,7 +735,184 @@ export default function OutboundHub({
             </tbody>
           </table>
         </div>
-      ) : (
+      )}
+
+      {outboundSubTab === "statements" && (
+        <div className="overflow-x-auto bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
+          <table className="w-full text-left text-xs font-semibold">
+            <thead>
+              <tr className="border-b border-slate-100 text-slate-400">
+                <th className="py-3 px-2 w-[40px]">
+                  <input
+                    type="checkbox"
+                    checked={
+                      filteredOutboundStatements.length > 0 &&
+                      filteredOutboundStatements.every((e) =>
+                        selectedOutboundIds.has(e.id)
+                      )
+                    }
+                    onChange={(e) => {
+                      const newSelected = new Set(selectedOutboundIds);
+                      if (e.target.checked) {
+                        filteredOutboundStatements.forEach((x) =>
+                          newSelected.add(x.id)
+                        );
+                      } else {
+                        filteredOutboundStatements.forEach((x) =>
+                          newSelected.delete(x.id)
+                        );
+                      }
+                      setSelectedOutboundIds(newSelected);
+                    }}
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                </th>
+                <th
+                  className="py-3 px-2 cursor-pointer hover:text-slate-800"
+                  onClick={() => handleSort("created_at")}
+                >
+                  등록일시 {outboundSortKey === "created_at" && (outboundSortDir === "asc" ? "▲" : "▼")}
+                </th>
+                <th
+                  className="py-3 px-2 cursor-pointer hover:text-slate-800"
+                  onClick={() => handleSort("id")}
+                >
+                  명세서 번호 {outboundSortKey === "id" && (outboundSortDir === "asc" ? "▲" : "▼")}
+                </th>
+                <th className="py-3 px-2">발주등록번호/발주번호</th>
+                <th className="py-3 px-2">바이어명</th>
+                <th
+                  className="py-3 px-2 cursor-pointer hover:text-slate-800"
+                  onClick={() => handleSort("total_amount")}
+                >
+                  총 명세 금액 {outboundSortKey === "total_amount" && (outboundSortDir === "asc" ? "▲" : "▼")}
+                </th>
+                <th className="py-3 px-2">상태</th>
+                <th className="py-3 px-2">납기일</th>
+                <th className="py-3 px-2 text-right">작업</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredOutboundStatements.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={9}
+                    className="text-center py-12 text-slate-400 font-semibold"
+                  >
+                    조건에 맞는 거래명세 내역이 없습니다.
+                  </td>
+                </tr>
+              ) : (
+                filteredOutboundStatements.map((est) => (
+                  <tr key={est.id} className="border-b border-slate-50 hover:bg-slate-50/50">
+                    <td className="py-3.5 px-2">
+                      <input
+                          type="checkbox"
+                          checked={selectedOutboundIds.has(est.id)}
+                          onChange={() => {
+                            const newSelected = new Set(selectedOutboundIds);
+                            if (newSelected.has(est.id)) {
+                              newSelected.delete(est.id);
+                            } else {
+                              newSelected.add(est.id);
+                            }
+                            setSelectedOutboundIds(newSelected);
+                          }}
+                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                    </td>
+                    <td className="py-3.5 px-2 text-slate-505 font-medium">
+                      {est.created_at ? (est.created_at.length <= 10 ? `${est.created_at} 00:00:00` : est.created_at.substring(0, 19)) : "-"}
+                    </td>
+                    <td className="py-3.5 px-2 font-mono text-slate-700">
+                      <button
+                        onClick={() => onOpenDetailModal(est.id)}
+                        className="text-indigo-600 hover:underline cursor-pointer font-bold text-left"
+                      >
+                        {est.id}
+                      </button>
+                    </td>
+                    <td className="py-3.5 px-2 font-mono text-slate-700">
+                      {est.type === 'OUTBOUND' && est.direction_status === 'RECEIVED' ? (
+                        <span className="font-bold text-slate-800">
+                          {est.sales_order_number || <span className="text-slate-400">-</span>}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">-</span>
+                      )}
+                    </td>
+                    <td className="py-3.5 px-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-bold text-slate-800">
+                          {est.partner_name}
+                        </span>
+                        {getTransactionTypeBadge(est.tags || "")}
+                      </div>
+                      <span className="text-[10px] text-slate-400 block mt-0.5">
+                        {est.partner_phone}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-2 text-indigo-655 font-bold">
+                      {est.total_amount.toLocaleString()}원
+                    </td>
+                    <td className="py-3.5 px-2">
+                      {(() => {
+                        const so = salesOrders.find((s) => s.id === est.sales_order_number || s.estimate_id === est.id);
+                        if (so) {
+                          return so.status === "CONFIRMED" ? (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-green-100 text-green-600 border border-green-200">
+                              납품완료
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-blue-100 text-blue-600 border border-blue-200">
+                              수주등록
+                            </span>
+                          );
+                        }
+                        return (
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-100 text-amber-600 border border-amber-200">
+                            발송완료
+                          </span>
+                        );
+                      })()}
+                    </td>
+                    <td className="py-3.5 px-2 text-slate-505 font-medium">
+                      {parseEstimateMetadata(est.tags || "").delivery_date || "-"}
+                    </td>
+                    <td className="py-3.5 px-2 text-right">
+                      <div className="flex justify-end gap-1.5">
+                        <button
+                          onClick={() => onOpenDetailModal(est.id)}
+                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-black border border-slate-200 transition-all inline-flex items-center gap-1 cursor-pointer"
+                          title="상세 열람"
+                        >
+                          <Eye className="w-3.5 h-3.5" /> 상세
+                        </button>
+                        
+                        {est.is_pending_delete ? (
+                          <span className="px-2 py-1.5 text-[9px] font-extrabold bg-amber-50 text-amber-700 rounded-lg border border-amber-100 animate-pulse">
+                            결재 대기 중
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => onDeleteEstimate(est)}
+                            className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-650 rounded-lg text-[10px] font-black border border-red-100 hover:border-red-200 transition-all inline-flex items-center gap-1 cursor-pointer"
+                            title="명세서 삭제"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> 삭제
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {outboundSubTab === "sos" && (
         <div className="overflow-x-auto bg-white border border-slate-100 rounded-3xl p-6 shadow-sm">
           <table className="w-full text-left text-xs font-semibold">
             <thead>
