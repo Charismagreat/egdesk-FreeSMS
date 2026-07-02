@@ -112,7 +112,7 @@ function WebViewContent() {
     const base = typeConfig[type];
     if (type === "outbound_est" && isStatementParam) {
       return {
-        title: "보낸 거래명세서 관리 대장 (출력용)",
+        title: "보낸 거래명세서 상세 내역",
         headers: base.headers.map(h => {
           if (h === "견적번호") return "명세서번호";
           if (h === "총 견적액") return "총 명세 금액";

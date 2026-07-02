@@ -78,13 +78,18 @@ function DynamicTitleHandler() {
     // 동적 경로 및 특수 조건 분기
     if (pathname === "/estimates/web-view") {
       const typeParam = searchParams.get("type") || "inbound_est";
-      const typeConfig: Record<string, string> = {
-        inbound_est: "받은 견적서 상세 내역",
-        inbound_po: "보낸 발주서 상세 내역",
-        outbound_est: "(일반)보낸 견적서 상세 내역",
-        outbound_so: "받은 발주서 상세 내역",
-      };
-      title = typeConfig[typeParam] || "B2B 대장 내역";
+      const isStatementParam = searchParams.get("is_statement") === "true";
+      if (typeParam === "outbound_est" && isStatementParam) {
+        title = "보낸 거래명세서 상세 내역";
+      } else {
+        const typeConfig: Record<string, string> = {
+          inbound_est: "받은 견적서 상세 내역",
+          inbound_po: "보낸 발주서 상세 내역",
+          outbound_est: "(일반)보낸 견적서 상세 내역",
+          outbound_so: "받은 발주서 상세 내역",
+        };
+        title = typeConfig[typeParam] || "B2B 대장 내역";
+      }
     } else if (pathname.startsWith("/form-management-new/print")) {
       title = "양식 인쇄 및 미리보기";
     } else if (pathname.startsWith("/shared/view")) {
