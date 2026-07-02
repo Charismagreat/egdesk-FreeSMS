@@ -26,6 +26,17 @@ export default function EstimatesHeader({
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
+        {/* 일반 특화 견적서 작성 신설 페이지 링크 */}
+        <Link
+          href="/estimates/general-write"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="py-3 px-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs md:text-sm font-black flex items-center justify-center transition-all shadow-lg shadow-indigo-600/10 active:scale-95 whitespace-nowrap cursor-pointer"
+        >
+          <Sparkles className="w-4 h-4 mr-2 text-amber-300 animate-pulse" />
+          (일반)보낼 견적서 작성
+        </Link>
+
         {/* 제조업 특화 견적서 작성 신설 페이지 링크 */}
         <Link
           href="/estimates/manufacture-write"

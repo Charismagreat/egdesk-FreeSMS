@@ -32,6 +32,7 @@ function DynamicTitleHandler() {
       "/products": "상품 관리 AI",
       "/estimates": "견적/발주/수주 AI",
       "/estimates/manufacture-write": "(제조)보낼 견적서 작성 AI",
+      "/estimates/general-write": "(일반)보낼 견적서 작성 AI",
       "/estimates/manufacture-webview": "(제조)보낸 견적서 상세 내역",
       "/snaptasks": "AI 스냅태스크",
       "/inventory": "재고 관리 AI",
