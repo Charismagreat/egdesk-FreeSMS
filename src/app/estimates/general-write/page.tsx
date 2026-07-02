@@ -60,16 +60,6 @@ export default function GeneralEstimateWritePage() {
     { itemCode: "", productName: "", spec: "", quantity: 0, unitPrice: 0, remark: "" }
   ]);
   
-  // 직접 가공비 상태
-  const [directProcess, setDirectProcess, isDirectProcessRestored] = usePersistedState<ProcessItem[]>("egdesk_gen_est_direct_process_v2", [
-    { processName: "", quantity: 0, unitPrice: 0, remark: "" }
-  ]);
-
-  // 외주 가공비 상태
-  const [outsourceProcess, setOutsourceProcess, isOutsourceProcessRestored] = usePersistedState<ProcessItem[]>("egdesk_gen_est_outsource_process_v2", [
-    { processName: "", quantity: 0, unitPrice: 0, remark: "" }
-  ]);
-
   const [memo, setMemo, isMemoRestored] = usePersistedState("egdesk_gen_est_memo_v2", "");
 
   // 특기사항 템플릿 상태 보존 (초기 기본 2종 장착)
@@ -87,7 +77,7 @@ export default function GeneralEstimateWritePage() {
   ]);
 
   // 모든 세션 로드 완료 여부
-  const isRestored = isSupplierRestored && isBuyerRestored && isMetaRestored && isMaterialsRestored && isDirectProcessRestored && isOutsourceProcessRestored && isMemoRestored;
+  const isRestored = isSupplierRestored && isBuyerRestored && isMetaRestored && isMaterialsRestored && isMemoRestored;
 
   // 발송 모달 제어 상태 (옴니채널 다중 선택 지원)
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
@@ -219,10 +209,8 @@ export default function GeneralEstimateWritePage() {
     );
     if (hasDummy) {
       setMaterials([{ itemCode: "", productName: "", spec: "", quantity: 0, unitPrice: 0, remark: "" }]);
-      setDirectProcess([{ processName: "", quantity: 0, unitPrice: 0, remark: "" }]);
-      setOutsourceProcess([{ processName: "", quantity: 0, unitPrice: 0, remark: "" }]);
     }
-  }, [isRestored, materials, setMaterials, setDirectProcess, setOutsourceProcess]);
+  }, [isRestored, materials, setMaterials]);
 
   // 로그인 사용자(작성자) 프로필 정보 자동 로드 및 세팅 (crm_operators 연동)
   useEffect(() => {
@@ -351,19 +339,19 @@ export default function GeneralEstimateWritePage() {
 
   // 4. 실시간 원가 합산 계산 공식
   const materialsTotal = materials.reduce((sum, it) => sum + (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0), 0);
-  const directProcessTotal = directProcess.reduce((sum, it) => sum + (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0), 0);
-  const outsourceProcessTotal = outsourceProcess.reduce((sum, it) => sum + (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0), 0);
-  const processTotal = directProcessTotal + outsourceProcessTotal;
+  const directProcessTotal = 0;
+  const outsourceProcessTotal = 0;
+  const processTotal = 0;
 
   // 일반관리비 = 가공비의 10%
-  const generalAdminCost = Math.round(processTotal * 0.1);
+  const generalAdminCost = 0;
   // 기업이윤 = (가공비 + 일반관리비)의 10%
-  const businessProfit = Math.round((processTotal + generalAdminCost) * 0.1);
+  const businessProfit = 0;
   // 재료관리비 = 재료비의 5%
-  const materialManageCost = Math.round(materialsTotal * 0.05);
+  const materialManageCost = 0;
 
   // 최종 견적금액 (재료비 + 가공비 + 일반관리비 + 기업이윤 + 재료관리비)
-  const grandTotal = materialsTotal + processTotal + generalAdminCost + businessProfit + materialManageCost;
+  const grandTotal = materialsTotal;
 
   // 5. 폼 제어 핸들러
   const handleAddMaterial = () => {
@@ -475,46 +463,6 @@ export default function GeneralEstimateWritePage() {
     setMaterials(updated);
   };
 
-  // 직접 가공비 제어
-  const handleAddDirectProcess = () => {
-    setDirectProcess([...directProcess, { processName: "", quantity: 0, unitPrice: 0, remark: "" }]);
-  };
-
-  const handleRemoveDirectProcess = (index: number) => {
-    if (directProcess.length === 1) return;
-    setDirectProcess(directProcess.filter((_, idx) => idx !== index));
-  };
-
-  const handleDirectProcessChange = (index: number, field: keyof ProcessItem, value: any) => {
-    const updated = [...directProcess];
-    if (field === "quantity" || field === "unitPrice") {
-      updated[index][field] = Number(value) || 0;
-    } else {
-      updated[index][field] = value;
-    }
-    setDirectProcess(updated);
-  };
-
-  // 외주 가공비 제어
-  const handleAddOutsourceProcess = () => {
-    setOutsourceProcess([...outsourceProcess, { processName: "", quantity: 0, unitPrice: 0, remark: "" }]);
-  };
-
-  const handleRemoveOutsourceProcess = (index: number) => {
-    if (outsourceProcess.length === 1) return;
-    setOutsourceProcess(outsourceProcess.filter((_, idx) => idx !== index));
-  };
-
-  const handleOutsourceProcessChange = (index: number, field: keyof ProcessItem, value: any) => {
-    const updated = [...outsourceProcess];
-    if (field === "quantity" || field === "unitPrice") {
-      updated[index][field] = Number(value) || 0;
-    } else {
-      updated[index][field] = value;
-    }
-    setOutsourceProcess(updated);
-  };
-
   // 작성 내용 완전히 초기화
   const handleResetForm = () => {
     if (window.confirm("작성 중인 모든 견적서 내용을 초기화하고 빈 양식으로 시작하시겠습니까?")) {
@@ -546,8 +494,6 @@ export default function GeneralEstimateWritePage() {
         writerPhone: ""
       });
       setMaterials([{ itemCode: "", productName: "", spec: "", quantity: 0, unitPrice: 0, remark: "" }]);
-      setDirectProcess([{ processName: "", quantity: 0, unitPrice: 0, remark: "" }]);
-      setOutsourceProcess([{ processName: "", quantity: 0, unitPrice: 0, remark: "" }]);
       setMemo("");
 
       // 회사 정보 설정 다시 로드
@@ -648,7 +594,7 @@ export default function GeneralEstimateWritePage() {
 
     setIsSending(true);
     try {
-      // 💡 3종의 제조업 품목 목록(원자재, 직접가공, 외주가공)을 단일 API 전송 스키마로 취합
+      // 💡 일반 품목 목록을 단일 API 전송 스키마로 취합
       const payloadItems: any[] = [];
       
       materials.forEach((m) => {
@@ -670,49 +616,13 @@ export default function GeneralEstimateWritePage() {
         }
       });
 
-      directProcess.forEach((p) => {
-        if (p.processName && p.processName.trim()) {
-          payloadItems.push({
-            product_id: "",
-            item_code: "PROC-DIR",
-            product_name: p.processName,
-            quantity: p.quantity || 0,
-            unit_price: p.unitPrice || 0,
-            amount: (p.quantity || 0) * (p.unitPrice || 0),
-            delivery_date: "",
-            spec: JSON.stringify({
-              type: "DIRECT_PROCESS",
-              remark: p.remark || ""
-            })
-          });
-        }
-      });
-
-      outsourceProcess.forEach((p) => {
-        if (p.processName && p.processName.trim()) {
-          payloadItems.push({
-            product_id: "",
-            item_code: "PROC-OUT",
-            product_name: p.processName,
-            quantity: p.quantity || 0,
-            unit_price: p.unitPrice || 0,
-            amount: (p.quantity || 0) * (p.unitPrice || 0),
-            delivery_date: "",
-            spec: JSON.stringify({
-              type: "OUTSOURCE_PROCESS",
-              remark: p.remark || ""
-            })
-          });
-        }
-      });
-
       if (payloadItems.length === 0) {
-        alert("최소 1개 이상의 유효한 견적 품목(원부자재 또는 가공비)을 입력해 주세요.");
+        alert("최소 1개 이상의 유효한 견적 품목(상품)을 입력해 주세요.");
         setIsSending(false);
         return;
       }
 
-      // 💡 실제 데이터베이스에 제조업 특약 견적서 적재 API 호출
+      // 💡 실제 데이터베이스에 일반 견적서 적재 API 호출
       const payload = {
         type: "OUTBOUND",
         direction_status: "SENT",
@@ -721,14 +631,14 @@ export default function GeneralEstimateWritePage() {
         partner_manager: buyer.managerName || "-",
         items: payloadItems,
         tags: JSON.stringify({ 
-          is_manufacture: true,
+          is_manufacture: false,
           materialsTotal,
-          directProcessTotal,
-          outsourceProcessTotal,
-          generalAdminCost,
-          businessProfit,
-          materialManageCost,
-          grandTotal,
+          directProcessTotal: 0,
+          outsourceProcessTotal: 0,
+          generalAdminCost: 0,
+          businessProfit: 0,
+          materialManageCost: 0,
+          grandTotal: materialsTotal,
           document_memo: memo // 💡 대장의 상세비고 컬럼과 연계 표시
         }),
         send_method: selectedChannels.join(","),
@@ -1106,19 +1016,19 @@ export default function GeneralEstimateWritePage() {
               </div>
             </div>
 
-            {/* 세션 1: 재료비 */}
+            {/* 세션 1: 상품 명세 */}
             <div className="bg-white border border-slate-200/80 rounded-3xl p-6 space-y-4 shadow-sm">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center gap-2">
                   <Coins className="w-4 h-4 text-indigo-500" />
-                  <h3 className="text-sm font-extrabold text-slate-800">1. 재료비 (제조원가 - 재료 품목 내역)</h3>
+                  <h3 className="text-sm font-extrabold text-slate-800">상품 명세</h3>
                 </div>
                 <button
                   onClick={handleAddMaterial}
                   className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg font-bold text-[10px] border border-indigo-200/40 transition-all flex items-center gap-1 cursor-pointer"
                 >
                   <Plus className="w-3 h-3" />
-                  재료 행 추가
+                  상품 추가
                 </button>
               </div>
 
@@ -1152,7 +1062,7 @@ export default function GeneralEstimateWritePage() {
                               type="text" 
                               value={it.productName || ""}
                               onChange={e => handleMaterialChange(idx, "productName", e.target.value)}
-                              placeholder="재료 품명 입력"
+                              placeholder="상품명 입력"
                               className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-800 outline-none focus:border-indigo-500"
                             />
                           </div>
@@ -1208,253 +1118,20 @@ export default function GeneralEstimateWritePage() {
                   </tbody>
                 </table>
               </div>
-
-              <div className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                <span className="text-xs font-bold text-slate-500">순수 재료비 합계액:</span>
-                <span className="text-sm font-black text-indigo-600 font-mono">{materialsTotal.toLocaleString()}원</span>
-              </div>
             </div>
 
-            {/* 세션 2: 가공비 (직접가공비 & 외주가공비 영역 통합) */}
-            <div className="bg-white border border-slate-200/80 rounded-3xl p-6 space-y-6 shadow-sm">
-              <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                <Coins className="w-4 h-4 text-indigo-500" />
-                <h3 className="text-sm font-extrabold text-slate-800">2. 가공비 (제조원가 - 직접 및 외주 가공 내역)</h3>
-              </div>
-
-              {/* 2-1. 직접 가공비 영역 */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                  <span className="text-xs font-black text-slate-700 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
-                    2-1. 직접 가공비 (자사 직접 임가공 공정)
-                  </span>
-                  <button
-                    onClick={handleAddDirectProcess}
-                    className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg font-bold text-[10px] border border-indigo-200/40 transition-all flex items-center gap-1 cursor-pointer"
-                  >
-                    <Plus className="w-3 h-3" />
-                    직접 공정 추가
-                  </button>
+            {/* 최종 견적 금액 */}
+            <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm text-left">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-indigo-50 border border-indigo-100 rounded-2xl p-5 shadow-inner gap-4">
+                <div>
+                  <span className="text-xs md:text-sm font-black text-indigo-600 uppercase tracking-wide block">최종 견적 금액 (부가세 별도)</span>
+                  <span className="text-[10px] md:text-xs text-slate-500 font-medium block mt-1">입력된 상품 품목들의 공급가액 합계입니다.</span>
                 </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="border-b border-slate-100 text-slate-400 font-bold">
-                        <th className="py-2.5 pl-1">직접 공정명 *</th>
-                        <th className="py-2.5 w-20 text-center">수량/공수</th>
-                        <th className="py-2.5 w-32 text-right">단가 (원)</th>
-                        <th className="py-2.5 w-36 text-right">금액 (원)</th>
-                        <th className="py-2.5">비고</th>
-                        <th className="py-2.5 w-10 text-center"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {directProcess.map((it, idx) => (
-                        <tr key={idx} className="group hover:bg-slate-50/50">
-                          <td className="py-2.5 pr-2 pl-1">
-                            <input 
-                              type="text" 
-                              value={it.processName}
-                              onChange={e => handleDirectProcessChange(idx, "processName", e.target.value)}
-                              placeholder="공정명 입력 (예: 조립, 절곡)"
-                              className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-800 outline-none focus:border-indigo-500"
-                            />
-                          </td>
-                          <td className="py-2.5 pr-2">
-                            <input 
-                              type="number" 
-                              value={it.quantity || ""}
-                              onChange={e => handleDirectProcessChange(idx, "quantity", e.target.value)}
-                              className="w-full bg-slate-50 border border-slate-200 rounded px-1.5 py-1 text-xs font-mono font-bold text-center text-slate-855 outline-none focus:border-indigo-500"
-                            />
-                          </td>
-                          <td className="py-2.5 pr-2">
-                            <input 
-                              type="number" 
-                              value={it.unitPrice || ""}
-                              onChange={e => handleDirectProcessChange(idx, "unitPrice", e.target.value)}
-                              className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs font-mono font-bold text-right text-slate-855 outline-none focus:border-indigo-500"
-                            />
-                          </td>
-                          <td className="py-2.5 pr-3 text-right font-mono font-black text-slate-700">
-                            {((it.quantity || 0) * (it.unitPrice || 0)).toLocaleString()}원
-                          </td>
-                          <td className="py-2.5 pr-2">
-                            <input 
-                              type="text" 
-                              value={it.remark}
-                              onChange={e => handleDirectProcessChange(idx, "remark", e.target.value)}
-                              placeholder="비고"
-                              className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-800 outline-none focus:border-indigo-500"
-                            />
-                          </td>
-                          <td className="py-2.5 text-center">
-                            <button
-                              onClick={() => handleRemoveDirectProcess(idx)}
-                              disabled={directProcess.length === 1}
-                              className="p-1.5 text-slate-450 hover:text-rose-500 disabled:opacity-30 rounded-lg hover:bg-rose-500/10 transition-all cursor-pointer"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="text-3xl font-black text-indigo-750 font-mono shrink-0">
+                  {grandTotal.toLocaleString()}원
                 </div>
-
-                <div className="flex justify-between items-center bg-slate-50/60 p-3 rounded-xl border border-slate-100">
-                  <span className="text-xs font-bold text-slate-500">직접 가공비 소계:</span>
-                  <span className="text-xs font-extrabold text-indigo-950 font-mono">{directProcessTotal.toLocaleString()}원</span>
-                </div>
-              </div>
-
-              {/* 구분 실선 */}
-              <hr className="border-slate-100/80" />
-
-              {/* 2-2. 외주 가공비 영역 */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                  <span className="text-xs font-black text-slate-700 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-pink-500"></span>
-                    2-2. 외주 가공비 (외부 위탁 및 특수 처리 공정)
-                  </span>
-                  <button
-                    onClick={handleAddOutsourceProcess}
-                    className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg font-bold text-[10px] border border-indigo-200/40 transition-all flex items-center gap-1 cursor-pointer"
-                  >
-                    <Plus className="w-3 h-3" />
-                    외주 공정 추가
-                  </button>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="border-b border-slate-100 text-slate-400 font-bold">
-                        <th className="py-2.5 pl-1">외주 공정명 *</th>
-                        <th className="py-2.5 w-20 text-center">수량/공수</th>
-                        <th className="py-2.5 w-32 text-right">단가 (원)</th>
-                        <th className="py-2.5 w-36 text-right">금액 (원)</th>
-                        <th className="py-2.5">비고</th>
-                        <th className="py-2.5 w-10 text-center"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {outsourceProcess.map((it, idx) => (
-                        <tr key={idx} className="group hover:bg-slate-50/50">
-                          <td className="py-2.5 pr-2 pl-1">
-                            <input 
-                              type="text" 
-                              value={it.processName}
-                              onChange={e => handleOutsourceProcessChange(idx, "processName", e.target.value)}
-                              placeholder="외주공정 입력 (예: 도장, 열처리)"
-                              className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-800 outline-none focus:border-indigo-500"
-                            />
-                          </td>
-                          <td className="py-2.5 pr-2">
-                            <input 
-                              type="number" 
-                              value={it.quantity || ""}
-                              onChange={e => handleOutsourceProcessChange(idx, "quantity", e.target.value)}
-                              className="w-full bg-slate-50 border border-slate-200 rounded px-1.5 py-1 text-xs font-mono font-bold text-center text-slate-855 outline-none focus:border-indigo-500"
-                            />
-                          </td>
-                          <td className="py-2.5 pr-2">
-                            <input 
-                              type="number" 
-                              value={it.unitPrice || ""}
-                              onChange={e => handleOutsourceProcessChange(idx, "unitPrice", e.target.value)}
-                              className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs font-mono font-bold text-right text-slate-855 outline-none focus:border-indigo-500"
-                            />
-                          </td>
-                          <td className="py-2.5 pr-3 text-right font-mono font-black text-slate-700">
-                            {((it.quantity || 0) * (it.unitPrice || 0)).toLocaleString()}원
-                          </td>
-                          <td className="py-2.5 pr-2">
-                            <input 
-                              type="text" 
-                              value={it.remark}
-                              onChange={e => handleOutsourceProcessChange(idx, "remark", e.target.value)}
-                              placeholder="비고"
-                              className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-800 outline-none focus:border-indigo-500"
-                            />
-                          </td>
-                          <td className="py-2.5 text-center">
-                            <button
-                              onClick={() => handleRemoveOutsourceProcess(idx)}
-                              disabled={outsourceProcess.length === 1}
-                              className="p-1.5 text-slate-450 hover:text-rose-500 disabled:opacity-30 rounded-lg hover:bg-rose-500/10 transition-all cursor-pointer"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="flex justify-between items-center bg-slate-50/60 p-3 rounded-xl border border-slate-100">
-                  <span className="text-xs font-bold text-slate-500">외주 가공비 소계:</span>
-                  <span className="text-xs font-extrabold text-indigo-950 font-mono">{outsourceProcessTotal.toLocaleString()}원</span>
-                </div>
-              </div>
-              {/* 가공비 통합 요약 바 */}
-              <div className="flex justify-between items-center bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/30">
-                <span className="text-xs font-black text-indigo-950">가공비 합계액 (직접 + 외주):</span>
-                <span className="text-sm font-black text-indigo-700 font-mono">{processTotal.toLocaleString()}원</span>
               </div>
             </div>
-
-              {/* 세션 3: 간접 제조 원가 */}
-              <div className="bg-white border border-slate-200/80 rounded-3xl p-6 space-y-4 shadow-sm text-left">
-                <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-                  <Settings className="w-4 h-4 text-indigo-500" />
-                  <h3 className="text-sm font-extrabold text-slate-800">3. 간접 제조 원가</h3>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-1">
-                    <span className="text-[10px] text-slate-500 font-bold">일반 관리비 (가공비의 10%)</span>
-                    <div className="text-base font-black text-slate-800 font-mono">
-                      {generalAdminCost.toLocaleString()}원
-                    </div>
-                    <span className="text-[9px] text-slate-400 font-semibold block">계산식: 가공비({processTotal.toLocaleString()}원) × 10%</span>
-                  </div>
-
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-1">
-                    <span className="text-[10px] text-slate-500 font-bold">기업 이윤 (가공비+관리비의 10%)</span>
-                    <div className="text-base font-black text-slate-800 font-mono">
-                      {businessProfit.toLocaleString()}원
-                    </div>
-                    <span className="text-[9px] text-slate-400 font-semibold block">계산식: (가공비+관리비) × 10%</span>
-                  </div>
-
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-1">
-                    <span className="text-[10px] text-slate-500 font-bold">기타 비용 (재료관리비의 5%)</span>
-                    <div className="text-base font-black text-slate-800 font-mono">
-                      {materialManageCost.toLocaleString()}원
-                    </div>
-                    <span className="text-[9px] text-slate-400 font-semibold block">계산식: 재료비({materialsTotal.toLocaleString()}원) × 5%</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 세션 4: 최종 견적 금액 */}
-              <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm text-left">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-indigo-50 border border-indigo-100 rounded-2xl p-5 shadow-inner gap-4">
-                  <div>
-                    <span className="text-xs md:text-sm font-black text-indigo-600 uppercase tracking-wide block">최종 견적 금액 (부가세 별도)</span>
-                    <span className="text-[10px] md:text-xs text-slate-500 font-medium block mt-1">재료비 + 가공비(직접/외주) + 일반관리비 + 기업이윤 + 재료관리비</span>
-                  </div>
-                  <div className="text-3xl font-black text-indigo-750 font-mono shrink-0">
-                    {grandTotal.toLocaleString()}원
-                  </div>
-                </div>
-              </div>
 
               {/* 세션 6: 특기사항 */}
               <div className="bg-white border border-slate-200/80 rounded-3xl p-6 space-y-4 text-left shadow-sm">
@@ -1518,69 +1195,6 @@ export default function GeneralEstimateWritePage() {
           {/* 우측 실시간 A4 스타일 미리보기 및 원가 명세 (4단) */}
           <div className="xl:col-span-4 space-y-6 print:block print:w-full print:p-0 print:m-0">
             
-            {/* 실시간 제조업 원가 명세 요약 */}
-            <div className="bg-white border border-slate-200/80 rounded-3xl p-6 space-y-6 text-left shadow-sm print:hidden">
-              <h3 className="text-sm font-black text-slate-800 flex items-center gap-2 uppercase tracking-wider">
-                <Coins className="w-4 h-4 text-indigo-500" />
-                <span>제조원가 종합 연산 명세</span>
-              </h3>
-
-              <div className="space-y-4">
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3.5 text-xs font-semibold">
-                  <div className="flex justify-between items-center text-slate-500">
-                    <span>1. 재료비 합계액</span>
-                    <span className="font-mono font-bold text-slate-850">{materialsTotal.toLocaleString()}원</span>
-                  </div>
-                  <div className="flex justify-between items-center text-slate-500">
-                    <span>2. 직접 가공비 합계</span>
-                    <span className="font-mono font-bold text-slate-850">{directProcessTotal.toLocaleString()}원</span>
-                  </div>
-                  <div className="flex justify-between items-center text-slate-500">
-                    <span>3. 외주 가공비 합계</span>
-                    <span className="font-mono font-bold text-slate-850">{outsourceProcessTotal.toLocaleString()}원</span>
-                  </div>
-                  <div className="flex justify-between items-center text-slate-500">
-                    <span>4. 일반관리비 <b className="text-[10px] text-indigo-500">(가공비의 10%)</b></span>
-                    <span className="font-mono font-bold text-indigo-600">{generalAdminCost.toLocaleString()}원</span>
-                  </div>
-                  <div className="flex justify-between items-center text-slate-500">
-                    <span>5. 기업이윤 <b className="text-[10px] text-pink-500">(가공비+관리비의 10%)</b></span>
-                    <span className="font-mono font-bold text-pink-600">{businessProfit.toLocaleString()}원</span>
-                  </div>
-                  <div className="flex justify-between items-center text-slate-500">
-                    <span>6. 재료관리비 <b className="text-[10px] text-amber-600">(재료비의 5%)</b></span>
-                    <span className="font-mono font-bold text-amber-600">{materialManageCost.toLocaleString()}원</span>
-                  </div>
-                </div>
-
-                {/* 원가 구성비 인디케이터 바 */}
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                    <span>원가 구성비</span>
-                    <span>재료비 {grandTotal > 0 ? Math.round(((materialsTotal + materialManageCost) / grandTotal) * 100) : 0}% | 가공비 등 {grandTotal > 0 ? Math.round(((processTotal + generalAdminCost + businessProfit) / grandTotal) * 100) : 0}%</span>
-                  </div>
-                  <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden flex">
-                    <div 
-                      className="bg-indigo-500 h-full transition-all duration-500" 
-                      style={{ width: `${grandTotal > 0 ? ((materialsTotal + materialManageCost) / grandTotal) * 100 : 0}%` }}
-                    />
-                    <div 
-                      className="bg-pink-500 h-full transition-all duration-500" 
-                      style={{ width: `${grandTotal > 0 ? ((processTotal + generalAdminCost + businessProfit) / grandTotal) * 100 : 0}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* 최종 견적금액 디스플레이 */}
-                <div className="p-5 bg-indigo-50 border border-indigo-100 rounded-2xl text-center space-y-1.5 shadow-inner">
-                  <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest block">제조원가 기반 최종 견적합계액 (부가세 별도)</span>
-                  <span className="text-2xl font-black text-indigo-750 font-mono block">
-                    {grandTotal.toLocaleString()}원
-                  </span>
-                </div>
-              </div>
-            </div>
-
             {/* A4 프린트 인쇄 레이아웃 미리보기 모듈 */}
             <div className="bg-white text-slate-800 border border-slate-200 rounded-3xl p-5 space-y-4 shadow-md block text-left text-[9px] font-medium leading-normal relative overflow-hidden hidden md:block print:block print:w-full print:border-none print:shadow-none print:p-0 print:m-0">
               {/* 상단 인쇄용 워터마크 안내 */}
@@ -1620,18 +1234,18 @@ export default function GeneralEstimateWritePage() {
 
               {/* 총액 선언 */}
               <div className="bg-slate-50 border border-slate-200 p-2 text-center text-slate-800 flex justify-between px-4 font-bold rounded-lg">
-                <span>합계 견적 금액 (제조원가 합계):</span>
+                <span>합계 견적 금액:</span>
                 <span className="underline underline-offset-2 font-black text-slate-900">₩{grandTotal.toLocaleString()}원 (부가세 별도)</span>
               </div>
 
-              {/* 품목 요약 테이블 (재료비, 가공비) */}
+              {/* 품목 요약 테이블 */}
               <div className="space-y-2">
-                <span className="font-bold text-slate-400 text-[8px] uppercase tracking-wider block">제조 비용 비례 세부 명세</span>
+                <span className="font-bold text-slate-400 text-[8px] uppercase tracking-wider block">견적 품목 세부 명세</span>
                 <table className="w-full text-left text-[8px] border-t border-b border-slate-200 divide-y divide-slate-100">
                   <thead>
                     <tr className="text-slate-400 bg-slate-50/50">
-                      <th className="py-1 pl-1 w-14">구분</th>
-                      <th className="py-1 w-28">세부 품목/공정명</th>
+                      <th className="py-1 pl-1 w-14">코드</th>
+                      <th className="py-1 w-28">상품명</th>
                       <th className="py-1 w-16">규격</th>
                       <th className="py-1 w-8 text-center">수량</th>
                       <th className="py-1 w-16 text-right pr-1">단가 (원)</th>
@@ -1639,19 +1253,10 @@ export default function GeneralEstimateWritePage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {/* 재료비 대분류 헤더 행 (합계 금액 표기) */}
-                    <tr className="bg-slate-50/50 text-slate-800 font-extrabold text-[8px]">
-                      <td className="py-1 pl-1 text-slate-700" colSpan={2}>재료비 (재료 품목 내역)</td>
-                      <td className="py-1">-</td>
-                      <td className="py-1 text-center">-</td>
-                      <td className="py-1 text-right font-mono pr-1">-</td>
-                      <td className="py-1 text-right font-mono pr-1 text-indigo-700 font-black">{materialsTotal.toLocaleString()}원</td>
-                    </tr>
-
-                    {/* 재료비 내역 전체 출력 (구분 컬럼에 └ 품목코드 노출) */}
+                    {/* 일반 견적 상품 목록 전체 출력 */}
                     {materials.filter(m => m.productName).map((m, idx) => (
                       <tr key={`m-${idx}`} className="text-slate-755">
-                        <td className="py-1 pl-2 text-slate-450 font-bold">└ {m.itemCode || `INV-${idx + 1}`}</td>
+                        <td className="py-1 pl-1 text-slate-450 font-bold font-mono">{m.itemCode || `INV-${idx + 1}`}</td>
                         <td className="py-1 break-all whitespace-normal" title={m.productName}>
                           {m.productName}
                           {m.remark && (
@@ -1664,81 +1269,6 @@ export default function GeneralEstimateWritePage() {
                         <td className="py-1 text-right font-mono pr-1">{((m.quantity || 0) * (m.unitPrice || 0)).toLocaleString()}</td>
                       </tr>
                     ))}
-
-                    {/* 가공비 대분류 헤더 행 */}
-                    <tr className="bg-slate-50/50 text-slate-800 font-extrabold text-[8px]">
-                      <td className="py-1 pl-1 text-slate-700" colSpan={2}>가공비 (공정 및 가공비 명세)</td>
-                      <td className="py-1">-</td>
-                      <td className="py-1 text-center">-</td>
-                      <td className="py-1 text-right font-mono pr-1">-</td>
-                      <td className="py-1 text-right font-mono pr-1 text-indigo-700 font-black">{processTotal.toLocaleString()}원</td>
-                    </tr>
-
-                    {/* 직접가공비 상세 내역 */}
-                    {directProcess.filter(p => p.processName).map((p, idx) => (
-                      <tr key={`dp-${idx}`} className="text-slate-755">
-                        <td className="py-1 pl-2 text-indigo-500 font-bold">└ 직접가공</td>
-                        <td className="py-1 break-all whitespace-normal" title={p.processName}>
-                          {p.processName}
-                          {p.remark && (
-                            <span className="text-[7.5px] text-slate-400 ml-1 font-medium">({p.remark})</span>
-                          )}
-                        </td>
-                        <td className="py-1">-</td>
-                        <td className="py-1 text-center font-mono">{p.quantity}</td>
-                        <td className="py-1 text-right font-mono pr-1">{p.unitPrice ? p.unitPrice.toLocaleString() : "0"}</td>
-                        <td className="py-1 text-right font-mono pr-1">{((p.quantity || 0) * (p.unitPrice || 0)).toLocaleString()}</td>
-                      </tr>
-                    ))}
-
-                    {/* 외주가공비 상세 내역 */}
-                    {outsourceProcess.filter(p => p.processName).map((p, idx) => (
-                      <tr key={`op-${idx}`} className="text-slate-755">
-                        <td className="py-1 pl-2 text-pink-500 font-bold">└ 외주가공</td>
-                        <td className="py-1 break-all whitespace-normal" title={p.processName}>
-                          {p.processName}
-                          {p.remark && (
-                            <span className="text-[7.5px] text-slate-400 ml-1 font-medium">({p.remark})</span>
-                          )}
-                        </td>
-                        <td className="py-1">-</td>
-                        <td className="py-1 text-center font-mono">{p.quantity}</td>
-                        <td className="py-1 text-right font-mono pr-1">{p.unitPrice ? p.unitPrice.toLocaleString() : "0"}</td>
-                        <td className="py-1 text-right font-mono pr-1">{((p.quantity || 0) * (p.unitPrice || 0)).toLocaleString()}</td>
-                      </tr>
-                    ))}
-
-                    {/* 간접 제조 원가 대분류 헤더 행 */}
-                    <tr className="bg-slate-50/50 text-slate-800 font-extrabold text-[8px]">
-                      <td className="py-1 pl-1 text-slate-700" colSpan={2}>간접 제조 원가</td>
-                      <td className="py-1">-</td>
-                      <td className="py-1 text-center">-</td>
-                      <td className="py-1 text-right font-mono pr-1">-</td>
-                      <td className="py-1 text-right font-mono pr-1 text-indigo-700 font-black">{(generalAdminCost + businessProfit + materialManageCost).toLocaleString()}원</td>
-                    </tr>
-
-                    {/* 간접원가 행들 */}
-                    <tr className="text-slate-755">
-                      <td className="py-1 pl-2 text-indigo-500 font-bold">└ 일반관리비</td>
-                      <td className="py-1" colSpan={2}>일반관리비 (가공비의 10%)</td>
-                      <td className="py-1 text-center">-</td>
-                      <td className="py-1 text-right font-mono pr-1">-</td>
-                      <td className="py-1 text-right font-mono pr-1">{generalAdminCost.toLocaleString()}</td>
-                    </tr>
-                    <tr className="text-slate-755">
-                      <td className="py-1 pl-2 text-indigo-500 font-bold">└ 기업이윤</td>
-                      <td className="py-1" colSpan={2}>기업이윤 (가공비+관리비의 10%)</td>
-                      <td className="py-1 text-center">-</td>
-                      <td className="py-1 text-right font-mono pr-1">-</td>
-                      <td className="py-1 text-right font-mono pr-1">{businessProfit.toLocaleString()}</td>
-                    </tr>
-                    <tr className="text-slate-755">
-                      <td className="py-1 pl-2 text-indigo-500 font-bold">└ 기타비용</td>
-                      <td className="py-1" colSpan={2}>기타비용 (재료관리비의 5%)</td>
-                      <td className="py-1 text-center">-</td>
-                      <td className="py-1 text-right font-mono pr-1">-</td>
-                      <td className="py-1 text-right font-mono pr-1">{materialManageCost.toLocaleString()}</td>
-                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -1776,8 +1306,6 @@ export default function GeneralEstimateWritePage() {
 
         </div>
 
-      </div>
-
       {/* 7. 다중 채널 발송 시뮬레이터 모달 */}
       {isSendModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -1796,7 +1324,7 @@ export default function GeneralEstimateWritePage() {
                 <span>채널별 견적서 발송</span>
               </h3>
               <p className="text-xs text-slate-500 font-semibold leading-relaxed">
-                작성 완료된 제조업 전용 견적서를 원하는 채널로 즉시 발송합니다.
+                작성 완료된 일반 견적서를 원하는 채널로 즉시 발송합니다.
               </p>
             </div>
 
@@ -1909,7 +1437,7 @@ export default function GeneralEstimateWritePage() {
                 </div>
                 <div><b>발송 대상 견적서:</b> {meta.estimateNumber}</div>
                 <div><b>수신 바이어명:</b> {buyer.companyName} {buyer.managerName} 귀하</div>
-                <div><b>제조원가 합계액:</b> {grandTotal.toLocaleString()}원</div>
+                <div><b>최종 견적 금액:</b> {grandTotal.toLocaleString()}원</div>
               </div>
             </div>
 
@@ -1944,5 +1472,6 @@ export default function GeneralEstimateWritePage() {
       )}
 
     </div>
-  );
+  </div>
+);
 }
