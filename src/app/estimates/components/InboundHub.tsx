@@ -273,10 +273,10 @@ export default function InboundHub({
               </button>
               <button
                 onClick={onOpenOcrModal}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-indigo-600/10 flex items-center gap-1.5"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-indigo-600/10 flex items-center gap-1.5 whitespace-nowrap"
               >
                 <Upload className="w-4 h-4" />
-                받은 견적 이미지 AI 스캔
+                받은 견적서 스캔
               </button>
             </>
           )}
