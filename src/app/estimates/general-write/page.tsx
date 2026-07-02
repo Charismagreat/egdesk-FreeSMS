@@ -23,6 +23,12 @@ interface MaterialItem {
   remark: string;
 }
 
+interface ExtraCostItem {
+  name: string;
+  amount: number;
+  remark: string;
+}
+
 interface ProcessItem {
   processName: string;
   quantity: number;
@@ -62,6 +68,10 @@ export default function GeneralEstimateWritePage() {
   
   const [memo, setMemo, isMemoRestored] = usePersistedState("egdesk_gen_est_memo_v2", "");
 
+  const [extraCosts, setExtraCosts, isExtraCostsRestored] = usePersistedState<ExtraCostItem[]>("egdesk_gen_est_extra_costs_v2", [
+    { name: "", amount: 0, remark: "" }
+  ]);
+
   // 특기사항 템플릿 상태 보존 (초기 기본 2종 장착)
   const [memoTemplates, setMemoTemplates] = usePersistedState<{ id: string; title: string; content: string }[]>("egdesk_gen_est_memo_templates_v2", [
     {
@@ -77,7 +87,7 @@ export default function GeneralEstimateWritePage() {
   ]);
 
   // 모든 세션 로드 완료 여부
-  const isRestored = isSupplierRestored && isBuyerRestored && isMetaRestored && isMaterialsRestored && isMemoRestored;
+  const isRestored = isSupplierRestored && isBuyerRestored && isMetaRestored && isMaterialsRestored && isMemoRestored && isExtraCostsRestored;
 
   // 발송 모달 제어 상태 (옴니채널 다중 선택 지원)
   const [isSendModalOpen, setIsSendModalOpen] = useState(false);
@@ -209,8 +219,9 @@ export default function GeneralEstimateWritePage() {
     );
     if (hasDummy) {
       setMaterials([{ itemCode: "", productName: "", spec: "", quantity: 0, unitPrice: 0, remark: "" }]);
+      setExtraCosts([{ name: "", amount: 0, remark: "" }]);
     }
-  }, [isRestored, materials, setMaterials]);
+  }, [isRestored, materials, setMaterials, setExtraCosts]);
 
   // 로그인 사용자(작성자) 프로필 정보 자동 로드 및 세팅 (crm_operators 연동)
   useEffect(() => {
@@ -339,6 +350,7 @@ export default function GeneralEstimateWritePage() {
 
   // 4. 실시간 원가 합산 계산 공식
   const materialsTotal = materials.reduce((sum, it) => sum + (Number(it.quantity) || 0) * (Number(it.unitPrice) || 0), 0);
+  const extraCostsTotal = extraCosts.reduce((sum, it) => sum + (Number(it.amount) || 0), 0);
   const directProcessTotal = 0;
   const outsourceProcessTotal = 0;
   const processTotal = 0;
@@ -350,8 +362,8 @@ export default function GeneralEstimateWritePage() {
   // 재료관리비 = 재료비의 5%
   const materialManageCost = 0;
 
-  // 최종 견적금액 (재료비 + 가공비 + 일반관리비 + 기업이윤 + 재료관리비)
-  const grandTotal = materialsTotal;
+  // 최종 견적금액 (재료비 + 기타 부대 비용)
+  const grandTotal = materialsTotal + extraCostsTotal;
 
   // 5. 폼 제어 핸들러
   const handleAddMaterial = () => {
@@ -463,9 +475,30 @@ export default function GeneralEstimateWritePage() {
     setMaterials(updated);
   };
 
+  // 기타 부대 비용 제어 핸들러
+  const handleAddExtraCost = () => {
+    setExtraCosts([...extraCosts, { name: "", amount: 0, remark: "" }]);
+  };
+
+  const handleRemoveExtraCost = (index: number) => {
+    if (extraCosts.length === 1) return;
+    setExtraCosts(extraCosts.filter((_, idx) => idx !== index));
+  };
+
+  const handleExtraCostChange = (index: number, field: keyof ExtraCostItem, value: any) => {
+    const updated = [...extraCosts];
+    if (field === "amount") {
+      updated[index][field] = Number(value) || 0;
+    } else {
+      updated[index][field] = value;
+    }
+    setExtraCosts(updated);
+  };
+
   // 작성 내용 완전히 초기화
   const handleResetForm = () => {
     if (window.confirm("작성 중인 모든 견적서 내용을 초기화하고 빈 양식으로 시작하시겠습니까?")) {
+      setExtraCosts([{ name: "", amount: 0, remark: "" }]);
       setSupplier({
         businessNumber: "",
         companyName: "",
@@ -594,7 +627,7 @@ export default function GeneralEstimateWritePage() {
 
     setIsSending(true);
     try {
-      // 💡 일반 품목 목록을 단일 API 전송 스키마로 취합
+      // 💡 일반 품목 및 기타 부대 비용 목록을 단일 API 전송 스키마로 취합
       const payloadItems: any[] = [];
       
       materials.forEach((m) => {
@@ -616,8 +649,26 @@ export default function GeneralEstimateWritePage() {
         }
       });
 
+      extraCosts.forEach((e) => {
+        if (e.name && e.name.trim()) {
+          payloadItems.push({
+            product_id: "",
+            item_code: "EXTRA-COST",
+            product_name: e.name,
+            quantity: 1,
+            unit_price: e.amount || 0,
+            amount: e.amount || 0,
+            delivery_date: "",
+            spec: JSON.stringify({
+              type: "EXTRA_COST",
+              remark: e.remark || ""
+            })
+          });
+        }
+      });
+
       if (payloadItems.length === 0) {
-        alert("최소 1개 이상의 유효한 견적 품목(상품)을 입력해 주세요.");
+        alert("최소 1개 이상의 유효한 견적 품목(상품 또는 기타 비용)을 입력해 주세요.");
         setIsSending(false);
         return;
       }
@@ -633,12 +684,13 @@ export default function GeneralEstimateWritePage() {
         tags: JSON.stringify({ 
           is_manufacture: false,
           materialsTotal,
+          extraCostsTotal,
           directProcessTotal: 0,
           outsourceProcessTotal: 0,
           generalAdminCost: 0,
           businessProfit: 0,
           materialManageCost: 0,
-          grandTotal: materialsTotal,
+          grandTotal: materialsTotal + extraCostsTotal,
           document_memo: memo // 💡 대장의 상세비고 컬럼과 연계 표시
         }),
         send_method: selectedChannels.join(","),
@@ -1120,12 +1172,89 @@ export default function GeneralEstimateWritePage() {
               </div>
             </div>
 
+            {/* 세션 1-2: 기타 부대 비용 */}
+            <div className="bg-white border border-slate-200/80 rounded-3xl p-6 space-y-4 shadow-sm text-left">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2">
+                  <Coins className="w-4 h-4 text-indigo-500" />
+                  <h3 className="text-sm font-extrabold text-slate-800">기타 부대 비용</h3>
+                </div>
+                <button
+                  onClick={handleAddExtraCost}
+                  className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg font-bold text-[10px] border border-indigo-200/40 transition-all flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus className="w-3 h-3" />
+                  비용 추가
+                </button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-slate-400 font-bold">
+                      <th className="py-2.5 pl-1">비용 명칭 *</th>
+                      <th className="py-2.5 w-48 text-right">금액 (원)</th>
+                      <th className="py-2.5 pl-4">비고 (세부 사유)</th>
+                      <th className="py-2.5 w-10 text-center"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {extraCosts.map((it, idx) => (
+                      <tr key={idx} className="group hover:bg-slate-50/50">
+                        <td className="py-2.5 pr-2 pl-1">
+                          <input 
+                            type="text" 
+                            value={it.name}
+                            onChange={e => handleExtraCostChange(idx, "name", e.target.value)}
+                            placeholder="비용 항목명 입력 (예: 화물 배송비, 현장 설치비)"
+                            className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-800 outline-none focus:border-indigo-500"
+                          />
+                        </td>
+                        <td className="py-2.5 pr-2 text-right">
+                          <input 
+                            type="number" 
+                            value={it.amount || ""}
+                            onChange={e => handleExtraCostChange(idx, "amount", e.target.value)}
+                            placeholder="0"
+                            className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs font-mono font-bold text-right text-slate-855 outline-none focus:border-indigo-500"
+                          />
+                        </td>
+                        <td className="py-2.5 pr-2 pl-4">
+                          <input 
+                            type="text" 
+                            value={it.remark}
+                            onChange={e => handleExtraCostChange(idx, "remark", e.target.value)}
+                            placeholder="비고 입력 (예: 5톤 탑차 운반 비용)"
+                            className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-800 outline-none focus:border-indigo-500"
+                          />
+                        </td>
+                        <td className="py-2.5 text-center">
+                          <button
+                            onClick={() => handleRemoveExtraCost(idx)}
+                            disabled={extraCosts.length === 1}
+                            className="p-1.5 text-slate-450 hover:text-rose-500 disabled:opacity-30 rounded-lg hover:bg-rose-500/10 transition-all cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex justify-between items-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <span className="text-xs font-bold text-slate-500">기타 부대 비용 합계액:</span>
+                <span className="text-sm font-black text-indigo-600 font-mono">{extraCostsTotal.toLocaleString()}원</span>
+              </div>
+            </div>
+
             {/* 최종 견적 금액 */}
             <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-sm text-left">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between bg-indigo-50 border border-indigo-100 rounded-2xl p-5 shadow-inner gap-4">
                 <div>
                   <span className="text-xs md:text-sm font-black text-indigo-600 uppercase tracking-wide block">최종 견적 금액 (부가세 별도)</span>
-                  <span className="text-[10px] md:text-xs text-slate-500 font-medium block mt-1">입력된 상품 품목들의 공급가액 합계입니다.</span>
+                  <span className="text-[10px] md:text-xs text-slate-500 font-medium block mt-1">입력된 상품 품목 및 기타 부대 비용의 공급가액 총합계입니다.</span>
                 </div>
                 <div className="text-3xl font-black text-indigo-750 font-mono shrink-0">
                   {grandTotal.toLocaleString()}원
@@ -1267,6 +1396,23 @@ export default function GeneralEstimateWritePage() {
                         <td className="py-1 text-center font-mono">{m.quantity}</td>
                         <td className="py-1 text-right font-mono pr-1">{m.unitPrice ? m.unitPrice.toLocaleString() : "0"}</td>
                         <td className="py-1 text-right font-mono pr-1">{((m.quantity || 0) * (m.unitPrice || 0)).toLocaleString()}</td>
+                      </tr>
+                    ))}
+
+                    {/* 기타 부대 비용 목록 전체 출력 */}
+                    {extraCosts.filter(e => e.name).map((e, idx) => (
+                      <tr key={`e-${idx}`} className="text-slate-755 bg-slate-50/20">
+                        <td className="py-1 pl-1 text-indigo-500 font-bold font-mono">EXTRA</td>
+                        <td className="py-1 break-all whitespace-normal" title={e.name}>
+                          {e.name}
+                          {e.remark && (
+                            <span className="text-[7.5px] text-slate-400 ml-1 font-medium">({e.remark})</span>
+                          )}
+                        </td>
+                        <td className="py-1">-</td>
+                        <td className="py-1 text-center font-mono">1</td>
+                        <td className="py-1 text-right font-mono pr-1">{e.amount ? e.amount.toLocaleString() : "0"}</td>
+                        <td className="py-1 text-right font-mono pr-1">{e.amount ? e.amount.toLocaleString() : "0"}</td>
                       </tr>
                     ))}
                   </tbody>
