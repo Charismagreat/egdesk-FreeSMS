@@ -16,6 +16,31 @@ const formatBusinessNumber = (numStr: string) => {
   return `${clean.slice(0, 3)}-${clean.slice(3, 5)}-${clean.slice(5)}`;
 };
 
+const formatSpec = (specStr: string): string => {
+  if (!specStr) return "-";
+  const trimmed = String(specStr).trim();
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed.spec && String(parsed.spec).trim()) return parsed.spec;
+      if (parsed.remark && String(parsed.remark).trim()) return parsed.remark;
+      if (parsed.type) {
+        const typeLabels: Record<string, string> = {
+          "DIRECT_PROCESS": "직접가공비",
+          "OUTSOURCE_PROCESS": "외주가공비",
+          "EXTRA_COST": "기타부대비용",
+          "MATERIAL": "원자재/상품"
+        };
+        return typeLabels[parsed.type] || parsed.type;
+      }
+      return "-";
+    } catch {
+      return specStr;
+    }
+  }
+  return specStr;
+};
+
 // 수주 건 조회 및 복수 선택용 컴포넌트
 interface OrderLookupModalProps {
   isOpen: boolean;
@@ -31,10 +56,14 @@ function OrderLookupModal({ isOpen, onClose, onSelect, orders, buyerName }: Orde
 
   const filtered = orders.filter(o => {
     const custName = o.customer_name || "";
-    const prodName = o.product_name || "";
     const idStr = o.id || "";
     const q = search.trim().toLowerCase();
-    return custName.toLowerCase().includes(q) || prodName.toLowerCase().includes(q) || idStr.toLowerCase().includes(q);
+    
+    const hasProductMatch = o.items?.some((it: any) => 
+      (it.product_name || "").toLowerCase().includes(q)
+    );
+    
+    return custName.toLowerCase().includes(q) || idStr.toLowerCase().includes(q) || hasProductMatch;
   });
 
   const handleToggle = (id: string) => {
@@ -113,10 +142,24 @@ function OrderLookupModal({ isOpen, onClose, onSelect, orders, buyerName }: Orde
                       </td>
                       <td className="py-2.5 px-2 font-mono font-bold text-slate-500">{o.id}</td>
                       <td className="py-2.5 px-2 font-bold text-slate-800 font-sans">{o.customer_name}</td>
-                      <td className="py-2.5 px-2 text-slate-700 font-medium font-sans">{o.product_name}</td>
-                      <td className="py-2.5 px-2 text-right font-mono font-bold text-slate-650">{o.quantity || "1"}개</td>
+                      <td className="py-2.5 px-2 text-slate-700 font-medium font-sans">
+                        {o.items && o.items.length > 0
+                          ? o.items.length > 1
+                            ? `${o.items[0].product_name} 외 ${o.items.length - 1}건`
+                            : o.items[0].product_name
+                          : o.product_name || "-"}
+                      </td>
+                      <td className="py-2.5 px-2 text-right font-mono font-bold text-slate-650">
+                        {o.items && o.items.length > 0
+                          ? `${o.items.reduce((acc: number, cur: any) => acc + (Number(cur.quantity) || 0), 0)}개`
+                          : `${o.quantity || 1}개`}
+                      </td>
                       <td className="py-2.5 px-4 text-right font-mono font-black text-slate-700">
-                        {o.total_price ? Number(o.total_price).toLocaleString() : "0"}원
+                        {o.total_amount !== undefined
+                          ? `${Number(o.total_amount).toLocaleString()}원`
+                          : o.total_price
+                          ? `${Number(o.total_price).toLocaleString()}원`
+                          : "0원"}
                       </td>
                     </tr>
                   ))
@@ -336,6 +379,17 @@ export default function DeliveryStatementWritePage() {
   }, []);
 
   useEffect(() => {
+    fetch("/api/estimates/process?action=so_list")
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.salesOrders)) {
+          setOrderList(data.salesOrders);
+        }
+      })
+      .catch(err => console.error("수주 목록 로드 실패:", err));
+  }, []);
+
+  useEffect(() => {
     fetch("/api/inventory")
       .then(res => res.json())
       .then(data => {
@@ -516,21 +570,36 @@ export default function DeliveryStatementWritePage() {
       email: prev.email || ""
     }));
 
-    // 품목 목록 구성
-    const items = selectedOrders.map((o, idx) => {
-      const qty = Number(o.quantity) || 1;
-      const total = Number(o.total_price) || 0;
-      const price = qty > 0 ? Math.round(total / qty) : total;
-      return {
-        itemCode: "",
-        productName: o.product_name || "",
-        spec: "",
-        quantity: qty,
-        unitPrice: price,
-        remark: o.id ? `수주번호:${o.id}` : ""
-      };
+    // 품목 목록 구성 (각 수주건의 items 배열을 평탄화하여 복원, 없으면 o 자체 정보 폴백)
+    const itemsList: any[] = [];
+    selectedOrders.forEach(o => {
+      if (o.items && Array.isArray(o.items) && o.items.length > 0) {
+        o.items.forEach((it: any) => {
+          itemsList.push({
+            itemCode: it.item_code || "",
+            productName: it.product_name || "",
+            spec: it.spec ? formatSpec(it.spec) : "",
+            quantity: Number(it.quantity) || 0,
+            unitPrice: Number(it.unit_price) || 0,
+            remark: o.id ? `수주:${o.id}` : ""
+          });
+        });
+      } else {
+        const qty = Number(o.quantity) || 1;
+        const total = Number(o.total_price) || 0;
+        const price = qty > 0 ? Math.round(total / qty) : total;
+        itemsList.push({
+          itemCode: "",
+          productName: o.product_name || "",
+          spec: "",
+          quantity: qty,
+          unitPrice: price,
+          remark: o.id ? `수주:${o.id}` : ""
+        });
+      }
     });
-    setMaterials(items);
+    
+    setMaterials(itemsList.length > 0 ? itemsList : [{ itemCode: "", productName: "", spec: "", quantity: 0, unitPrice: 0, remark: "" }]);
   };
 
   const handleAddMaterial = () => {
