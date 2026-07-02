@@ -1049,7 +1049,16 @@ export default function DeliveryStatementWritePage() {
                 {/* 공급받는자 정보 및 작성 정보 */}
                 <div className="space-y-4 text-left">
                   <div className="bg-slate-50 p-4.5 rounded-2xl border border-slate-200/60 space-y-4">
-                    <span className="text-[10px] font-black text-slate-500 border-b border-slate-200 pb-2 block uppercase tracking-widest">공급받는자 정보 (바이어)</span>
+                    <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">공급받는자 정보 (바이어)</span>
+                      <button
+                        onClick={() => setIsOrderModalOpen(true)}
+                        className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-md font-bold text-[9px] border border-indigo-200/40 transition-all flex items-center gap-1 cursor-pointer font-sans"
+                      >
+                        <Layers className="w-2.5 h-2.5" />
+                        수주 건 선택
+                      </button>
+                    </div>
                     
                     <div className="grid grid-cols-2 gap-2">
                       <div className="relative">
