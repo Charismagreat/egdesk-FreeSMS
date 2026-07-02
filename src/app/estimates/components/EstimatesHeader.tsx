@@ -35,6 +35,15 @@ export default function EstimatesHeader({
           (제조)보낼 견적서 작성
         </Link>
 
+        {/* 제조업 특화 보낸 견적서 상세 대장 링크 */}
+        <Link
+          href="/estimates/manufacture-webview"
+          className="py-3 px-5 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl text-xs md:text-sm font-black flex items-center justify-center transition-all shadow-lg shadow-slate-800/10 active:scale-95 whitespace-nowrap cursor-pointer"
+        >
+          <ArrowRightLeft className="w-4 h-4 mr-2 text-indigo-400" />
+          (제조)보낸 견적서 상세 내역
+        </Link>
+
         {/* 허브 전환 탭 버튼 */}
         <div className="flex bg-slate-200/60 p-1.5 rounded-2xl border border-slate-100 max-w-md shadow-inner">
           <button
