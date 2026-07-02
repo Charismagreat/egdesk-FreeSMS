@@ -70,6 +70,21 @@ export default function EstimateDetailModal({
     detailData.estimate.type === 'OUTBOUND' && 
     detailData.estimate.direction_status === 'RECEIVED');
 
+  // 거래명세서 여부 판단
+  const isStatement = !!(detailData && 
+    detailData.estimate.tags && 
+    (() => {
+      try {
+        const parsed = JSON.parse(detailData.estimate.tags);
+        return parsed.is_statement === true;
+      } catch {
+        return false;
+      }
+    })()
+  );
+
+  const docTypeName = isStatement ? "거래명세서" : (isSalesOrderScan ? "발주서" : "견적서");
+
   // 태그 프리셋 및 본사 프로필 로드
   useEffect(() => {
     if (isOpen) {
@@ -293,7 +308,7 @@ export default function EstimateDetailModal({
       });
       const data = await res.json();
       if (data.success) {
-        alert(isSalesOrderScan ? "발주서가 성공적으로 수정되었습니다." : "견적서가 성공적으로 수정되었습니다.");
+        alert(`${docTypeName}가 성공적으로 수정되었습니다.`);
         setIsEditingDetail(false);
         onRefresh();
         if (estimateId) {
@@ -303,7 +318,7 @@ export default function EstimateDetailModal({
         alert(data.error || "수정에 실패했습니다.");
       }
     } catch (err) {
-      alert(isSalesOrderScan ? "발주 수정 중 네트워크 오류가 발생했습니다." : "견적 수정 중 네트워크 오류가 발생했습니다.");
+      alert(`${docTypeName} 수정 중 네트워크 오류가 발생했습니다.`);
     } finally {
       setIsProcessing(false);
     }
@@ -311,7 +326,7 @@ export default function EstimateDetailModal({
 
   const handleDeleteEstimate = async () => {
     if (!estimateId) return;
-    if (!confirm(isSalesOrderScan ? "정말로 이 발주서를 완전히 삭제하시겠습니까? 관련 데이터가 영구 유실됩니다." : "정말로 이 견적서를 완전히 삭제하시겠습니까? 관련 데이터가 영구 유실됩니다.")) return;
+    if (!confirm(`정말로 이 ${docTypeName}를 완전히 삭제하시겠습니까? 관련 데이터가 영구 유실됩니다.`)) return;
     
     try {
       setIsProcessing(true);
@@ -320,7 +335,7 @@ export default function EstimateDetailModal({
       });
       const data = await res.json();
       if (data.success) {
-        alert(isSalesOrderScan ? "발주서 및 세부 품목이 성공적으로 삭제되었습니다." : "견적서 및 세부 품목이 성공적으로 삭제되었습니다.");
+        alert(`${docTypeName} 및 세부 품목이 성공적으로 삭제되었습니다.`);
         onRefresh();
         onClose();
       } else {
@@ -331,7 +346,7 @@ export default function EstimateDetailModal({
         }
       }
     } catch (err) {
-      alert(isSalesOrderScan ? "발주 삭제 중 네트워크 오류가 발생했습니다." : "견적 삭제 중 네트워크 오류가 발생했습니다.");
+      alert(`${docTypeName} 삭제 중 네트워크 오류가 발생했습니다.`);
     } finally {
       setIsProcessing(false);
     }
@@ -368,7 +383,7 @@ export default function EstimateDetailModal({
         <div className="flex justify-between items-center mb-4 pr-8">
           <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
             <FileText className="w-5 h-5 text-indigo-500" />
-          <span>{isEditingDetail ? `${isSalesOrderScan ? "발주서" : "견적서"} 상세 정보 수정 (최고관리자)` : `${isSalesOrderScan ? "발주서" : "견적서"} 상세 내역 및 원본 파일 조회`}</span>
+            <span>{isEditingDetail ? `${docTypeName} 상세 정보 수정 (최고관리자)` : `${docTypeName} 상세 내역 및 원본 파일 조회`}</span>
           </h3>
         </div>
 
@@ -521,17 +536,21 @@ export default function EstimateDetailModal({
                           />
                         </div>
                         <div>
-                          <label className="text-slate-400 font-bold block mb-1">{isSalesOrderScan ? "문서 발주번호" : "문서 견적번호"}</label>
+                          <label className="text-slate-400 font-bold block mb-1">
+                            {isStatement ? "문서 번호" : (isSalesOrderScan ? "문서 발주번호" : "문서 견적번호")}
+                          </label>
                           <input 
                             type="text" 
                             value={editForm.document_number}
                             onChange={e => setEditForm(prev => ({ ...prev, document_number: e.target.value }))}
-                            placeholder={isSalesOrderScan ? "발주서 상의 발주번호" : "견적서 상의 견적번호"}
+                            placeholder={isStatement ? "거래명세서 상의 문서번호" : (isSalesOrderScan ? "발주서 상의 발주번호" : "견적서 상의 견적번호")}
                             className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold font-mono outline-none focus:border-indigo-500"
                           />
                         </div>
                         <div>
-                          <label className="text-slate-400 font-bold block mb-1">{isSalesOrderScan ? "문서 발주일자" : "문서 견적일자"}</label>
+                          <label className="text-slate-400 font-bold block mb-1">
+                            {isStatement ? "문서 일자" : (isSalesOrderScan ? "문서 발주일자" : "문서 견적일자")}
+                          </label>
                           <input 
                             type="text" 
                             value={editForm.document_date}
@@ -557,7 +576,7 @@ export default function EstimateDetailModal({
                           <textarea 
                             value={editForm.document_memo}
                             onChange={e => setEditForm(prev => ({ ...prev, document_memo: e.target.value }))}
-                            placeholder={isSalesOrderScan ? "납기조건, 지불조건 등 발주서에 기재된 기타 정보" : "견적유효기간, 납기조건 등 견적서에 기재된 기타 정보"}
+                            placeholder={isStatement ? "전달 메모, 인도 조건 등 거래명세서에 기재된 기타 정보" : (isSalesOrderScan ? "납기조건, 지불조건 등 발주서에 기재된 기타 정보" : "견적유효기간, 납기조건 등 견적서에 기재된 기타 정보")}
                             className="w-full p-2.5 bg-white border border-slate-200 rounded-xl font-bold outline-none focus:border-indigo-500 min-h-[60px] resize-none"
                           />
                         </div>
@@ -565,7 +584,9 @@ export default function EstimateDetailModal({
                     ) : (
                       <div className="grid grid-cols-2 gap-y-2.5 text-xs">
                         <div>
-                          <span className="text-slate-400 font-bold block">{isSalesOrderScan ? "발주등록번호/발주번호" : "견적 번호"}</span>
+                          <span className="text-slate-400 font-bold block">
+                            {isStatement ? "명세서 번호" : (isSalesOrderScan ? "발주등록번호/발주번호" : "견적 번호")}
+                          </span>
                           <span className="text-slate-800 font-black font-mono">{detailData.estimate.id}</span>
                         </div>
                         <div>
@@ -911,7 +932,7 @@ export default function EstimateDetailModal({
             {/* 우측: 원본 파일 미리보기 */}
             <div className="flex flex-col border border-slate-100 rounded-3xl bg-transparent relative h-[680px] shrink-0 overflow-hidden">
               <div className="flex justify-between items-center mt-4 mx-5 mb-3 shrink-0">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">{isSalesOrderScan ? "첨부 원본 발주서 파일" : "첨부 원본 견적서 파일"}</span>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">{`첨부 원본 ${docTypeName} 파일`}</span>
                 {(() => {
                   const targetFileUrl = detailData?.estimate?.file_url || detailData?.estimate?.business_license_url;
                   return targetFileUrl ? (
@@ -963,7 +984,7 @@ export default function EstimateDetailModal({
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img 
                           src={targetFileUrl} 
-                          alt={isSalesOrderScan ? "발주서 원본" : "견적서 원본"} 
+                          alt={`${docTypeName} 원본`} 
                           className="w-full h-full object-contain"
                         />
                       </div>
@@ -973,7 +994,7 @@ export default function EstimateDetailModal({
                           <iframe 
                             src={`${pdfBlobUrl}#view=FitH`} 
                             className="w-full h-full border-none bg-transparent"
-                            title={isSalesOrderScan ? "PDF 발주서 미리보기" : "PDF 견적서 미리보기"}
+                            title={`PDF ${docTypeName} 미리보기`}
                           />
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 text-xs font-semibold gap-2 py-10">
@@ -994,7 +1015,7 @@ export default function EstimateDetailModal({
                   <div className="flex-1 flex flex-col items-center justify-center border-t border-slate-200/65 border-dashed bg-white p-6 text-center h-full">
                     <ShieldAlert className="w-10 h-10 text-slate-300 mb-2" />
                     <span className="text-xs font-bold text-slate-600">등록된 첨부 원본 파일이 없습니다.</span>
-                    <span className="text-[10px] text-slate-400 mt-1">{isSalesOrderScan ? "수동으로 등록하였거나 업로드 파일이 생략된 발주서입니다." : "수동으로 등록하였거나 업로드 파일이 생략된 견적서입니다."}</span>
+                    <span className="text-[10px] text-slate-400 mt-1">{`수동으로 등록하였거나 업로드 파일이 생략된 ${docTypeName}입니다.`}</span>
                   </div>
                 );
               })()}
@@ -1018,13 +1039,13 @@ export default function EstimateDetailModal({
                   }`}
                   title={
                     detailData.isLinked 
-                      ? (isSalesOrderScan ? "이미 연동 완료된 발주서입니다." : "이미 발주/수주로 전환된 견적서입니다.") 
+                      ? `이미 연동 완료된 ${docTypeName}입니다.` 
                       : detailData.isPendingDelete 
                         ? "현재 RAG 결재 대기 중인 문서입니다." 
-                        : (isSalesOrderScan ? "발주서 완전히 삭제" : "견적서 완전히 삭제")
+                        : `${docTypeName} 완전히 삭제`
                   }
                 >
-                  🗑️ {isSalesOrderScan ? "발주 삭제" : "견적 삭제"}
+                  🗑️ {isStatement ? "명세서 삭제" : (isSalesOrderScan ? "발주 삭제" : "견적 삭제")}
                 </button>
                 <button 
                   onClick={handleStartEdit} 
@@ -1036,19 +1057,19 @@ export default function EstimateDetailModal({
                   }`}
                   title={
                     detailData.isLinked 
-                      ? (isSalesOrderScan ? "이미 연동 완료된 발주서입니다." : "이미 발주/수주로 전환된 견적서입니다.") 
+                      ? `이미 연동 완료된 ${docTypeName}입니다.` 
                       : detailData.isPendingDelete 
                         ? "현재 RAG 결재 대기 중인 문서입니다." 
-                        : (isSalesOrderScan ? "발주서 상세 정보 수정" : "견적서 상세 정보 수정")
+                        : `${docTypeName} 상세 정보 수정`
                   }
                 >
-                  ✏️ {isSalesOrderScan ? "발주 수정" : "견적 수정"}
+                  ✏️ {isStatement ? "명세서 수정" : (isSalesOrderScan ? "발주 수정" : "견적 수정")}
                 </button>
                 
                 {/* 💡 이미 발주/수주로 전환된 견적서일 경우 경고 가이드 뱃지 표출 */}
                 {detailData.isLinked && (
                   <span className="text-[10px] text-amber-600 font-extrabold bg-amber-50/50 px-2.5 py-1.5 rounded-xl border border-amber-100/70 flex items-center gap-1 shrink-0">
-                    🔒 연동됨: {isSalesOrderScan ? "이 발주서는 이미 연동 완료되어 수정 및 삭제할 수 없습니다." : "이 견적서는 발주/수주로 전환되어 수정 및 삭제할 수 없습니다."}
+                    🔒 연동됨: 이 {docTypeName}는 이미 연동 완료되어 수정 및 삭제할 수 없습니다.
                   </span>
                 )}
 
@@ -1089,8 +1110,8 @@ export default function EstimateDetailModal({
         </div>
         <ProcessingOverlay
           isOpen={isProcessing}
-          title={isSalesOrderScan ? "발주서 처리 중" : "견적서 처리 중"}
-          message={isSalesOrderScan ? "AI 통제 센터가 바이어 발주서 정보를 안전하게 업데이트 또는 삭제하는 중입니다." : "AI 통제 센터가 견적서 정보를 안전하게 업데이트 또는 삭제하는 중입니다."}
+          title={`${docTypeName} 처리 중`}
+          message={`AI 통제 센터가 ${docTypeName} 정보를 안전하게 업데이트 또는 삭제하는 중입니다.`}
         />
       </div>
     </div>,

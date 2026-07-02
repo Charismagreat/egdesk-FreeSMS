@@ -263,16 +263,26 @@ export default function OutboundHub({
   const getTransactionTypeBadge = (tagsStr: string) => {
     if (!tagsStr) return null;
     let type = null;
+    let isStatement = false;
     try {
       const parsed = JSON.parse(tagsStr);
       if (parsed && typeof parsed === 'object') {
         type = parsed.transaction_type;
+        isStatement = !!parsed.is_statement;
       }
     } catch (e) {
       if (tagsStr.includes("자재구매")) type = "자재구매";
       else if (tagsStr.includes("임가공")) type = "임가공";
       else if (tagsStr.includes("외주작업")) type = "외주작업";
       else if (tagsStr.length < 15) type = tagsStr;
+    }
+
+    if (isStatement) {
+      return (
+        <span className="px-2 py-0.5 rounded-lg text-[9px] font-black border bg-rose-50 text-rose-600 border-rose-100 shrink-0 select-none">
+          거래명세서
+        </span>
+      );
     }
 
     if (!type) return null;

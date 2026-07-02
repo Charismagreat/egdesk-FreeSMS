@@ -918,6 +918,7 @@ export default function DeliveryStatementWritePage() {
         partner_manager: buyer.managerName || "-",
         items: payloadItems,
         tags: JSON.stringify({ 
+          is_statement: true,
           is_manufacture: false,
           materialsTotal,
           extraCostsTotal,
