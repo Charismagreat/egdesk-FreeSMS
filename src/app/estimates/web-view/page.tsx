@@ -102,10 +102,31 @@ const typeConfig = {
 function WebViewContent() {
   const searchParams = useSearchParams();
   const typeParam = searchParams.get("type") || "inbound_est";
+  const isStatementParam = searchParams.get("is_statement") === "true";
   const type: "inbound_est" | "inbound_po" | "outbound_est" | "outbound_so" | "inventory_inout" = 
     ["inbound_est", "inbound_po", "outbound_est", "outbound_so", "inventory_inout"].includes(typeParam) 
       ? (typeParam as any) 
       : "inbound_est";
+
+  const activeTypeConfig = useMemo(() => {
+    const base = typeConfig[type];
+    if (type === "outbound_est" && isStatementParam) {
+      return {
+        title: "보낸 거래명세서 관리 대장 (출력용)",
+        headers: base.headers.map(h => {
+          if (h === "견적번호") return "명세서번호";
+          if (h === "총 견적액") return "총 명세 금액";
+          return h;
+        }),
+        defaultVisible: base.defaultVisible.map(h => {
+          if (h === "견적번호") return "명세서번호";
+          if (h === "총 견적액") return "총 명세 금액";
+          return h;
+        })
+      };
+    }
+    return base;
+  }, [type, isStatementParam]);
 
   const [data, setData] = useState<{
     title: string;
@@ -277,18 +298,35 @@ function WebViewContent() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const headers = typeConfig[type].headers;
+      const headers = activeTypeConfig.headers;
       const rows: any[] = [];
-      const title = typeConfig[type].title;
+      const title = activeTypeConfig.title;
 
       if (type === "inbound_est" || type === "outbound_est") {
         const res = await fetch(`/api/estimates?action=list&_t=${Date.now()}`);
         const json = await res.json();
         if (json.success && json.estimates) {
           const estimatesList = json.estimates;
-          const filtered = estimatesList.filter((e: any) => 
-            type === "inbound_est" ? e.type === "INBOUND" : e.type === "OUTBOUND"
-          );
+          const isStatementEstimate = (tagsStr: string) => {
+            if (!tagsStr) return false;
+            try {
+              const parsed = JSON.parse(tagsStr);
+              return parsed && parsed.is_statement === true;
+            } catch {
+              return false;
+            }
+          };
+
+          const filtered = estimatesList.filter((e: any) => {
+            if (type === "inbound_est") {
+              return e.type === "INBOUND";
+            } else {
+              // type === "outbound_est"
+              if (e.type !== "OUTBOUND") return false;
+              const isStmt = isStatementEstimate(e.tags || "");
+              return isStatementParam ? isStmt : !isStmt;
+            }
+          });
 
           filtered.forEach((e: any) => {
             const estItems = e.items && e.items.length > 0 ? e.items : [{}];
@@ -545,15 +583,15 @@ function WebViewContent() {
             setVisibleColumns(filteredVisible);
           } catch (e) {
             setColumns(headers);
-            setVisibleColumns(typeConfig[type].defaultVisible);
+            setVisibleColumns(activeTypeConfig.defaultVisible);
           }
         } else {
           setColumns(headers);
-          setVisibleColumns(typeConfig[type].defaultVisible);
+          setVisibleColumns(activeTypeConfig.defaultVisible);
         }
       } else {
         setColumns(headers);
-        setVisibleColumns(typeConfig[type].defaultVisible);
+        setVisibleColumns(activeTypeConfig.defaultVisible);
       }
     } catch (e) {
       console.error("데이터 실시간 fetch 실패:", e);
@@ -563,7 +601,7 @@ function WebViewContent() {
   };
 
   useEffect(() => {
-    const headers = typeConfig[type].headers;
+    const headers = activeTypeConfig.headers;
     const regDateIdx = headers.indexOf("등록일시");
     if (regDateIdx !== -1) {
       setSortKey(regDateIdx);
@@ -573,7 +611,7 @@ function WebViewContent() {
       setSortDir("desc");
     }
     fetchData();
-  }, [type]);
+  }, [type, isStatementParam]);
 
   // 2. 검색 및 필터링
   const filteredRows = useMemo(() => {
@@ -705,8 +743,8 @@ function WebViewContent() {
   // 컬럼 설정을 기본값으로 복원
   const resetToDefaultColumns = () => {
     if (!data) return;
-    const defaultHeaders = typeConfig[type].headers;
-    const defaultVisible = typeConfig[type].defaultVisible;
+    const defaultHeaders = activeTypeConfig.headers;
+    const defaultVisible = activeTypeConfig.defaultVisible;
     saveColumnSettings(defaultHeaders, defaultVisible);
     
     // 정렬 상태도 기본값으로 복구
