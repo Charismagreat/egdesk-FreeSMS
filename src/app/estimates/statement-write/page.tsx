@@ -1793,6 +1793,17 @@ export default function DeliveryStatementWritePage() {
         </div>
       )}
 
+      {/* 수주 건 다중 선택 모달 */}
+      {isOrderModalOpen && (
+        <OrderLookupModal 
+          isOpen={isOrderModalOpen}
+          onClose={() => setIsOrderModalOpen(false)}
+          onSelect={handleSelectOrders}
+          orders={orderList}
+          buyerName={buyer.companyName}
+        />
+      )}
+
     </div>
   </div>
 );
