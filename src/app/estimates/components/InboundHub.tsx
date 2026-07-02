@@ -209,7 +209,7 @@ export default function InboundHub({
               : "border-transparent text-slate-400 hover:text-slate-700"
           }`}
         >
-          🏷️ 받은 견적 및 요청 대장
+          🏷️ 받은 견적서 관리 대장
         </button>
         <button
           onClick={() => {
@@ -222,7 +222,7 @@ export default function InboundHub({
               : "border-transparent text-slate-400 hover:text-slate-700"
           }`}
         >
-          📦 발주 및 실물 검수 대장
+          📦 보낸 발주서 관리 대장
         </button>
       </div>
 
