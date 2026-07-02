@@ -572,9 +572,9 @@ export default function OutboundHub({
               />
               <button
                 onClick={onOpenOcrModal}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-lg flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-lg flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
               >
-                📥 바이어 발주서 스캔 (다이렉트 수주)
+                📥 받은 발주서 스캔
               </button>
             </>
           )}
