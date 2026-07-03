@@ -270,14 +270,14 @@ export default function PurchaseOrderWritePage() {
   const handleSelectPartner = (p: any) => {
     setBuyer({
       companyName: p.company_name,
-      departmentName: "",
+      departmentName: p.manager_position || p.department_name || "",
       managerName: p.manager_name || "",
-      phone: p.phone_number || "",
-      email: p.email_address || ""
+      phone: p.manager_phone || p.phone || "",
+      email: p.manager_email || p.email || ""
     });
-    setSendEmailAddress(p.email_address || "");
-    setSendSmsPhone(p.phone_number || "");
-    setSendFaxNumber(p.fax_number || "");
+    setSendEmailAddress(p.manager_email || p.email || "");
+    setSendSmsPhone(p.manager_phone || p.phone || "");
+    setSendFaxNumber(p.fax || "");
 
     if (Array.isArray(p.contacts)) {
       setPartnerContacts(p.contacts);
@@ -291,7 +291,7 @@ export default function PurchaseOrderWritePage() {
   const handleSelectContact = (c: any) => {
     setBuyer(prev => ({
       ...prev,
-      departmentName: c.department || "",
+      departmentName: c.position || "",
       managerName: c.name || "",
       phone: c.phone || prev.phone,
       email: c.email || prev.email
@@ -731,7 +731,7 @@ export default function PurchaseOrderWritePage() {
                         {showPartnerDropdown && (
                           <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl z-50 divide-y divide-slate-100">
                             {partners
-                              .filter(p => p.type === "VENDOR")
+                              .filter(p => p.type && p.type.split(',').includes('VENDOR'))
                               .filter(p => p.company_name.toLowerCase().includes(buyer.companyName.toLowerCase()))
                               .map((p, idx) => (
                                 <button
