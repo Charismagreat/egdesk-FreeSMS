@@ -1579,18 +1579,18 @@ export default function DeliveryStatementWritePage() {
               </div>
 
               <div className="text-center space-y-1 border-b border-slate-300 pb-3">
-                <h2 className="text-sm font-black tracking-widest text-slate-900">견  적  서</h2>
+                <h2 className="text-sm font-black tracking-widest text-slate-900">거 래 명 세 서</h2>
               </div>
 
               <div className="flex gap-4 border-b border-slate-200 pb-3">
                 {/* 공급받는자 */}
                 <div className="w-[45%] shrink-0 space-y-1.5">
-                  <div className="flex gap-1"><span className="text-slate-400 w-12 shrink-0 font-bold">거래명세번호:</span><span className="font-mono text-slate-700 font-bold">{meta.estimateNumber || "자동 생성대기"}</span></div>
-                  <div className="flex gap-1"><span className="text-slate-400 w-12 shrink-0 font-bold">거래명세일자:</span><span className="text-slate-700 font-bold">{meta.estimateDate || "발행 당일"}</span></div>
-                  <div className="flex gap-1"><span className="text-slate-400 w-12 shrink-0 font-bold">수신처:</span><span className="text-slate-900 font-bold underline decoration-slate-300 decoration-2 underline-offset-2">{buyer.companyName || "미확인 바이어"} 귀하</span></div>
-                  <div className="flex gap-1"><span className="text-slate-400 w-12 shrink-0 font-bold">담당자:</span><span className="text-slate-700 font-bold">{buyer.departmentName} {buyer.managerName}</span></div>
-                  <div className="flex gap-1"><span className="text-slate-400 w-12 shrink-0 font-bold">연락처:</span><span className="text-slate-700">{buyer.phone || "-"}</span></div>
-                  <div className="flex gap-1"><span className="text-slate-400 w-12 shrink-0 font-bold">이메일:</span><span className="text-slate-700">{buyer.email || "-"}</span></div>
+                  <div className="flex gap-1"><span className="text-slate-400 w-20 shrink-0 font-bold">거래명세번호:</span><span className="font-mono text-slate-700 font-bold">{meta.estimateNumber || "자동 생성대기"}</span></div>
+                  <div className="flex gap-1"><span className="text-slate-400 w-20 shrink-0 font-bold">거래명세일자:</span><span className="text-slate-700 font-bold">{meta.estimateDate || "발행 당일"}</span></div>
+                  <div className="flex gap-1"><span className="text-slate-400 w-20 shrink-0 font-bold">수신처:</span><span className="text-slate-900 font-bold underline decoration-slate-300 decoration-2 underline-offset-2">{buyer.companyName || "미확인 바이어"} 귀하</span></div>
+                  <div className="flex gap-1"><span className="text-slate-400 w-20 shrink-0 font-bold">담당자:</span><span className="text-slate-700 font-bold">{buyer.departmentName} {buyer.managerName}</span></div>
+                  <div className="flex gap-1"><span className="text-slate-400 w-20 shrink-0 font-bold">연락처:</span><span className="text-slate-700">{buyer.phone || "-"}</span></div>
+                  <div className="flex gap-1"><span className="text-slate-400 w-20 shrink-0 font-bold">이메일:</span><span className="text-slate-700">{buyer.email || "-"}</span></div>
                 </div>
 
                 {/* 공급자 */}

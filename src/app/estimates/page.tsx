@@ -10,6 +10,7 @@ import EstimateOcrModal from "./components/EstimateOcrModal";
 import InboundInspectModal from "./components/InboundInspectModal";
 import EstimateWriteModal from "./components/EstimateWriteModal";
 import SalesOrderOcrModal from "./components/SalesOrderOcrModal";
+import InboundStatementOcrModal from "./components/InboundStatementOcrModal";
 import ProcessingOverlay from "../../components/ProcessingOverlay";
 
 // 신설한 격리 하위 컴포넌트 가져오기
@@ -46,6 +47,7 @@ export default function EstimatesDashboard() {
 
   const [isWriteModalOpen, setIsWriteModalOpen] = useState(false);
   const [isSoOcrOpen, setIsSoOcrOpen] = useState(false);
+  const [isInboundStatementOcrOpen, setIsInboundStatementOcrOpen] = useState(false);
 
   // 📂 태그 프리셋 로드
   useEffect(() => {
@@ -435,20 +437,30 @@ export default function EstimatesDashboard() {
 
   // 일괄 엑셀 다운로드 (CSV 변환)
   const handleBulkExportExcel = (
-    type: "inbound_est" | "inbound_po" | "outbound_est" | "outbound_so",
+    type: "inbound_est" | "inbound_po" | "inbound_statement" | "outbound_est" | "outbound_so",
     selectedIds: Set<string>
   ) => {
     let headers: string[] = [];
     let rows: any[] = [];
     let filename = "";
 
+    const isStatementEstimate = (tagsStr: string) => {
+      if (!tagsStr) return false;
+      try {
+        const parsed = JSON.parse(tagsStr);
+        return parsed && parsed.is_statement === true;
+      } catch {
+        return false;
+      }
+    };
+
     if (type === "inbound_est") {
       const targetIds =
         selectedIds.size > 0
           ? selectedIds
-          : new Set(estimates.filter((e) => e.type === "INBOUND").map((e) => e.id));
+          : new Set(estimates.filter((e) => e.type === "INBOUND" && !isStatementEstimate(e.tags || "")).map((e) => e.id));
       const selected = estimates.filter(
-        (e) => e.type === "INBOUND" && targetIds.has(e.id)
+        (e) => e.type === "INBOUND" && !isStatementEstimate(e.tags || "") && targetIds.has(e.id)
       );
       headers = [
         "견적번호", "공급/요청처", "연락처", "담당자명", "총 견적액", "상태", "AI스캔여부", "작성일",
@@ -481,6 +493,42 @@ export default function EstimatesDashboard() {
         });
       });
       filename = `받은견적대장_${selectedIds.size > 0 ? "선택출력" : "전체출력"}.csv`;
+    } else if (type === "inbound_statement") {
+      const targetIds =
+        selectedIds.size > 0
+          ? selectedIds
+          : new Set(estimates.filter((e) => e.type === "INBOUND" && isStatementEstimate(e.tags || "")).map((e) => e.id));
+      const selected = estimates.filter(
+        (e) => e.type === "INBOUND" && isStatementEstimate(e.tags || "") && targetIds.has(e.id)
+      );
+      headers = [
+        "명세서번호", "공급/요청처", "연락처", "담당자명", "총 명세 금액", "상태", "AI스캔여부", "작성일",
+        "첨부파일", "품목코드", "품목명", "규격", "수량", "단가", "금액", "상세비고"
+      ];
+      selected.forEach((e: any) => {
+        const estItems = e.items && e.items.length > 0 ? e.items : [{}];
+        estItems.forEach((item: any) => {
+          rows.push([
+            e.id,
+            e.partner_name,
+            e.partner_phone,
+            e.partner_manager || "-",
+            e.total_amount,
+            "명세접수",
+            e.ai_parsed ? "AI OCR" : "수동",
+            e.created_at,
+            e.file_url || "-",
+            item.item_code || "-",
+            item.product_name || "-",
+            item.spec || "-",
+            item.quantity !== undefined ? item.quantity : "",
+            item.unit_price !== undefined ? item.unit_price : "",
+            item.amount !== undefined ? item.amount : "",
+            e.document_memo_search || "-"
+          ]);
+        });
+      });
+      filename = `받은거래명세대장_${selectedIds.size > 0 ? "선택출력" : "전체출력"}.csv`;
     } else if (type === "inbound_po") {
       const targetIds =
         selectedIds.size > 0 ? selectedIds : new Set(purchaseOrders.map((p) => p.id));
@@ -612,10 +660,14 @@ export default function EstimatesDashboard() {
 
   // 일괄 웹뷰로 보기 (새 탭 오픈)
   const handleBulkExportWebView = (
-    type: "inbound_est" | "inbound_po" | "outbound_est" | "outbound_so",
+    type: "inbound_est" | "inbound_po" | "inbound_statement" | "outbound_est" | "outbound_so",
     selectedIds: Set<string>
   ) => {
-    window.open(`/estimates/web-view?type=${type}`, "_blank");
+    if (type === "inbound_statement") {
+      window.open(`/estimates/web-view?type=inbound_est&is_statement=true`, "_blank");
+    } else {
+      window.open(`/estimates/web-view?type=${type}`, "_blank");
+    }
   };
 
   // 실물 검수 모달 호출
@@ -641,10 +693,12 @@ export default function EstimatesDashboard() {
             <InboundHub
               estimates={estimates}
               purchaseOrders={purchaseOrders}
+              partners={partners}
               userRole={userRole}
               dbTags={dbTags}
               onOpenDetailModal={handleOpenDetailModal}
               onOpenOcrModal={() => setIsOcrModalOpen(true)}
+              onOpenStatementOcrModal={() => setIsInboundStatementOcrOpen(true)}
               onOpenInspectModal={openInspectModal}
               onConvertToPo={handleConvertToPo}
               onBulkConvertToPo={handleBulkConvertToPo}
@@ -715,6 +769,12 @@ export default function EstimatesDashboard() {
       <SalesOrderOcrModal
         isOpen={isSoOcrOpen}
         onClose={() => setIsSoOcrOpen(false)}
+        onSuccess={fetchData}
+      />
+
+      <InboundStatementOcrModal
+        isOpen={isInboundStatementOcrOpen}
+        onClose={() => setIsInboundStatementOcrOpen(false)}
         onSuccess={fetchData}
       />
 

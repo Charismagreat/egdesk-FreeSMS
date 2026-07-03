@@ -536,9 +536,9 @@ export default function OutboundHub({
               </button>
               <button
                 onClick={() => window.open("/estimates/statement-write", "_blank")}
-                className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl shadow-lg flex items-center gap-1.5 cursor-pointer"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-indigo-600/10 flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
               >
-                <Plus className="w-4 h-4 text-amber-300 animate-pulse" />
+                <Plus className="w-4 h-4 text-indigo-200" />
                 (일반)거래명세서 작성
               </button>
             </>

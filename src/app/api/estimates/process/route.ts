@@ -191,6 +191,118 @@ export async function POST(req: Request) {
     }
 
     // ────────────────────────────────────────────────────────
+    // [NEW] 1.5. 보낸 발주서 수동 직접 작성 및 등록
+    // ────────────────────────────────────────────────────────
+    if (action === 'create_purchase_order_manual') {
+      const { vendor_name, vendor_phone, vendor_manager, items = [], total_amount } = body;
+      if (!vendor_name) {
+        return NextResponse.json({ success: false, error: '공급처명은 필수 항목입니다.' }, { status: 400 });
+      }
+      if (items.length === 0) {
+        return NextResponse.json({ success: false, error: '최소 1개 이상의 발주 품목이 필요합니다.' }, { status: 400 });
+      }
+
+      // 고유 식별 마스터 ID 및 UUID 생성
+      const nowObj = new Date();
+      const yy = String(nowObj.getFullYear()).slice(-2);
+      const mm = String(nowObj.getMonth() + 1).padStart(2, '0');
+      const dd = String(nowObj.getDate()).padStart(2, '0');
+      const hh = String(nowObj.getHours()).padStart(2, '0');
+      const min = String(nowObj.getMinutes()).padStart(2, '0');
+      const ss = String(nowObj.getSeconds()).padStart(2, '0');
+      const rand = Math.floor(Math.random() * 90 + 10);
+
+      const estimateId = `EST-SHADOW-${yy}${mm}${dd}-${hh}${min}${ss}`;
+      const estUuid = `EST-UUID-${yy}${mm}${dd}-${hh}${min}${ss}-${rand}-${Math.random().toString(36).substring(2, 9)}`;
+      
+      const poId = `PO-${Date.now()}`;
+      const poUuid = `PO-UUID-${yy}${mm}${dd}-${hh}${min}${ss}-${rand}-${Math.random().toString(36).substring(2, 9)}`;
+
+      // 1. crm_estimates 섀도우 레코드 삽입
+      await insertRows('crm_estimates', [{
+        id: estimateId,
+        type: 'INBOUND', // 외부로부터 받은 견적 대용 섀도우
+        direction_status: 'SENT', // 발주 전환 완료 상태 매핑
+        partner_name: vendor_name,
+        partner_phone: vendor_phone || '',
+        partner_manager: vendor_manager || '',
+        total_amount: total_amount || 0,
+        file_url: '수동 발주 작성 자동 매핑',
+        ai_parsed: 0,
+        tags: JSON.stringify({ document_memo: '수동 직접 기안된 발주서 건입니다.' }),
+        uuid: estUuid,
+        purchase_order_number: poId,
+        created_at: nowStr,
+        updated_at: nowStr,
+        updated_by: 'system',
+        deleted_at: null,
+        deleted_by: null,
+        restored_at: null,
+        restored_by: null
+      }]);
+
+      // 방금 삽입된 실제 정수 id 가져오기
+      const insertedEstRes = await queryTable('crm_estimates', { filters: { uuid: estUuid }, limit: 1 });
+      const insertedEst = insertedEstRes.rows && insertedEstRes.rows.length > 0 ? insertedEstRes.rows[0] : null;
+      const realEstimateId = insertedEst ? String(insertedEst.id) : estimateId;
+
+      // 2. crm_estimate_items 디테일 테이블 품목 삽입
+      const detailRows = items.map((row: any, idx: number) => {
+        const qty = parseInt(row.quantity) || 0;
+        const price = parseInt(row.unit_price) || 0;
+        const amount = qty * price;
+        const itemUuid = `ITEM-UUID-${yy}${mm}${dd}-${hh}${min}${ss}-${idx}-${Math.random().toString(36).substring(2, 9)}`;
+
+        return {
+          id: Date.now() + idx,
+          estimate_id: realEstimateId,
+          product_id: row.product_id || '',
+          item_code: row.item_code || '',
+          product_name: row.product_name,
+          quantity: qty,
+          unit_price: price,
+          amount: amount,
+          delivery_date: row.delivery_date || '',
+          spec: row.spec || '',
+          uuid: itemUuid,
+          updated_at: nowStr,
+          updated_by: 'system',
+          deleted_at: null,
+          deleted_by: null,
+          restored_at: null,
+          restored_by: null
+        };
+      });
+
+      await insertRows('crm_estimate_items', detailRows);
+
+      // 3. crm_purchase_orders 발주 레코드 삽입
+      await insertRows('crm_purchase_orders', [{
+        id: poId,
+        estimate_id: realEstimateId,
+        vendor_name: vendor_name,
+        vendor_phone: vendor_phone || '',
+        status: 'PENDING_INBOUND', // 입고 대기 상태
+        total_amount: total_amount || 0,
+        created_at: nowStr,
+        completed_at: '',
+        uuid: poUuid,
+        updated_at: nowStr,
+        updated_by: 'system',
+        deleted_at: null,
+        deleted_by: null,
+        restored_at: null,
+        restored_by: null
+      }]);
+
+      return NextResponse.json({
+        success: true,
+        message: '발주서가 성공적으로 직접 기안 및 등록되었습니다.',
+        poId
+      });
+    }
+
+    // ────────────────────────────────────────────────────────
     // 2. 발주 완료 건 ➡️ 실물 검수 승인 및 재고 실반영 (SCM 핵심 루프! ⭐️)
     // ────────────────────────────────────────────────────────
     if (action === 'confirm_inbound') {

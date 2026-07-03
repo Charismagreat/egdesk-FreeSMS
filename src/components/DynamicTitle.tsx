@@ -33,6 +33,7 @@ function DynamicTitleHandler() {
       "/estimates": "견적/발주/수주 AI",
       "/estimates/manufacture-write": "(제조)보낼 견적서 작성 AI",
       "/estimates/general-write": "(일반)보낼 견적서 작성 AI",
+      "/estimates/purchase-order-write": "보낼 발주서 작성 AI",
       "/estimates/statement-write": "보낼 거래명세서 작성 AI",
       "/estimates/manufacture-webview": "(제조)보낸 견적서 상세 내역",
       "/snaptasks": "AI 스냅태스크",
@@ -81,6 +82,8 @@ function DynamicTitleHandler() {
       const isStatementParam = searchParams.get("is_statement") === "true";
       if (typeParam === "outbound_est" && isStatementParam) {
         title = "보낸 거래명세서 상세 내역";
+      } else if (typeParam === "inbound_est" && isStatementParam) {
+        title = "받은 거래명세서 상세 내역";
       } else {
         const typeConfig: Record<string, string> = {
           inbound_est: "받은 견적서 상세 내역",

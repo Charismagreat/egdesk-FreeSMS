@@ -110,9 +110,9 @@ function WebViewContent() {
 
   const activeTypeConfig = useMemo(() => {
     const base = typeConfig[type];
-    if (type === "outbound_est" && isStatementParam) {
+    if ((type === "outbound_est" || type === "inbound_est") && isStatementParam) {
       return {
-        title: "보낸 거래명세서 상세 내역",
+        title: type === "outbound_est" ? "보낸 거래명세서 상세 내역" : "받은 거래명세서 상세 내역",
         headers: base.headers.map(h => {
           if (h === "견적번호") return "명세서번호";
           if (h === "총 견적액") return "총 명세 금액";
@@ -319,7 +319,9 @@ function WebViewContent() {
 
           const filtered = estimatesList.filter((e: any) => {
             if (type === "inbound_est") {
-              return e.type === "INBOUND";
+              if (e.type !== "INBOUND") return false;
+              const isStmt = isStatementEstimate(e.tags || "");
+              return isStatementParam ? isStmt : !isStmt;
             } else {
               // type === "outbound_est"
               if (e.type !== "OUTBOUND") return false;
@@ -334,12 +336,12 @@ function WebViewContent() {
               if (type === "inbound_est") {
                 rows.push([
                   e.created_at,                          // 등록일시
-                  e.id,                                  // 견적번호
+                  e.id,                                  // 견적번호 / 명세서번호
                   e.partner_name,                        // 공급/요청처
                   e.partner_manager || "-",               // 담당자명
                   e.partner_phone,                       // 연락처
-                  e.total_amount,                        // 총 견적액
-                  e.direction_status === "REQUESTED" ? "견적접수" : "발주완료", // 상태
+                  e.total_amount,                        // 총 견적액 / 총 명세 금액
+                  isStatementParam ? "명세접수" : (e.direction_status === "REQUESTED" ? "견적접수" : "발주완료"), // 상태
                   e.created_at,                          // 작성일
                   e.file_url || "-",                     // 첨부파일
                   e.business_license_url || "-",         // 사업자등록증
