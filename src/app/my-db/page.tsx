@@ -193,6 +193,7 @@ export default function MyDBManagementPage() {
           setSelectedTable={setSelectedTable}
           tableSearchQuery={tableSearchQuery}
           setTableSearchQuery={setTableSearchQuery}
+          isLoading={isLoading}
         />
 
         {/* 🛠️ 우측 영역: 커스텀 SQL 콘솔 + 제어 탭 */}

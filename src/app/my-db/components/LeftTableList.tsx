@@ -9,6 +9,7 @@ interface LeftTableListProps {
   setSelectedTable: (name: string) => void;
   tableSearchQuery: string;
   setTableSearchQuery: (query: string) => void;
+  isLoading?: boolean;
 }
 
 export default function LeftTableList({
@@ -16,7 +17,8 @@ export default function LeftTableList({
   selectedTable,
   setSelectedTable,
   tableSearchQuery,
-  setTableSearchQuery
+  setTableSearchQuery,
+  isLoading = false
 }: LeftTableListProps) {
   const filteredTables = tables.filter((t) => {
     const query = tableSearchQuery.toLowerCase();
@@ -54,7 +56,12 @@ export default function LeftTableList({
       </div>
 
       <div className="space-y-1.5 max-h-[850px] overflow-y-auto no-scrollbar">
-        {tables.length === 0 ? (
+        {isLoading ? (
+          <div className="p-8 text-center text-xs text-slate-400 font-bold flex flex-col items-center justify-center gap-2.5">
+            <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-slate-500 text-[11px] font-extrabold animate-pulse">데이터베이스 테이블 분석 중...</span>
+          </div>
+        ) : tables.length === 0 ? (
           <div className="p-8 text-center text-xs text-slate-400 font-bold">
             테이블이 탐색되지 않았습니다.
           </div>
