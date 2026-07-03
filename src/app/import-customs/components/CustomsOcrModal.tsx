@@ -283,10 +283,10 @@ export default function CustomsOcrModal({
   return (
     <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-[32px] border border-slate-100 max-w-4xl w-full p-6 md:p-8 shadow-2xl relative overflow-hidden flex flex-col max-h-[92vh] animate-scale-up">
-        {originalFileUrl && (
+        {(ocrForm.master.file_path || originalFileUrl) && (
           <button
             type="button"
-            onClick={() => window.open(originalFileUrl, "_blank")}
+            onClick={() => window.open(ocrForm.master.file_path || originalFileUrl, "_blank")}
             className="absolute top-5 right-16 px-4.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black rounded-full shadow-md flex items-center gap-1.5 cursor-pointer transition-all hover:scale-[1.02] active:scale-95"
             title="스캔에 사용된 원본 파일(이미지/PDF) 보기"
           >

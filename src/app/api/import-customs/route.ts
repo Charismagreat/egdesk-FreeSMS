@@ -121,6 +121,7 @@ export async function POST(req: Request) {
       terms_of_sale: master.terms_of_sale || null,
       payment_terms: master.payment_terms || null,
       exporter_name: master.exporter_name || null,
+      file_path: master.file_path || null,
       created_at: nowStr,
       uuid: masterUuid,
       updated_at: nowStr,

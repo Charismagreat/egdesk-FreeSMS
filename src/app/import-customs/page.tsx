@@ -452,6 +452,18 @@ export default function ImportCustomsDashboard() {
       {selectedSoNbr && detailData && (
         <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-[32px] border border-slate-100 max-w-4xl w-full p-6 md:p-8 shadow-2xl relative flex flex-col max-h-[90vh] animate-scale-up">
+            {detailData.master.file_path && (
+              <button
+                type="button"
+                onClick={() => window.open(detailData.master.file_path, "_blank")}
+                className="absolute top-5 right-16 px-4.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black rounded-full shadow-md flex items-center gap-1.5 cursor-pointer transition-all hover:scale-[1.02] active:scale-95"
+                title="이 통관 내역에 업로드된 원본 파일(이미지/PDF) 보기"
+              >
+                <Eye className="w-3.5 h-3.5 text-indigo-400" />
+                <span>원본 파일 보기</span>
+              </button>
+            )}
+
             <button
               onClick={() => setSelectedSoNbr(null)}
               className="absolute top-5 right-5 p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 transition-colors"

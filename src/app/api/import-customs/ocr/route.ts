@@ -3,6 +3,8 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { fetchGeminiWithFallback } from '@/lib/gemini-fallback';
 import { queryTable, insertRows } from '@/../egdesk-helpers';
+import fs from 'fs';
+import path from 'path';
 
 export async function POST(req: Request) {
   try {
@@ -10,6 +12,26 @@ export async function POST(req: Request) {
 
     if (!imageBase64) {
       return NextResponse.json({ success: false, error: '분석할 파일 데이터(Base64)가 누락되었습니다.' }, { status: 400 });
+    }
+
+    // 파일 로컬 디렉토리에 영구 저장
+    let savedFilePath = '';
+    try {
+      const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'customs');
+      if (!fs.existsSync(uploadDir)) {
+        fs.mkdirSync(uploadDir, { recursive: true });
+      }
+
+      const fileExt = filename ? path.extname(filename) : (mimeType === 'application/pdf' ? '.pdf' : '.png');
+      const uniqueFilename = `customs_${Date.now()}_${Math.floor(Math.random() * 1000)}${fileExt}`;
+      const fullPath = path.join(uploadDir, uniqueFilename);
+
+      const cleanedBase64 = imageBase64.replace(/^data:(image\/(png|jpeg|jpg|webp|heic|heif)|application\/pdf);base64,/, "");
+      fs.writeFileSync(fullPath, Buffer.from(cleanedBase64, 'base64'));
+      savedFilePath = `/uploads/customs/${uniqueFilename}`;
+      console.log('File successfully saved on server:', savedFilePath);
+    } catch (err: any) {
+      console.error('Failed to save file on server:', err.message);
     }
 
     const isTargetFile = filename && (
@@ -44,7 +66,8 @@ export async function POST(req: Request) {
             ship_via: 'FED-EX INTERNATIONAL',
             terms_of_sale: 'EXW',
             payment_terms: 'NET60',
-            exporter_name: 'BAL SEAL ENGINEERING LLC'
+            exporter_name: 'BAL SEAL ENGINEERING LLC',
+            file_path: savedFilePath
           },
           items: [
             {
@@ -205,7 +228,8 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
             ship_via: 'FED-EX INTERNATIONAL',
             terms_of_sale: 'EXW',
             payment_terms: 'NET60',
-            exporter_name: 'BAL SEAL ENGINEERING LLC'
+            exporter_name: 'BAL SEAL ENGINEERING LLC',
+            file_path: savedFilePath
           },
           items: [
             {
@@ -266,7 +290,10 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
     return NextResponse.json({
       success: true,
       method: 'REAL_GEMINI_OCR',
-      master: parsedData.master,
+      master: {
+        ...parsedData.master,
+        file_path: savedFilePath
+      },
       items: parsedData.items,
       finance: parsedData.finance,
       originalTotalAmount: Number(parsedData.originalTotalAmount) || 0,

@@ -3091,6 +3091,7 @@ export async function setupDatabase() {
     { name: 'payment_terms', type: 'TEXT' },
     { name: 'exporter_name', type: 'TEXT' },
     { name: 'tags', type: 'TEXT' },
+    { name: 'file_path', type: 'TEXT' },
     { name: 'created_at', type: 'TEXT', notNull: true }
   ], { tableName: 'import_master', uniqueKeyColumns: ['so_number'] });
 
