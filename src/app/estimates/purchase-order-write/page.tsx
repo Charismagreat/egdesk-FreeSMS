@@ -714,10 +714,10 @@ export default function PurchaseOrderWritePage() {
                     
                     <div className="grid grid-cols-2 gap-2">
                       <div className="relative">
-                        <label className="block text-[10px] text-slate-500 font-bold mb-1">공급사명 실시간 검색</label>
+                        <label className="block text-[10px] text-slate-500 font-bold mb-1">공급사명 *</label>
                         <input
                           type="text"
-                          placeholder="거래처 키워드 입력..."
+                          placeholder="상호명 입력"
                           value={buyer.companyName}
                           onFocus={() => setShowPartnerDropdown(true)}
                           onBlur={() => setTimeout(() => setShowPartnerDropdown(false), 200)}
@@ -728,26 +728,34 @@ export default function PurchaseOrderWritePage() {
                           className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold text-slate-800 outline-none focus:border-indigo-500"
                         />
                         
-                        {showPartnerDropdown && (
-                          <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl z-50 divide-y divide-slate-100">
-                            {partners
-                              .filter(p => p.type && p.type.split(',').includes('VENDOR'))
-                              .filter(p => p.company_name.toLowerCase().includes(buyer.companyName.toLowerCase()))
-                              .map((p, idx) => (
-                                <button
-                                  key={idx}
-                                  type="button"
-                                  onMouseDown={(e) => e.preventDefault()}
-                                  onClick={() => handleSelectPartner(p)}
-                                  className="w-full text-left px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all flex justify-between items-center"
-                                >
-                                  <span>🏢 {p.company_name}</span>
-                                  {p.manager_name && (
-                                    <span className="text-[10px] text-slate-400 font-normal">{p.manager_name}</span>
-                                  )}
-                                </button>
-                              ))}
-                          </div>
+                        {showPartnerDropdown && buyer.companyName.trim().length > 0 && (
+                          (() => {
+                            const filtered = partners.filter(p => 
+                              p.type && p.type.split(',').includes('VENDOR') &&
+                              p.company_name.toLowerCase().includes(buyer.companyName.toLowerCase())
+                            );
+                            if (filtered.length === 0) return null;
+                            return (
+                              <div className="absolute left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl z-50 divide-y divide-slate-100">
+                                {filtered.map((p, idx) => (
+                                  <button
+                                    key={idx}
+                                    type="button"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={() => handleSelectPartner(p)}
+                                    className="w-full text-left px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all flex justify-between items-center"
+                                  >
+                                    <span>{p.company_name}</span>
+                                    {p.manager_name && (
+                                      <span className="text-[10px] text-slate-400 font-normal">
+                                        {p.manager_name} ({p.manager_phone || p.phone || ""})
+                                      </span>
+                                    )}
+                                  </button>
+                                ))}
+                              </div>
+                            );
+                          })()
                         )}
                       </div>
 
