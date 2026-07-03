@@ -23,7 +23,9 @@ export default function MainContentWrapper({ children }: { children: React.React
     pathname.startsWith('/estimates/general-write') ||
     pathname.startsWith('/estimates/purchase-order-write') ||
     pathname.startsWith('/estimates/statement-write') ||
-    pathname.startsWith('/estimates/manufacture-webview')
+    pathname.startsWith('/estimates/manufacture-webview') ||
+    pathname.startsWith('/import-customs') ||
+    pathname.startsWith('/import-customs/web-view')
   ) {
     return <>{children}</>;
   }

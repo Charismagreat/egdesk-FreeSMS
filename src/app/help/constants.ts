@@ -11,6 +11,7 @@ export const CATEGORIES: CategoryConfig[] = [
   { id: "point", label: "단골적립 & 지출관리 AI 🪙", icon: Coins, color: "text-amber-400" },
   { id: "coupon", label: "쿠폰 & 주문/예약 📦", icon: Ticket, color: "text-rose-400" },
   { id: "order", label: "전사 협업 & 견적/수주 AI 🪐", icon: Zap, color: "text-cyan-400" },
+  { id: "import-customs", label: "수입 통관 & 물류/정산 AI 🚢", icon: Globe, color: "text-indigo-400" },
   { id: "price", label: "가격 & 마진 추적 AI 📈", icon: TrendingUp, color: "text-pink-400" },
   { id: "hr", label: "근태 & 급여/인사 AI 📅", icon: CalendarDays, color: "text-indigo-600" },
   { id: "safety", label: "안전 관리 & 중대재해 AI 🛡️", icon: Shield, color: "text-red-400" },
@@ -21,7 +22,7 @@ export const CATEGORIES: CategoryConfig[] = [
   { id: "safety-detect", label: "위험 감지 & 안전 비전 AI 🚨", icon: ShieldAlert, color: "text-red-500" },
   { id: "scm", label: "공급망 관리 & 대체 조달 AI 🌐", icon: Globe, color: "text-indigo-400" },
   { id: "grant", label: "정책 자금 & 정부 지원금 AI 🪙", icon: Award, color: "text-amber-400" },
-  { id: "labor", label: "근로기준법 & 노무 관리 AI ⚖️", icon: Scale, color: "text-red-400" },
+  { id: "labor", label: "근러기준법 & 노무 관리 AI ⚖️", icon: Scale, color: "text-red-400" },
   { id: "credit", label: "거래처 신용 & 채권 관리 AI 🪙", icon: CreditCard, color: "text-rose-400" },
   { id: "security", label: "비밀번호 & 사내 보안 AI 🔑", icon: Key, color: "text-purple-400" },
   { id: "website", label: "홈페이지 빌더 & 즉시 배포 AI 🌐", icon: Globe, color: "text-blue-500" }
@@ -1301,6 +1302,30 @@ export const FAQ_DATABASE: FAQItem[] = [
     category: "order",
     question: "보낼 거래명세서 및 발주서 작성 시 발생하던 미리보기 라벨 줄바꿈 현상과 버튼 색상 튀는 문제는 어떻게 해결되었나요?",
     answer: "A4 미리보기 좌측의 명칭 라벨 가로 폭을 기존 w-12(48px)에서 w-20(80px)으로 확장하여 '거래명세번호:', '거래명세일자:', '발주번호:' 등의 6자 이내 명칭이 줄바꿈 없이 한 줄에 온전히 표기되도록 정돈했습니다. 아울러 보낸 거래명세서 대장 내 '+(일반)거래명세서 작성' 버튼의 배경색을 튀는 빨간색(rose)에서 솔루션 공통 액션 칼라인 남보라색(bg-indigo-600)으로 일원화하여 시각적 통일성을 극대화했습니다."
+  },
+  {
+    id: "import-customs-features-1",
+    category: "import-customs",
+    question: "수입 통관 AI 페이지는 어떤 기능들을 제공하며, 어떻게 이용하나요?",
+    answer: "수입 통관 AI 서비스는 수입 통관 문서 PDF 인보이스를 스캔하여 마스터-품목-정산 데이터를 ERP에 자동으로 적재하는 통합 관리 도구입니다. 화면 우측 상단의 [통관 인보이스 스캔 등록] 버튼을 클릭해 PDF를 스캔하여 바로 적재할 수 있으며, 다중 체크박스 선택을 통한 일괄 인쇄 및 비고 태그 인라인 편집 기능도 제공합니다."
+  },
+  {
+    id: "import-customs-features-2",
+    category: "import-customs",
+    question: "대장에서 여러 건을 선택해 일괄 인쇄하거나 조회하려면 어떻게 하나요?",
+    answer: "각 행 맨 왼쪽의 체크박스를 다중 선택한 뒤, 우측 상단의 [🖨️ 수입 통관 대장] 버튼을 클릭하시면 됩니다. 체크된 건들만 일괄적으로 수입 통관 상세 웹뷰에 필터링되어 출력되므로 편리하게 인쇄하거나 CSV 파일로 내보낼 수 있습니다. 선택한 건이 없을 경우에는 전체 통관 목록을 조회합니다."
+  },
+  {
+    id: "import-customs-features-3",
+    category: "import-customs",
+    question: "대장 목록에서 비고(태그)를 마우스로 직접 수정하려면 어떻게 하나요?",
+    answer: "각 수입 통관 내역의 '비고(태그)' 컬럼 영역에 있는 태그를 마우스로 클릭하면 편집 창이 열립니다. 직접 쉼표(,)로 구분해 태그를 입력하거나, 아래 활성화되는 프리셋 태그(예: #자재구매, #임가공 등)를 클릭하여 손쉽게 추가/삭제할 수 있습니다. 수정 후 [저장] 버튼을 클릭하면 데이터베이스에 즉시 반영됩니다."
+  },
+  {
+    id: "import-customs-features-4",
+    category: "import-customs",
+    question: "수입 통관 상세 내역 웹뷰 페이지에서 어떤 부가 기능들을 사용할 수 있나요?",
+    answer: "수입 통관 상세 웹뷰 페이지(/import-customs/web-view)에서는 다크 모드/라이트 모드 가변 토글, React Portal 기반의 컬럼 노출 및 순서 드래그 설정, 실시간 키워드 통합 검색, 숫자 및 문자 단위 다이내믹 정렬, 그리고 현재 설정된 필터 그대로의 CSV 다운로드(CSV 내보내기) 등의 강력한 비즈니스 그리드 기능들을 지원합니다."
   }
 ];
 

@@ -3077,5 +3077,114 @@ export async function setupDatabase() {
     { name: 'created_at', type: 'TEXT', notNull: true }
   ], { tableName: 'crm_inbound_excel_signatures', uniqueKeyColumns: ['id'] });
 
+  // 51. 수입/선적 마스터 테이블 (import_master)
+  await safeCreateTable('수입 발주 마스터', [
+    { name: 'so_number', type: 'TEXT', notNull: true },
+    { name: 'po_number', type: 'TEXT', notNull: true },
+    { name: 'invoice_number', type: 'TEXT' },
+    { name: 'order_date', type: 'TEXT', notNull: true },
+    { name: 'ship_date', type: 'TEXT' },
+    { name: 'invoice_date', type: 'TEXT', notNull: true },
+    { name: 'air_waybill_nbr', type: 'TEXT' },
+    { name: 'ship_via', type: 'TEXT' },
+    { name: 'terms_of_sale', type: 'TEXT' },
+    { name: 'payment_terms', type: 'TEXT' },
+    { name: 'exporter_name', type: 'TEXT' },
+    { name: 'tags', type: 'TEXT' },
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'import_master', uniqueKeyColumns: ['so_number'] });
+
+  // 52. 수입 품목 상세 테이블 (import_items)
+  await safeCreateTable('수입 품목 상세', [
+    { name: 'item_id', type: 'INTEGER', notNull: true },
+    { name: 'so_number', type: 'TEXT', notNull: true },
+    { name: 'part_number', type: 'TEXT', notNull: true },
+    { name: 'description', type: 'TEXT' },
+    { name: 'quantity', type: 'REAL', notNull: true },
+    { name: 'unit_price', type: 'REAL', notNull: true },
+    { name: 'amount', type: 'REAL', notNull: true },
+    { name: 'currency', type: 'TEXT', defaultValue: 'USD' },
+    { name: 'hs_code', type: 'TEXT' },
+    { name: 'country_of_origin', type: 'TEXT', defaultValue: 'US' },
+    { name: 'lot_number', type: 'TEXT' },
+    { name: 'mfg_date', type: 'TEXT' },
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'import_items', uniqueKeyColumns: ['item_id'] });
+
+  // 53. 회계/정산 테이블 (import_finance)
+  await safeCreateTable('수입 정산 관리', [
+    { name: 'finance_id', type: 'INTEGER', notNull: true },
+    { name: 'so_number', type: 'TEXT', notNull: true },
+    { name: 'total_invoice_value', type: 'REAL', notNull: true },
+    { name: 'payment_due_date', type: 'TEXT', notNull: true },
+    { name: 'is_paid', type: 'INTEGER', defaultValue: 0 },
+    { name: 'paid_date', type: 'TEXT' },
+    { name: 'bank_name', type: 'TEXT' },
+    { name: 'account_number', type: 'TEXT' },
+    { name: 'swift_code', type: 'TEXT' },
+    { name: 'created_at', type: 'TEXT', notNull: true }
+  ], { tableName: 'import_finance', uniqueKeyColumns: ['finance_id'] });
+
+  // 54. 수입 통관 실제 레퍼런스 데이터 시딩 (ERP 검증용 1건)
+  try {
+    const masterCheck = await queryTable('import_master', { limit: 1 });
+    if (!masterCheck.rows || masterCheck.rows.length === 0) {
+      console.log('➡️ 수입 통관 실제 레퍼런스 데이터 시딩을 시작합니다.');
+      
+      const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+      
+      await insertRows('import_master', [{
+        so_number: '3254222',
+        po_number: 'WONEC-S2625',
+        invoice_number: 'INV-3254222',
+        order_date: '2026-03-12',
+        ship_date: '2026-03-25',
+        invoice_date: '2026-03-25',
+        air_waybill_nbr: '483391031320',
+        ship_via: 'FED-EX INTERNATIONAL',
+        terms_of_sale: 'EXW',
+        payment_terms: 'NET60',
+        exporter_name: 'BAL SEAL ENGINEERING LLC',
+        created_at: nowStr,
+        uuid: 'master-uuid-3254222'
+      }]);
+
+      await insertRows('import_items', [{
+        item_id: 1,
+        so_number: '3254222',
+        part_number: 'X639451',
+        description: 'ELECTRICAL CONNECTORS',
+        quantity: 20.00,
+        unit_price: 25.00,
+        amount: 500.00,
+        currency: 'USD',
+        hs_code: '8536.90.4000',
+        country_of_origin: 'US',
+        lot_number: '2994383',
+        mfg_date: '2026-03-20',
+        created_at: nowStr,
+        uuid: 'item-uuid-1'
+      }]);
+
+      await insertRows('import_finance', [{
+        finance_id: 1,
+        so_number: '3254222',
+        total_invoice_value: 500.00,
+        payment_due_date: '2026-05-24',
+        is_paid: 0,
+        paid_date: null,
+        bank_name: 'Bank of America, N.A.',
+        account_number: '385015956275',
+        swift_code: 'BOFAUS3N',
+        created_at: nowStr,
+        uuid: 'finance-uuid-1'
+      }]);
+
+      console.log('✓ 수입 통관 실제 레퍼런스 데이터 시딩 완료.');
+    }
+  } catch (err: any) {
+    console.error('⚠️ 수입 통관 데이터 시딩 에러:', err.message);
+  }
+
   console.log('Database setup complete.');
 }

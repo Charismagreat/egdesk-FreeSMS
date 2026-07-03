@@ -103,7 +103,8 @@ const MENU_METADATA_MAP: Record<string, { label: string; icon: any; color: strin
   "/lawyer-ai": { label: "법률 상담 AI", icon: Scale, color: "text-indigo-650" },
   "/rnd-management": { label: "연구소 관리 AI", icon: Award, color: "text-amber-550" },
   "/form-management-new": { label: "양식 관리 AI", icon: ClipboardList, color: "text-emerald-500" },
-  "/meeting-minutes": { label: "회의 기록 AI", icon: Mic, color: "text-purple-550" }
+  "/meeting-minutes": { label: "회의 기록 AI", icon: Mic, color: "text-purple-550" },
+  "/import-customs": { label: "수입 통관 AI", icon: Truck, color: "text-indigo-600" }
 };
 
 // 💡 업무 종류별(카테고리) 정렬 기준 정의
@@ -128,6 +129,7 @@ const CATEGORY_MAP: Record<string, number> = {
   "/coupons": 2,
   "/credit-risk": 2,
   "/form-management-new": 2,
+  "/import-customs": 2,
 
   // 3. 생산/재고/안전 (공장/물류/제조 현장)
   "/inventory": 3,
