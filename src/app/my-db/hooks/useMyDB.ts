@@ -100,7 +100,7 @@ export function useMyDB() {
   const [isSharedViewsLoading, setIsSharedViewsLoading] = React.useState<boolean>(false);
 
   // 로딩 및 알림
-  const [isLoading, setIsLoading] = React.useState<boolean>(false);
+  const [isLoading, setIsLoading] = React.useState<boolean>(true);
   const [toast, setToast] = React.useState<{ message: string; type: 'success' | 'error' | 'warn' } | null>(null);
 
   // 모달 제어 (추가/수정 모달)
