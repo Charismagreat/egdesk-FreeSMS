@@ -185,6 +185,11 @@ export default function PurchaseOrderWritePage() {
       });
   }, []);
 
+  // 🏷️ 브라우저 탭 타이틀 동기화
+  useEffect(() => {
+    document.title = "보낼 발주서 작성 AI";
+  }, []);
+
   // 자사 기본 프로필에서 직인 도장 이미지 로드
   useEffect(() => {
     fetch("/api/settings?key=my_company_profile")
