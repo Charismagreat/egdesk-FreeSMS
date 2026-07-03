@@ -126,7 +126,7 @@ export default function PurchaseOrderWritePage() {
     };
   }, [isContactDropdownOpen]);
 
-  // 거래처 파트너 자동완성용 상태
+  // 거래처 파트너 실시간 검색용 상태
   const [partners, setPartners] = useState<any[]>([]);
   const [showPartnerDropdown, setShowPartnerDropdown] = useState(false);
 
@@ -324,7 +324,7 @@ export default function PurchaseOrderWritePage() {
     setMaterials(next);
   };
 
-  // 품목 마스터 자동완성 매핑
+  // 품목 마스터 실시간 검색 매핑
   const handleSelectInventoryItem = (index: number, code: string) => {
     const item = inventoryItems.find(inv => inv.item_code === code || inv.barcode === code);
     if (!item) return;
@@ -714,7 +714,7 @@ export default function PurchaseOrderWritePage() {
                     
                     <div className="grid grid-cols-2 gap-2">
                       <div className="relative">
-                        <label className="block text-[10px] text-slate-500 font-bold mb-1">공급사명 검색 / 자동완성</label>
+                        <label className="block text-[10px] text-slate-500 font-bold mb-1">공급사명 실시간 검색</label>
                         <input
                           type="text"
                           placeholder="거래처 키워드 입력..."
@@ -946,7 +946,7 @@ export default function PurchaseOrderWritePage() {
                                 placeholder="소재 품명 입력"
                                 className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs text-slate-800 outline-none focus:border-indigo-500 font-bold"
                               />
-                              {/* 품목 마스터 자동완성 검색 */}
+                              {/* 품목 마스터 실시간 검색 */}
                               {item.productName && !inventoryItems.find(inv => inv.product_name === item.productName) && (
                                 <div className="absolute left-0 right-0 mt-1 max-h-36 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl z-50 divide-y divide-slate-100">
                                   {inventoryItems

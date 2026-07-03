@@ -1269,7 +1269,7 @@ export const FAQ_DATABASE: FAQItem[] = [
   {
     id: "estimates-manufacture-autocomplete",
     category: "order",
-    question: "견적서 작성 AI 화면에서 품목코드를 입력할 때 자동완성 및 초기화 기능은 어떻게 작동하나요?",
+    question: "견적서 작성 AI 화면에서 품목코드를 입력할 때 실시간 검색 및 초기화 기능은 어떻게 작동하나요?",
     answer: "재료비 목록의 품목코드 칸에 숫자를 입력한 뒤 포커스를 아웃(onBlur)하면 데이터베이스에 실제 존재하는 품목 번호일 경우 정식 코드 규격(INV-XXX)으로 자동 포맷팅되며, 매칭 성공 시 해당 품목의 품명, 규격, 단가, 기본 수량이 화면에 자동으로 오토필(Auto-fill) 채움 처리됩니다. 만약 품목코드를 완전히 지우면(공란 소거) 해당 행의 품명, 규격, 수량, 단가 데이터도 즉시 깔끔하게 자동 초기화(리셋)됩니다."
   },
   {
@@ -1288,7 +1288,7 @@ export const FAQ_DATABASE: FAQItem[] = [
     id: "estimates-purchase-order-write-page-spec",
     category: "order",
     question: "보낼 발주서 작성 AI 독립 페이지는 어디서 이용할 수 있으며 어떤 기능이 지원되나요?",
-    answer: "보낸 발주서 관리 대장에서 '발주서 작성' 버튼을 클릭하면 독립 페이지(/estimates/purchase-order-write)로 즉시 진입합니다. 이 페이지에서는 자사(본사) 정보가 안전하게 로딩되어 연동되며, 자재 자동완성 및 추가 비용 설정, 그리고 특기사항 템플릿 저장 기능이 제공됩니다. 또한, 우측 실시간 A4 미리보기를 통해 작성 중인 발주서를 즉시 검토하고 인쇄 및 PDF로 완벽하게 내보낼 수 있습니다."
+    answer: "보낸 발주서 관리 대장에서 '발주서 작성' 버튼을 클릭하면 독립 페이지(/estimates/purchase-order-write)로 즉시 진입합니다. 이 페이지에서는 자사(본사) 정보가 안전하게 로딩되어 연동되며, 자재 실시간 검색 및 추가 비용 설정, 그리고 특기사항 템플릿 저장 기능이 제공됩니다. 또한, 우측 실시간 A4 미리보기를 통해 작성 중인 발주서를 즉시 검토하고 인쇄 및 PDF로 완벽하게 내보낼 수 있습니다."
   },
   {
     id: "estimates-purchase-order-preview-margins-and-seal",
