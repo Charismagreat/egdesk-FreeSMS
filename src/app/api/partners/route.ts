@@ -52,6 +52,51 @@ async function healPartnerContactsData() {
         }
       }
     }
+
+    // ────────────────────────────────────────────────────────
+    // [보충 힐링] 3. crm_partners의 manager_name(대표담당자)은 기재되어 있는데 crm_partner_contacts에 해당 이름이 없는 경우 자동 백필 생성
+    // ────────────────────────────────────────────────────────
+    for (const partner of partners) {
+      if (partner.deleted_at) continue;
+      
+      const mName = (partner.manager_name || '').trim();
+      if (!mName || mName === '미지정') continue;
+
+      // 이 거래처 소속으로 저장된 담당자 중 해당 이름(mName)을 가진 담당자가 존재하는지 확인
+      const matchedContacts = contacts.filter(c => 
+        !c.deleted_at && 
+        String(c.partner_id) === String(partner.id) && 
+        c.name === mName
+      );
+
+      // 없다면 대표담당자 명함 레코드 자동 백필 생성 실행
+      if (matchedContacts.length === 0) {
+        console.log(`[담당자 미보유 복구 대상] 거래처: ${partner.company_name}, 대표담당자명: ${mName}`);
+        
+        // crm_partner_contacts 테이블의 새로운 ID 구하기 (순수 egdesk-helpers.ts 활용)
+        const contactsResForMax = await queryTable('crm_partner_contacts', {});
+        const currentAllContacts = contactsResForMax.rows || [];
+        const nextId = currentAllContacts.length > 0 
+          ? Math.max(...currentAllContacts.map((c: any) => parseInt(c.id) || 0)) + 1 
+          : 1;
+
+        const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+        // crm_partner_contacts 에 자동 생성 인서트
+        await insertRows('crm_partner_contacts', [{
+          id: nextId,
+          partner_id: String(partner.id),
+          name: mName,
+          position: partner.manager_position || '대표담당자',
+          phone: partner.manager_phone || partner.phone || '',
+          email: partner.manager_email || partner.email || '',
+          is_primary: 1, // 대표담당자로 강제 지정
+          created_at: nowStr
+        }]);
+
+        console.log(`✓ [데이터 복구 완료] 거래처 '${partner.company_name}' 소속 대표담당자 '${mName}' 님 레코드를 crm_partner_contacts 에 자동 백필 완료.`);
+      }
+    }
   } catch (err: any) {
     console.error('B2B 담당자 데이터 힐링 실패:', err.message);
   }
