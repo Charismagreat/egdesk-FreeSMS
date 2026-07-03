@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Upload, X, FileText, CheckCircle2, RefreshCw, AlertCircle, Trash2, Plus } from "lucide-react";
+import { Upload, X, FileText, CheckCircle2, RefreshCw, AlertCircle, Trash2, Plus, Eye } from "lucide-react";
 
 interface CustomsOcrModalProps {
   isOpen: boolean;
@@ -17,6 +17,7 @@ export default function CustomsOcrModal({
   const [ocrScanning, setOcrScanning] = useState(false);
   const [ocrSuccess, setOcrSuccess] = useState(false);
   const [ocrFilename, setOcrFilename] = useState("");
+  const [originalFileUrl, setOriginalFileUrl] = useState("");
 
   // 수입 통관 구조화 폼 데이터
   const [ocrForm, setOcrForm] = useState({
@@ -64,6 +65,10 @@ export default function CustomsOcrModal({
     setOcrScanning(false);
     setOcrSuccess(false);
     setOcrFilename("");
+    if (originalFileUrl) {
+      URL.revokeObjectURL(originalFileUrl);
+      setOriginalFileUrl("");
+    }
     setOcrForm({
       master: {
         so_number: "",
@@ -102,6 +107,14 @@ export default function CustomsOcrModal({
   const handleOcrFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // 기존 객체 URL 메모리 해제
+    if (originalFileUrl) {
+      URL.revokeObjectURL(originalFileUrl);
+    }
+
+    const fileUrl = URL.createObjectURL(file);
+    setOriginalFileUrl(fileUrl);
 
     setOcrScanning(true);
     setOcrSuccess(false);
@@ -270,6 +283,18 @@ export default function CustomsOcrModal({
   return (
     <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-[32px] border border-slate-100 max-w-4xl w-full p-6 md:p-8 shadow-2xl relative overflow-hidden flex flex-col max-h-[92vh] animate-scale-up">
+        {originalFileUrl && (
+          <button
+            type="button"
+            onClick={() => window.open(originalFileUrl, "_blank")}
+            className="absolute top-5 right-16 px-4.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-black rounded-full shadow-md flex items-center gap-1.5 cursor-pointer transition-all hover:scale-[1.02] active:scale-95"
+            title="스캔에 사용된 원본 파일(이미지/PDF) 보기"
+          >
+            <Eye className="w-3.5 h-3.5 text-indigo-400" />
+            <span>원본 파일 보기</span>
+          </button>
+        )}
+
         <button onClick={handleClose} className="absolute top-5 right-5 p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
           <X className="w-4 h-4" />
         </button>
