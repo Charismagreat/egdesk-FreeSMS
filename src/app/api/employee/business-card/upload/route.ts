@@ -102,16 +102,24 @@ export async function POST(req: Request) {
           finalPartnerId = partnersRes.rows[0].id;
         } else {
           // 존재하지 않을 경우 임시 거래처 신규 등록 (자율 대행 정책)
-          const newPartnerId = `P_${Date.now()}`;
           const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+          
+          // id 컬럼은 SQLite Auto-increment를 위해 비우고 insertRows를 호출합니다.
           await insertRows('crm_partners', [{
-            id: newPartnerId,
             type: 'BUYER', // 기본형 바이어 지정
             company_name: finalCompanyName,
             created_at: nowStr
           }]);
-          finalPartnerId = newPartnerId;
-          console.log(`[임시 거래처 자동등록] ID: ${finalPartnerId}, 회사명: ${finalCompanyName}`);
+
+          // 생성된 거래처의 실제 정수 id 획득
+          const createdPartnerRes = await queryTable('crm_partners', { filters: { company_name: finalCompanyName } });
+          const createdPartner = createdPartnerRes.rows?.[0];
+          if (createdPartner) {
+            finalPartnerId = String(createdPartner.id);
+          } else {
+            finalPartnerId = '개인_기타';
+          }
+          console.log(`[임시 거래처 자동등록 완료] ID: ${finalPartnerId}, 회사명: ${finalCompanyName}`);
         }
       } catch (err: any) {
         console.warn('임시 거래처 생성 중 오류 발생:', err.message);

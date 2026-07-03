@@ -19,16 +19,24 @@ export async function handleBusinessCard(reqBody: any, nowStr: string) {
   let finalPartnerId = partnerId;
 
   if (!finalPartnerId && partnerName) {
-    const generatedId = `P_${Date.now()}`;
     try {
+      // id 컬럼은 SQLite Auto-increment를 위해 비우고 insertRows를 호출합니다.
+      // crm_partners 테이블의 상호명 컬럼명은 company_name입니다.
       await insertRows('crm_partners', [
         {
-          id: generatedId,
-          name: partnerName,
+          type: 'BUYER', // 기본 바이어로 세팅
+          company_name: partnerName,
           created_at: nowStr
         }
       ]);
-      finalPartnerId = generatedId;
+      
+      const createdRes = await queryTable('crm_partners', { filters: { company_name: partnerName } });
+      const createdPartner = createdRes.rows?.[0];
+      if (createdPartner) {
+        finalPartnerId = String(createdPartner.id);
+      } else {
+        finalPartnerId = '개인_기타';
+      }
     } catch (partnerInsertErr: any) {
       console.warn('임시 거래처 생성 실패, 기본 그룹으로 우회합니다:', partnerInsertErr.message);
       finalPartnerId = '개인_기타';

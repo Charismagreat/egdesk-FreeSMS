@@ -3,10 +3,68 @@ import { NextResponse } from 'next/server';
 import { queryTable, insertRows, updateRows, deleteRows, executeSQL } from '../../../../egdesk-helpers';
 
 /**
+ * 📇 B2B 거래처 담당자(명함첩) 데이터 힐링 헬퍼
+ * crm_partner_contacts 테이블에 잘못 들어간 임시 문자열 ID(P_ 또는 PT-) 혹은 상호명(company_name)을
+ * 매치되는 crm_partners의 실제 정수형 id로 자동 보정합니다.
+ */
+async function healPartnerContactsData() {
+  try {
+    const contactsRes = await queryTable('crm_partner_contacts', {});
+    const contacts = contactsRes.rows || [];
+    
+    const partnersRes = await queryTable('crm_partners', {});
+    const partners = partnersRes.rows || [];
+
+    for (const contact of contacts) {
+      if (contact.deleted_at) continue;
+      
+      const pid = String(contact.partner_id || '').trim();
+      if (!pid) continue;
+      
+      // partner_id가 순수 정수형(숫자)이 아닌 경우 데이터 힐링 가동
+      const isIntegerId = /^\d+$/.test(pid);
+      if (!isIntegerId) {
+        let targetPartner = null;
+
+        // 1. partner_id에 거래처 상호명(company_name)이 직접 대입되어 있는 경우
+        targetPartner = partners.find(p => p.company_name === pid);
+
+        // 2. partner_id에 임시 생성 문자열 ID(P_ 또는 PT-)가 대입되어 있는 경우
+        if (!targetPartner && (pid.startsWith('P_') || pid.startsWith('PT-'))) {
+          // crm_partners 테이블에 혹시 해당 임시 ID가 그대로 존재하는지 1차 대조
+          const matchedById = partners.find(p => String(p.id) === pid);
+          if (matchedById) {
+            targetPartner = matchedById;
+          } else {
+            // 임시 ID가 유실되었거나 재생성되었다면, 담당자 이름이나 상호명을 대조하여 매치
+            targetPartner = partners.find(p => p.manager_name === contact.name || p.representative === contact.name);
+          }
+        }
+
+        // 매치되는 실제 정수형 거래처 id를 찾았다면 업데이트로 복구 보정 실행
+        if (targetPartner && targetPartner.id) {
+          const correctId = String(targetPartner.id);
+          await updateRows('crm_partner_contacts', 
+            { partner_id: correctId }, 
+            { filters: { id: contact.id } }
+          );
+          console.log(`✓ [B2B 담당자 데이터 힐링] 담당자 '${contact.name}'의 partner_id를 '${pid}' ➡️ 정수 ID '${correctId}'로 업데이트 완료`);
+        }
+      }
+    }
+  } catch (err: any) {
+    console.error('B2B 담당자 데이터 힐링 실패:', err.message);
+  }
+}
+
+/**
  * GET: 거래처 목록 조회 및 상세 누적 수/발주 실적 연산
  */
 export async function GET(req: Request) {
   try {
+    // 백그라운드 데이터 힐링 프로세스 기동 (타입 Affinity 및 이전 임시 ID로 인한 외래키 매칭 깨짐 자동 보정)
+    await healPartnerContactsData();
+
     const { searchParams } = new URL(req.url);
     const action = searchParams.get('action');
     const id = searchParams.get('id');

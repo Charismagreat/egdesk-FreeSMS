@@ -303,7 +303,6 @@ If no fields are found for partner, contact or estimate, leave them as null in t
         isNewPartner = true;
         // 1. 거래처 신규 자동 가입
         await insertRows('crm_partners', [{
-          id: partnerId,
           type: 'BUYER',
           company_name: pt.company_name,
           business_number: pt.business_number || '000-00-00000',
@@ -319,6 +318,15 @@ If no fields are found for partner, contact or estimate, leave them as null in t
           memo: `'ST-${taskId}' 스냅태스크 AI 자동 가입 처리됨.`,
           created_at: nowStr
         }]);
+
+        // 생성된 거래처의 실제 정수 id 획득
+        const createdPartnerRes = await queryTable('crm_partners', { filters: { company_name: pt.company_name } });
+        const createdPartner = createdPartnerRes.rows?.[0];
+        if (createdPartner) {
+          finalPartnerId = String(createdPartner.id);
+        } else {
+          finalPartnerId = '개인_기타';
+        }
       } else {
         finalPartnerId = ptRows[0].id;
         // 기존 파트너 정보 주소 등 실시간 스마트 업데이트
