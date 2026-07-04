@@ -58,3 +58,14 @@ See `.agents/rules/egdesk-dev-context.md` for full details.
    - 새로운 업무 도메인과 프리뷰 UI가 생성되는 경우, 독자적인 파일로 개발한 후 이지봇에서 동적으로 수입(import)하여 렌더링하는 느슨한 결합(Loose Coupling) 방식을 엄격하게 고수합니다.
 <!-- END:easybot-orchestration-rules -->
 
+<!-- BEGIN:file-upload-rules -->
+## 전사적 파일 보관 및 업로드 표준 준수 원칙
+
+1. **로컬 파일시스템 직접 쓰기 지양**:
+   - `fs.writeFileSync` 또는 임의 저장 방식을 통해 프로젝트 내 `public/uploads` 등의 정적 폴더에 실물 업로드 파일을 직접 생성하는 방식을 금지합니다.
+2. **`egdesk-helpers.ts` 스토리지 API 의무 적용**:
+   - 파일 업로드가 필요한 모든 도메인(명함, 영수증, 계약서, 견적서, 통관서류 등)에서는 `egdesk-helpers.ts`의 `uploadFile` API를 의무적으로 사용하여 시스템 격리 스토리지 버킷에 보관해야 합니다.
+3. **통합 파일 게이트웨이 활용**:
+   - 보관된 파일의 새 창 조회 및 다운로드는 통합 게이트웨이 엔드포인트인 `/api/shared/files?fileId=...` 또는 `tableName`과 `rowId`를 경유하도록 설계하여 다이렉트 파일 서빙 경로 노출에 따른 보안 리스크를 원천 차단합니다.
+<!-- END:file-upload-rules -->
+

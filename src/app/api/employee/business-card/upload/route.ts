@@ -1,10 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
 import crypto from 'crypto';
 import { callAI } from '@/lib/ai-router';
-import { queryTable, insertRows } from '@/../egdesk-helpers';
+import { queryTable, insertRows, updateRows, uploadFile } from '@/../egdesk-helpers';
 
 export async function POST(req: Request) {
   try {
@@ -14,31 +12,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: '분석할 명함 이미지 데이터(Base64)가 누락되었습니다.' }, { status: 400 });
     }
 
-    // 1. Base64 이미지 분리 및 파일 시스템 저장
-    let mimeType = 'image/png';
-    let base64Data = image;
-
-    if (image.startsWith('data:')) {
-      const parts = image.split(';base64,');
-      const meta = parts[0];
-      base64Data = parts[1];
-      mimeType = meta.split(':')[1];
-    }
-
-    const extension = mimeType.split('/')[1] || 'png';
-    const filename = `card_${Date.now()}_${crypto.randomBytes(4).toString('hex')}.${extension}`;
-    
-    // public/uploads/cards/ 폴더 생성 보장
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'cards');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    
-    const filePath = path.join(uploadDir, filename);
-    const buffer = Buffer.from(base64Data, 'base64');
-    fs.writeFileSync(filePath, buffer);
-    
-    const cardImageUrl = `/uploads/cards/${filename}`;
+    // 1. 물리 파일 쓰기 제거 및 이미지 데이터 임시 지정
+    const cardImageUrl = image;
 
     // 2. 공통 AI 멀티모달 라우터 가동 (Gemini 활용 OCR 스캔)
     const systemPrompt = `
@@ -144,15 +119,23 @@ export async function POST(req: Request) {
       position: parsedData.position || '',
       phone: parsedData.phone || '',
       email: parsedData.email || '',
-      card_image_url: cardImageUrl,
+      card_image_url: '',
       is_primary: contacts.filter((c: any) => c.partner_id === finalPartnerId).length === 0 ? 1 : 0,
       is_active: 1,
       created_at: nowStr
     }]);
 
+    // uploadFile로 격리 스토리지 보관 및 게이트웨이 웹주소 맵핑
+    let finalCardUrl = image;
+    const uploadRes = await uploadFile('crm_partner_contacts', nextId, 'card_image_url', `card_${nextId}.png`, image);
+    if (uploadRes && uploadRes.success) {
+      finalCardUrl = `/api/shared/files?tableName=crm_partner_contacts&rowId=${nextId}&columnName=card_image_url`;
+      await updateRows('crm_partner_contacts', { card_image_url: finalCardUrl }, { filters: { id: nextId } });
+    }
+
     return NextResponse.json({
       success: true,
-      cardImageUrl,
+      cardImageUrl: finalCardUrl,
       parsed: {
         id: nextId,
         partnerId: finalPartnerId,

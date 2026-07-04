@@ -109,24 +109,8 @@ export async function POST(req: Request) {
       mimeType = parts[0].replace('data:', '');
       base64Data = parts[1];
     }
-    // 1.5. PDF 및 이미지 파일을 디스크에 미리 보관
-    let pdfFilePath = '';
-    try {
-      const isPdf = mimeType === 'application/pdf';
-      const isImage = mimeType.startsWith('image/');
-      if (isPdf || isImage) {
-        const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'financials');
-        if (!fs.existsSync(uploadDir)) {
-          fs.mkdirSync(uploadDir, { recursive: true });
-        }
-        const fileName = `${Date.now()}.${isPdf ? 'pdf' : 'png'}`;
-        const filePath = path.join(uploadDir, fileName);
-        fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
-        pdfFilePath = `/uploads/financials/${fileName}`;
-      }
-    } catch (e) {
-      console.warn('파일 디스크 저장 에러:', e);
-    }
+    // 1.5. 물리 파일 쓰기 제거 및 이미지 데이터 바인딩
+    const pdfFilePath = image;
 
     // 2. DB에서 AI 설정 정보 로드
     const settingsRes = await queryTable('system_settings', { filters: { key: 'google_ai_api_key' } });

@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import { queryTable, insertRows, updateRows, executeSQL, joinTables } from '@/../egdesk-helpers';
+import { queryTable, insertRows, updateRows, executeSQL, joinTables, uploadFile } from '@/../egdesk-helpers';
 
 // GET: 수입 통관 마스터 목록 조회 (메모리 필터링 방식으로 SQL 방화벽 우회)
 export async function GET(req: Request) {
@@ -60,7 +60,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { master, items, finance } = body;
+    const { master, items, finance, fileData, fileName } = body;
 
     if (!master || !master.so_number || !master.po_number) {
       return NextResponse.json({ success: false, error: '필수 마스터 정보(주문번호, PO번호)가 누락되었습니다.' }, { status: 400 });
@@ -131,6 +131,19 @@ export async function POST(req: Request) {
     const masterRes = await insertRows('import_master', [masterRow]);
     if (!masterRes.success) {
       throw new Error(`마스터 적재 실패: ${masterRes.error}`);
+    }
+
+    // egdesk-helpers의 uploadFile을 사용해 격리 스토리지에 원본 서류 업로드 및 웹 게이트웨이 매핑
+    if (fileData) {
+      const selectRes = await queryTable('import_master', { filters: { so_number: master.so_number } });
+      if (selectRes.rows && selectRes.rows.length > 0) {
+        const rowId = selectRes.rows[0].id;
+        const uploadRes = await uploadFile('import_master', rowId, 'file_path', fileName || 'customs_doc.pdf', fileData);
+        if (uploadRes && uploadRes.success) {
+          const gatewayUrl = `/api/shared/files?tableName=import_master&rowId=${rowId}&columnName=file_path`;
+          await updateRows('import_master', { file_path: gatewayUrl }, { filters: { id: rowId } });
+        }
+      }
     }
 
     // 3. 수입 품목 상세 테이블 적재

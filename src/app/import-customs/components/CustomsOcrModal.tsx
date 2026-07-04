@@ -18,6 +18,7 @@ export default function CustomsOcrModal({
   const [ocrSuccess, setOcrSuccess] = useState(false);
   const [ocrFilename, setOcrFilename] = useState("");
   const [originalFileUrl, setOriginalFileUrl] = useState("");
+  const [ocrFileData, setOcrFileData] = useState("");
 
   // 수입 통관 구조화 폼 데이터
   const [ocrForm, setOcrForm] = useState({
@@ -65,6 +66,7 @@ export default function CustomsOcrModal({
     setOcrScanning(false);
     setOcrSuccess(false);
     setOcrFilename("");
+    setOcrFileData("");
     if (originalFileUrl) {
       URL.revokeObjectURL(originalFileUrl);
       setOriginalFileUrl("");
@@ -137,6 +139,7 @@ export default function CustomsOcrModal({
         if (data.success) {
           setOcrScanning(false);
           setOcrSuccess(true);
+          setOcrFileData(base64Data);
           setOcrForm({
             master: data.master || {},
             items: data.items || [],
@@ -263,7 +266,9 @@ export default function CustomsOcrModal({
         body: JSON.stringify({
           master: ocrForm.master,
           items: ocrForm.items,
-          finance: finalFinance
+          finance: finalFinance,
+          fileData: ocrFileData,
+          fileName: ocrFilename
         })
       });
 
