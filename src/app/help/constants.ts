@@ -1326,6 +1326,18 @@ export const FAQ_DATABASE: FAQItem[] = [
     category: "import-customs",
     question: "수입 통관 상세 내역 웹뷰 페이지에서 어떤 부가 기능들을 사용할 수 있나요?",
     answer: "수입 통관 상세 웹뷰 페이지(/import-customs/web-view)에서는 다크 모드/라이트 모드 가변 토글, React Portal 기반의 컬럼 노출 및 순서 드래그 설정, 실시간 키워드 통합 검색, 숫자 및 문자 단위 다이내믹 정렬, 그리고 현재 설정된 필터 그대로의 CSV 다운로드(CSV 내보내기) 등의 강력한 비즈니스 그리드 기능들을 지원합니다."
+  },
+  {
+    id: "import-customs-features-5",
+    category: "import-customs",
+    question: "수입 통관 대장의 '작업' 컬럼에 표시되는 '지급 처리' 버튼은 어떻게 활용하나요?",
+    answer: "송금 상태가 '미송금'인 수입 내역의 우측 작업 컬럼에 [지급 처리 >] 단추가 노출됩니다. 이를 누르면 백엔드 API가 정산 상태를 자동으로 갱신하여 송금 상태를 즉각 '지급완료'로 업데이트하고, 지급일자를 오늘 날짜로 자동 매핑해 줍니다."
+  },
+  {
+    id: "import-customs-features-6",
+    category: "import-customs",
+    question: "대장의 '등록일시' 컬럼에 날짜와 시간이 상하 2행으로 분할되어 표시되는 이유는 무엇인가요?",
+    answer: "그리드의 가로 영역을 극대화하여 모바일 및 협소한 브라우저 화면에서도 정보의 겹침 현상을 차단하기 위함입니다. 등록 연월일(YYYY-MM-DD)을 볼드 처리된 상단에 배치하고 시분초(HH:MM:SS)를 연한 회색 하단에 나누어 렌더링함으로써, 최적의 비즈니스 레이아웃을 구현했습니다."
   }
 ];
 
