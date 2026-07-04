@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Database, ShieldAlert, CheckCircle2, AlertCircle, RefreshCw, ExternalLink } from 'lucide-react';
+import { apiFetch } from '@/lib/api';
 
 export default function DatabaseInitCard() {
   const [loading, setLoading] = useState<boolean>(false);
@@ -20,7 +21,7 @@ export default function DatabaseInitCard() {
 
     try {
       // 1단계: 필수 테이블 스키마 생성 및 동기화 (/api/setup)
-      const resSetup = await fetch('/api/setup');
+      const resSetup = await apiFetch('/api/setup');
       const dataSetup = await resSetup.json();
 
       if (!dataSetup.success) {
@@ -28,7 +29,7 @@ export default function DatabaseInitCard() {
       }
 
       // 2단계: 최고관리자 계정 안전 생성 및 정비 (/api/setup-admin)
-      const resAdmin = await fetch('/api/setup-admin');
+      const resAdmin = await apiFetch('/api/setup-admin');
       const dataAdmin = await resAdmin.json();
 
       if (!dataAdmin.success) {
