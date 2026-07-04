@@ -137,6 +137,7 @@ export default function CustomsOcrModal({
           })
         });
         const data = await res.json();
+        console.log("DEBUG OCR RESPONSE Raw Data:", data);
         if (data.success) {
           setOcrScanning(false);
           setOcrSuccess(true);
