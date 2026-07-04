@@ -5,6 +5,7 @@ import { usePersistedState } from "@/hooks/usePersistedState";
 import { Truck, Search, Upload, Trash2, Eye, Calendar, DollarSign, FileText, ArrowRight, RefreshCw, X, Link, Copy, Printer, ChevronRight } from "lucide-react";
 import CustomsOcrModal from "./components/CustomsOcrModal";
 import InlineTagEditor from "../estimates/components/InlineTagEditor";
+import { apiFetch } from "@/lib/api";
 
 export default function ImportCustomsDashboard() {
   // 1. usePersistedState를 활용한 탭, 검색어, 페이징 상태 보존
@@ -36,7 +37,7 @@ export default function ImportCustomsDashboard() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/import-customs?searchQuery=${encodeURIComponent(searchQuery)}&status=${statusFilter}&limit=${limit}&offset=${offset}`);
+      const res = await apiFetch(`/api/import-customs?searchQuery=${encodeURIComponent(searchQuery)}&status=${statusFilter}&limit=${limit}&offset=${offset}`);
       const data = await res.json();
       if (data.success) {
         setRows(data.rows || []);
@@ -53,7 +54,7 @@ export default function ImportCustomsDashboard() {
   const fetchDetail = async (so_number: string) => {
     setDetailLoading(true);
     try {
-      const res = await fetch(`/api/import-customs/detail?so_number=${so_number}`);
+      const res = await apiFetch(`/api/import-customs/detail?so_number=${so_number}`);
       const data = await res.json();
       if (data.success) {
         setDetailData(data);
@@ -70,7 +71,7 @@ export default function ImportCustomsDashboard() {
 
   // 📂 태그 프리셋 로드
   useEffect(() => {
-    fetch("/api/expenses/tags")
+    apiFetch("/api/expenses/tags")
       .then((res) => res.json())
       .then((json) => {
         if (json.success) {
@@ -82,7 +83,7 @@ export default function ImportCustomsDashboard() {
 
   // 유저 권한 세션 로드
   useEffect(() => {
-    fetch("/api/auth/me")
+    apiFetch("/api/auth/me")
       .then((res) => res.json())
       .then((data) => {
         if (data.success && data.role) {
@@ -119,7 +120,7 @@ export default function ImportCustomsDashboard() {
   // 인라인 태그 저장 실행
   const handleUpdateTags = async (soNumber: string, tagsValue: string) => {
     try {
-      const res = await fetch("/api/import-customs", {
+      const res = await apiFetch("/api/import-customs", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -144,7 +145,7 @@ export default function ImportCustomsDashboard() {
       return;
     }
     try {
-      const res = await fetch("/api/import-customs", {
+      const res = await apiFetch("/api/import-customs", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -186,7 +187,7 @@ export default function ImportCustomsDashboard() {
     }
 
     try {
-      const res = await fetch(`/api/import-customs?so_number=${so_number}`, {
+      const res = await apiFetch(`/api/import-customs?so_number=${so_number}`, {
         method: "DELETE"
       });
       const data = await res.json();

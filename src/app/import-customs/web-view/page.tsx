@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, Suspense, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Sun, Moon, RefreshCw, X, Download, ArrowUp, ArrowDown, ChevronUp, ChevronDown, Check, Eye } from "lucide-react";
 import { createPortal } from "react-dom";
+import { apiFetch } from "@/lib/api";
 
 // 수입 통관 대장 컬럼 및 디폴트 노출 정의
 const HEADERS = [
@@ -78,7 +79,7 @@ function CustomsWebViewContent() {
     setError(null);
     try {
       // 1. 목록 조회 API 호출 (전체 조회를 위해 충분히 큰 리밋)
-      const res = await fetch(`/api/import-customs?limit=100000&_t=${Date.now()}`);
+      const res = await apiFetch(`/api/import-customs?limit=100000&_t=${Date.now()}`);
       const json = await res.json();
       
       if (json.success && json.rows) {

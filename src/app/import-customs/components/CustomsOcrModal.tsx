@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Upload, X, FileText, CheckCircle2, RefreshCw, AlertCircle, Trash2, Plus, Eye } from "lucide-react";
+import { apiFetch } from "@/lib/api";
 
 interface CustomsOcrModalProps {
   isOpen: boolean;
@@ -126,7 +127,7 @@ export default function CustomsOcrModal({
     reader.onload = async () => {
       const base64Data = reader.result as string;
       try {
-        const res = await fetch("/api/import-customs/ocr", {
+        const res = await apiFetch("/api/import-customs/ocr", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -260,7 +261,7 @@ export default function CustomsOcrModal({
         total_invoice_value: calculatedTotal
       };
 
-      const res = await fetch("/api/import-customs", {
+      const res = await apiFetch("/api/import-customs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
