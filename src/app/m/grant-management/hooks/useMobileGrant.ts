@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect, useCallback } from "react";
 import { GrantAnnouncement } from "../../../grant-management/types";
 
@@ -15,7 +16,7 @@ export function useMobileGrant() {
   const fetchGrantData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/production/grant");
+      const res = await apiFetch("/api/production/grant");
       const data = await res.json();
       if (data.success) {
         setAnnouncements(data.announcements);
@@ -37,7 +38,7 @@ export function useMobileGrant() {
   // 2. 관심 공고 보관함 토글 (POST)
   const handleToggleBookmark = async (id: string) => {
     try {
-      const res = await fetch("/api/production/grant", {
+      const res = await apiFetch("/api/production/grant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

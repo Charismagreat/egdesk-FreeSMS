@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect } from "react";
 import { 
   Home, Users, MessageSquare, Settings, ShoppingCart, 
@@ -177,7 +178,7 @@ export default function MenuSettingsCard() {
   // 1. 유저 권한 및 메뉴 데이터 로딩
   useEffect(() => {
     // 1-1. 최고관리자 권한 조회
-    fetch("/api/auth/me")
+    apiFetch("/api/auth/me")
       .then(res => res.json())
       .then(data => {
         if (data.success && data.role === "SUPER_ADMIN") {
@@ -189,7 +190,7 @@ export default function MenuSettingsCard() {
       .catch(() => setIsAdmin(false));
 
     // 1-2. 메뉴 설정 조회
-    fetch("/api/settings/menu", { cache: "no-store" })
+    apiFetch("/api/settings/menu", { cache: "no-store" })
       .then(res => res.json())
       .then(data => {
         if (data.success && data.menuSettings) {
@@ -272,7 +273,7 @@ export default function MenuSettingsCard() {
         sort_order: (idx + 1) * 10
       }));
 
-      const res = await fetch("/api/settings/menu", {
+      const res = await apiFetch("/api/settings/menu", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ settings: reorderedSettings })

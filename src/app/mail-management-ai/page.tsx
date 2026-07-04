@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect, useCallback } from "react";
 import { 
   Mail, Activity, Clock, Sparkles, AlertTriangle, 
@@ -46,7 +47,7 @@ export default function MailManagementAIPage() {
   const fetchMailData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/mail-management");
+      const res = await apiFetch("/api/mail-management");
       const data = await res.json();
       if (data.success) {
         setLogs(data.recentLogs || []);
@@ -73,7 +74,7 @@ export default function MailManagementAIPage() {
   // 2. 설정 저장 (POST)
   const handleSaveSettings = async (newInterval: string, newEnabled: boolean) => {
     try {
-      const res = await fetch("/api/mail-management", {
+      const res = await apiFetch("/api/mail-management", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -98,7 +99,7 @@ export default function MailManagementAIPage() {
     if (isTriggering) return;
     setIsTriggering(true);
     try {
-      const res = await fetch("/api/mail-management", {
+      const res = await apiFetch("/api/mail-management", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "trigger_collection" })

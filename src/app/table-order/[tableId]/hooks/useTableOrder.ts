@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { Product, CartState, AppliedCoupon } from "../types";
@@ -46,7 +47,7 @@ export function useTableOrder() {
 
   const fetchPointEarningRate = async () => {
     try {
-      const res = await fetch('/api/settings?key=point_earning_rate');
+      const res = await apiFetch('/api/settings?key=point_earning_rate');
       const data = await res.json();
       if (data.success && data.value !== null) {
         const rateVal = Number(data.value);
@@ -61,7 +62,7 @@ export function useTableOrder() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch('/api/products');
+      const res = await apiFetch('/api/products');
       const json = await res.json();
       if (json.success) {
         // 테이블용 카테고리만 필터링
@@ -125,7 +126,7 @@ export function useTableOrder() {
     setIsOtpSent(false);
 
     try {
-      const res = await fetch(`/api/points?phone=${encodeURIComponent(phoneForPoints)}`);
+      const res = await apiFetch(`/api/points?phone=${encodeURIComponent(phoneForPoints)}`);
       const json = await res.json();
       if (json.success) {
         setPointBalance(json.balance);
@@ -133,7 +134,7 @@ export function useTableOrder() {
         setPointInfo(`조정/확인 완료: 현재 보유 포인트 ${json.balance.toLocaleString()}p`);
       } else {
         // 고객 정보가 없는 경우 즉시 Soft Sign-up 가상 생성 처리 연동
-        const registerRes = await fetch('/api/customers', {
+        const registerRes = await apiFetch('/api/customers', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -180,7 +181,7 @@ export function useTableOrder() {
 
     setIsOtpSending(true);
     try {
-      const res = await fetch('/api/points/otp', {
+      const res = await apiFetch('/api/points/otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'send', phone: phoneForPoints })
@@ -207,7 +208,7 @@ export function useTableOrder() {
 
     setIsOtpVerifying(true);
     try {
-      const res = await fetch('/api/points/otp', {
+      const res = await apiFetch('/api/points/otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'verify', phone: phoneForPoints, code: otpCode })
@@ -244,7 +245,7 @@ export function useTableOrder() {
     }).filter(item => item.unit_price > 0);
 
     try {
-      const res = await fetch('/api/coupons/verify', {
+      const res = await apiFetch('/api/coupons/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: couponCode, orderAmount: cartTotalAmount, cart_items: cartItems })
@@ -299,7 +300,7 @@ export function useTableOrder() {
     }
     
     try {
-      const res = await fetch('/api/orders', {
+      const res = await apiFetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -318,7 +319,7 @@ export function useTableOrder() {
       if (json.success) {
         // 실제 결제 및 차감에 연계된 포인트 소모 API 호출
         if (appliedPoints > 0 && pointCustomerId) {
-          await fetch('/api/points', {
+          await apiFetch('/api/points', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

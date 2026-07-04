@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { FileText, CheckCircle2, ShieldCheck, PenTool, RefreshCw, AlertCircle, Calendar, MapPin, Briefcase, DollarSign, Clock, Check, Loader2 } from "lucide-react";
@@ -72,7 +73,7 @@ function MobileContractSignContent() {
     async function loadData() {
       try {
         // 1. 직원 정보 로드
-        const opRes = await fetch("/api/operators");
+        const opRes = await apiFetch("/api/operators");
         const opData = await opRes.json();
         
         if (!opData.success) {
@@ -88,7 +89,7 @@ function MobileContractSignContent() {
         setOperator(targetOp);
 
         // 2. 근로계약 설정 로드
-        const contractRes = await fetch("/api/hr/contracts");
+        const contractRes = await apiFetch("/api/hr/contracts");
         const contractData = await contractRes.json();
         
         if (!contractData.success) {
@@ -194,7 +195,7 @@ function MobileContractSignContent() {
       // 캔버스 드로잉 데이터를 Base64 이미지 스트링으로 추출
       const signatureImage = canvasRef.current.toDataURL("image/png");
 
-      const response = await fetch("/api/hr/contracts/submit-sign", {
+      const response = await apiFetch("/api/hr/contracts/submit-sign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

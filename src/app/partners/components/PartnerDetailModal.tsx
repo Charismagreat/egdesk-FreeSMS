@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from "react";
 import { X, Sparkles, RefreshCw, Trash2, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { Partner, DetailHistory } from "../types";
@@ -65,7 +66,7 @@ export function PartnerDetailModal({
   const handleSetPrimaryContact = async (contactId: number) => {
     if (!selectedPartner) return;
     try {
-      const res = await fetch('/api/partners/contacts', {
+      const res = await apiFetch('/api/partners/contacts', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -91,7 +92,7 @@ export function PartnerDetailModal({
     if (!window.confirm('이 담당자를 명단에서 삭제하시겠습니까?')) return;
 
     try {
-      const res = await fetch(`/api/partners/contacts?id=${contactId}`, {
+      const res = await apiFetch(`/api/partners/contacts?id=${contactId}`, {
         method: 'DELETE'
       });
       const data = await res.json();
@@ -148,7 +149,7 @@ export function PartnerDetailModal({
       : { partner_id: selectedPartner.id, ...contactForm };
 
     try {
-      const res = await fetch('/api/partners/contacts', {
+      const res = await apiFetch('/api/partners/contacts', {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -179,7 +180,7 @@ export function PartnerDetailModal({
       const reader = new FileReader();
       reader.onload = async (e) => {
         const base64Data = e.target?.result as string;
-        const res = await fetch('/api/partners/ocr', {
+        const res = await apiFetch('/api/partners/ocr', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ file: base64Data, mimeType: fileObj.type, action: 'card' })
@@ -210,7 +211,7 @@ export function PartnerDetailModal({
   const fetchFinancials = async (partnerId: string) => {
     setLoadingFin(true);
     try {
-      const res = await fetch(`/api/financials?company_id=${partnerId}`);
+      const res = await apiFetch(`/api/financials?company_id=${partnerId}`);
       const data = await res.json();
       if (data.success) {
         setFinancials(data.list || []);
@@ -246,7 +247,7 @@ export function PartnerDetailModal({
       const formData = new FormData();
       formData.append('file', fileObj);
 
-      const res = await fetch('/api/financials/upload', {
+      const res = await apiFetch('/api/financials/upload', {
         method: 'POST',
         body: formData
       });
@@ -292,7 +293,7 @@ export function PartnerDetailModal({
   const handleSaveFinancials = async () => {
     if (!tempFinData || !selectedPartner) return;
     try {
-      const res = await fetch('/api/financials', {
+      const res = await apiFetch('/api/financials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(tempFinData)
@@ -314,7 +315,7 @@ export function PartnerDetailModal({
   const handleDeleteFinancials = async (id: string) => {
     if (!confirm('정말로 해당 연도 재무제표를 삭제하시겠습니까? 관련 첨부 파일도 함께 삭제됩니다.')) return;
     try {
-      const res = await fetch(`/api/financials?id=${id}`, {
+      const res = await apiFetch(`/api/financials?id=${id}`, {
         method: 'DELETE'
       });
       const data = await res.json();

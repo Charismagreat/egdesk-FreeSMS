@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect, useCallback } from "react";
 import { EmployeeLaborStat, LaborAuditSummary, EmployeeContract } from "../types";
 
@@ -21,7 +22,7 @@ export function useLaborManagement() {
   const fetchLaborData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/production/labor");
+      const res = await apiFetch("/api/production/labor");
       const data = await res.json();
       if (data.success) {
         setStats(data.stats);
@@ -46,7 +47,7 @@ export function useLaborManagement() {
   const handleGenerateAudit = async () => {
     setIsAuditing(true);
     try {
-      const res = await fetch("/api/production/labor", {
+      const res = await apiFetch("/api/production/labor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -72,7 +73,7 @@ export function useLaborManagement() {
   // 3. 독소 계약 조항에 대한 AI 합법 조항 대체 보정 (POST)
   const handleRemediateClause = async (employeeId: string, clauseId: string) => {
     try {
-      const res = await fetch("/api/production/labor", {
+      const res = await apiFetch("/api/production/labor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

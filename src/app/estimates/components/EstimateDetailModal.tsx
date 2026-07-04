@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from "react";
 import { 
   X, FileText, Plus, RefreshCw, CheckCircle2, ExternalLink, ShieldAlert, Info 
@@ -88,7 +89,7 @@ export default function EstimateDetailModal({
   // 태그 프리셋 및 본사 프로필 로드
   useEffect(() => {
     if (isOpen) {
-      fetch("/api/expenses/tags")
+      apiFetch("/api/expenses/tags")
         .then((res) => res.json())
         .then((json) => {
           if (json.success) {
@@ -97,7 +98,7 @@ export default function EstimateDetailModal({
         })
         .catch((e) => console.error("태그 로드 에러:", e));
 
-      fetch('/api/settings?key=my_company_profile')
+      apiFetch('/api/settings?key=my_company_profile')
         .then((res) => res.json())
         .then((data) => {
           if (data.success && data.value) {
@@ -117,7 +118,7 @@ export default function EstimateDetailModal({
     setIsEditingDetail(false);
     setActiveDetailTab('info');
     try {
-      const res = await fetch(`/api/estimates?action=detail&estimateId=${id}`);
+      const res = await apiFetch(`/api/estimates?action=detail&estimateId=${id}`);
       const data = await res.json();
       if (data.success) {
         setDetailData(data);
@@ -294,7 +295,7 @@ export default function EstimateDetailModal({
         delivery_date: editForm.delivery_date
       });
 
-      const res = await fetch("/api/estimates", {
+      const res = await apiFetch("/api/estimates", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -330,7 +331,7 @@ export default function EstimateDetailModal({
     
     try {
       setIsProcessing(true);
-      const res = await fetch(`/api/estimates?estimateId=${estimateId}`, {
+      const res = await apiFetch(`/api/estimates?estimateId=${estimateId}`, {
         method: "DELETE"
       });
       const data = await res.json();

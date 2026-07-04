@@ -17,11 +17,9 @@ import {
   BookOpen
 } from "lucide-react";
 import Link from "next/link";
-import {
-  searchKoreanLaw,
+import {searchKoreanLaw,
   getKoreanLawText,
-  getKoreanLawDecision
-} from "../../../../egdesk-helpers";
+  getKoreanLawDecision, apiFetch} from "../../../../egdesk-helpers";
 
 // 모바일용 판례/법률 매핑
 interface MobileLawItem {
@@ -86,7 +84,7 @@ export default function MobileLawyerAiPage() {
     setLitigationAnalyzing(true);
     setLitigationReport(null);
     try {
-      const response = await fetch("/api/lawyer-ai/analyze", {
+      const response = await apiFetch("/api/lawyer-ai/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -123,7 +121,7 @@ export default function MobileLawyerAiPage() {
 
     setLoading(true);
     try {
-      const response = await fetch("/api/easybot/ocr/confirm", {
+      const response = await apiFetch("/api/easybot/ocr/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect, useMemo } from "react";
 import { 
   Shield, 
@@ -115,7 +116,7 @@ export default function SafetyManagementPage() {
     setIsLoading(true);
     try {
       // 1. 사용자 정보
-      const meRes = await fetch("/api/auth/me");
+      const meRes = await apiFetch("/api/auth/me");
       const meData = await meRes.json();
       if (meData.success) {
         setUserRole(meData.role || "SUB_OPERATOR");
@@ -126,29 +127,29 @@ export default function SafetyManagementPage() {
       }
 
       // 2. 안전보건방침
-      const policyRes = await fetch("/api/safety/policies");
+      const policyRes = await apiFetch("/api/safety/policies");
       const policyData = await policyRes.json();
       if (policyData.success) setPolicies(policyData.policies);
 
       // 3. 위험성평가
-      const riskRes = await fetch("/api/safety/risk-assessment");
+      const riskRes = await apiFetch("/api/safety/risk-assessment");
       const riskData = await riskRes.json();
       if (riskData.success) setAssessments(riskData.assessments);
 
       // 4. TBM 로그
-      const tbmRes = await fetch("/api/safety/tbm");
+      const tbmRes = await apiFetch("/api/safety/tbm");
       const tbmData = await tbmRes.json();
       if (tbmData.success) setTbmLogs(tbmData.tbmLogs);
 
       // 5. 아차사고
-      const missRes = await fetch("/api/safety/near-miss");
+      const missRes = await apiFetch("/api/safety/near-miss");
       const missData = await missRes.json();
       if (missData.success) setNearMisses(missData.nearMisses);
 
       // 6. 안전관리자 연락처 조회
-      const settingsRes = await fetch("/api/settings");
+      const settingsRes = await apiFetch("/api/settings");
       // 만약 /api/settings가 없다면 system_settings 개별 쿼리
-      const phoneRes = await fetch("/api/settings?key=safety_manager_phone");
+      const phoneRes = await apiFetch("/api/settings?key=safety_manager_phone");
       const phoneData = await phoneRes.json();
       if (phoneData.success && phoneData.value) {
         setSafetyManagerPhone(phoneData.value);
@@ -169,7 +170,7 @@ export default function SafetyManagementPage() {
   // 안전관리자 전화번호 업데이트
   const updateManagerPhone = async () => {
     try {
-      const res = await fetch("/api/settings", {
+      const res = await apiFetch("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key: "safety_manager_phone", value: safetyManagerPhone })
@@ -196,7 +197,7 @@ export default function SafetyManagementPage() {
         return;
       }
 
-      const res = await fetch("/api/safety/policies", {
+      const res = await apiFetch("/api/safety/policies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -224,7 +225,7 @@ export default function SafetyManagementPage() {
     e.preventDefault();
     setIsRiskSubmitting(true);
     try {
-      const res = await fetch("/api/safety/risk-assessment", {
+      const res = await apiFetch("/api/safety/risk-assessment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -252,7 +253,7 @@ export default function SafetyManagementPage() {
   // 위험성평가 최고관리자 승인 처리
   const handleApproveRisk = async (id: string) => {
     try {
-      const res = await fetch("/api/safety/risk-assessment", {
+      const res = await apiFetch("/api/safety/risk-assessment", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -278,7 +279,7 @@ export default function SafetyManagementPage() {
     e.preventDefault();
     setIsTbmSubmitting(true);
     try {
-      const res = await fetch("/api/safety/tbm", {
+      const res = await apiFetch("/api/safety/tbm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -310,7 +311,7 @@ export default function SafetyManagementPage() {
     e.preventDefault();
     setIsNearMissSubmitting(true);
     try {
-      const res = await fetch("/api/safety/near-miss", {
+      const res = await apiFetch("/api/safety/near-miss", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newNearMiss)
@@ -345,7 +346,7 @@ export default function SafetyManagementPage() {
     if (!selectedNearMissForAction) return;
 
     try {
-      const res = await fetch("/api/safety/near-miss", {
+      const res = await apiFetch("/api/safety/near-miss", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -379,7 +380,7 @@ export default function SafetyManagementPage() {
     setIsChatLoading(true);
 
     try {
-      const apiKeyRes = await fetch("/api/settings?key=google_ai_api_key").then(r => r.json());
+      const apiKeyRes = await apiFetch("/api/settings?key=google_ai_api_key").then(r => r.json());
       let apiKey = apiKeyRes.success ? apiKeyRes.value : null;
       if (!apiKey) apiKey = process.env.GEMINI_API_KEY || '';
 
@@ -392,7 +393,7 @@ export default function SafetyManagementPage() {
         return;
       }
 
-      const modelRes = await fetch("/api/settings?key=google_ai_model").then(r => r.json());
+      const modelRes = await apiFetch("/api/settings?key=google_ai_model").then(r => r.json());
       const selectedModel = modelRes.success && modelRes.value
         ? modelRes.value
         : 'gemini-3.5-flash';
@@ -410,7 +411,7 @@ The report must include:
 Keep the tone urgent, professional, and clear.
 `;
 
-      const aiResponse = await fetch('/api/safety/accident-chat', {
+      const aiResponse = await apiFetch('/api/safety/accident-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

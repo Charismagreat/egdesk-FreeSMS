@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect } from "react";
 import { Order, OrderForm } from "../types";
 import { usePersistedState } from "@/hooks/usePersistedState";
@@ -46,7 +47,7 @@ export function useOrders() {
 
   const fetchData = async () => {
     try {
-      const res = await fetch('/api/orders');
+      const res = await apiFetch('/api/orders');
       const json = await res.json();
       if (json.success) setData(json.orders || []);
     } catch (e) {
@@ -60,7 +61,7 @@ export function useOrders() {
       return alert('필수 입력 누락');
     }
     try {
-      const res = await fetch('/api/orders', { 
+      const res = await apiFetch('/api/orders', { 
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form) 
@@ -86,7 +87,7 @@ export function useOrders() {
   const deleteData = async (id: string) => {
     if (!confirm('삭제하시겠습니까?')) return;
     try {
-      const res = await fetch('/api/orders?id=' + id, { method: 'DELETE' });
+      const res = await apiFetch('/api/orders?id=' + id, { method: 'DELETE' });
       const json = await res.json();
       if (json.success) fetchData();
     } catch (err) {
@@ -97,7 +98,7 @@ export function useOrders() {
   const updateOrder = async (id: string, updates: Partial<Order>) => {
     setIsUpdating(true);
     try {
-      const res = await fetch('/api/orders', { 
+      const res = await apiFetch('/api/orders', { 
         method: 'PATCH', 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: [id], updates })
@@ -117,7 +118,7 @@ export function useOrders() {
     
     setIsUpdating(true);
     try {
-      const res = await fetch('/api/orders', { 
+      const res = await apiFetch('/api/orders', { 
         method: 'PATCH', 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: Array.from(selectedIds), updates: { status } })

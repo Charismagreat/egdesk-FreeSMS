@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Sparkles, RefreshCw, CheckCircle, ShieldAlert, AlertTriangle } from "lucide-react";
 import { createPortal } from "react-dom";
@@ -180,7 +181,7 @@ export default function AIHelpManager() {
         const pagePath = window.location.pathname;
 
         try {
-          const res = await fetch("/api/ai/contextual-help", {
+          const res = await apiFetch("/api/ai/contextual-help", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ hintKey, hintText: hintVal, pagePath })
@@ -290,7 +291,7 @@ export default function AIHelpManager() {
     const pagePath = window.location.pathname;
 
     try {
-      const res = await fetch("/api/ai/contextual-help", {
+      const res = await apiFetch("/api/ai/contextual-help", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -331,7 +332,7 @@ export default function AIHelpManager() {
   useEffect(() => {
     const fetchUserRole = async () => {
       try {
-        const res = await fetch("/api/auth/me");
+        const res = await apiFetch("/api/auth/me");
         const data = await res.json();
         if (data.success && data.role) {
           setUserRole(data.role);

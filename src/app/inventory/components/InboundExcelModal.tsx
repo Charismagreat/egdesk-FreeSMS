@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useRef } from "react";
 import { Upload, X, FileText, CheckCircle2, Loader2, Sparkles, AlertCircle, ArrowRight } from "lucide-react";
 import { 
@@ -124,7 +125,7 @@ export default function InboundExcelModal({
       const sig = headers.join('|');
 
       // B. API에 해당 시그니처가 등록되어 있는지 대사
-      const sigRes = await fetch("/api/inventory/inbounds/excel-signatures");
+      const sigRes = await apiFetch("/api/inventory/inbounds/excel-signatures");
       const sigData = await sigRes.json();
       
       let matchedConfig: any = null;
@@ -273,7 +274,7 @@ export default function InboundExcelModal({
         const headers = excelData.columns;
         const sig = headers.join('|');
 
-        await fetch("/api/inventory/inbounds/excel-signatures", {
+        await apiFetch("/api/inventory/inbounds/excel-signatures", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -285,7 +286,7 @@ export default function InboundExcelModal({
       }
 
       // B. 실제 자율 입고 API 실행
-      const res = await fetch("/api/inventory/inbounds/excel-upload", {
+      const res = await apiFetch("/api/inventory/inbounds/excel-upload", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

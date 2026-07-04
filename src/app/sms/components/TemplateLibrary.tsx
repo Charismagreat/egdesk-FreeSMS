@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import React from "react";
 import { FileText, X } from "lucide-react";
 import { MessageTemplate } from "../types";
@@ -54,7 +55,7 @@ export function TemplateLibrary({
                       e.stopPropagation();
                       if (!confirm("이 템플릿을 삭제하시겠습니까?")) return;
                       try {
-                        const res = await fetch(`/api/message-templates?id=${t.id}`, { method: 'DELETE' });
+                        const res = await apiFetch(`/api/message-templates?id=${t.id}`, { method: 'DELETE' });
                         const json = await res.json();
                         if (json.success) {
                           setMessageTemplates(prev => prev.filter(x => x.id !== t.id));

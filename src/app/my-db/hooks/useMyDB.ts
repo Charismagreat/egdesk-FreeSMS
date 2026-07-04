@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React from "react";
 import { ColumnSchema, ConsoleResult, TuneMessage, FriendlyMapping } from "../types";
 import { getTableDisplayName, getColumnFriendlyName, isSensitiveColumn } from "../utils";
@@ -154,7 +155,7 @@ export function useMyDB() {
 
   const fetchSharedDashboards = async () => {
     try {
-      const res = await fetch("/api/db/ai-visualize/share");
+      const res = await apiFetch("/api/db/ai-visualize/share");
       const data = await res.json();
       if (data.success) {
         setSharedDashboards(data.list || []);
@@ -175,7 +176,7 @@ export function useMyDB() {
       const fromMatch = sqlQuery.match(/FROM\s+["']?([a-zA-Z0-9_-]+)["']?/i);
       const tableName = fromMatch ? fromMatch[1] : (selectedTable || 'raw_query');
 
-      const res = await fetch("/api/db/ai-visualize/share", {
+      const res = await apiFetch("/api/db/ai-visualize/share", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -226,7 +227,7 @@ export function useMyDB() {
         };
       });
 
-      const res = await fetch("/api/db/ai-visualize", {
+      const res = await apiFetch("/api/db/ai-visualize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -307,7 +308,7 @@ export function useMyDB() {
         ? `[집중 수정 지표: ${targetPart}] ${currentPrompt}`
         : currentPrompt;
 
-      const res = await fetch("/api/db/ai-visualize", {
+      const res = await apiFetch("/api/db/ai-visualize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -545,7 +546,7 @@ export function useMyDB() {
     if (!tableName || !schema || schema.length === 0) return;
     setIsFriendlyRecommendLoading(true);
     try {
-      const res = await fetch('/api/shared-views/recommend', {
+      const res = await apiFetch('/api/shared-views/recommend', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -581,7 +582,7 @@ export function useMyDB() {
 
     setIsFriendlySharing(true);
     try {
-      const response = await fetch('/api/shared-views', {
+      const response = await apiFetch('/api/shared-views', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -618,7 +619,7 @@ export function useMyDB() {
   const fetchSharedViews = async () => {
     setIsSharedViewsLoading(true);
     try {
-      const res = await fetch('/api/shared-views');
+      const res = await apiFetch('/api/shared-views');
       const data = await res.json();
       if (data.success) {
         setSharedViewsList(data.sharedViews || []);
@@ -639,7 +640,7 @@ export function useMyDB() {
       return;
     }
     try {
-      const res = await fetch(`/api/shared-views?viewId=${viewId}`, {
+      const res = await apiFetch(`/api/shared-views?viewId=${viewId}`, {
         method: 'DELETE'
       });
       const data = await res.json();
@@ -659,7 +660,7 @@ export function useMyDB() {
   const fetchTables = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/db?action=list");
+      const res = await apiFetch("/api/db?action=list");
       const data = await res.json();
       if (data.success) {
         setTables(data.tables || []);
@@ -681,7 +682,7 @@ export function useMyDB() {
   const fetchTableSchema = async (tableName: string) => {
     if (!tableName) return;
     try {
-      const res = await fetch(`/api/db?action=schema&tableName=${tableName}`);
+      const res = await apiFetch(`/api/db?action=schema&tableName=${tableName}`);
       const data = await res.json();
       if (data.success) {
         setTableSchema(data.schema || []);
@@ -973,7 +974,7 @@ export function useMyDB() {
     setIsAiLoading(true);
     setAiGeneratedSql("");
     try {
-      const res = await fetch("/api/db/ai-translate", {
+      const res = await apiFetch("/api/db/ai-translate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1014,7 +1015,7 @@ export function useMyDB() {
     setIsLoading(true);
     setConsoleResult(null);
     try {
-      const res = await fetch("/api/db", {
+      const res = await apiFetch("/api/db", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "execute", query: sqlQuery })
@@ -1072,7 +1073,7 @@ export function useMyDB() {
 
     setIsLoading(true);
     try {
-      const res = await fetch(`/api/db?action=deleteRows&tableName=${selectedTable}&ids=${rowId}`, {
+      const res = await apiFetch(`/api/db?action=deleteRows&tableName=${selectedTable}&ids=${rowId}`, {
         method: "DELETE"
       });
       const data = await res.json();
@@ -1108,7 +1109,7 @@ export function useMyDB() {
 
     setIsLoading(true);
     try {
-      const res = await fetch("/api/db", {
+      const res = await apiFetch("/api/db", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "restore", tableName: selectedTable, id: rowId })
@@ -1155,13 +1156,13 @@ export function useMyDB() {
     try {
       let res;
       if (editingRow) {
-        res = await fetch("/api/db", {
+        res = await apiFetch("/api/db", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tableName: selectedTable, rows: [rowPayload] })
         });
       } else {
-        res = await fetch("/api/db", {
+        res = await apiFetch("/api/db", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "insert", tableName: selectedTable, rows: [rowPayload] })

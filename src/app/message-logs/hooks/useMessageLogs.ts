@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect, useMemo } from "react";
 import { MessageLog, SenderDevice } from "../types";
 import { usePersistedState } from "@/hooks/usePersistedState";
@@ -36,7 +37,7 @@ export function useMessageLogs() {
 
   const fetchData = async () => {
     try {
-      const res = await fetch("/api/message-logs");
+      const res = await apiFetch("/api/message-logs");
       const json = await res.json();
       if (json.success) {
         // 🔍 [디버그] 실제 DB 적재 메타데이터 확인용 콘솔로그

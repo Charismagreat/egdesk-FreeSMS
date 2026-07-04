@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from 'react';
 import { 
   Award, Shield, Calendar, CheckCircle, AlertTriangle, XCircle, 
@@ -48,11 +49,11 @@ export default function RndManagementPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const centerRes = await fetch('/api/rnd?type=center').then(r => r.json());
-      const staffsRes = await fetch('/api/rnd?type=staffs').then(r => r.json());
-      const spacesRes = await fetch('/api/rnd?type=spaces').then(r => r.json());
-      const logsRes = await fetch('/api/rnd?type=logs').then(r => r.json());
-      const alarmsRes = await fetch('/api/rnd?type=alarms').then(r => r.json());
+      const centerRes = await apiFetch('/api/rnd?type=center').then(r => r.json());
+      const staffsRes = await apiFetch('/api/rnd?type=staffs').then(r => r.json());
+      const spacesRes = await apiFetch('/api/rnd?type=spaces').then(r => r.json());
+      const logsRes = await apiFetch('/api/rnd?type=logs').then(r => r.json());
+      const alarmsRes = await apiFetch('/api/rnd?type=alarms').then(r => r.json());
 
       if (centerRes.success) setCenterInfo(centerRes.center);
       if (staffsRes.success) setStaffs(staffsRes.staffs);
@@ -79,7 +80,7 @@ export default function RndManagementPage() {
     setIsGeneratingLog(true);
     setAiGeneratedLog(null);
     try {
-      const res = await fetch('/api/rnd/ai-generate', {
+      const res = await apiFetch('/api/rnd/ai-generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source: logInputSource, content: logRawContent })
@@ -102,7 +103,7 @@ export default function RndManagementPage() {
   const handleSaveAndSubmitLog = async () => {
     if (!aiGeneratedLog) return;
     try {
-      const res = await fetch('/api/rnd', {
+      const res = await apiFetch('/api/rnd', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -135,7 +136,7 @@ export default function RndManagementPage() {
   // 연구일지 결재 승인
   const handleApproveLog = async (logId: number) => {
     try {
-      const res = await fetch('/api/rnd', {
+      const res = await apiFetch('/api/rnd', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -159,7 +160,7 @@ export default function RndManagementPage() {
   const handleResignStaff = async (staffId: number) => {
     if (!confirm('해당 연구원을 부설연구소 제외(퇴사) 처리하시겠습니까? 퇴사일 기준 14일 이내 변경신고가 의무화됩니다.')) return;
     try {
-      const res = await fetch('/api/rnd', {
+      const res = await apiFetch('/api/rnd', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -213,7 +214,7 @@ export default function RndManagementPage() {
   const handleAddStaffFromOcr = async () => {
     if (!ocrResult) return;
     try {
-      const res = await fetch('/api/rnd', {
+      const res = await apiFetch('/api/rnd', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -248,7 +249,7 @@ export default function RndManagementPage() {
   // 알림 상태 해결 처리
   const handleResolveAlarm = async (alarmId: number) => {
     try {
-      const res = await fetch('/api/rnd', {
+      const res = await apiFetch('/api/rnd', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

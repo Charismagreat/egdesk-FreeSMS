@@ -1,5 +1,6 @@
 'use client';
 
+import { apiFetch } from '@/lib/api';
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Upload, RefreshCw, CheckCircle2, AlertCircle, Play, ExternalLink } from 'lucide-react';
@@ -76,7 +77,7 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
     reader.onload = async () => {
       const base64Data = reader.result as string;
       try {
-        const res = await fetch('/api/inventory/inbounds/ocr', {
+        const res = await apiFetch('/api/inventory/inbounds/ocr', {
           method: 'POST',
           body: formData
         });
@@ -276,7 +277,7 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
         note: it.note || ''
       }));
 
-      const res = await fetch('/api/easybot/ocr/confirm', {
+      const res = await apiFetch('/api/easybot/ocr/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

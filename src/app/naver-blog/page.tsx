@@ -1,5 +1,6 @@
 'use client';
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
@@ -228,7 +229,7 @@ export default function NaverBlogMarketingPortal() {
   // API 데이터 페칭
   const fetchSettings = async () => {
     try {
-      const res = await fetch('/api/naver-blog/settings');
+      const res = await apiFetch('/api/naver-blog/settings');
       const data = await res.json();
       if (data.success && data.settings) {
         setSettings(data.settings);
@@ -259,7 +260,7 @@ export default function NaverBlogMarketingPortal() {
 
   const fetchPosts = async () => {
     try {
-      const res = await fetch('/api/naver-blog/posts');
+      const res = await apiFetch('/api/naver-blog/posts');
       const data = await res.json();
       if (data.success && data.posts) {
         setPosts(data.posts);
@@ -271,7 +272,7 @@ export default function NaverBlogMarketingPortal() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch('/api/products');
+      const res = await apiFetch('/api/products');
       const data = await res.json();
       if (data.success && data.products) {
         setProducts(data.products);
@@ -288,7 +289,7 @@ export default function NaverBlogMarketingPortal() {
   const generateKeywordsWithAI = async (product: Product) => {
     setIsGeneratingKeywords(true);
     try {
-      const res = await fetch('/api/naver-blog/generate-keywords', {
+      const res = await apiFetch('/api/naver-blog/generate-keywords', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -339,7 +340,7 @@ export default function NaverBlogMarketingPortal() {
   const saveSettings = async (updatedSettings: Partial<AutopilotSettings>) => {
     try {
       const newSettings = { ...settings, ...updatedSettings };
-      const res = await fetch('/api/naver-blog/settings', {
+      const res = await apiFetch('/api/naver-blog/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newSettings)
@@ -364,7 +365,7 @@ export default function NaverBlogMarketingPortal() {
     setIsRpaLaunching(true);
     showToast('로컬 PC에 네이버 로그인 인증 브라우저를 기동합니다. 최초 1회 로그인을 마쳐주세요...', 'info');
     try {
-      const res = await fetch('/api/naver-blog/settings?action=trigger_session');
+      const res = await apiFetch('/api/naver-blog/settings?action=trigger_session');
       const data = await res.json();
       if (data.success) {
         showToast(data.message, 'success');
@@ -381,7 +382,7 @@ export default function NaverBlogMarketingPortal() {
   const handleSyncRpaSession = async () => {
     showToast('RPA 자동화 로그인 세션 유효성을 체크하는 중입니다...', 'info');
     try {
-      const res = await fetch('/api/naver-blog/settings');
+      const res = await apiFetch('/api/naver-blog/settings');
       const data = await res.json();
       if (data.success) {
         setHasSession(data.has_session === 1);
@@ -400,7 +401,7 @@ export default function NaverBlogMarketingPortal() {
   const handleClearRpaSession = async () => {
     if (!confirm('RPA 자동화 세션을 정말로 파기하시겠습니까? 파기 후에는 포스팅 자동 발행이 불가합니다.')) return;
     try {
-      const res = await fetch('/api/naver-blog/settings?action=clear_session');
+      const res = await apiFetch('/api/naver-blog/settings?action=clear_session');
       const data = await res.json();
       if (data.success) {
         setHasSession(false);
@@ -507,7 +508,7 @@ export default function NaverBlogMarketingPortal() {
     setIsGenerating(true);
     showToast('AI가 고품질 블로그 장문 원고를 집필 중입니다. 잠시만 기다려주세요...', 'info');
     try {
-      const res = await fetch('/api/naver-blog/generate', {
+      const res = await apiFetch('/api/naver-blog/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -540,7 +541,7 @@ export default function NaverBlogMarketingPortal() {
   const handleTriggerAutopilot = async () => {
     showToast('네이버 블로그 오토파일럿 AI 마케터를 즉시 기동합니다...', 'info');
     try {
-      const res = await fetch('/api/naver-blog/scheduler');
+      const res = await apiFetch('/api/naver-blog/scheduler');
       const data = await res.json();
       if (data.success) {
         if (data.triggered) {
@@ -589,7 +590,7 @@ export default function NaverBlogMarketingPortal() {
       : new Date(`${scheduleDate}T${scheduleTime}:00`).toISOString();
 
     try {
-      const res = await fetch('/api/naver-blog/posts', {
+      const res = await apiFetch('/api/naver-blog/posts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -632,7 +633,7 @@ export default function NaverBlogMarketingPortal() {
   // 예약글 승인(즉시 발행)
   const handleApproveImmediate = async (postId: number) => {
     try {
-      const res = await fetch('/api/naver-blog/posts', {
+      const res = await apiFetch('/api/naver-blog/posts', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -656,7 +657,7 @@ export default function NaverBlogMarketingPortal() {
   const handleDeletePost = async (postId: number) => {
     if (!confirm('해당 블로그 포스트를 삭제하시겠습니까?')) return;
     try {
-      const res = await fetch(`/api/naver-blog/posts?id=${postId}`, {
+      const res = await apiFetch(`/api/naver-blog/posts?id=${postId}`, {
         method: 'DELETE'
       });
       const data = await res.json();

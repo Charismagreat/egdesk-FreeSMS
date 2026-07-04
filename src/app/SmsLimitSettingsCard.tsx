@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect } from "react";
 import { MessageSquare, Save, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
 
@@ -13,7 +14,7 @@ export default function SmsLimitSettingsCard() {
   useEffect(() => {
     async function fetchSettings() {
       try {
-        const res = await fetch("/api/settings?key=daily_sms_limit");
+        const res = await apiFetch("/api/settings?key=daily_sms_limit");
         const data = await res.json();
         if (data.success && data.value !== null) {
           const fetchedLimit = Number(data.value);
@@ -42,7 +43,7 @@ export default function SmsLimitSettingsCard() {
     setMessage(null);
 
     try {
-      const res = await fetch("/api/settings", {
+      const res = await apiFetch("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

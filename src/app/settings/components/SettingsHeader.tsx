@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from "react";
 import { Settings, LifeBuoy, X, Send, Loader2, CheckCircle2, AlertCircle, Calendar, ShieldCheck, User, Building, Phone, Mail, FileText } from "lucide-react";
 
@@ -37,7 +38,7 @@ export function SettingsHeader() {
 
     async function loadCompanyProfile() {
       try {
-        const res = await fetch("/api/settings?key=my_company_profile");
+        const res = await apiFetch("/api/settings?key=my_company_profile");
         const data = await res.json();
         if (data.success && data.value) {
           const parsed = JSON.parse(data.value);
@@ -74,7 +75,7 @@ export function SettingsHeader() {
     setStatus(null);
 
     try {
-      const res = await fetch("/api/settings/support", {
+      const res = await apiFetch("/api/settings/support", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

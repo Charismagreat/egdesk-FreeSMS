@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -171,7 +172,7 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
   // 2. 동적 메뉴 데이터 가져오기 및 권한별 필터링/정렬 수행 함수
   const fetchAndApplyMenuSettings = async () => {
     try {
-      const res = await fetch("/api/settings/menu");
+      const res = await apiFetch("/api/settings/menu");
       const data = await res.json();
 
       if (data.success && data.menuSettings) {
@@ -341,7 +342,7 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
         sort_order: (idx + 1) * 10
       }));
 
-      const res = await fetch("/api/settings/menu", {
+      const res = await apiFetch("/api/settings/menu", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ settings: mapped })

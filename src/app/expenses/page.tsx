@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect, useMemo } from "react";
 import { Coins, Sparkles, RefreshCw, CheckCircle, ShieldAlert, AlertTriangle } from "lucide-react";
 
@@ -93,7 +94,7 @@ export default function ExpenseManagementAiPage() {
   useEffect(() => {
     const fetchUserRole = async () => {
       try {
-        const res = await fetch("/api/auth/me");
+        const res = await apiFetch("/api/auth/me");
         const data = await res.json();
         if (data.success && data.role) {
           setUserRole(data.role);

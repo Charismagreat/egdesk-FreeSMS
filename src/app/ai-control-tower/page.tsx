@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from "react";
 import { 
   Activity, Search, RefreshCw, ChevronLeft, ChevronRight, 
@@ -138,13 +139,13 @@ export default function AIControlTowerPage() {
     setLoadingGov(true);
     setGovError(null);
     try {
-      const logsRes = await fetch("/api/governance?action=logs");
+      const logsRes = await apiFetch("/api/governance?action=logs");
       const logsData = await logsRes.json();
       if (!logsData.success) {
         throw new Error(logsData.error || "거버넌스 감사 로그 조회 실패");
       }
 
-      const deletedRes = await fetch("/api/governance?action=deleted_items");
+      const deletedRes = await apiFetch("/api/governance?action=deleted_items");
       const deletedData = await deletedRes.json();
       if (!deletedData.success) {
         throw new Error(deletedData.error || "소프트 삭제 대장 데이터 조회 실패");
@@ -167,7 +168,7 @@ export default function AIControlTowerPage() {
     }
     try {
       setIsProcessing(true);
-      const res = await fetch("/api/governance?action=force_delete", {
+      const res = await apiFetch("/api/governance?action=force_delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ logId, docType, docId })
@@ -193,7 +194,7 @@ export default function AIControlTowerPage() {
     }
     try {
       setIsProcessing(true);
-      const res = await fetch("/api/governance?action=restore", {
+      const res = await apiFetch("/api/governance?action=restore", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ docType, docId })
@@ -219,7 +220,7 @@ export default function AIControlTowerPage() {
     }
     try {
       setIsProcessing(true);
-      const res = await fetch("/api/governance?action=clear_logs", {
+      const res = await apiFetch("/api/governance?action=clear_logs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({})
@@ -254,7 +255,7 @@ export default function AIControlTowerPage() {
     const updated = [...capabilities];
     for (let i = 0; i < updated.length; i++) {
       try {
-        const res = await fetch(`/api/settings?key=${updated[i].key}`);
+        const res = await apiFetch(`/api/settings?key=${updated[i].key}`);
         const data = await res.json();
         if (data.success && data.value !== null) {
           updated[i].enabled = data.value !== '0' && data.value !== 'false' && data.value !== false;
@@ -272,7 +273,7 @@ export default function AIControlTowerPage() {
   const loadAuditLogs = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/easybot/audit-logs?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
+      const res = await apiFetch(`/api/easybot/audit-logs?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`);
       const data = await res.json();
       if (data.success) {
         setLogs(data.logs || []);
@@ -290,7 +291,7 @@ export default function AIControlTowerPage() {
   const loadFeedbacks = async () => {
     setLoadingFeedbacks(true);
     try {
-      const res = await fetch("/api/support/feedback");
+      const res = await apiFetch("/api/support/feedback");
       const data = await res.json();
       if (data.success) {
         setFeedbacks(data.data || []);
@@ -313,7 +314,7 @@ export default function AIControlTowerPage() {
     setCapabilities(updated);
 
     try {
-      const res = await fetch("/api/settings", {
+      const res = await apiFetch("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -352,7 +353,7 @@ export default function AIControlTowerPage() {
       formData.append("feedbackText", feedbackText);
       formData.append("currentUrl", "/ai-control-tower");
 
-      const res = await fetch("/api/support/feedback", {
+      const res = await apiFetch("/api/support/feedback", {
         method: "POST",
         body: formData
       });

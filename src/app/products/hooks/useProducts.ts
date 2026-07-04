@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect } from "react";
 import { Product, ProductForm, HoverImage } from "../types";
 
@@ -36,7 +37,7 @@ export function useProducts() {
 
   const fetchData = async () => {
     try {
-      const res = await fetch('/api/products');
+      const res = await apiFetch('/api/products');
       const json = await res.json();
       if (json.success) setData(json.products);
     } catch (e) {
@@ -95,7 +96,7 @@ export function useProducts() {
             return;
           }
 
-          const resUpload = await fetch('/api/products/upload', {
+          const resUpload = await apiFetch('/api/products/upload', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ products: mappedProducts })
@@ -187,7 +188,7 @@ export function useProducts() {
     
     const isEditing = !!editTargetId;
     try {
-      const res = await fetch('/api/products', { 
+      const res = await apiFetch('/api/products', { 
         method: isEditing ? 'PUT' : 'POST', 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -258,7 +259,7 @@ export function useProducts() {
   const deleteData = async (id: string) => {
     if(!confirm('정말 삭제하시겠습니까?')) return;
     try {
-      const res = await fetch('/api/products?id=' + id, { method: 'DELETE' });
+      const res = await apiFetch('/api/products?id=' + id, { method: 'DELETE' });
       if ((await res.json()).success) fetchData();
     } catch (e) {
       alert('삭제 중 네트워크 오류가 발생했습니다.');
@@ -272,7 +273,7 @@ export function useProducts() {
     setData(prev => prev.map(p => p.id === productId ? { ...p, is_coupon_excludable: newValue } : p));
     
     try {
-      const res = await fetch('/api/products', {
+      const res = await apiFetch('/api/products', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: productId, is_coupon_excludable: newValue })
@@ -299,7 +300,7 @@ export function useProducts() {
     formData.append('file', file);
     
     try {
-      const res = await fetch('/api/upload', {
+      const res = await apiFetch('/api/upload', {
         method: 'POST',
         body: formData,
       });

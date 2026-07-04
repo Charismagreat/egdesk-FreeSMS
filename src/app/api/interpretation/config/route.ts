@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { queryTable } from '@/../egdesk-helpers';
+import { queryTable, getGeminiApiKey } from '@/../egdesk-helpers';
 import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
 
@@ -59,6 +59,17 @@ export async function GET(req: Request) {
       }
     } catch (dbErr) {
       console.error('API 설정 로드 오류:', dbErr);
+    }
+
+    if (apiKey && !apiKey.startsWith('AIzaSy')) {
+      try {
+        const decryptedKeyRes = await getGeminiApiKey({ name: apiKey });
+        if (decryptedKeyRes && decryptedKeyRes.success && decryptedKeyRes.apiKey) {
+          apiKey = decryptedKeyRes.apiKey;
+        }
+      } catch (keyErr) {
+        console.error('⚠️ [interpretation] EGDesk에서 API 키 해독에 실패했습니다:', keyErr);
+      }
     }
 
     if (!apiKey) {

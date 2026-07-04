@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useRef } from "react";
 import { X, Upload, FileText, CheckCircle2, AlertTriangle, ShieldCheck, Loader2 } from "lucide-react";
 import { Operator } from "../types";
@@ -97,7 +98,7 @@ export function ContractAnalyzerModal({ operator, onClose }: ContractAnalyzerMod
       const fileBase64 = await base64Promise;
 
       // 2. API 호출
-      const response = await fetch("/api/hr/contracts/analyze", {
+      const response = await apiFetch("/api/hr/contracts/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

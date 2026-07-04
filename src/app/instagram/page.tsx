@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, AlertCircle, AlertTriangle } from "lucide-react";
@@ -84,7 +85,7 @@ export default function InstagramMarketingPortal() {
   // API 데이터 페칭
   const fetchSettings = async () => {
     try {
-      const res = await fetch("/api/instagram/settings");
+      const res = await apiFetch("/api/instagram/settings");
       const data = await res.json();
       if (data.success && data.settings) {
         setSettings(data.settings);
@@ -99,7 +100,7 @@ export default function InstagramMarketingPortal() {
 
   const fetchPosts = async () => {
     try {
-      const res = await fetch("/api/instagram/posts");
+      const res = await apiFetch("/api/instagram/posts");
       const data = await res.json();
       if (data.success && data.posts) {
         setPosts(data.posts);
@@ -111,7 +112,7 @@ export default function InstagramMarketingPortal() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch("/api/products");
+      const res = await apiFetch("/api/products");
       const data = await res.json();
       if (data.success && data.products) {
         setProducts(data.products);
@@ -129,7 +130,7 @@ export default function InstagramMarketingPortal() {
   const saveSettings = async (updatedSettings: Partial<AutopilotSettings>) => {
     try {
       const newSettings = { ...settings, ...updatedSettings };
-      const res = await fetch("/api/instagram/settings", {
+      const res = await apiFetch("/api/instagram/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newSettings),
@@ -171,7 +172,7 @@ export default function InstagramMarketingPortal() {
     setSelectedPostForPreview(null); // 신규 피드 빌드 모드로 전환
     setIsGenerating(true);
     try {
-      const res = await fetch("/api/instagram/generate", {
+      const res = await apiFetch("/api/instagram/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -201,7 +202,7 @@ export default function InstagramMarketingPortal() {
   const handleTriggerAutopilot = async () => {
     showToast("오토파일럿 AI 마케터를 즉시 구동합니다...", "info");
     try {
-      const res = await fetch("/api/instagram/scheduler");
+      const res = await apiFetch("/api/instagram/scheduler");
       const data = await res.json();
       if (data.success) {
         if (data.triggered) {
@@ -258,7 +259,7 @@ export default function InstagramMarketingPortal() {
       : new Date(`${scheduleDate}T${scheduleTime}:00`).toISOString();
 
     try {
-      const res = await fetch("/api/instagram/posts", {
+      const res = await apiFetch("/api/instagram/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -296,7 +297,7 @@ export default function InstagramMarketingPortal() {
   // 예약글 즉시 발행(승인) 또는 취소(삭제)
   const handleApproveImmediate = async (postId: number) => {
     try {
-      const res = await fetch("/api/instagram/posts", {
+      const res = await apiFetch("/api/instagram/posts", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -319,7 +320,7 @@ export default function InstagramMarketingPortal() {
   const handleDeletePost = async (postId: number) => {
     if (!confirm("정말 이 예약을 취소하고 삭제하시겠습니까?")) return;
     try {
-      const res = await fetch(`/api/instagram/posts?id=${postId}`, {
+      const res = await apiFetch(`/api/instagram/posts?id=${postId}`, {
         method: "DELETE",
       });
       const data = await res.json();

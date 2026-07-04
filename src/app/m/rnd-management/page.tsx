@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from 'react';
 import { 
   Award, ShieldAlert, Camera, Mic, CheckCircle, AlertTriangle, 
@@ -29,7 +30,7 @@ export default function RndMobilePage() {
   const fetchMobileData = async () => {
     setLoading(true);
     try {
-      const alarmsRes = await fetch('/api/rnd?type=alarms').then(r => r.json());
+      const alarmsRes = await apiFetch('/api/rnd?type=alarms').then(r => r.json());
       if (alarmsRes.success) {
         setAlarms(alarmsRes.alarms || []);
       }
@@ -87,7 +88,7 @@ export default function RndMobilePage() {
     setSpaceAnalysisResult(null);
 
     try {
-      const res = await fetch('/api/rnd/vision-analyze', {
+      const res = await apiFetch('/api/rnd/vision-analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -100,7 +101,7 @@ export default function RndMobilePage() {
         setSpaceAnalysisResult(res.analysis);
 
         // 자가진단 데이터를 DB에 저장(setup-db.ts / api/rnd POST에 space_add 연동)
-        await fetch('/api/rnd', {
+        await apiFetch('/api/rnd', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -150,7 +151,7 @@ export default function RndMobilePage() {
     setAiGeneratedLog(null);
 
     try {
-      const res = await fetch('/api/rnd/ai-generate', {
+      const res = await apiFetch('/api/rnd/ai-generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source: 'VOICE', content: voiceText })
@@ -172,7 +173,7 @@ export default function RndMobilePage() {
   const handleSaveLog = async () => {
     if (!aiGeneratedLog) return;
     try {
-      const res = await fetch('/api/rnd', {
+      const res = await apiFetch('/api/rnd', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

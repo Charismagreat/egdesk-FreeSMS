@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState } from "react";
 import { Upload, X, FileText, CheckCircle2, RefreshCw, AlertCircle } from "lucide-react";
 
@@ -42,7 +43,7 @@ export default function InboundStatementOcrModal({
   React.useEffect(() => {
     async function fetchUserRole() {
       try {
-        const res = await fetch("/api/auth/me");
+        const res = await apiFetch("/api/auth/me");
         const data = await res.json();
         if (data.success) {
           setUserRole(data.role || "SUB_OPERATOR");
@@ -102,7 +103,7 @@ export default function InboundStatementOcrModal({
     reader.onload = async () => {
       const base64Data = reader.result as string;
       try {
-        const res = await fetch("/api/estimates/ocr", {
+        const res = await apiFetch("/api/estimates/ocr", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -187,7 +188,7 @@ export default function InboundStatementOcrModal({
         is_statement: true // 받은 거래명세서 식별 플래그 지정
       };
 
-      const res = await fetch("/api/estimates", {
+      const res = await apiFetch("/api/estimates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -336,21 +337,17 @@ export default function InboundStatementOcrModal({
                   <span className="font-mono font-black text-slate-800">{calculatedTotal.toLocaleString()}원</span>
                 </div>
 
-                {ocrForm.originalTotalAmount > 0 && (
-                  <>
-                    <div className="h-3 w-px bg-slate-350"></div>
-                    {isAmountMatching ? (
-                      <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded text-[9px] font-black flex items-center gap-0.5 leading-none">
-                        <CheckCircle2 className="w-2.5 h-2.5" />
-                        금액 일치
-                      </span>
-                    ) : (
-                      <span className="px-1.5 py-0.5 bg-rose-50 text-rose-600 border border-rose-200 rounded text-[9px] font-black flex items-center gap-0.5 leading-none animate-pulse">
-                         <AlertCircle className="w-2.5 h-2.5" />
-                         금액 불일치
-                      </span>
-                    )}
-                  </>
+                <div className="h-3 w-px bg-slate-350"></div>
+                {isAmountMatching ? (
+                  <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded text-[9px] font-black flex items-center gap-0.5 leading-none">
+                    <CheckCircle2 className="w-2.5 h-2.5" />
+                    금액 일치
+                  </span>
+                ) : (
+                  <span className="px-1.5 py-0.5 bg-rose-50 text-rose-600 border border-rose-200 rounded text-[9px] font-black flex items-center gap-0.5 leading-none animate-pulse">
+                     <AlertCircle className="w-2.5 h-2.5" />
+                     금액 불일치
+                  </span>
                 )}
 
                 <div className="h-4 w-px bg-slate-300 w-full md:w-px md:h-3"></div>
@@ -374,21 +371,17 @@ export default function InboundStatementOcrModal({
                   <span className="font-mono font-black text-slate-800">{calculatedTotalQuantity.toLocaleString()}개</span>
                 </div>
 
-                {ocrForm.originalTotalQuantity > 0 && (
-                   <>
-                     <div className="h-3 w-px bg-slate-350"></div>
-                     {isQuantityMatching ? (
-                       <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded text-[9px] font-black flex items-center gap-0.5 leading-none">
-                         <CheckCircle2 className="w-2.5 h-2.5" />
-                         수량 일치
-                       </span>
-                     ) : (
-                       <span className="px-1.5 py-0.5 bg-rose-50 text-rose-600 border border-rose-200 rounded text-[9px] font-black flex items-center gap-0.5 leading-none animate-pulse">
-                         <AlertCircle className="w-2.5 h-2.5" />
-                         수량 불일치
-                       </span>
-                     )}
-                   </>
+                <div className="h-3 w-px bg-slate-350"></div>
+                {isQuantityMatching ? (
+                  <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded text-[9px] font-black flex items-center gap-0.5 leading-none">
+                    <CheckCircle2 className="w-2.5 h-2.5" />
+                    수량 일치
+                  </span>
+                ) : (
+                  <span className="px-1.5 py-0.5 bg-rose-50 text-rose-600 border border-rose-200 rounded text-[9px] font-black flex items-center gap-0.5 leading-none animate-pulse">
+                    <AlertCircle className="w-2.5 h-2.5" />
+                    수량 불일치
+                  </span>
                 )}
               </div>
 

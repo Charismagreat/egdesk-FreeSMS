@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { SharedDashboard } from "../types";
@@ -17,7 +18,7 @@ export function usePublicShare() {
 
     const fetchDashboard = async () => {
       try {
-        const res = await fetch(`/api/db/ai-visualize/share?shareId=${shareId}`);
+        const res = await apiFetch(`/api/db/ai-visualize/share?shareId=${shareId}`);
         const data = await res.json();
         if (data.success && data.dashboard) {
           setDashboard(data.dashboard);

@@ -1,5 +1,6 @@
 'use client';
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from 'react';
 
 export default function InboundPreviewMessage({
@@ -23,7 +24,7 @@ export default function InboundPreviewMessage({
   useEffect(() => {
     async function fetchInventory() {
       try {
-        const response = await fetch('/api/inventory');
+        const response = await apiFetch('/api/inventory');
         const resJson = await response.json();
         if (resJson.success && resJson.data) {
           setInventoryList(resJson.data);
@@ -111,7 +112,7 @@ export default function InboundPreviewMessage({
     }
     setSaving(true);
     try {
-      const response = await fetch('/api/easybot/ocr/confirm', {
+      const response = await apiFetch('/api/easybot/ocr/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState } from "react";
 import { Plus, Eye, CheckCircle2, ChevronRight, Trash2, Clock, Printer, Upload, Sparkles, ArrowRightLeft } from "lucide-react";
 import Link from "next/link";
@@ -68,7 +69,7 @@ export default function OutboundHub({
       let isAutoApprove = false;
       let matchedConfig: any = null;
       try {
-        const sigRes = await fetch("/api/estimates/excel-signatures");
+        const sigRes = await apiFetch("/api/estimates/excel-signatures");
         const sigData = await sigRes.json();
         if (sigData.success) {
           matchedConfig = sigData.configs?.find(
@@ -143,7 +144,7 @@ export default function OutboundHub({
           approvers: []
         };
 
-        const res = await fetch("/api/estimates/ocr-sales-order?action=save", {
+        const res = await apiFetch("/api/estimates/ocr-sales-order?action=save", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)

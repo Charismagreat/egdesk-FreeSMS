@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from "react";
 import { X, Plus } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -50,7 +51,7 @@ export const CalendarEventModal: React.FC<CalendarEventModalProps> = ({
 
     setLoading(true);
     try {
-      const res = await fetch('/api/hr/events', {
+      const res = await apiFetch('/api/hr/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

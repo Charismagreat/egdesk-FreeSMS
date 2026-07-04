@@ -1,3 +1,4 @@
+// cache-bust: 2026-07-04T19:38:10
 export const dynamic = 'force-dynamic';
 import { fetchGeminiWithFallback } from '../../../../lib/gemini-fallback';
 import { NextResponse } from 'next/server';
@@ -53,6 +54,7 @@ export async function POST(req: Request) {
 
     // API 키가 존재할 때 실제 Gemini Vision OCR 구동
     if (apiKey) {
+      let responseRawText = '';
       try {
         let systemInstruction = '';
         if (document_type === 'license') {
@@ -85,20 +87,20 @@ Your job is to look at the provided image (which is a supply estimate / quote / 
 1. "supplier": Object containing:
    - "company_name": String (공급자/공급처 회사명. If not found, "")
    - "business_number": String (공급자 사업자번호. Format: "XXX-XX-XXXXX", otherwise "")
-   - "representative": String (공급자 대표자 성명. If not found, "")
-   - "address": String (공급자 주소. If not found, "")
-   - "phone": String (공급자 연락처/전화번호, otherwise "")
+   - "representative": String (공급자 대표자 성명. **CRITICAL**: 반드시 "노인호", "홍길동" 등 2~4글자 내외의 정갈한 인물 이름(한글 성명)만 단독으로 기입하십시오. 주소지, 업태, 종목, 전화번호 등 공급처 정보 표의 다른 텍스트를 절대 이 필드에 섞어서 함께 넣지 마십시오. If not found, "")
+   - "address": String (공급자 주소. **IMPORTANT**: 이미지 상에 공급처 사업자 정보와 함께 적힌 주소지를 철저하게 검출하여 기입하십시오. If not found, "")
+   - "phone": String (공급자 연락처/전화번호. **IMPORTANT**: 이미지 상에 기재된 공급처 전화번호를 철저하게 검출하여 기입하십시오. 절대 임의로 다른 가짜 값을 기입하지 마십시오. otherwise "")
    - "pic_name": String (공급자 담당자 성명, otherwise "")
 2. "buyer": Object containing:
    - "company_name": String (공급받는자/수신처 회사명. If not found, "")
    - "business_number": String (공급받는자 사업자번호. Format: "XXX-XX-XXXXX", otherwise "")
-   - "representative": String (공급받는자 대표자 성명. If not found, "")
+   - "representative": String (공급받는자 대표자 성명. **CRITICAL**: 반드시 2~4글자 내외의 정갈한 인물 이름(한글 성명)만 단독으로 기입하십시오. 주소지, 업태, 종목, 전화번호 등 공급받는자 정보 표의 다른 텍스트를 절대 이 필드에 섞어서 함께 넣지 마십시오. If not found, "")
    - "address": String (공급받는자 주소. If not found, "")
    - "phone": String (공급받는자 연락처/전화번호, otherwise "")
    - "pic_name": String (공급받는자 담당자 성명, otherwise "")
 3. "document_number": String (문서상에 적힌 견적서/발주서 고유 번호. If not found, "")
 4. "document_date": String (문서 작성/발행 일자. Format: "YYYY-MM-DD", otherwise "")
-5. "document_memo": String (유효기간, 결제조건, 인도조건 등 비고/기타 설명 텍스트. If not found, "")
+5. "document_memo": String (유효기간, 결제조건, 인도조건 등 비고/기타 설명 텍스트. **CRITICAL WARNING**: 이 필드의 값 내에 실제 줄바꿈(개행문자)을 절대 포함하지 마십시오. 줄바꿈이 필요한 모든 위치는 반드시 백슬래시 2개와 n을 조합한 문자열인 "\\\\n" 으로 철저하게 이스케이프 처리하여 완벽한 한 줄의 문자열로만 만드십시오. 이를 위반하면 JSON 파싱이 파괴됩니다. If not found, "")
 6. "items": Array of objects, each containing:
    - "item_code": String (품목코드 혹은 도번. If not found, "")
    - "product_name": String (품명 혹은 제품명)
@@ -126,7 +128,7 @@ Format example of output:
   },
   "document_number": "EST-20260623-01",
   "document_date": "2026-06-23",
-  "document_memo": "유효기간: 발행일로부터 30일\n결제조건: 현금\n납기조건: 7일 이내",
+  "document_memo": "유효기간: 발행일로부터 30일\\\\n결제조건: 현금\\\\n납기조건: 7일 이내",
   "items": [
     { "item_code": "ITEM-9012", "product_name": "특A급 아메리카노 원두 10kg", "spec": "10kg/bag", "quantity": 5, "unit_price": 45000 }
   ]
@@ -165,7 +167,7 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
               ],
               generationConfig: {
                 responseMimeType: "application/json",
-                temperature: 0.1 // 낮은 온도로 정밀 스캔 보장
+                temperature: 0.1
               }
             })
           });
@@ -206,92 +208,47 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
 
         } else {
           // -------------------------------------------------------------
-          // 견적서/발주서 (2-Pass 고도화 RAG 연계 파이프라인)
+          // 견적서/발주서 (대표자명 도장 노이즈가 제거된 1-Pass 고정밀 Vision OCR)
           // -------------------------------------------------------------
-          
-          // 1. RAG 지식 규정 마이닝
-          let rlsRulesText = '';
-          try {
-            let snapshotId = 'default_snapshot';
-            const snapshotListRes = await listBusinessIdentitySnapshots();
-            const snapshots = snapshotListRes?.snapshots || snapshotListRes || [];
-            if (snapshots && snapshots.length > 0) {
-              snapshotId = snapshots[0].id || snapshots[0].uuid || snapshotId;
-            }
-            
-            const docsRes = await listKnowledgeDocuments(snapshotId);
-            const rawDocs = docsRes?.documents || docsRes || [];
-            
-            const fullDocs = await Promise.all(
-              rawDocs.map(async (d: any) => {
-                const docId = d.id || d.document_id || d.uuid;
-                if (!d.content && docId) {
-                  try {
-                    const detail = await getKnowledgeDocument(docId);
-                    return { ...d, ...detail };
-                  } catch (e) {
-                    return d;
-                  }
-                }
-                return d;
-              })
-            );
+          const cleanInstruction = `
+You are a highly advanced AI OCR scanner specializing in structured extraction of financial documents, receipts, and supply estimates.
+Your job is to look at the provided image (which is a supply estimate / quote / purchase order) and extract the following in valid JSON ONLY:
+1. "supplier": Object containing:
+   - "company_name": String (공급자/공급처 회사명. If not found, "")
+   - "business_number": String (공급자 사업자번호. Format: "XXX-XX-XXXXX", otherwise "")
+   - "representative": String (공급자 대표자 성명. **CRITICAL SAFETY GUARD**: 빨간색 인감 도장이나 사명 서명 무늬가 성명 글자를 덮어쓰고 있어서 판독하기 어렵거나 꼬여 있다면, 절대로 무리하게 획을 조합하거나 유추하지 말고 반드시 빈 문자열 "" 로만 처리하십시오. 무한 반복되는 숫자나 공백, 특수문자를 출력해서는 절대로 안 됩니다. If not found, "")
+   - "address": String (공급자 주소. 이미지 상에 기재된 주소지를 정확히 검출하여 기입하십시오. If not found, "")
+   - "phone": String (공급자 연락처/전화번호. 이미지 상에 기재된 대표전화번호를 정확히 검출하여 기입하십시오. otherwise "")
+   - "pic_name": String (공급자 담당자 성명, otherwise "")
+2. "buyer": Object containing:
+   - "company_name": String (공급받는자/수신처 회사명. If not found, "")
+   - "business_number": String (공급받는자 사업자번호. Format: "XXX-XX-XXXXX", otherwise "")
+   - "address": String (공급받는자 주소. If not found, "")
+   - "phone": String (공급받는자 연락처/전화번호, otherwise "")
+   - "pic_name": String (공급받는자 담당자 성명, otherwise "")
+3. "document_number": String (문서상에 적힌 견적서/발주서 고유 번호. If not found, "")
+4. "document_date": String (문서 작성/발행 일자. Format: "YYYY-MM-DD", otherwise "")
+5. "document_memo": String (유효기간, 결제조건 등 비고 사항. **CRITICAL WARNING**: 값 내에 실제 줄바꿈을 절대 포함하지 말고 "\\\\n" 문자열로 이스케이프하십시오. If not found, "")
+6. "originalTotalAmount": Integer (명세서상의 최종 합계금액, 없으면 0)
+7. "originalTotalQuantity": Integer (명세서상의 최종 합계수량, 없으면 0)
+8. "items": Array of objects, each containing:
+   - "item_code": String (품목코드 혹은 도번. If not found, "")
+   - "product_name": String (품명 혹은 제품명)
+   - "spec": String (규격 혹은 단위 정보. If not found, "")
+   - "quantity": Integer (수량)
+   - "unit_price": Integer (단가)
 
-            // 승인된 문서 중 '품목코드' 또는 '유효' 등의 키워드가 포함된 문서를 RAG 컨텍스트로 취합
-            const approvedRules = fullDocs.filter((d: any) => {
-              const contentStr = d.content || '';
-              const isApproved = contentStr.includes('**결재상태**: APPROVED') || contentStr.includes('**결재상태**: APPROVED_AUTO') || d.status === 'APPROVED' || d.status === 'APPROVED_AUTO';
-              const hasKeyword = contentStr.includes('품목코드') || contentStr.includes('유효') || contentStr.includes('추출') || d.title.includes('품목') || d.title.includes('코드');
-              return isApproved && hasKeyword;
-            });
-
-            if (approvedRules.length > 0) {
-              rlsRulesText = approvedRules.map((d: any, idx: number) => {
-                const content = d.content || '';
-                const dividerIndex = content.lastIndexOf('\n\n--- \n*   **작성자**:');
-                const cleanBody = dividerIndex !== -1 ? content.substring(0, dividerIndex).trim() : content;
-                return `[지식규칙 #${idx + 1}] ${d.title}\n${cleanBody}`;
-              }).join('\n\n');
-            }
-          } catch (e) {
-            console.error('RAG 지식 마이닝 실패:', e);
-          }
-
-          // Pass 1: Vision OCR - 리스트형 자연어 텍스트 추출
-          const promptPass1 = `
-제시된 견적서(수주서/발주서) 이미지에서 다음의 정보를 누락 없이 꼼꼼하게 추출하여 마크다운 리포트(Key-Value 목록) 형태로 정확히 작성해 주세요. 
-단, 문서 내에 명시되지 않은 항목은 명확하게 '문서 내에 기재되어 있지 않음' 또는 '미식별' 등으로 표기해 주십시오.
-
-### 📌 추출 대상 정보 목록:
-1. 견적번호 (또는 문서번호)
-2. 견적일 (또는 발행일)
-3. 바이어 회사명 (공급받는자/수신처)
-4. 바이어 회사 대표명
-5. 바이어 회사 사업자등록번호
-6. 바이어회사 주소
-7. 바이어회사 전화번호
-8. 바이어회사 담당자명
-9. 공급처 회사명 (공급자)
-10. 공급처 회사 대표명
-11. 공급처 회사 사업자등록번호
-12. 공급처회사 주소
-13. 공급처회사 전화번호
-14. 공급처 회사 담당자명
-15. 총 금액 (총 수주액/총 견적가액)
-16. 총 수량 (문서 전체 품목의 합계 수량, 만약 문서에 명시되어 있지 않다면 품목 수량을 모두 합산한 값을 기재)
-17. 품목 리스트 (각 품목별 순번, 품목코드/도번, 품명, 규격, 수량, 단위, 단가, 금액을 테이블 또는 목록 형태로 명확히 기술)
-18. 상세비고 (유효기간, 결제조건, 인도조건, 특기사항 등 상세 설명 및 줄바꿈 전체 전사)
+Do NOT output anything other than this JSON string. No markdown block wrapper.
 `;
 
-          const geminiUrlPass1 = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
-          const responsePass1 = await fetchGeminiWithFallback(geminiUrlPass1, {
+          const response = await fetchGeminiWithFallback(`https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               contents: [
                 {
                   parts: [
-                    { text: promptPass1 },
+                    { text: cleanInstruction },
                     {
                       inlineData: {
                         mimeType: mimeType,
@@ -302,161 +259,98 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
                 }
               ],
               generationConfig: {
-                thinkingConfig: {
-                  thinkingLevel: "HIGH"
-                }
-              }
-            })
-          });
-
-          if (!responsePass1.ok) {
-            return NextResponse.json({
-              success: false,
-              error: `Gemini OCR Pass 1 API 호출 실패 (HTTP ${responsePass1.status})`
-            }, { status: 500 });
-          }
-
-          const aiDataPass1 = await responsePass1.json();
-          const responseTextPass1 = aiDataPass1.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-          if (!responseTextPass1) {
-            return NextResponse.json({
-              success: false,
-              error: '1차 AI 판독 결과 텍스트가 비어 있습니다.'
-            }, { status: 500 });
-          }
-
-          // Pass 2: NLP Structuring + RAG 규칙 연동 - 최종 JSON 빌드
-          const promptPass2 = `
-당신은 B2B 전문 AI 수발주 오퍼레이터입니다.
-다음은 견적서 이미지에서 1차 판독된 명세 리포트 텍스트입니다:
----
-${responseTextPass1}
----
-
-### 📌 최종 정제 및 B2B 비즈니스 룰 적용 지침:
-1. **자사 매칭 및 상대방 바이어(buyer) / 공급사(supplier) 정보 추출**:
-   - 본사 정보: 회사명 "${myCompanyProfile.companyName}", 사업자번호 "${myCompanyProfile.businessNumber}".
-   - 1차 판독된 명세 리포트에서 본사 정보와 일치(또는 유사)하는 쪽이 자사(공급받는자 또는 공급자)입니다.
-   - 본 API는 견적서/발주서 수신 등록용이므로, 상대방 정보를 최종 'buyer' 혹은 'supplier' 객체에 적절히 할당하십시오. (자사가 바이어일 때는 상대 공급사 정보를 'supplier'에 매핑하고, 자사가 공급사일 때는 상대 바이어 정보를 'buyer'에 매핑합니다)
-   - **[거래처 상호명 강제 교정 지침]**:
-     * 한글 인쇄 뭉침 등으로 인해 1차 판독에서 자사 혹은 파트너의 회사명이 오독되었다면, 실제 프로필에 준해 올바른 상호명으로 강제 교정하여 출력하십시오.
-   - **[담당자 교차 오인 방지]**: 각 업체의 '담당자' 정보를 서로 덮어쓰거나 오인 대입해서는 안 됩니다. 각 소속에 맞게 분리 매핑하십시오. 연락처 없이 이름만 기재되어 있더라도 절대 누락하지 마십시오.
-   - **[일반 전화번호와 팩스 번호 분리]**: 전화번호 필드에 팩스(FAX) 번호는 절대 추출하지 마십시오. 접두사에 "FAX", "팩스", "F"가 붙은 번호는 철저히 배제하고, 대표번호나 핸드폰 번호만 선택하여 매핑하십시오.
-   - **[설명조 괄호 문구 필터링]**: 1차 판독 리포트 텍스트 내에 위치나 상태를 설명하는 구문(예: "(지상현 정보 아래)", "(체크됨)", "(체크 안됨)", "미식별" 등)이 포함되어 있다면, 최종 JSON에 배정할 때(특히 대표자명, 비고/memo 필드 등) 이를 깨끗이 필터링하여 순수 데이터(예: "금강컨트롤", "지상현")만 추출하십시오. 설명용 안내 문구를 데이터에 그대로 끼워 넣지 마십시오.
-
-2. **날짜 정규화 및 추론**:
-   - 문서의 작성일(document_date)을 반드시 표준 ISO 형식인 "YYYY-MM-DD" 형태로 출력하십시오.
-
-3. **품목 및 수량/단가 정제 (중요)**:
-   - 각 품목의 수량(quantity), 단가(unit_price)는 숫자로 변환 가능한 정수형태로만 추출(원화 기호, 쉼표 등 제외)하십시오.
-   - **[지능형 단가/금액 정합성 수식 검증]**: 발주서/견적서 내에 기재된 품목의 단가(unit_price)와 수량(quantity)을 최우선 기준으로 삼습니다. 문서의 금액/합계 금액란이 비어 있거나 오독(예: 단가 30000, 수량 8인데 총액이 30000 또는 다른 값으로 꼬여 있는 경우)이 감지되면, **반드시 금액(amount) = 수량(quantity) * 단가(unit_price) 로 직접 계산하여 보정**하십시오. 단가를 임의로 쪼개어 변조하지 마십시오.
-   - **[품명 헤더 혼입 금지]**: 품명 필드에 표 헤더 텍스트(예: '품명', '품목코드' 등)가 섞여 들어가지 않게 배제하십시오.
-   - **[독립 품목 중복 방지 및 유령 품목 필터링 지침]**:
-     * 표에서 한 행(row)은 하나의 품목을 의미합니다. 수량이나 단가가 기재되지 않았거나 0인 유령 품목(예: 수량 0, 단가 0인 품목)을 절대 독립된 품목으로 생성하지 마십시오.
-   - **[유효품목코드 (validItemCode)]**: 
-${rlsRulesText ? `
-   - 다음은 승인된 사내 지식에 근거한 품목코드 변환 규정입니다. 아래 규칙을 엄격히 적용하여 유효품목코드를 판단 및 추출해 주십시오.
-${rlsRulesText}
-   - 규칙에 부합하는 코드가 식별될 경우 'validItemCode' 필드에 기재하고, 발견되지 않으면 빈 문자열("")로 기재하십시오.
-` : `
-   - 각 품목의 품명, 규격, 비고 등을 탐색하여 "X로 시작하고 뒤에 6자리 숫자로 구성된 패턴" (예: X123456)을 지닌 사내 실제 품목코드가 발견될 경우, 이를 validItemCode 필드에 기재해 주십시오. 발견되지 않으면 빈 문자열("")을 반환하십시오.
-`}
-
-4. **상세비고 (document_memo)**:
-   - 1차 판독된 리포트의 모든 특기사항, 주의사항 등의 원본 텍스트를 줄바꿈('\\n')을 포함해 인쇄된 원본 글자 그대로 전사하십시오. 임의로 문장을 요약하거나 존재하지 않는 텍스트를 창작(환각)하지 마십시오.
-
-최종 JSON 응답 포맷: (Markdown 코드 블록 없이 순수 JSON만 반환)
-{
-  "supplier": {
-    "company_name": "공급 주체 상호명",
-    "business_number": "공급 주체 사업자번호 (XXX-XX-XXXXX 형식, 없으면 \"\")",
-    "representative": "공급 주체 대표자 성명",
-    "address": "공급 주체 주소",
-    "phone": "공급 주체 회사 대표 전화번호 (팩스 제외)",
-    "pic_name": "공급 주체 담당자명"
-  },
-  "buyer": {
-    "company_name": "구매/발주 주체 상호명",
-    "business_number": "구매/발주 주체 사업자번호 (XXX-XX-XXXXX 형식, 없으면 \"\")",
-    "representative": "구매/발주 주체 대표자 성명",
-    "address": "구매/발주 주체 주소",
-    "phone": "구매/발주 주체 회사 대표 전화번호 (팩스 제외)",
-    "pic_name": "구매/발주 주체 담당자명"
-  },
-  "document_number": "견적서 또는 문서 고유 번호",
-  "document_date": "발행일 (YYYY-MM-DD 형식)",
-  "document_memo": "견적서 비고 및 특이사항 (주의사항, 지불조건 등 포함 줄바꿈 전사)",
-  "originalTotalAmount": 문서상에 적힌 총 금액 (숫자만, 없으면 0),
-  "originalTotalQuantity": 문서상에 적힌 총 수량 (숫자만, 없으면 0),
-  "items": [
-    {
-      "item_code": "품목코드/도번",
-      "product_name": "품명",
-      "spec": "규격",
-      "quantity": 100,
-      "unit_price": 15000,
-      "validItemCode": "사내 지식 규칙(RAG) 또는 패턴에 부합하여 매핑된 품목코드"
-    }
-  ]
-}
-Do NOT output anything other than this JSON string. No markdown block wrapper.
-`;
-
-          const geminiUrlPass2 = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
-          const responsePass2 = await fetchGeminiWithFallback(geminiUrlPass2, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [
-                {
-                  parts: [
-                    { text: promptPass2 }
-                  ]
-                }
-              ],
-              generationConfig: {
                 responseMimeType: "application/json",
-                thinkingConfig: {
-                  thinkingLevel: "HIGH"
+                maxOutputTokens: 8192,
+                temperature: 0.0,
+                responseSchema: {
+                  type: "OBJECT",
+                  properties: {
+                    supplier: {
+                      type: "OBJECT",
+                      properties: {
+                        company_name: { type: "STRING" },
+                        business_number: { type: "STRING" },
+                        representative: {
+                          type: "STRING",
+                          description: "공급자 대표자 이름 (예: 노인호). 빨간색 도장이나 직인이 겹쳐 판독이 어렵다면 반드시 빈 문자열 ''로 채우십시오. 무한 루프 폭주 금지."
+                        },
+                        address: { type: "STRING" },
+                        phone: { type: "STRING" },
+                        pic_name: { type: "STRING" }
+                      },
+                      required: ["company_name"]
+                    },
+                    buyer: {
+                      type: "OBJECT",
+                      properties: {
+                        company_name: { type: "STRING" },
+                        business_number: { type: "STRING" },
+                        representative: { type: "STRING" },
+                        address: { type: "STRING" },
+                        phone: { type: "STRING" },
+                        pic_name: { type: "STRING" }
+                      }
+                    },
+                    document_number: { type: "STRING" },
+                    document_date: { type: "STRING" },
+                    document_memo: { type: "STRING" },
+                    originalTotalAmount: { type: "INTEGER" },
+                    originalTotalQuantity: { type: "INTEGER" },
+                    items: {
+                      type: "ARRAY",
+                      items: {
+                        type: "OBJECT",
+                        properties: {
+                          item_code: { type: "STRING" },
+                          product_name: { type: "STRING" },
+                          spec: { type: "STRING" },
+                          quantity: { type: "INTEGER" },
+                          unit_price: { type: "INTEGER" }
+                        },
+                        required: ["product_name", "quantity", "unit_price"]
+                      }
+                    }
+                  },
+                  required: ["supplier", "items"]
                 }
               }
             })
           });
 
-          if (!responsePass2.ok) {
+          if (!response.ok) {
             return NextResponse.json({
               success: false,
-              error: `Gemini OCR Pass 2 API 호출 실패 (HTTP ${responsePass2.status})`
+              error: `Gemini OCR API 호출 실패 (HTTP ${response.status})`
             }, { status: 500 });
           }
 
-          const aiDataPass2 = await responsePass2.json();
-          const responseTextPass2 = aiDataPass2.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+          const aiData = await response.json();
+          const responseText = aiData.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+          responseRawText = responseText;
 
-          // 실시간 AI 호출 토큰 감사록 기록 적재
+          // 토큰 감사록 기록 적재
           try {
-            const prompt_tokens = (aiDataPass1.usageMetadata?.promptTokenCount || 0) + (aiDataPass2.usageMetadata?.promptTokenCount || 0);
-            const completion_tokens = (aiDataPass1.usageMetadata?.candidatesTokenCount || 0) + (aiDataPass2.usageMetadata?.candidatesTokenCount || 0);
+            const prompt_tokens = aiData.usageMetadata?.promptTokenCount || 0;
+            const completion_tokens = aiData.usageMetadata?.candidatesTokenCount || 0;
             const total_tokens = prompt_tokens + completion_tokens;
-            
+
             const logId = `TKC-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
             const logTime = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
             await insertRows('ai_token_usage_logs', [{
               id: logId,
               model: selectedModel || 'gemini-3.5-flash',
-              purpose: 'estimates-ocr-2pass',
+              purpose: 'estimates-ocr-1pass-clean',
               prompt_tokens: prompt_tokens,
               completion_tokens: completion_tokens,
               total_tokens: total_tokens,
               created_at: logTime
             }]);
           } catch (logErr: any) {
-            console.error('Real Gemini OCR Pass 2 token logging failed:', logErr.message);
+            console.error('Real Gemini OCR token logging failed:', logErr.message);
           }
 
-          const cleanJson = responseTextPass2.replace(/```json/g, '').replace(/```/g, '').trim();
-          ocrJson = JSON.parse(cleanJson);
+          ocrJson = JSON.parse(responseText.trim());
+          console.log('📌 [OCR Final Parsed JSON]:', JSON.stringify(ocrJson, null, 2));
         }
 
         if (document_type === 'license') {
@@ -551,6 +445,30 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
               receiverMatched = false;
             }
 
+            // 🛡️ [하이브리드 대표자명 스마트 복원 알고리즘]
+            // Step 1: 사내 CRM DB에서 기존 등록 거래처가 있는지 대조하여 정확도 100%로 대표자명 우선 복구
+            if (!partnerRepresentative && (partnerBizNo || partnerName)) {
+              try {
+                const cleanBiz = partnerBizNo.replace(/\D/g, '');
+                const allPartnersRes = await queryTable('crm_partners', {});
+                const allPartners = allPartnersRes.rows || [];
+                const matchedPartner = allPartners.find((p: any) => 
+                  !p.deleted_at && 
+                  ((cleanBiz && (p.business_number || '').replace(/\D/g, '') === cleanBiz) ||
+                   (partnerName && p.company_name && p.company_name.includes(partnerName)))
+                );
+                if (matchedPartner && matchedPartner.representative) {
+                  partnerRepresentative = matchedPartner.representative;
+                  console.log('💡 [CRM DB 대표자 매칭 성공]:', partnerRepresentative);
+                }
+              } catch (dbErr) {
+                console.error('CRM DB 대표자 매칭 중 오류:', dbErr);
+              }
+            }
+
+            let debugRepRaw = '';
+            let debugRepError = '';
+
             // 💡 수신인 검증 우회 설정이 켜져 있으면 무조건 일치 판정
             if (bypassOcrReceiverCheck) {
               receiverMatched = true;
@@ -561,7 +479,7 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
               document_type: 'estimate',
               type: targetType,
               partner_name: partnerName || '미확인 거래처',
-              partner_phone: partnerPhone || '010-0000-0000',
+              partner_phone: partnerPhone || '',
               partner_manager: partnerManager || '',
               partner_business_number: partnerBizNo || '',
               partner_representative: partnerRepresentative || '',
@@ -574,12 +492,16 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
               items: ocrJson.items || [],
               receiver_matched: receiverMatched,
               my_company_name: myCompanyProfile.companyName,
+              debug_rep_raw: debugRepRaw,
+              debug_rep_error: debugRepError,
               method: 'REAL_GEMINI_OCR'
             });
           } else {
             return NextResponse.json({
               success: false,
-              error: '견적서에서 필수 정보를 추출하는 데 실패했습니다.'
+              error: '견적서에서 필수 정보를 추출하는 데 실패했습니다.',
+              debug_raw_text: responseRawText,
+              debug_parsed: ocrJson
             }, { status: 500 });
           }
         }
@@ -587,7 +509,7 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
         console.error('Gemini Vision OCR API fail:', geminiErr);
         return NextResponse.json({
           success: false,
-          error: `AI OCR 분석 중 오류가 발생했습니다: ${geminiErr.message || geminiErr}`
+          error: `AI OCR 분석 중 오류가 발생했습니다: ${geminiErr.message || geminiErr} (원시 응답 텍스트: ${responseRawText})`
         }, { status: 500 });
       }
     }

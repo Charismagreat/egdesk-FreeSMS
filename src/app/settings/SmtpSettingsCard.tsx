@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from "react";
 import { Mail, Shield, Server, Key, Sparkles, RefreshCw, Send, CheckCircle2, AlertTriangle, Eye, EyeOff, Info } from "lucide-react";
 
@@ -21,7 +22,7 @@ export default function SmtpSettingsCard() {
     async function loadSettings() {
       try {
         const fetchVal = async (key: string) => {
-          const res = await fetch(`/api/settings?key=${key}`);
+          const res = await apiFetch(`/api/settings?key=${key}`);
           const data = await res.json();
           return data.success && data.value ? data.value : "";
         };
@@ -55,7 +56,7 @@ export default function SmtpSettingsCard() {
 
     try {
       const saveVal = async (key: string, value: string) => {
-        const res = await fetch("/api/settings", {
+        const res = await apiFetch("/api/settings", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ key, value })
@@ -92,7 +93,7 @@ export default function SmtpSettingsCard() {
     }
 
     try {
-      const res = await fetch("/api/settings/smtp/test", {
+      const res = await apiFetch("/api/settings/smtp/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

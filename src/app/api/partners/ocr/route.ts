@@ -155,7 +155,9 @@ export async function POST(req: Request) {
             }
           ],
           generationConfig: {
-            responseMimeType: "application/json"
+            responseMimeType: "application/json",
+            maxOutputTokens: 8192,
+            temperature: 0.7
           }
         })
       });
@@ -269,7 +271,9 @@ export async function POST(req: Request) {
           }
         ],
         generationConfig: {
-          responseMimeType: "application/json"
+          responseMimeType: "application/json",
+          maxOutputTokens: 8192,
+          temperature: 0.7
         }
       })
     });

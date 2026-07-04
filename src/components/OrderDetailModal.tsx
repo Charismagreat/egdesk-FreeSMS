@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect } from "react";
 import { X, ShoppingBag, Calendar, User, Phone, MapPin, DollarSign, FileText, ClipboardList } from "lucide-react";
 
@@ -23,7 +24,7 @@ export default function OrderDetailModal({ orderId, onClose }: OrderDetailModalP
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/orders/detail?id=${orderId}`);
+      const res = await apiFetch(`/api/orders/detail?id=${orderId}`);
       const json = await res.json();
       if (json.success) {
         setOrder(json.order);

@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect, useCallback } from "react";
 import { EmployeeLaborStat } from "../../../labor-management/types";
 
@@ -15,7 +16,7 @@ export function useMobileLabor() {
   const fetchLaborData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/production/labor");
+      const res = await apiFetch("/api/production/labor");
       const data = await res.json();
       if (data.success) {
         setStats(data.stats);

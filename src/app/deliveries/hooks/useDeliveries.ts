@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect } from "react";
 import { Delivery, DeliveryForm } from "../types";
 import { usePersistedState } from "@/hooks/usePersistedState";
@@ -37,7 +38,7 @@ export function useDeliveries() {
 
   const fetchData = async () => {
     try {
-      const res = await fetch('/api/deliveries');
+      const res = await apiFetch('/api/deliveries');
       const json = await res.json();
       if (json.success) setData(json.deliveries || []);
     } catch (e) {
@@ -94,7 +95,7 @@ export function useDeliveries() {
             return;
           }
 
-          const resUpload = await fetch('/api/deliveries/upload', {
+          const resUpload = await apiFetch('/api/deliveries/upload', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ deliveries: mappedDeliveries })
@@ -169,7 +170,7 @@ export function useDeliveries() {
       return alert('필수 입력 누락');
     }
     try {
-      const res = await fetch('/api/deliveries', { 
+      const res = await apiFetch('/api/deliveries', { 
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form) 
@@ -193,7 +194,7 @@ export function useDeliveries() {
   const deleteData = async (id: string) => {
     if (!confirm('삭제하시겠습니까?')) return;
     try {
-      const res = await fetch('/api/deliveries?id=' + id, { method: 'DELETE' });
+      const res = await apiFetch('/api/deliveries?id=' + id, { method: 'DELETE' });
       const json = await res.json();
       if (json.success) fetchData();
     } catch (eErr) {

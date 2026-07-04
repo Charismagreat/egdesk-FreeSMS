@@ -1,5 +1,6 @@
 'use client';
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from 'react';
 import { Building2, Save, CheckCircle2, AlertCircle, RefreshCw, Sparkles, Plus } from 'lucide-react';
 
@@ -47,7 +48,7 @@ export default function CompanySettingsCard() {
 
   const fetchFinancials = async () => {
     try {
-      const res = await fetch('/api/financials?company_id=MY-COMPANY');
+      const res = await apiFetch('/api/financials?company_id=MY-COMPANY');
       const data = await res.json();
       if (data.success) {
         setFinancials(data.data || []);
@@ -63,7 +64,7 @@ export default function CompanySettingsCard() {
     async function fetchCompanyProfile() {
       try {
         console.log('CompanySettingsCard: Fetching company profile...');
-        const res = await fetch('/api/settings?key=my_company_profile');
+        const res = await apiFetch('/api/settings?key=my_company_profile');
         const data = await res.json();
         console.log('CompanySettingsCard: API response:', data);
         if (data.success && data.value) {
@@ -102,7 +103,7 @@ export default function CompanySettingsCard() {
           setProfile(defaultVal);
           
           // 백그라운드 백엔드 캐시/DB 동기화
-          fetch('/api/settings', {
+          apiFetch('/api/settings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ key: 'my_company_profile', value: JSON.stringify(defaultVal) })
@@ -138,7 +139,7 @@ export default function CompanySettingsCard() {
         const base64Data = e.target?.result as string;
         
         // 백엔드 AI OCR API 호출 (crm_partners OCR과 동일 엔드포인트 공용 활용)
-        const res = await fetch('/api/partners/ocr', {
+        const res = await apiFetch('/api/partners/ocr', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ file: base64Data, mimeType: fileObj.type })
@@ -192,7 +193,7 @@ export default function CompanySettingsCard() {
     }
 
     try {
-      const res = await fetch('/api/settings', {
+      const res = await apiFetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -204,12 +205,12 @@ export default function CompanySettingsCard() {
       const data = await res.json();
       if (data.success) {
         // AI RAG 검색 시 활용되도록 개별 Key로도 보관 (하위 호환 및 RAG 쿼리 정교화 목적)
-        await fetch('/api/settings', {
+        await apiFetch('/api/settings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key: 'company_name', value: profile.companyName }),
         });
-        await fetch('/api/settings', {
+        await apiFetch('/api/settings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key: 'company_business_number', value: profile.businessNumber }),
@@ -246,7 +247,7 @@ export default function CompanySettingsCard() {
       const formData = new FormData();
       formData.append('file', fileObj);
 
-      const res = await fetch('/api/financials/upload', {
+      const res = await apiFetch('/api/financials/upload', {
         method: 'POST',
         body: formData
       });
@@ -293,7 +294,7 @@ export default function CompanySettingsCard() {
   const handleSaveFinancials = async () => {
     if (!tempFinData) return;
     try {
-      const res = await fetch('/api/financials', {
+      const res = await apiFetch('/api/financials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(tempFinData)
@@ -315,7 +316,7 @@ export default function CompanySettingsCard() {
   const handleDeleteFinancials = async (id: string) => {
     if (!confirm('정말로 해당 재무제표를 영구 삭제하시겠습니까? 첨부된 PDF 문서 파일도 디스크에서 함께 소멸됩니다.')) return;
     try {
-      const res = await fetch(`/api/financials?id=${id}`, {
+      const res = await apiFetch(`/api/financials?id=${id}`, {
         method: 'DELETE'
       });
       const data = await res.json();

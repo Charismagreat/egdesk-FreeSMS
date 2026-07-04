@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect } from "react";
 import { Reservation, ReservationForm } from "../types";
 
@@ -29,7 +30,7 @@ export function useReservations() {
 
   const fetchData = async () => {
     try {
-      const res = await fetch("/api/reservations");
+      const res = await apiFetch("/api/reservations");
       const json = await res.json();
       if (json.success) {
         setData(json.reservations || []);
@@ -88,7 +89,7 @@ export function useReservations() {
             return;
           }
 
-          const resUpload = await fetch("/api/reservations/upload", {
+          const resUpload = await apiFetch("/api/reservations/upload", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ reservations: mappedReservations })
@@ -181,7 +182,7 @@ export function useReservations() {
       return;
     }
     try {
-      const res = await fetch("/api/reservations", {
+      const res = await apiFetch("/api/reservations", {
         method: "POST",
         body: JSON.stringify(form)
       });
@@ -204,7 +205,7 @@ export function useReservations() {
   const deleteData = async (id: string) => {
     if (!confirm("삭제하시겠습니까?")) return;
     try {
-      const res = await fetch("/api/reservations?id=" + id, { method: "DELETE" });
+      const res = await apiFetch("/api/reservations?id=" + id, { method: "DELETE" });
       const json = await res.json();
       if (json.success) {
         fetchData();

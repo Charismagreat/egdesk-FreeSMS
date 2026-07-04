@@ -1,5 +1,6 @@
 'use client';
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from 'react';
 import { Sparkles, Check } from 'lucide-react';
 
@@ -27,7 +28,7 @@ export default function RndLogPreviewCard({
   const handleConfirm = async () => {
     setSaving(true);
     try {
-      const res = await fetch('/api/rnd', {
+      const res = await apiFetch('/api/rnd', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

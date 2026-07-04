@@ -2,6 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from 'react';
 import { MessageSquare, AlertCircle, Sparkles, CheckCircle2, Eye, EyeOff, Search, RefreshCw, ChevronRight, ShieldAlert, Send, X, AlertTriangle, Mail, Trash2 } from 'lucide-react';
 import Link from 'next/link';
@@ -53,7 +54,7 @@ export default function FeedbackManagementCard() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/settings/feedback?page=${currentPage}&limit=${limit}&type=${typeFilter}&status=${statusFilter}&search=${encodeURIComponent(searchQuery)}`);
+      const response = await apiFetch(`/api/settings/feedback?page=${currentPage}&limit=${limit}&type=${typeFilter}&status=${statusFilter}&search=${encodeURIComponent(searchQuery)}`);
       const data = await response.json();
       if (data.success) {
         setFeedbacks(data.feedbacks || []);
@@ -78,7 +79,7 @@ export default function FeedbackManagementCard() {
     }
 
     try {
-      const response = await fetch('/api/settings/feedback', {
+      const response = await apiFetch('/api/settings/feedback', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: selectedIds })
@@ -101,7 +102,7 @@ export default function FeedbackManagementCard() {
     if (!confirm('본 피드백을 영구 삭제하시겠습니까?')) return;
 
     try {
-      const response = await fetch('/api/settings/feedback', {
+      const response = await apiFetch('/api/settings/feedback', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: [id] })
@@ -129,7 +130,7 @@ export default function FeedbackManagementCard() {
 
   const handleStatusChange = async (id: string, newStatus: string) => {
     try {
-      const response = await fetch('/api/settings/feedback', {
+      const response = await apiFetch('/api/settings/feedback', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -220,7 +221,7 @@ export default function FeedbackManagementCard() {
     setExportResults(null);
     
     try {
-      const response = await fetch('/api/settings/feedback/export', {
+      const response = await apiFetch('/api/settings/feedback/export', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -260,7 +261,7 @@ export default function FeedbackManagementCard() {
     setEmailBody('');
     
     try {
-      const response = await fetch('/api/settings/feedback/email/draft', {
+      const response = await apiFetch('/api/settings/feedback/email/draft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ feedbackIds: ids })
@@ -293,7 +294,7 @@ export default function FeedbackManagementCard() {
     setEmailSendResult(null);
 
     try {
-      const response = await fetch('/api/settings/feedback/email/send', {
+      const response = await apiFetch('/api/settings/feedback/email/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

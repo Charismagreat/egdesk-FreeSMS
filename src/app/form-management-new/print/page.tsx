@@ -1,5 +1,6 @@
 'use client';
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { RefreshCw, AlertCircle, Printer, X, Laptop, Globe, FileCheck } from 'lucide-react';
@@ -46,7 +47,7 @@ function PrintViewContent() {
   const handleRegisterScm = async () => {
     setIsRegistering(true);
     try {
-      const res = await fetch('/api/estimates/direct-register', {
+      const res = await apiFetch('/api/estimates/direct-register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -186,7 +187,7 @@ function PrintViewContent() {
         }
 
         // 2. 템플릿 정보 로드
-        const tempRes = await fetch(`/api/templates-new?action=detail&id=${templateId}`);
+        const tempRes = await apiFetch(`/api/templates-new?action=detail&id=${templateId}`);
         const tempData = await tempRes.json();
         if (!tempData.success || !tempData.template) {
           throw new Error(tempData.error || '템플릿 정보를 불러오는 데 실패했습니다.');
@@ -453,7 +454,7 @@ function PrintViewContent() {
   // 발급 대장 이력 적재
   const logPrintHistory = async (tempId: number, recId: string, recName: string, printData: any) => {
     try {
-      const res = await fetch('/api/templates-new/print-log', {
+      const res = await apiFetch('/api/templates-new/print-log', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

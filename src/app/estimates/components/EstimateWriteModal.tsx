@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState } from "react";
 import { Sparkles, Plus, X } from "lucide-react";
 import { Partner } from "../types";
@@ -37,7 +38,7 @@ export default function EstimateWriteModal({
 
   React.useEffect(() => {
     if (!isOpen) return;
-    fetch('/api/settings?key=my_company_profile')
+    apiFetch('/api/settings?key=my_company_profile')
       .then(res => res.json())
       .then(data => {
         if (data.success && data.value) {
@@ -73,7 +74,7 @@ export default function EstimateWriteModal({
     }
     setPricingLoading(true);
     try {
-      const res = await fetch("/api/estimates/pricing", {
+      const res = await apiFetch("/api/estimates/pricing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -99,7 +100,7 @@ export default function EstimateWriteModal({
   const handleSaveDraft = async () => {
     if (!pricingResult) return;
     try {
-      const res = await fetch("/api/estimates", {
+      const res = await apiFetch("/api/estimates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -131,7 +132,7 @@ export default function EstimateWriteModal({
   const handleRegisterOnly = async () => {
     if (!pricingResult) return;
     try {
-      const res = await fetch("/api/estimates", {
+      const res = await apiFetch("/api/estimates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -167,7 +168,7 @@ export default function EstimateWriteModal({
       return;
     }
     try {
-      const res = await fetch("/api/estimates", {
+      const res = await apiFetch("/api/estimates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

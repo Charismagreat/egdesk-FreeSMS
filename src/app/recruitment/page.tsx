@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect } from "react";
 import { Bot } from "lucide-react";
 
@@ -36,7 +37,7 @@ export default function RecruitmentDashboardPage() {
       if (savedJob) setJobPosting(JSON.parse(savedJob));
 
       // SQLite DB로부터 지원자 데이터 실시간 로드 및 LocalStorage 백필
-      fetch('/api/recruitment/applicants')
+      apiFetch('/api/recruitment/applicants')
         .then(res => res.json())
         .then(data => {
           if (data.success && data.applicants) {
@@ -78,7 +79,7 @@ export default function RecruitmentDashboardPage() {
               const nextStatus = data.isDone ? ("interview_done" as const) : ("interviewing" as const);
               
               // SQLite DB에 실시간 면접 로그 및 평가 적재
-              fetch('/api/recruitment/applicants', {
+              apiFetch('/api/recruitment/applicants', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -134,7 +135,7 @@ export default function RecruitmentDashboardPage() {
               const signatureDate = new Date().toLocaleDateString("ko-KR");
               
               // SQLite DB에 모바일 계약 서명 정보 적재
-              fetch('/api/recruitment/applicants', {
+              apiFetch('/api/recruitment/applicants', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -308,7 +309,7 @@ export default function RecruitmentDashboardPage() {
   // 사장님이 지원자 면접 개시 승인
   const handleApproveInterview = (app: Applicant) => {
     // SQLite DB 상태 업데이트
-    fetch('/api/recruitment/applicants', {
+    apiFetch('/api/recruitment/applicants', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: app.id, status: 'interviewing' })
@@ -343,7 +344,7 @@ export default function RecruitmentDashboardPage() {
   // 최종 합격 처리 승인 (전자 근로계약서 개방)
   const handleApproveHiring = (app: Applicant) => {
     // SQLite DB 상태 업데이트
-    fetch('/api/recruitment/applicants', {
+    apiFetch('/api/recruitment/applicants', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: app.id, status: 'approved' })

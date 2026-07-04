@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import React from "react";
 import { FileText, X, AlertTriangle, Send } from "lucide-react";
 import { Product, AdTemplate, MessageTemplate, SendProgress, SpamRisk } from "../types";
@@ -313,7 +314,7 @@ export function MessageForm({
               const title = prompt("현재 작성된 메시지를 템플릿으로 저장합니다. 템플릿의 제목을 입력하세요:");
               if (!title) return;
               try {
-                const res = await fetch('/api/message-templates', {
+                const res = await apiFetch('/api/message-templates', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ title, content: message })

@@ -105,8 +105,15 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
       throw new Error('Gemini OCR API 호출 실패');
     }
 
+    console.log('====== [DEBUG OCR START] ======');
+    console.log('aiResult.text raw:', aiResult.text);
+
     const cleanJson = aiResult.text.replace(/```json/g, '').replace(/```/g, '').trim();
+    console.log('cleanJson:', cleanJson);
+    
     const parsedData = JSON.parse(cleanJson);
+    console.log('parsedData Object:', JSON.stringify(parsedData, null, 2));
+    console.log('====== [DEBUG OCR END] ======');
 
     return NextResponse.json({
       success: true,
@@ -120,7 +127,9 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
       originalTotalAmount: Number(parsedData.originalTotalAmount) || 0,
       originalTotalQuantity: Number(parsedData.originalTotalQuantity) || 0,
       fileName: filename || 'customs_doc.pdf',
-      fileData: imageBase64
+      fileData: imageBase64,
+      DEBUG_raw_text: aiResult.text,
+      DEBUG_parsed: parsedData
     });
 
   } catch (err: any) {

@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect, useMemo } from "react";
 import { Transaction } from "../types";
 import { usePersistedState } from "@/hooks/usePersistedState";
@@ -37,7 +38,7 @@ export function useTransactions() {
 
   const fetchTransactions = async () => {
     try {
-      const res = await fetch("/api/transactions");
+      const res = await apiFetch("/api/transactions");
       const json = await res.json();
       if (json.success) {
         setTransactions(json.transactions || []);
@@ -83,7 +84,7 @@ export function useTransactions() {
     }
     
     try {
-      const res = await fetch("/api/transactions", {
+      const res = await apiFetch("/api/transactions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -113,7 +114,7 @@ export function useTransactions() {
   const deleteTransaction = async (id: string) => {
     if (!confirm("정말 삭제하시겠습니까?")) return;
     try {
-      const res = await fetch(`/api/transactions?id=${id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/transactions?id=${id}`, { method: "DELETE" });
       const json = await res.json();
       if (json.success) {
         setTransactions(prev => prev.filter(t => t.id !== id));
@@ -160,7 +161,7 @@ export function useTransactions() {
       const message = `[EGDesk] ${t.customerName}님, 주문하신 [${t.productName}]의 결제가 완료되었습니다. 감사합니다!`;
       
       try {
-        await fetch("/api/sms/send", {
+        await apiFetch("/api/sms/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

@@ -335,21 +335,17 @@ export default function EstimateOcrModal({
                   <span className="font-mono font-black text-slate-800">{calculatedTotal.toLocaleString()}원</span>
                 </div>
 
-                {ocrForm.originalTotalAmount > 0 && (
-                  <>
-                    <div className="h-3 w-px bg-slate-350"></div>
-                    {isAmountMatching ? (
-                      <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded text-[9px] font-black flex items-center gap-0.5 leading-none">
-                        <CheckCircle2 className="w-2.5 h-2.5" />
-                        금액 일치
-                      </span>
-                    ) : (
-                      <span className="px-1.5 py-0.5 bg-rose-50 text-rose-600 border border-rose-200 rounded text-[9px] font-black flex items-center gap-0.5 leading-none animate-pulse">
-                         <AlertCircle className="w-2.5 h-2.5" />
-                         금액 불일치
-                      </span>
-                    )}
-                  </>
+                <div className="h-3 w-px bg-slate-350"></div>
+                {isAmountMatching ? (
+                  <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded text-[9px] font-black flex items-center gap-0.5 leading-none">
+                    <CheckCircle2 className="w-2.5 h-2.5" />
+                    금액 일치
+                  </span>
+                ) : (
+                  <span className="px-1.5 py-0.5 bg-rose-50 text-rose-600 border border-rose-200 rounded text-[9px] font-black flex items-center gap-0.5 leading-none animate-pulse">
+                     <AlertCircle className="w-2.5 h-2.5" />
+                     금액 불일치
+                  </span>
                 )}
 
                 <div className="h-4 w-px bg-slate-300 w-full md:w-px md:h-3"></div>
@@ -374,21 +370,17 @@ export default function EstimateOcrModal({
                   <span className="font-mono font-black text-slate-800">{calculatedTotalQuantity.toLocaleString()}개</span>
                 </div>
 
-                {ocrForm.originalTotalQuantity > 0 && (
-                   <>
-                     <div className="h-3 w-px bg-slate-350"></div>
-                     {isQuantityMatching ? (
-                       <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded text-[9px] font-black flex items-center gap-0.5 leading-none">
-                         <CheckCircle2 className="w-2.5 h-2.5" />
-                         수량 일치
-                       </span>
-                     ) : (
-                       <span className="px-1.5 py-0.5 bg-rose-50 text-rose-600 border border-rose-200 rounded text-[9px] font-black flex items-center gap-0.5 leading-none animate-pulse">
-                         <AlertCircle className="w-2.5 h-2.5" />
-                         수량 불일치
-                       </span>
-                     )}
-                   </>
+                <div className="h-3 w-px bg-slate-350"></div>
+                {isQuantityMatching ? (
+                  <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded text-[9px] font-black flex items-center gap-0.5 leading-none">
+                    <CheckCircle2 className="w-2.5 h-2.5" />
+                    수량 일치
+                  </span>
+                ) : (
+                  <span className="px-1.5 py-0.5 bg-rose-50 text-rose-600 border border-rose-200 rounded text-[9px] font-black flex items-center gap-0.5 leading-none animate-pulse">
+                    <AlertCircle className="w-2.5 h-2.5" />
+                    수량 불일치
+                  </span>
                 )}
               </div>
 

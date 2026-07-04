@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect, useCallback } from "react";
 import { GanttTask } from "../../../production-plan/types";
 
@@ -19,7 +20,7 @@ export function useMobilePlan() {
   const fetchTasks = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/production/plan");
+      const res = await apiFetch("/api/production/plan");
       const data = await res.json();
       if (data.success) {
         setTasks(data.ganttTasks || []);
@@ -56,7 +57,7 @@ export function useMobilePlan() {
     progress: number
   ) => {
     try {
-      const res = await fetch("/api/production/plan", {
+      const res = await apiFetch("/api/production/plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect, useRef } from "react";
 import { X, Send, Calendar, MapPin, Briefcase, DollarSign, Clock, HelpCircle, Loader2, Upload, FileText } from "lucide-react";
 import { Operator } from "../types";
@@ -111,7 +112,7 @@ export function ContractRequestModal({ operator, onClose }: ContractRequestModal
     }
 
     try {
-      const response = await fetch("/api/hr/contracts/request-sign", {
+      const response = await apiFetch("/api/hr/contracts/request-sign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

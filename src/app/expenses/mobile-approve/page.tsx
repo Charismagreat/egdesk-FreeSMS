@@ -1,5 +1,6 @@
 'use client';
 
+import { apiFetch } from '@/lib/api';
 import React from 'react';
 import { useExpenses, Expense } from '@/hooks/useExpenses';
 import MobileApproveHeader from './components/MobileApproveHeader';
@@ -432,7 +433,7 @@ export default function MobileApprovePage() {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch(`/api/expenses?id=${id}`, {
+      const res = await apiFetch(`/api/expenses?id=${id}`, {
         method: 'DELETE'
       });
       const json = await res.json();
@@ -477,7 +478,7 @@ export default function MobileApprovePage() {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch('/api/expenses', {
+      const res = await apiFetch('/api/expenses', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

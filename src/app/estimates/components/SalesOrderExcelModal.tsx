@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from "react";
 import { Upload, X, FileText, CheckCircle2, RefreshCw, Sparkles, Database, Calendar } from "lucide-react";
 import { createPortal } from "react-dom";
@@ -120,7 +121,7 @@ export default function SalesOrderExcelModal({
   useEffect(() => {
     async function fetchUserRoleAndCompany() {
       try {
-        const res = await fetch("/api/auth/me");
+        const res = await apiFetch("/api/auth/me");
         const data = await res.json();
         if (data.success) {
           setUserRole(data.role || "SUB_OPERATOR");
@@ -131,7 +132,7 @@ export default function SalesOrderExcelModal({
       }
 
       try {
-        const resSettings = await fetch("/api/production/grant");
+        const resSettings = await apiFetch("/api/production/grant");
         const dataSettings = await resSettings.json();
         if (dataSettings.success && dataSettings.companyProfile?.company_name) {
           setMyCompanyName(dataSettings.companyProfile.company_name);
@@ -168,7 +169,7 @@ export default function SalesOrderExcelModal({
 
             let loadedMapping: ExcelColumnMapping | null = null;
             try {
-              const sigRes = await fetch("/api/estimates/excel-signatures");
+              const sigRes = await apiFetch("/api/estimates/excel-signatures");
               const sigData = await sigRes.json();
               if (sigData.success && Array.isArray(sigData.configs)) {
                 const matched = sigData.configs.find((c: any) => c.header_signature === sig);
@@ -439,7 +440,7 @@ export default function SalesOrderExcelModal({
         approvers: []
       };
 
-      const res = await fetch("/api/estimates/ocr-sales-order?action=save", {
+      const res = await apiFetch("/api/estimates/ocr-sales-order?action=save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -450,7 +451,7 @@ export default function SalesOrderExcelModal({
         // 학습 시그니처 영속 등록
         if (rememberFormat && headerSignature) {
           try {
-            await fetch("/api/estimates/excel-signatures", {
+            await apiFetch("/api/estimates/excel-signatures", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({

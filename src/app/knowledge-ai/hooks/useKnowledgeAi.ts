@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect, useRef } from "react";
 import { KnowledgeDocument, AssetType, ChatMessage } from "../types";
 
@@ -63,7 +64,7 @@ export function useKnowledgeAi() {
   const fetchAssetTypes = async () => {
     setIsAssetTypesLoading(true);
     try {
-      const res = await fetch("/api/knowledge-ai/types");
+      const res = await apiFetch("/api/knowledge-ai/types");
       const data = await res.json();
       if (data.success && data.assetTypes) {
         setAssetTypes(data.assetTypes);
@@ -86,7 +87,7 @@ export function useKnowledgeAi() {
     setVaultError(null);
 
     try {
-      const res = await fetch("/api/knowledge-ai/types", {
+      const res = await apiFetch("/api/knowledge-ai/types", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -113,7 +114,7 @@ export function useKnowledgeAi() {
   const handleDeleteAssetType = async (id: string) => {
     setVaultError(null);
     try {
-      const res = await fetch("/api/knowledge-ai/types", {
+      const res = await apiFetch("/api/knowledge-ai/types", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -143,7 +144,7 @@ export function useKnowledgeAi() {
   const fetchDocuments = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch(`/api/knowledge-ai?userId=${currentUser}&role=${currentRole}&dept=${currentDept}`);
+      const res = await apiFetch(`/api/knowledge-ai?userId=${currentUser}&role=${currentRole}&dept=${currentDept}`);
       const data = await res.json();
       if (data.success) {
         setDocuments(data.documents);
@@ -167,7 +168,7 @@ export function useKnowledgeAi() {
   // 권한 등급 하향 조정 (Zero-Trust A -> B/C)
   const handleDowngradeSecurity = async (docId: string, newLevel: "B" | "C") => {
     try {
-      const res = await fetch("/api/knowledge-ai", {
+      const res = await apiFetch("/api/knowledge-ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -192,7 +193,7 @@ export function useKnowledgeAi() {
   // 수동 결재 승인 / 반려
   const handleApproveDocument = async (docId: string, status: "APPROVED" | "REJECTED", comments: string) => {
     try {
-      const res = await fetch("/api/knowledge-ai/approve", {
+      const res = await apiFetch("/api/knowledge-ai/approve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -248,7 +249,7 @@ export function useKnowledgeAi() {
           uploadType.includes("명함") ? "partner_ceo_card.jpg" :
           "office_supplies_request.xlsx";
 
-        const res = await fetch("/api/knowledge-ai", {
+        const res = await apiFetch("/api/knowledge-ai", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -302,7 +303,7 @@ export function useKnowledgeAi() {
   // 등록된 지식 문서 수정(업데이트) API 호출
   const handleUpdateDocument = async (docId: string, content: string, metadata?: Record<string, any>, securityLevel?: "A" | "B" | "C") => {
     try {
-      const res = await fetch("/api/knowledge-ai", {
+      const res = await apiFetch("/api/knowledge-ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -331,7 +332,7 @@ export function useKnowledgeAi() {
   const handleDeleteDocument = async (docId: string) => {
     if (!confirm("정말로 이 지식 자산을 삭제하시겠습니까?\n삭제된 지식은 RAG 검색 대상에서 제외됩니다.")) return;
     try {
-      const res = await fetch("/api/knowledge-ai", {
+      const res = await apiFetch("/api/knowledge-ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -474,7 +475,7 @@ export function useKnowledgeAi() {
   useEffect(() => {
     const fetchSessionUser = async () => {
       try {
-        const res = await fetch("/api/auth/me");
+        const res = await apiFetch("/api/auth/me");
         const data = await res.json();
         if (data.success) {
           setCurrentUser(data.username || "guest");

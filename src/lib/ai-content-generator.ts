@@ -1,4 +1,4 @@
-import { queryTable, insertRows } from '../../egdesk-helpers';
+import { queryTable, insertRows, getGeminiApiKey } from '../../egdesk-helpers';
 
 export interface BlogContent {
   title: string;
@@ -53,6 +53,17 @@ export async function generateOmniChannelContent(
     const enabledRes = await queryTable('system_settings', { filters: { key: 'omnichannel_ai_enabled' } });
     if (enabledRes.rows && enabledRes.rows.length > 0) {
       isEnabled = enabledRes.rows[0].value !== 'false';
+    }
+
+    if (apiKey && !apiKey.startsWith('AIzaSy')) {
+      try {
+        const decryptedKeyRes = await getGeminiApiKey({ name: apiKey });
+        if (decryptedKeyRes && decryptedKeyRes.success && decryptedKeyRes.apiKey) {
+          apiKey = decryptedKeyRes.apiKey;
+        }
+      } catch (keyErr) {
+        console.error('⚠️ [marketing] EGDesk에서 API 키 해독에 실패했습니다:', keyErr);
+      }
     }
   } catch (e) {
     console.error('Failed to get settings, fallback to local content generator', e);

@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect } from "react";
 import { Report, ToastState } from "../types";
 
@@ -44,7 +45,7 @@ export function useAIBriefing() {
   // 최고관리자 권한 조회
   const fetchUserRole = async () => {
     try {
-      const res = await fetch("/api/auth/me");
+      const res = await apiFetch("/api/auth/me");
       const data = await res.json();
       if (data.success && data.role) {
         setUserRole(data.role);
@@ -58,7 +59,7 @@ export function useAIBriefing() {
   const fetchReports = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/db/ai-visualize/share");
+      const res = await apiFetch("/api/db/ai-visualize/share");
       const data = await res.json();
       if (data.success) {
         setReports(data.list || []);
@@ -80,7 +81,7 @@ export function useAIBriefing() {
     }
 
     try {
-      const res = await fetch("/api/db/ai-visualize/share", {
+      const res = await apiFetch("/api/db/ai-visualize/share", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -109,7 +110,7 @@ export function useAIBriefing() {
     }
 
     try {
-      const res = await fetch(`/api/db/ai-visualize/share?shareId=${shareId}`, {
+      const res = await apiFetch(`/api/db/ai-visualize/share?shareId=${shareId}`, {
         method: "DELETE"
       });
       const data = await res.json();
@@ -144,7 +145,7 @@ export function useAIBriefing() {
     setReports(newReports);
 
     try {
-      const res = await fetch("/api/db/ai-visualize/share", {
+      const res = await apiFetch("/api/db/ai-visualize/share", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -172,7 +173,7 @@ export function useAIBriefing() {
     
     try {
       // 강제 갱신 API 호출 (force=true 백도어 사용)
-      const res = await fetch(`/api/db/ai-visualize/share/refresh?force=true&shareId=${shareId}`);
+      const res = await apiFetch(`/api/db/ai-visualize/share/refresh?force=true&shareId=${shareId}`);
       const data = await res.json();
       if (data.success) {
         showToast("✓ 실시간 AI 분석 및 브리핑이 성공적으로 갱신되었습니다!", "success");
@@ -283,7 +284,7 @@ export function useAIBriefing() {
   const handleToggleShareActive = async (shareId: string, currentStatus: number) => {
     try {
       const nextStatus = currentStatus === 1 ? 0 : 1;
-      const res = await fetch("/api/db/ai-visualize/share", {
+      const res = await apiFetch("/api/db/ai-visualize/share", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -306,7 +307,7 @@ export function useAIBriefing() {
 
   const handleChangeInterval = async (shareId: string, interval: string) => {
     try {
-      const res = await fetch("/api/db/ai-visualize/share", {
+      const res = await apiFetch("/api/db/ai-visualize/share", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

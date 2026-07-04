@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from "react";
 import { CheckCircle2, Minus, Plus, Info } from "lucide-react";
 import { PurchaseOrder } from "../types";
@@ -43,7 +44,7 @@ export default function InboundInspectModal({
   const handleConfirmInspectInbound = async () => {
     setInspectSubmitting(true);
     try {
-      const res = await fetch("/api/estimates/process", {
+      const res = await apiFetch("/api/estimates/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

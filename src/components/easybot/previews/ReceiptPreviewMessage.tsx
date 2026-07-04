@@ -1,5 +1,6 @@
 'use client';
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Sparkles, FileText, DollarSign, Calendar, Phone, Plus, Check } from 'lucide-react';
 
@@ -25,7 +26,7 @@ export default function ReceiptPreviewMessage({ tagContent }: { tagContent: stri
   useEffect(() => {
     const fetchCats = async () => {
       try {
-        const res = await fetch('/api/expenses/categories');
+        const res = await apiFetch('/api/expenses/categories');
         const json = await res.json();
         if (json.success) {
           setDbCategories(json.categories);
@@ -148,7 +149,7 @@ export default function ReceiptPreviewMessage({ tagContent }: { tagContent: stri
     }
     setSaving(true);
     try {
-      const res = await fetch('/api/expenses', {
+      const res = await apiFetch('/api/expenses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

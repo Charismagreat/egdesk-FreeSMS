@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect, useCallback } from "react";
 import { PowerPoint, EquipmentEnergy } from "../../../energy-management/types";
 
@@ -19,7 +20,7 @@ export function useMobileEnergy() {
   const fetchEnergyData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/production/energy");
+      const res = await apiFetch("/api/production/energy");
       const data = await res.json();
       if (data.success) {
         setPowerPoints(data.powerPoints || []);
@@ -44,7 +45,7 @@ export function useMobileEnergy() {
   // 설비 원격 셧다운 상태 토글 제어
   const handleToggleShutdown = async (eqId: string) => {
     try {
-      const res = await fetch("/api/production/energy", {
+      const res = await apiFetch("/api/production/energy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect, useMemo } from "react";
 import { SharedViewData } from "../types";
 
@@ -25,7 +26,7 @@ export function useSharedView(params: Promise<{ hash: string }>) {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/shared-views?hash=${hash}`);
+      const res = await apiFetch(`/api/shared-views?hash=${hash}`);
       const result = await res.json();
       
       if (result.success) {

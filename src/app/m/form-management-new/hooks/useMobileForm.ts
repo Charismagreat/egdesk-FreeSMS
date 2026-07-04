@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect } from "react";
 import { WebTemplate, OperatorInfo } from "../types";
 
@@ -61,7 +62,7 @@ export function useMobileForm() {
 
   // 1. 활성 템플릿 목록 로드
   const fetchTemplates = async () => {
-    const res = await fetch("/api/templates-new?action=list");
+    const res = await apiFetch("/api/templates-new?action=list");
     const json = await res.json();
     if (json.success && json.templates) {
       // 활성화된 템플릿만 필터링
@@ -73,14 +74,14 @@ export function useMobileForm() {
 
   // 2. 로그인 사원 및 프로필 연계 정보 로드
   const fetchMeAndOperator = async () => {
-    const meRes = await fetch("/api/auth/me");
+    const meRes = await apiFetch("/api/auth/me");
     const meData = await meRes.json();
     if (!meData.success) {
       throw new Error("로그인 세션이 유효하지 않습니다.");
     }
 
     const username = meData.username;
-    const opRes = await fetch(`/api/templates-new?action=query_records&table=crm_operators&keyword=${username}`);
+    const opRes = await apiFetch(`/api/templates-new?action=query_records&table=crm_operators&keyword=${username}`);
     const opData = await opRes.json();
     
     if (opData.success && opData.records && opData.records.length > 0) {
@@ -157,7 +158,7 @@ export function useMobileForm() {
   // 3. 회사 프로필 정보 로드 (대표자명, 회사명 오토필용)
   const fetchCompanyProfile = async () => {
     try {
-      const detailRes = await fetch("/api/templates-new?action=detail&id=0"); // id=0으로 호출해도 회사프로필은 딸려옴
+      const detailRes = await apiFetch("/api/templates-new?action=detail&id=0"); // id=0으로 호출해도 회사프로필은 딸려옴
       const detailData = await detailRes.json();
       if (detailData.success && detailData.companyProfile) {
         setCompanyProfile(detailData.companyProfile);
@@ -234,7 +235,7 @@ export function useMobileForm() {
         ...manualData
       };
 
-      const res = await fetch("/api/templates-new/send-email", {
+      const res = await apiFetch("/api/templates-new/send-email", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

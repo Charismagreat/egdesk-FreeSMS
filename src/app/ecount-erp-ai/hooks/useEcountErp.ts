@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from "react";
 import { EcountScript, EcountSchedule } from "../types";
 
@@ -40,7 +41,7 @@ export function useEcountErp() {
   const fetchScripts = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/ecount-erp");
+      const res = await apiFetch("/api/ecount-erp");
       const data = await res.json();
       if (data.success && Array.isArray(data.scripts)) {
         setScripts(data.scripts);
@@ -115,7 +116,7 @@ export function useEcountErp() {
 
     // 비동기 API 실제 요청
     try {
-      const res = await fetch("/api/ecount-erp", {
+      const res = await apiFetch("/api/ecount-erp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -164,7 +165,7 @@ export function useEcountErp() {
   const handleCreateTable = async (targetTable: string, columns: string[]) => {
     setCreatingTable(targetTable);
     try {
-      const res = await fetch("/api/ecount-erp", {
+      const res = await apiFetch("/api/ecount-erp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -192,7 +193,7 @@ export function useEcountErp() {
   const fetchSchedules = async () => {
     setSchedulesLoading(true);
     try {
-      const res = await fetch("/api/ecount-erp/schedule");
+      const res = await apiFetch("/api/ecount-erp/schedule");
       const data = await res.json();
       if (data.success && Array.isArray(data.schedules)) {
         setSchedules(data.schedules);
@@ -207,7 +208,7 @@ export function useEcountErp() {
   const handleCreateSchedule = async () => {
     if (!selectedScript) return;
     try {
-      const res = await fetch("/api/ecount-erp/schedule", {
+      const res = await apiFetch("/api/ecount-erp/schedule", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -236,7 +237,7 @@ export function useEcountErp() {
 
   const handleToggleSchedule = async (id: string, currentActive: number) => {
     try {
-      const res = await fetch("/api/ecount-erp/schedule", {
+      const res = await apiFetch("/api/ecount-erp/schedule", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -259,7 +260,7 @@ export function useEcountErp() {
   const handleDeleteSchedule = async (id: string) => {
     if (!confirm("정말로 이 스케줄을 삭제하시겠습니까?")) return;
     try {
-      const res = await fetch("/api/ecount-erp/schedule", {
+      const res = await apiFetch("/api/ecount-erp/schedule", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

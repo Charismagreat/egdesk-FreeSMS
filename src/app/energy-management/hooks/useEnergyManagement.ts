@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect, useCallback } from "react";
 import { PowerPoint, EquipmentEnergy, SavingRecommendation } from "../types";
 
@@ -20,7 +21,7 @@ export function useEnergyManagement() {
   const fetchEnergyData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/production/energy");
+      const res = await apiFetch("/api/production/energy");
       const data = await res.json();
       if (data.success) {
         setPowerPoints(data.powerPoints);
@@ -46,7 +47,7 @@ export function useEnergyManagement() {
   // 2. 에너지 절감형 스케줄 추천 일정 적용 (POST)
   const handleApplySaving = async (recId: string) => {
     try {
-      const res = await fetch("/api/production/energy", {
+      const res = await apiFetch("/api/production/energy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -71,7 +72,7 @@ export function useEnergyManagement() {
   // 3. 설비 O&M 가동 상태 수동 토글 셧다운 (POST)
   const handleToggleShutdown = async (eqId: string) => {
     try {
-      const res = await fetch("/api/production/energy", {
+      const res = await apiFetch("/api/production/energy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

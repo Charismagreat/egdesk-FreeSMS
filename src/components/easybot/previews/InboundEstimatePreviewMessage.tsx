@@ -1,5 +1,6 @@
 'use client';
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from 'react';
 import { Sparkles } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -78,7 +79,7 @@ export default function InboundEstimatePreviewMessage({
     }
     setSaving(true);
     try {
-      const response = await fetch('/api/easybot/ocr/confirm', {
+      const response = await apiFetch('/api/easybot/ocr/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

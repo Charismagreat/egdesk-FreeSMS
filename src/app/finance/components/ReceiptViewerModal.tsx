@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -73,7 +74,7 @@ export default function ReceiptViewerModal({
       const base64Data = await base64Promise;
       
       // 2. OCR API 호출
-      const res = await fetch("/api/expenses/ocr", {
+      const res = await apiFetch("/api/expenses/ocr", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -172,7 +173,7 @@ export default function ReceiptViewerModal({
       });
       fd.append("id", receiptSelectedTxId);
 
-      const res = await fetch("/api/finance/receipt", {
+      const res = await apiFetch("/api/finance/receipt", {
         method: "POST",
         body: fd
       });

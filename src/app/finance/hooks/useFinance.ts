@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { usePersistedState } from "@/hooks/usePersistedState";
 
@@ -146,7 +147,7 @@ export function useFinance() {
   // 자연어 규칙 목록 조회 API 연동
   const fetchRulesList = useCallback(async () => {
     try {
-      const res = await fetch("/api/finance/rules");
+      const res = await apiFetch("/api/finance/rules");
       const data = await res.json();
       if (data.success) {
         setRulesList(data.rules || []);
@@ -165,8 +166,8 @@ export function useFinance() {
     setLoading(true);
     try {
       const [accountsRes, summaryRes] = await Promise.all([
-        fetch("/api/finance?tab=accounts").then((res) => res.json()),
-        fetch("/api/finance?tab=summary").then((res) => res.json())
+        apiFetch("/api/finance?tab=accounts").then((res) => res.json()),
+        apiFetch("/api/finance?tab=summary").then((res) => res.json())
       ]);
 
       if (accountsRes.success) {
@@ -187,46 +188,46 @@ export function useFinance() {
       const paginationParams = `&limit=${pageSize}&offset=${offset}`;
 
       if (activeTab === "accounts") {
-        const txRes = await fetch(`/api/finance?tab=transactions${dateParams}${searchParam}${bankParams}${paginationParams}`).then((res) => res.json());
+        const txRes = await apiFetch(`/api/finance?tab=transactions${dateParams}${searchParam}${bankParams}${paginationParams}`).then((res) => res.json());
         if (txRes.success) {
           setTransactionList(txRes.data.list || []);
           setTotalCount(txRes.data.total || 0);
         }
       } else if (activeTab === "cards") {
-        const cardRes = await fetch(`/api/finance?tab=cards${dateParams}${searchParam}${cardParams}${paginationParams}`).then((res) => res.json());
+        const cardRes = await apiFetch(`/api/finance?tab=cards${dateParams}${searchParam}${cardParams}${paginationParams}`).then((res) => res.json());
         if (cardRes.success) {
           setCardTxList(cardRes.data.list || []);
           setTotalCount(cardRes.data.total || 0);
         }
       } else if (activeTab === "hometax") {
         if (hometaxSubTab === "invoice") {
-          const invRes = await fetch(`/api/finance?tab=hometax-invoice${dateParams}${searchParam}${invTypeParam}${paginationParams}`).then((res) => res.json());
+          const invRes = await apiFetch(`/api/finance?tab=hometax-invoice${dateParams}${searchParam}${invTypeParam}${paginationParams}`).then((res) => res.json());
           if (invRes.success) {
             setTaxInvoiceList(invRes.data.list || []);
             setTotalCount(invRes.data.total || 0);
           }
         } else if (hometaxSubTab === "exempt") {
-          const exemptRes = await fetch(`/api/finance?tab=hometax-exempt${dateParams}${searchParam}${invTypeParam}${paginationParams}`).then((res) => res.json());
+          const exemptRes = await apiFetch(`/api/finance?tab=hometax-exempt${dateParams}${searchParam}${invTypeParam}${paginationParams}`).then((res) => res.json());
           if (exemptRes.success) {
             setTaxExemptList(exemptRes.data.list || []);
             setTotalCount(exemptRes.data.total || 0);
           }
         } else if (hometaxSubTab === "cash") {
-          const cashRes = await fetch(`/api/finance?tab=hometax-cash${dateParams}${searchParam}${cashParams}${paginationParams}`).then((res) => res.json());
+          const cashRes = await apiFetch(`/api/finance?tab=hometax-cash${dateParams}${searchParam}${cashParams}${paginationParams}`).then((res) => res.json());
           if (cashRes.success) {
             setCashReceiptList(cashRes.data.list || []);
             setTotalCount(cashRes.data.total || 0);
           }
         }
       } else if (activeTab === "sync") {
-        const syncRes = await fetch("/api/finance?tab=sync").then((res) => res.json());
+        const syncRes = await apiFetch("/api/finance?tab=sync").then((res) => res.json());
         if (syncRes.success) {
           setSyncHistory(syncRes.data.syncHistory || []);
           setHometaxSync(syncRes.data.hometaxSync || []);
           setHometaxConnections(syncRes.data.hometaxConnections || []);
         }
       } else if (activeTab === "matching") {
-        const matchingRes = await fetch(`/api/finance?tab=matching${dateParams}${searchParam}&status=${matchingStatus}${invTypeParam}${paginationParams}`).then((res) => res.json());
+        const matchingRes = await apiFetch(`/api/finance?tab=matching${dateParams}${searchParam}&status=${matchingStatus}${invTypeParam}${paginationParams}`).then((res) => res.json());
         if (matchingRes.success) {
           setMatchingList(matchingRes.data.list || []);
           setTotalCount(matchingRes.data.total || 0);
@@ -244,7 +245,7 @@ export function useFinance() {
     if (!text || !text.trim()) return;
     setIsAddingRule(true);
     try {
-      const res = await fetch("/api/finance/rules", {
+      const res = await apiFetch("/api/finance/rules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ naturalText: text, force })
@@ -278,7 +279,7 @@ export function useFinance() {
     setIsPreviewLoading(true);
     setPreviewList([]);
     try {
-      const res = await fetch("/api/finance/rules", {
+      const res = await apiFetch("/api/finance/rules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ naturalText: text, previewOnly: true })
@@ -300,7 +301,7 @@ export function useFinance() {
   // 자연어 규칙 활성화 여부 토글 API 연동
   const handleToggleRule = async (id: string, isActive: boolean) => {
     try {
-      const res = await fetch("/api/finance/rules", {
+      const res = await apiFetch("/api/finance/rules", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, isActive })
@@ -321,7 +322,7 @@ export function useFinance() {
   const handleDeleteRule = async (id: string) => {
     if (!confirm("이 자연어 규칙을 삭제하시겠습니까? 관련하여 자동 정산된 미확정 내역들도 초기화됩니다.")) return;
     try {
-      const res = await fetch(`/api/finance/rules?id=${id}`, {
+      const res = await apiFetch(`/api/finance/rules?id=${id}`, {
         method: "DELETE"
       });
       const data = await res.json();
@@ -349,7 +350,7 @@ export function useFinance() {
 
   // 지출 계정과목(대/중/소 체계) 실시간 로드
   useEffect(() => {
-    fetch("/api/expenses/categories")
+    apiFetch("/api/expenses/categories")
       .then((res) => res.json())
       .then((json) => {
         if (json.success) {
@@ -361,7 +362,7 @@ export function useFinance() {
 
   // 태그 프리셋 실시간 로드
   useEffect(() => {
-    fetch("/api/expenses/tags")
+    apiFetch("/api/expenses/tags")
       .then((res) => res.json())
       .then((json) => {
         if (json.success) {
@@ -398,7 +399,7 @@ export function useFinance() {
   useEffect(() => {
     const fetchUserRole = async () => {
       try {
-        const res = await fetch("/api/auth/me");
+        const res = await apiFetch("/api/auth/me");
         const data = await res.json();
         if (data.success && data.role) {
           setUserRole(data.role);
@@ -535,7 +536,7 @@ export function useFinance() {
   const handleUpdateCardTransaction = async (txId: string, updates: { category?: string; memo?: string }) => {
     setIsUpdatingCardTx(true);
     try {
-      const res = await fetch("/api/finance/card-transaction", {
+      const res = await apiFetch("/api/finance/card-transaction", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: txId, ...updates })
@@ -562,7 +563,7 @@ export function useFinance() {
   const handleUpdateBankTransaction = async (txId: string, updates: { category?: string; memo?: string }) => {
     setIsUpdatingBankTx(true);
     try {
-      const res = await fetch("/api/finance/bank-transaction", {
+      const res = await apiFetch("/api/finance/bank-transaction", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: txId, ...updates })
@@ -589,7 +590,7 @@ export function useFinance() {
   const handleUpdateHometaxTransaction = async (txId: string, type: "invoice" | "exempt" | "cash", updates: { memo?: string }) => {
     setIsUpdatingHometaxTx(true);
     try {
-      const res = await fetch("/api/finance/hometax-transaction", {
+      const res = await apiFetch("/api/finance/hometax-transaction", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: txId, type, ...updates })

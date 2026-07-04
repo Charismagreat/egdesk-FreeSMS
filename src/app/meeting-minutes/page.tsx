@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect, useRef } from "react";
 import { 
   Mic, MicOff, StopCircle, Mail, Play, CheckCircle2, Clock, 
@@ -41,7 +42,7 @@ export default function MeetingMinutesPage() {
       return;
     }
     try {
-      const res = await fetch("/api/meeting-minutes", {
+      const res = await apiFetch("/api/meeting-minutes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -279,7 +280,7 @@ export default function MeetingMinutesPage() {
   useEffect(() => {
     const initFetch = async () => {
       try {
-        const res = await fetch("/api/meeting-minutes");
+        const res = await apiFetch("/api/meeting-minutes");
         const data = await res.json();
         if (data.success) {
           setMeetings(data.meetings);
@@ -312,7 +313,7 @@ export default function MeetingMinutesPage() {
 
     const syncTranscript = async () => {
       try {
-        await fetch("/api/meeting-minutes", {
+        await apiFetch("/api/meeting-minutes", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -343,7 +344,7 @@ export default function MeetingMinutesPage() {
 
   const fetchMeetings = async () => {
     try {
-      const res = await fetch("/api/meeting-minutes");
+      const res = await apiFetch("/api/meeting-minutes");
       const data = await res.json();
       if (data.success) {
         setMeetings(data.meetings);
@@ -361,7 +362,7 @@ export default function MeetingMinutesPage() {
     }
 
     try {
-      const res = await fetch(`/api/meeting-minutes?meetingId=${meetingId}`, {
+      const res = await apiFetch(`/api/meeting-minutes?meetingId=${meetingId}`, {
         method: "DELETE"
       });
       const data = await res.json();
@@ -379,7 +380,7 @@ export default function MeetingMinutesPage() {
 
   const fetchTasks = async (meetingId: number) => {
     try {
-      const res = await fetch(`/api/meeting-minutes/tasks?meetingId=${meetingId}`);
+      const res = await apiFetch(`/api/meeting-minutes/tasks?meetingId=${meetingId}`);
       const data = await res.json();
       if (data.success) {
         setTasks(data.tasks);
@@ -405,7 +406,7 @@ export default function MeetingMinutesPage() {
     const finalTitle = newTitle.trim() || getAutoMeetingTitle();
 
     try {
-      const res = await fetch("/api/meeting-minutes", {
+      const res = await apiFetch("/api/meeting-minutes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -640,7 +641,7 @@ export default function MeetingMinutesPage() {
     const context = transcript.slice(-5).map(t => ({ speaker: t.speaker, text: t.text }));
 
     try {
-      const res = await fetch("/api/meeting-minutes/diarize", {
+      const res = await apiFetch("/api/meeting-minutes/diarize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -694,7 +695,7 @@ export default function MeetingMinutesPage() {
 
     try {
       // 회의명 먼저 동기화
-      await fetch("/api/meeting-minutes", {
+      await apiFetch("/api/meeting-minutes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -713,7 +714,7 @@ export default function MeetingMinutesPage() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const uploadRes = await fetch("/api/meeting-minutes/upload", {
+      const uploadRes = await apiFetch("/api/meeting-minutes/upload", {
         method: "POST",
         body: formData
       });
@@ -729,7 +730,7 @@ export default function MeetingMinutesPage() {
         setAudioAnalysisStep("2단계: Gemini AI 대화 내용 및 화자 분석 중...");
 
         // 텍스트 대화록 분석 API 호출
-        const analyzeRes = await fetch("/api/meeting-minutes/analyze-text", {
+        const analyzeRes = await apiFetch("/api/meeting-minutes/analyze-text", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ textUrl: uploadData.audioUrl })
@@ -757,7 +758,7 @@ export default function MeetingMinutesPage() {
         setTempAudioUrl(uploadData.audioUrl);
 
         // 진행 중인 상태 대화록 동기화 (회의 타입도 함께 동기화)
-        await fetch("/api/meeting-minutes", {
+        await apiFetch("/api/meeting-minutes", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -775,7 +776,7 @@ export default function MeetingMinutesPage() {
         setAudioAnalysisStep("2단계: Gemini AI 대화 이미지 OCR 및 분석 중...");
 
         // 이미지 대화록 분석 API 호출
-        const analyzeRes = await fetch("/api/meeting-minutes/analyze-image", {
+        const analyzeRes = await apiFetch("/api/meeting-minutes/analyze-image", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ imageUrl: uploadData.audioUrl })
@@ -803,7 +804,7 @@ export default function MeetingMinutesPage() {
         setTempAudioUrl(uploadData.audioUrl);
 
         // 진행 중인 상태 대화록 동기화 (회의 타입도 함께 동기화)
-        await fetch("/api/meeting-minutes", {
+        await apiFetch("/api/meeting-minutes", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -821,7 +822,7 @@ export default function MeetingMinutesPage() {
         setAudioAnalysisStep("2단계: Gemini AI 오디오 분석 및 화자 분류 중...");
 
         // 오디오 분석 API 호출
-        const analyzeRes = await fetch("/api/meeting-minutes/analyze-audio", {
+        const analyzeRes = await apiFetch("/api/meeting-minutes/analyze-audio", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ audioUrl: uploadData.audioUrl })
@@ -850,7 +851,7 @@ export default function MeetingMinutesPage() {
         setTempAudioUrl(uploadData.audioUrl);
 
         // 진행 중인 상태 대화록 동기화 (오디오 url도 함께 동기화)
-        await fetch("/api/meeting-minutes", {
+        await apiFetch("/api/meeting-minutes", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -880,7 +881,7 @@ export default function MeetingMinutesPage() {
     const lastThree = transcript.slice(-3).map(t => `${t.speaker}: ${t.text}`).join("\n");
 
     try {
-      const res = await fetch("/api/meeting-minutes/recommend", {
+      const res = await apiFetch("/api/meeting-minutes/recommend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ currentText: lastThree })
@@ -905,7 +906,7 @@ export default function MeetingMinutesPage() {
     setShowInterimModal(true);
 
     try {
-      const res = await fetch("/api/meeting-minutes/interim", {
+      const res = await apiFetch("/api/meeting-minutes/interim", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ transcript })
@@ -989,7 +990,7 @@ export default function MeetingMinutesPage() {
         formData.append("file", audioBlob, `meeting-${selectedMeeting.id}.webm`);
 
         console.log("🎙️ Uploading recorded audio blob to server...");
-        const uploadRes = await fetch("/api/meeting-minutes/upload", {
+        const uploadRes = await apiFetch("/api/meeting-minutes/upload", {
           method: "POST",
           body: formData
         });
@@ -1025,7 +1026,7 @@ export default function MeetingMinutesPage() {
     }));
 
     try {
-      const res = await fetch("/api/meeting-minutes", {
+      const res = await apiFetch("/api/meeting-minutes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1073,7 +1074,7 @@ export default function MeetingMinutesPage() {
   const handleToggleTask = async (taskId: number, currentStatus: string) => {
     const nextStatus = currentStatus === "PENDING" ? "COMPLETED" : "PENDING";
     try {
-      const res = await fetch("/api/meeting-minutes/tasks", {
+      const res = await apiFetch("/api/meeting-minutes/tasks", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ taskId, status: nextStatus })
@@ -1099,7 +1100,7 @@ export default function MeetingMinutesPage() {
     setMailResult("이메일 발송 서버(SMTP)를 가동하여 배포 중입니다...");
 
     try {
-      const res = await fetch("/api/meeting-minutes/send", {
+      const res = await apiFetch("/api/meeting-minutes/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1124,7 +1125,7 @@ export default function MeetingMinutesPage() {
   // 과거 회의록 보기 클릭 시
   const handleViewPastMeeting = async (pastId: number) => {
     try {
-      const res = await fetch("/api/meeting-minutes");
+      const res = await apiFetch("/api/meeting-minutes");
       const data = await res.json();
       if (data.success) {
         const past = data.meetings.find((m: any) => m.id === pastId);

@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from '@/lib/api';
 import * as React from "react";
 import { useState, useEffect, useRef } from "react";
 import { 
@@ -55,7 +56,7 @@ export default function MobileBusinessCardPage() {
 
   useEffect(() => {
     // 1. 현재 로그인한 직원 세션 데이터 조회
-    fetch("/api/employee/me")
+    apiFetch("/api/employee/me")
       .then(res => res.json())
       .then(data => {
         if (data.success && data.user) {
@@ -91,7 +92,7 @@ export default function MobileBusinessCardPage() {
     reader.onloadend = async () => {
       const base64String = reader.result as string;
       try {
-        const res = await fetch("/api/employee/business-card/my-card-setup", {
+        const res = await apiFetch("/api/employee/business-card/my-card-setup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -131,7 +132,7 @@ export default function MobileBusinessCardPage() {
     reader.onloadend = async () => {
       const base64String = reader.result as string;
       try {
-        const res = await fetch("/api/employee/business-card/upload", {
+        const res = await apiFetch("/api/employee/business-card/upload", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -195,7 +196,7 @@ export default function MobileBusinessCardPage() {
 
     try {
       showToast("내 명함을 상대방에게 전송하는 중...", "info");
-      const res = await fetch("/api/employee/business-card/send", {
+      const res = await apiFetch("/api/employee/business-card/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

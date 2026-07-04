@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect, useCallback } from "react";
 import { GanttTask, UnscheduledOrder, BottleneckInfo, DueRiskAnalysis } from "../types";
 
@@ -27,7 +28,7 @@ export function useProductionPlan() {
   const fetchPlanData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/production/plan");
+      const res = await apiFetch("/api/production/plan");
       const data = await res.json();
       if (data.success) {
         setGanttTasks(data.ganttTasks);
@@ -52,7 +53,7 @@ export function useProductionPlan() {
   // 2. 수동 스케줄 조정 요청 (POST - reschedule)
   const handleReschedule = async (taskId: string, startHour: number, endHour: number, equipmentId: string) => {
     try {
-      const res = await fetch("/api/production/plan", {
+      const res = await apiFetch("/api/production/plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -84,7 +85,7 @@ export function useProductionPlan() {
     }
 
     try {
-      const res = await fetch("/api/production/plan", {
+      const res = await apiFetch("/api/production/plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -113,7 +114,7 @@ export function useProductionPlan() {
   // 4. 모바일 모의 작업 진행 처리 (update_status)
   const handleUpdateStatus = async (taskId: string, status: "WAITING" | "RUNNING" | "COMPLETED", progress: number) => {
     try {
-      const res = await fetch("/api/production/plan", {
+      const res = await apiFetch("/api/production/plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

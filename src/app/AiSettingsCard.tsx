@@ -1,9 +1,9 @@
 "use client";
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect } from "react";
 import { Bot, Save, Check, KeyRound, Cpu, Sparkles, AlertCircle, RefreshCw, Server } from "lucide-react";
 
 export default function AiSettingsCard() {
-  const [apiKey, setApiKey] = useState("");
   const [aiModel, setAiModel] = useState("gemini-3.5-flash");
   const [omnichannelEnabled, setOmnichannelEnabled] = useState(true);
   const [copilotWidgetEnabled, setCopilotWidgetEnabled] = useState(true);
@@ -21,16 +21,8 @@ export default function AiSettingsCard() {
   const [isSaved, setIsSaved] = useState(false);
 
   useEffect(() => {
-    // 1. 기존 구글 API Key 불러오기
-    fetch('/api/settings?key=google_ai_api_key')
-      .then(res => res.json())
-      .then(data => {
-        if (data.success && data.value) setApiKey(data.value);
-      })
-      .catch(e => console.error(e));
-
-    // 2. 기존 Gemini AI 모델명 불러오기
-    fetch('/api/settings?key=google_ai_model')
+    // 1. 기존 Gemini AI 모델명 불러오기
+    apiFetch('/api/settings?key=google_ai_model')
       .then(res => res.json())
       .then(data => {
         if (data.success && data.value) setAiModel(data.value);
@@ -38,7 +30,7 @@ export default function AiSettingsCard() {
       .catch(e => console.error(e));
 
     // 3. 옴니채널 AI 활성화 여부 불러오기
-    fetch('/api/settings?key=omnichannel_ai_enabled')
+    apiFetch('/api/settings?key=omnichannel_ai_enabled')
       .then(res => res.json())
       .then(data => {
         if (data.success && data.value !== null) {
@@ -48,7 +40,7 @@ export default function AiSettingsCard() {
       .catch(e => console.error(e));
 
     // 4. 자율 마케팅 파트너 활성화 여부 불러오기
-    fetch('/api/settings?key=copilot_widget_enabled')
+    apiFetch('/api/settings?key=copilot_widget_enabled')
       .then(res => res.json())
       .then(data => {
         if (data.success && data.value !== null) {
@@ -58,7 +50,7 @@ export default function AiSettingsCard() {
       .catch(e => console.error(e));
 
     // 5. 하이브리드 AI 공급자 불러오기
-    fetch('/api/settings?key=ai_provider')
+    apiFetch('/api/settings?key=ai_provider')
       .then(res => res.json())
       .then(data => {
         if (data.success && data.value) setAiProvider(data.value);
@@ -66,7 +58,7 @@ export default function AiSettingsCard() {
       .catch(e => console.error(e));
 
     // 6. 로컬 LLM URL 불러오기
-    fetch('/api/settings?key=local_llm_url')
+    apiFetch('/api/settings?key=local_llm_url')
       .then(res => res.json())
       .then(data => {
         if (data.success && data.value) setLocalLlmUrl(data.value);
@@ -74,7 +66,7 @@ export default function AiSettingsCard() {
       .catch(e => console.error(e));
 
     // 7. 로컬 LLM 모델명 불러오기
-    fetch('/api/settings?key=local_llm_model')
+    apiFetch('/api/settings?key=local_llm_model')
       .then(res => res.json())
       .then(data => {
         if (data.success && data.value) setLocalLlmModel(data.value);
@@ -88,7 +80,7 @@ export default function AiSettingsCard() {
     setTestStatus("idle");
     setTestError("");
     try {
-      const res = await fetch("/api/settings/test-local-llm", {
+      const res = await apiFetch("/api/settings/test-local-llm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -115,37 +107,32 @@ export default function AiSettingsCard() {
     try {
       // 모든 키값들을 순차적 혹은 병렬로 저장 처리
       const saveTasks = [
-        fetch('/api/settings', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ key: 'google_ai_api_key', value: apiKey })
-        }),
-        fetch('/api/settings', {
+        apiFetch('/api/settings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key: 'google_ai_model', value: aiModel })
         }),
-        fetch('/api/settings', {
+        apiFetch('/api/settings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key: 'omnichannel_ai_enabled', value: omnichannelEnabled ? 'true' : 'false' })
         }),
-        fetch('/api/settings', {
+        apiFetch('/api/settings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key: 'copilot_widget_enabled', value: copilotWidgetEnabled ? 'true' : 'false' })
         }),
-        fetch('/api/settings', {
+        apiFetch('/api/settings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key: 'ai_provider', value: aiProvider })
         }),
-        fetch('/api/settings', {
+        apiFetch('/api/settings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key: 'local_llm_url', value: localLlmUrl })
         }),
-        fetch('/api/settings', {
+        apiFetch('/api/settings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ key: 'local_llm_model', value: localLlmModel })
@@ -249,39 +236,8 @@ export default function AiSettingsCard() {
           {/* Row 1: Gemini Cloud Settings (Provider가 gemini 또는 smart_hybrid 일때 노출) */}
           {(aiProvider === "gemini" || aiProvider === "smart_hybrid") && (
             <div className="flex flex-col md:flex-row items-end gap-4 w-full p-4 rounded-xl border border-indigo-100 bg-white/40">
-              {/* API Key 입력 */}
-              <div className="flex-[5] min-w-0 w-full">
-                <div className="flex justify-between items-center mb-1.5">
-                  <label className="block text-[11px] font-bold text-indigo-800 tracking-wider uppercase whitespace-nowrap">
-                    Google AI API Key
-                  </label>
-                  {!apiKey && (
-                    <span className="text-[9.5px] font-black text-rose-600 animate-pulse">
-                      ⚠️ 필수 입력 필요
-                    </span>
-                  )}
-                </div>
-                <div className={`flex items-center border rounded-xl overflow-hidden shadow-sm transition-all w-full focus-within:ring-2 ${
-                  !apiKey 
-                    ? "border-rose-300 bg-rose-50/15 focus-within:ring-rose-500 focus-within:border-rose-500" 
-                    : "border-indigo-200 bg-white/90 focus-within:ring-indigo-500 focus-within:border-indigo-500"
-                }`}>
-                  <div className="pl-4 pr-3 flex items-center justify-center shrink-0">
-                    <KeyRound className={`h-4 w-4 ${!apiKey ? "text-rose-500" : "text-indigo-400"}`} />
-                  </div>
-                  <input
-                    type="password"
-                    placeholder="구글 API Key 입력 (AIzaSy...)"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    className="w-full py-2.5 outline-none text-xs font-bold placeholder-indigo-300 bg-transparent text-indigo-950"
-                    title="Google AI API Key"
-                  />
-                </div>
-              </div>
-
               {/* 모델 선택 select */}
-              <div className="flex-[4] min-w-0 w-full">
+              <div className="w-full">
                 <label className="block text-[11px] font-bold text-indigo-800 mb-1.5 tracking-wider uppercase whitespace-nowrap">Active Gemini Model</label>
                 <div className="flex items-center border border-indigo-200 rounded-xl bg-white/90 overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 shadow-sm transition-all w-full">
                   <div className="pl-4 pr-3 flex items-center justify-center shrink-0 pointer-events-none">

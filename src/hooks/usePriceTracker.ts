@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { usePersistedState } from "@/hooks/usePersistedState";
 
@@ -250,7 +251,7 @@ export function usePriceTracker() {
   // 상세 및 환율 데이터 조회 로직
   const fetchItemDetails = async (itemId: number) => {
     try {
-      const res = await fetch(`/api/price-tracker/urls?item_id=${itemId}`);
+      const res = await apiFetch(`/api/price-tracker/urls?item_id=${itemId}`);
       const json = await res.json();
       if (json.success) {
         setUrls(json.urls);
@@ -280,7 +281,7 @@ export function usePriceTracker() {
       const activeChannelList = searchChannels.filter(c => c.active).map(c => c.name);
       if (activeChannelList.length === 0) return;
 
-      const mineRes = await fetch("/api/price-tracker/ai-search-miner", {
+      const mineRes = await apiFetch("/api/price-tracker/ai-search-miner", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -295,7 +296,7 @@ export function usePriceTracker() {
       if (mineJson.success && mineJson.candidates && mineJson.candidates.length > 0) {
         let deployedCount = 0;
         for (const cand of mineJson.candidates) {
-          const res = await fetch("/api/price-tracker/urls", {
+          const res = await apiFetch("/api/price-tracker/urls", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -323,7 +324,7 @@ export function usePriceTracker() {
 
   const fetchInitDataSilent = async () => {
     try {
-      const itemsRes = await fetch("/api/price-tracker/items");
+      const itemsRes = await apiFetch("/api/price-tracker/items");
       const itemsJson = await itemsRes.json();
       if (itemsJson.success) {
         setItems(itemsJson.items);
@@ -337,7 +338,7 @@ export function usePriceTracker() {
     setLoading(true);
     try {
       // 1. 품목 조회
-      const itemsRes = await fetch("/api/price-tracker/items");
+      const itemsRes = await apiFetch("/api/price-tracker/items");
       const itemsJson = await itemsRes.json();
       if (itemsJson.success) {
         setItems(itemsJson.items);
@@ -361,7 +362,7 @@ export function usePriceTracker() {
       }
 
       // 2. 알림 규칙 및 발송 이력 로그 조회
-      const alertsRes = await fetch("/api/price-tracker/alerts");
+      const alertsRes = await apiFetch("/api/price-tracker/alerts");
       const alertsJson = await alertsRes.json();
       if (alertsJson.success) {
         setAlerts(alertsJson.rules);
@@ -369,7 +370,7 @@ export function usePriceTracker() {
       }
 
       // 3. 환율 및 데몬 상태 조회
-      const ratesRes = await fetch("/api/price-tracker/exchange-rates");
+      const ratesRes = await apiFetch("/api/price-tracker/exchange-rates");
       const ratesJson = await ratesRes.json();
       if (ratesJson.success) {
         setExchangeRates(ratesJson.rates);
@@ -403,7 +404,7 @@ export function usePriceTracker() {
   const handleSyncExchangeRates = async () => {
     setUpdatingRates(true);
     try {
-      const res = await fetch("/api/price-tracker/exchange-rates", { method: "POST" });
+      const res = await apiFetch("/api/price-tracker/exchange-rates", { method: "POST" });
       const json = await res.json();
       if (json.success) {
         alert("⚡ 외환시장 환율 데이터 동기화 완료! 공백이 있던 경우 오늘의 이력도 정상 누적 적재되었습니다.");
@@ -422,7 +423,7 @@ export function usePriceTracker() {
   const handleStartDaemon = async () => {
     setStartingDaemon(true);
     try {
-      const res = await fetch("/api/price-tracker/exchange-rates", {
+      const res = await apiFetch("/api/price-tracker/exchange-rates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "START_DAEMON" })
@@ -455,7 +456,7 @@ export function usePriceTracker() {
     }
     setIsBackfilling(true);
     try {
-      const res = await fetch("/api/price-tracker/exchange-rates", {
+      const res = await apiFetch("/api/price-tracker/exchange-rates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -502,7 +503,7 @@ export function usePriceTracker() {
         ? { ...itemForm, item_id: editingItemId } 
         : itemForm;
 
-      const res = await fetch("/api/price-tracker/items", {
+      const res = await apiFetch("/api/price-tracker/items", {
         method: method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bodyPayload)
@@ -542,7 +543,7 @@ export function usePriceTracker() {
     }
 
     try {
-      const res = await fetch(`/api/price-tracker/items?item_id=${itemId}`, {
+      const res = await apiFetch(`/api/price-tracker/items?item_id=${itemId}`, {
         method: "DELETE"
       });
       const json = await res.json();
@@ -589,7 +590,7 @@ export function usePriceTracker() {
     
     setSelectorAnalyzing(true);
     try {
-      const res = await fetch("/api/price-tracker/ai-selector", {
+      const res = await apiFetch("/api/price-tracker/ai-selector", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: urlForm.target_url })
@@ -643,7 +644,7 @@ export function usePriceTracker() {
 
     setCrawlerTesting(true);
     try {
-      const res = await fetch("/api/price-tracker/urls", {
+      const res = await apiFetch("/api/price-tracker/urls", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ item_id: activeItem.item_id, ...urlForm, run_test: true })
@@ -681,7 +682,7 @@ export function usePriceTracker() {
   const handleDeleteUrl = async (urlId: number) => {
     if (!confirm("해당 수집 엔진 노드를 전광판에서 제외하시겠습니까?")) return;
     try {
-      const res = await fetch(`/api/price-tracker/urls?url_id=${urlId}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/price-tracker/urls?url_id=${urlId}`, { method: "DELETE" });
       const json = await res.json();
       if (json.success) {
         alert("수집 로봇이 안전하게 제외되었습니다.");
@@ -699,7 +700,7 @@ export function usePriceTracker() {
     if (!alertForm.rule_name || !alertForm.threshold_value || !alertForm.sms_template) return alert("입력란을 완성해 주세요.");
 
     try {
-      const res = await fetch("/api/price-tracker/alerts", {
+      const res = await apiFetch("/api/price-tracker/alerts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -734,7 +735,7 @@ export function usePriceTracker() {
       const activeChannelList = searchChannels.filter(c => c.active).map(c => c.name);
       console.log(`📡 [Auto-Deploy] 실시간 최저가 자율 포착 시작: [${activeItem.item_name}], 규격: [${activeItem.spec}]`);
       
-      const mineRes = await fetch("/api/price-tracker/ai-search-miner", {
+      const mineRes = await apiFetch("/api/price-tracker/ai-search-miner", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -752,7 +753,7 @@ export function usePriceTracker() {
       if (mineJson.success && mineJson.candidates && mineJson.candidates.length > 0) {
         let deployedCount = 0;
         for (const cand of mineJson.candidates) {
-          const res = await fetch("/api/price-tracker/urls", {
+          const res = await apiFetch("/api/price-tracker/urls", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

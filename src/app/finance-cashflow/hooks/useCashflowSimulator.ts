@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect, useCallback } from "react";
 import { CashflowPoint, ProductMargin, ForecastTransaction } from "../types";
 
@@ -26,7 +27,7 @@ export function useCashflowSimulator() {
   const fetchInitialData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/finance/cashflow");
+      const res = await apiFetch("/api/finance/cashflow");
       const data = await res.json();
       if (data.success) {
         setCurrentBalance(data.currentBalance);
@@ -52,7 +53,7 @@ export function useCashflowSimulator() {
   const runSimulation = useCallback(async () => {
     setIsSimulating(true);
     try {
-      const res = await fetch("/api/finance/cashflow", {
+      const res = await apiFetch("/api/finance/cashflow", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -99,7 +100,7 @@ export function useCashflowSimulator() {
     const smsMessage = `[이지데스크] ${item.partnerName} 담당자님 안녕하십니까. 당사 거래분 미수금 ${item.amount.toLocaleString()}원의 수금 예정일이 경과되어 확인 차 연락드립니다. 아래 모바일 명세서 링크를 확인하시어 대금 정산 협조 부탁드립니다. ${mobileLink}`;
 
     try {
-      const res = await fetch("/api/sms/send", {
+      const res = await apiFetch("/api/sms/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

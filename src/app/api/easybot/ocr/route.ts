@@ -340,9 +340,8 @@ ${JSON.stringify(facilitiesListForRag)}
         ],
         generationConfig: {
           responseMimeType: "application/json",
-          thinkingConfig: {
-            thinkingLevel: "HIGH"
-          }
+          maxOutputTokens: 8192,
+          temperature: 0.7
         }
       })
     });

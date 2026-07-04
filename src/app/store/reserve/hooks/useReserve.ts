@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import { useState } from "react";
 import { ReserveForm, ServiceItem } from "../types";
 
@@ -47,7 +48,7 @@ export function useReserve() {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch('/api/reservations', {
+      const res = await apiFetch('/api/reservations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)

@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { UseLoginResult } from "../types";
@@ -19,7 +20,7 @@ export function useLogin(): UseLoginResult {
     setIsLoading(true);
 
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await apiFetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),

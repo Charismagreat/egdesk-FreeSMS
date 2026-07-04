@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect } from "react";
 import { Partner, PartnerForm, OcrResult, DetailHistory } from "../types";
 import { usePersistedState } from "@/hooks/usePersistedState";
@@ -80,7 +81,7 @@ export function usePartners() {
         const base64Data = e.target?.result as string;
         
         // 백엔드 AI OCR API 호출
-        const res = await fetch('/api/partners/ocr', {
+        const res = await apiFetch('/api/partners/ocr', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ file: base64Data, mimeType: fileObj.type })
@@ -163,7 +164,7 @@ export function usePartners() {
         const base64Data = e.target?.result as string;
 
         // 백엔드 AI OCR API 호출 (명함 분석용)
-        const res = await fetch('/api/partners/ocr', {
+        const res = await apiFetch('/api/partners/ocr', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ file: base64Data, mimeType: fileObj.type, action: 'card' })
@@ -209,7 +210,7 @@ export function usePartners() {
 
   const fetchPartnerReports = async (partnerId: string) => {
     try {
-      const res = await fetch(`/api/partners/analyze?partner_id=${partnerId}`);
+      const res = await apiFetch(`/api/partners/analyze?partner_id=${partnerId}`);
       const data = await res.json();
       if (data.success) {
         setPartnerReports(data.reports || []);
@@ -224,7 +225,7 @@ export function usePartners() {
     if (!analysisPartner) return;
     setIsAnalyzing(true);
     try {
-      const res = await fetch('/api/partners/analyze', {
+      const res = await apiFetch('/api/partners/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -261,7 +262,7 @@ export function usePartners() {
       const fetchDetailHistory = async () => {
         setDetailLoading(true);
         try {
-          const res = await fetch(`/api/partners?action=detail&id=${selectedPartner.id}`);
+          const res = await apiFetch(`/api/partners?action=detail&id=${selectedPartner.id}`);
           const data = await res.json();
           if (data.success) {
             setDetailHistory({
@@ -283,7 +284,7 @@ export function usePartners() {
   const fetchPartners = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/partners");
+      const res = await apiFetch("/api/partners");
       const data = await res.json();
       if (data.success) {
         setPartners(data.partners || []);
@@ -297,7 +298,7 @@ export function usePartners() {
 
   const fetchContacts = async () => {
     try {
-      const res = await fetch("/api/partners?action=contacts");
+      const res = await apiFetch("/api/partners?action=contacts");
       const data = await res.json();
       if (data.success) {
         setContacts(data.contacts || []);
@@ -313,7 +314,7 @@ export function usePartners() {
     setIsDetailOpen(true);
     setDetailLoading(true);
     try {
-      const res = await fetch(`/api/partners?action=detail&id=${pt.id}`);
+      const res = await apiFetch(`/api/partners?action=detail&id=${pt.id}`);
       const data = await res.json();
       if (data.success) {
         if (data.partner) {
@@ -335,7 +336,7 @@ export function usePartners() {
   // 상세 데이터 강제 갱신 헬퍼
   const refetchDetail = async (partnerId: string) => {
     try {
-      const res = await fetch(`/api/partners?action=detail&id=${partnerId}`);
+      const res = await apiFetch(`/api/partners?action=detail&id=${partnerId}`);
       const data = await res.json();
       if (data.success) {
         if (data.partner) {
@@ -363,13 +364,13 @@ export function usePartners() {
     try {
       let res;
       if (modalMode === 'create') {
-        res = await fetch("/api/partners", {
+        res = await apiFetch("/api/partners", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(form)
         });
       } else {
-        res = await fetch("/api/partners", {
+        res = await apiFetch("/api/partners", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ...form, id: editingId })
@@ -446,7 +447,7 @@ export function usePartners() {
     if (!confirm(`[경고] 거래처 '${pt.company_name}' 정보를 영구히 데이터베이스에서 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
 
     try {
-      const res = await fetch(`/api/partners?id=${pt.id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/partners?id=${pt.id}`, { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
         fetchPartners();

@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from "react";
 import { Globe, RefreshCw, CheckCircle, AlertTriangle, ShieldCheck, Activity, Save, History, Search, Link, Sparkles } from "lucide-react";
 
@@ -48,7 +49,7 @@ export function HomeDomainManagerPanel({ showToast, onUrlUpdated, currentConfig 
   const loadData = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/website/domain-info");
+      const res = await apiFetch("/api/website/domain-info");
       const data = await res.json();
       if (data.success) {
         setHomepageUrl(data.homepageUrl || "");
@@ -87,7 +88,7 @@ export function HomeDomainManagerPanel({ showToast, onUrlUpdated, currentConfig 
 
     setSavingUrl(true);
     try {
-      const res = await fetch("/api/website/domain-info", {
+      const res = await apiFetch("/api/website/domain-info", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ homepageUrl })
@@ -123,7 +124,7 @@ export function HomeDomainManagerPanel({ showToast, onUrlUpdated, currentConfig 
       }
 
       // publish API를 경유하여 기존 사이트의 SEO 필드 갱신
-      const res = await fetch("/api/website/publish", {
+      const res = await apiFetch("/api/website/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -158,7 +159,7 @@ export function HomeDomainManagerPanel({ showToast, onUrlUpdated, currentConfig 
 
     setSuggestingSeo(true);
     try {
-      const res = await fetch("/api/website/suggest-seo", {
+      const res = await apiFetch("/api/website/suggest-seo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ config: currentConfig })

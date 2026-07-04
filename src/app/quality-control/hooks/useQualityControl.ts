@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect, useCallback } from "react";
 import {
   VisionLog,
@@ -56,7 +57,7 @@ export function useQualityControl() {
     setIsLoading(true);
     try {
       // 1. Vision API
-      const visionRes = await fetch("/api/quality/vision");
+      const visionRes = await apiFetch("/api/quality/vision");
       const visionData = await visionRes.json();
       if (visionData.success) {
         setVisionModel(visionData.modelStatus);
@@ -64,7 +65,7 @@ export function useQualityControl() {
       }
 
       // 2. SPC API
-      const spcRes = await fetch("/api/quality/spc");
+      const spcRes = await apiFetch("/api/quality/spc");
       const spcData = await spcRes.json();
       if (spcData.success) {
         setSpcConfig(spcData.spcConfig);
@@ -77,7 +78,7 @@ export function useQualityControl() {
       }
 
       // 3. Sensors API
-      const sensorRes = await fetch("/api/quality/sensors");
+      const sensorRes = await apiFetch("/api/quality/sensors");
       const sensorData = await sensorRes.json();
       if (sensorData.success) {
         setSensorStatus(sensorData.sensorStatus);
@@ -86,7 +87,7 @@ export function useQualityControl() {
       }
 
       // 4. NCR API
-      const ncrRes = await fetch(`/api/quality/ncr?query=${searchQuery}`);
+      const ncrRes = await apiFetch(`/api/quality/ncr?query=${searchQuery}`);
       const ncrData = await ncrRes.json();
       if (ncrData.success) {
         setNcrList(ncrData.ncrList);
@@ -108,7 +109,7 @@ export function useQualityControl() {
   const handleRetrainModel = async (newSamplesCount: number) => {
     setIsRetraining(true);
     try {
-      const res = await fetch("/api/quality/vision", {
+      const res = await apiFetch("/api/quality/vision", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "retrain", newGoldenSamples: newSamplesCount })
@@ -130,7 +131,7 @@ export function useQualityControl() {
   // --- 비전 이상 점수 임계값 업데이트 ---
   const handleUpdateThreshold = async (threshold: number) => {
     try {
-      const res = await fetch("/api/quality/vision", {
+      const res = await apiFetch("/api/quality/vision", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "update_threshold", threshold })
@@ -154,7 +155,7 @@ export function useQualityControl() {
 
     setIsNcrSaving(true);
     try {
-      const res = await fetch("/api/quality/ncr", {
+      const res = await apiFetch("/api/quality/ncr", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect } from "react";
 import { PaymentItem, PaymentForm } from "../types";
 import { usePersistedState } from "@/hooks/usePersistedState";
@@ -35,7 +36,7 @@ export function usePayments() {
 
   const fetchData = async () => {
     try {
-      const res = await fetch('/api/payments');
+      const res = await apiFetch('/api/payments');
       const json = await res.json();
       if (json.success) {
         setData(json.payments || []);
@@ -59,7 +60,7 @@ export function usePayments() {
       return;
     }
     try {
-      const res = await fetch('/api/payments', {
+      const res = await apiFetch('/api/payments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)
@@ -82,7 +83,7 @@ export function usePayments() {
   const deleteData = async (id: string) => {
     if (!confirm('삭제하시겠습니까?')) return;
     try {
-      const res = await fetch(`/api/payments?id=${id}`, {
+      const res = await apiFetch(`/api/payments?id=${id}`, {
         method: 'DELETE'
       });
       const json = await res.json();

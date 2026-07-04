@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect, useRef } from "react";
 import { SnapTask, TimelineItem, ActionLog, Partner, PartnerContact } from "../types";
 
@@ -72,7 +73,7 @@ export function useSnapTasks() {
         mimeType: attachedFile ? attachedFile.type : "text/plain"
       };
 
-      const res = await fetch("/api/snaptasks/snap", {
+      const res = await apiFetch("/api/snaptasks/snap", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)
@@ -83,7 +84,7 @@ export function useSnapTasks() {
         resetSnapForm();
         
         // 상세 정보 실시간 리로드
-        const timelineRes = await fetch(`/api/snaptasks?action=timeline&task_id=${selectedTask.id}`);
+        const timelineRes = await apiFetch(`/api/snaptasks?action=timeline&task_id=${selectedTask.id}`);
         const timelineData = await timelineRes.json();
         if (timelineData.success) {
           setTimeline(timelineData.timeline || []);
@@ -109,7 +110,7 @@ export function useSnapTasks() {
   const fetchTasks = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/snaptasks");
+      const res = await apiFetch("/api/snaptasks");
       const data = await res.json();
       if (data.success) {
         setTasks(data.tasks || []);
@@ -130,7 +131,7 @@ export function useSnapTasks() {
     setPartnerContacts([]);
     resetSnapForm();
     try {
-      const res = await fetch(`/api/snaptasks?action=timeline&task_id=${task.id}`);
+      const res = await apiFetch(`/api/snaptasks?action=timeline&task_id=${task.id}`);
       const data = await res.json();
       if (data.success) {
         setTimeline(data.timeline || []);
@@ -148,7 +149,7 @@ export function useSnapTasks() {
   // 태스크 상태 전이
   const handleUpdateStatus = async (task: SnapTask, nextStatus: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED') => {
     try {
-      const res = await fetch("/api/snaptasks", {
+      const res = await apiFetch("/api/snaptasks", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: task.id, status: nextStatus })
@@ -172,7 +173,7 @@ export function useSnapTasks() {
     if (!confirm(`[경고] 스냅태스크 '${task.title}'과 관련된 모든 파일 스냅, 오디오, AI 자율 감사로그를 영구히 파괴 삭제하시겠습니까?\n이 작업은 물리 DB에서 복구 불가능합니다.`)) return;
 
     try {
-      const res = await fetch(`/api/snaptasks?id=${task.id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/snaptasks?id=${task.id}`, { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
         await fetchTasks();

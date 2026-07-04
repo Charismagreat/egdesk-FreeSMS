@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from "react";
 import { X, FileSpreadsheet, RefreshCw, Sparkles, Sliders } from "lucide-react";
 import { Account } from "../types";
@@ -54,7 +55,7 @@ export default function UploadExcelModal({
       fd.append("bankId", useSmartDetection ? "" : uploadBankId);
       fd.append("accountId", useSmartDetection ? "" : uploadAccountId);
 
-      const res = await fetch("/api/finance/upload", {
+      const res = await apiFetch("/api/finance/upload", {
         method: "POST",
         body: fd
       });

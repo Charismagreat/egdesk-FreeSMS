@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState } from "react";
 import { Plus, X, Sparkles } from "lucide-react";
 import { Partner } from "../types";
@@ -61,7 +62,7 @@ export default function PurchaseOrderWriteModal({
 
     setIsSubmitting(true);
     try {
-      const res = await fetch("/api/estimates/process", {
+      const res = await apiFetch("/api/estimates/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

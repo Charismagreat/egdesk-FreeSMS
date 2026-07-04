@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect, useCallback } from "react";
 import { ScmShipment, ScmSupplier, ScmAlternative } from "../types";
 
@@ -21,7 +22,7 @@ export function useScmManagement() {
   const fetchScmData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/production/scm");
+      const res = await apiFetch("/api/production/scm");
       const data = await res.json();
       if (data.success) {
         setShipments(data.shipments);
@@ -45,7 +46,7 @@ export function useScmManagement() {
   // 2. 발주처 대체 우회 전환 적용 (POST)
   const handleSwitchSupplier = async (shipmentId: string, alternativeSupplierId: string) => {
     try {
-      const res = await fetch("/api/production/scm", {
+      const res = await apiFetch("/api/production/scm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

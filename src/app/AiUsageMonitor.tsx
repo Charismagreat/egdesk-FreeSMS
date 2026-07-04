@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect } from "react";
 import { Cpu, Activity, BarChart3, Clock, AlertTriangle, Layers, CalendarRange, ChevronUp, ChevronDown } from "lucide-react";
 
@@ -76,7 +77,7 @@ export default function AiUsageMonitor() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/settings/ai-usage?range=${range}&page=${page}&limit=${limit}`);
+      const res = await apiFetch(`/api/settings/ai-usage?range=${range}&page=${page}&limit=${limit}`);
       const json = await res.json();
       if (json.success) {
         setSummary(json.summary);

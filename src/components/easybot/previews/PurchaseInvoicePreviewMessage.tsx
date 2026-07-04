@@ -1,5 +1,6 @@
 'use client';
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from 'react';
 import { Sparkles, CheckCircle2 } from 'lucide-react';
 
@@ -79,7 +80,7 @@ export default function PurchaseInvoicePreviewMessage({
     }
     setSaving(true);
     try {
-      const response = await fetch('/api/easybot/ocr/confirm', {
+      const response = await apiFetch('/api/easybot/ocr/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

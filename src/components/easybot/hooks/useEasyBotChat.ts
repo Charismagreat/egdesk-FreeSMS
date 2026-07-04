@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
@@ -137,7 +138,7 @@ export function useEasyBotChat({
         const sig = await parseInboundExcelHeader(file);
         
         // B. 저장된 엑셀 시그니처 목록 조회
-        const sigRes = await fetch("/api/inventory/inbounds/excel-signatures");
+        const sigRes = await apiFetch("/api/inventory/inbounds/excel-signatures");
         const sigData = await sigRes.json();
         
         let matchedConfig: any = null;
@@ -245,7 +246,7 @@ export function useEasyBotChat({
       ]);
 
       try {
-        const response = await fetch('/api/easybot/ocr', {
+        const response = await apiFetch('/api/easybot/ocr', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ image: base64Str })
@@ -472,7 +473,7 @@ export function useEasyBotChat({
     setMessages(updatedMessages);
 
     try {
-      const response = await fetch('/api/easybot', {
+      const response = await apiFetch('/api/easybot', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -574,7 +575,7 @@ export function useEasyBotChat({
         formData.append("recording", screenRecordBlob, "recording.webm");
       }
 
-      const res = await fetch("/api/support/feedback", {
+      const res = await apiFetch("/api/support/feedback", {
         method: "POST",
         body: formData
       });

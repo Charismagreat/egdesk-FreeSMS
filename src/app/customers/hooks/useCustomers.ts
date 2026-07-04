@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect } from "react";
 import { Customer, CustomerHistory, PointHistoryItem, NewCustomerInput } from "../types";
 import { usePersistedState } from "@/hooks/usePersistedState";
@@ -51,7 +52,7 @@ export function useCustomers() {
   const fetchCustomers = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/customers');
+      const res = await apiFetch('/api/customers');
       const json = await res.json();
       if (json.success) {
         setCustomers(json.data.rows || []);
@@ -73,7 +74,7 @@ export function useCustomers() {
     setIsLoadingHistory(true);
     try {
       // 1. 기존 거래 이력 조회
-      const res = await fetch(`/api/customers/history?phone=${encodeURIComponent(customer.phone)}`);
+      const res = await apiFetch(`/api/customers/history?phone=${encodeURIComponent(customer.phone)}`);
       const json = await res.json();
       if (json.success) {
         setCustomerHistory(json.data);
@@ -82,7 +83,7 @@ export function useCustomers() {
       }
 
       // 2. 포인트 잔액 및 이력 조회
-      const pointRes = await fetch(`/api/points?customerId=${customer.id}`);
+      const pointRes = await apiFetch(`/api/points?customerId=${customer.id}`);
       const pointJson = await pointRes.json();
       if (pointJson.success) {
         setPointBalance(pointJson.balance);
@@ -124,7 +125,7 @@ export function useCustomers() {
     
     setIsAdjusting(true);
     try {
-      const res = await fetch('/api/points', {
+      const res = await apiFetch('/api/points', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -141,7 +142,7 @@ export function useCustomers() {
         setPointBalance(json.newBalance);
         
         // 이력 재조회
-        const pointRes = await fetch(`/api/points?customerId=${selectedCustomer.id}`);
+        const pointRes = await apiFetch(`/api/points?customerId=${selectedCustomer.id}`);
         const pointJson = await pointRes.json();
         if (pointJson.success) {
           setPointHistory(pointJson.history || []);
@@ -167,7 +168,7 @@ export function useCustomers() {
     
     setIsSubmitting(true);
     try {
-      const res = await fetch('/api/customers', {
+      const res = await apiFetch('/api/customers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newCustomer)
@@ -199,7 +200,7 @@ export function useCustomers() {
         if (typeof text !== 'string') return;
 
         try {
-          const res = await fetch('/api/customers/upload', {
+          const res = await apiFetch('/api/customers/upload', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ csvText: text })

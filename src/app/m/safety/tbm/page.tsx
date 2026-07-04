@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Shield, Sparkles, RefreshCw, CheckCircle, AlertTriangle, PenTool, User, CloudSun } from "lucide-react";
@@ -34,7 +35,7 @@ function TbmSignatureContent() {
     const fetchTbmDetail = async () => {
       setIsLoading(true);
       try {
-        const res = await fetch("/api/safety/tbm");
+        const res = await apiFetch("/api/safety/tbm");
         const data = await res.json();
         if (data.success && data.tbmLogs) {
           const log = data.tbmLogs.find((t: any) => t.id === tbmId);
@@ -136,7 +137,7 @@ function TbmSignatureContent() {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch("/api/safety/tbm", {
+      const res = await apiFetch("/api/safety/tbm", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

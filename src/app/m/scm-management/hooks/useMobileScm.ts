@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect, useCallback } from "react";
 import { ScmShipment, ScmSupplier } from "../../../scm-management/types";
 
@@ -17,7 +18,7 @@ export function useMobileScm() {
   const fetchScmData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/production/scm");
+      const res = await apiFetch("/api/production/scm");
       const data = await res.json();
       if (data.success) {
         setShipments(data.shipments);
@@ -40,7 +41,7 @@ export function useMobileScm() {
   // 2. 모바일 운송 상태 단계별 강제 업데이트 (POST)
   const handleUpdateTracking = async (shipmentId: string, status: ScmShipment["status"]) => {
     try {
-      const res = await fetch("/api/production/scm", {
+      const res = await apiFetch("/api/production/scm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

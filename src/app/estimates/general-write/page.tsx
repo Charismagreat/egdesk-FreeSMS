@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect, useRef } from "react";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { 
@@ -149,7 +150,7 @@ export default function GeneralEstimateWritePage() {
     const checkChannelsConfig = async () => {
       try {
         const fetchVal = async (key: string) => {
-          const res = await fetch(`/api/settings?key=${key}`);
+          const res = await apiFetch(`/api/settings?key=${key}`);
           const data = await res.json();
           return data.success && data.value ? data.value : "";
         };
@@ -188,7 +189,7 @@ export default function GeneralEstimateWritePage() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/partners")
+    apiFetch("/api/partners")
       .then(res => res.json())
       .then(data => {
         if (data.success && Array.isArray(data.partners)) {
@@ -199,7 +200,7 @@ export default function GeneralEstimateWritePage() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/inventory")
+    apiFetch("/api/inventory")
       .then(res => res.json())
       .then(data => {
         if (data.success && data.data) {
@@ -226,7 +227,7 @@ export default function GeneralEstimateWritePage() {
   // 로그인 사용자(작성자) 프로필 정보 자동 로드 및 세팅 (crm_operators 연동)
   useEffect(() => {
     if (isMetaRestored) {
-      fetch("/api/employee/me")
+      apiFetch("/api/employee/me")
         .then(res => res.json())
         .then(data => {
           if (data.success && data.user) {
@@ -243,7 +244,7 @@ export default function GeneralEstimateWritePage() {
 
   // 💡 마운트 시 시스템설정에서 등록한 최신 직인 도장 이미지 로드
   useEffect(() => {
-    fetch("/api/settings?key=my_company_profile")
+    apiFetch("/api/settings?key=my_company_profile")
       .then(res => res.json())
       .then(data => {
         if (data.success && data.value) {
@@ -262,7 +263,7 @@ export default function GeneralEstimateWritePage() {
     if (!isRestored) return;
     if (supplier.companyName) return;
 
-    fetch("/api/settings?key=my_company_profile")
+    apiFetch("/api/settings?key=my_company_profile")
       .then(res => res.json())
       .then(data => {
         if (data.success && data.value) {
@@ -436,7 +437,7 @@ export default function GeneralEstimateWritePage() {
       applyMatched(matchedLocal);
     } else {
       // 2차로 캐시에 없는 경우 백엔드 데이터베이스 전체를 대상으로 비동기 개별 쿼리 검색 요청
-      fetch(`/api/inventory?code=${encodeURIComponent(code)}`)
+      apiFetch(`/api/inventory?code=${encodeURIComponent(code)}`)
         .then(res => res.json())
         .then(resData => {
           if (resData.success && resData.data && resData.data.length > 0) {
@@ -530,7 +531,7 @@ export default function GeneralEstimateWritePage() {
       setMemo("");
 
       // 회사 정보 설정 다시 로드
-      fetch("/api/settings?key=my_company_profile")
+      apiFetch("/api/settings?key=my_company_profile")
         .then(res => res.json())
         .then(data => {
           if (data.success && data.value) {
@@ -702,7 +703,7 @@ export default function GeneralEstimateWritePage() {
         }).join(",")
       };
 
-      const res = await fetch("/api/estimates", {
+      const res = await apiFetch("/api/estimates", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

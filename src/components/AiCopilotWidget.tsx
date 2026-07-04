@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from "react";
 import { 
   Sparkles, CloudRain, Sun, Cloud, Zap, ArrowRight, Check, Send, 
@@ -77,7 +78,7 @@ export default function AiCopilotWidget() {
   const fetchBriefingData = async (selectedWeather: string) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/ai-briefing?weather=${encodeURIComponent(selectedWeather)}`);
+      const res = await apiFetch(`/api/ai-briefing?weather=${encodeURIComponent(selectedWeather)}`);
       const data = await res.json();
       if (data.success) {
         setInsights(data.insights);
@@ -100,7 +101,7 @@ export default function AiCopilotWidget() {
   const handleGenerateOmniChannel = async () => {
     setIsGeneratingOmni(true);
     try {
-      const res = await fetch(`/api/ai-briefing?weather=${encodeURIComponent(weather)}&generateContent=true`);
+      const res = await apiFetch(`/api/ai-briefing?weather=${encodeURIComponent(weather)}&generateContent=true`);
       const data = await res.json();
       if (data.success && data.contentPack) {
         setContentPack(data.contentPack);
@@ -123,7 +124,7 @@ export default function AiCopilotWidget() {
     if (!strategy || !contentPack) return;
     setIsExecuting(true);
     try {
-      const res = await fetch("/api/ai-briefing", {
+      const res = await apiFetch("/api/ai-briefing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ strategy, contentPack })

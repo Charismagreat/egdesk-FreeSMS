@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect, useRef } from "react";
 import { 
   Key, ShieldAlert, FileText, CheckCircle2, AlertTriangle, 
@@ -216,7 +217,7 @@ export default function PasswordAiPage() {
         }
 
         setIsLoading(true);
-        const res = await fetch("/api/password-ai", {
+        const res = await apiFetch("/api/password-ai", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(formattedPayload)
@@ -248,14 +249,14 @@ export default function PasswordAiPage() {
     setIsLoading(true);
     try {
       // 1. 세션 확인
-      const meRes = await fetch("/api/auth/me");
+      const meRes = await apiFetch("/api/auth/me");
       const meData = await meRes.json();
       if (meData.success) {
         setCurrentUser({ id: meData.id, role: meData.role, name: meData.name });
       }
 
       // 2. 자산 리스트 및 감사로그 로드
-      const listRes = await fetch("/api/password-ai");
+      const listRes = await apiFetch("/api/password-ai");
       const listData = await listRes.json();
       if (listData.success) {
         setList(listData.list);
@@ -265,14 +266,14 @@ export default function PasswordAiPage() {
       }
 
       // 3. 비상 결재 요청 이력 로드
-      const reqRes = await fetch("/api/password-ai/emergency");
+      const reqRes = await apiFetch("/api/password-ai/emergency");
       const reqData = await reqRes.json();
       if (reqData.success) {
         setEmergencyRequests(reqData.requests);
       }
 
       // 4. 운영자 정보 로드 (드롭다운 바인딩용)
-      const opRes = await fetch("/api/operators");
+      const opRes = await apiFetch("/api/operators");
       const opData = await opRes.json();
       if (opData.success && opData.operators) {
         setOperators(opData.operators);
@@ -323,7 +324,7 @@ export default function PasswordAiPage() {
   const submitRevealReason = async () => {
     if (!revealingId) return;
     try {
-      const res = await fetch(`/api/password-ai?action=reveal&id=${revealingId}&reason=${encodeURIComponent(revealReason)}`);
+      const res = await apiFetch(`/api/password-ai?action=reveal&id=${revealingId}&reason=${encodeURIComponent(revealReason)}`);
       const data = await res.json();
       if (data.success) {
         setRevealedPasswords({ ...revealedPasswords, [revealingId]: data.password });
@@ -362,7 +363,7 @@ export default function PasswordAiPage() {
       };
 
       const method = editingItem ? "PUT" : "POST";
-      const res = await fetch("/api/password-ai", {
+      const res = await apiFetch("/api/password-ai", {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)
@@ -407,7 +408,7 @@ export default function PasswordAiPage() {
   const handleDeleteAsset = async (id: number) => {
     if (!confirm("해당 기밀 자산 정보를 금고에서 영구 삭제하시겠습니까?\n삭제 이력은 감사 대장에 영구 박제됩니다.")) return;
     try {
-      const res = await fetch(`/api/password-ai?id=${id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/password-ai?id=${id}`, { method: "DELETE" });
       const data = await res.json();
       if (data.success) {
         loadInitialData();
@@ -426,7 +427,7 @@ export default function PasswordAiPage() {
       return;
     }
     try {
-      const res = await fetch("/api/password-ai/emergency", {
+      const res = await apiFetch("/api/password-ai/emergency", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -452,7 +453,7 @@ export default function PasswordAiPage() {
   const handleApproveRequest = async (requestId: number, action: "approve" | "reject") => {
     if (!confirm(action === "approve" ? "해당 비상 복구 요청을 승인하시겠습니까?\n동료 직원이 24시간 동안 비밀번호를 볼 수 있게 됩니다." : "해당 결재를 반려하시겠습니까?")) return;
     try {
-      const res = await fetch("/api/password-ai/emergency", {
+      const res = await apiFetch("/api/password-ai/emergency", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -478,7 +479,7 @@ export default function PasswordAiPage() {
       return;
     }
     try {
-      const res = await fetch("/api/password-ai", {
+      const res = await apiFetch("/api/password-ai", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

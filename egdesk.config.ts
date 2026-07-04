@@ -1,6 +1,6 @@
 /**
  * EGDesk User Data Configuration
- * Generated at: 2026-07-03T23:19:24.356Z
+ * Generated at: 2026-07-04T13:06:35.354Z
  *
  * This file contains type-safe definitions for your EGDesk tables.
  */
@@ -22,25 +22,25 @@ export interface TableDefinition {
 
 export const TABLES = {
   table1: {
+    name: 'import_master',
+    displayName: '수입 발주 마스터',
+    rowCount: 1,
+    columnCount: 22,
+    columns: ['id', 'so_number', 'po_number', 'invoice_number', 'order_date', 'ship_date', 'invoice_date', 'air_waybill_nbr', 'ship_via', 'terms_of_sale', 'payment_terms', 'exporter_name', 'tags', 'file_path', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
+  } as TableDefinition,
+  table2: {
     name: 'import_finance',
     displayName: '수입 정산 관리',
     rowCount: 1,
     columnCount: 18,
     columns: ['id', 'finance_id', 'so_number', 'total_invoice_value', 'payment_due_date', 'is_paid', 'paid_date', 'bank_name', 'account_number', 'swift_code', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
-  table2: {
+  table3: {
     name: 'import_items',
     displayName: '수입 품목 상세',
     rowCount: 1,
     columnCount: 21,
     columns: ['id', 'item_id', 'so_number', 'part_number', 'description', 'quantity', 'unit_price', 'amount', 'currency', 'hs_code', 'country_of_origin', 'lot_number', 'mfg_date', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
-  } as TableDefinition,
-  table3: {
-    name: 'import_master',
-    displayName: '수입 발주 마스터',
-    rowCount: 1,
-    columnCount: 20,
-    columns: ['id', 'so_number', 'po_number', 'invoice_number', 'order_date', 'ship_date', 'invoice_date', 'air_waybill_nbr', 'ship_via', 'terms_of_sale', 'payment_terms', 'exporter_name', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table4: {
     name: 'crm_partners',
@@ -591,14 +591,14 @@ export const TABLES = {
   table82: {
     name: 'crm_estimate_items',
     displayName: '견적서 품목 상세',
-    rowCount: 49,
+    rowCount: 59,
     columnCount: 18,
     columns: ['id', 'estimate_id', 'product_id', 'item_code', 'product_name', 'spec', 'quantity', 'unit_price', 'amount', 'delivery_date', 'valid_item_code', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
   table83: {
     name: 'crm_estimates',
     displayName: '견적서 관리',
-    rowCount: 9,
+    rowCount: 10,
     columnCount: 21,
     columns: ['id', 'type', 'direction_status', 'partner_name', 'partner_phone', 'partner_manager', 'total_amount', 'file_url', 'business_license_url', 'ai_parsed', 'tags', 'created_at', 'uuid', 'sales_order_number', 'purchase_order_number', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
@@ -612,7 +612,7 @@ export const TABLES = {
   table85: {
     name: 'crm_grant_announcements',
     displayName: '정부 지원금 추천 공고',
-    rowCount: 375,
+    rowCount: 681,
     columnCount: 14,
     columns: ['id', 'title', 'agency', 'match_score', 'match_guide', 'budget', 'end_date', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
@@ -1129,7 +1129,7 @@ export const TABLES = {
   table158: {
     name: 'ai_token_usage_logs',
     displayName: 'AI 토큰 사용량 로그',
-    rowCount: 124,
+    rowCount: 180,
     columnCount: 16,
     columns: ['id', 'model', 'purpose', 'prompt_tokens', 'completion_tokens', 'total_tokens', 'user_name', 'menu_path', 'created_at', 'uuid', 'updated_at', 'updated_by', 'deleted_at', 'deleted_by', 'restored_at', 'restored_by']
   } as TableDefinition,
@@ -1196,9 +1196,9 @@ export function getTableByName(tableName: string): TableDefinition | undefined {
 
 // Export table names for easy access
 export const TABLE_NAMES = {
-  table1: 'import_finance',
-  table2: 'import_items',
-  table3: 'import_master',
+  table1: 'import_master',
+  table2: 'import_finance',
+  table3: 'import_items',
   table4: 'crm_partners',
   table5: 'crm_inbound_excel_signatures',
   table6: 'crm_excel_signatures',

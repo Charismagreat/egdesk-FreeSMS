@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect } from "react";
 import { usePersistedState } from "@/hooks/usePersistedState";
 
@@ -154,7 +155,7 @@ export function useExpenses() {
   // 🏢 1. 부서 CRUD
   const fetchDepartments = async () => {
     try {
-      const res = await fetch("/api/expenses/departments");
+      const res = await apiFetch("/api/expenses/departments");
       const json = await res.json();
       if (json.success) setDbDepartments(json.departments);
     } catch (e) { console.error("부서 로드 에러:", e); }
@@ -162,7 +163,7 @@ export function useExpenses() {
 
   const handleAddDepartment = async (name: string) => {
     try {
-      const res = await fetch("/api/expenses/departments", {
+      const res = await apiFetch("/api/expenses/departments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name })
@@ -180,7 +181,7 @@ export function useExpenses() {
   const handleDeleteDepartment = async (id: string) => {
     if (!confirm("선택하신 부서를 조직도에서 영구 삭제하시겠습니까?")) return;
     try {
-      const res = await fetch(`/api/expenses/departments?id=${id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/expenses/departments?id=${id}`, { method: "DELETE" });
       const json = await res.json();
       if (json.success) {
         await fetchDepartments();
@@ -194,7 +195,7 @@ export function useExpenses() {
   // 👥 2. 임직원 CRUD
   const fetchEmployees = async () => {
     try {
-      const res = await fetch("/api/expenses/employees");
+      const res = await apiFetch("/api/expenses/employees");
       const json = await res.json();
       if (json.success) setDbEmployees(json.employees);
     } catch (e) { console.error("임직원 로드 에러:", e); }
@@ -202,7 +203,7 @@ export function useExpenses() {
 
   const handleAddEmployee = async (name: string) => {
     try {
-      const res = await fetch("/api/expenses/employees", {
+      const res = await apiFetch("/api/expenses/employees", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name })
@@ -220,7 +221,7 @@ export function useExpenses() {
   const handleDeleteEmployee = async (id: string) => {
     if (!confirm("선택하신 임직원을 명단에서 영구 삭제하시겠습니까?")) return;
     try {
-      const res = await fetch(`/api/expenses/employees?id=${id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/expenses/employees?id=${id}`, { method: "DELETE" });
       const json = await res.json();
       if (json.success) {
         await fetchEmployees();
@@ -234,7 +235,7 @@ export function useExpenses() {
   // 🚀 3. 프로젝트 CRUD
   const fetchProjects = async () => {
     try {
-      const res = await fetch("/api/expenses/projects");
+      const res = await apiFetch("/api/expenses/projects");
       const json = await res.json();
       if (json.success) setDbProjects(json.projects);
     } catch (e) { console.error("프로젝트 로드 에러:", e); }
@@ -242,7 +243,7 @@ export function useExpenses() {
 
   const handleAddProject = async (name: string) => {
     try {
-      const res = await fetch("/api/expenses/projects", {
+      const res = await apiFetch("/api/expenses/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name })
@@ -260,7 +261,7 @@ export function useExpenses() {
   const handleDeleteProject = async (id: string) => {
     if (!confirm("선택하신 프로젝트를 사업 명단에서 영구 삭제하시겠습니까?")) return;
     try {
-      const res = await fetch(`/api/expenses/projects?id=${id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/expenses/projects?id=${id}`, { method: "DELETE" });
       const json = await res.json();
       if (json.success) {
         await fetchProjects();
@@ -274,7 +275,7 @@ export function useExpenses() {
   const fetchAutocompleteData = async () => {
     setIsLoadingAutocomplete(true);
     try {
-      const res = await fetch("/api/expenses/autocomplete");
+      const res = await apiFetch("/api/expenses/autocomplete");
       const json = await res.json();
       if (json.success) {
         setAutocompleteData(json.data);
@@ -289,7 +290,7 @@ export function useExpenses() {
   const fetchCategories = async () => {
     setIsLoadingCategories(true);
     try {
-      const res = await fetch("/api/expenses/categories");
+      const res = await apiFetch("/api/expenses/categories");
       const json = await res.json();
       if (json.success) {
         setDbCategories(json.categories);
@@ -304,7 +305,7 @@ export function useExpenses() {
   const fetchTags = async () => {
     setIsLoadingTags(true);
     try {
-      const res = await fetch("/api/expenses/tags");
+      const res = await apiFetch("/api/expenses/tags");
       const json = await res.json();
       if (json.success) {
         setDbTags(json.tags);
@@ -318,7 +319,7 @@ export function useExpenses() {
 
   const handleAddCategory = async (main_category: string, mid_category: string, sub_category: string) => {
     try {
-      const res = await fetch("/api/expenses/categories", {
+      const res = await apiFetch("/api/expenses/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ main_category, mid_category, sub_category })
@@ -340,7 +341,7 @@ export function useExpenses() {
       if (!categories || categories.length === 0) {
         return { success: false, error: "등록할 데이터가 없습니다." };
       }
-      const res = await fetch("/api/expenses/categories", {
+      const res = await apiFetch("/api/expenses/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ categories })
@@ -360,7 +361,7 @@ export function useExpenses() {
   const handleDeleteCategory = async (id: string) => {
     if (!confirm("선택하신 계정 과목을 영구 삭제하시겠습니까?")) return;
     try {
-      const res = await fetch(`/api/expenses/categories?id=${id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/expenses/categories?id=${id}`, { method: "DELETE" });
       const json = await res.json();
       if (json.success) {
         await fetchCategories();
@@ -374,7 +375,7 @@ export function useExpenses() {
 
   const handleAddTag = async (name: string, scope?: string) => {
     try {
-      const res = await fetch("/api/expenses/tags", {
+      const res = await apiFetch("/api/expenses/tags", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, scope: scope || 'global' })
@@ -394,7 +395,7 @@ export function useExpenses() {
   const handleDeleteTag = async (id: string) => {
     if (!confirm("선택하신 태그 종류를 영구 삭제하시겠습니까?")) return;
     try {
-      const res = await fetch(`/api/expenses/tags?id=${id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/expenses/tags?id=${id}`, { method: "DELETE" });
       const json = await res.json();
       if (json.success) {
         await fetchTags();
@@ -409,7 +410,7 @@ export function useExpenses() {
   const fetchExpenses = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/expenses");
+      const res = await apiFetch("/api/expenses");
       const json = await res.json();
       if (json.success) {
         setExpenses(json.expenses);
@@ -452,7 +453,7 @@ export function useExpenses() {
   const handleSaveSettings = async (updatedSettings: ExpenseSettings) => {
     setIsSavingSettings(true);
     try {
-      const res = await fetch("/api/expenses/settings", {
+      const res = await apiFetch("/api/expenses/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updatedSettings)
@@ -508,7 +509,7 @@ export function useExpenses() {
         })
       };
 
-      const res = await fetch("/api/expenses", {
+      const res = await apiFetch("/api/expenses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
@@ -533,7 +534,7 @@ export function useExpenses() {
     if (!confirm("선택하신 지출 내역을 장부에서 영구적으로 제외(삭제)하시겠습니까?")) return;
 
     try {
-      const res = await fetch(`/api/expenses?id=${id}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/expenses?id=${id}`, { method: "DELETE" });
       const json = await res.json();
       if (json.success) {
         const newSet = new Set(selectedIds);
@@ -551,7 +552,7 @@ export function useExpenses() {
   // 지출 수정
   const handleUpdateExpense = async (id: string, updatedExpense: any) => {
     try {
-      const res = await fetch("/api/expenses", {
+      const res = await apiFetch("/api/expenses", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, ...updatedExpense })
@@ -571,7 +572,7 @@ export function useExpenses() {
   // 지출 결재 처리 (대표자/최고관리자 권한)
   const handleApproveExpense = async (id: string, status: 'APPROVED' | 'REJECTED' | 'HOLD', memo: string = "") => {
     try {
-      const res = await fetch("/api/expenses/approve", {
+      const res = await apiFetch("/api/expenses/approve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, status, memo })
@@ -611,7 +612,7 @@ export function useExpenses() {
 
     try {
       const idsArray = Array.from(selectedIds).join(",");
-      const res = await fetch(`/api/expenses?ids=${idsArray}`, { method: "DELETE" });
+      const res = await apiFetch(`/api/expenses?ids=${idsArray}`, { method: "DELETE" });
       const json = await res.json();
       if (json.success) {
         alert("선택한 지출 내역이 성공적으로 일괄 삭제되었습니다.");
@@ -646,7 +647,7 @@ export function useExpenses() {
       }
 
       try {
-        const res = await fetch("/api/expenses/ocr", {
+        const res = await apiFetch("/api/expenses/ocr", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

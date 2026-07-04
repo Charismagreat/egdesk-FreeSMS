@@ -285,9 +285,7 @@ const geminiUrlPass1 = `https://generativelanguage.googleapis.com/v1beta/models/
           }
         ],
         generationConfig: {
-          thinkingConfig: {
-            thinkingLevel: "HIGH"
-          }
+          responseMimeType: "text/plain"
         }
       })
     });
@@ -412,10 +410,8 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
           }
         ],
         generationConfig: {
-          responseMimeType: "application/json",
-          thinkingConfig: {
-            thinkingLevel: "HIGH"
-          }
+          
+          responseMimeType: "application/json"
         }
       })
     });
@@ -448,19 +444,30 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
     }
 
     let parsedData;
+    let innerErrMsg = '';
     try {
       const cleanJson = responseTextPass2.replace(/```json/g, '').replace(/```/g, '').trim();
       parsedData = JSON.parse(cleanJson);
+      if (parsedData && parsedData.content && typeof parsedData.content === 'string') {
+        try {
+          parsedData = JSON.parse(parsedData.content);
+        } catch (innerErr: any) {
+          innerErrMsg = innerErr.message;
+          console.error('Inner JSON parse failed:', innerErr.message, parsedData.content);
+        }
+      }
+      
     } catch (e) {
       console.error('Failed to parse Gemini Pass 2 response:', responseTextPass2);
       throw new Error('최종 AI 정제 결과를 JSON으로 변환하는 데 실패했습니다.');
     }
-
+    
     const { orderNo, orderDate, deliveryDate, items, picName, picPhone } = parsedData;
     if (!items || items.length === 0) {
-      throw new Error('품목을 인식하지 못했습니다.');
+      console.error('Gemini Pass 2 Response Text:', responseTextPass2);
+      throw new Error(`품목을 인식하지 못했습니다. (AI 원본 응답: ${responseTextPass2.substring(0, 70)}... 파싱오류: ${innerErrMsg || '없음'})`);
     }
-
+    
     // 회사명에서 법인 유형(주식회사, (주) 등) 및 특수문자를 제거하여 순수 상호명만 추출하는 헬퍼 함수
     const cleanCompanyName = (name: string): string => {
       if (!name) return '';

@@ -1,4 +1,5 @@
 "use client";
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect, useRef } from "react";
 import { 
   Mic, MicOff, Languages, Settings, Volume2, Share2, Clipboard, 
@@ -75,7 +76,7 @@ export default function LiveInterpretationPage() {
 
   const fetchConfig = async () => {
     try {
-      const res = await fetch('/api/interpretation/config');
+      const res = await apiFetch('/api/interpretation/config');
       const data = await res.json();
       if (data.success) {
         setApiConfig({ apiKey: data.apiKey, model: data.model });
@@ -87,7 +88,7 @@ export default function LiveInterpretationPage() {
 
   const fetchHistory = async () => {
     try {
-      const res = await fetch('/api/interpretation/sessions');
+      const res = await apiFetch('/api/interpretation/sessions');
       const data = await res.json();
       if (data.success && data.sessions) {
         setSavedSessions(data.sessions);
@@ -100,7 +101,7 @@ export default function LiveInterpretationPage() {
   // 2. 신규 통역 세션 개설
   const startSession = async () => {
     try {
-      const res = await fetch('/api/interpretation/sessions', {
+      const res = await apiFetch('/api/interpretation/sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -351,7 +352,7 @@ export default function LiveInterpretationPage() {
       }
 
       // DB 이력 적재 API 호출
-      const logRes = await fetch('/api/interpretation/logs', {
+      const logRes = await apiFetch('/api/interpretation/logs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -437,7 +438,7 @@ export default function LiveInterpretationPage() {
         setUploadProgress(50);
       }
 
-      const res = await fetch(`/api/interpretation/sessions`, {
+      const res = await apiFetch(`/api/interpretation/sessions`, {
         method: 'PATCH',
         body: formData
       });
@@ -467,7 +468,7 @@ export default function LiveInterpretationPage() {
   // 상세 히스토리 내역 조회
   const viewSessionDetail = async (session: SavedSession) => {
     try {
-      const res = await fetch(`/api/interpretation/sessions?action=detail&uuid=${session.uuid}`);
+      const res = await apiFetch(`/api/interpretation/sessions?action=detail&uuid=${session.uuid}`);
       const data = await res.json();
       if (data.success) {
         setSelectedHistorySession({

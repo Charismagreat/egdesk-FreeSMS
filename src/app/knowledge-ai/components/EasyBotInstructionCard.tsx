@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from "react";
 import { Bot, Save, Sparkles, AlertCircle, CheckCircle, Edit, Trash2, Plus, Play, History, Calendar, User, Info, FileText } from "lucide-react";
 
@@ -96,14 +97,14 @@ export function EasyBotInstructionCard({ currentRole }: EasyBotInstructionCardPr
     setIsLoadingData(true);
     try {
       // 1. 회사 컨텍스트 로드
-      const resCtx = await fetch("/api/settings?key=easybot_company_context");
+      const resCtx = await apiFetch("/api/settings?key=easybot_company_context");
       const dataCtx = await resCtx.json();
       if (dataCtx.success && dataCtx.value) {
         setCompanyContext(dataCtx.value);
       }
 
       // 2. 규칙 목록 및 이력 로드
-      const resRules = await fetch("/api/knowledge-ai/easybot-rules");
+      const resRules = await apiFetch("/api/knowledge-ai/easybot-rules");
       const dataRules = await resRules.json();
       if (dataRules.success) {
         setRules(dataRules.rules || []);
@@ -125,7 +126,7 @@ export function EasyBotInstructionCard({ currentRole }: EasyBotInstructionCardPr
   const handleSaveContext = async () => {
     setIsSavingContext(true);
     try {
-      const res = await fetch("/api/settings", {
+      const res = await apiFetch("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key: "easybot_company_context", value: companyContext }),
@@ -147,7 +148,7 @@ export function EasyBotInstructionCard({ currentRole }: EasyBotInstructionCardPr
   const handleGenerateFromKnowledge = async () => {
     setIsLoadingData(true);
     try {
-      const res = await fetch("/api/knowledge-ai/easybot-setup", { method: "POST" });
+      const res = await apiFetch("/api/knowledge-ai/easybot-setup", { method: "POST" });
       const data = await res.json();
       if (data.success) {
         setCompanyContext(data.companyContext);
@@ -170,7 +171,7 @@ export function EasyBotInstructionCard({ currentRole }: EasyBotInstructionCardPr
     setSimulationResult(null);
 
     try {
-      const res = await fetch("/api/knowledge-ai/easybot-rules/simulate", {
+      const res = await apiFetch("/api/knowledge-ai/easybot-rules/simulate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ target_table: table, conditions_sql: conditionsSql })
@@ -204,7 +205,7 @@ export function EasyBotInstructionCard({ currentRole }: EasyBotInstructionCardPr
 
     setIsSavingContext(true);
     try {
-      const res = await fetch("/api/knowledge-ai/easybot-rules", {
+      const res = await apiFetch("/api/knowledge-ai/easybot-rules", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -242,7 +243,7 @@ export function EasyBotInstructionCard({ currentRole }: EasyBotInstructionCardPr
     }
 
     try {
-      const res = await fetch(`/api/knowledge-ai/easybot-rules?id=${id}&change_reason=${encodeURIComponent(reason)}`, {
+      const res = await apiFetch(`/api/knowledge-ai/easybot-rules?id=${id}&change_reason=${encodeURIComponent(reason)}`, {
         method: "DELETE"
       });
       const data = await res.json();
@@ -262,7 +263,7 @@ export function EasyBotInstructionCard({ currentRole }: EasyBotInstructionCardPr
     if (!naturalLanguagePrompt.trim() || !editingRule) return;
     setIsGeneratingRule(true);
     try {
-      const res = await fetch("/api/knowledge-ai/easybot-rules/generate", {
+      const res = await apiFetch("/api/knowledge-ai/easybot-rules/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: naturalLanguagePrompt })
@@ -298,7 +299,7 @@ export function EasyBotInstructionCard({ currentRole }: EasyBotInstructionCardPr
     }
     setIsSuggestingTemplate(true);
     try {
-      const res = await fetch("/api/knowledge-ai/easybot-rules/suggest-template", {
+      const res = await apiFetch("/api/knowledge-ai/easybot-rules/suggest-template", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

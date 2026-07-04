@@ -34,7 +34,7 @@ Your job is to look at the provided document (receipt image or PDF) and extract 
 3. "amount": Integer (영수증의 최종 총 결제 금액, 숫자로만 표기)
 4. "expense_date": String (영수증상의 결제 일자, YYYY-MM-DD 포맷)
 5. "payment_method": String (결제 수단, 예: "법인카드", "현금영수증", "계좌이체", "개인카드", "기타")
-6. "memo": String (구매처 및 세부 사항 간략 요약 메모)
+6. "memo": String (구매처 및 세부 사항 간략 요약 메모. **CRITICAL WARNING**: 필드 내에 실제 줄바꿈을 포함하지 말고 필요시 "\\\\n" 문자열로 이스케이프 처리하십시오)
 7. "card_approval_no": String (신용카드 결제일 경우 영수증 상에 기재된 승인번호 8자리 내외의 숫자 문자열, 현금이나 계좌이체 등 승인번호가 없을 때는 null로 설정)
 
 Format example of output:
@@ -69,7 +69,8 @@ Do NOT output anything other than this JSON string. No markdown block wrapper.
             ],
             generationConfig: {
               responseMimeType: "application/json",
-              temperature: 0.1
+              maxOutputTokens: 8192,
+              temperature: 0.7
             }
           })
         });

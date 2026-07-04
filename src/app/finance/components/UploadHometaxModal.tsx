@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from "react";
 import { X, FileSpreadsheet, RefreshCw, Sparkles, Sliders } from "lucide-react";
 
@@ -50,7 +51,7 @@ export default function UploadHometaxModal({
       fd.append("kind", useSmartDetection ? "" : hometaxKind);
       fd.append("businessNumber", useSmartDetection ? "" : hometaxBusinessNumber);
 
-      const res = await fetch("/api/finance/hometax-upload", {
+      const res = await apiFetch("/api/finance/hometax-upload", {
         method: "POST",
         body: fd
       });

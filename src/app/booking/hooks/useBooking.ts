@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect } from "react";
 import { BookingProduct, BookingForm, AppliedCoupon } from "../types";
 
@@ -30,7 +31,7 @@ export function useBooking() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch('/api/products');
+      const res = await apiFetch('/api/products');
       const json = await res.json();
       if (json.success) {
         // Filter only '예약용' or '예약상품'
@@ -90,7 +91,7 @@ export function useBooking() {
     const finalAmount = Math.max(0, unitPrice - discount);
     
     try {
-      const res = await fetch('/api/reservations', {
+      const res = await apiFetch('/api/reservations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -136,7 +137,7 @@ export function useBooking() {
     ];
 
     try {
-      const res = await fetch('/api/coupons/verify', {
+      const res = await apiFetch('/api/coupons/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: couponCode, orderAmount: unitPrice, cart_items: cartItems })

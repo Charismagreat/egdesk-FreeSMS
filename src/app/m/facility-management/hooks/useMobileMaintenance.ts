@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { useState, useCallback, useEffect } from "react";
 
 export interface MobileCheckItem {
@@ -38,7 +39,7 @@ export function useMobileMaintenance() {
   const fetchHistory = useCallback(async () => {
     setIsHistoryLoading(true);
     try {
-      const res = await fetch("/api/facility/checklist");
+      const res = await apiFetch("/api/facility/checklist");
       const data = await res.json();
       if (data.success) {
         setHistory(data.checks);
@@ -73,7 +74,7 @@ export function useMobileMaintenance() {
     setTimeout(async () => {
       setIsRecording(false);
       try {
-        const res = await fetch("/api/facility/repair", {
+        const res = await apiFetch("/api/facility/repair", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -106,7 +107,7 @@ export function useMobileMaintenance() {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch("/api/facility/checklist", {
+      const res = await apiFetch("/api/facility/checklist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

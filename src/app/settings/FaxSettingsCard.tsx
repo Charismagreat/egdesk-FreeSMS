@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from "react";
 import { Printer, Shield, Key, Sparkles, RefreshCw, Send, CheckCircle2, AlertTriangle, Eye, EyeOff, Info, Check } from "lucide-react";
 
@@ -22,7 +23,7 @@ export default function FaxSettingsCard() {
     async function loadSettings() {
       try {
         const fetchVal = async (key: string) => {
-          const res = await fetch(`/api/settings?key=${key}`);
+          const res = await apiFetch(`/api/settings?key=${key}`);
           const data = await res.json();
           return data.success && data.value ? data.value : "";
         };
@@ -58,7 +59,7 @@ export default function FaxSettingsCard() {
 
     try {
       const saveVal = async (key: string, value: string) => {
-        const res = await fetch("/api/settings", {
+        const res = await apiFetch("/api/settings", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ key, value })
@@ -96,7 +97,7 @@ export default function FaxSettingsCard() {
     }
 
     try {
-      const res = await fetch("/api/settings/fax/test", {
+      const res = await apiFetch("/api/settings/fax/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

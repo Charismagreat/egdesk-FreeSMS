@@ -1,4 +1,4 @@
-import { executeSQL, queryTable, insertRows } from '../../egdesk-helpers';
+import { executeSQL, queryTable, insertRows, getGeminiApiKey } from '../../egdesk-helpers';
 
 export interface CustomerGroupInfo {
   id: number;
@@ -176,6 +176,17 @@ export async function generateMarketingStrategy(context: {
   try {
     const settingsRes = await queryTable('system_settings', { filters: { key: 'google_ai_api_key' } });
     apiKey = settingsRes.rows && settingsRes.rows.length > 0 ? settingsRes.rows[0].value : null;
+
+    if (apiKey && !apiKey.startsWith('AIzaSy')) {
+      try {
+        const decryptedKeyRes = await getGeminiApiKey({ name: apiKey });
+        if (decryptedKeyRes && decryptedKeyRes.success && decryptedKeyRes.apiKey) {
+          apiKey = decryptedKeyRes.apiKey;
+        }
+      } catch (keyErr) {
+        console.error('⚠️ [marketer] EGDesk에서 API 키 해독에 실패했습니다:', keyErr);
+      }
+    }
   } catch (e) {
     console.error('Failed to get api key, fallback to local templates');
   }

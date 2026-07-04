@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from "react";
 import { X, FileSpreadsheet, RefreshCw, Sparkles, Sliders } from "lucide-react";
 
@@ -46,7 +47,7 @@ export default function UploadCardModal({
       fd.append("cardCompanyId", useSmartDetection ? "" : cardCompanyId);
       fd.append("accountId", useSmartDetection ? "" : cardAccountId);
 
-      const res = await fetch("/api/finance/card-upload", {
+      const res = await apiFetch("/api/finance/card-upload", {
         method: "POST",
         body: fd
       });

@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect, useCallback } from "react";
 import { GrantAnnouncement, CompanyProfile, RndPlan } from "../types";
 
@@ -33,7 +34,7 @@ export function useGrantManagement() {
     try {
       // 1) 비즈인포 크롤링 실시간 동기화 우선 수행 (건수 제한 없음 대응)
       try {
-        await fetch("/api/production/grant/sync", {
+        await apiFetch("/api/production/grant/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ searchPages: 0 }) // 0을 보내어 제한 없이 가져오도록 트리거
@@ -43,7 +44,7 @@ export function useGrantManagement() {
       }
 
       // 2) 사내 스펙 매칭 RAG 분석 수행
-      const res = await fetch("/api/production/grant", {
+      const res = await apiFetch("/api/production/grant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "search_grants" })
@@ -76,7 +77,7 @@ export function useGrantManagement() {
     const loadInitialData = async () => {
       setIsLoading(true);
       try {
-        const res = await fetch("/api/production/grant");
+        const res = await apiFetch("/api/production/grant");
         const data = await res.json();
         if (data.success) {
           setAnnouncements(data.announcements || []);
@@ -100,7 +101,7 @@ export function useGrantManagement() {
   // 1-2. 스케줄 동기화 주기 설정 저장 (POST)
   const handleSaveSchedule = async (interval: number) => {
     try {
-      const res = await fetch("/api/production/grant", {
+      const res = await apiFetch("/api/production/grant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "save_schedule", interval })
@@ -120,7 +121,7 @@ export function useGrantManagement() {
   // 2. 관심 공고 즐겨찾기 토글 (POST)
   const handleToggleBookmark = async (id: string) => {
     try {
-      const res = await fetch("/api/production/grant", {
+      const res = await apiFetch("/api/production/grant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -151,7 +152,7 @@ export function useGrantManagement() {
     setIsGenerating(true);
     setSelectedAnnId(id);
     try {
-      const res = await fetch("/api/production/grant", {
+      const res = await apiFetch("/api/production/grant", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

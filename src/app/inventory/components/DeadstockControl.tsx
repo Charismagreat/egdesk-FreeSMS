@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from 'react';
 import { 
   RefreshCw, Mail, Users, CheckCircle, Clock, Send, ArrowLeft, 
@@ -50,7 +51,7 @@ export const DeadstockControl: React.FC<DeadstockControlProps> = ({
     else setLoading(true);
 
     try {
-      const res = await fetch('/api/inventory/deadstock');
+      const res = await apiFetch('/api/inventory/deadstock');
       const data = await res.json();
       if (data.success) {
         setDeadstockItems(data.items || []);
@@ -77,7 +78,7 @@ export const DeadstockControl: React.FC<DeadstockControlProps> = ({
     setSelectedItemForProposal(item);
     setSearching(true);
     try {
-      const res = await fetch('/api/inventory/deadstock/search', {
+      const res = await apiFetch('/api/inventory/deadstock/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -129,7 +130,7 @@ export const DeadstockControl: React.FC<DeadstockControlProps> = ({
 
     setSending(true);
     try {
-      const res = await fetch('/api/inventory/deadstock', {
+      const res = await apiFetch('/api/inventory/deadstock', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -183,7 +184,7 @@ export const DeadstockControl: React.FC<DeadstockControlProps> = ({
 
     setSimulating(true);
     try {
-      const res = await fetch('/api/inventory/deadstock/callback', {
+      const res = await apiFetch('/api/inventory/deadstock/callback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

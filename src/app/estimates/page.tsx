@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from "react";
 import { usePersistedState } from "@/hooks/usePersistedState";
 
@@ -51,7 +52,7 @@ export default function EstimatesDashboard() {
 
   // 📂 태그 프리셋 로드
   useEffect(() => {
-    fetch("/api/expenses/tags")
+    apiFetch("/api/expenses/tags")
       .then((res) => res.json())
       .then((json) => {
         if (json.success) {
@@ -64,7 +65,7 @@ export default function EstimatesDashboard() {
   // 유저 세션 로드
   const fetchUserRole = async () => {
     try {
-      const res = await fetch("/api/auth/me");
+      const res = await apiFetch("/api/auth/me");
       const data = await res.json();
       if (data.success && data.role) {
         setUserRole(data.role);
@@ -78,14 +79,14 @@ export default function EstimatesDashboard() {
     setLoading(true);
     try {
       // 1. 견적 목록 패치
-      const estRes = await fetch("/api/estimates?action=list");
+      const estRes = await apiFetch("/api/estimates?action=list");
       const estData = await estRes.json();
       if (estData.success) setEstimates(estData.estimates || []);
 
       // 2. 발주서 목록 패치
       let poData = null;
       try {
-        const poRes = await fetch("/api/estimates/process?action=po_list").catch(() => null);
+        const poRes = await apiFetch("/api/estimates/process?action=po_list").catch(() => null);
         if (poRes && poRes.ok) {
           poData = await poRes.json();
         }
@@ -102,7 +103,7 @@ export default function EstimatesDashboard() {
       // 3. 수주서 목록 패치
       let soData = null;
       try {
-        const soRes = await fetch("/api/estimates/process?action=so_list").catch(() => null);
+        const soRes = await apiFetch("/api/estimates/process?action=so_list").catch(() => null);
         if (soRes && soRes.ok) {
           soData = await soRes.json();
         }
@@ -119,7 +120,7 @@ export default function EstimatesDashboard() {
       // 4. 거래처 목록 패치
       let ptData = null;
       try {
-        const ptRes = await fetch("/api/partners").catch(() => null);
+        const ptRes = await apiFetch("/api/partners").catch(() => null);
         if (ptRes && ptRes.ok) {
           ptData = await ptRes.json();
         }
@@ -181,7 +182,7 @@ export default function EstimatesDashboard() {
   // 인라인 태그 저장 실행
   const handleUpdateEstimateTags = async (estId: string, tagsValue: string) => {
     try {
-      const res = await fetch("/api/estimates", {
+      const res = await apiFetch("/api/estimates", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -210,7 +211,7 @@ export default function EstimatesDashboard() {
   const handleConvertToPo = async (est: Estimate) => {
     if (!confirm(`${est.partner_name}의 견적서를 발주서로 자동 전환하시겠습니까?`)) return;
     try {
-      const res = await fetch("/api/estimates/process", {
+      const res = await apiFetch("/api/estimates/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -246,7 +247,7 @@ export default function EstimatesDashboard() {
     if (orderDate === null) return; // 취소 누를 시 중단
 
     try {
-      const res = await fetch("/api/estimates/process", {
+      const res = await apiFetch("/api/estimates/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -272,7 +273,7 @@ export default function EstimatesDashboard() {
   // 수주 확정
   const handleConfirmSalesOrder = async (so: SalesOrder) => {
     try {
-      const res = await fetch("/api/estimates/process", {
+      const res = await apiFetch("/api/estimates/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -300,7 +301,7 @@ export default function EstimatesDashboard() {
     if (!confirm(`수주 번호 ${so.id} 건을 정말로 삭제하시겠습니까?\n이 작업은 데이터를 안전하게 소프트 삭제하며 복구하기 전까지 대장에서 제외됩니다.`)) return;
     try {
       setIsProcessing(true);
-      const res = await fetch("/api/estimates/process", {
+      const res = await apiFetch("/api/estimates/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -327,7 +328,7 @@ export default function EstimatesDashboard() {
     if (!confirm(`견적 번호 ${est.id} 건을 정말로 삭제하시겠습니까?\n이 작업은 데이터를 안전하게 소프트 삭제하며 복구하기 전까지 대장에서 제외됩니다.`)) return;
     try {
       setIsProcessing(true);
-      const res = await fetch(`/api/estimates?estimateId=${est.id}`, {
+      const res = await apiFetch(`/api/estimates?estimateId=${est.id}`, {
         method: "DELETE",
       });
       const data = await res.json();
@@ -349,7 +350,7 @@ export default function EstimatesDashboard() {
     if (!confirm(`발주 번호 ${po.id} 건을 정말로 삭제하시겠습니까?\n이 작업은 데이터를 안전하게 소프트 삭제하며 복구하기 전까지 대장에서 제외됩니다.`)) return;
     try {
       setIsProcessing(true);
-      const res = await fetch("/api/estimates/process", {
+      const res = await apiFetch("/api/estimates/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -381,7 +382,7 @@ export default function EstimatesDashboard() {
       const est = estimates.find((e) => e.id === id);
       if (est && est.direction_status === "REQUESTED") {
         try {
-          const res = await fetch("/api/estimates/process", {
+          const res = await apiFetch("/api/estimates/process", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -413,7 +414,7 @@ export default function EstimatesDashboard() {
       const so = salesOrders.find((s) => s.id === id);
       if (so && so.status === "REGISTERED") {
         try {
-          const res = await fetch("/api/estimates/process", {
+          const res = await apiFetch("/api/estimates/process", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

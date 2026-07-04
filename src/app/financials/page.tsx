@@ -1,5 +1,6 @@
 'use client';
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   TrendingUp, 
@@ -86,7 +87,7 @@ export default function FinancialsPage() {
   const fetchStatements = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/financials');
+      const res = await apiFetch('/api/financials');
       const data = await res.json();
       if (data.success) {
         setStatements(data.data || []);
@@ -127,7 +128,7 @@ export default function FinancialsPage() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const res = await fetch('/api/financials/upload', {
+      const res = await apiFetch('/api/financials/upload', {
         method: 'POST',
         body: formData
       });
@@ -182,7 +183,7 @@ export default function FinancialsPage() {
         detailedItems: detailedItemsInput
       };
 
-      const res = await fetch('/api/financials', {
+      const res = await apiFetch('/api/financials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -206,7 +207,7 @@ export default function FinancialsPage() {
     if (!confirm('해당 재무제표 정보와 연계된 AI 보고서를 정말 삭제하시겠습니까? (소프트 삭제 처리)')) return;
 
     try {
-      const res = await fetch(`/api/financials?id=${id}`, {
+      const res = await apiFetch(`/api/financials?id=${id}`, {
         method: 'DELETE'
       });
 
@@ -230,7 +231,7 @@ export default function FinancialsPage() {
     }
 
     try {
-      const res = await fetch('/api/easybot', {
+      const res = await apiFetch('/api/easybot', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

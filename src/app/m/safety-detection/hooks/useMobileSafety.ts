@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect, useCallback } from "react";
 import { DangerLog, CctvInfo } from "../../../safety-detection/types";
 
@@ -17,7 +18,7 @@ export function useMobileSafety() {
   const fetchSafetyData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/production/safety");
+      const res = await apiFetch("/api/production/safety");
       const data = await res.json();
       if (data.success) {
         setCctvs(data.cctvs || []);
@@ -40,7 +41,7 @@ export function useMobileSafety() {
   // 원격 사이렌 경고 작동
   const handleTriggerSiren = async (logId: string) => {
     try {
-      const res = await fetch("/api/production/safety", {
+      const res = await apiFetch("/api/production/safety", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -64,7 +65,7 @@ export function useMobileSafety() {
   // 특정 구역 비상 정지 작동
   const handleEmergencyStop = async (zoneId: string) => {
     try {
-      const res = await fetch("/api/production/safety", {
+      const res = await apiFetch("/api/production/safety", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

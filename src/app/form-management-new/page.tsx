@@ -1,6 +1,7 @@
 // HMR trigger timestamp: 2026-06-12 13:50:00
 'use client';
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from 'react';
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { 
@@ -218,7 +219,7 @@ export default function FormManagementNewPage() {
   // 양식 가져오기 API 실행
   const executeImportApi = async (data: any, actionType: 'overwrite' | 'duplicate') => {
     try {
-      const res = await fetch('/api/templates-new/import', {
+      const res = await apiFetch('/api/templates-new/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -244,7 +245,7 @@ export default function FormManagementNewPage() {
   const loadTemplates = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/templates-new');
+      const res = await apiFetch('/api/templates-new');
       const data = await res.json();
       if (data.success) {
         setTemplates(data.templates || []);
@@ -262,7 +263,7 @@ export default function FormManagementNewPage() {
   const loadLogs = async () => {
     setLogsLoading(true);
     try {
-      const res = await fetch('/api/templates-new/print-log');
+      const res = await apiFetch('/api/templates-new/print-log');
       const data = await res.json();
       if (data.success) {
         setLogs(data.logs || []);
@@ -368,7 +369,7 @@ export default function FormManagementNewPage() {
     }
 
     try {
-      const res = await fetch(`/api/templates-new?id=${id}`, {
+      const res = await apiFetch(`/api/templates-new?id=${id}`, {
         method: 'DELETE'
       });
       const data = await res.json();
@@ -426,7 +427,7 @@ export default function FormManagementNewPage() {
     // 회사 기본 정보 사전 로딩
     let currentProfile = {};
     try {
-      const res = await fetch(`/api/templates-new?action=detail&id=${template.id}`);
+      const res = await apiFetch(`/api/templates-new?action=detail&id=${template.id}`);
       const data = await res.json();
       if (data.success && data.companyProfile) {
         setCompanyProfile(data.companyProfile);
@@ -500,7 +501,7 @@ export default function FormManagementNewPage() {
     setGeneratedSql(null);
 
     try {
-      const res = await fetch(`/api/templates-new/ai-query?templateId=${printTemplateId}&keyword=${encodeURIComponent(searchKeyword)}`);
+      const res = await apiFetch(`/api/templates-new/ai-query?templateId=${printTemplateId}&keyword=${encodeURIComponent(searchKeyword)}`);
       const data = await res.json();
 
       const now = new Date();

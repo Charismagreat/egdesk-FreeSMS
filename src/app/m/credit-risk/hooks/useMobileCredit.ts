@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect, useCallback } from "react";
 import { CreditRiskStats, CreditSummary } from "../../../credit-risk/types";
 
@@ -12,7 +13,7 @@ export function useMobileCredit() {
     setIsLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/production/credit");
+      const res = await apiFetch("/api/production/credit");
       const data = await res.json();
       if (data.success) {
         setStats(data.stats);

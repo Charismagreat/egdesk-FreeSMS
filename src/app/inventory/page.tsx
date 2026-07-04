@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect, useRef } from 'react';
 import { Package, Plus, Sliders, ArrowRightLeft, FileText, Download, Loader2 } from 'lucide-react';
 import { usePersistedState } from "@/hooks/usePersistedState";
@@ -151,7 +152,7 @@ export default function InventoryPage() {
     setIsScanModalOpen(true);
     
     try {
-      const res = await fetch('/api/inventory/scan', {
+      const res = await apiFetch('/api/inventory/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -292,7 +293,7 @@ export default function InventoryPage() {
     try {
       // 공통 태그 목록 로드
       try {
-        const tagsRes = await fetch('/api/expenses/tags');
+        const tagsRes = await apiFetch('/api/expenses/tags');
         const tagsData = await tagsRes.json();
         if (tagsData.success && Array.isArray(tagsData.tags)) {
           // scope가 'global'(또는 비어있음)이거나 'inventory'인 태그만 필터링
@@ -307,7 +308,7 @@ export default function InventoryPage() {
 
       // 전사 자동완성 마스터 데이터 로드
       try {
-        const autoRes = await fetch('/api/expenses/autocomplete');
+        const autoRes = await apiFetch('/api/expenses/autocomplete');
         const autoData = await autoRes.json();
         if (autoData.success && autoData.data) {
           setAutocompleteData(autoData.data);
@@ -316,7 +317,7 @@ export default function InventoryPage() {
         console.warn('자동완성 마스터 데이터 로드 실패:', err);
       }
 
-      const itemsRes = await fetch('/api/inventory');
+      const itemsRes = await apiFetch('/api/inventory');
       const itemsData = await itemsRes.json();
       if (itemsData.success) {
         setItems(Array.isArray(itemsData.data) ? itemsData.data : []);
@@ -324,7 +325,7 @@ export default function InventoryPage() {
         setItems([]);
       }
 
-      const logsRes = await fetch('/api/inventory/logs');
+      const logsRes = await apiFetch('/api/inventory/logs');
       const logsData = await logsRes.json();
       if (logsData.success) {
         setLogs(Array.isArray(logsData.data) ? logsData.data : []);
@@ -333,7 +334,7 @@ export default function InventoryPage() {
       }
 
       // 자율 입고 내역 가져오기
-      const inboundsRes = await fetch('/api/inventory/inbounds');
+      const inboundsRes = await apiFetch('/api/inventory/inbounds');
       const inboundsData = await inboundsRes.json();
       if (inboundsData.success) {
         setInbounds(Array.isArray(inboundsData.data) ? inboundsData.data : []);
@@ -356,7 +357,7 @@ export default function InventoryPage() {
     setIsInboundModalOpen(true);
     setLoadingInbounds(true);
     try {
-      const res = await fetch(`/api/inventory/inbounds?inbound_id=${inboundId}`);
+      const res = await apiFetch(`/api/inventory/inbounds?inbound_id=${inboundId}`);
       const data = await res.json();
       if (data.success) {
         setInboundDetails(Array.isArray(data.data) ? data.data : []);
@@ -406,7 +407,7 @@ export default function InventoryPage() {
   const handleItemDelete = async (id: number) => {
     if (!confirm('정말로 이 품목과 관련 변동 로그를 모두 삭제하시겠습니까?')) return;
     try {
-      const res = await fetch(`/api/inventory?id=${id}`, {
+      const res = await apiFetch(`/api/inventory?id=${id}`, {
         method: 'DELETE'
       });
       const data = await res.json();
@@ -487,7 +488,7 @@ export default function InventoryPage() {
             return;
           }
 
-          const res = await fetch('/api/inventory/upload', {
+          const res = await apiFetch('/api/inventory/upload', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ items: mappedItems })
@@ -594,7 +595,7 @@ export default function InventoryPage() {
       return;
     }
     try {
-      const res = await fetch('/api/inventory/logs', {
+      const res = await apiFetch('/api/inventory/logs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

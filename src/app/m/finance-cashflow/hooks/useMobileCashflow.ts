@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect, useCallback } from "react";
 import { ForecastTransaction } from "../../../finance-cashflow/types";
 
@@ -19,7 +20,7 @@ export function useMobileCashflow() {
   const fetchMobileData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/finance/cashflow");
+      const res = await apiFetch("/api/finance/cashflow");
       const data = await res.json();
       if (data.success) {
         setCurrentBalance(data.currentBalance);
@@ -46,7 +47,7 @@ export function useMobileCashflow() {
     const smsMessage = `[이지데스크] ${item.partnerName} 담당자님 안녕하십니까. 거래 미수금 ${item.amount.toLocaleString()}원의 정산 수금일이 경과되어 확인 연락드렸습니다. 아래 링크에서 상세 명세 확인 협조를 부탁드립니다. ${mobileLink}`;
 
     try {
-      const res = await fetch("/api/sms/send", {
+      const res = await apiFetch("/api/sms/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

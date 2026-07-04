@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React from "react";
 
 interface SmsTemplateEditModalProps {
@@ -23,7 +24,7 @@ export default function SmsTemplateEditModal({
 
   const handleSave = async () => {
     try {
-      const res = await fetch('/api/message-templates', {
+      const res = await apiFetch('/api/message-templates', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editingTemplate)

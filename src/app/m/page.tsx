@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect, useRef } from "react";
 import { 
   User, RefreshCw, Layers, Calendar, Scale, Shield, 
@@ -141,7 +142,7 @@ export default function IntegratedMobilePortal() {
   const handleToggleTaskStatus = async (taskId: string, currentStatus: string) => {
     try {
       const nextStatus = currentStatus === "ACTIVE" ? "COMPLETED" : "ACTIVE";
-      const res = await fetch("/api/snaptasks", {
+      const res = await apiFetch("/api/snaptasks", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: taskId, status: nextStatus })
@@ -207,7 +208,7 @@ export default function IntegratedMobilePortal() {
   const fetchDashboardData = async () => {
     setIsRefreshing(true);
     try {
-      const res = await fetch("/api/m/dashboard");
+      const res = await apiFetch("/api/m/dashboard");
       const data = await res.json();
       if (data.success) {
         setCurrentUser(data.currentUser);
@@ -381,7 +382,7 @@ export default function IntegratedMobilePortal() {
 
       if (tempFile.type === "image") {
         try {
-          const response = await fetch("/api/easybot/ocr", {
+          const response = await apiFetch("/api/easybot/ocr", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ image: tempFile.base64, action: "detect_actions" })
@@ -432,7 +433,7 @@ export default function IntegratedMobilePortal() {
 
   const handlePunchIn = async () => {
     try {
-      const res = await fetch("/api/hr/attendance", {
+      const res = await apiFetch("/api/hr/attendance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "CLOCK_IN", memo: "모바일 포털 간편 출근 등록" })
@@ -451,7 +452,7 @@ export default function IntegratedMobilePortal() {
 
   const handlePunchOut = async () => {
     try {
-      const res = await fetch("/api/hr/attendance", {
+      const res = await apiFetch("/api/hr/attendance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "CLOCK_OUT", memo: "모바일 포털 간편 퇴근 등록" })
@@ -771,7 +772,7 @@ export default function IntegratedMobilePortal() {
 
     setBotLoading(true);
     try {
-      const response = await fetch("/api/easybot", {
+      const response = await apiFetch("/api/easybot", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -841,7 +842,7 @@ export default function IntegratedMobilePortal() {
       ]);
 
       try {
-        const response = await fetch("/api/easybot/ocr", {
+        const response = await apiFetch("/api/easybot/ocr", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ image: base64Str, action: "detect_actions" })
@@ -911,7 +912,7 @@ export default function IntegratedMobilePortal() {
     ]);
 
     try {
-      const response = await fetch("/api/easybot/ocr", {
+      const response = await apiFetch("/api/easybot/ocr", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -1001,7 +1002,7 @@ export default function IntegratedMobilePortal() {
     if (!targetItem) return;
 
     try {
-      const confirmRes = await fetch("/api/easybot/ocr/confirm", {
+      const confirmRes = await apiFetch("/api/easybot/ocr/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

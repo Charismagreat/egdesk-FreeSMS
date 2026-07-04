@@ -1,5 +1,6 @@
 'use client';
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from 'react';
 import { Percent, Save, CheckCircle2, AlertCircle, RefreshCw, Sparkles, Plus, Trash2, HelpCircle } from 'lucide-react';
 
@@ -45,7 +46,7 @@ export default function EstimateSettingsCard() {
     async function loadSettings() {
       try {
         // 1. 할인 정책 조회
-        const rulesRes = await fetch('/api/settings?key=estimate_discount_rules');
+        const rulesRes = await apiFetch('/api/settings?key=estimate_discount_rules');
         const rulesDataJson = await rulesRes.json();
         if (rulesDataJson.success && rulesDataJson.value) {
           try {
@@ -56,7 +57,7 @@ export default function EstimateSettingsCard() {
         }
 
         // 2. 편지 템플릿 조회
-        const templateRes = await fetch('/api/settings?key=estimate_letter_template');
+        const templateRes = await apiFetch('/api/settings?key=estimate_letter_template');
         const templateDataJson = await templateRes.json();
         if (templateDataJson.success && templateDataJson.value) {
           setLetterTemplate(templateDataJson.value);
@@ -68,7 +69,7 @@ export default function EstimateSettingsCard() {
         }
 
         // 3. 수신인 불일치 거절 우회 여부 조회
-        const bypassRes = await fetch('/api/settings?key=bypass_ocr_receiver_check');
+        const bypassRes = await apiFetch('/api/settings?key=bypass_ocr_receiver_check');
         const bypassDataJson = await bypassRes.json();
         if (bypassDataJson.success && bypassDataJson.value) {
           setBypassOcrReceiverCheck(bypassDataJson.value === '1');
@@ -89,7 +90,7 @@ export default function EstimateSettingsCard() {
     setMessage(null);
     try {
       // 1. 할인 정책 저장
-      const rulesSave = await fetch('/api/settings', {
+      const rulesSave = await apiFetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -100,7 +101,7 @@ export default function EstimateSettingsCard() {
       const rulesSaveJson = await rulesSave.json();
 
       // 2. 편지 템플릿 저장
-      const templateSave = await fetch('/api/settings', {
+      const templateSave = await apiFetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -111,7 +112,7 @@ export default function EstimateSettingsCard() {
       const templateSaveJson = await templateSave.json();
 
       // 3. 수신인 불일치 거절 우회 여부 저장
-      const bypassSave = await fetch('/api/settings', {
+      const bypassSave = await apiFetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -166,7 +167,7 @@ export default function EstimateSettingsCard() {
     setAiRulesLoading(true);
     setAiRulesReason('');
     try {
-      const res = await fetch('/api/settings/estimate-ai', {
+      const res = await apiFetch('/api/settings/estimate-ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -197,7 +198,7 @@ export default function EstimateSettingsCard() {
     setAiTemplateLoading(true);
     setAiTemplateReason('');
     try {
-      const res = await fetch('/api/settings/estimate-ai', {
+      const res = await apiFetch('/api/settings/estimate-ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

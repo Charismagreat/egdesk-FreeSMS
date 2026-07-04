@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect } from "react";
 import { MessageTemplate, AutomationRule, EventItem } from "../types";
 
@@ -41,7 +42,7 @@ export function useAutomation() {
 
   const fetchTemplates = async () => {
     try {
-      const res = await fetch("/api/message-templates");
+      const res = await apiFetch("/api/message-templates");
       const json = await res.json();
       if (json.success) {
         setTemplates(json.templates || []);
@@ -53,7 +54,7 @@ export function useAutomation() {
 
   const fetchRules = async () => {
     try {
-      const res = await fetch("/api/automation");
+      const res = await apiFetch("/api/automation");
       const json = await res.json();
       if (json.success) {
         const initialRules: Record<string, AutomationRule> = {};
@@ -84,7 +85,7 @@ export function useAutomation() {
   const saveRules = async () => {
     setIsSaving(true);
     try {
-      const res = await fetch("/api/automation", {
+      const res = await apiFetch("/api/automation", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rules })

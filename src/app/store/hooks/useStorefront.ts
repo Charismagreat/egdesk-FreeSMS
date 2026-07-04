@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect } from "react";
 import { StoreProduct, OrderForm, AppliedCoupon, VoiceStep } from "../types";
 
@@ -163,7 +164,7 @@ export function useStorefront() {
 
   const fetchPointEarningRate = async () => {
     try {
-      const res = await fetch('/api/settings?key=point_earning_rate');
+      const res = await apiFetch('/api/settings?key=point_earning_rate');
       const data = await res.json();
       if (data.success && data.value !== null) {
         const rateVal = Number(data.value);
@@ -178,7 +179,7 @@ export function useStorefront() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch('/api/products');
+      const res = await apiFetch('/api/products');
       const json = await res.json();
       if (json.success) {
         const storeProducts = json.products.filter((p: any) => p.category === '스토어용' || !p.category || p.category === '일반상품');
@@ -204,7 +205,7 @@ export function useStorefront() {
     setIsOtpSent(false);
 
     try {
-      const res = await fetch(`/api/points?phone=${encodeURIComponent(form.customerPhone)}`);
+      const res = await apiFetch(`/api/points?phone=${encodeURIComponent(form.customerPhone)}`);
       const json = await res.json();
       if (json.success) {
         setPointBalance(json.balance);
@@ -212,7 +213,7 @@ export function useStorefront() {
         setPointInfo(`조회 성공: 현재 보유 포인트 ${json.balance.toLocaleString()}p`);
       } else {
         // 고객 정보가 없는 경우 가상 Soft Sign-up 즉시 연동 생성
-        const registerRes = await fetch('/api/customers', {
+        const registerRes = await apiFetch('/api/customers', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -259,7 +260,7 @@ export function useStorefront() {
 
     setIsOtpSending(true);
     try {
-      const res = await fetch('/api/points/otp', {
+      const res = await apiFetch('/api/points/otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'send', phone: form.customerPhone })
@@ -286,7 +287,7 @@ export function useStorefront() {
 
     setIsOtpVerifying(true);
     try {
-      const res = await fetch('/api/points/otp', {
+      const res = await apiFetch('/api/points/otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'verify', phone: form.customerPhone, code: otpCode })
@@ -375,7 +376,7 @@ export function useStorefront() {
     }
 
     try {
-      const res = await fetch('/api/orders', {
+      const res = await apiFetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -394,7 +395,7 @@ export function useStorefront() {
       if (json.success) {
         // 실제 결제 및 차감에 연계된 포인트 소모 API 호출
         if (appliedPoints > 0 && pointCustomerId && !isTbd) {
-          await fetch('/api/points', {
+          await apiFetch('/api/points', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -437,7 +438,7 @@ export function useStorefront() {
     ];
     
     try {
-      const res = await fetch('/api/coupons/verify', {
+      const res = await apiFetch('/api/coupons/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: couponCode, orderAmount, cart_items: cartItems })

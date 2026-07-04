@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect } from "react";
 import { Coupon, CouponForm, CouponRestriction, IssueType } from "../types";
 
@@ -39,7 +40,7 @@ export function useCoupons() {
 
   const fetchData = async () => {
     try {
-      const res = await fetch('/api/coupons');
+      const res = await apiFetch('/api/coupons');
       const json = await res.json();
       if (json.success) {
         setData(json.coupons || []);
@@ -93,7 +94,7 @@ export function useCoupons() {
     };
 
     try {
-      const res = await fetch('/api/coupons', { 
+      const res = await apiFetch('/api/coupons', { 
         method: 'POST', 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload) 
@@ -122,7 +123,7 @@ export function useCoupons() {
   const deleteData = async (id: string) => {
     if(!confirm('정말 삭제하시겠습니까? (이미 발행된 쿠폰이 비활성화됩니다)')) return;
     try {
-      const res = await fetch('/api/coupons?id=' + id, { method: 'DELETE' });
+      const res = await apiFetch('/api/coupons?id=' + id, { method: 'DELETE' });
       const json = await res.json();
       if (json.success) fetchData();
     } catch (e) {

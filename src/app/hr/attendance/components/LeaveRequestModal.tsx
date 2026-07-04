@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from "react";
 import { X, Send } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -110,7 +111,7 @@ export const LeaveRequestModal: React.FC<LeaveRequestModalProps> = ({
         finalReason = `${finalReason}\n(📎 첨부 증빙: ${attachedFileName})`;
       }
 
-      const res = await fetch('/api/hr/leaves', {
+      const res = await apiFetch('/api/hr/leaves', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

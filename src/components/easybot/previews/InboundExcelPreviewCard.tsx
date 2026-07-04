@@ -1,5 +1,6 @@
 'use client';
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from 'react';
 import { Play, Check, Loader2, FileSpreadsheet, Sparkles } from 'lucide-react';
 
@@ -24,7 +25,7 @@ export default function InboundExcelPreviewCard({
   useEffect(() => {
     async function fetchInventory() {
       try {
-        const response = await fetch('/api/inventory');
+        const response = await apiFetch('/api/inventory');
         const resJson = await response.json();
         if (resJson.success && resJson.data) {
           setInventoryList(resJson.data);
@@ -144,7 +145,7 @@ export default function InboundExcelPreviewCard({
         note: it.note || ""
       }));
 
-      const response = await fetch('/api/inventory/inbounds/excel-upload', {
+      const response = await apiFetch('/api/inventory/inbounds/excel-upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

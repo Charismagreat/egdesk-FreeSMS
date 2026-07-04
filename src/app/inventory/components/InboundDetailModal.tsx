@@ -1,5 +1,6 @@
 'use client';
 
+import { apiFetch } from '@/lib/api';
 import React, { useEffect, useState } from 'react';
 import { X, ClipboardList, Loader2, Sparkles, AlertCircle } from 'lucide-react';
 
@@ -37,7 +38,7 @@ export const InboundDetailModal: React.FC<InboundDetailModalProps> = ({ inboundI
       setLoading(true);
       setError('');
       try {
-        const res = await fetch(`/api/inventory/inbounds?inbound_id=${inboundId}`);
+        const res = await apiFetch(`/api/inventory/inbounds?inbound_id=${inboundId}`);
         const resData = await res.json();
         if (resData.success) {
           setItems(resData.data || []);

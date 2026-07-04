@@ -1,5 +1,6 @@
 'use client';
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from 'react';
 import { Scale, CheckCircle2, ArrowRight } from 'lucide-react';
 
@@ -31,7 +32,7 @@ export default function LegalPreviewCard({
   const handleConfirmSubmit = async () => {
     setSaving(true);
     try {
-      const response = await fetch('/api/easybot/ocr/confirm', {
+      const response = await apiFetch('/api/easybot/ocr/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

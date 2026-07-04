@@ -1,4 +1,4 @@
-import { queryTable, insertRows, callAiCaller } from '../../egdesk-helpers';
+import { queryTable, insertRows, callAiCaller, getGeminiApiKey } from '../../egdesk-helpers';
 
 export interface CallAIOptions {
   prompt: string;
@@ -91,7 +91,7 @@ async function callGemini(
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
     
     const parts: any[] = [{ text: prompt }];
-    const match = imageInput.match(/^data:(image\/\w+);base64,(.+)$/);
+    const match = imageInput.match(/^data:([^;]+);base64,(.+)$/);
     const mimeType = match ? match[1] : 'image/png';
     const data = match ? match[2] : imageInput;
     parts.push({
@@ -172,7 +172,7 @@ async function callLocalLLM(
   // Ollama chat message 파츠 구성 (images 배열 지원)
   const userMessage: any = { role: 'user', content: prompt };
   if (imageInput) {
-    const match = imageInput.match(/^data:(image\/\w+);base64,(.+)$/);
+    const match = imageInput.match(/^data:([^;]+);base64,(.+)$/);
     const data = match ? match[2] : imageInput;
     userMessage.images = [data]; // Base64 raw 데이터 배열 주입
   }
@@ -240,6 +240,17 @@ export async function callAI(options: CallAIOptions): Promise<AIResponse> {
     if (modelRes.rows?.length > 0) localLlmModel = modelRes.rows[0].value;
     if (keyRes.rows?.length > 0) googleApiKey = keyRes.rows[0].value;
     if (gModelRes.rows?.length > 0) googleModel = gModelRes.rows[0].value;
+
+    if (!googleApiKey || !googleApiKey.startsWith('AIzaSy')) {
+      try {
+        const decryptedKeyRes = await getGeminiApiKey({ name: googleApiKey });
+        if (decryptedKeyRes && decryptedKeyRes.success && decryptedKeyRes.apiKey) {
+          googleApiKey = decryptedKeyRes.apiKey;
+        }
+      } catch (keyErr) {
+        console.error('⚠️ EGDesk에서 실제 구글 API 키를 해독해오는 데 실패했습니다:', keyErr);
+      }
+    }
 
     if (!googleApiKey) {
       googleApiKey = 'wonconduct';

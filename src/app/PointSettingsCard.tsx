@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect } from "react";
 import { Coins, Save, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
 
@@ -13,7 +14,7 @@ export default function PointSettingsCard() {
   useEffect(() => {
     async function fetchSettings() {
       try {
-        const res = await fetch("/api/settings?key=point_earning_rate");
+        const res = await apiFetch("/api/settings?key=point_earning_rate");
         const data = await res.json();
         if (data.success && data.value !== null) {
           const fetchedRate = Number(data.value);
@@ -42,7 +43,7 @@ export default function PointSettingsCard() {
     setMessage(null);
 
     try {
-      const res = await fetch("/api/settings", {
+      const res = await apiFetch("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

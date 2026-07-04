@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { FileText, Search, RefreshCw, X, Download, ArrowUp, ArrowDown, Eye, Printer, Sun, Moon } from "lucide-react";
@@ -71,7 +72,7 @@ export default function ManufactureWebView() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/estimates?action=list&_t=${Date.now()}`);
+      const res = await apiFetch(`/api/estimates?action=list&_t=${Date.now()}`);
       const json = await res.json();
       if (json.success && json.estimates) {
         const outboundList = json.estimates.filter((e: any) => {

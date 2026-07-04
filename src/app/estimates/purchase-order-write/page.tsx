@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect, useRef } from "react";
 import { usePersistedState } from "@/hooks/usePersistedState";
 import { 
@@ -146,7 +147,7 @@ export default function PurchaseOrderWritePage() {
     const checkChannelsConfig = async () => {
       try {
         const checkKey = async (key: string) => {
-          const res = await fetch(`/api/settings?key=${key}`);
+          const res = await apiFetch(`/api/settings?key=${key}`);
           const d = await res.json();
           return !!(d.success && d.value && JSON.parse(d.value).host);
         };
@@ -165,7 +166,7 @@ export default function PurchaseOrderWritePage() {
 
   // 파트너 정보 로드
   useEffect(() => {
-    fetch("/api/partners")
+    apiFetch("/api/partners")
       .then((res) => res.json())
       .then((data) => {
         if (data.success && data.partners) {
@@ -176,7 +177,7 @@ export default function PurchaseOrderWritePage() {
 
   // 재고 데이터 로드
   useEffect(() => {
-    fetch("/api/inventory")
+    apiFetch("/api/inventory")
       .then((res) => res.json())
       .then((data) => {
         if (data.success && data.inventories) {
@@ -193,7 +194,7 @@ export default function PurchaseOrderWritePage() {
   // 로그인 사용자(작성자) 프로필 정보 자동 로드 및 세팅 (crm_operators 연동)
   useEffect(() => {
     if (isMetaRestored) {
-      fetch("/api/employee/me")
+      apiFetch("/api/employee/me")
         .then(res => res.json())
         .then(data => {
           if (data.success && data.user) {
@@ -210,7 +211,7 @@ export default function PurchaseOrderWritePage() {
 
   // 자사 기본 프로필에서 직인 도장 이미지 로드
   useEffect(() => {
-    fetch("/api/settings?key=my_company_profile")
+    apiFetch("/api/settings?key=my_company_profile")
       .then(res => res.json())
       .then(data => {
         if (data.success && data.value) {
@@ -230,7 +231,7 @@ export default function PurchaseOrderWritePage() {
     if (!isRestored) return;
     // 발주처 기본값이 비어있을 때만 자사 프로필 로드
     if (!supplier.companyName) {
-      fetch("/api/settings?key=my_company_profile")
+      apiFetch("/api/settings?key=my_company_profile")
         .then((res) => res.json())
         .then((data) => {
           if (data.success && data.value) {
@@ -423,7 +424,7 @@ export default function PurchaseOrderWritePage() {
     if (!window.confirm("입력 중이던 모든 발주 내용을 초기화하시겠습니까?")) return;
     
     // 발주처 기본값 재로드
-    fetch("/api/settings?key=my_company_profile")
+    apiFetch("/api/settings?key=my_company_profile")
       .then((res) => res.json())
       .then((data) => {
         if (data.success && data.value) {
@@ -542,7 +543,7 @@ export default function PurchaseOrderWritePage() {
         })
       };
 
-      const res = await fetch("/api/estimates/process", {
+      const res = await apiFetch("/api/estimates/process", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect } from "react";
 import { Operator, OperatorForm } from "../types";
 
@@ -26,7 +27,7 @@ export function useOperators() {
   const fetchOperators = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/operators');
+      const res = await apiFetch('/api/operators');
       const data = await res.json();
       if (data.success) {
         setOperators(data.operators || []);
@@ -126,7 +127,7 @@ export function useOperators() {
     if (!confirm("정말 이 직원 계정을 삭제하시겠습니까?")) return;
     
     try {
-      const res = await fetch(`/api/operators?id=${id}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/operators?id=${id}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
         fetchOperators();

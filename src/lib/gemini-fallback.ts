@@ -2,7 +2,7 @@
  * 구글 Gemini AI API 호출 장애(503, 429) 극복용 자동 폴백 fetch 래퍼 함수
  * 주석 및 설명: 한국어 작성 원칙 준수
  */
-import { callAiCaller } from '@/../egdesk-helpers';
+import { callAiCaller, getGeminiApiKey } from '@/../egdesk-helpers';
 
 /**
  * 텍스트 글자 수를 기반으로 토큰 수를 예측합니다. (폴백용 계산기)
@@ -25,6 +25,22 @@ function estimateTokens(text: string): number {
 }
 
 export async function fetchGeminiWithFallback(url: string, init?: RequestInit): Promise<Response> {
+  // API 키가 'AIzaSy'로 시작하지 않으면 이지데스크 헬퍼를 통해 진짜 키로 복호화/교체
+  let finalUrl = url;
+  try {
+    const urlObj = new URL(url);
+    const apiKey = urlObj.searchParams.get('key');
+    if (apiKey && !apiKey.startsWith('AIzaSy')) {
+      const decryptedKeyRes = await getGeminiApiKey({ name: apiKey });
+      if (decryptedKeyRes && decryptedKeyRes.success && decryptedKeyRes.apiKey) {
+        urlObj.searchParams.set('key', decryptedKeyRes.apiKey);
+        finalUrl = urlObj.toString();
+      }
+    }
+  } catch (err) {
+    console.error('⚠️ [fallback] EGDesk에서 API 키 복호화에 실패했습니다:', err);
+  }
+
   let prompt = '';
   let systemPrompt: string | undefined = undefined;
   let responseMimeType: 'application/json' | 'text/plain' | undefined = undefined;
@@ -100,13 +116,13 @@ export async function fetchGeminiWithFallback(url: string, init?: RequestInit): 
     }
 
     try {
-      return await fetchWithRetry(url, '기본 모델');
+      return await fetchWithRetry(finalUrl, '기본 모델');
     } catch (err: any) {
       console.error(`[AI Emergency] 기본 모델 에러: ${err.message}. 1차 폴백 진입.`);
     }
 
     const fallbackModel1 = 'gemini-2.5-flash';
-    const fallbackUrl1 = url.replace(/\/models\/[^:]+:/, `/models/${fallbackModel1}:`);
+    const fallbackUrl1 = finalUrl.replace(/\/models\/[^:]+:/, `/models/${fallbackModel1}:`);
     try {
       return await fetchWithRetry(fallbackUrl1, '1차 폴백 모델');
     } catch (err: any) {
@@ -114,7 +130,7 @@ export async function fetchGeminiWithFallback(url: string, init?: RequestInit): 
     }
 
     const fallbackModel2 = 'gemini-flash-latest';
-    const fallbackUrl2 = url.replace(/\/models\/[^:]+:/, `/models/${fallbackModel2}:`);
+    const fallbackUrl2 = finalUrl.replace(/\/models\/[^:]+:/, `/models/${fallbackModel2}:`);
     try {
       return await fetchWithRetry(fallbackUrl2, '2차 폴백 모델');
     } catch (err: any) {
@@ -123,7 +139,7 @@ export async function fetchGeminiWithFallback(url: string, init?: RequestInit): 
   }
 
   // B. 텍스트 분석인 경우 -> 공통 callAiCaller 호출 기동
-  const modelMatch = url.match(/\/models\/([^?:]+)/);
+  const modelMatch = finalUrl.match(/\/models\/([^?:]+)/);
   const modelName = modelMatch ? modelMatch[1] : 'gemini-1.5-flash';
 
   const callerRes = await callAiCaller(prompt, {

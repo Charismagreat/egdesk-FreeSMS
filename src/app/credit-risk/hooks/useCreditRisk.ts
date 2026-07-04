@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect, useCallback } from "react";
 import { CreditRiskStats, CreditSummary, OverdueAgingDetail, ToastState } from "../types";
 
@@ -21,7 +22,7 @@ export function useCreditRisk() {
   const fetchCreditRiskData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/production/credit");
+      const res = await apiFetch("/api/production/credit");
       const data = await res.json();
       if (data.success) {
         setStats(data.stats);
@@ -50,7 +51,7 @@ export function useCreditRisk() {
   const recalculateCreditRisk = useCallback(async () => {
     setIsRecalculating(true);
     try {
-      const res = await fetch("/api/production/credit", {
+      const res = await apiFetch("/api/production/credit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "recalculate" })
@@ -75,7 +76,7 @@ export function useCreditRisk() {
   const sendOverdueSms = useCallback(async (partnerId: string, message: string) => {
     setIsSending(true);
     try {
-      const res = await fetch("/api/production/credit", {
+      const res = await apiFetch("/api/production/credit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "send_sms", partnerId, message })

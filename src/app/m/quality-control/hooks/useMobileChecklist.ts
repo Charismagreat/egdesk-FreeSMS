@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { useState, useCallback } from "react";
 
 export interface MobileCheckItem {
@@ -63,7 +64,7 @@ export function useMobileChecklist() {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch("/api/quality/checklist", {
+      const res = await apiFetch("/api/quality/checklist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

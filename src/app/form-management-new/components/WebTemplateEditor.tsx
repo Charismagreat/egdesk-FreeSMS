@@ -1,5 +1,6 @@
 'use client';
 
+import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, 
@@ -156,7 +157,7 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
   useEffect(() => {
     const fetchCompanyProfile = async () => {
       try {
-        const res = await fetch('/api/settings?key=my_company_profile');
+        const res = await apiFetch('/api/settings?key=my_company_profile');
         const data = await res.json();
         if (data.success && data.value) {
           const parsed = JSON.parse(data.value);
@@ -297,7 +298,7 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
     if (templateId) {
       const loadTemplate = async () => {
         try {
-          const res = await fetch(`/api/templates-new?action=detail&id=${templateId}`);
+          const res = await apiFetch(`/api/templates-new?action=detail&id=${templateId}`);
           const data = await res.json();
           if (data.success && data.template) {
             setTemplateName(data.template.template_name);
@@ -492,7 +493,7 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
       reader.onload = async () => {
         const base64Data = reader.result as string;
         
-        const res = await fetch('/api/templates-new/upload', {
+        const res = await apiFetch('/api/templates-new/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -704,7 +705,7 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
 
     setIsTuning(true);
     try {
-      const res = await fetch('/api/templates-new/tune', {
+      const res = await apiFetch('/api/templates-new/tune', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -832,7 +833,7 @@ export default function WebTemplateEditor({ templateId, onBack, onSaved }: WebTe
     }
 
     try {
-      const res = await fetch('/api/templates-new', {
+      const res = await apiFetch('/api/templates-new', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

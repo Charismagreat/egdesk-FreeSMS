@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect, useRef } from "react";
 import { Globe, CheckCircle, AlertCircle, Play, Save, RefreshCw } from "lucide-react";
 
@@ -118,7 +119,7 @@ export default function WebsiteBuilderPage() {
 
   const loadHomepageUrl = async () => {
     try {
-      const res = await fetch("/api/website/domain-info");
+      const res = await apiFetch("/api/website/domain-info");
       const data = await res.json();
       if (data.success) {
         setHomepageUrl(data.homepageUrl !== undefined && data.homepageUrl !== null ? data.homepageUrl : "https://egdesk.cloud");
@@ -132,7 +133,7 @@ export default function WebsiteBuilderPage() {
   const handleReAudit = async () => {
     setIsAuditing(true);
     try {
-      const res = await fetch("/api/website/domain-info");
+      const res = await apiFetch("/api/website/domain-info");
       const data = await res.json();
       if (data.success) {
         setDomainHealth(data.primaryHealth || null);
@@ -360,7 +361,7 @@ export default function WebsiteBuilderPage() {
 </html>
       `;
 
-      const res = await fetch("/api/website/publish", {
+      const res = await apiFetch("/api/website/publish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

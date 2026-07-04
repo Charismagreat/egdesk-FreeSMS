@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect, useCallback } from "react";
 import {
   PredictiveStatus,
@@ -51,17 +52,17 @@ export function useFacilityManagement() {
     setIsLoading(true);
     try {
       // 1. Predictive
-      const predRes = await fetch("/api/facility/predictive");
+      const predRes = await apiFetch("/api/facility/predictive");
       const predData = await predRes.json();
       if (predData.success) setPredictiveStatus(predData.predictiveStatus);
 
       // 2. OEE
-      const oeeRes = await fetch("/api/facility/oee");
+      const oeeRes = await apiFetch("/api/facility/oee");
       const oeeData = await oeeRes.json();
       if (oeeData.success) setOeeData(oeeData.oeeData);
 
       // 3. Calendar & Inventory
-      const calRes = await fetch("/api/facility/calendar");
+      const calRes = await apiFetch("/api/facility/calendar");
       const calData = await calRes.json();
       if (calData.success) {
         setEvents(calData.events);
@@ -69,7 +70,7 @@ export function useFacilityManagement() {
       }
 
       // 4. Repair Logs
-      const repRes = await fetch(`/api/facility/repair?query=${searchQuery}`);
+      const repRes = await apiFetch(`/api/facility/repair?query=${searchQuery}`);
       const repData = await repRes.json();
       if (repData.success) setRepairLogs(repData.logs);
 
@@ -102,7 +103,7 @@ export function useFacilityManagement() {
         code = "E-15";
       }
 
-      const res = await fetch(`/api/facility/repair?errorCode=${code}`);
+      const res = await apiFetch(`/api/facility/repair?errorCode=${code}`);
       const data = await res.json();
       if (data.success) {
         setChatAnswer(data.solution);
@@ -124,7 +125,7 @@ export function useFacilityManagement() {
     setTimeout(async () => {
       setIsRecording(false);
       try {
-        const res = await fetch("/api/facility/repair", {
+        const res = await apiFetch("/api/facility/repair", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -152,7 +153,7 @@ export function useFacilityManagement() {
 
     setIsSavingLog(true);
     try {
-      const res = await fetch("/api/facility/repair", {
+      const res = await apiFetch("/api/facility/repair", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

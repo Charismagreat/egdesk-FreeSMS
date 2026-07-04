@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from '@/lib/api';
 import { useState, useEffect, useRef, useCallback } from "react";
 import * as XLSX from "xlsx";
 import { usePersistedState } from "@/hooks/usePersistedState";
@@ -172,7 +173,7 @@ export function useSms() {
       const connectionStatuses = await Promise.all(
         devicesList.map(async (dev) => {
           try {
-            const res = await fetch(`/api/sms/status?deviceId=${dev.phoneNumber}`);
+            const res = await apiFetch(`/api/sms/status?deviceId=${dev.phoneNumber}`);
             const json = await res.json();
             return {
               phoneNumber: dev.phoneNumber,
@@ -186,7 +187,7 @@ export function useSms() {
 
       let logs: any[] = [];
       try {
-        const logsRes = await fetch('/api/message-logs');
+        const logsRes = await apiFetch('/api/message-logs');
         const logsJson = await logsRes.json();
         if (logsJson.success && Array.isArray(logsJson.logs)) {
           logs = logsJson.logs;
@@ -236,7 +237,7 @@ export function useSms() {
 
   const loadDevicesAndStatus = async () => {
     try {
-      const res = await fetch("/api/settings?key=sms_devices");
+      const res = await apiFetch("/api/settings?key=sms_devices");
       const data = await res.json();
       let currentDevices = [
         { phoneNumber: "default", name: "기본 스마트폰 기기", isConnected: false, dailyLimit: 150, todaySent: 0 }
@@ -268,7 +269,7 @@ export function useSms() {
     setSmsDevices(updated);
 
     try {
-      await fetch("/api/settings", {
+      await apiFetch("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -288,7 +289,7 @@ export function useSms() {
 
   const fetchMessageTemplates = async () => {
     try {
-      const res = await fetch('/api/message-templates');
+      const res = await apiFetch('/api/message-templates');
       const json = await res.json();
       if (json.success) {
         setMessageTemplates(json.templates);
@@ -300,7 +301,7 @@ export function useSms() {
 
   const fetchTransactions = async () => {
     try {
-      const res = await fetch('/api/transactions');
+      const res = await apiFetch('/api/transactions');
       const json = await res.json();
       if (json.success) {
         setTransactions(json.transactions);
@@ -312,7 +313,7 @@ export function useSms() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch('/api/products');
+      const res = await apiFetch('/api/products');
       const json = await res.json();
       if (json.success) {
         setProducts(json.products);
@@ -324,7 +325,7 @@ export function useSms() {
 
   const fetchAdTemplates = async () => {
     try {
-      const res = await fetch('/api/ad-templates');
+      const res = await apiFetch('/api/ad-templates');
       const json = await res.json();
       if (json.success) {
         setAdTemplates(json.templates);
@@ -336,7 +337,7 @@ export function useSms() {
 
   const fetchCustomers = async () => {
     try {
-      const res = await fetch('/api/customers');
+      const res = await apiFetch('/api/customers');
       const json = await res.json();
       if (json.success) {
         setCustomers(json.data.rows || []);
@@ -371,7 +372,7 @@ export function useSms() {
     setIsAiLoading(true);
     setAiError("");
     try {
-      const res = await fetch('/api/ai-sms', {
+      const res = await apiFetch('/api/ai-sms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: aiPrompt, customers: targetMode === 'db' ? customers : excelCustomers })
@@ -399,7 +400,7 @@ export function useSms() {
   const handlePairing = async (deviceIdToPair: string = selectedDeviceId) => {
     setIsPairing(true);
     try {
-      const res = await fetch(`/api/sms/setup?deviceId=${deviceIdToPair}`);
+      const res = await apiFetch(`/api/sms/setup?deviceId=${deviceIdToPair}`);
       const json = await res.json();
       if (json.message === '연동 성공') {
         alert("Google 메시지 연동이 완료되었습니다.");
@@ -431,7 +432,7 @@ export function useSms() {
     const updatedDevices = [...smsDevices, newDevice];
     
     try {
-      const saveRes = await fetch("/api/settings", {
+      const saveRes = await apiFetch("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -464,7 +465,7 @@ export function useSms() {
 
     const updatedDevices = smsDevices.filter(d => d.phoneNumber !== phone);
     try {
-      const saveRes = await fetch("/api/settings", {
+      const saveRes = await apiFetch("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -594,7 +595,7 @@ export function useSms() {
     };
     
     try {
-      const res = await fetch('/api/ad-templates', {
+      const res = await apiFetch('/api/ad-templates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newTemplate)
@@ -629,7 +630,7 @@ export function useSms() {
     if (!confirm("이 템플릿을 DB에서 완전히 삭제하시겠습니까?")) return;
     
     try {
-      const res = await fetch(`/api/ad-templates?id=${selectedTemplateId}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/ad-templates?id=${selectedTemplateId}`, { method: 'DELETE' });
       const json = await res.json();
       if (json.success) {
         setAdTemplates(adTemplates.filter(t => t.id !== selectedTemplateId));
@@ -656,7 +657,7 @@ export function useSms() {
     };
     
     try {
-      const res = await fetch('/api/products', {
+      const res = await apiFetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newProduct)
@@ -679,7 +680,7 @@ export function useSms() {
     if (!confirm("이 상품을 DB에서 삭제하시겠습니까?")) return;
     
     try {
-      const res = await fetch(`/api/products?id=${selectedProductId}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/products?id=${selectedProductId}`, { method: 'DELETE' });
       const json = await res.json();
       if (json.success) {
         setProducts(products.filter(p => p.id !== selectedProductId));
@@ -740,7 +741,7 @@ export function useSms() {
     
     setIsSending(true);
     try {
-      const res = await fetch('/api/sms/send', {
+      const res = await apiFetch('/api/sms/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -787,7 +788,7 @@ export function useSms() {
 
     if (message.includes("{쿠폰코드}")) {
       try {
-        const res = await fetch('/api/coupons');
+        const res = await apiFetch('/api/coupons');
         const json = await res.json();
         if (!json.success) throw new Error(json.error || "쿠폰 목록을 가져올 수 없습니다.");
         
@@ -823,7 +824,7 @@ export function useSms() {
       const finalMsg = generateFinalMessage(message, customer, isAd, optOutPhone, adHeader, adFooter, selectedProduct, assignedCouponCode);
       
       try {
-        const sendRes = await fetch('/api/sms/send', {
+        const sendRes = await apiFetch('/api/sms/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -837,7 +838,7 @@ export function useSms() {
         const sendJson = await sendRes.json();
         
         if (sendJson.success && assignedCoupon) {
-          await fetch('/api/coupons', {
+          await apiFetch('/api/coupons', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
