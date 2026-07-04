@@ -374,7 +374,16 @@ export default function ImportCustomsDashboard() {
                         className="rounded border-slate-300 text-indigo-650 focus:ring-indigo-500 cursor-pointer"
                       />
                     </td>
-                    <td className="py-4 px-5 text-slate-500 font-semibold">{row.created_at || "-"}</td>
+                    <td className="py-4 px-5 text-slate-500">
+                      {row.created_at ? (
+                        <>
+                          <div className="font-semibold">{row.created_at.split(" ")[0]}</div>
+                          <div className="text-[10px] text-slate-400 mt-0.5">{row.created_at.split(" ")[1]}</div>
+                        </>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
                     <td className="py-4 px-5 font-bold text-slate-800">{row.so_number}</td>
                     <td className="py-4 px-5 font-semibold text-slate-600">{row.po_number}</td>
                     <td className="py-4 px-5 text-slate-700 font-medium">{row.exporter_name || "-"}</td>
