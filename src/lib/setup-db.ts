@@ -3146,6 +3146,7 @@ export async function setupDatabase() {
         terms_of_sale: 'EXW',
         payment_terms: 'NET60',
         exporter_name: 'BAL SEAL ENGINEERING LLC',
+        file_path: '/uploads/customs/20260630수입통관서류.pdf',
         created_at: nowStr,
         uuid: 'master-uuid-3254222'
       }]);
@@ -3183,6 +3184,13 @@ export async function setupDatabase() {
 
       console.log('✓ 수입 통관 실제 레퍼런스 데이터 시딩 완료.');
     }
+
+    // 기존 데이터에 file_path가 비어 있을 경우 백필 갱신
+    await updateRows('import_master', {
+      file_path: '/uploads/customs/20260630수입통관서류.pdf'
+    }, {
+      filters: { so_number: '3254222' }
+    }).catch(() => null);
   } catch (err: any) {
     console.error('⚠️ 수입 통관 데이터 시딩 에러:', err.message);
   }
