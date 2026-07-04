@@ -86,14 +86,55 @@ async function callGemini(
   temperature: number | undefined,
   imageInput: string | undefined
 ): Promise<{ text: string; promptTokens: number; completionTokens: number; totalTokens: number }> {
-  // callAiCaller를 사용해 AI 호출
+  // A. 이미지/PDF 분석(OCR) 멀티모달인 경우 -> 구글 API 직접 fetch를 쏘아 inlineData 전달 (OCR 데이터 복원)
+  if (imageInput) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+    
+    const parts: any[] = [{ text: prompt }];
+    const match = imageInput.match(/^data:(image\/\w+);base64,(.+)$/);
+    const mimeType = match ? match[1] : 'image/png';
+    const data = match ? match[2] : imageInput;
+    parts.push({
+      inlineData: {
+        mimeType,
+        data
+      }
+    });
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: systemPrompt ? { parts: [{ text: systemPrompt }] } : undefined,
+        contents: [{ parts }],
+        generationConfig: {
+          responseMimeType: responseMimeType || 'text/plain',
+          temperature: temperature ?? 0.7
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.error?.message || `Gemini API 호출 실패 (HTTP ${response.status})`);
+    }
+
+    const resData = await response.json();
+    const text = resData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const promptTokens = resData.usageMetadata?.promptTokenCount || (estimateTokens(prompt + (systemPrompt || '')) + 258);
+    const completionTokens = resData.usageMetadata?.candidatesTokenCount || estimateTokens(text);
+    const totalTokens = resData.usageMetadata?.totalTokenCount || (promptTokens + completionTokens);
+
+    return { text, promptTokens, completionTokens, totalTokens };
+  }
+
+  // B. 일반 텍스트 분석인 경우 -> 이지데스크 공통 callAiCaller 호출 실행!
   const callerRes = await callAiCaller(prompt, {
     systemPrompt,
     model: modelName,
     temperature: temperature ?? 0.7,
     caller: 'egdesk-ai-router',
-    keyName: 'wonconduct',
-    ...(imageInput ? { imageInput } : {})
+    keyName: 'wonconduct'
   } as any);
 
   let text = '';
@@ -107,7 +148,7 @@ async function callGemini(
     text = callerRes;
   }
   const usage = callerRes?.usage || {};
-  const promptTokens = usage.promptTokens || callerRes?.promptTokens || estimateTokens(prompt + (systemPrompt || '')) + (imageInput ? 258 : 0);
+  const promptTokens = usage.promptTokens || callerRes?.promptTokens || estimateTokens(prompt + (systemPrompt || ''));
   const completionTokens = usage.completionTokens || callerRes?.completionTokens || estimateTokens(text);
   const totalTokens = promptTokens + completionTokens;
 

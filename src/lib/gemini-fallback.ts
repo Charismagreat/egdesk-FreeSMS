@@ -1,9 +1,6 @@
 /**
  * 구글 Gemini AI API 호출 장애(503, 429) 극복용 자동 폴백 fetch 래퍼 함수
  * 주석 및 설명: 한국어 작성 원칙 준수
- *
- * EGDesk AI Caller 서비스 도입으로 물리 키 직접 제어 및 수동 fetch를 제거하고,
- * callAiCaller API 호출 및 Response 구조 모킹 방식으로 전면 고도화 리팩토링되었습니다.
  */
 import { callAiCaller } from '@/../egdesk-helpers';
 
@@ -67,20 +64,74 @@ export async function fetchGeminiWithFallback(url: string, init?: RequestInit): 
     }
   }
 
-  // 2. URL에서 타겟 모델 정보 추출
+  // A. 이미지/PDF OCR 분석(멀티모달)인 경우 -> 기존 구형 백오프 재시도 및 하위 폴백 모델 로직 구동 (100% 동작 복원)
+  if (imageInput) {
+    const maxRetries = 3;
+
+    async function fetchWithRetry(targetUrl: string, modelLabel: string): Promise<Response> {
+      let attempt = 0;
+      while (attempt < maxRetries) {
+        try {
+          const res = await fetch(targetUrl, init);
+          if (res.ok) return res;
+
+          if (res.status === 503 || res.status === 429 || res.status === 500) {
+            attempt++;
+            if (attempt < maxRetries) {
+              const delay = attempt * 1000;
+              console.warn(`[AI Warning] ${modelLabel} 실패 (Status: ${res.status}). ${delay}ms 후 재시도...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+              continue;
+            }
+          }
+          throw new Error(`HTTP ${res.status}: ${res.statusText || 'Unknown Error'}`);
+        } catch (err: any) {
+          if (err.message && err.message.startsWith('HTTP ')) throw err;
+          attempt++;
+          if (attempt < maxRetries) {
+            const delay = attempt * 1000;
+            await new Promise(resolve => setTimeout(resolve, delay));
+            continue;
+          }
+          throw err;
+        }
+      }
+      throw new Error(`${modelLabel} API call failed`);
+    }
+
+    try {
+      return await fetchWithRetry(url, '기본 모델');
+    } catch (err: any) {
+      console.error(`[AI Emergency] 기본 모델 에러: ${err.message}. 1차 폴백 진입.`);
+    }
+
+    const fallbackModel1 = 'gemini-2.5-flash';
+    const fallbackUrl1 = url.replace(/\/models\/[^:]+:/, `/models/${fallbackModel1}:`);
+    try {
+      return await fetchWithRetry(fallbackUrl1, '1차 폴백 모델');
+    } catch (err: any) {
+      console.error(`[AI Emergency] 1차 폴백 실패: ${err.message}. 2차 폴백 진입.`);
+    }
+
+    const fallbackModel2 = 'gemini-flash-latest';
+    const fallbackUrl2 = url.replace(/\/models\/[^:]+:/, `/models/${fallbackModel2}:`);
+    try {
+      return await fetchWithRetry(fallbackUrl2, '2차 폴백 모델');
+    } catch (err: any) {
+      throw err;
+    }
+  }
+
+  // B. 텍스트 분석인 경우 -> 공통 callAiCaller 호출 기동
   const modelMatch = url.match(/\/models\/([^?:]+)/);
   const modelName = modelMatch ? modelMatch[1] : 'gemini-1.5-flash';
 
-  console.log(`🤖 [AI Caller 래퍼] 공통 AI Caller 기동. Model: ${modelName}, Key: wonconduct`);
-
-  // 3. callAiCaller 호출 실행
   const callerRes = await callAiCaller(prompt, {
     systemPrompt,
     model: modelName,
     temperature: temperature ?? 0.7,
     caller: 'egdesk-fallback-wrapper',
-    keyName: 'wonconduct',
-    ...(imageInput ? { imageInput } : {})
+    keyName: 'wonconduct'
   } as any);
 
   let text = '';
@@ -94,11 +145,10 @@ export async function fetchGeminiWithFallback(url: string, init?: RequestInit): 
     text = callerRes;
   }
   const usage = callerRes?.usage || {};
-  const promptTokens = usage.promptTokens || callerRes?.promptTokens || estimateTokens(prompt + (systemPrompt || '')) + (imageInput ? 258 : 0);
+  const promptTokens = usage.promptTokens || callerRes?.promptTokens || estimateTokens(prompt + (systemPrompt || ''));
   const completionTokens = usage.completionTokens || callerRes?.completionTokens || estimateTokens(text);
   const totalTokens = promptTokens + completionTokens;
 
-  // 4. 원래의 수동 API 파싱 코드와의 100% 호환성을 보장하는 모킹된 Response 생성
   const mockGeminiData = {
     candidates: [
       {
@@ -116,11 +166,9 @@ export async function fetchGeminiWithFallback(url: string, init?: RequestInit): 
     }
   };
 
-  const mockResponse = new Response(JSON.stringify(mockGeminiData), {
+  return new Response(JSON.stringify(mockGeminiData), {
     status: 200,
     headers: { 'Content-Type': 'application/json' }
   });
-
-  return mockResponse;
 }
 
