@@ -239,23 +239,37 @@ export async function DELETE(req: Request) {
   }
 }
 
-// PUT: 비고 태그 인라인 수정 지원
+// PUT: 비고 태그 및 지급 상태(is_paid) 수정 지원
 export async function PUT(req: Request) {
   try {
-    const { so_number, tags } = await req.json();
+    const { so_number, tags, is_paid } = await req.json();
     if (!so_number) {
       return NextResponse.json({ success: false, error: '주문번호(so_number)가 누락되었습니다.' }, { status: 400 });
     }
 
     const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
 
-    await updateRows('import_master', {
-      tags: tags,
-      updated_at: nowStr,
-      updated_by: 'USER'
-    }, { filters: { so_number } });
+    // 1. 비고 태그 수정
+    if (tags !== undefined) {
+      await updateRows('import_master', {
+        tags: tags,
+        updated_at: nowStr,
+        updated_by: 'USER'
+      }, { filters: { so_number } });
+    }
 
-    return NextResponse.json({ success: true, message: '비고 태그가 성공적으로 수정되었습니다.' });
+    // 2. 지급 완료 처리
+    if (is_paid !== undefined) {
+      const todayKst = nowStr.slice(0, 10); // YYYY-MM-DD
+      await updateRows('import_finance', {
+        is_paid: is_paid,
+        paid_date: is_paid === 1 ? todayKst : null,
+        updated_at: nowStr,
+        updated_by: 'USER'
+      }, { filters: { so_number } });
+    }
+
+    return NextResponse.json({ success: true, message: '수입 정보가 정상 수정되었습니다.' });
   } catch (err: any) {
     console.error('PUT /api/import-customs error:', err.message);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
