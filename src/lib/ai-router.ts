@@ -97,7 +97,16 @@ async function callGemini(
     ...(imageInput ? { imageInput } : {})
   } as any);
 
-  const text = callerRes?.text || (typeof callerRes === 'string' ? callerRes : '') || '';
+  let text = '';
+  if (callerRes && typeof callerRes === 'object') {
+    if ('text' in callerRes) {
+      text = String(callerRes.text);
+    } else {
+      text = JSON.stringify(callerRes);
+    }
+  } else if (typeof callerRes === 'string') {
+    text = callerRes;
+  }
   const usage = callerRes?.usage || {};
   const promptTokens = usage.promptTokens || callerRes?.promptTokens || estimateTokens(prompt + (systemPrompt || '')) + (imageInput ? 258 : 0);
   const completionTokens = usage.completionTokens || callerRes?.completionTokens || estimateTokens(text);
