@@ -93,7 +93,6 @@ async function callGemini(
     temperature: temperature ?? 0.7,
     caller: 'egdesk-ai-router',
     keyName: 'wonconduct',
-    responseSchema: responseMimeType === 'application/json' ? { type: 'OBJECT' } : undefined,
     ...(imageInput ? { imageInput } : {})
   } as any);
 

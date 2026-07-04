@@ -80,7 +80,6 @@ export async function fetchGeminiWithFallback(url: string, init?: RequestInit): 
     temperature: temperature ?? 0.7,
     caller: 'egdesk-fallback-wrapper',
     keyName: 'wonconduct',
-    responseSchema: responseMimeType === 'application/json' ? { type: 'OBJECT' } : undefined,
     ...(imageInput ? { imageInput } : {})
   } as any);
 
