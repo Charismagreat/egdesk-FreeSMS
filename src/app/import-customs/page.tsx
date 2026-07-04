@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { usePersistedState } from "@/hooks/usePersistedState";
-import { Truck, Search, Upload, Trash2, Eye, Calendar, DollarSign, FileText, ArrowRight, RefreshCw, X, Link, Copy, Printer } from "lucide-react";
+import { Truck, Search, Upload, Trash2, Eye, Calendar, DollarSign, FileText, ArrowRight, RefreshCw, X, Link, Copy, Printer, ChevronRight } from "lucide-react";
 import CustomsOcrModal from "./components/CustomsOcrModal";
 import InlineTagEditor from "../estimates/components/InlineTagEditor";
 
@@ -132,6 +132,32 @@ export default function ImportCustomsDashboard() {
         fetchData();
       } else {
         alert(data.error || "비고(태그) 수정에 실패했습니다.");
+      }
+    } catch (e) {
+      alert("오류가 발생했습니다.");
+    }
+  };
+
+  // 지급 완료 상태 전환 핸들러
+  const handleCompletePayment = async (soNumber: string) => {
+    if (!window.confirm(`주문번호 ${soNumber} 건을 '지급완료' 상태로 전환하시겠습니까?`)) {
+      return;
+    }
+    try {
+      const res = await fetch("/api/import-customs", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          so_number: soNumber,
+          is_paid: 1,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchData();
+        alert("지급 완료 처리되었습니다.");
+      } else {
+        alert(data.error || "지급 처리 실패");
       }
     } catch (e) {
       alert("오류가 발생했습니다.");
@@ -311,6 +337,7 @@ export default function ImportCustomsDashboard() {
                     className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                   />
                 </th>
+                <th className="py-4 px-5">등록일시</th>
                 <th className="py-4 px-5">주문 번호 (SO#)</th>
                 <th className="py-4 px-5">발주 번호 (PO#)</th>
                 <th className="py-4 px-5">수출자 상호</th>
@@ -319,20 +346,20 @@ export default function ImportCustomsDashboard() {
                 <th className="py-4 px-5 text-right">인보이스 총액</th>
                 <th className="py-4 px-5">결제 마감일</th>
                 <th className="py-4 px-5 text-center">송금 상태</th>
-                <th className="py-4 px-5 text-center">동작</th>
+                <th className="py-4 px-5 text-right pr-8">작업</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="py-10 text-center font-bold text-slate-400">
+                  <td colSpan={11} className="py-10 text-center font-bold text-slate-400">
                     <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-500" />
                     데이터 로딩 중...
                   </td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-10 text-center font-bold text-slate-400">
+                  <td colSpan={11} className="py-10 text-center font-bold text-slate-400">
                     등록된 수입 통관 문서 내역이 없습니다.
                   </td>
                 </tr>
@@ -347,6 +374,7 @@ export default function ImportCustomsDashboard() {
                         className="rounded border-slate-300 text-indigo-650 focus:ring-indigo-500 cursor-pointer"
                       />
                     </td>
+                    <td className="py-4 px-5 text-slate-500 font-semibold">{row.created_at || "-"}</td>
                     <td className="py-4 px-5 font-bold text-slate-800">{row.so_number}</td>
                     <td className="py-4 px-5 font-semibold text-slate-600">{row.po_number}</td>
                     <td className="py-4 px-5 text-slate-700 font-medium">{row.exporter_name || "-"}</td>
@@ -377,28 +405,35 @@ export default function ImportCustomsDashboard() {
                         {row.is_paid === 1 ? "지급완료" : "미송금"}
                       </span>
                     </td>
-                    <td className="py-4 px-5 text-center">
-                      <div className="flex items-center justify-center gap-1">
+                    <td className="py-4 px-5 text-right">
+                      <div className="flex items-center justify-end gap-2 pr-3">
                         <button
                           onClick={() => setSelectedSoNbr(row.so_number)}
-                          className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"
+                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-black flex items-center gap-1 transition-all"
                           title="상세 조회"
                         >
-                          <Eye className="w-4 h-4" />
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>상세</span>
                         </button>
-                        <button
-                          onClick={() => handleCopyLink(row.so_number)}
-                          className="p-1.5 hover:bg-slate-100 rounded-lg text-indigo-500 transition-colors"
-                          title="모바일 웹뷰 링크 복사"
-                        >
-                          <Copy className="w-4 h-4" />
-                        </button>
+                        
+                        {row.is_paid === 0 && (
+                          <button
+                            onClick={() => handleCompletePayment(row.so_number)}
+                            className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg text-[10px] font-black flex items-center gap-0.5 transition-all"
+                            title="지급 처리"
+                          >
+                            <span>지급 처리</span>
+                            <ChevronRight className="w-3 h-3" />
+                          </button>
+                        )}
+                        
                         <button
                           onClick={() => handleDelete(row.so_number)}
-                          className="p-1.5 hover:bg-rose-50 rounded-lg text-rose-500 transition-colors"
+                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 rounded-lg text-[10px] font-black flex items-center gap-1 transition-all"
                           title="삭제"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>삭제</span>
                         </button>
                       </div>
                     </td>
