@@ -1,4 +1,4 @@
-import { queryTable, insertRows } from '../../egdesk-helpers';
+import { queryTable, insertRows, callAiCaller } from '../../egdesk-helpers';
 
 export interface CallAIOptions {
   prompt: string;
@@ -77,9 +77,6 @@ function estimateTokens(text: string): number {
   return Math.ceil(tokens);
 }
 
-/**
- * 구글 Gemini API를 직접 호출합니다 (멀티모달 대응).
- */
 async function callGemini(
   prompt: string,
   systemPrompt: string | undefined,
@@ -89,45 +86,22 @@ async function callGemini(
   temperature: number | undefined,
   imageInput: string | undefined
 ): Promise<{ text: string; promptTokens: number; completionTokens: number; totalTokens: number }> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-  
-  // 멀티모달 이미지 파츠(Parts) 구성
-  const parts: any[] = [{ text: prompt }];
-  if (imageInput) {
-    const match = imageInput.match(/^data:(image\/\w+);base64,(.+)$/);
-    const mimeType = match ? match[1] : 'image/png';
-    const data = match ? match[2] : imageInput;
-    parts.push({
-      inlineData: {
-        mimeType,
-        data
-      }
-    });
-  }
+  // callAiCaller를 사용해 AI 호출
+  const callerRes = await callAiCaller(prompt, {
+    systemPrompt,
+    model: modelName,
+    temperature: temperature ?? 0.7,
+    caller: 'egdesk-ai-router',
+    keyName: 'wonconduct',
+    responseSchema: responseMimeType === 'application/json' ? { type: 'OBJECT' } : undefined,
+    ...(imageInput ? { imageInput } : {})
+  } as any);
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      systemInstruction: systemPrompt ? { parts: [{ text: systemPrompt }] } : undefined,
-      contents: [{ parts }],
-      generationConfig: {
-        responseMimeType: responseMimeType || 'text/plain',
-        temperature: temperature ?? 0.7
-      }
-    })
-  });
-
-  if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
-    throw new Error(errData.error?.message || `Gemini API 호출 실패 (HTTP ${response.status})`);
-  }
-
-  const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-  const promptTokens = data.usageMetadata?.promptTokenCount || (estimateTokens(prompt + (systemPrompt || '')) + (imageInput ? 258 : 0));
-  const completionTokens = data.usageMetadata?.candidatesTokenCount || estimateTokens(text);
-  const totalTokens = data.usageMetadata?.totalTokenCount || (promptTokens + completionTokens);
+  const text = callerRes?.text || (typeof callerRes === 'string' ? callerRes : '') || '';
+  const usage = callerRes?.usage || {};
+  const promptTokens = usage.promptTokens || callerRes?.promptTokens || estimateTokens(prompt + (systemPrompt || '')) + (imageInput ? 258 : 0);
+  const completionTokens = usage.completionTokens || callerRes?.completionTokens || estimateTokens(text);
+  const totalTokens = promptTokens + completionTokens;
 
   return { text, promptTokens, completionTokens, totalTokens };
 }
@@ -217,7 +191,12 @@ export async function callAI(options: CallAIOptions): Promise<AIResponse> {
     if (modelRes.rows?.length > 0) localLlmModel = modelRes.rows[0].value;
     if (keyRes.rows?.length > 0) googleApiKey = keyRes.rows[0].value;
     if (gModelRes.rows?.length > 0) googleModel = gModelRes.rows[0].value;
+
+    if (!googleApiKey) {
+      googleApiKey = 'wonconduct';
+    }
   } catch (err) {
+    googleApiKey = 'wonconduct';
     console.error('⚠️ DB 설정 로드 실패 (기본값 설정):', err);
   }
 
