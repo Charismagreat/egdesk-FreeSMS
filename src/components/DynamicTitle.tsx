@@ -75,6 +75,7 @@ function DynamicTitleHandler() {
       "/help": "Q&A 헬프센터",
       "/ai-control-tower": "AI 컨트롤타워",
       "/settings": "시스템 설정",
+      "/ai-settings": "AI 비서 및 하이브리드 라우팅 설정",
       "/login": "로그인",
     };
 

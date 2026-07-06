@@ -8,7 +8,7 @@ export async function GET(req: Request) {
     const range = searchParams.get('range') || 'today'; // 'today', 'week', 'month', 'all'
 
     // 1. 기간 필터 설정 (Filters 객체화)
-    const filters: Record<string, string> = {};
+    const filters: Record<string, string> = { deleted_at: null as any };
     const nowKST = new Date(Date.now() + 9 * 60 * 60 * 1000);
     const todayStr = nowKST.toISOString().split('T')[0];
     
@@ -34,7 +34,7 @@ export async function GET(req: Request) {
       aggregateTable('ai_token_usage_logs', 'prompt_tokens', 'SUM', { filters }),
       aggregateTable('ai_token_usage_logs', 'completion_tokens', 'SUM', { filters }),
       aggregateTable('ai_token_usage_logs', 'total_tokens', 'SUM', { filters }),
-      aggregateTable('ai_token_usage_logs', 'id', 'COUNT'), // 감사록 총 데이터 수 (필터 없음)
+      aggregateTable('ai_token_usage_logs', 'id', 'COUNT', { filters }), // 감사록 총 데이터 수 (필터 적용)
     ]);
 
     const summary = {
@@ -84,6 +84,7 @@ export async function GET(req: Request) {
 
     // 5. 최근 토큰 트랜잭션 페이지네이션 조회
     const recentLogsResult = await queryTable('ai_token_usage_logs', {
+      filters,
       orderBy: 'created_at',
       orderDirection: 'DESC',
       limit,
