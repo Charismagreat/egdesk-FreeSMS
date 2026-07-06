@@ -1,4 +1,4 @@
-import { queryTable, insertRows, callAiCaller, getGeminiApiKey } from '../../egdesk-helpers';
+import { queryTable, insertRows, updateRows, callAiCaller, getGeminiApiKey } from '../../egdesk-helpers';
 
 export interface CallAIOptions {
   prompt: string;
@@ -240,6 +240,46 @@ export async function callAI(options: CallAIOptions): Promise<AIResponse> {
     if (modelRes.rows?.length > 0) localLlmModel = modelRes.rows[0].value;
     if (keyRes.rows?.length > 0) googleApiKey = keyRes.rows[0].value;
     if (gModelRes.rows?.length > 0) googleModel = gModelRes.rows[0].value;
+
+    // 로컬 LLM URL이 정의되어 있으나 모델명이 비어있는 경우(또는 'auto' 설정일 때)
+    // 이지데스크 로컬 Ollama API를 쿼리하여 적절한 모델명을 자동 지정 및 DB 영구 저장합니다.
+    if (localLlmUrl && (!localLlmModel || localLlmModel === 'auto' || localLlmModel === '')) {
+      try {
+        const cleanUrl = localLlmUrl.replace(/\/$/, '');
+        const response = await fetch(`${cleanUrl}/api/tags`, { signal: AbortSignal.timeout(3000) });
+        if (response.ok) {
+          const data = await response.json();
+          const models = data.models || [];
+          if (models.length > 0) {
+            const modelNames = models.map((m: any) => m.name);
+            let selected = modelNames[0]; // 기본 첫번째 모델 지정
+            
+            // 한국어 친화적이거나 성능 지표가 뛰어난 모델 우선 매칭
+            const priorities = ['eeve', 'exaone', 'gemma2', 'gemma', 'llama3', 'llama', 'mistral', 'phi3'];
+            for (const p of priorities) {
+              const found = modelNames.find((name: string) => name.toLowerCase().includes(p));
+              if (found) {
+                selected = found;
+                break;
+              }
+            }
+            
+            localLlmModel = selected;
+            
+            // egdesk-helpers API를 경유하여 DB 동기화
+            const exist = await queryTable('system_settings', { filters: { key: 'local_llm_model' } });
+            if (exist.rows && exist.rows.length > 0) {
+              await updateRows('system_settings', { value: selected }, { filters: { key: 'local_llm_model' } });
+            } else {
+              await insertRows('system_settings', [{ key: 'local_llm_model', value: selected }]);
+            }
+            console.log(`🤖 [로컬 LLM 자동 매핑] Ollama에서 최적 모델 '${selected}'을 감지하여 DB 설정에 저장했습니다.`);
+          }
+        }
+      } catch (ollamaErr: any) {
+        console.error('⚠️ 로컬 LLM 모델 자동 감지 시도 실패:', ollamaErr.message);
+      }
+    }
 
     if (!googleApiKey || !googleApiKey.startsWith('AIzaSy')) {
       try {
