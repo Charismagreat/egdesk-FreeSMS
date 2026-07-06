@@ -246,11 +246,11 @@ export async function GET(req: Request) {
     let allPos: any[] = [];
     let allSos: any[] = [];
     try {
-      const poRes = await executeSQL('SELECT vendor_name, status, total_amount FROM crm_purchase_orders WHERE deleted_at IS NULL');
-      allPos = (poRes && (poRes as any).rows) ? (poRes as any).rows : (Array.isArray(poRes) ? poRes : []);
+      const poRes = await queryTable('crm_purchase_orders', {});
+      allPos = (poRes.rows || []).filter((r: any) => !r.deleted_at);
       
-      const soRes = await executeSQL('SELECT customer_name, status, total_amount FROM crm_sales_orders WHERE deleted_at IS NULL');
-      allSos = (soRes && (soRes as any).rows) ? (soRes as any).rows : (Array.isArray(soRes) ? soRes : []);
+      const soRes = await queryTable('crm_sales_orders', {});
+      allSos = (soRes.rows || []).filter((r: any) => !r.deleted_at);
     } catch (e) {
       console.error('SCM 집계용 베이스 마이닝 지연:', e);
     }
