@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { fetchGeminiWithFallback } from '../../../../../lib/gemini-fallback';
-import { queryTable } from '@/../egdesk-helpers';
+import { queryTable, getGeminiApiKey } from '@/../egdesk-helpers';
 import crypto from 'crypto';
 
 export const maxDuration = 60; // 60초 타임아웃
@@ -47,16 +47,25 @@ export async function POST(req: Request) {
       }
     }
 
-    // 1. DB에서 구글 AI 설정 정보 로드
+    // 1. DB에서 구글 AI 설정 정보 로드 및 이지데스크 연동 키 조회
     const settingsRes = await queryTable('system_settings', { filters: { key: 'google_ai_api_key' } });
-    const apiKey = settingsRes.rows && settingsRes.rows.length > 0 ? settingsRes.rows[0].value : null;
+    let googleApiKey = settingsRes.rows && settingsRes.rows.length > 0 ? settingsRes.rows[0].value : null;
 
-    if (!apiKey) {
-      return NextResponse.json({
-        success: false,
-        error: '구글 AI API 키가 시스템에 등록되지 않았습니다. [시스템 설정 > AI 설정]에서 API 키를 먼저 등록해 주세요.'
-      }, { status: 400 });
+    // 만약 DB에 키가 없거나 실물 구글 API 키 형식이 아닌 경우 (SaaS 환경 / ai-caller 활용 등)
+    // 이지데스크 프록시를 통해 복호화된 키를 수신하여 구동합니다.
+    if (!googleApiKey || !googleApiKey.startsWith('AIzaSy')) {
+      try {
+        const decryptedKeyRes = await getGeminiApiKey({ name: googleApiKey || '' });
+        if (decryptedKeyRes && decryptedKeyRes.success && decryptedKeyRes.apiKey) {
+          googleApiKey = decryptedKeyRes.apiKey;
+        }
+      } catch (keyErr: any) {
+        console.error('⚠️ EGDesk에서 실제 구글 API 키를 해독해오는 데 실패했습니다:', keyErr.message);
+      }
     }
+
+    // 여전히 키가 없다면 이지데스크가 중계할 수 있도록 'wonconduct'로 폴백 세팅합니다.
+    const apiKey = googleApiKey || 'wonconduct';
 
     const modelRes = await queryTable('system_settings', { filters: { key: 'google_ai_model' } });
     const selectedModel = modelRes.rows && modelRes.rows.length > 0 && modelRes.rows[0].value
