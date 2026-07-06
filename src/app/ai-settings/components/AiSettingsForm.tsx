@@ -52,7 +52,7 @@ export function AiSettingsForm({
 }: AiSettingsFormProps) {
   // 상태 전송 타이밍 경합 우회를 위해 DOM Ref 사용
   const localLlmUrlRef = useRef<HTMLInputElement>(null);
-  const localLlmModelRef = useRef<HTMLInputElement | HTMLSelectElement>(null);
+  const localLlmModelRef = useRef<any>(null);
 
   const onTestConnectionClick = () => {
     // Refs에 담긴 실시간 돔 값을 우선 전달하여 React State 지연에 의한 이전 값 전송을 차단합니다.
