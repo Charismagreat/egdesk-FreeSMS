@@ -1097,7 +1097,7 @@ Keep the tone urgent, professional, and clear.
                           rel="noopener noreferrer" 
                           className="text-xs font-black text-amber-600 hover:underline flex items-center gap-1"
                         >
-                          /m/safety/tbm?id={selectedTbmForQr.id.slice(0, 10)}...
+                          /m/safety/tbm?id={String(selectedTbmForQr.id || '').slice(0, 10)}...
                           <ExternalLink className="w-3 h-3" />
                         </a>
                       </div>
