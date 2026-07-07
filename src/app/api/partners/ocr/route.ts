@@ -100,13 +100,11 @@ export async function POST(req: Request) {
 
     // 2. DB에서 구글 AI 설정 정보 로드
     const settingsRes = await queryTable('system_settings', { filters: { key: 'google_ai_api_key' } });
-    const apiKey = settingsRes.rows && settingsRes.rows.length > 0 ? settingsRes.rows[0].value : null;
+    let apiKey = settingsRes.rows && settingsRes.rows.length > 0 ? settingsRes.rows[0].value : null;
 
-    if (!apiKey) {
-      return NextResponse.json({
-        success: false,
-        error: '구글 AI API 키가 시스템에 등록되지 않았습니다. [시스템 설정 > AI 설정]에서 API 키를 먼저 등록해 주세요.'
-      }, { status: 400 });
+    // 만약 DB에 실물 구글 API 키가 등록되어 있지 않은 경우, 전사 AI 중계기 채널(callAiCaller)로 처리하도록 가드 우회
+    if (!apiKey || !apiKey.startsWith('AIzaSy')) {
+      apiKey = 'DUMMY_AI_CALLER_API_KEY';
     }
 
     const modelRes = await queryTable('system_settings', { filters: { key: 'google_ai_model' } });
