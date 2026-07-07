@@ -28,6 +28,7 @@ export async function fetchGeminiWithFallback(url: string, init?: RequestInit): 
   let prompt = '';
   let systemPrompt: string | undefined = undefined;
   let responseMimeType: 'application/json' | 'text/plain' | undefined = undefined;
+  let responseSchema: any = undefined;
   let temperature: number | undefined = undefined;
   let imageInput: string | undefined = undefined;
 
@@ -57,6 +58,9 @@ export async function fetchGeminiWithFallback(url: string, init?: RequestInit): 
       if (bodyObj.generationConfig?.responseMimeType) {
         responseMimeType = bodyObj.generationConfig.responseMimeType;
       }
+      if (bodyObj.generationConfig?.responseSchema) {
+        responseSchema = bodyObj.generationConfig.responseSchema;
+      }
       if (bodyObj.generationConfig?.temperature != null) {
         temperature = bodyObj.generationConfig.temperature;
       }
@@ -75,12 +79,11 @@ export async function fetchGeminiWithFallback(url: string, init?: RequestInit): 
     ? rawKey
     : undefined; // 기본 키를 타도록 빈값(undefined) 처리
 
-  // 3. 전사 AI Caller 단일 채널 호출 및 3단계 장애 극복 폴백 루프 가동
-  // 최신 gemini-3.5-flash 우선 시도 후 gemini-2.5-flash, gemini-1.5-flash 순으로 순차 폴백
-  const modelsLineup = ['gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-1.5-flash'];
+  // 3. 전사 AI Caller 단일 채널 호출 기동 (장애 극복 폴백은 사용자 요청에 의해 미동작 처리)
+  const modelsLineup = [initialModel];
   let callerRes: any = null;
   let callerErr: any = null;
-  let finalModelUsed = 'gemini-3.5-flash';
+  let finalModelUsed = initialModel;
 
   for (const targetModel of modelsLineup) {
     try {
@@ -91,6 +94,8 @@ export async function fetchGeminiWithFallback(url: string, init?: RequestInit): 
         model: targetModel,
         temperature: temperature ?? 0.7,
         images: imageInput ? [imageInput] : undefined, // 최신 images 배열 규격 연동 지원
+        responseMimeType,
+        responseSchema,
         caller: 'egdesk-fallback-wrapper',
         keyName: targetKeyName
       });
@@ -110,15 +115,13 @@ export async function fetchGeminiWithFallback(url: string, init?: RequestInit): 
       break;
     } catch (err: any) {
       callerErr = err;
-      console.warn(`[AI Warning] callAiCaller 실패 (모델: ${targetModel}, 원인: ${err.message || err}). 다음 폴백 모델로 우회 시도...`);
-      // 다음 모델 호출 전 짧은 딜레이
-      await new Promise(resolve => setTimeout(resolve, 300));
+      console.error(`[AI Error] callAiCaller 실패 (모델: ${targetModel}, 원인: ${err.message || err})`);
     }
   }
 
-  // 모든 폴백 라인업이 실패한 경우 최종 에러
+  // 호출 실패 시 최종 에러 즉시 반환
   if (callerErr) {
-    throw new Error(`[GoogleGenerativeAI Error]: callAiCaller 전사 폴백 실패. (최종 에러: ${callerErr.message || callerErr})`);
+    throw new Error(`[GoogleGenerativeAI Error]: callAiCaller 호출 실패. (최종 에러: ${callerErr.message || callerErr})`);
   }
 
   // 4. 원래 구글 API가 반환하던 JSON 구조와 호환되는 가짜 Gemini Response 객체 리턴
