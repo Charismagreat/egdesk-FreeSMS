@@ -27,7 +27,10 @@ export default function MainContentWrapper({ children }: { children: React.React
     pathname.startsWith('/import-customs') ||
     pathname.startsWith('/import-customs/web-view') ||
     pathname.startsWith('/finance-management') ||
-    pathname.startsWith('/ai-settings')
+    pathname.startsWith('/ai-settings') ||
+    pathname.startsWith('/my-db') ||
+    pathname.startsWith('/employees') ||
+    pathname.startsWith('/hr/attendance')
   ) {
     return <>{children}</>;
   }
