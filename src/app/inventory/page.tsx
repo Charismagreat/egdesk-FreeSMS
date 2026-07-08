@@ -36,7 +36,7 @@ export default function InventoryPage() {
     departments: string[];
     projects: string[];
   }>({ partners: [], staff: [], departments: [], projects: [] });
-  const [activeTab, setActiveTab, isActiveTabRestored] = usePersistedState<'material' | 'product' | 'deadstock'>('egdesk_inventory_activeTab', 'material');
+  const [activeTab, setActiveTab, isActiveTabRestored] = usePersistedState<'material' | 'product' | 'inbound' | 'deadstock'>('egdesk_inventory_activeTab', 'material');
   const [inbounds, setInbounds] = useState<any[]>([]);
   const [selectedInboundId, setSelectedInboundId] = useState<string | null>(null);
   const [inboundDetails, setInboundDetails] = useState<any[]>([]);
@@ -799,8 +799,8 @@ export default function InventoryPage() {
   };
 
   // 통계 연산 (한글 표준 명칭인 '원부자재' 및 '완제품' 호환 필터링 적용)
-  const materials = items.filter(it => it.type === '원부자재' || it.type === 'material' || it.type === '자재' || it.type === '원자재');
-  const products = items.filter(it => it.type === '완제품' || it.type === 'product' || it.type === '제품');
+  const materials = items.filter(it => (it.type as any) === '원부자재' || it.type === 'material' || (it.type as any) === '자재' || (it.type as any) === '원자재');
+  const products = items.filter(it => (it.type as any) === '완제품' || it.type === 'product' || (it.type as any) === '제품');
   
   const totalMaterialStock = materials.reduce((acc, cur) => acc + (Number(cur.stock) || 0), 0);
   const totalProductStock = products.reduce((acc, cur) => acc + (Number(cur.stock) || 0), 0);

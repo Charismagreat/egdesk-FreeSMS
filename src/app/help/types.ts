@@ -5,6 +5,7 @@ export type FAQCategory =
   | "point" 
   | "coupon" 
   | "order" 
+  | "import-customs"
   | "price" 
   | "hr"
   | "safety"

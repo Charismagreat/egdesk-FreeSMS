@@ -6,6 +6,8 @@ import { cookies } from 'next/headers';
 import { decodeJwt } from 'jose';
 import { sendMail } from '../../../lib/email';
 import { checkRagApproval } from '../../../lib/rag-approval';
+import fs from 'fs';
+import path from 'path';
 
 // 최고 관리자(SUPER_ADMIN) 권한 검증 헬퍼
 async function verifySuperAdmin() {
@@ -34,6 +36,7 @@ async function sendEstimateEmail(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').substring(0, 19);
+    const filePath = path.join(process.cwd(), 'public', 'uploads', 'estimates', `Estimate_${estimateId}.pdf`);
 
     // 1. 공급자 정보(우리 회사 프로필) 로드
     let providerHtml = '';

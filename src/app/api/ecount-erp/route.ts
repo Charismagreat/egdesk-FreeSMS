@@ -253,7 +253,7 @@ async function initializeLockDatabase() {
 async function checkAndAcquireLock(scriptFile: string): Promise<{ success: boolean; reason?: string }> {
   try {
     await initializeLockDatabase();
-    const lockRes = await queryTable('ecount_rpa_lock', { filters: { id: 1 } });
+    const lockRes = await queryTable('ecount_rpa_lock', { filters: { id: 1 as any } });
     const rows = lockRes.rows || [];
     const lock = rows[0];
     

@@ -72,6 +72,7 @@ const MENU_STATIC_MAP: Record<string, { label: string; icon: any; color: string 
   "/orders": { label: "주문 관리 AI", icon: ClipboardList, color: "text-blue-400" },
   "/payments": { label: "결제 관리 AI", icon: CreditCard, color: "text-emerald-400" },
   "/finance": { label: "금융 정보 AI", icon: Landmark, color: "text-sky-400" },
+  "/finance-management": { label: "금융 관리 AI", icon: Landmark, color: "text-sky-400" },
   "/financials": { label: "재무 정보 AI", icon: Landmark, color: "text-teal-400" },
   "/coupons": { label: "쿠폰 관리 AI", icon: Ticket, color: "text-rose-400" },
   "/reservations": { label: "예약 관리 AI", icon: CalendarDays, color: "text-indigo-400" },
@@ -167,7 +168,7 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
     if (href === "/") {
       return pathname === "/";
     }
-    return pathname.startsWith(href);
+    return pathname === href || pathname.startsWith(href + "/");
   };
 
   // 2. 동적 메뉴 데이터 가져오기 및 권한별 필터링/정렬 수행 함수

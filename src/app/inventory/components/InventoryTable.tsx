@@ -6,8 +6,8 @@ import { calculateValuation } from '../utils/valuation';
 interface InventoryTableProps {
   items: InventoryItem[];
   logs: InventoryLog[];
-  activeTab: 'material' | 'product' | 'deadstock';
-  setActiveTab: (tab: 'material' | 'product' | 'deadstock') => void;
+  activeTab: 'material' | 'product' | 'inbound' | 'deadstock';
+  setActiveTab: (tab: 'material' | 'product' | 'inbound' | 'deadstock') => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   loading: boolean;
@@ -61,19 +61,19 @@ export const InventoryTable: React.FC<InventoryTableProps> = ({
   inbounds,
   onOpenInboundDetail
 }) => {
-  const materials = items.filter(it => it.type === '원부자재' || it.type === 'material' || it.type === '자재' || it.type === '원자재');
-  const products = items.filter(it => it.type === '완제품' || it.type === 'product' || it.type === '제품');
+  const materials = items.filter(it => (it.type as any) === '원부자재' || it.type === 'material' || (it.type as any) === '자재' || (it.type as any) === '원자재');
+  const products = items.filter(it => (it.type as any) === '완제품' || it.type === 'product' || (it.type as any) === '제품');
 
   // 현재 탭 및 검색 쿼리에 따른 필터링된 아이템 리스트
   const filteredItems = items
     .filter(item => {
       if (activeTab === 'material') {
-        return item.type === '원부자재' || item.type === 'material' || item.type === '자재' || item.type === '원자재';
+        return (item.type as any) === '원부자재' || item.type === 'material' || (item.type as any) === '자재' || (item.type as any) === '원자재';
       }
       if (activeTab === 'product') {
-        return item.type === '완제품' || item.type === 'product' || item.type === '제품';
+        return (item.type as any) === '완제품' || item.type === 'product' || (item.type as any) === '제품';
       }
-      return item.type === activeTab;
+      return (item.type as any) === activeTab;
     })
     .filter(item => {
       const query = searchQuery.toLowerCase();

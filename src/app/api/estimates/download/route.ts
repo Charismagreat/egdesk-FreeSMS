@@ -93,7 +93,7 @@ export async function GET(request: Request) {
     }
 
     // 3. 파일 바이너리 스트림 다운로드 전송
-    const response = new NextResponse(fileBuffer);
+    const response = new NextResponse(fileBuffer as any);
     
     response.headers.set("Content-Type", "application/pdf");
     response.headers.set(

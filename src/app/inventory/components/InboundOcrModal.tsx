@@ -19,6 +19,8 @@ interface InboundOcrItem {
   location?: string;      // 13. 적재위치
   note: string;           // 14. 비고 (매핑 안 된 기타 정보)
   matchedItemId: number | string;
+  partnerName?: string;
+  inboundDate?: string;
 }
 
 interface InboundOcrModalProps {
@@ -170,8 +172,12 @@ export const InboundOcrModal: React.FC<InboundOcrModalProps> = ({
     setOcrForm({
       partnerName: '',
       inboundDate: '',
+      originalTotalAmount: 0,
+      originalTotalQuantity: 0,
       items: [],
-      fileUrl: ''
+      fileUrl: '',
+      fileHash: '',
+      isMetaDuplicate: false
     });
   };
 

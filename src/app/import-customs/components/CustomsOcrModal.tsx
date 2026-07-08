@@ -34,7 +34,8 @@ export default function CustomsOcrModal({
       ship_via: "",
       terms_of_sale: "EXW",
       payment_terms: "NET60",
-      exporter_name: ""
+      exporter_name: "",
+      file_path: ""
     },
     items: [] as Array<{
       part_number: string;
@@ -84,7 +85,8 @@ export default function CustomsOcrModal({
         ship_via: "",
         terms_of_sale: "EXW",
         payment_terms: "NET60",
-        exporter_name: ""
+        exporter_name: "",
+        file_path: ""
       },
       items: [],
       finance: {

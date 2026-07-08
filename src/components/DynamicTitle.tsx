@@ -25,6 +25,7 @@ function DynamicTitleHandler() {
       "/orders": "주문 관리 AI",
       "/payments": "결제 관리 AI",
       "/finance": "금융 정보 AI",
+      "/finance-management": "금융 관리 AI",
       "/financials": "재무 정보 AI",
       "/coupons": "쿠폰 관리 AI",
       "/reservations": "예약 관리 AI",

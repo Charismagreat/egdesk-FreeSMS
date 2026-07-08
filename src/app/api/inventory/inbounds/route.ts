@@ -28,7 +28,7 @@ export async function GET(request: Request) {
 
       // 4. 14대 필수 필드로 결합한 풀 매핑 데이터 생성
       const enrichedData = inboundItems.map((item: any) => {
-        const master = item.matched_item_id ? (masterMap.get(String(item.matched_item_id)) || {}) : {};
+        const master = item.matched_item_id ? (masterMap.get(String(item.matched_item_id)) as any || {}) : {} as any;
         return {
           id: item.id,
           inbound_id: item.inbound_id,

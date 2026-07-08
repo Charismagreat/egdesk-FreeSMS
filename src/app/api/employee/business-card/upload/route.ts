@@ -113,7 +113,7 @@ export async function POST(req: Request) {
     const nowStr = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
 
     await insertRows('crm_partner_contacts', [{
-      id: nextId,
+      id: nextId as any,
       partner_id: finalPartnerId,
       name: parsedData.name || '미상',
       position: parsedData.position || '',
@@ -130,7 +130,7 @@ export async function POST(req: Request) {
     const uploadRes = await uploadFile('crm_partner_contacts', nextId, 'card_image_url', `card_${nextId}.png`, image);
     if (uploadRes && uploadRes.success) {
       finalCardUrl = `/api/shared/files?tableName=crm_partner_contacts&rowId=${nextId}&columnName=card_image_url`;
-      await updateRows('crm_partner_contacts', { card_image_url: finalCardUrl }, { filters: { id: nextId } });
+      await updateRows('crm_partner_contacts', { card_image_url: finalCardUrl }, { filters: { id: nextId as any } });
     }
 
     return NextResponse.json({
