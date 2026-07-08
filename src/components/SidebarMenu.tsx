@@ -1,5 +1,5 @@
 "use client";
-
+ 
 import { apiFetch } from '@/lib/api';
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
@@ -11,120 +11,18 @@ import {
   ArrowRightLeft, Handshake, Sparkles, Coins, Database, Compass, Shield, CheckSquare, Wrench, ShieldAlert, Award, Scale, Key, Mail, Eye, EyeOff,
   GripVertical, Activity, Smartphone, Mic, Bot
 } from "lucide-react";
-
-// 커스텀 인스타그램 아이콘 SVG
-function InstagramIcon({ className = "w-5 h-5" }: { className?: string }) {
-  return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round" 
-      className={className}
-    >
-      <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
-      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
-      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
-    </svg>
-  );
-}
-
-// 커스텀 네이버 아이콘 SVG
-function NaverIcon({ className = "w-5 h-5" }: { className?: string }) {
-  return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      viewBox="0 0 24 24" 
-      fill="currentColor" 
-      className={className}
-    >
-      <path d="M16.2 3H21v18h-4.8l-7.4-11V21H4V3h4.8l7.4 11V3z"/>
-    </svg>
-  );
-}
-
-// 커스텀 유튜브 아이콘 SVG
-function YoutubeIcon({ className = "w-5 h-5" }: { className?: string }) {
-  return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      viewBox="0 0 24 24" 
-      fill="currentColor" 
-      className={className}
-    >
-      <path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.108C19.517 3.545 12 3.545 12 3.545s-7.516 0-9.387.51a3.003 3.003 0 0 0-2.11 2.108C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.108c1.871.51 9.387.51 9.387.51s7.517 0 9.387-.51a3.003 3.003 0 0 0 2.11-2.108C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-    </svg>
-  );
-}
-
-// 메뉴 메타데이터 정적 맵 정의
-const MENU_STATIC_MAP: Record<string, { label: string; icon: any; color: string }> = {
-  "/": { label: "모바일 채널", icon: Home, color: "text-blue-400" },
-  "/sms": { label: "무료 문자 발송 AI", icon: MessageSquare, color: "text-purple-400" },
-  "/message-logs": { label: "발송 내역 조회", icon: Send, color: "text-purple-400" },
-  "/automation": { label: "자동 발송 설정", icon: Zap, color: "text-yellow-400" },
-  "/customers": { label: "고객 관리 AI", icon: Users, color: "text-green-400" },
-  "/partners": { label: "거래처 관리 AI", icon: Handshake, color: "text-emerald-400" },
-  "/transactions": { label: "거래 관리 AI", icon: ShoppingCart, color: "text-orange-400" },
-  "/orders": { label: "주문 관리 AI", icon: ClipboardList, color: "text-blue-400" },
-  "/payments": { label: "결제 관리 AI", icon: CreditCard, color: "text-emerald-400" },
-  "/finance": { label: "금융 정보 AI", icon: Landmark, color: "text-sky-400" },
-  "/finance-management": { label: "금융 관리 AI", icon: Landmark, color: "text-sky-400" },
-  "/financials": { label: "재무 정보 AI", icon: Landmark, color: "text-teal-400" },
-  "/coupons": { label: "쿠폰 관리 AI", icon: Ticket, color: "text-rose-400" },
-  "/reservations": { label: "예약 관리 AI", icon: CalendarDays, color: "text-indigo-400" },
-  "/deliveries": { label: "배송 관리 AI", icon: Truck, color: "text-amber-400" },
-  "/products": { label: "상품 관리 AI", icon: PackageSearch, color: "text-blue-400" },
-  "/estimates": { label: "견적/발주/수주 AI", icon: ArrowRightLeft, color: "text-indigo-400" },
-  "/snaptasks": { label: "AI 스냅태스크", icon: Sparkles, color: "text-indigo-450" },
-  "/inventory": { label: "재고 관리 AI", icon: Package, color: "text-cyan-400" },
-  "/expenses": { label: "지출 관리 AI", icon: Coins, color: "text-rose-400" },
-  "/safety-management": { label: "안전 관리 AI", icon: Shield, color: "text-red-400" },
-  "/quality-control": { label: "품질 관리 AI", icon: CheckSquare, color: "text-indigo-400" },
-  "/hr/attendance": { label: "근태 관리 AI", icon: CalendarDays, color: "text-indigo-400" },
-  "/price-tracker": { label: "가격 추적 AI", icon: Zap, color: "text-pink-400" },
-  "/website": { label: "홈페이지 빌더 AI", icon: Globe, color: "text-sky-400" },
-  "/recruitment": { label: "채용 매니저 AI", icon: Briefcase, color: "text-rose-400" },
-  "/instagram": { label: "인스타그램 마케팅 AI", icon: InstagramIcon, color: "text-[#ff007f]" },
-  "/naver-blog": { label: "N-BLOG 포스팅 AI", icon: NaverIcon, color: "text-[#2db400]" },
-  "/youtube-shorts": { label: "YOUTUBE 쇼츠 AI", icon: YoutubeIcon, color: "text-[#FF0000]" },
-  "/knowledge-ai": { label: "지식 관리 AI", icon: Compass, color: "text-indigo-400" },
-  "/ecount-erp-ai": { label: "이카운트 ERP AI", icon: ArrowRightLeft, color: "text-sky-400" },
-  "/ai-briefing": { label: "AI 브리핑", icon: Sparkles, color: "text-indigo-400" },
-  "/facility-management": { label: "설비 관리 AI", icon: Wrench, color: "text-amber-400" },
-  "/finance-cashflow": { label: "자금/원가 AI", icon: Coins, color: "text-amber-400" },
-  "/production-plan": { label: "생산 계획 AI", icon: CalendarDays, color: "text-indigo-400" },
-  "/energy-management": { label: "에너지 관리 AI", icon: Zap, color: "text-amber-400" },
-  "/safety-detection": { label: "위험 감지 AI", icon: ShieldAlert, color: "text-red-400" },
-  "/scm-management": { label: "공급망 관리 AI", icon: Globe, color: "text-indigo-400" },
-  "/grant-management": { label: "지원금 신청 AI", icon: Award, color: "text-amber-400" },
-  "/labor-management": { label: "노무 관리 AI", icon: Scale, color: "text-red-400" },
-  "/lawyer-ai": { label: "법률 상담 AI", icon: Scale, color: "text-amber-400" },
-  "/credit-risk": { label: "채권 관리 AI", icon: CreditCard, color: "text-rose-400" },
-  "/password-ai": { label: "비밀번호관리 AI", icon: Key, color: "text-purple-400" },
-  "/rnd-management": { label: "연구소 관리 AI", icon: Award, color: "text-amber-400" },
-  "/rnd-manage": { label: "연구소 관리 AI", icon: Award, color: "text-amber-400" },
-  "/mail-management-ai": { label: "메일 관리 AI", icon: Mail, color: "text-cyan-400" },
-  "/form-management-new": { label: "양식 관리 AI", icon: ClipboardList, color: "text-emerald-500" },
-  "/meeting-minutes": { label: "회의 기록 AI", icon: Mic, color: "text-purple-400" },
-  "/import-customs": { label: "수입 통관 AI", icon: Truck, color: "text-indigo-455" },
-  "/m": { label: "임직원 모바일 포털", icon: Smartphone, color: "text-cyan-400" },
-  "/ai-settings": { label: "AI 비서 설정", icon: Bot, color: "text-indigo-400" }
-};
+import { MENU_STATIC_MAP } from '@/lib/menu-metadata';
 
 interface SidebarMenuProps {
   userRole: string;
 }
-
+ 
 interface MenuSettingItem {
   menu_href: string;
   is_enabled: number;
   sort_order: number;
 }
-
+ 
 export default function SidebarMenu({ userRole }: SidebarMenuProps) {
   const pathname = usePathname();
   
@@ -143,7 +41,7 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
       }
       return true;
     });
-
+ 
     // 중복 href 방어 가드 적용
     const seen = new Set<string>();
     return filtered.filter(item => {
@@ -152,7 +50,7 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
       return true;
     });
   };
-
+ 
   const [displayMenuItems, setDisplayMenuItems] = useState<any[]>(getInitialDefaultItems());
   const [hiddenHrefs, setHiddenHrefs] = useState<string[]>([]);
   
@@ -162,7 +60,7 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
   const [draggedOverIndex, setDraggedOverIndex] = useState<number | null>(null);
   const [pressTimer, setPressTimer] = useState<any>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
-
+ 
   // 활성화 메뉴 감지 도우미
   const isActive = (href: string) => {
     if (href === "/") {
@@ -170,16 +68,16 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
     }
     return pathname === href || pathname.startsWith(href + "/");
   };
-
+ 
   // 2. 동적 메뉴 데이터 가져오기 및 권한별 필터링/정렬 수행 함수
   const fetchAndApplyMenuSettings = async () => {
     try {
       const res = await apiFetch("/api/settings/menu");
       const data = await res.json();
-
+ 
       if (data.success && data.menuSettings) {
         const settings: MenuSettingItem[] = data.menuSettings;
-
+ 
         // DB 설정을 토대로 활성화 및 순서 결합
         const resolved = settings
           .filter(setting => {
@@ -203,7 +101,7 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
               sort_order: setting.sort_order
             };
           });
-
+ 
         // 중복 href 방어 가드 적용
         const seen = new Set<string>();
         const uniqueResolved = resolved.filter(item => {
@@ -211,21 +109,21 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
           seen.add(item.href);
           return true;
         });
-
+ 
         // sort_order 정렬 왜곡 방지를 위해 숫자 오름차순 정렬 강제 적용
         uniqueResolved.sort((a: any, b: any) => Number(a.sort_order || 0) - Number(b.sort_order || 0));
-
+ 
         setDisplayMenuItems(uniqueResolved);
       }
     } catch (e) {
       console.error("사이드바 메뉴 동적 로딩 실패, 로컬 폴백 유지:", e);
     }
   };
-
+ 
   // 3. 마운트 시 동작 및 실시간 이벤트 리스너 등록
   useEffect(() => {
     fetchAndApplyMenuSettings();
-
+ 
     // 로컬스토리지에서 숨긴 메뉴 목록 불러오기
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("egdesk_hidden_menus");
@@ -237,15 +135,15 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
         }
       }
     }
-
+ 
     // 최고관리자 카드 저장 시 실시간 동기화를 위한 이벤트 청취
     window.addEventListener("menu-settings-updated", fetchAndApplyMenuSettings);
-
+ 
     return () => {
       window.removeEventListener("menu-settings-updated", fetchAndApplyMenuSettings);
     };
   }, [userRole]);
-
+ 
   // 💡 메뉴 접근 시 최근 사용(Last Used) 타임스탬프 기록
   useEffect(() => {
     if (typeof window !== "undefined" && pathname) {
@@ -265,7 +163,7 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
       }
     }
   }, [pathname]);
-
+ 
   // ESC 키로 편집 모드 탈출
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -279,13 +177,13 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [isRearrangeMode]);
-
+ 
   // 롱 프레스 감지 핸들러
   const startPressTimer = (e: React.MouseEvent | React.TouchEvent) => {
     if (userRole !== "SUPER_ADMIN") return;
     if ("button" in e && e.button !== 0) return; // 좌클릭만 허용
     if (isRearrangeMode) return;
-
+ 
     const timer = setTimeout(() => {
       setIsRearrangeMode(true);
       if (typeof window !== "undefined" && window.navigator && window.navigator.vibrate) {
@@ -295,45 +193,45 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
     
     setPressTimer(timer);
   };
-
+ 
   const clearPressTimer = () => {
     if (pressTimer) {
       clearTimeout(pressTimer);
       setPressTimer(null);
     }
   };
-
+ 
   // 드래그 앤 드롭 핸들러
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = "move";
   };
-
+ 
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
     if (draggedIndex === null || draggedIndex === index) return;
     setDraggedOverIndex(index);
   };
-
+ 
   const handleDrop = (e: React.DragEvent, targetIndex: number) => {
     e.preventDefault();
     if (draggedIndex === null || draggedIndex === targetIndex) return;
-
+ 
     const updated = [...displayMenuItems];
     const draggedItem = updated[draggedIndex];
     updated.splice(draggedIndex, 1);
     updated.splice(targetIndex, 0, draggedItem);
-
+ 
     setDisplayMenuItems(updated);
     setDraggedIndex(null);
     setDraggedOverIndex(null);
   };
-
+ 
   const handleDragEnd = () => {
     setDraggedIndex(null);
     setDraggedOverIndex(null);
   };
-
+ 
   // DB에 새 순서 저장
   const saveMenuOrder = async () => {
     setIsSaving(true);
@@ -343,13 +241,13 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
         is_enabled: true,
         sort_order: (idx + 1) * 10
       }));
-
+ 
       const res = await apiFetch("/api/settings/menu", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ settings: mapped })
       });
-
+ 
       const data = await res.json();
       if (data.success) {
         window.dispatchEvent(new CustomEvent("menu-settings-updated"));
@@ -364,7 +262,7 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
       setIsRearrangeMode(false);
     }
   };
-
+ 
   // 메뉴 숨김 처리
   const hideMenu = (href: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -375,7 +273,7 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
       localStorage.setItem("egdesk_hidden_menus", JSON.stringify(next));
     }
   };
-
+ 
   // 메뉴 숨김 해제
   const unhideMenu = (href: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -386,16 +284,16 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
       localStorage.setItem("egdesk_hidden_menus", JSON.stringify(next));
     }
   };
-
+ 
   // 현재 노출할 메뉴와 숨김 메뉴 분리 (SUPER_ADMIN 권한만 숨김 필터링 적용)
   const visibleItems = userRole === "SUPER_ADMIN" 
     ? displayMenuItems.filter((item) => !hiddenHrefs.includes(item.href))
     : displayMenuItems;
-
+ 
   const hiddenItems = userRole === "SUPER_ADMIN"
     ? displayMenuItems.filter((item) => hiddenHrefs.includes(item.href))
     : [];
-
+ 
   return (
     <>
       <nav className="p-4 space-y-2 flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800/80 scrollbar-track-transparent">
@@ -418,13 +316,13 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
             </button>
           </div>
         )}
-
+ 
         {visibleItems.map((item, index) => {
           const active = isActive(item.href);
           const Icon = item.icon;
           const isDragged = draggedIndex === index;
           const isOver = draggedOverIndex === index;
-
+ 
           if (isRearrangeMode) {
             return (
               <div
@@ -452,7 +350,7 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
               </div>
             );
           }
-
+ 
           return (
             <Link
               key={item.href}
@@ -484,7 +382,7 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
             </Link>
           );
         })}
-
+ 
         {/* 숨겨진 메뉴함 (SUPER_ADMIN 최고관리자 전용) */}
         {userRole === "SUPER_ADMIN" && hiddenItems.length > 0 && (
           <div className="relative group/vault pt-2 mx-1 border-t border-slate-700/60 mt-4">
@@ -495,7 +393,7 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
               </div>
               <span className="text-[10px] text-slate-500 font-normal">호버하여 열기</span>
             </div>
-
+ 
             {/* 호버 시 팝업되어 위로 솟아오르는 숨김 메뉴 목록 */}
             <div className="absolute bottom-full left-0 right-0 pb-3 hidden group-hover/vault:block z-50">
               <div className="bg-slate-800/95 border border-slate-700 rounded-xl p-2 shadow-2xl backdrop-blur-md space-y-1 animate-fade-in max-w-[240px]">
@@ -512,7 +410,7 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
                         className="w-full flex items-center justify-between p-2 rounded-lg text-slate-300 hover:bg-slate-700 hover:text-white text-xs font-semibold text-left transition-colors border-none bg-transparent cursor-pointer"
                       >
                         <div className="flex items-center space-x-2.5 min-w-0">
-                          <HIcon className={`w-4 h-4 shrink-0 ${hItem.color}`} />
+                           <HIcon className={`w-4 h-4 shrink-0 ${hItem.color}`} />
                           <span className="truncate">{hItem.label}</span>
                         </div>
                         <Eye className="w-3.5 h-3.5 text-slate-500 hover:text-emerald-400 shrink-0 ml-2" />
@@ -541,7 +439,7 @@ export default function SidebarMenu({ userRole }: SidebarMenuProps) {
               <UserCog className={`w-5 h-5 shrink-0 ${isActive("/operators") ? "text-white" : "text-indigo-400"}`} />
               <span>직원 관리</span>
             </Link>
-
+ 
             <Link
               href="/my-db"
               className={`flex items-center space-x-3 p-3 rounded-lg transition-all ${

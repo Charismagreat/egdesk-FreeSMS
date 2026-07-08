@@ -608,6 +608,7 @@ export const COLUMN_DEFINITIONS = {
     { name: 'menu_href', type: 'TEXT', notNull: true },
     { name: 'is_enabled', type: 'INTEGER', notNull: true, defaultValue: 1 },
     { name: 'sort_order', type: 'INTEGER', notNull: true },
+    { name: 'tenant_id', type: 'TEXT' },
   ],
   system_mail_logs: [
     { name: 'id', type: 'TEXT', notNull: true },
