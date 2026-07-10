@@ -169,7 +169,8 @@ export async function POST(req: Request) {
         return {
           menu_href: href,
           is_enabled: val.is_enabled,
-          sort_order: val.sort_order
+          sort_order: val.sort_order,
+          _version: 1
         };
       }
 
@@ -178,7 +179,8 @@ export async function POST(req: Request) {
       return {
         menu_href: href,
         is_enabled: existing ? Number(existing.is_enabled) : 0,
-        sort_order: existing ? Number(existing.sort_order) : maxSortOrder
+        sort_order: existing ? Number(existing.sort_order) : maxSortOrder,
+        _version: 1
       };
     });
 
