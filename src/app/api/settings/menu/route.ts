@@ -25,7 +25,8 @@ export async function GET() {
       const insertData = DEFAULT_MENU_ITEMS.map((item, index) => ({
         menu_href: item.href,
         is_enabled: 1, // 최초에는 모두 활성화 상태
-        sort_order: (index + 1) * 10 // 10, 20, 30... 정렬 가중치 할당
+        sort_order: (index + 1) * 10, // 10, 20, 30... 정렬 가중치 할당
+        _version: 1
       }));
 
       await insertRows('system_menu_settings', insertData);
@@ -49,7 +50,8 @@ export async function GET() {
           return {
             menu_href: item.href,
             is_enabled: 1,
-            sort_order: maxOrder
+            sort_order: maxOrder,
+            _version: 1
           };
         });
 
